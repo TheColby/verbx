@@ -71,6 +71,9 @@ class ConvolutionReverbEngine(ReverbEngine):
         if self.ir is None:
              raise RuntimeError("Failed to load Impulse Response")
 
+        if audio.ndim == 1:
+            audio = audio[:, np.newaxis]
+
         n_samples, n_channels = audio.shape
         ir_len = len(self.ir)
         ir_channels = self.ir.shape[1]

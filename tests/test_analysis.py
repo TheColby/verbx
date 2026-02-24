@@ -8,6 +8,6 @@ def test_analyzer_stub():
     analyzer = AudioAnalyzer()
     audio = np.random.rand(1024)
     result = analyzer.analyze(audio, 44100)
-    assert "duration" in result
-    assert "rms" in result
-    assert "peak" in result
+    assert "duration_s" in result
+    assert "rms_dbfs" in result
+    assert "peak_dbfs" in result

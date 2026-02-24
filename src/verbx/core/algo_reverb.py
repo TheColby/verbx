@@ -263,6 +263,8 @@ class AlgoReverbEngine(ReverbEngine):
 
         # Ensure input is float32
         audio = audio.astype(np.float32)
+        if audio.ndim == 1:
+            audio = audio[:, np.newaxis]
         n_samples, n_channels = audio.shape
 
         # 1. Diffusion (Series Allpass)
