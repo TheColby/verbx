@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "verbx"
+version = "0.1.0"
+description = "Extreme ambient audio reverberator CLI"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+  { name = "Jules", email = "jules@example.com" },
+]
+dependencies = [
+  "typer>=0.9.0",
+  "rich>=13.0.0",
+  "numpy>=1.24.0",
+  "scipy>=1.10.0",
+  "soundfile>=0.12.0",
+  "librosa>=0.10.0",
+  "numba>=0.57.0",
+]
+
+[project.scripts]
+verbx = "verbx.cli:app"
+
+[tool.hatch.envs.default]
+dependencies = [
+  "pytest",
+  "ruff",
+  "pyright",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+ignore = ["E501", "N806"]
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
