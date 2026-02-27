@@ -6,7 +6,7 @@ repeat chaining, and rich input/output analysis.
 
 ## Status
 
-This repository now includes a **functional v0.1 DSP implementation** with typed, modular architecture.
+This repository now includes a **functional v0.2 DSP implementation** with typed, modular architecture.
 
 ## Features
 
@@ -18,6 +18,8 @@ This repository now includes a **functional v0.1 DSP implementation** with typed
 - FDN-based algorithmic extreme reverb with pre-diffusion and damping
 - Partitioned FFT convolution for long impulse responses
 - Freeze segment loop mode and repeat-pass safety conditioning
+- Loudness/peak targeting: LUFS normalization, sample peak and true-peak ceiling
+- Shimmer enhancement, ducking, bloom, and tilt EQ controls
 - Expanded analysis module with time/spectral/stereo metrics
 - Soundfile-based audio I/O, block iteration, normalization and limiting helpers
 - Rich logging and real render progress stages (read/process/write/analyze)
@@ -51,8 +53,14 @@ hatch run verbx render input.wav output.wav --engine conv --ir hall_ir.wav --par
 # Render with freeze and repeat chain
 hatch run verbx render input.wav output.wav --freeze --start 2.0 --end 4.0 --repeat 3
 
+# Render with LUFS/true-peak targets and ambient processing
+hatch run verbx render input.wav output.wav --target-lufs -18 --target-peak-dbfs -1 --true-peak --shimmer --duck --bloom 2.0 --tilt 1.5
+
 # Analyze file
 hatch run verbx analyze input.wav
+
+# Analyze with LUFS/true-peak/LRA metrics
+hatch run verbx analyze input.wav --lufs
 
 # Suggest settings
 hatch run verbx suggest input.wav
@@ -79,5 +87,4 @@ hatch run test
 
 ## Roadmap
 
-- v0.2: loudness/peak targets, shimmer, ducking, bloom, tilt EQ
 - v0.3: IR synthesis factory, caching, batch workflows, tempo sync

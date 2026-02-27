@@ -7,6 +7,7 @@ from typing import Literal
 
 EngineName = Literal["conv", "algo", "auto"]
 IRNormalize = Literal["peak", "rms", "none"]
+NormalizeStage = Literal["none", "post", "per-pass"]
 
 
 @dataclass(slots=True)
@@ -32,6 +33,26 @@ class RenderConfig:
     tail_limit: float | None = None
     threads: int | None = None
     partition_size: int = 16_384
+    target_lufs: float | None = None
+    target_peak_dbfs: float | None = None
+    use_true_peak: bool = True
+    limiter: bool = True
+    normalize_stage: NormalizeStage = "post"
+    repeat_target_lufs: float | None = None
+    repeat_target_peak_dbfs: float | None = None
+    shimmer: bool = False
+    shimmer_semitones: float = 12.0
+    shimmer_mix: float = 0.25
+    shimmer_feedback: float = 0.35
+    shimmer_highcut: float | None = 10_000.0
+    shimmer_lowcut: float | None = 300.0
+    duck: bool = False
+    duck_attack: float = 20.0
+    duck_release: float = 350.0
+    bloom: float = 0.0
+    lowcut: float | None = None
+    highcut: float | None = None
+    tilt: float = 0.0
     analysis_out: str | None = None
     silent: bool = False
     progress: bool = True

@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "verbx"
-version = "0.1.0"
-description = "Production-grade CLI scaffolding for extreme reverb processing workflows."
+version = "0.2.0"
+description = "Production-grade CLI for extreme reverb processing and analysis."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
@@ -17,6 +17,7 @@ dependencies = [
   "scipy>=1.11.0",
   "soundfile>=0.12.1",
   "librosa>=0.10.2",
+  "pyloudnorm>=0.1.1",
 ]
 
 [project.optional-dependencies]

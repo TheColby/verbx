@@ -8,6 +8,7 @@ import numpy as np
 import numpy.typing as npt
 
 from verbx.core.engine_base import ReverbEngine
+from verbx.core.shimmer import ShimmerConfig, ShimmerProcessor
 from verbx.io.audio import ensure_mono_or_stereo
 
 AudioArray = npt.NDArray[np.float32]
@@ -26,6 +27,12 @@ class AlgoReverbConfig:
     wet: float = 0.8
     dry: float = 0.2
     block_size: int = 4096
+    shimmer: bool = False
+    shimmer_semitones: float = 12.0
+    shimmer_mix: float = 0.25
+    shimmer_feedback: float = 0.35
+    shimmer_highcut: float | None = 10_000.0
+    shimmer_lowcut: float | None = 300.0
 
 
 @dataclass(slots=True)
@@ -47,6 +54,16 @@ class AlgoReverbEngine(ReverbEngine):
     def __init__(self, config: AlgoReverbConfig) -> None:
         self._config = config
         self._hadamard = self._build_hadamard_matrix(8)
+        self._shimmer = ShimmerProcessor(
+            ShimmerConfig(
+                enabled=config.shimmer,
+                semitones=config.shimmer_semitones,
+                mix=config.shimmer_mix,
+                feedback=config.shimmer_feedback,
+                highcut=config.shimmer_highcut,
+                lowcut=config.shimmer_lowcut,
+            )
+        )
 
     def process(self, audio: AudioArray, sr: int) -> AudioArray:
         """Process audio with pre-diffusion + late FDN and wet/dry mix."""
@@ -61,6 +78,9 @@ class AlgoReverbEngine(ReverbEngine):
 
         if n_channels == 2 and self._config.width != 1.0:
             wet = self._apply_stereo_width(wet, self._config.width)
+
+        if self._config.shimmer:
+            wet = self._shimmer.process(wet, sr)
 
         output = (self._config.dry * x) + (self._config.wet * wet)
         output = np.nan_to_num(output, nan=0.0, posinf=0.0, neginf=0.0)

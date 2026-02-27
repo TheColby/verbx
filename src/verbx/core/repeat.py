@@ -8,10 +8,10 @@ import numpy as np
 import numpy.typing as npt
 
 from verbx.core.engine_base import ReverbEngine
-from verbx.io.audio import peak_normalize, soft_limiter
 
 AudioArray = npt.NDArray[np.float32]
 ProgressCallback = Callable[[int, int], None]
+PassPostProcessor = Callable[[AudioArray, int, int], AudioArray]
 
 
 def repeat_process(
@@ -19,19 +19,17 @@ def repeat_process(
     audio: AudioArray,
     sr: int,
     n: int,
-    target_dbfs: float = -1.0,
-    limiter: bool = True,
+    post_pass_processor: PassPostProcessor | None = None,
     progress_callback: ProgressCallback | None = None,
 ) -> AudioArray:
-    """Apply engine processing repeatedly with safety conditioning."""
+    """Apply engine processing repeatedly with optional per-pass post processing."""
     passes = max(1, int(n))
     current = np.asarray(audio, dtype=np.float32)
 
     for idx in range(passes):
         current = engine.process(current, sr)
-        if limiter:
-            current = soft_limiter(current, threshold_dbfs=target_dbfs, knee_db=6.0)
-        current = peak_normalize(current, target_dbfs=target_dbfs)
+        if post_pass_processor is not None:
+            current = post_pass_processor(current, idx + 1, passes)
 
         if progress_callback is not None:
             progress_callback(idx + 1, passes)

@@ -11,7 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from verbx.analysis.analyzer import AudioAnalyzer
-from verbx.config import EngineName, IRNormalize, RenderConfig
+from verbx.config import EngineName, IRNormalize, NormalizeStage, RenderConfig
 from verbx.core.pipeline import run_render_pipeline
 from verbx.io.audio import read_audio, validate_audio_path
 from verbx.logging import configure_logging
@@ -49,6 +49,26 @@ def render(
     threads: int | None = typer.Option(None, "--threads", min=1),
     partition_size: int = typer.Option(16_384, "--partition-size", min=256),
     block_size: int = typer.Option(4096, "--block-size", min=256),
+    target_lufs: float | None = typer.Option(None, "--target-lufs"),
+    target_peak_dbfs: float | None = typer.Option(None, "--target-peak-dbfs"),
+    true_peak: bool = typer.Option(True, "--true-peak/--sample-peak"),
+    limiter: bool = typer.Option(True, "--limiter/--no-limiter"),
+    normalize_stage: NormalizeStage = typer.Option("post", "--normalize-stage"),
+    repeat_target_lufs: float | None = typer.Option(None, "--repeat-target-lufs"),
+    repeat_target_peak_dbfs: float | None = typer.Option(None, "--repeat-target-peak-dbfs"),
+    shimmer: bool = typer.Option(False, "--shimmer"),
+    shimmer_semitones: float = typer.Option(12.0, "--shimmer-semitones"),
+    shimmer_mix: float = typer.Option(0.25, "--shimmer-mix", min=0.0, max=1.0),
+    shimmer_feedback: float = typer.Option(0.35, "--shimmer-feedback", min=0.0, max=0.98),
+    shimmer_highcut: float | None = typer.Option(10_000.0, "--shimmer-highcut", min=10.0),
+    shimmer_lowcut: float | None = typer.Option(300.0, "--shimmer-lowcut", min=10.0),
+    duck: bool = typer.Option(False, "--duck"),
+    duck_attack: float = typer.Option(20.0, "--duck-attack", min=0.1),
+    duck_release: float = typer.Option(350.0, "--duck-release", min=0.1),
+    bloom: float = typer.Option(0.0, "--bloom", min=0.0),
+    lowcut: float | None = typer.Option(None, "--lowcut", min=10.0),
+    highcut: float | None = typer.Option(None, "--highcut", min=10.0),
+    tilt: float = typer.Option(0.0, "--tilt"),
     analysis_out: str | None = typer.Option(None, "--analysis-out"),
     silent: bool = typer.Option(False, "--silent", help="Disable analysis JSON + console output."),
     progress: bool = typer.Option(True, "--progress/--no-progress"),
@@ -74,6 +94,26 @@ def render(
         tail_limit=tail_limit,
         threads=threads,
         partition_size=partition_size,
+        target_lufs=target_lufs,
+        target_peak_dbfs=target_peak_dbfs,
+        use_true_peak=true_peak,
+        limiter=limiter,
+        normalize_stage=normalize_stage,
+        repeat_target_lufs=repeat_target_lufs,
+        repeat_target_peak_dbfs=repeat_target_peak_dbfs,
+        shimmer=shimmer,
+        shimmer_semitones=shimmer_semitones,
+        shimmer_mix=shimmer_mix,
+        shimmer_feedback=shimmer_feedback,
+        shimmer_highcut=shimmer_highcut,
+        shimmer_lowcut=shimmer_lowcut,
+        duck=duck,
+        duck_attack=duck_attack,
+        duck_release=duck_release,
+        bloom=bloom,
+        lowcut=lowcut,
+        highcut=highcut,
+        tilt=tilt,
         analysis_out=analysis_out,
         silent=silent,
         progress=progress,
@@ -98,6 +138,11 @@ def render(
     table.add_row("input_samples", str(report.get("input_samples", "")))
     table.add_row("output_samples", str(report.get("output_samples", "")))
     table.add_row("analysis_json", str(report.get("analysis_path", "")))
+    table.add_row("normalize_stage", normalize_stage)
+    if target_lufs is not None:
+        table.add_row("target_lufs", f"{target_lufs:.2f}")
+    if target_peak_dbfs is not None:
+        table.add_row("target_peak_dbfs", f"{target_peak_dbfs:.2f}")
     console.print(table)
 
 
@@ -105,12 +150,13 @@ def render(
 def analyze(
     infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
     json_out: Path | None = typer.Option(None, "--json-out", resolve_path=True),
+    lufs: bool = typer.Option(False, "--lufs", help="Include LUFS/true-peak/LRA metrics."),
 ) -> None:
     """Analyze an audio file and print a summary table."""
     validate_audio_path(str(infile))
     audio, sr = read_audio(str(infile))
     analyzer = AudioAnalyzer()
-    metrics = analyzer.analyze(audio, sr)
+    metrics = analyzer.analyze(audio, sr, include_loudness=lufs)
 
     table = Table(title=f"Analysis: {infile.name}")
     table.add_column("Metric", style="cyan")
@@ -151,11 +197,11 @@ def suggest(
     table.add_row("wet", f"{suggested_wet:.3f}")
     table.add_row("dry", f"{suggested_dry:.3f}")
     table.add_row("repeat", "2" if duration < 15.0 else "1")
-    table.add_row("pre-delay-ms", "25.0")
-    table.add_row("damping", "0.45")
-    table.add_row("width", "1.15")
-    table.add_row("mod-depth-ms", "2.0")
-    table.add_row("mod-rate-hz", "0.08")
+    table.add_row("target-lufs", "-18.0")
+    table.add_row("target-peak-dbfs", "-1.0")
+    table.add_row("normalize-stage", "post")
+    table.add_row("shimmer", "off")
+    table.add_row("duck", "off")
     console.print(table)
 
 

@@ -30,6 +30,7 @@ from verbx.analysis.features_time import (
     transient_density,
     zero_crossing_rate,
 )
+from verbx.core.loudness import integrated_lufs, loudness_range_lu, sample_peak_dbfs, true_peak_dbfs
 
 AudioArray = npt.NDArray[np.float32]
 
@@ -37,8 +38,10 @@ AudioArray = npt.NDArray[np.float32]
 class AudioAnalyzer:
     """Analyze audio and return a dictionary of typed metrics."""
 
-    def analyze(self, audio: AudioArray, sr: int) -> dict[str, float]:
-        """Return baseline and extended analysis metrics for CLI consumption."""
+    def analyze(
+        self, audio: AudioArray, sr: int, include_loudness: bool = False
+    ) -> dict[str, float]:
+        """Return analysis metrics for CLI consumption."""
         channel_rms = np.sqrt(np.mean(np.square(audio), axis=0, dtype=np.float64))
 
         result: dict[str, float] = {
@@ -49,6 +52,7 @@ class AudioAnalyzer:
             "rms_dbfs": rms_dbfs(audio),
             "peak": peak(audio),
             "peak_dbfs": peak_dbfs(audio),
+            "sample_peak_dbfs": sample_peak_dbfs(audio),
             "crest_factor": crest_factor(audio),
             "dc_offset": dc_offset(audio),
             "dynamic_range": dynamic_range(audio),
@@ -68,6 +72,11 @@ class AudioAnalyzer:
             "stereo_correlation": stereo_correlation(audio),
             "stereo_width": stereo_width(audio),
         }
+
+        if include_loudness:
+            result["integrated_lufs"] = integrated_lufs(audio, sr)
+            result["true_peak_dbfs"] = true_peak_dbfs(audio, sr, oversample=4)
+            result["lra"] = loudness_range_lu(audio, sr)
 
         for idx, value in enumerate(channel_rms.tolist(), start=1):
             result[f"channel_{idx}_rms"] = float(value)

@@ -59,3 +59,14 @@ def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
     assert "input" in payload
     assert "output" in payload
     assert payload["engine"] == "algo"
+
+
+def test_analyze_lufs_mode(tmp_path: Path) -> None:
+    audio = np.zeros((4096, 2), dtype=np.float32)
+    audio[64:512, :] = 0.2
+    infile = tmp_path / "analyze.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(app, ["analyze", str(infile), "--lufs"])
+    assert result.exit_code == 0
+    assert "integrated_lufs" in result.stdout

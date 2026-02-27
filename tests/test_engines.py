@@ -21,6 +21,12 @@ def test_algo_engine_stable_and_typed() -> None:
             wet=0.7,
             dry=0.3,
             block_size=512,
+            shimmer=True,
+            shimmer_semitones=7.0,
+            shimmer_mix=0.3,
+            shimmer_feedback=0.25,
+            shimmer_lowcut=200.0,
+            shimmer_highcut=8000.0,
         )
     )
     audio = np.random.default_rng(0).standard_normal((4096, 2)).astype(np.float32) * 0.1
