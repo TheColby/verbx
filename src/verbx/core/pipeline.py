@@ -12,6 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from verbx.analysis.analyzer import AudioAnalyzer
+from verbx.analysis.framewise import write_framewise_csv
 from verbx.config import NormalizeStage, RenderConfig
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
 from verbx.core.ambient import apply_ambient_processing
@@ -28,6 +29,7 @@ from verbx.io.audio import (
     write_audio,
 )
 from verbx.io.progress import RenderProgress
+from verbx.ir.generator import IRGenConfig, generate_or_load_cached_ir
 
 AudioArray = npt.NDArray[np.float32]
 PassProcessor = Callable[[AudioArray, int, int], AudioArray]
@@ -41,27 +43,28 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
         audio, sr = read_audio(str(infile))
         progress.mark_read()
 
-        engine_name, engine = _resolve_engine(config)
+        runtime_config, ir_runtime = _prepare_runtime_config(config, sr, audio.shape[1])
+        engine_name, engine = _resolve_engine(runtime_config)
         progress.set_passes(max(1, config.repeat))
 
         input_for_engine = audio
-        if config.freeze:
+        if runtime_config.freeze:
             input_for_engine = freeze_segment(
                 audio=audio,
                 sr=sr,
-                start=config.start,
-                end=config.end,
+                start=runtime_config.start,
+                end=runtime_config.end,
                 mode="loop",
                 xfade_ms=100.0,
             )
 
-        repeat_post_processor = _build_per_pass_processor(config, sr)
+        repeat_post_processor = _build_per_pass_processor(runtime_config, sr)
 
         rendered = repeat_process(
             engine=engine,
             audio=input_for_engine,
             sr=sr,
-            n=config.repeat,
+            n=runtime_config.repeat,
             post_pass_processor=repeat_post_processor,
             progress_callback=lambda idx, total: progress.mark_process_pass(idx),
         )
@@ -70,25 +73,25 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             wet=rendered,
             dry_reference=input_for_engine,
             sr=sr,
-            duck=config.duck,
-            duck_attack=config.duck_attack,
-            duck_release=config.duck_release,
-            bloom=config.bloom,
-            lowcut=config.lowcut,
-            highcut=config.highcut,
-            tilt=config.tilt,
+            duck=runtime_config.duck,
+            duck_attack=runtime_config.duck_attack,
+            duck_release=runtime_config.duck_release,
+            bloom=runtime_config.bloom,
+            lowcut=runtime_config.lowcut,
+            highcut=runtime_config.highcut,
+            tilt=runtime_config.tilt,
         )
 
-        if config.normalize_stage == "post":
+        if runtime_config.normalize_stage == "post":
             rendered = apply_output_targets(
                 rendered,
                 sr,
-                target_lufs=config.target_lufs,
-                target_peak_dbfs=config.target_peak_dbfs,
-                limiter=config.limiter,
-                use_true_peak=config.use_true_peak,
+                target_lufs=runtime_config.target_lufs,
+                target_peak_dbfs=runtime_config.target_peak_dbfs,
+                limiter=runtime_config.limiter,
+                use_true_peak=runtime_config.use_true_peak,
             )
-        elif config.normalize_stage == "none" and config.limiter:
+        elif runtime_config.normalize_stage == "none" and runtime_config.limiter:
             rendered = soft_limiter(rendered, threshold_dbfs=-1.0, knee_db=6.0)
             rendered = peak_normalize(rendered, target_dbfs=-1.0)
 
@@ -101,21 +104,66 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             "input_samples": int(audio.shape[0]),
             "output_samples": int(rendered.shape[0]),
             "channels": int(rendered.shape[1]),
-            "config": asdict(config),
+            "config": asdict(runtime_config),
         }
+        if ir_runtime is not None:
+            report["ir_runtime"] = ir_runtime
 
-        if not config.silent:
-            include_loudness = _should_include_loudness(config)
+        if not runtime_config.silent:
+            include_loudness = _should_include_loudness(runtime_config)
             analyzer = AudioAnalyzer()
             report["input"] = analyzer.analyze(audio, sr, include_loudness=include_loudness)
             report["output"] = analyzer.analyze(rendered, sr, include_loudness=include_loudness)
-            analysis_path = _resolve_analysis_path(outfile, config.analysis_out)
+            analysis_path = _resolve_analysis_path(outfile, runtime_config.analysis_out)
             analysis_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
             report["analysis_path"] = str(analysis_path)
+            if runtime_config.frames_out is not None:
+                frames_path = Path(runtime_config.frames_out)
+                write_framewise_csv(frames_path, rendered, sr)
+                report["frames_path"] = str(frames_path)
 
         progress.mark_analyze()
 
     return report
+
+
+def _prepare_runtime_config(
+    config: RenderConfig, sr: int, input_channels: int
+) -> tuple[RenderConfig, dict[str, Any] | None]:
+    runtime = config
+    ir_runtime: dict[str, Any] | None = None
+
+    if config.ir_gen:
+        ir_cfg = IRGenConfig(
+            mode=config.ir_gen_mode,
+            length=config.ir_gen_length,
+            sr=sr,
+            channels=max(1, input_channels),
+            seed=config.ir_gen_seed,
+            rt60=config.rt60,
+            damping=config.damping,
+            lowcut=config.lowcut,
+            highcut=config.highcut,
+            tilt=config.tilt,
+            target_lufs=config.target_lufs,
+            true_peak=config.use_true_peak,
+            mod_depth_ms=config.mod_depth_ms,
+            mod_rate_hz=config.mod_rate_hz,
+        )
+        cache_dir = Path(config.ir_gen_cache_dir)
+        _, _, meta, wav_path, cache_hit = generate_or_load_cached_ir(ir_cfg, cache_dir=cache_dir)
+        runtime = RenderConfig(**asdict(config))
+        runtime.ir = str(wav_path)
+        if runtime.engine == "auto":
+            runtime.engine = "conv"
+        ir_runtime = {
+            "mode": config.ir_gen_mode,
+            "cache_hit": cache_hit,
+            "ir_path": str(wav_path),
+            "meta": meta,
+        }
+
+    return runtime, ir_runtime
 
 
 def _resolve_engine(config: RenderConfig) -> tuple[str, ReverbEngine]:

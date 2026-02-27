@@ -6,7 +6,7 @@ repeat chaining, and rich input/output analysis.
 
 ## Status
 
-This repository now includes a **functional v0.2 DSP implementation** with typed, modular architecture.
+This repository now includes a **functional v0.3 DSP implementation** with typed, modular architecture.
 
 ## Features
 
@@ -20,6 +20,9 @@ This repository now includes a **functional v0.2 DSP implementation** with typed
 - Freeze segment loop mode and repeat-pass safety conditioning
 - Loudness/peak targeting: LUFS normalization, sample peak and true-peak ceiling
 - Shimmer enhancement, ducking, bloom, and tilt EQ controls
+- IR synthesis factory (`verbx ir`) with deterministic cache and metadata
+- Batch rendering manifests and cache management commands
+- Tempo-synced pre-delay note parsing (`--pre-delay 1/8D --bpm 120`)
 - Expanded analysis module with time/spectral/stereo metrics
 - Soundfile-based audio I/O, block iteration, normalization and limiting helpers
 - Rich logging and real render progress stages (read/process/write/analyze)
@@ -62,6 +65,17 @@ hatch run verbx analyze input.wav
 # Analyze with LUFS/true-peak/LRA metrics
 hatch run verbx analyze input.wav --lufs
 
+# Generate and analyze long IRs
+hatch run verbx ir gen irs/hybrid_120.wav --mode hybrid --length 120 --seed 42
+hatch run verbx ir analyze irs/hybrid_120.wav
+
+# Auto-generate cached IR during render
+hatch run verbx render input.wav output.wav --ir-gen --ir-gen-mode hybrid --ir-gen-length 120 --ir-gen-seed 7
+
+# Batch workflow
+hatch run verbx batch template > manifest.json
+hatch run verbx batch render manifest.json --jobs 4
+
 # Suggest settings
 hatch run verbx suggest input.wav
 
@@ -83,8 +97,19 @@ hatch run test
 - `src/verbx/core/`: Reverb engines and processing helpers
 - `src/verbx/analysis/`: Time and spectral feature extraction
 - `src/verbx/io/`: Audio I/O and progress reporting
+- `src/verbx/ir/`: IR generation modes, shaping, metrics, and cache orchestration
 - `tests/`: CLI and module-level tests
+
+## IR Guide
+
+- [IR synthesis recipes](docs/IR_SYNTHESIS.md)
+
+## Audio Examples
+
+- [Dry click](examples/audio/dry_click.wav)
+- [Hybrid IR (short)](examples/audio/hybrid_ir_short.wav)
+- [Dry click reverbed](examples/audio/dry_click_reverbed.wav)
 
 ## Roadmap
 
-- v0.3: IR synthesis factory, caching, batch workflows, tempo sync
+- v0.4: framewise modulation analysis, advanced IR fitting heuristics, parallel batch scheduler

@@ -30,3 +30,4 @@ htmlcov/
 
 # Audio outputs and analysis artifacts
 *.analysis.json
+.verbx_cache/

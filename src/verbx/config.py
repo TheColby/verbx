@@ -8,6 +8,7 @@ from typing import Literal
 EngineName = Literal["conv", "algo", "auto"]
 IRNormalize = Literal["peak", "rms", "none"]
 NormalizeStage = Literal["none", "post", "per-pass"]
+IRMode = Literal["fdn", "stochastic", "modal", "hybrid"]
 
 
 @dataclass(slots=True)
@@ -33,6 +34,11 @@ class RenderConfig:
     tail_limit: float | None = None
     threads: int | None = None
     partition_size: int = 16_384
+    ir_gen: bool = False
+    ir_gen_mode: IRMode = "hybrid"
+    ir_gen_length: float = 60.0
+    ir_gen_seed: int = 0
+    ir_gen_cache_dir: str = ".verbx_cache/irs"
     target_lufs: float | None = None
     target_peak_dbfs: float | None = None
     use_true_peak: bool = True
@@ -53,6 +59,9 @@ class RenderConfig:
     lowcut: float | None = None
     highcut: float | None = None
     tilt: float = 0.0
+    bpm: float | None = None
+    pre_delay_note: str | None = None
+    frames_out: str | None = None
     analysis_out: str | None = None
     silent: bool = False
     progress: bool = True

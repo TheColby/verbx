@@ -19,6 +19,9 @@ def test_cli_boots() -> None:
     assert "analyze" in result.stdout
     assert "presets" in result.stdout
     assert "suggest" in result.stdout
+    assert "ir" in result.stdout
+    assert "cache" in result.stdout
+    assert "batch" in result.stdout
 
 
 def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
