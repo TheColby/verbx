@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Hatch
+        run: python -m pip install --upgrade pip hatch
+
+      - name: Ruff
+        run: hatch run lint
+
+      - name: Pyright
+        run: hatch run typecheck
+
+      - name: Pytest
+        run: hatch run test

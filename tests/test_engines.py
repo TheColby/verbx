@@ -1,0 +1,66 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import numpy as np
+import soundfile as sf
+
+from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
+from verbx.core.convolution_reverb import ConvolutionReverbConfig, ConvolutionReverbEngine
+
+
+def test_algo_engine_stable_and_typed() -> None:
+    engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=80.0,
+            pre_delay_ms=12.0,
+            damping=0.5,
+            width=1.0,
+            mod_depth_ms=1.5,
+            mod_rate_hz=0.08,
+            wet=0.7,
+            dry=0.3,
+            block_size=512,
+        )
+    )
+    audio = np.random.default_rng(0).standard_normal((4096, 2)).astype(np.float32) * 0.1
+
+    output = engine.process(audio, sr=48_000)
+
+    assert isinstance(output, np.ndarray)
+    assert output.shape == audio.shape
+    assert output.dtype == np.float32
+    assert np.all(np.isfinite(output))
+
+
+def test_convolution_engine_partitioned_fft(tmp_path: Path) -> None:
+    rng = np.random.default_rng(1)
+    audio = (rng.standard_normal((2048, 2)).astype(np.float32)) * 0.05
+
+    ir = np.zeros((1024, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+    ir[200, 0] = 0.45
+    ir[700, 0] = 0.2
+
+    ir_path = tmp_path / "ir.wav"
+    sf.write(str(ir_path), ir, 48_000)
+
+    engine = ConvolutionReverbEngine(
+        ConvolutionReverbConfig(
+            wet=0.8,
+            dry=0.2,
+            ir_path=str(ir_path),
+            ir_normalize="none",
+            partition_size=512,
+            tail_limit=None,
+            threads=None,
+        )
+    )
+
+    output = engine.process(audio, sr=48_000)
+
+    assert isinstance(output, np.ndarray)
+    assert output.dtype == np.float32
+    assert output.shape[1] == audio.shape[1]
+    assert output.shape[0] >= audio.shape[0]
+    assert np.all(np.isfinite(output))
