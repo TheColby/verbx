@@ -110,6 +110,28 @@ hatch run test
 - [Hybrid IR (short)](examples/audio/hybrid_ir_short.wav)
 - [Dry click reverbed](examples/audio/dry_click_reverbed.wav)
 
+## Pregenerated IRs
+
+- [IRs folder](IRs/) with several long IRs in the 60s–360s range.
+- [IRs README](IRs/README.md) describes included files and metadata sidecars.
+
+### Generate 25 varied IRs
+
+```bash
+# Python generator
+./scripts/generate_ir_bank.py --out IRs/generated_25 --count 25 --sr 12000 --channels 2 --format flac
+
+# Bash generator (CLI-driven)
+./scripts/generate_ir_bank.sh IRs/generated_25_cli 25 flac
+
+# Direct IR generation with explicit output format
+hatch run verbx ir gen IRs/my_ir --mode hybrid --length 120 --format wav
+
+# Tune IR with explicit fundamental or input analysis
+hatch run verbx ir gen IRs/my_tuned_ir.wav --mode modal --f0 "64 Hz"
+hatch run verbx ir gen IRs/my_auto_tuned_ir.wav --mode hybrid --analyze-input source.wav
+```
+
 ## Roadmap
 
 - v0.4: framewise modulation analysis, advanced IR fitting heuristics, parallel batch scheduler

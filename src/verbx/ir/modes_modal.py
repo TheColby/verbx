@@ -7,6 +7,8 @@ import re
 import numpy as np
 import numpy.typing as npt
 
+from verbx.ir.tuning import tune_frequency_to_targets
+
 AudioArray = npt.NDArray[np.float32]
 
 _TUNING_RE = re.compile(r"^\s*A4\s*=\s*([0-9]+(?:\.[0-9]+)?)\s*$", re.IGNORECASE)
@@ -32,6 +34,9 @@ def generate_modal_ir(
     modal_spread_cents: float,
     modal_low_hz: float,
     modal_high_hz: float,
+    f0_hz: float | None = None,
+    harmonic_targets_hz: tuple[float, ...] = (),
+    align_strength: float = 0.7,
 ) -> AudioArray:
     """Generate deterministic modal-bank IR."""
     rng = np.random.default_rng(seed)
@@ -56,6 +61,13 @@ def generate_modal_ir(
         cents = float(rng.uniform(-spread, spread))
         freq *= 2.0 ** (cents / 1200.0)
         freq *= base_ref
+        freq = tune_frequency_to_targets(
+            freq_hz=freq,
+            f0_hz=f0_hz,
+            harmonic_targets_hz=harmonic_targets_hz,
+            align_strength=align_strength,
+            max_hz=high_hz,
+        )
 
         q = float(rng.uniform(q_min, q_max))
         tau_q = q / (np.pi * max(freq, 1.0))

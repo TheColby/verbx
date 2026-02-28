@@ -13,6 +13,15 @@
 # Generate a 120s hybrid IR
 hatch run verbx ir gen irs/wash_120.wav --mode hybrid --length 120 --seed 42 --rt60 90
 
+# Override output container format via switch
+hatch run verbx ir gen irs/wash_120 --mode hybrid --length 120 --format flac
+
+# Force musical anchor (fundamental)
+hatch run verbx ir gen irs/wash_120.wav --mode modal --length 120 --f0 "64 Hz"
+
+# Auto-tune IR to an input file's detected fundamentals/harmonics
+hatch run verbx ir gen irs/tuned_from_input.wav --mode hybrid --analyze-input source.wav
+
 # Analyze generated IR
 hatch run verbx ir analyze irs/wash_120.wav
 

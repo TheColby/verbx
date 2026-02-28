@@ -18,6 +18,7 @@ from verbx.ir.modes_fdn import generate_fdn_ir
 from verbx.ir.modes_modal import generate_modal_ir
 from verbx.ir.modes_stochastic import generate_stochastic_ir
 from verbx.ir.shaping import apply_ir_shaping
+from verbx.ir.tuning import apply_harmonic_alignment
 
 AudioArray = npt.NDArray[np.float32]
 IRMode = Literal["fdn", "stochastic", "modal", "hybrid"]
@@ -69,6 +70,10 @@ class IRGenConfig:
     fdn_matrix: str = "hadamard"
     fdn_stereo_inject: float = 1.0
 
+    f0_hz: float | None = None
+    harmonic_targets_hz: tuple[float, ...] = ()
+    harmonic_align_strength: float = 0.75
+
 
 def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
     """Generate IR and return audio, sample rate, and metadata."""
@@ -115,6 +120,9 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             modal_spread_cents=config.modal_spread_cents,
             modal_low_hz=config.modal_low_hz,
             modal_high_hz=config.modal_high_hz,
+            f0_hz=config.f0_hz,
+            harmonic_targets_hz=config.harmonic_targets_hz,
+            align_strength=config.harmonic_align_strength,
         )
     else:
         # Hybrid: early reflections + blended stochastic/modal/fdn tails.
@@ -154,6 +162,9 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             modal_spread_cents=config.modal_spread_cents,
             modal_low_hz=config.modal_low_hz,
             modal_high_hz=config.modal_high_hz,
+            f0_hz=config.f0_hz,
+            harmonic_targets_hz=config.harmonic_targets_hz,
+            align_strength=config.harmonic_align_strength,
         )
         fdn = generate_fdn_ir(
             length_samples=length_samples,
@@ -173,6 +184,14 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
         early_len = min(early.shape[0], ir.shape[0])
         ir[:early_len, :] += early[:early_len, :]
         ir = np.asarray(ir, dtype=np.float32)
+
+    ir = apply_harmonic_alignment(
+        ir=ir,
+        sr=config.sr,
+        f0_hz=config.f0_hz,
+        harmonic_targets_hz=config.harmonic_targets_hz,
+        strength=config.harmonic_align_strength,
+    )
 
     shaped = apply_ir_shaping(
         ir,

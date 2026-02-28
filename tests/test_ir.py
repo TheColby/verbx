@@ -51,6 +51,102 @@ def test_ir_gen_writes_wav_and_meta(tmp_path: Path) -> None:
     assert payload["mode"] == "hybrid"
 
 
+def test_ir_gen_format_switch_overrides_extension(tmp_path: Path) -> None:
+    out_base = tmp_path / "custom_name.placeholder"
+    expected = out_base.with_suffix(".aiff")
+
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_base),
+            "--format",
+            "aiff",
+            "--mode",
+            "fdn",
+            "--length",
+            "0.5",
+            "--sr",
+            "8000",
+            "--channels",
+            "1",
+            "--seed",
+            "17",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert expected.exists()
+    audio, sr = sf.read(str(expected), always_2d=True, dtype="float32")
+    assert sr == 8000
+    assert audio.shape[1] == 1
+
+
+def test_ir_gen_with_explicit_f0(tmp_path: Path) -> None:
+    out_ir = tmp_path / "with_f0.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "modal",
+            "--length",
+            "0.6",
+            "--sr",
+            "12000",
+            "--channels",
+            "1",
+            "--f0",
+            "64 Hz",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    meta_path = out_ir.with_suffix(".wav.ir.meta.json")
+    payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    params = payload["params"]
+    assert abs(float(params["f0_hz"]) - 64.0) < 1e-6
+
+
+def test_ir_gen_analyze_input_tuning(tmp_path: Path) -> None:
+    sr = 16000
+    t = np.arange(sr, dtype=np.float32) / sr
+    src = (0.4 * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float32)[:, np.newaxis]
+    in_wav = tmp_path / "source.wav"
+    sf.write(str(in_wav), src, sr)
+
+    out_ir = tmp_path / "tuned_ir.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "hybrid",
+            "--length",
+            "0.8",
+            "--sr",
+            "16000",
+            "--channels",
+            "1",
+            "--analyze-input",
+            str(in_wav),
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    meta_path = out_ir.with_suffix(".wav.ir.meta.json")
+    payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    params = payload["params"]
+    assert float(params["f0_hz"]) > 150.0
+    assert float(params["f0_hz"]) < 300.0
+    assert len(params["harmonic_targets_hz"]) >= 3
+
+
 def test_ir_cache_hit(tmp_path: Path) -> None:
     cfg = IRGenConfig(mode="stochastic", length=0.5, sr=8000, channels=1, seed=7)
 

@@ -22,8 +22,11 @@ from verbx.io.audio import read_audio, validate_audio_path
 from verbx.ir.generator import IRGenConfig, generate_or_load_cached_ir, write_ir_artifacts
 from verbx.ir.metrics import analyze_ir
 from verbx.ir.shaping import apply_ir_shaping
+from verbx.ir.tuning import analyze_audio_for_tuning, parse_frequency_hz
 from verbx.logging import configure_logging
 from verbx.presets.default_presets import preset_names
+
+IRFileFormat = Literal["auto", "wav", "flac", "aiff", "aif", "ogg", "caf"]
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -259,6 +262,7 @@ def list_presets() -> None:
 @ir_app.command("gen")
 def ir_gen(
     out_ir: Path = typer.Argument(..., resolve_path=True),
+    out_format: IRFileFormat = typer.Option("auto", "--format"),
     mode: IRMode = typer.Option("hybrid", "--mode"),
     length: float = typer.Option(60.0, "--length", min=0.1),
     sr: int = typer.Option(48_000, "--sr", min=8_000),
@@ -294,10 +298,37 @@ def ir_gen(
     fdn_lines: int = typer.Option(8, "--fdn-lines", min=1),
     fdn_matrix: str = typer.Option("hadamard", "--fdn-matrix"),
     fdn_stereo_inject: float = typer.Option(1.0, "--fdn-stereo-inject", min=0.0, max=1.0),
+    f0: str | None = typer.Option(None, "--f0", help="e.g. 64, 64Hz, or 64 Hz"),
+    analyze_input: Path | None = typer.Option(
+        None,
+        "--analyze-input",
+        exists=True,
+        readable=True,
+        resolve_path=True,
+        help="Input audio to estimate fundamentals/harmonics for IR tuning",
+    ),
+    harmonic_align_strength: float = typer.Option(
+        0.75, "--harmonic-align-strength", min=0.0, max=1.0
+    ),
     cache_dir: str = typer.Option(".verbx_cache/irs", "--cache-dir"),
     silent: bool = typer.Option(False, "--silent"),
 ) -> None:
     """Generate an IR file with deterministic caching."""
+    f0_hz: float | None = None
+    harmonic_targets_hz: tuple[float, ...] = ()
+
+    if f0 is not None:
+        try:
+            f0_hz = parse_frequency_hz(f0)
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+
+    if analyze_input is not None:
+        est_f0, harmonics = analyze_audio_for_tuning(analyze_input)
+        if f0_hz is None:
+            f0_hz = est_f0
+        harmonic_targets_hz = tuple(harmonics)
+
     cfg = IRGenConfig(
         mode=mode,
         length=length,
@@ -334,13 +365,18 @@ def ir_gen(
         fdn_lines=fdn_lines,
         fdn_matrix=fdn_matrix,
         fdn_stereo_inject=fdn_stereo_inject,
+        f0_hz=f0_hz,
+        harmonic_targets_hz=harmonic_targets_hz,
+        harmonic_align_strength=harmonic_align_strength,
     )
+
+    resolved_out_ir = _resolve_ir_output_path(out_ir, out_format)
 
     audio, out_sr, meta, cache_path, cache_hit = generate_or_load_cached_ir(
         cfg,
         cache_dir=Path(cache_dir),
     )
-    write_ir_artifacts(out_ir, audio, out_sr, meta, silent=silent)
+    write_ir_artifacts(resolved_out_ir, audio, out_sr, meta, silent=silent)
 
     if silent:
         return
@@ -349,11 +385,17 @@ def ir_gen(
     table.add_column("Field", style="cyan")
     table.add_column("Value", style="white")
     table.add_row("mode", mode)
-    table.add_row("out_ir", str(out_ir))
+    table.add_row("out_ir", str(resolved_out_ir))
+    table.add_row("format", out_format)
     table.add_row("cache_path", str(cache_path))
     table.add_row("cache_hit", str(cache_hit))
     table.add_row("duration_s", f"{audio.shape[0] / out_sr:.2f}")
     table.add_row("channels", str(audio.shape[1]))
+    if f0_hz is not None:
+        table.add_row("f0_hz", f"{f0_hz:.3f}")
+    if analyze_input is not None:
+        table.add_row("analyze_input", str(analyze_input))
+        table.add_row("harmonics_detected", str(len(harmonic_targets_hz)))
     console.print(table)
 
 
@@ -580,6 +622,15 @@ def _render_config_from_options(options: dict[str, Any]) -> RenderConfig:
         filtered["pre_delay_ms"] = parse_pre_delay_ms(pre_delay_note, resolved_bpm, fallback_ms)
 
     return RenderConfig(**filtered)
+
+
+def _resolve_ir_output_path(out_ir: Path, out_format: IRFileFormat) -> Path:
+    """Resolve output IR path based on explicit format switch."""
+    if out_format == "auto":
+        return out_ir if out_ir.suffix else out_ir.with_suffix(".wav")
+
+    suffix = ".aiff" if out_format == "aiff" else f".{out_format}"
+    return out_ir.with_suffix(suffix)
 
 
 if __name__ == "__main__":
