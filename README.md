@@ -619,6 +619,184 @@ When incompatible options are requested, `verbx` falls back to full-buffer proce
 - Use `--jobs` near CPU core count for throughput.
 - Use `--dry-run` to validate manifests before rendering.
 
+## CLI Switch Reference
+
+This section lists all CLI switches available in the current `v0.4` interface.
+For full descriptions and defaults, run `verbx <command> --help`.
+
+### Top-level commands
+
+- `verbx render INFILE OUTFILE`
+- `verbx analyze INFILE`
+- `verbx suggest INFILE`
+- `verbx presets`
+- `verbx ir ...`
+- `verbx cache ...`
+- `verbx batch ...`
+
+### `verbx render` switches
+
+- `--engine`
+- `--rt60`
+- `--wet`
+- `--dry`
+- `--repeat`
+- `--freeze`
+- `--start`
+- `--end`
+- `--pre-delay-ms`
+- `--pre-delay`
+- `--bpm`
+- `--damping`
+- `--width`
+- `--mod-depth-ms`
+- `--mod-rate-hz`
+- `--ir`
+- `--ir-normalize`
+- `--ir-matrix-layout`
+- `--tail-limit`
+- `--threads`
+- `--device`
+- `--partition-size`
+- `--ir-gen`
+- `--ir-gen-mode`
+- `--ir-gen-length`
+- `--ir-gen-seed`
+- `--ir-gen-cache-dir`
+- `--block-size`
+- `--target-lufs`
+- `--target-peak-dbfs`
+- `--true-peak / --sample-peak`
+- `--limiter / --no-limiter`
+- `--normalize-stage`
+- `--repeat-target-lufs`
+- `--repeat-target-peak-dbfs`
+- `--out-subtype`
+- `--output-peak-norm`
+- `--output-peak-target-dbfs`
+- `--shimmer`
+- `--shimmer-semitones`
+- `--shimmer-mix`
+- `--shimmer-feedback`
+- `--shimmer-highcut`
+- `--shimmer-lowcut`
+- `--duck`
+- `--duck-attack`
+- `--duck-release`
+- `--bloom`
+- `--lowcut`
+- `--highcut`
+- `--tilt`
+- `--frames-out`
+- `--analysis-out`
+- `--silent`
+- `--progress / --no-progress`
+
+### `verbx analyze` switches
+
+- `--json-out`
+- `--lufs`
+- `--frames-out`
+
+### `verbx suggest` switches
+
+- No command-specific switches.
+
+### `verbx presets` switches
+
+- No command-specific switches.
+
+### `verbx ir gen OUT_IR` switches
+
+- `--format`
+- `--mode`
+- `--length`
+- `--sr`
+- `--channels`
+- `--seed`
+- `--rt60`
+- `--rt60-low`
+- `--rt60-high`
+- `--damping`
+- `--lowcut`
+- `--highcut`
+- `--tilt`
+- `--normalize`
+- `--peak-dbfs`
+- `--target-lufs`
+- `--true-peak / --sample-peak`
+- `--er-count`
+- `--er-max-delay-ms`
+- `--er-decay-shape`
+- `--er-stereo-width`
+- `--er-room`
+- `--diffusion`
+- `--mod-depth-ms`
+- `--mod-rate-hz`
+- `--density`
+- `--tuning`
+- `--modal-count`
+- `--modal-q-min`
+- `--modal-q-max`
+- `--modal-spread-cents`
+- `--modal-low-hz`
+- `--modal-high-hz`
+- `--fdn-lines`
+- `--fdn-matrix`
+- `--fdn-stereo-inject`
+- `--f0`
+- `--analyze-input`
+- `--harmonic-align-strength`
+- `--cache-dir`
+- `--silent`
+
+### `verbx ir analyze IR_FILE` switches
+
+- `--json-out`
+
+### `verbx ir process IN_IR OUT_IR` switches
+
+- `--damping`
+- `--lowcut`
+- `--highcut`
+- `--tilt`
+- `--normalize`
+- `--peak-dbfs`
+- `--target-lufs`
+- `--true-peak / --sample-peak`
+- `--silent`
+
+### `verbx ir fit INFILE OUT_IR` switches
+
+- `--top-k`
+- `--base-mode`
+- `--length`
+- `--seed`
+- `--candidate-pool`
+- `--fit-workers`
+- `--analyze-tuning / --no-analyze-tuning`
+- `--cache-dir`
+
+### `verbx cache info` switches
+
+- `--cache-dir`
+
+### `verbx cache clear` switches
+
+- `--cache-dir`
+
+### `verbx batch template` switches
+
+- No command-specific switches.
+
+### `verbx batch render MANIFEST` switches
+
+- `--jobs`
+- `--schedule`
+- `--retries`
+- `--continue-on-error / --fail-fast`
+- `--dry-run`
+
 ## CLI Command Cookbook
 
 ### Global help
