@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from verbx.analysis.analyzer import AudioAnalyzer
+from verbx.analysis.framewise import framewise_metrics
 
 EXPECTED_KEYS = {
     "duration",
@@ -37,3 +38,21 @@ def test_analyzer_loudness_keys() -> None:
     assert "integrated_lufs" in metrics
     assert "true_peak_dbfs" in metrics
     assert "lra" in metrics
+
+
+def test_framewise_modulation_metrics_present() -> None:
+    sr = 8_000
+    t = np.arange(sr, dtype=np.float32) / sr
+    carrier = np.sin(2.0 * np.pi * 220.0 * t)
+    mod = 0.5 * (1.0 + np.sin(2.0 * np.pi * 2.0 * t))
+    audio = (carrier * mod).astype(np.float32)[:, np.newaxis]
+
+    rows = framewise_metrics(audio, sr=sr, frame_size=512, hop_size=128)
+    assert len(rows) > 0
+
+    row = rows[len(rows) // 2]
+    assert "amp_mod_depth" in row
+    assert "amp_mod_rate_hz" in row
+    assert "centroid_mod_depth" in row
+    assert "centroid_mod_rate_hz" in row
+    assert row["amp_mod_depth"] >= 0.0

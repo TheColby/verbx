@@ -157,6 +157,48 @@ def test_ir_cache_hit(tmp_path: Path) -> None:
     assert hit2 is True
 
 
+def test_ir_fit_heuristic_scoring_outputs_top_k(tmp_path: Path) -> None:
+    sr = 16_000
+    t = np.arange(sr, dtype=np.float32) / sr
+    audio = (0.25 * np.sin(2.0 * np.pi * 196.0 * t)).astype(np.float32)[:, np.newaxis]
+    infile = tmp_path / "fit_input.wav"
+    out_ir = tmp_path / "fit_ir.wav"
+    sf.write(str(infile), audio, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "fit",
+            str(infile),
+            str(out_ir),
+            "--top-k",
+            "2",
+            "--candidate-pool",
+            "4",
+            "--length",
+            "0.5",
+            "--fit-workers",
+            "1",
+            "--cache-dir",
+            str(tmp_path / "cache"),
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    out_1 = tmp_path / "fit_ir_01.wav"
+    out_2 = tmp_path / "fit_ir_02.wav"
+    assert out_1.exists()
+    assert out_2.exists()
+
+    meta_path = out_1.with_suffix(".wav.ir.meta.json")
+    payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    fit = payload["fit"]
+    assert fit["rank"] == 1
+    assert float(fit["score"]) > 0.0
+    assert "errors" in fit
+
+
 def test_convolution_with_generated_ir_is_nonzero(tmp_path: Path) -> None:
     cfg = IRGenConfig(mode="modal", length=0.5, sr=16000, channels=1, seed=9)
     ir_audio, ir_sr, _, ir_path, _ = generate_or_load_cached_ir(cfg, cache_dir=tmp_path)

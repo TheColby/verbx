@@ -1,13 +1,33 @@
 # verbx
 
-`verbx` is a production-grade Python CLI for extreme reverb workflows.
-It includes long-tail algorithmic and convolution engines, freeze/repeat chains,
-loudness-aware output targeting, and synthetic IR generation with caching.
+`verbx` is a production-grade Python command-line tool for creating spacious,
+cinematic, and experimental reverb effects from audio files. It is designed for
+both beginners and advanced users: you can start with simple one-line commands,
+then gradually use deeper controls as your workflow grows.
+
+Under the hood, `verbx` supports two main reverb approaches:
+algorithmic reverb (including FDN, or *Feedback Delay Network*, for very long,
+stable tails) and convolution reverb (using impulse responses). It also includes
+freeze/repeat processing, loudness and peak targeting, multichannel/surround
+routing, and synthetic IR generation with deterministic caching for reproducible
+results.
 
 ## Status
 
-Current implementation level: **v0.3**
+Current implementation level: **v0.4**
 
+- Prompt 1: scaffolding and architecture
+- Prompt 2: functional DSP render path
+- Prompt 3: loudness/peak + shimmer/ambient controls
+- Prompt 4: IR factory, cache, batch, tempo sync, framewise analysis
+- v0.4 additions: framewise modulation analysis, advanced IR fitting heuristics, parallel batch scheduler
+
+## Can I Use `verbx` Without Hatch?
+
+Yes.
+
+Hatch is convenient, but optional. You can use `verbx` with plain `pip`, a virtualenv,
+`pipx`, or directly via `python -m verbx.cli`.
 ## Features
 
 - CLI-only architecture (Typer + Rich)
@@ -236,6 +256,11 @@ verbx render input.wav output.wav --pre-delay 1/8D --bpm 120
 verbx render input.wav output.wav --frames-out reports/output_frames.csv
 ```
 
+`frames.csv` now includes modulation-oriented columns:
+
+- `amp_mod_depth`, `amp_mod_rate_hz`
+- `centroid_mod_depth`, `centroid_mod_rate_hz`
+
 ### 8) Auto-generate cached IR during render
 
 ```bash
@@ -283,6 +308,12 @@ Notes:
 ```bash
 # run batch jobs concurrently
 verbx batch render manifest.json --jobs 8
+
+# policy scheduler (v0.4): prioritize longest jobs first (default)
+verbx batch render manifest.json --jobs 8 --schedule longest-first
+
+# shortest-first with retries and continue-on-error
+verbx batch render manifest.json --jobs 8 --schedule shortest-first --retries 1 --continue-on-error
 ```
 
 ## New User Guide
@@ -341,11 +372,11 @@ flowchart TD
 
 ### RT60 to Feedback Gain (FDN)
 
-For each delay line with delay \(d\) seconds and target RT60 \(T_{60}\):
+For each delay line with delay $d$ seconds and target RT60 $T_{60}$:
 
-\[
+$$
 g \approx 10^{-3d/T_{60}}
-\]
+$$
 
 This maps exponential energy decay to delay-line feedback gain.  
 `verbx` applies this per-line, then applies damping filters for faster HF decay.
@@ -354,39 +385,39 @@ This maps exponential energy decay to delay-line feedback gain.
 
 At each sample:
 
-\[
+$$
 \mathbf{y}[n] = \mathbf{D}\left(\mathbf{x}_{fb}[n]\right), \quad
 \mathbf{x}_{fb}[n+1] = \mathbf{G}\mathbf{M}\mathbf{y}[n] + \mathbf{u}[n]
-\]
+$$
 
-- \(\mathbf{M}\): mixing matrix (Hadamard-style orthogonal mix)
-- \(\mathbf{G}\): diagonal feedback gains (RT60-calibrated)
-- \(\mathbf{D}\): damping / DC filtering
-- \(\mathbf{u}[n]\): injected input (after pre-delay and diffusion)
+- $\mathbf{M}$: mixing matrix (Hadamard-style orthogonal mix)
+- $\mathbf{G}$: diagonal feedback gains (RT60-calibrated)
+- $\mathbf{D}$: damping / DC filtering
+- $\mathbf{u}[n]$: injected input (after pre-delay and diffusion)
 
 ### Partitioned FFT Convolution
 
 Convolution in frequency domain:
 
-\[
+$$
 Y_k(\omega) = \sum_{p=0}^{P-1} X_{k-p}(\omega)\,H_p(\omega)
-\]
+$$
 
-- \(H_p\): FFT of IR partition \(p\)
-- \(X_{k-p}\): FFT history of recent input partitions
-- \(P\): number of IR partitions
+- $H_p$: FFT of IR partition $p$
+- $X_{k-p}$: FFT history of recent input partitions
+- $P$: number of IR partitions
 
 This reduces long-IR convolution cost and supports streaming block processing.
 
 ### Multichannel Matrix Convolution
 
-For \(M\) input channels and \(N\) output channels:
+For $M$ input channels and $N$ output channels:
 
-\[
+$$
 y_o[n] = \sum_{i=0}^{M-1} (x_i * h_{i,o})[n]
-\]
+$$
 
-- \(h_{i,o}\) is the IR from input channel \(i\) to output channel \(o\)
+- $h_{i,o}$ is the IR from input channel $i$ to output channel $o$
 - `verbx` supports matrix-packed IR files where channel count is `M * N`
 - packing order is controlled by `--ir-matrix-layout`:
   - `output-major`: channel index = `o*M + i`
@@ -394,15 +425,15 @@ y_o[n] = \sum_{i=0}^{M-1} (x_i * h_{i,o})[n]
 
 ### Freeze Crossfade (Equal Power)
 
-For loop boundary crossfade parameter \(\theta \in [0, \pi/2]\):
+For loop boundary crossfade parameter $\theta \in [0, \pi/2]$:
 
-\[
+$$
 w_{out} = \cos(\theta), \quad w_{in} = \sin(\theta)
-\]
+$$
 
-\[
+$$
 y = w_{out}\,x_{tail} + w_{in}\,x_{head}
-\]
+$$
 
 This reduces clicks at loop boundaries.
 
@@ -558,7 +589,7 @@ verbx ir analyze IRs/hybrid_120.wav --json-out reports/hybrid_120_analysis.json
 verbx ir process IRs/hybrid_120.wav IRs/hybrid_120_dark.wav \
   --lowcut 120 --highcut 7000 --tilt -1.0 --normalize peak
 
-verbx ir fit input.wav IRs/fitted.wav --top-k 3
+verbx ir fit input.wav IRs/fitted.wav --top-k 3 --candidate-pool 12 --fit-workers 4
 ```
 
 ### Cache command group
@@ -573,6 +604,7 @@ verbx cache clear
 ```bash
 verbx batch template > manifest.json
 verbx batch render manifest.json --jobs 4   # parallel workers
+verbx batch render manifest.json --jobs 0 --schedule longest-first --retries 1
 verbx batch render manifest.json --jobs 4 --dry-run
 ```
 
@@ -662,4 +694,4 @@ pytest
 
 ## Roadmap
 
-- v0.4: framewise modulation analysis, advanced IR fitting heuristics, parallel batch scheduler
+- v0.5: adaptive render quality presets, richer framewise modulation summaries, distributed batch execution

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Literal
 
@@ -27,9 +29,25 @@ from verbx.config import (
     OutputSubtype,
     RenderConfig,
 )
+from verbx.core.batch_scheduler import (
+    BatchJobResult,
+    BatchJobSpec,
+    BatchSchedulePolicy,
+    estimate_job_cost,
+    order_jobs,
+    run_parallel_batch,
+)
 from verbx.core.pipeline import run_render_pipeline
 from verbx.core.tempo import parse_pre_delay_ms
 from verbx.io.audio import read_audio, validate_audio_path
+from verbx.ir.fitting import (
+    IRFitCandidate,
+    IRFitScore,
+    IRFitTarget,
+    build_ir_fit_candidates,
+    derive_ir_fit_target,
+    score_ir_candidate,
+)
 from verbx.ir.generator import IRGenConfig, generate_or_load_cached_ir, write_ir_artifacts
 from verbx.ir.metrics import analyze_ir
 from verbx.ir.shaping import apply_ir_shaping
@@ -578,9 +596,12 @@ def ir_fit(
     base_mode: IRMode = typer.Option("hybrid", "--base-mode"),
     length: float = typer.Option(60.0, "--length", min=0.1),
     seed: int = typer.Option(0, "--seed"),
+    candidate_pool: int = typer.Option(12, "--candidate-pool", min=1),
+    fit_workers: int = typer.Option(0, "--fit-workers", min=0, help="0 = auto"),
+    analyze_tuning: bool = typer.Option(True, "--analyze-tuning/--no-analyze-tuning"),
     cache_dir: str = typer.Option(".verbx_cache/irs", "--cache-dir"),
 ) -> None:
-    """Analyze input and synthesize top-k candidate IRs."""
+    """Analyze source audio, score candidate IRs, and write top-k results."""
     _validate_output_audio_path(out_ir, "auto")
     try:
         audio, sr = read_audio(str(infile))
@@ -589,38 +610,86 @@ def ir_fit(
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
-    rt60 = float(np.clip(metrics["duration"] * 1.4, 6.0, 120.0))
-    modes: list[IRMode] = [base_mode, "hybrid", "fdn", "stochastic", "modal"]
+    pool_size = max(top_k, candidate_pool)
+    target_profile = derive_ir_fit_target(metrics, sr)
+
+    f0_hz: float | None = None
+    harmonics: tuple[float, ...] = ()
+    if analyze_tuning:
+        try:
+            f0_est, harmonic_est = analyze_audio_for_tuning(infile, max_harmonics=12)
+            f0_hz = f0_est
+            harmonics = tuple(harmonic_est)
+        except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError):
+            f0_hz = None
+            harmonics = ()
+
+    candidates = build_ir_fit_candidates(
+        base_mode=base_mode,
+        length=length,
+        sr=sr,
+        channels=max(1, min(2, audio.shape[1])),
+        seed=seed,
+        pool_size=pool_size,
+        target=target_profile,
+        f0_hz=f0_hz,
+        harmonic_targets_hz=harmonics,
+    )
+
+    cache_root = Path(cache_dir)
+    scored = _score_fit_candidates(
+        candidates=candidates,
+        target=target_profile,
+        cache_dir=cache_root,
+        fit_workers=fit_workers,
+    )
+
+    selected = sorted(
+        scored,
+        key=lambda item: item.score.score,
+        reverse=True,
+    )[:top_k]
 
     created: list[str] = []
-    for idx in range(top_k):
-        mode = modes[idx % len(modes)]
-        cfg = IRGenConfig(
-            mode=mode,
-            length=length,
-            sr=sr,
-            channels=min(2, audio.shape[1]),
-            seed=seed + idx,
-            rt60=rt60,
-            damping=0.45,
-            normalize="peak",
+    for rank, item in enumerate(selected, start=1):
+        target_path = (
+            out_ir
+            if top_k == 1
+            else out_ir.with_name(f"{out_ir.stem}_{rank:02d}{out_ir.suffix}")
         )
-        ir_audio, ir_sr, meta, _, _ = generate_or_load_cached_ir(cfg, cache_dir=Path(cache_dir))
-
-        if top_k == 1:
-            target = out_ir
-        else:
-            target = out_ir.with_name(f"{out_ir.stem}_{idx + 1:02d}{out_ir.suffix}")
-
-        write_ir_artifacts(target, ir_audio, ir_sr, meta, silent=False)
-        created.append(str(target))
+        meta = dict(item.meta)
+        meta["fit"] = {
+            "rank": rank,
+            "score": item.score.score,
+            "strategy": item.candidate.strategy,
+            "target": asdict(target_profile),
+            "errors": asdict(item.score),
+            "detail_metrics": item.detail_metrics,
+        }
+        cached_audio, _ = sf.read(str(item.cache_path), always_2d=True, dtype="float32")
+        write_ir_artifacts(
+            target_path,
+            np.asarray(cached_audio, dtype=np.float32),
+            item.sr,
+            meta,
+            silent=False,
+        )
+        created.append(str(target_path))
 
     table = Table(title="IR Fit")
     table.add_column("Field", style="green")
     table.add_column("Value", style="white")
     table.add_row("input", str(infile))
     table.add_row("top_k", str(top_k))
-    table.add_row("estimated_rt60", f"{rt60:.2f}")
+    table.add_row("candidate_pool", str(pool_size))
+    table.add_row("target_rt60", f"{target_profile.rt60_seconds:.2f}")
+    table.add_row("target_early_late_db", f"{target_profile.early_late_ratio_db:.2f}")
+    table.add_row("target_coherence", f"{target_profile.stereo_coherence:.3f}")
+    if f0_hz is not None:
+        table.add_row("detected_f0_hz", f"{f0_hz:.3f}")
+    if selected:
+        table.add_row("best_score", f"{selected[0].score.score:.5f}")
+        table.add_row("best_strategy", selected[0].candidate.strategy)
     table.add_row("outputs", "\n".join(created))
     console.print(table)
 
@@ -671,7 +740,7 @@ def cache_clear(
 def batch_template() -> None:
     """Print a batch manifest template as JSON."""
     template = {
-        "version": "0.3",
+        "version": "0.4",
         "jobs": [
             {
                 "infile": "input.wav",
@@ -692,7 +761,10 @@ def batch_template() -> None:
 @batch_app.command("render")
 def batch_render(
     manifest: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
-    jobs: int = typer.Option(1, "--jobs", min=1),
+    jobs: int = typer.Option(0, "--jobs", min=0, help="0 = auto"),
+    schedule: BatchSchedulePolicy = typer.Option("longest-first", "--schedule"),
+    retries: int = typer.Option(0, "--retries", min=0),
+    continue_on_error: bool = typer.Option(False, "--continue-on-error/--fail-fast"),
     dry_run: bool = typer.Option(False, "--dry-run"),
 ) -> None:
     """Render jobs from manifest.json."""
@@ -708,7 +780,7 @@ def batch_render(
     if not isinstance(job_list, list):
         raise typer.BadParameter("jobs must be a list")
 
-    prepared_jobs: list[tuple[int, Path, Path, RenderConfig]] = []
+    prepared_jobs: list[BatchJobSpec] = []
 
     for idx, job in enumerate(job_list, start=1):
         if not isinstance(job, dict):
@@ -725,35 +797,56 @@ def batch_render(
             msg = f"jobs[{idx - 1}] has invalid options: {exc}"
             raise typer.BadParameter(msg) from exc
         _validate_batch_job_paths(infile, outfile, idx)
-        prepared_jobs.append((idx, infile, outfile, render_config))
-
-        if dry_run:
-            console.print(f"[dry-run] job {idx}: {infile} -> {outfile}")
+        prepared_jobs.append(
+            BatchJobSpec(
+                index=idx,
+                infile=infile,
+                outfile=outfile,
+                config=render_config,
+                estimated_cost=estimate_job_cost(infile, render_config),
+            )
+        )
 
     if dry_run:
+        ordered = order_jobs(prepared_jobs, schedule)
+        for job in ordered:
+            console.print(
+                "[dry-run] job "
+                f"{job.index}: {job.infile} -> {job.outfile} "
+                f"(cost={job.estimated_cost:.2f}, schedule={schedule})"
+            )
         return
 
-    max_workers = max(1, min(int(jobs), len(prepared_jobs)))
-    if max_workers == 1:
-        for idx, infile, outfile, render_config in prepared_jobs:
-            run_render_pipeline(infile=infile, outfile=outfile, config=render_config)
-            console.print(f"rendered job {idx}: {outfile}")
-        return
+    max_workers = int(os.cpu_count() or 1) if jobs == 0 else int(jobs)
+    max_workers = max(1, min(max_workers, len(prepared_jobs)))
 
-    futures: dict[Future[None], tuple[int, Path]] = {}
-    with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="verbx-batch") as executor:
-        for idx, infile, outfile, render_config in prepared_jobs:
-            fut = executor.submit(_run_batch_job, infile, outfile, render_config)
-            futures[fut] = (idx, outfile)
+    def runner(job: BatchJobSpec) -> None:
+        run_render_pipeline(infile=job.infile, outfile=job.outfile, config=job.config)
 
-        for fut in as_completed(futures):
-            idx, outfile = futures[fut]
-            try:
-                fut.result()
-            except Exception as exc:
-                msg = f"Batch job {idx} failed: {exc}"
-                raise typer.BadParameter(msg) from exc
-            console.print(f"rendered job {idx}: {outfile}")
+    def on_result(result: BatchJobResult) -> None:
+        if result.success:
+            console.print(
+                f"rendered job {result.index}: {result.outfile} "
+                f"(attempts={result.attempts}, {result.duration_seconds:.2f}s)"
+            )
+        else:
+            console.print(
+                f"failed job {result.index}: {result.outfile} "
+                f"(attempts={result.attempts}) {result.error}"
+            )
+
+    try:
+        run_parallel_batch(
+            jobs=prepared_jobs,
+            max_workers=max_workers,
+            schedule=schedule,
+            retries=retries,
+            continue_on_error=continue_on_error,
+            runner=runner,
+            on_result=on_result,
+        )
+    except RuntimeError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 def _render_config_from_options(options: dict[str, Any]) -> RenderConfig:
@@ -770,6 +863,63 @@ def _render_config_from_options(options: dict[str, Any]) -> RenderConfig:
     return RenderConfig(**filtered)
 
 
+class _ScoredFitCandidate:
+    def __init__(
+        self,
+        *,
+        candidate: IRFitCandidate,
+        score: IRFitScore,
+        detail_metrics: dict[str, float],
+        sr: int,
+        meta: dict[str, Any],
+        cache_path: Path,
+    ) -> None:
+        self.candidate = candidate
+        self.score = score
+        self.detail_metrics = detail_metrics
+        self.sr = int(sr)
+        self.meta = meta
+        self.cache_path = cache_path
+
+
+def _score_fit_candidates(
+    *,
+    candidates: list[IRFitCandidate],
+    target: IRFitTarget,
+    cache_dir: Path,
+    fit_workers: int,
+) -> list[_ScoredFitCandidate]:
+    worker_count = int(os.cpu_count() or 1) if fit_workers == 0 else fit_workers
+    worker_count = max(1, min(worker_count, len(candidates)))
+
+    def evaluate(candidate: IRFitCandidate) -> _ScoredFitCandidate:
+        audio, sr, meta, cache_path, _ = generate_or_load_cached_ir(
+            candidate.config,
+            cache_dir=cache_dir,
+        )
+        score, detail_metrics = score_ir_candidate(ir_audio=audio, sr=sr, target=target)
+        return _ScoredFitCandidate(
+            candidate=candidate,
+            score=score,
+            detail_metrics=detail_metrics,
+            sr=sr,
+            meta=meta,
+            cache_path=cache_path,
+        )
+
+    if worker_count == 1:
+        return [evaluate(candidate) for candidate in candidates]
+
+    scored: list[_ScoredFitCandidate] = []
+    with ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="verbx-fit") as pool:
+        futures: list[Future[_ScoredFitCandidate]] = [
+            pool.submit(evaluate, candidate) for candidate in candidates
+        ]
+        for fut in as_completed(futures):
+            scored.append(fut.result())
+    return scored
+
+
 def _resolve_ir_output_path(out_ir: Path, out_format: IRFileFormat) -> Path:
     """Resolve output IR path based on explicit format switch."""
     if out_format == "auto":
@@ -777,10 +927,6 @@ def _resolve_ir_output_path(out_ir: Path, out_format: IRFileFormat) -> Path:
 
     suffix = ".aiff" if out_format == "aiff" else f".{out_format}"
     return out_ir.with_suffix(suffix)
-
-
-def _run_batch_job(infile: Path, outfile: Path, config: RenderConfig) -> None:
-    run_render_pipeline(infile=infile, outfile=outfile, config=config)
 
 
 def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> None:
