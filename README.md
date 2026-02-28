@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/verbx_logo.png" alt="verbx logo" width="520" />
+</p>
+
 # verbx
 
 `verbx` is a production-grade Python command-line tool for creating spacious,
