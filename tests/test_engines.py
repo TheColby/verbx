@@ -70,3 +70,40 @@ def test_convolution_engine_partitioned_fft(tmp_path: Path) -> None:
     assert output.shape[1] == audio.shape[1]
     assert output.shape[0] >= audio.shape[0]
     assert np.all(np.isfinite(output))
+
+
+def test_convolution_engine_cross_channel_ir_matrix(tmp_path: Path) -> None:
+    sr = 48_000
+    audio = np.zeros((256, 2), dtype=np.float32)
+    audio[0, 0] = 1.0
+    audio[0, 1] = 1.0
+
+    # output-major packed matrix for 2-in x 2-out:
+    # ch0 = h(out0,in0), ch1 = h(out0,in1), ch2 = h(out1,in0), ch3 = h(out1,in1)
+    ir = np.zeros((16, 4), dtype=np.float32)
+    ir[0, 0] = 1.0
+    ir[0, 1] = 0.5
+    ir[0, 2] = 0.25
+    ir[0, 3] = 1.0
+    ir_path = tmp_path / "matrix_ir.wav"
+    sf.write(str(ir_path), ir, sr)
+
+    engine = ConvolutionReverbEngine(
+        ConvolutionReverbConfig(
+            wet=1.0,
+            dry=0.0,
+            ir_path=str(ir_path),
+            ir_normalize="none",
+            ir_matrix_layout="output-major",
+            partition_size=128,
+            tail_limit=None,
+            threads=1,
+            device="cpu",
+        )
+    )
+    out = engine.process(audio, sr=sr)
+
+    assert out.shape[1] == 2
+    assert out.shape[0] >= audio.shape[0]
+    assert np.isclose(out[0, 0], 1.5, atol=5e-5)
+    assert np.isclose(out[0, 1], 1.25, atol=5e-5)

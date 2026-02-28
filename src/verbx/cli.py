@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Literal
 
@@ -15,7 +16,17 @@ from rich.table import Table
 
 from verbx.analysis.analyzer import AudioAnalyzer
 from verbx.analysis.framewise import write_framewise_csv
-from verbx.config import EngineName, IRMode, IRNormalize, NormalizeStage, RenderConfig
+from verbx.config import (
+    DeviceName,
+    EngineName,
+    IRMatrixLayout,
+    IRMode,
+    IRNormalize,
+    NormalizeStage,
+    OutputPeakNorm,
+    OutputSubtype,
+    RenderConfig,
+)
 from verbx.core.pipeline import run_render_pipeline
 from verbx.core.tempo import parse_pre_delay_ms
 from verbx.io.audio import read_audio, validate_audio_path
@@ -66,8 +77,14 @@ def render(
     mod_rate_hz: float = typer.Option(0.1, "--mod-rate-hz", min=0.0),
     ir: Path | None = typer.Option(None, "--ir", exists=True, readable=True, resolve_path=True),
     ir_normalize: IRNormalize = typer.Option("peak", "--ir-normalize"),
+    ir_matrix_layout: IRMatrixLayout = typer.Option("output-major", "--ir-matrix-layout"),
     tail_limit: float | None = typer.Option(None, "--tail-limit", min=0.0),
     threads: int | None = typer.Option(None, "--threads", min=1),
+    device: DeviceName = typer.Option(
+        "auto",
+        "--device",
+        help="Compute device preference: auto, cpu, cuda, or mps (Apple Silicon).",
+    ),
     partition_size: int = typer.Option(16_384, "--partition-size", min=256),
     ir_gen: bool = typer.Option(False, "--ir-gen"),
     ir_gen_mode: IRMode = typer.Option("hybrid", "--ir-gen-mode"),
@@ -82,6 +99,23 @@ def render(
     normalize_stage: NormalizeStage = typer.Option("post", "--normalize-stage"),
     repeat_target_lufs: float | None = typer.Option(None, "--repeat-target-lufs"),
     repeat_target_peak_dbfs: float | None = typer.Option(None, "--repeat-target-peak-dbfs"),
+    out_subtype: OutputSubtype = typer.Option(
+        "auto",
+        "--out-subtype",
+        help="Output file subtype. Use float32 for 32-bit float WAV/AIFF where supported.",
+    ),
+    output_peak_norm: OutputPeakNorm = typer.Option(
+        "none",
+        "--output-peak-norm",
+        help=(
+            "Final peak normalization mode: none, input peak match, explicit target, or full-scale."
+        ),
+    ),
+    output_peak_target_dbfs: float | None = typer.Option(
+        None,
+        "--output-peak-target-dbfs",
+        help="Target dBFS used when --output-peak-norm target is selected.",
+    ),
     shimmer: bool = typer.Option(False, "--shimmer"),
     shimmer_semitones: float = typer.Option(12.0, "--shimmer-semitones"),
     shimmer_mix: float = typer.Option(0.25, "--shimmer-mix", min=0.0, max=1.0),
@@ -122,8 +156,10 @@ def render(
         block_size=block_size,
         ir=None if ir is None else str(ir),
         ir_normalize=ir_normalize,
+        ir_matrix_layout=ir_matrix_layout,
         tail_limit=tail_limit,
         threads=threads,
+        device=device,
         partition_size=partition_size,
         ir_gen=ir_gen,
         ir_gen_mode=ir_gen_mode,
@@ -137,6 +173,9 @@ def render(
         normalize_stage=normalize_stage,
         repeat_target_lufs=repeat_target_lufs,
         repeat_target_peak_dbfs=repeat_target_peak_dbfs,
+        output_subtype=out_subtype,
+        output_peak_norm=output_peak_norm,
+        output_peak_target_dbfs=output_peak_target_dbfs,
         shimmer=shimmer,
         shimmer_semitones=shimmer_semitones,
         shimmer_mix=shimmer_mix,
@@ -156,11 +195,12 @@ def render(
         progress=progress,
     )
 
+    _validate_render_call(infile, outfile, config)
     configure_logging(verbose=not config.silent)
 
     try:
         report = run_render_pipeline(infile=infile, outfile=outfile, config=config)
-    except Exception as exc:
+    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
     if config.silent:
@@ -171,6 +211,13 @@ def render(
     table.add_column("Value", style="white")
     table.add_row("requested_engine", str(report.get("effective", {}).get("engine_requested", "")))
     table.add_row("engine", str(report.get("engine", "unknown")))
+    table.add_row("requested_device", str(report.get("effective", {}).get("device_requested", "")))
+    table.add_row("device", str(report.get("effective", {}).get("device_resolved", "")))
+    table.add_row(
+        "device_platform",
+        str(report.get("effective", {}).get("device_platform_resolved", "")),
+    )
+    table.add_row("compute_backend", str(report.get("effective", {}).get("compute_backend", "")))
     table.add_row("ir_used", str(report.get("effective", {}).get("ir_used")))
     table.add_row("sample_rate", str(report.get("sample_rate", "")))
     table.add_row("channels", str(report.get("channels", "")))
@@ -180,6 +227,13 @@ def render(
         "tail_padding_s",
         str(report.get("effective", {}).get("tail_padding_seconds", "")),
     )
+    table.add_row("out_subtype", str(report.get("effective", {}).get("output_subtype", "")))
+    table.add_row("output_peak_norm", str(report.get("effective", {}).get("output_peak_norm", "")))
+    table.add_row(
+        "output_peak_target_dbfs",
+        str(report.get("effective", {}).get("output_peak_target_dbfs", "")),
+    )
+    table.add_row("streaming_mode", str(report.get("effective", {}).get("streaming_mode", "")))
     config_report = report.get("config", {})
     if isinstance(config_report, dict):
         for key in (
@@ -188,6 +242,7 @@ def render(
             "wet",
             "dry",
             "repeat",
+            "ir_matrix_layout",
             "damping",
             "width",
             "block_size",
@@ -213,10 +268,14 @@ def analyze(
     frames_out: Path | None = typer.Option(None, "--frames-out", resolve_path=True),
 ) -> None:
     """Analyze an audio file and print a summary table."""
-    validate_audio_path(str(infile))
-    audio, sr = read_audio(str(infile))
-    analyzer = AudioAnalyzer()
-    metrics = analyzer.analyze(audio, sr, include_loudness=lufs)
+    _validate_analyze_call(infile, json_out, frames_out)
+    try:
+        validate_audio_path(str(infile))
+        audio, sr = read_audio(str(infile))
+        analyzer = AudioAnalyzer()
+        metrics = analyzer.analyze(audio, sr, include_loudness=lufs)
+    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
     table = Table(title=f"Analysis: {infile.name}")
     table.add_column("Metric", style="cyan")
@@ -238,10 +297,13 @@ def suggest(
     infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
 ) -> None:
     """Suggest practical render defaults from input analysis."""
-    validate_audio_path(str(infile))
-    audio, sr = read_audio(str(infile))
-    analyzer = AudioAnalyzer()
-    metrics = analyzer.analyze(audio, sr)
+    try:
+        validate_audio_path(str(infile))
+        audio, sr = read_audio(str(infile))
+        analyzer = AudioAnalyzer()
+        metrics = analyzer.analyze(audio, sr)
+    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
     duration = metrics["duration"]
     dynamic = metrics["dynamic_range"]
@@ -334,6 +396,18 @@ def ir_gen(
     silent: bool = typer.Option(False, "--silent"),
 ) -> None:
     """Generate an IR file with deterministic caching."""
+    _validate_ir_gen_call(
+        out_ir=out_ir,
+        out_format=out_format,
+        rt60=rt60,
+        rt60_low=rt60_low,
+        rt60_high=rt60_high,
+        modal_q_min=modal_q_min,
+        modal_q_max=modal_q_max,
+        modal_low_hz=modal_low_hz,
+        modal_high_hz=modal_high_hz,
+    )
+
     f0_hz: float | None = None
     harmonic_targets_hz: tuple[float, ...] = ()
 
@@ -392,11 +466,14 @@ def ir_gen(
 
     resolved_out_ir = _resolve_ir_output_path(out_ir, out_format)
 
-    audio, out_sr, meta, cache_path, cache_hit = generate_or_load_cached_ir(
-        cfg,
-        cache_dir=Path(cache_dir),
-    )
-    write_ir_artifacts(resolved_out_ir, audio, out_sr, meta, silent=silent)
+    try:
+        audio, out_sr, meta, cache_path, cache_hit = generate_or_load_cached_ir(
+            cfg,
+            cache_dir=Path(cache_dir),
+        )
+        write_ir_artifacts(resolved_out_ir, audio, out_sr, meta, silent=silent)
+    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
     if silent:
         return
@@ -425,8 +502,12 @@ def ir_analyze(
     json_out: Path | None = typer.Option(None, "--json-out", resolve_path=True),
 ) -> None:
     """Analyze an impulse response."""
-    audio, sr = sf.read(str(ir_file), always_2d=True, dtype="float32")
-    metrics = analyze_ir(np.asarray(audio, dtype=np.float32), int(sr))
+    _validate_ir_analyze_call(ir_file, json_out)
+    try:
+        audio, sr = sf.read(str(ir_file), always_2d=True, dtype="float32")
+        metrics = analyze_ir(np.asarray(audio, dtype=np.float32), int(sr))
+    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
     table = Table(title=f"IR Analysis: {ir_file.name}")
     table.add_column("Metric", style="cyan")
@@ -467,22 +548,26 @@ def ir_process(
     silent: bool = typer.Option(False, "--silent"),
 ) -> None:
     """Process an existing IR through shaping/targeting chain."""
-    audio, sr = sf.read(str(in_ir), always_2d=True, dtype="float32")
-    processed = apply_ir_shaping(
-        np.asarray(audio, dtype=np.float32),
-        sr=int(sr),
-        damping=damping,
-        lowcut=lowcut,
-        highcut=highcut,
-        tilt=tilt,
-        normalize=normalize,
-        peak_dbfs=peak_dbfs,
-        target_lufs=target_lufs,
-        use_true_peak=true_peak,
-    )
+    _validate_ir_process_call(in_ir, out_ir)
+    try:
+        audio, sr = sf.read(str(in_ir), always_2d=True, dtype="float32")
+        processed = apply_ir_shaping(
+            np.asarray(audio, dtype=np.float32),
+            sr=int(sr),
+            damping=damping,
+            lowcut=lowcut,
+            highcut=highcut,
+            tilt=tilt,
+            normalize=normalize,
+            peak_dbfs=peak_dbfs,
+            target_lufs=target_lufs,
+            use_true_peak=true_peak,
+        )
 
-    meta = {"source": str(in_ir), "metrics": analyze_ir(processed, int(sr))}
-    write_ir_artifacts(out_ir, processed, int(sr), meta, silent=silent)
+        meta = {"source": str(in_ir), "metrics": analyze_ir(processed, int(sr))}
+        write_ir_artifacts(out_ir, processed, int(sr), meta, silent=silent)
+    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 @ir_app.command("fit")
@@ -496,9 +581,13 @@ def ir_fit(
     cache_dir: str = typer.Option(".verbx_cache/irs", "--cache-dir"),
 ) -> None:
     """Analyze input and synthesize top-k candidate IRs."""
-    audio, sr = read_audio(str(infile))
-    analyzer = AudioAnalyzer()
-    metrics = analyzer.analyze(audio, sr)
+    _validate_output_audio_path(out_ir, "auto")
+    try:
+        audio, sr = read_audio(str(infile))
+        analyzer = AudioAnalyzer()
+        metrics = analyzer.analyze(audio, sr)
+    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
     rt60 = float(np.clip(metrics["duration"] * 1.4, 6.0, 120.0))
     modes: list[IRMode] = [base_mode, "hybrid", "fdn", "stochastic", "modal"]
@@ -542,6 +631,9 @@ def cache_info(
 ) -> None:
     """Show cache statistics."""
     root = Path(cache_dir)
+    if root.exists() and not root.is_dir():
+        msg = f"Cache path is not a directory: {root}"
+        raise typer.BadParameter(msg)
     wavs = sorted(root.glob("*.wav"))
     metas = sorted(root.glob("*.meta.json"))
     total_bytes = (
@@ -566,6 +658,9 @@ def cache_clear(
 ) -> None:
     """Clear IR cache directory."""
     root = Path(cache_dir)
+    if root.exists() and not root.is_dir():
+        msg = f"Cache path is not a directory: {root}"
+        raise typer.BadParameter(msg)
     if root.exists():
         shutil.rmtree(root)
     root.mkdir(parents=True, exist_ok=True)
@@ -601,15 +696,19 @@ def batch_render(
     dry_run: bool = typer.Option(False, "--dry-run"),
 ) -> None:
     """Render jobs from manifest.json."""
-    _ = jobs  # v0.3: parsed and accepted; processing remains sequential for determinism.
-
-    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(manifest.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        msg = f"Invalid JSON manifest: {exc}"
+        raise typer.BadParameter(msg) from exc
     if not isinstance(payload, dict) or "jobs" not in payload:
         raise typer.BadParameter("Manifest must contain a top-level 'jobs' array")
 
     job_list = payload["jobs"]
     if not isinstance(job_list, list):
         raise typer.BadParameter("jobs must be a list")
+
+    prepared_jobs: list[tuple[int, Path, Path, RenderConfig]] = []
 
     for idx, job in enumerate(job_list, start=1):
         if not isinstance(job, dict):
@@ -620,14 +719,41 @@ def batch_render(
         if not isinstance(options, dict):
             raise typer.BadParameter(f"jobs[{idx - 1}].options must be an object")
 
-        render_config = _render_config_from_options(options)
+        try:
+            render_config = _render_config_from_options(options)
+        except (TypeError, ValueError) as exc:
+            msg = f"jobs[{idx - 1}] has invalid options: {exc}"
+            raise typer.BadParameter(msg) from exc
+        _validate_batch_job_paths(infile, outfile, idx)
+        prepared_jobs.append((idx, infile, outfile, render_config))
 
         if dry_run:
             console.print(f"[dry-run] job {idx}: {infile} -> {outfile}")
-            continue
 
-        run_render_pipeline(infile=infile, outfile=outfile, config=render_config)
-        console.print(f"rendered job {idx}: {outfile}")
+    if dry_run:
+        return
+
+    max_workers = max(1, min(int(jobs), len(prepared_jobs)))
+    if max_workers == 1:
+        for idx, infile, outfile, render_config in prepared_jobs:
+            run_render_pipeline(infile=infile, outfile=outfile, config=render_config)
+            console.print(f"rendered job {idx}: {outfile}")
+        return
+
+    futures: dict[Future[None], tuple[int, Path]] = {}
+    with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="verbx-batch") as executor:
+        for idx, infile, outfile, render_config in prepared_jobs:
+            fut = executor.submit(_run_batch_job, infile, outfile, render_config)
+            futures[fut] = (idx, outfile)
+
+        for fut in as_completed(futures):
+            idx, outfile = futures[fut]
+            try:
+                fut.result()
+            except Exception as exc:
+                msg = f"Batch job {idx} failed: {exc}"
+                raise typer.BadParameter(msg) from exc
+            console.print(f"rendered job {idx}: {outfile}")
 
 
 def _render_config_from_options(options: dict[str, Any]) -> RenderConfig:
@@ -651,6 +777,159 @@ def _resolve_ir_output_path(out_ir: Path, out_format: IRFileFormat) -> Path:
 
     suffix = ".aiff" if out_format == "aiff" else f".{out_format}"
     return out_ir.with_suffix(suffix)
+
+
+def _run_batch_job(infile: Path, outfile: Path, config: RenderConfig) -> None:
+    run_render_pipeline(infile=infile, outfile=outfile, config=config)
+
+
+def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> None:
+    _ensure_distinct_paths(infile, outfile, "INFILE", "OUTFILE")
+    _validate_output_audio_path(outfile, config.output_subtype)
+
+    if config.engine == "conv" and config.ir is None and not config.ir_gen:
+        msg = "Convolution render requires --ir PATH or --ir-gen."
+        raise typer.BadParameter(msg)
+
+    if config.ir is not None and not Path(config.ir).exists():
+        msg = f"IR file not found: {config.ir}"
+        raise typer.BadParameter(msg)
+
+    if config.wet == 0.0 and config.dry == 0.0:
+        msg = "At least one of --wet or --dry must be non-zero."
+        raise typer.BadParameter(msg)
+
+    if config.freeze:
+        if config.start is None or config.end is None:
+            msg = "--freeze requires both --start and --end."
+            raise typer.BadParameter(msg)
+        if config.end <= config.start:
+            msg = "--end must be greater than --start when --freeze is enabled."
+            raise typer.BadParameter(msg)
+    elif config.start is not None or config.end is not None:
+        msg = "--start/--end are only valid when --freeze is enabled."
+        raise typer.BadParameter(msg)
+
+    if config.output_peak_norm == "target" and config.output_peak_target_dbfs is None:
+        msg = "--output-peak-norm target requires --output-peak-target-dbfs."
+        raise typer.BadParameter(msg)
+    if config.output_peak_norm != "target" and config.output_peak_target_dbfs is not None:
+        msg = "--output-peak-target-dbfs is only valid with --output-peak-norm target."
+        raise typer.BadParameter(msg)
+
+    if config.ir_gen and config.ir is not None:
+        msg = "Use either --ir or --ir-gen, not both."
+        raise typer.BadParameter(msg)
+
+
+def _validate_analyze_call(infile: Path, json_out: Path | None, frames_out: Path | None) -> None:
+    if json_out is not None and infile.resolve() == json_out.resolve():
+        msg = "--json-out must be different from input file."
+        raise typer.BadParameter(msg)
+    if frames_out is not None and infile.resolve() == frames_out.resolve():
+        msg = "--frames-out must be different from input file."
+        raise typer.BadParameter(msg)
+
+
+def _validate_ir_gen_call(
+    out_ir: Path,
+    out_format: IRFileFormat,
+    rt60: float | None,
+    rt60_low: float | None,
+    rt60_high: float | None,
+    modal_q_min: float,
+    modal_q_max: float,
+    modal_low_hz: float,
+    modal_high_hz: float,
+) -> None:
+    resolved = _resolve_ir_output_path(out_ir, out_format)
+    _validate_output_audio_path(resolved, "auto")
+
+    if rt60 is not None and (rt60_low is not None or rt60_high is not None):
+        msg = "Use either --rt60 or --rt60-low/--rt60-high, not both."
+        raise typer.BadParameter(msg)
+    if (rt60_low is None) != (rt60_high is None):
+        msg = "Both --rt60-low and --rt60-high must be provided together."
+        raise typer.BadParameter(msg)
+    if rt60_low is not None and rt60_high is not None and rt60_low > rt60_high:
+        msg = "--rt60-low must be <= --rt60-high."
+        raise typer.BadParameter(msg)
+    if modal_q_min > modal_q_max:
+        msg = "--modal-q-min must be <= --modal-q-max."
+        raise typer.BadParameter(msg)
+    if modal_low_hz >= modal_high_hz:
+        msg = "--modal-low-hz must be < --modal-high-hz."
+        raise typer.BadParameter(msg)
+
+
+def _validate_ir_process_call(in_ir: Path, out_ir: Path) -> None:
+    _ensure_distinct_paths(in_ir, out_ir, "IN_IR", "OUT_IR")
+    _validate_output_audio_path(out_ir, "auto")
+
+
+def _validate_ir_analyze_call(ir_file: Path, json_out: Path | None) -> None:
+    if json_out is not None and ir_file.resolve() == json_out.resolve():
+        msg = "--json-out must be different from input IR file."
+        raise typer.BadParameter(msg)
+
+
+def _validate_batch_job_paths(infile: Path, outfile: Path, idx: int) -> None:
+    if infile.resolve() == outfile.resolve():
+        msg = f"jobs[{idx - 1}] infile and outfile must be different."
+        raise typer.BadParameter(msg)
+    if not infile.exists():
+        msg = f"jobs[{idx - 1}] infile not found: {infile}"
+        raise typer.BadParameter(msg)
+    _validate_output_audio_path(outfile, "auto")
+
+
+def _ensure_distinct_paths(in_path: Path, out_path: Path, in_label: str, out_label: str) -> None:
+    if in_path.resolve() == out_path.resolve():
+        msg = f"{in_label} and {out_label} must be different paths."
+        raise typer.BadParameter(msg)
+
+
+def _validate_output_audio_path(path: Path, out_subtype_mode: str) -> None:
+    suffix = path.suffix.lower().lstrip(".")
+    if suffix == "":
+        msg = f"Output path must include an audio file extension: {path}"
+        raise typer.BadParameter(msg)
+
+    format_map = {
+        "wav": "WAV",
+        "flac": "FLAC",
+        "aif": "AIFF",
+        "aiff": "AIFF",
+        "ogg": "OGG",
+        "caf": "CAF",
+        "au": "AU",
+    }
+    fmt = format_map.get(suffix)
+    if fmt is None:
+        msg = f"Unsupported output audio extension: .{suffix}"
+        raise typer.BadParameter(msg)
+
+    subtype_map = {
+        "auto": None,
+        "float32": "FLOAT",
+        "float64": "DOUBLE",
+        "pcm16": "PCM_16",
+        "pcm24": "PCM_24",
+        "pcm32": "PCM_32",
+    }
+    subtype = subtype_map.get(out_subtype_mode)
+    if out_subtype_mode not in subtype_map:
+        msg = f"Unsupported --out-subtype value: {out_subtype_mode}"
+        raise typer.BadParameter(msg)
+
+    if subtype is None:
+        if not sf.check_format(fmt):
+            msg = f"SoundFile cannot write format '{fmt}' for output path {path}"
+            raise typer.BadParameter(msg)
+    else:
+        if not sf.check_format(fmt, subtype):
+            msg = f"Subtype '{subtype}' is not supported for format '{fmt}'"
+            raise typer.BadParameter(msg)
 
 
 if __name__ == "__main__":

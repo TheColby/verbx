@@ -2,18 +2,36 @@
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 import soundfile as sf
+from scipy import fft as sp_fft
 from scipy.signal import resample_poly
 
 from verbx.core.engine_base import ReverbEngine
 from verbx.io.audio import ensure_mono_or_stereo
 
 AudioArray = npt.NDArray[np.float32]
+LOGGER = logging.getLogger(__name__)
+
+_cupy_module: Any | None = None
+_cupy_probed = False
+
+
+@dataclass(slots=True)
+class _StreamConvolverState:
+    ir_parts_fft: npt.NDArray[np.complex64]
+    hist: npt.NDArray[np.complex64]
+    overlap: npt.NDArray[np.float32]
+    hist_index: int
+    n_parts: int
+    partition_size: int
+    fft_size: int
 
 
 @dataclass(slots=True)
@@ -24,9 +42,11 @@ class ConvolutionReverbConfig:
     dry: float = 0.2
     ir_path: str | None = None
     ir_normalize: str = "peak"
+    ir_matrix_layout: str = "output-major"
     partition_size: int = 16_384
     tail_limit: float | None = None
     threads: int | None = None
+    device: str = "cpu"
 
 
 class ConvolutionReverbEngine(ReverbEngine):
@@ -34,6 +54,18 @@ class ConvolutionReverbEngine(ReverbEngine):
 
     def __init__(self, config: ConvolutionReverbConfig) -> None:
         self._config = config
+        self._workers = max(1, int(config.threads)) if config.threads is not None else 1
+        self._backend = "cpu-scipyfft"
+        self._cupy = None
+        if config.device == "cuda":
+            self._cupy = _get_cupy_module()
+            if self._cupy is not None:
+                self._backend = "cuda-cupy"
+            else:
+                LOGGER.warning(
+                    "CUDA requested for convolution but CuPy/CUDA is unavailable; "
+                    "using CPU FFT backend."
+                )
 
     def process(self, audio: AudioArray, sr: int) -> AudioArray:
         """Convolve input with IR using partitioned FFT overlap-add."""
@@ -47,18 +79,133 @@ class ConvolutionReverbEngine(ReverbEngine):
             max_tail = max(0, int(self._config.tail_limit * sr))
             ir = ir[: max_tail + 1, :]
 
-        ir = self._align_ir_channels(ir, x.shape[1])
         ir = self._normalize_ir(ir, self._config.ir_normalize)
+        ir_matrix, out_channels = self._build_ir_matrix(
+            ir=ir,
+            input_channels=x.shape[1],
+            layout=self._config.ir_matrix_layout,
+        )
 
-        wet = self._partitioned_convolve(x, ir, max(256, int(self._config.partition_size)))
-
-        out_len = wet.shape[0]
-        dry = np.zeros((out_len, x.shape[1]), dtype=np.float32)
-        dry[: x.shape[0], :] = x
+        part_size = max(256, int(self._config.partition_size))
+        wet = self._partitioned_convolve_matrix(x, ir_matrix, part_size)
+        dry = self._build_dry_for_output(x, out_channels, out_len=wet.shape[0])
 
         output = (self._config.dry * dry) + (self._config.wet * wet)
         output = np.nan_to_num(output, nan=0.0, posinf=0.0, neginf=0.0)
         return np.asarray(output, dtype=np.float32)
+
+    def backend_name(self) -> str:
+        """Return selected convolution backend."""
+        return self._backend
+
+    def process_streaming_file(
+        self,
+        infile: str,
+        outfile: str,
+        output_subtype: str | None = None,
+    ) -> dict[str, int | float]:
+        """Process file via block-streaming convolution to reduce peak RAM."""
+        if self._config.ir_path is None:
+            msg = "Convolution engine requires --ir PATH"
+            raise ValueError(msg)
+
+        if self._cupy is not None:
+            # CUDA backend currently uses in-memory convolution path.
+            audio, sr = sf.read(infile, always_2d=True, dtype="float32")
+            rendered = self.process(np.asarray(audio, dtype=np.float32), int(sr))
+            sf.write(outfile, rendered, int(sr), subtype=output_subtype)
+            peak = float(np.max(np.abs(audio))) if audio.size > 0 else 0.0
+            return {
+                "sample_rate": int(sr),
+                "channels": int(rendered.shape[1]),
+                "input_samples": int(audio.shape[0]),
+                "output_samples": int(rendered.shape[0]),
+                "input_peak_linear": peak,
+            }
+
+        with sf.SoundFile(infile, mode="r") as src:
+            sr = int(src.samplerate)
+            input_channels = int(src.channels)
+            ir = self._load_ir(self._config.ir_path, sr)
+            if self._config.tail_limit is not None:
+                max_tail = max(0, int(self._config.tail_limit * sr))
+                ir = ir[: max_tail + 1, :]
+            ir = self._normalize_ir(ir, self._config.ir_normalize)
+            ir_matrix, out_channels = self._build_ir_matrix(
+                ir=ir,
+                input_channels=input_channels,
+                layout=self._config.ir_matrix_layout,
+            )
+
+            partition_size = max(256, int(self._config.partition_size))
+            states: list[list[_StreamConvolverState | None]] = []
+            for in_idx in range(input_channels):
+                row: list[_StreamConvolverState | None] = []
+                for out_idx in range(out_channels):
+                    ir_vec = ir_matrix[in_idx, out_idx, :]
+                    if np.any(np.abs(ir_vec) > 0.0):
+                        row.append(
+                            self._build_stream_state(ir=ir_vec, partition_size=partition_size)
+                        )
+                    else:
+                        row.append(None)
+                states.append(row)
+
+            input_samples = 0
+            output_samples = 0
+            input_peak_linear = 0.0
+            tail_remaining = max(0, int(ir.shape[0] - 1))
+
+            with sf.SoundFile(
+                outfile,
+                mode="w",
+                samplerate=sr,
+                channels=out_channels,
+                subtype=output_subtype,
+            ) as dst:
+                for block in src.blocks(
+                    blocksize=partition_size,
+                    dtype="float32",
+                    always_2d=True,
+                ):
+                    in_block = np.asarray(block, dtype=np.float32)
+                    samples = int(in_block.shape[0])
+                    if samples == 0:
+                        continue
+                    input_samples += samples
+                    block_peak = float(np.max(np.abs(in_block)))
+                    if block_peak > input_peak_linear:
+                        input_peak_linear = block_peak
+
+                    wet_block = self._stream_accumulate_wet(states, in_block, out_channels)
+                    dry_block = self._build_dry_for_output(in_block, out_channels, out_len=samples)
+
+                    out_block = (self._config.dry * dry_block) + (self._config.wet * wet_block)
+                    out_block = np.nan_to_num(out_block, nan=0.0, posinf=0.0, neginf=0.0)
+                    dst.write(np.asarray(out_block, dtype=np.float32))
+                    output_samples += samples
+
+                while tail_remaining > 0:
+                    tail_block_samples = min(partition_size, tail_remaining)
+                    zeros_block = np.zeros((tail_block_samples, input_channels), dtype=np.float32)
+                    wet_tail = self._stream_accumulate_wet(states, zeros_block, out_channels)
+                    out_tail = np.nan_to_num(
+                        np.asarray(self._config.wet * wet_tail, dtype=np.float32),
+                        nan=0.0,
+                        posinf=0.0,
+                        neginf=0.0,
+                    )
+                    dst.write(out_tail)
+                    output_samples += tail_block_samples
+                    tail_remaining -= tail_block_samples
+
+        return {
+            "sample_rate": sr,
+            "channels": out_channels,
+            "input_samples": input_samples,
+            "output_samples": output_samples,
+            "input_peak_linear": input_peak_linear,
+        }
 
     @staticmethod
     def _load_ir(path: str, target_sr: int) -> AudioArray:
@@ -72,17 +219,6 @@ class ConvolutionReverbEngine(ReverbEngine):
             ir_audio = resample_poly(ir_audio, up=up, down=down, axis=0).astype(np.float32)
 
         return ir_audio
-
-    @staticmethod
-    def _align_ir_channels(ir: AudioArray, input_channels: int) -> AudioArray:
-        ir_channels = ir.shape[1]
-        if ir_channels == input_channels:
-            return ir
-        if ir_channels == 1:
-            return np.repeat(ir, input_channels, axis=1)
-
-        mono = np.mean(ir, axis=1, keepdims=True, dtype=np.float32)
-        return np.repeat(mono, input_channels, axis=1)
 
     @staticmethod
     def _normalize_ir(ir: AudioArray, mode: str) -> AudioArray:
@@ -100,28 +236,201 @@ class ConvolutionReverbEngine(ReverbEngine):
             return np.asarray(ir / peak, dtype=np.float32)
         return ir
 
-    def _partitioned_convolve(
-        self, x: AudioArray, ir: AudioArray, partition_size: int
+    @staticmethod
+    def _build_dry_for_output(
+        x: AudioArray,
+        out_channels: int,
+        out_len: int,
     ) -> AudioArray:
-        x_len, channels = x.shape
-        ir_len = ir.shape[0]
+        in_channels = int(x.shape[1])
+        dry = np.zeros((out_len, out_channels), dtype=np.float32)
+        copy_len = min(int(x.shape[0]), out_len)
+        block = x[:copy_len, :]
+
+        if out_channels == in_channels:
+            dry[:copy_len, :] = block
+            return dry
+
+        if out_channels == 1:
+            dry[:copy_len, 0] = np.mean(block, axis=1, dtype=np.float32)
+            return dry
+
+        if in_channels == 1:
+            dry[:copy_len, :] = np.repeat(block, out_channels, axis=1)
+            return dry
+
+        mapped = min(in_channels, out_channels)
+        dry[:copy_len, :mapped] = block[:, :mapped]
+        return dry
+
+    def _build_ir_matrix(
+        self,
+        ir: AudioArray,
+        input_channels: int,
+        layout: str,
+    ) -> tuple[npt.NDArray[np.float32], int]:
+        ir_len = int(ir.shape[0])
+        ir_channels = int(ir.shape[1])
+
+        if input_channels < 1:
+            msg = "Input must have at least one channel for convolution."
+            raise ValueError(msg)
+
+        if ir_channels == 1:
+            out_channels = input_channels
+            matrix = np.zeros((input_channels, out_channels, ir_len), dtype=np.float32)
+            for ch in range(input_channels):
+                matrix[ch, ch, :] = ir[:, 0]
+            return matrix, out_channels
+
+        if ir_channels == input_channels:
+            out_channels = input_channels
+            matrix = np.zeros((input_channels, out_channels, ir_len), dtype=np.float32)
+            for ch in range(input_channels):
+                matrix[ch, ch, :] = ir[:, ch]
+            return matrix, out_channels
+
+        if ir_channels % input_channels != 0:
+            msg = (
+                "IR channel layout incompatible with input channels. "
+                f"Input channels={input_channels}, IR channels={ir_channels}. "
+                "Use mono IR, matching channel count IR, or matrix-packed IR with "
+                "channels divisible by input channels."
+            )
+            raise ValueError(msg)
+
+        out_channels = ir_channels // input_channels
+        if out_channels < 1:
+            msg = "Invalid IR matrix output channels resolved from IR channel layout."
+            raise ValueError(msg)
+
+        if layout not in {"output-major", "input-major"}:
+            msg = f"Unsupported IR matrix layout: {layout}"
+            raise ValueError(msg)
+
+        matrix = np.zeros((input_channels, out_channels, ir_len), dtype=np.float32)
+        for out_idx in range(out_channels):
+            for in_idx in range(input_channels):
+                if layout == "output-major":
+                    ir_idx = (out_idx * input_channels) + in_idx
+                else:
+                    ir_idx = (in_idx * out_channels) + out_idx
+                matrix[in_idx, out_idx, :] = ir[:, ir_idx]
+
+        return matrix, out_channels
+
+    def _partitioned_convolve_matrix(
+        self,
+        x: AudioArray,
+        ir_matrix: npt.NDArray[np.float32],
+        partition_size: int,
+    ) -> AudioArray:
+        if self._cupy is not None:
+            return self._partitioned_convolve_cuda_matrix(x, ir_matrix, partition_size)
+
+        x_len, in_channels = x.shape
+        _, out_channels, ir_len = ir_matrix.shape
         tail_samples = max(0, ir_len - 1)
         out_len = x_len + tail_samples
-        output = np.zeros((out_len, channels), dtype=np.float32)
+        output = np.zeros((out_len, out_channels), dtype=np.float32)
 
         fft_size = 1
         while fft_size < (2 * partition_size):
             fft_size <<= 1
 
-        for channel in range(channels):
-            output[:, channel] = self._partitioned_convolve_mono(
-                x[:, channel], ir[:, channel], partition_size, fft_size
-            )
+        for in_idx in range(in_channels):
+            x_ch = x[:, in_idx]
+            for out_idx in range(out_channels):
+                ir_ch = ir_matrix[in_idx, out_idx, :]
+                if not np.any(np.abs(ir_ch) > 0.0):
+                    continue
+                output[:, out_idx] += self._partitioned_convolve_mono(
+                    x_ch,
+                    ir_ch,
+                    partition_size,
+                    fft_size,
+                )
 
         return output
 
-    @staticmethod
+    def _stream_accumulate_wet(
+        self,
+        states: list[list[_StreamConvolverState | None]],
+        input_block: AudioArray,
+        out_channels: int,
+    ) -> AudioArray:
+        samples = int(input_block.shape[0])
+        wet = np.zeros((samples, out_channels), dtype=np.float32)
+        for in_idx, row in enumerate(states):
+            x_ch = input_block[:, in_idx]
+            for out_idx, state in enumerate(row):
+                if state is None:
+                    continue
+                wet[:, out_idx] += self._stream_process_block(state, x_ch)
+        return wet
+
+    def _build_stream_state(
+        self, ir: npt.NDArray[np.float32], partition_size: int
+    ) -> _StreamConvolverState:
+        ir_len = int(ir.shape[0])
+        n_parts = int(np.ceil(ir_len / partition_size))
+        fft_size = 1
+        while fft_size < (2 * partition_size):
+            fft_size <<= 1
+
+        ir_parts_fft = np.zeros((n_parts, fft_size // 2 + 1), dtype=np.complex64)
+        for part_idx in range(n_parts):
+            start = part_idx * partition_size
+            end = min(ir_len, start + partition_size)
+            part = np.zeros(fft_size, dtype=np.float32)
+            part[: end - start] = ir[start:end]
+            ir_parts_fft[part_idx, :] = np.asarray(
+                sp_fft.rfft(part, workers=self._workers),
+                dtype=np.complex64,
+            )
+
+        hist = np.zeros_like(ir_parts_fft)
+        overlap = np.zeros(fft_size - partition_size, dtype=np.float32)
+        return _StreamConvolverState(
+            ir_parts_fft=ir_parts_fft,
+            hist=hist,
+            overlap=overlap,
+            hist_index=0,
+            n_parts=n_parts,
+            partition_size=partition_size,
+            fft_size=fft_size,
+        )
+
+    def _stream_process_block(
+        self,
+        state: _StreamConvolverState,
+        x_block_in: npt.NDArray[np.float32],
+    ) -> npt.NDArray[np.float32]:
+        samples = int(x_block_in.shape[0])
+        x_block = np.zeros(state.fft_size, dtype=np.float32)
+        x_block[:samples] = x_block_in
+
+        state.hist[state.hist_index, :] = np.asarray(
+            sp_fft.rfft(x_block, workers=self._workers),
+            dtype=np.complex64,
+        )
+
+        acc = np.zeros(state.fft_size // 2 + 1, dtype=np.complex64)
+        for part_idx in range(state.n_parts):
+            hist_slot = (state.hist_index - part_idx) % state.n_parts
+            acc += state.ir_parts_fft[part_idx, :] * state.hist[hist_slot, :]
+
+        y_block = np.asarray(
+            sp_fft.irfft(acc, n=state.fft_size, workers=self._workers),
+            dtype=np.float32,
+        )
+        y_block[: state.overlap.shape[0]] += state.overlap
+        state.overlap = y_block[state.partition_size :]
+        state.hist_index = (state.hist_index + 1) % state.n_parts
+        return np.asarray(y_block[:samples], dtype=np.float32)
+
     def _partitioned_convolve_mono(
+        self,
         x: npt.NDArray[np.float32],
         ir: npt.NDArray[np.float32],
         partition_size: int,
@@ -139,7 +448,10 @@ class ConvolutionReverbEngine(ReverbEngine):
             end = min(ir_len, start + partition_size)
             part = np.zeros(fft_size, dtype=np.float32)
             part[: end - start] = ir[start:end]
-            ir_parts_fft[part_idx, :] = np.fft.rfft(part).astype(np.complex64)
+            ir_parts_fft[part_idx, :] = np.asarray(
+                sp_fft.rfft(part, workers=self._workers),
+                dtype=np.complex64,
+            )
 
         hist = np.zeros((n_parts, fft_size // 2 + 1), dtype=np.complex64)
         hist_index = 0
@@ -159,14 +471,20 @@ class ConvolutionReverbEngine(ReverbEngine):
             if start < x_len:
                 x_block[: end - start] = x[start:end]
 
-            hist[hist_index, :] = np.fft.rfft(x_block).astype(np.complex64)
+            hist[hist_index, :] = np.asarray(
+                sp_fft.rfft(x_block, workers=self._workers),
+                dtype=np.complex64,
+            )
 
             acc = np.zeros(fft_size // 2 + 1, dtype=np.complex64)
             for part_idx in range(n_parts):
                 hist_slot = (hist_index - part_idx) % n_parts
                 acc += ir_parts_fft[part_idx, :] * hist[hist_slot, :]
 
-            y_block = np.fft.irfft(acc, n=fft_size).astype(np.float32)
+            y_block = np.asarray(
+                sp_fft.irfft(acc, n=fft_size, workers=self._workers),
+                dtype=np.float32,
+            )
             y_block[: overlap.shape[0]] += overlap
 
             out[out_cursor : out_cursor + partition_size] = y_block[:partition_size]
@@ -176,3 +494,120 @@ class ConvolutionReverbEngine(ReverbEngine):
             hist_index = (hist_index + 1) % n_parts
 
         return out[:output_len]
+
+    def _partitioned_convolve_cuda_matrix(
+        self,
+        x: AudioArray,
+        ir_matrix: npt.NDArray[np.float32],
+        partition_size: int,
+    ) -> AudioArray:
+        cp = self._cupy
+        if cp is None:
+            msg = "CuPy module not loaded for CUDA convolution backend"
+            raise RuntimeError(msg)
+
+        x_len, in_channels = x.shape
+        _, out_channels, ir_len = ir_matrix.shape
+        tail_samples = max(0, ir_len - 1)
+        out_len = x_len + tail_samples
+        output = np.zeros((out_len, out_channels), dtype=np.float32)
+
+        fft_size = 1
+        while fft_size < (2 * partition_size):
+            fft_size <<= 1
+
+        x_gpu = [cp.asarray(x[:, in_idx], dtype=cp.float32) for in_idx in range(in_channels)]
+
+        for out_idx in range(out_channels):
+            acc = np.zeros(out_len, dtype=np.float32)
+            for in_idx in range(in_channels):
+                ir_ch = ir_matrix[in_idx, out_idx, :]
+                if not np.any(np.abs(ir_ch) > 0.0):
+                    continue
+                out_pair = self._partitioned_convolve_mono_cuda(
+                    cp=cp,
+                    x=x_gpu[in_idx],
+                    ir=cp.asarray(ir_ch, dtype=cp.float32),
+                    partition_size=partition_size,
+                    fft_size=fft_size,
+                )
+                acc += cp.asnumpy(out_pair)
+            output[:, out_idx] = acc
+
+        return output
+
+    @staticmethod
+    def _partitioned_convolve_mono_cuda(
+        cp: Any,
+        x: Any,
+        ir: Any,
+        partition_size: int,
+        fft_size: int,
+    ) -> Any:
+        x_len = int(x.shape[0])
+        ir_len = int(ir.shape[0])
+        tail_samples = max(0, ir_len - 1)
+        output_len = x_len + tail_samples
+
+        n_parts = int(np.ceil(ir_len / partition_size))
+        ir_parts_fft = cp.zeros((n_parts, fft_size // 2 + 1), dtype=cp.complex64)
+        for part_idx in range(n_parts):
+            start = part_idx * partition_size
+            end = min(ir_len, start + partition_size)
+            part = cp.zeros(fft_size, dtype=cp.float32)
+            part[: end - start] = ir[start:end]
+            ir_parts_fft[part_idx, :] = cp.fft.rfft(part).astype(cp.complex64)
+
+        hist = cp.zeros((n_parts, fft_size // 2 + 1), dtype=cp.complex64)
+        hist_index = 0
+
+        total_blocks = int(np.ceil(x_len / partition_size)) + int(
+            np.ceil(tail_samples / partition_size)
+        )
+        overlap = cp.zeros(fft_size - partition_size, dtype=cp.float32)
+
+        out_cursor = 0
+        out = cp.zeros(total_blocks * partition_size, dtype=cp.float32)
+
+        for block_idx in range(total_blocks):
+            start = block_idx * partition_size
+            end = min(x_len, start + partition_size)
+            x_block = cp.zeros(fft_size, dtype=cp.float32)
+            if start < x_len:
+                x_block[: end - start] = x[start:end]
+
+            hist[hist_index, :] = cp.fft.rfft(x_block).astype(cp.complex64)
+
+            acc = cp.zeros(fft_size // 2 + 1, dtype=cp.complex64)
+            for part_idx in range(n_parts):
+                hist_slot = (hist_index - part_idx) % n_parts
+                acc += ir_parts_fft[part_idx, :] * hist[hist_slot, :]
+
+            y_block = cp.fft.irfft(acc, n=fft_size).astype(cp.float32)
+            y_block[: overlap.shape[0]] += overlap
+
+            out[out_cursor : out_cursor + partition_size] = y_block[:partition_size]
+            out_cursor += partition_size
+            overlap = y_block[partition_size:]
+
+            hist_index = (hist_index + 1) % n_parts
+
+        return out[:output_len]
+
+
+def _get_cupy_module() -> Any | None:
+    global _cupy_module, _cupy_probed
+    if _cupy_probed:
+        return _cupy_module
+
+    _cupy_probed = True
+    try:
+        import cupy as cp  # type: ignore[import-untyped]
+
+        device_count = int(cp.cuda.runtime.getDeviceCount())
+        if device_count < 1:
+            return None
+        _cupy_module = cp
+        return _cupy_module
+    except Exception:
+        return None

@@ -25,6 +25,7 @@ Hatch is convenient, but optional. You can use `verbx` with plain `pip`, a virtu
 - CLI-only architecture (Typer + Rich)
 - Algorithmic reverb (FDN + diffusion topology)
 - Partitioned FFT convolution (long IR friendly)
+- Native multichannel/surround processing and matrix IR routing (M input × N output)
 - Freeze segment looping + repeat chaining
 - Loudness/peak controls (LUFS, sample peak, true-peak approximation)
 - Ambient controls (shimmer, ducking, bloom, tilt EQ)
@@ -38,6 +39,9 @@ Hatch is convenient, but optional. You can use `verbx` with plain `pip`, a virtu
 
 - Python 3.11+
 - `libsndfile` available on system (required by `soundfile`)
+- Optional acceleration packages:
+  - `numba` (faster CPU algorithmic FDN path)
+  - `cupy` / `cupy-cuda12x` (CUDA convolution backend)
 
 ## Installation and Quick Start
 
@@ -197,6 +201,16 @@ verbx render input.wav output.wav --engine algo --rt60 80 --wet 0.85 --dry 0.15
 verbx render input.wav output.wav --engine conv --ir hall_ir.wav --partition-size 16384
 ```
 
+### 2b) Surround matrix convolution (true cross-channel routing)
+
+```bash
+# 5.1 input with matrix-packed IR channels
+verbx render in_5p1.wav out_5p1.wav \
+  --engine conv \
+  --ir ir_matrix_5p1.wav \
+  --ir-matrix-layout output-major
+```
+
 ### 3) Freeze + repeat chain
 
 ```bash
@@ -241,6 +255,226 @@ verbx render input.wav output.wav \
   --ir-gen --ir-gen-mode hybrid --ir-gen-length 120 --ir-gen-seed 7
 ```
 
+### 9) Force 32-bit float output + final peak normalization
+
+```bash
+# write WAV as 32-bit float
+verbx render input.wav output.wav --out-subtype float32
+
+# match final output peak to input peak
+verbx render input.wav output.wav --output-peak-norm input
+
+# normalize final output peak to full scale (0 dBFS)
+verbx render input.wav output.wav --output-peak-norm full-scale
+
+# normalize final output peak to a specified target
+verbx render input.wav output.wav --output-peak-norm target --output-peak-target-dbfs -3
+```
+
+### 10) Acceleration (CUDA / Apple Silicon)
+
+```bash
+# auto-select compute device
+verbx render input.wav output.wav --device auto
+
+# force CUDA convolution path (falls back safely if unavailable)
+verbx render input.wav output.wav --engine conv --ir hall.wav --device cuda
+
+# Apple Silicon: prefer MPS profile + tune CPU thread count
+verbx render input.wav output.wav --device mps --threads 8
+```
+
+Notes:
+
+- CUDA path uses optional CuPy acceleration for partitioned FFT convolution.
+- Algorithmic FDN path uses CPU backend (optional Numba JIT when installed).
+- If requested acceleration is unavailable, `verbx` falls back to CPU and reports the effective backend.
+
+### 11) Batch throughput
+
+```bash
+# run batch jobs concurrently
+verbx batch render manifest.json --jobs 8
+```
+
+## New User Guide
+
+### Start Here (5-minute setup)
+
+1. Install dependencies (`uv` or `venv + pip`).
+2. Confirm CLI is available:
+   ```bash
+   verbx --help
+   ```
+3. Run a first render:
+   ```bash
+   verbx render input.wav output.wav --engine auto
+   ```
+4. Inspect generated analysis JSON:
+   - `output.wav.analysis.json`
+5. Iterate with one variable at a time:
+   - reverb time: `--rt60`
+   - wet/dry balance: `--wet`, `--dry`
+   - tonal shape: `--lowcut`, `--highcut`, `--tilt`
+
+### Processing Architecture
+
+```mermaid
+flowchart LR
+  A["Input Audio"] --> B["CLI Parse (Typer)"]
+  B --> C["RenderConfig"]
+  C --> D["Device Resolve<br/>auto/cpu/cuda/mps"]
+  D --> E{"Engine"}
+  E -->|"algo"| F["FDN + Diffusion"]
+  E -->|"conv"| G["Partitioned FFT Convolution"]
+  F --> H["Repeat / Freeze / Ambient Stage"]
+  G --> H
+  H --> I["Loudness / Peak Targeting"]
+  I --> J["Optional Final Peak Norm"]
+  J --> K["Audio Write (subtype selectable)"]
+  K --> L["Analysis JSON + Optional Frames CSV"]
+```
+
+### IR Generation + Cache Flow
+
+```mermaid
+flowchart TD
+  A["verbx ir gen"] --> B["Hash(mode+params+seed+sr+channels+length)"]
+  B --> C{"Cache hit?"}
+  C -->|"yes"| D["Load .wav + .meta.json"]
+  C -->|"no"| E["Synthesize IR (fdn/stochastic/modal/hybrid)"]
+  E --> F["Shape (EQ/normalize/LUFS/peak)"]
+  F --> G["Write cache artifacts"]
+  D --> H["Write requested output format"]
+  G --> H
+```
+
+## DSP Math Notes
+
+### RT60 to Feedback Gain (FDN)
+
+For each delay line with delay \(d\) seconds and target RT60 \(T_{60}\):
+
+\[
+g \approx 10^{-3d/T_{60}}
+\]
+
+This maps exponential energy decay to delay-line feedback gain.  
+`verbx` applies this per-line, then applies damping filters for faster HF decay.
+
+### FDN State Update
+
+At each sample:
+
+\[
+\mathbf{y}[n] = \mathbf{D}\left(\mathbf{x}_{fb}[n]\right), \quad
+\mathbf{x}_{fb}[n+1] = \mathbf{G}\mathbf{M}\mathbf{y}[n] + \mathbf{u}[n]
+\]
+
+- \(\mathbf{M}\): mixing matrix (Hadamard-style orthogonal mix)
+- \(\mathbf{G}\): diagonal feedback gains (RT60-calibrated)
+- \(\mathbf{D}\): damping / DC filtering
+- \(\mathbf{u}[n]\): injected input (after pre-delay and diffusion)
+
+### Partitioned FFT Convolution
+
+Convolution in frequency domain:
+
+\[
+Y_k(\omega) = \sum_{p=0}^{P-1} X_{k-p}(\omega)\,H_p(\omega)
+\]
+
+- \(H_p\): FFT of IR partition \(p\)
+- \(X_{k-p}\): FFT history of recent input partitions
+- \(P\): number of IR partitions
+
+This reduces long-IR convolution cost and supports streaming block processing.
+
+### Multichannel Matrix Convolution
+
+For \(M\) input channels and \(N\) output channels:
+
+\[
+y_o[n] = \sum_{i=0}^{M-1} (x_i * h_{i,o})[n]
+\]
+
+- \(h_{i,o}\) is the IR from input channel \(i\) to output channel \(o\)
+- `verbx` supports matrix-packed IR files where channel count is `M * N`
+- packing order is controlled by `--ir-matrix-layout`:
+  - `output-major`: channel index = `o*M + i`
+  - `input-major`: channel index = `i*N + o`
+
+### Freeze Crossfade (Equal Power)
+
+For loop boundary crossfade parameter \(\theta \in [0, \pi/2]\):
+
+\[
+w_{out} = \cos(\theta), \quad w_{in} = \sin(\theta)
+\]
+
+\[
+y = w_{out}\,x_{tail} + w_{in}\,x_{head}
+\]
+
+This reduces clicks at loop boundaries.
+
+### Loudness / Peak Stages
+
+- Integrated LUFS normalization (EBU R128 via `pyloudnorm`)
+- True-peak approximation via oversampling
+- Optional limiter + sample-peak ceiling
+- Optional final peak norm:
+  - `input` (match input peak)
+  - `target` (specified dBFS)
+  - `full-scale` (0 dBFS)
+
+## Performance Tuning
+
+### Device Selection
+
+- `--device auto`: choose best available platform (`cuda` > `mps` > `cpu`)
+- `--device cuda`: enables CuPy backend for convolution if available
+- `--device mps`: optimized Apple Silicon profile (CPU backend + thread tuning)
+- `--device cpu`: deterministic CPU-only execution
+
+### Threading
+
+- `--threads N` sets CPU threading hints for FFT/BLAS stacks.
+- Useful on Apple Silicon and multi-core x86 for convolution workloads.
+
+### Streaming Convolution Mode
+
+`verbx render` automatically uses file-streaming convolution (low peak RAM) when compatible.
+
+Current streaming-compatible constraints:
+
+- `--engine conv`
+- `--repeat 1`
+- no freeze
+- `--normalize-stage none`
+- no LUFS/peak target stages
+- no duck/bloom/tilt/lowcut/highcut post stages
+- `--output-peak-norm none`
+
+When incompatible options are requested, `verbx` falls back to full-buffer processing.
+
+## Surround / Multichannel IR Rules
+
+- Input audio: arbitrary channel count (`M`).
+- IR file channel interpretation:
+  - `1` channel IR: diagonal routing, same IR applied per channel.
+  - `M` channel IR: diagonal routing with per-channel IR.
+  - `M*N` channel IR (where channel count divisible by `M`): full matrix routing from `M` input to `N` output.
+- Non-divisible IR channel counts now raise explicit CLI errors.
+- Render summary + analysis JSON report effective routing/backend details.
+
+### Parallel Batch Rendering
+
+`verbx batch render manifest.json --jobs N` now executes jobs concurrently.
+
+- Use `--jobs` near CPU core count for throughput.
+- Use `--dry-run` to validate manifests before rendering.
+
 ## CLI Command Cookbook
 
 ### Global help
@@ -267,11 +501,22 @@ verbx render in.wav out.wav --engine algo --rt60 120 --damping 0.5 --width 1.2
 # convolution with IR normalization and tail cap
 verbx render in.wav out.wav --engine conv --ir plate.wav --ir-normalize peak --tail-limit 45
 
+# cross-channel matrix routing (packed IR channels)
+verbx render in_7p1.wav out_7p1.wav --engine conv --ir matrix_7p1.wav --ir-matrix-layout output-major
+
 # per-pass normalization strategy
 verbx render in.wav out.wav --repeat 4 --normalize-stage per-pass --repeat-target-lufs -20
 
 # output sample-peak strategy
 verbx render in.wav out.wav --target-peak-dbfs -2 --sample-peak
+
+# force float32 output container subtype
+verbx render in.wav out.wav --out-subtype float32
+
+# final peak normalization options
+verbx render in.wav out.wav --output-peak-norm input
+verbx render in.wav out.wav --output-peak-norm full-scale
+verbx render in.wav out.wav --output-peak-norm target --output-peak-target-dbfs -6
 
 # disable limiter
 verbx render in.wav out.wav --no-limiter
@@ -339,7 +584,7 @@ verbx cache clear
 
 ```bash
 verbx batch template > manifest.json
-verbx batch render manifest.json --jobs 4
+verbx batch render manifest.json --jobs 4   # parallel workers
 verbx batch render manifest.json --jobs 4 --dry-run
 ```
 

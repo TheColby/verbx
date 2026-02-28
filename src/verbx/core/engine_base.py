@@ -11,6 +11,10 @@ import numpy.typing as npt
 class ReverbEngine(ABC):
     """Abstract interface for all reverb engines."""
 
+    def backend_name(self) -> str:
+        """Return compute backend name used by the engine."""
+        return "cpu"
+
     @abstractmethod
     def process(self, audio: npt.NDArray[np.float32], sr: int) -> npt.NDArray[np.float32]:
         """Process audio and return an array with the same shape."""

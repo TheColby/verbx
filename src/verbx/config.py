@@ -9,6 +9,10 @@ EngineName = Literal["conv", "algo", "auto"]
 IRNormalize = Literal["peak", "rms", "none"]
 NormalizeStage = Literal["none", "post", "per-pass"]
 IRMode = Literal["fdn", "stochastic", "modal", "hybrid"]
+IRMatrixLayout = Literal["output-major", "input-major"]
+DeviceName = Literal["auto", "cpu", "cuda", "mps"]
+OutputSubtype = Literal["auto", "float32", "float64", "pcm16", "pcm24", "pcm32"]
+OutputPeakNorm = Literal["none", "input", "target", "full-scale"]
 
 
 @dataclass(slots=True)
@@ -31,8 +35,10 @@ class RenderConfig:
     block_size: int = 4096
     ir: str | None = None
     ir_normalize: IRNormalize = "peak"
+    ir_matrix_layout: IRMatrixLayout = "output-major"
     tail_limit: float | None = None
     threads: int | None = None
+    device: DeviceName = "auto"
     partition_size: int = 16_384
     ir_gen: bool = False
     ir_gen_mode: IRMode = "hybrid"
@@ -46,6 +52,9 @@ class RenderConfig:
     normalize_stage: NormalizeStage = "post"
     repeat_target_lufs: float | None = None
     repeat_target_peak_dbfs: float | None = None
+    output_subtype: OutputSubtype = "auto"
+    output_peak_norm: OutputPeakNorm = "none"
+    output_peak_target_dbfs: float | None = None
     shimmer: bool = False
     shimmer_semitones: float = 12.0
     shimmer_mix: float = 0.25

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -12,6 +14,22 @@ from verbx.core.shimmer import ShimmerConfig, ShimmerProcessor
 from verbx.io.audio import ensure_mono_or_stereo
 
 AudioArray = npt.NDArray[np.float32]
+
+try:
+    from numba import njit  # type: ignore[import-untyped]
+
+    _numba_available = True
+except Exception:  # pragma: no cover
+    njit = None
+    _numba_available = False
+
+F = TypeVar("F", bound=Callable[..., object])
+
+
+def _maybe_njit(func: F) -> F:
+    if njit is None:
+        return func
+    return njit(cache=True, fastmath=True)(func)  # type: ignore[return-value,no-any-return]
 
 
 @dataclass(slots=True)
@@ -33,6 +51,7 @@ class AlgoReverbConfig:
     shimmer_feedback: float = 0.35
     shimmer_highcut: float | None = 10_000.0
     shimmer_lowcut: float | None = 300.0
+    device: str = "cpu"
 
 
 @dataclass(slots=True)
@@ -54,6 +73,7 @@ class AlgoReverbEngine(ReverbEngine):
     def __init__(self, config: AlgoReverbConfig) -> None:
         self._config = config
         self._hadamard = self._build_hadamard_matrix(8)
+        self._use_numba = _numba_available and config.device != "cuda"
         self._shimmer = ShimmerProcessor(
             ShimmerConfig(
                 enabled=config.shimmer,
@@ -91,6 +111,10 @@ class AlgoReverbEngine(ReverbEngine):
 
         return np.asarray(output, dtype=np.float32)
 
+    def backend_name(self) -> str:
+        """Return current algorithmic backend."""
+        return "cpu-numba-fdn" if self._use_numba else "cpu-python-fdn"
+
     @staticmethod
     def _build_hadamard_matrix(size: int) -> npt.NDArray[np.float32]:
         matrix = np.array([[1.0]], dtype=np.float32)
@@ -111,6 +135,21 @@ class AlgoReverbEngine(ReverbEngine):
         return np.asarray(out, dtype=np.float32)
 
     def _process_channel(self, signal: npt.NDArray[np.float32], sr: int) -> npt.NDArray[np.float32]:
+        if self._use_numba:
+            return _process_channel_kernel(
+                signal=signal,
+                sr=sr,
+                rt60=np.float32(self._config.rt60),
+                pre_delay_ms=np.float32(self._config.pre_delay_ms),
+                damping=np.float32(self._config.damping),
+                mod_depth_ms=np.float32(self._config.mod_depth_ms),
+                mod_rate_hz=np.float32(self._config.mod_rate_hz),
+                block_size=max(256, int(self._config.block_size)),
+                hadamard=self._hadamard,
+                base_delay_ms=self._BASE_DELAY_MS,
+                diffusion_delay_ms=self._DIFFUSION_DELAY_MS,
+            )
+
         pre_delay_samples = max(1, int((self._config.pre_delay_ms / 1000.0) * sr))
         max_mod_samples = max(1, int((self._config.mod_depth_ms / 1000.0) * sr))
 
@@ -228,3 +267,165 @@ class AlgoReverbEngine(ReverbEngine):
         frac = np.float32(read_pos - idx0)
         sample = (np.float32(1.0) - frac) * buffer[idx0] + frac * buffer[idx1]
         return np.float32(sample)
+
+
+@_maybe_njit
+def _fractional_delay_read_nb(
+    buffer: npt.NDArray[np.float32],
+    size: int,
+    write_index: int,
+    delay_samples: float,
+) -> np.float32:
+    read_pos = (float(write_index) - delay_samples) % size
+    idx0 = int(np.floor(read_pos))
+    idx1 = (idx0 + 1) % size
+    frac = np.float32(read_pos - idx0)
+    sample = (np.float32(1.0) - frac) * buffer[idx0] + frac * buffer[idx1]
+    return np.float32(sample)
+
+
+@_maybe_njit
+def _process_channel_kernel(
+    signal: npt.NDArray[np.float32],
+    sr: int,
+    rt60: np.float32,
+    pre_delay_ms: np.float32,
+    damping: np.float32,
+    mod_depth_ms: np.float32,
+    mod_rate_hz: np.float32,
+    block_size: int,
+    hadamard: npt.NDArray[np.float32],
+    base_delay_ms: npt.NDArray[np.float32],
+    diffusion_delay_ms: npt.NDArray[np.float32],
+) -> npt.NDArray[np.float32]:
+    n_samples = signal.shape[0]
+    output = np.zeros(n_samples, dtype=np.float32)
+    if n_samples == 0:
+        return output
+
+    pre_delay_samples = max(1, int((float(pre_delay_ms) / 1000.0) * sr))
+    max_mod_samples = max(1, int((float(mod_depth_ms) / 1000.0) * sr))
+
+    line_delays = np.maximum(2, np.asarray(np.round((base_delay_ms / 1000.0) * sr), dtype=np.int32))
+    num_lines = int(line_delays.shape[0])
+
+    diffusion_delays = np.maximum(
+        1, np.asarray(np.round((diffusion_delay_ms / 1000.0) * sr), dtype=np.int32)
+    )
+    num_allpasses = int(diffusion_delays.shape[0])
+
+    max_ap_size = int(np.max(diffusion_delays)) + 1
+    allpass_buffers = np.zeros((num_allpasses, max_ap_size), dtype=np.float32)
+    allpass_sizes = np.zeros(num_allpasses, dtype=np.int32)
+    allpass_indices = np.zeros(num_allpasses, dtype=np.int32)
+    for i in range(num_allpasses):
+        allpass_sizes[i] = int(diffusion_delays[i]) + 1
+
+    max_line_size = int(np.max(line_delays)) + (2 * max_mod_samples) + 4
+    delay_buffers = np.zeros((num_lines, max_line_size), dtype=np.float32)
+    delay_sizes = np.zeros(num_lines, dtype=np.int32)
+    write_indices = np.zeros(num_lines, dtype=np.int32)
+    for i in range(num_lines):
+        delay_sizes[i] = int(line_delays[i]) + (2 * max_mod_samples) + 4
+
+    lp_state = np.zeros(num_lines, dtype=np.float32)
+    dc_prev_in = np.zeros(num_lines, dtype=np.float32)
+    dc_prev_out = np.zeros(num_lines, dtype=np.float32)
+    phase = np.zeros(num_lines, dtype=np.float32)
+    for i in range(num_lines):
+        phase[i] = np.float32((2.0 * np.pi * i) / max(1, num_lines))
+
+    delays_sec = line_delays.astype(np.float64) / float(sr)
+    base_gain = np.power(10.0, (-3.0 * delays_sec) / max(float(rt60), 0.1)).astype(np.float32)
+    for i in range(num_lines):
+        if base_gain[i] > np.float32(0.995):
+            base_gain[i] = np.float32(0.995)
+        elif base_gain[i] < np.float32(0.0):
+            base_gain[i] = np.float32(0.0)
+
+    damp = float(damping)
+    if damp < 0.0:
+        damp = 0.0
+    elif damp > 1.0:
+        damp = 1.0
+    lp_alpha = np.float32(0.15 + (0.83 * damp))
+    dc_alpha = np.float32(0.995)
+    mod_rate = np.float32(max(float(mod_rate_hz), 0.0))
+
+    pre_buffer = np.zeros(pre_delay_samples + 1, dtype=np.float32)
+    pre_idx = 0
+
+    fdn_out = np.zeros(num_lines, dtype=np.float32)
+    mixed_feedback = np.zeros(num_lines, dtype=np.float32)
+    gain_allpass = np.float32(0.7)
+    two_pi = np.float32(2.0 * np.pi)
+    inv_sqrt_lines = np.float32(1.0 / np.sqrt(float(num_lines)))
+
+    for block_start in range(0, n_samples, block_size):
+        block_end = min(n_samples, block_start + block_size)
+        for n in range(block_start, block_end):
+            predelayed = pre_buffer[pre_idx]
+            pre_buffer[pre_idx] = signal[n]
+            pre_idx = (pre_idx + 1) % pre_buffer.shape[0]
+
+            diffused = predelayed
+            for ap in range(num_allpasses):
+                ap_size = allpass_sizes[ap]
+                ap_idx = allpass_indices[ap]
+                delayed = allpass_buffers[ap, ap_idx]
+                y = (-gain_allpass * diffused) + delayed
+                allpass_buffers[ap, ap_idx] = diffused + (gain_allpass * y)
+                allpass_indices[ap] = (ap_idx + 1) % ap_size
+                diffused = np.float32(y)
+
+            for i in range(num_lines):
+                mod = float(max_mod_samples) * np.sin(float(phase[i]))
+                phase[i] += np.float32((2.0 * np.pi * float(mod_rate)) / sr)
+                if phase[i] > two_pi:
+                    phase[i] -= two_pi
+
+                delay = float(line_delays[i]) + mod
+                size = int(delay_sizes[i])
+                read_value = _fractional_delay_read_nb(
+                    buffer=delay_buffers[i, :size],
+                    size=size,
+                    write_index=int(write_indices[i]),
+                    delay_samples=delay,
+                )
+
+                lp_state[i] = ((1.0 - lp_alpha) * read_value) + (lp_alpha * lp_state[i])
+                dc_filtered = lp_state[i] - dc_prev_in[i] + (dc_alpha * dc_prev_out[i])
+                dc_prev_in[i] = lp_state[i]
+                dc_prev_out[i] = dc_filtered
+                fdn_out[i] = dc_filtered
+
+            for i in range(num_lines):
+                acc = np.float32(0.0)
+                for j in range(num_lines):
+                    acc += hadamard[i, j] * fdn_out[j]
+                mixed_feedback[i] = acc
+
+            injection = np.float32(diffused * inv_sqrt_lines)
+            for i in range(num_lines):
+                value = injection + (base_gain[i] * mixed_feedback[i])
+                size = int(delay_sizes[i])
+                idx = int(write_indices[i])
+                delay_buffers[i, idx] = value
+                write_indices[i] = (idx + 1) % size
+
+            output[n] = np.float32(np.mean(fdn_out))
+
+            state_peak = np.float32(0.0)
+            for i in range(num_lines):
+                abs_val = np.abs(fdn_out[i])
+                if abs_val > state_peak:
+                    state_peak = abs_val
+            if state_peak > np.float32(64.0):
+                for i in range(num_lines):
+                    size = int(delay_sizes[i])
+                    delay_buffers[i, :size] *= np.float32(0.5)
+                    lp_state[i] *= np.float32(0.5)
+                    dc_prev_in[i] *= np.float32(0.5)
+                    dc_prev_out[i] *= np.float32(0.5)
+
+    return output
