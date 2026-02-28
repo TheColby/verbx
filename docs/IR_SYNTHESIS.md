@@ -22,6 +22,11 @@ hatch run verbx ir gen irs/wash_120.wav --mode modal --length 120 --f0 "64 Hz"
 # Auto-tune IR to an input file's detected fundamentals/harmonics
 hatch run verbx ir gen irs/tuned_from_input.wav --mode hybrid --analyze-input source.wav
 
+# Add Modalys-inspired late-tail resonator coloration
+hatch run verbx ir gen irs/resonated_120.wav --mode hybrid --length 120 \
+  --resonator --resonator-mix 0.4 --resonator-modes 28 \
+  --resonator-low-hz 70 --resonator-high-hz 8000
+
 # Analyze generated IR
 hatch run verbx ir analyze irs/wash_120.wav
 
@@ -58,6 +63,17 @@ hatch run verbx ir gen irs/pitched_modal.wav \
   --mode modal --length 45 --rt60 35 --seed 99 --tuning A4=432 \
   --modal-count 64 --modal-q-min 7 --modal-q-max 90 \
   --modal-low-hz 60 --modal-high-hz 9000 --modal-spread-cents 8
+```
+
+### Resonator-Colored Hybrid (Modalys-inspired)
+
+```bash
+hatch run verbx ir gen irs/resonator_hybrid.wav \
+  --mode hybrid --length 90 --rt60 70 --seed 33 \
+  --resonator --resonator-mix 0.38 --resonator-modes 24 \
+  --resonator-q-min 10 --resonator-q-max 120 \
+  --resonator-low-hz 80 --resonator-high-hz 7000 \
+  --resonator-late-start-ms 90 --f0 "64 Hz"
 ```
 
 ## Cache

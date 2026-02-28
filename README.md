@@ -854,6 +854,19 @@ No command-specific switches (other than `--help`).
 | `--analyze-input` | Source audio used to estimate tuning/harmonic targets. | Lets generator align IR resonance to real material. |
 | `--harmonic-align-strength` | Strength of harmonic alignment process. | Lower values are subtle; higher values enforce tuning more strongly. |
 
+#### Modalys-inspired resonator layer controls
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--resonator / --no-resonator` | Enables/disables a physical-model-style modal resonator layer for late-tail coloration. | Enable when you want richer, object-like resonances blended into the IR tail. |
+| `--resonator-mix` | Blend amount of resonator layer into the generated IR. | Start around `0.25-0.45`; higher values can become intentionally resonant/tonal. |
+| `--resonator-modes` | Number of resonator modes in the modal bank. | Higher mode counts increase complexity and render time. |
+| `--resonator-q-min` | Lower Q bound for resonator modes. | Lower values broaden resonances and reduce ringing sharpness. |
+| `--resonator-q-max` | Upper Q bound for resonator modes. | Higher values produce tighter, longer ringing modes. |
+| `--resonator-low-hz` | Lowest resonator frequency. | Raise to avoid sub-heavy modal buildup. |
+| `--resonator-high-hz` | Highest resonator frequency. | Lower to keep the resonator bed darker and smoother. |
+| `--resonator-late-start-ms` | Time offset before resonator layer fades in. | Keep this after early reflections so coloration emphasizes the late field. |
+
 #### Cache and output behavior
 
 | Switch | What it controls | Practical guidance |
@@ -999,6 +1012,11 @@ verbx ir gen IRs/modal_64hz.wav --mode modal --f0 "64 Hz"
 
 # auto-tune using source audio fundamentals/harmonics
 verbx ir gen IRs/tuned_from_source.wav --mode hybrid --analyze-input source.wav
+
+# Modalys-inspired resonator coloration on late tail
+verbx ir gen IRs/resonated_120.wav --mode hybrid --length 120 \
+  --resonator --resonator-mix 0.4 --resonator-modes 28 \
+  --resonator-low-hz 70 --resonator-high-hz 8000
 
 # extended control example
 verbx ir gen IRs/cinematic.wav \
@@ -1164,6 +1182,14 @@ pytest
 - `Cross-feature fusion`: support multi-feature policies (for example, transients driving pre-delay while spectral centroid drives damping and side energy drives width).
 - `Offline and realtime-style modes`: render deterministically offline while preserving architecture compatibility for potential future low-latency/streaming reactive workflows.
 - `Explainability and QA`: emit control-trace reports (feature values + mapped parameter values) for debugging, reproducibility, and perceptual tuning.
+
+### v1.0 - Jot-inspired FDN control and perceptual parameterization
+
+- `Multiband RT control`: add Jot-style decay-shaping filters inside FDN feedback loops so low/mid/high T60 targets can be tuned independently while preserving stability.
+- `Energy-preserving feedback families`: expand matrix options with orthogonal/unitary constructions and expose perceptual controls that map to diffusion, echo density, and coloration.
+- `Tonal correction stage`: add post-FDN tonal balancing inspired by energy-decay equalization practices so long tails stay smooth rather than frequency-skewed.
+- `Perceptual macro controls`: map low-level FDN coefficients to high-level room descriptors (size, clarity, warmth, envelopment) for faster design workflows.
+- `Validation tooling`: add decay-vs-target verification plots and spectral error summaries to verify calibration of FDN behavior against requested perceptual outcomes.
 
 ## License
 

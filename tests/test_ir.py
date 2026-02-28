@@ -147,6 +147,49 @@ def test_ir_gen_analyze_input_tuning(tmp_path: Path) -> None:
     assert len(params["harmonic_targets_hz"]) >= 3
 
 
+def test_ir_gen_resonator_layer(tmp_path: Path) -> None:
+    out_ir = tmp_path / "resonated.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "hybrid",
+            "--length",
+            "0.8",
+            "--sr",
+            "12000",
+            "--channels",
+            "2",
+            "--seed",
+            "31",
+            "--resonator",
+            "--resonator-mix",
+            "0.45",
+            "--resonator-modes",
+            "12",
+            "--resonator-low-hz",
+            "90",
+            "--resonator-high-hz",
+            "2400",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    audio, sr = sf.read(str(out_ir), always_2d=True, dtype="float32")
+    assert sr == 12000
+    assert np.all(np.isfinite(audio))
+    assert float(np.max(np.abs(audio))) > 1e-6
+
+    payload = json.loads(out_ir.with_suffix(".wav.ir.meta.json").read_text(encoding="utf-8"))
+    params = payload["params"]
+    assert params["resonator"] is True
+    assert int(params["resonator_modes"]) == 12
+    assert abs(float(params["resonator_mix"]) - 0.45) < 1e-9
+
+
 def test_ir_cache_hit(tmp_path: Path) -> None:
     cfg = IRGenConfig(mode="stochastic", length=0.5, sr=8000, channels=1, seed=7)
 

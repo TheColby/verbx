@@ -410,6 +410,18 @@ def ir_gen(
     harmonic_align_strength: float = typer.Option(
         0.75, "--harmonic-align-strength", min=0.0, max=1.0
     ),
+    resonator: bool = typer.Option(
+        False,
+        "--resonator/--no-resonator",
+        help="Enable Modalys-inspired physical modal-bank late-tail coloration.",
+    ),
+    resonator_mix: float = typer.Option(0.35, "--resonator-mix", min=0.0, max=1.0),
+    resonator_modes: int = typer.Option(32, "--resonator-modes", min=1),
+    resonator_q_min: float = typer.Option(8.0, "--resonator-q-min", min=0.5),
+    resonator_q_max: float = typer.Option(90.0, "--resonator-q-max", min=0.5),
+    resonator_low_hz: float = typer.Option(50.0, "--resonator-low-hz", min=20.0),
+    resonator_high_hz: float = typer.Option(9000.0, "--resonator-high-hz", min=30.0),
+    resonator_late_start_ms: float = typer.Option(80.0, "--resonator-late-start-ms", min=0.0),
     cache_dir: str = typer.Option(".verbx_cache/irs", "--cache-dir"),
     silent: bool = typer.Option(False, "--silent"),
 ) -> None:
@@ -424,6 +436,10 @@ def ir_gen(
         modal_q_max=modal_q_max,
         modal_low_hz=modal_low_hz,
         modal_high_hz=modal_high_hz,
+        resonator_q_min=resonator_q_min,
+        resonator_q_max=resonator_q_max,
+        resonator_low_hz=resonator_low_hz,
+        resonator_high_hz=resonator_high_hz,
     )
 
     f0_hz: float | None = None
@@ -480,6 +496,14 @@ def ir_gen(
         f0_hz=f0_hz,
         harmonic_targets_hz=harmonic_targets_hz,
         harmonic_align_strength=harmonic_align_strength,
+        resonator=resonator,
+        resonator_mix=resonator_mix,
+        resonator_modes=resonator_modes,
+        resonator_q_min=resonator_q_min,
+        resonator_q_max=resonator_q_max,
+        resonator_low_hz=resonator_low_hz,
+        resonator_high_hz=resonator_high_hz,
+        resonator_late_start_ms=resonator_late_start_ms,
     )
 
     resolved_out_ir = _resolve_ir_output_path(out_ir, out_format)
@@ -511,6 +535,16 @@ def ir_gen(
     if analyze_input is not None:
         table.add_row("analyze_input", str(analyze_input))
         table.add_row("harmonics_detected", str(len(harmonic_targets_hz)))
+    table.add_row("resonator", str(resonator))
+    if resonator:
+        table.add_row("resonator_mix", f"{resonator_mix:.3f}")
+        table.add_row("resonator_modes", str(resonator_modes))
+        table.add_row(
+            "resonator_band_hz",
+            f"{resonator_low_hz:.1f}-{resonator_high_hz:.1f}",
+        )
+        table.add_row("resonator_q", f"{resonator_q_min:.2f}-{resonator_q_max:.2f}")
+        table.add_row("resonator_late_start_ms", f"{resonator_late_start_ms:.2f}")
     console.print(table)
 
 
@@ -987,6 +1021,10 @@ def _validate_ir_gen_call(
     modal_q_max: float,
     modal_low_hz: float,
     modal_high_hz: float,
+    resonator_q_min: float,
+    resonator_q_max: float,
+    resonator_low_hz: float,
+    resonator_high_hz: float,
 ) -> None:
     resolved = _resolve_ir_output_path(out_ir, out_format)
     _validate_output_audio_path(resolved, "auto")
@@ -1005,6 +1043,12 @@ def _validate_ir_gen_call(
         raise typer.BadParameter(msg)
     if modal_low_hz >= modal_high_hz:
         msg = "--modal-low-hz must be < --modal-high-hz."
+        raise typer.BadParameter(msg)
+    if resonator_q_min > resonator_q_max:
+        msg = "--resonator-q-min must be <= --resonator-q-max."
+        raise typer.BadParameter(msg)
+    if resonator_low_hz >= resonator_high_hz:
+        msg = "--resonator-low-hz must be < --resonator-high-hz."
         raise typer.BadParameter(msg)
 
 

@@ -17,6 +17,7 @@ from verbx.ir.metrics import analyze_ir
 from verbx.ir.modes_fdn import generate_fdn_ir
 from verbx.ir.modes_modal import generate_modal_ir
 from verbx.ir.modes_stochastic import generate_stochastic_ir
+from verbx.ir.resonator import apply_modalys_resonator_layer
 from verbx.ir.shaping import apply_ir_shaping
 from verbx.ir.tuning import apply_harmonic_alignment
 
@@ -73,6 +74,14 @@ class IRGenConfig:
     f0_hz: float | None = None
     harmonic_targets_hz: tuple[float, ...] = ()
     harmonic_align_strength: float = 0.75
+    resonator: bool = False
+    resonator_mix: float = 0.35
+    resonator_modes: int = 32
+    resonator_q_min: float = 8.0
+    resonator_q_max: float = 90.0
+    resonator_low_hz: float = 50.0
+    resonator_high_hz: float = 9_000.0
+    resonator_late_start_ms: float = 80.0
 
 
 def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
@@ -193,6 +202,23 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
         strength=config.harmonic_align_strength,
     )
 
+    ir = apply_modalys_resonator_layer(
+        ir,
+        sr=config.sr,
+        enabled=config.resonator,
+        mix=config.resonator_mix,
+        modes=config.resonator_modes,
+        q_min=config.resonator_q_min,
+        q_max=config.resonator_q_max,
+        low_hz=config.resonator_low_hz,
+        high_hz=config.resonator_high_hz,
+        late_start_ms=config.resonator_late_start_ms,
+        seed=config.seed,
+        f0_hz=config.f0_hz,
+        harmonic_targets_hz=config.harmonic_targets_hz,
+        align_strength=config.harmonic_align_strength,
+    )
+
     shaped = apply_ir_shaping(
         ir,
         sr=config.sr,
@@ -207,7 +233,7 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
     )
 
     meta: dict[str, Any] = {
-        "version": "0.3.0",
+        "version": "0.4.1",
         "mode": config.mode,
         "seed": config.seed,
         "params": asdict(config),
@@ -266,6 +292,6 @@ def _resolve_rt60_band(config: IRGenConfig) -> tuple[float, float]:
 
 def _cache_key(config: IRGenConfig) -> str:
     payload = asdict(config)
-    payload["_schema"] = "verbx-ir-v0.3"
+    payload["_schema"] = "verbx-ir-v0.4"
     text = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
