@@ -8,18 +8,6 @@ loudness-aware output targeting, and synthetic IR generation with caching.
 
 Current implementation level: **v0.3**
 
-- Prompt 1: scaffolding and architecture
-- Prompt 2: functional DSP render path
-- Prompt 3: loudness/peak + shimmer/ambient controls
-- Prompt 4: IR factory, cache, batch, tempo sync, framewise analysis
-
-## Can I Use `verbx` Without Hatch?
-
-Yes.
-
-Hatch is convenient, but optional. You can use `verbx` with plain `pip`, a virtualenv,
-`pipx`, or directly via `python -m verbx.cli`.
-
 ## Features
 
 - CLI-only architecture (Typer + Rich)
