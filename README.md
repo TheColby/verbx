@@ -12,7 +12,36 @@ freeze/repeat processing, loudness and peak targeting, multichannel/surround
 routing, and synthetic IR generation with deterministic caching for reproducible
 results.
 
-## What is Reverberation (a/k/a Reverb)?
+## Table of Contents
+
+- [What is Reverberation? (a/k/a Reverb)?](#what-is-reverberation-aka-reverb)
+  - [Quick Reference Summary (from Wikipedia)](#quick-reference-summary-from-wikipedia)
+  - [Reverb Timeline (Single Hit)](#reverb-timeline-single-hit)
+  - [Dry/Wet and Tail Flow](#drywet-and-tail-flow)
+- [Status](#status)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation and Quick Start](#installation-and-quick-start)
+  - [Install options](#install-options)
+  - [Add `verbx` to Your `PATH`](#add-verbx-to-your-path)
+  - [Choosing How To Run `verbx`](#choosing-how-to-run-verbx)
+- [Quick Start Recipes](#quick-start-recipes)
+- [New User Guide](#new-user-guide)
+- [DSP Math Notes](#dsp-math-notes)
+- [Performance Tuning](#performance-tuning)
+- [Surround / Multichannel IR Rules](#surround--multichannel-ir-rules)
+- [CLI Switch Reference](#cli-switch-reference)
+- [CLI Command Cookbook](#cli-command-cookbook)
+- [Pregenerated IRs and Audio Examples](#pregenerated-irs-and-audio-examples)
+- [Generate 25 IRs With Varying Parameters](#generate-25-irs-with-varying-parameters)
+- [Development](#development)
+- [Project Layout](#project-layout)
+- [Additional Docs](#additional-docs)
+- [Roadmap](#roadmap)
+- [License](#license)
+- [Attribution](#attribution)
+
+## What is Reverberation? (a/k/a Reverb)?
 
 Reverberation is the persistence of sound in a space after the original sound
 is made. In practical mixing terms, a reverb sound usually contains:
@@ -47,6 +76,19 @@ flowchart LR
 #### Labeled Envelope Graph (Amplitude vs Time)
 
 ![Labeled reverb envelope graph](docs/assets/reverb_timeline_labeled.svg)
+
+Plain-English explanation of the graph:
+
+- The **horizontal axis** is time. Left is the source hit; right is later in the decay.
+- The **vertical axis is logarithmic in decibels (dB)**, not linear amplitude.
+- `0 dB` is the peak reference in this diagram (the dry/direct peak).
+- Every step downward on the y-axis is a fixed dB drop (`-10, -20, ..., -70 dB`), which represents multiplicative energy decay.
+- The first tall spike (**Dry Peak**) is the direct sound arriving immediately.
+- The short region after it (**Pre-delay window**) is the intentional delay before the reverb field builds.
+- The small vertical pulses (**Early Reflections**) are the first discrete room returns.
+- The blue curve is the **reverb envelope in dB space** and shows how level decays over time.
+- The **RT60 point** is explicitly where the envelope reaches **`peak - 60 dB`** (at the `-60 dB` reference line).
+- After RT60, the tail continues toward the noise floor (`-70 dB` in this visualization).
 
 ### Dry/Wet and Tail Flow
 
@@ -104,14 +146,16 @@ Current implementation level: **v0.4**
 
 ## Installation and Quick Start
 
-### Option A: Hatch (recommended for contributors)
+### Install options
+
+#### Option A: Hatch (recommended for contributors)
 
 ```bash
 hatch env create
 hatch run verbx --help
 ```
 
-### Option B: Plain virtualenv + pip (no Hatch)
+#### Option B: Plain virtualenv + pip (no Hatch)
 
 ```bash
 python3 -m venv .venv
@@ -121,26 +165,26 @@ python -m pip install -e ".[dev]"
 verbx --help
 ```
 
-### Option C: pipx (isolated app install)
+#### Option C: pipx (isolated app install)
 
 ```bash
 pipx install .
 verbx --help
 ```
 
-### Option D: Run module directly (no console-script install)
+#### Option D: Run module directly (no console-script install)
 
 ```bash
 python -m pip install typer rich numpy scipy soundfile librosa pyloudnorm
 PYTHONPATH=src python -m verbx.cli --help
 ```
 
-## Add `verbx` to Your `PATH`
+### Add `verbx` to Your `PATH`
 
 If `verbx --help` says `command not found`, your shell likely cannot see the
 install location yet.
 
-### Virtualenv install (`.venv`)
+#### Virtualenv install (`.venv`)
 
 Activate the environment before running `verbx`:
 
@@ -166,7 +210,7 @@ source ~/.zshrc
 direnv allow
 ```
 
-### `pipx` install
+#### `pipx` install
 
 Make sure pipx paths are configured:
 
@@ -180,7 +224,7 @@ Then open a new terminal and run:
 verbx --help
 ```
 
-### User-site `pip install --user`
+#### User-site `pip install --user`
 
 Add Python's user bin directory to `PATH` (zsh on macOS/Linux):
 
@@ -209,9 +253,9 @@ exec fish
 verbx --help
 ```
 
-## Choosing How To Run `verbx`
+### Choosing How To Run `verbx`
 
-### Hatch
+#### Hatch
 
 Pros:
 
@@ -229,7 +273,7 @@ Best for:
 - Contributors working on `verbx` itself
 - CI/local parity with documented project scripts
 
-### `uv`
+#### `uv`
 
 Pros:
 
@@ -263,7 +307,7 @@ uv pip install -e ".[dev]"
 verbx --help
 ```
 
-### Plain `venv` + `pip`
+#### Plain `venv` + `pip`
 
 Pros:
 
@@ -279,7 +323,7 @@ Best for:
 
 - Environments where only standard Python tooling is allowed
 
-### `pipx`
+#### `pipx`
 
 Pros:
 
@@ -295,7 +339,7 @@ Best for:
 
 - End users who only want to run `verbx` commands
 
-### Direct `python -m verbx.cli`
+#### Direct `python -m verbx.cli`
 
 Pros:
 
@@ -636,166 +680,245 @@ For full descriptions and defaults, run `verbx <command> --help`.
 
 ### `verbx render` switches
 
-- `--engine`
-- `--rt60`
-- `--wet`
-- `--dry`
-- `--repeat`
-- `--freeze`
-- `--start`
-- `--end`
-- `--pre-delay-ms`
-- `--pre-delay`
-- `--bpm`
-- `--damping`
-- `--width`
-- `--mod-depth-ms`
-- `--mod-rate-hz`
-- `--ir`
-- `--ir-normalize`
-- `--ir-matrix-layout`
-- `--tail-limit`
-- `--threads`
-- `--device`
-- `--partition-size`
-- `--ir-gen`
-- `--ir-gen-mode`
-- `--ir-gen-length`
-- `--ir-gen-seed`
-- `--ir-gen-cache-dir`
-- `--block-size`
-- `--target-lufs`
-- `--target-peak-dbfs`
-- `--true-peak / --sample-peak`
-- `--limiter / --no-limiter`
-- `--normalize-stage`
-- `--repeat-target-lufs`
-- `--repeat-target-peak-dbfs`
-- `--out-subtype`
-- `--output-peak-norm`
-- `--output-peak-target-dbfs`
-- `--shimmer`
-- `--shimmer-semitones`
-- `--shimmer-mix`
-- `--shimmer-feedback`
-- `--shimmer-highcut`
-- `--shimmer-lowcut`
-- `--duck`
-- `--duck-attack`
-- `--duck-release`
-- `--bloom`
-- `--lowcut`
-- `--highcut`
-- `--tilt`
-- `--frames-out`
-- `--analysis-out`
-- `--silent`
-- `--progress / --no-progress`
+Use this as a methodical guide for `verbx render INFILE OUTFILE`.
+
+#### Core engine and room behavior
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--engine [conv\|algo\|auto]` | Selects convolution, algorithmic FDN, or automatic selection. | Use `conv` when you have an IR (`--ir`). Use `algo` for generated tails. `auto` picks `conv` if IR is present, otherwise `algo`. |
+| `--rt60` | Target decay time in seconds for algorithmic or generated-IR style behavior. | Higher values produce longer tails (e.g., ambient washes). Lower values keep mixes tighter and more intelligible. |
+| `--wet` | Amount of processed (reverberated) signal in the output mix. | Increase for stronger ambience. |
+| `--dry` | Amount of original (unprocessed) signal in the output mix. | Keep some dry for clarity and source definition. |
+| `--damping` | High-frequency damping in the decay network. | Higher damping darkens tails faster; lower damping keeps brighter highs longer. |
+| `--width` | Stereo/spatial spread behavior in the algorithmic path. | Increase for wider image; reduce for narrower/centered ambience. |
+| `--mod-depth-ms` | Delay modulation depth (ms) in the algorithmic late field. | Small depth reduces metallic ringing; too high can sound chorus-like. |
+| `--mod-rate-hz` | Delay modulation speed. | Very slow rates are subtle; faster rates make modulation more audible. |
+
+#### Temporal structuring, repeats, and freeze
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--repeat` | Number of sequential render passes through the selected engine. | Use values `>1` for extreme chaining; monitor levels and normalization behavior. |
+| `--freeze` | Enables freeze mode. | Requires `--start` and `--end`; creates sustained texture from a selected segment. |
+| `--start` | Freeze segment start time (seconds). | Valid only with `--freeze`. |
+| `--end` | Freeze segment end time (seconds). | Must be greater than `--start`; valid only with `--freeze`. |
+| `--pre-delay-ms` | Numeric pre-delay (milliseconds). | Sets gap between dry hit and onset of reverb field. |
+| `--pre-delay` | Musical pre-delay notation (example: `1/8D`). | Useful for tempo-synced spaces; can override raw milliseconds. |
+| `--bpm` | Tempo used to resolve note-based pre-delay values. | Use with `--pre-delay` notation for rhythmic alignment. |
+
+#### Convolution and IR routing
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--ir` | Path to external impulse response. | Required for explicit convolution engine runs (`--engine conv`) unless `--ir-gen` is used. |
+| `--ir-normalize [peak\|rms\|none]` | How IR amplitude is normalized before convolution. | `peak` is typical for predictable headroom; `none` preserves original IR level exactly. |
+| `--ir-matrix-layout [output-major\|input-major]` | Mapping for matrix-packed multichannel IRs. | Use this for true cross-channel routing (M-in × N-out IR channel packing). |
+| `--partition-size` | FFT partition size for convolution processing. | Larger partitions reduce FFT overhead but raise latency/memory per block; tune for workload. |
+| `--tail-limit` | Optional maximum rendered convolution tail (seconds). | Useful to cap very long IR tails in production batches. |
+| `--block-size` | Internal block size for block-based processing. | Relevant for algorithmic path and some processing stages; larger blocks can improve throughput. |
+
+#### Runtime-generated IR path
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--ir-gen` | Enables automatic IR generation before render. | Use when you want convolution character without manually preparing an IR file. |
+| `--ir-gen-mode [fdn\|stochastic\|modal\|hybrid]` | Synthetic IR synthesis mode. | `hybrid` is versatile; `modal` is more resonant/tonal; `stochastic` is diffuse/noise-shaped. |
+| `--ir-gen-length` | Generated IR duration in seconds. | Longer values create longer convolution tails and larger processing cost. |
+| `--ir-gen-seed` | Deterministic random seed for generated IRs. | Keep fixed for reproducibility across renders. |
+| `--ir-gen-cache-dir` | Cache location for generated IR artifacts. | Reusing cache speeds repeated renders with identical IR-gen settings. |
+
+#### Loudness, peak targeting, and limiting
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--target-lufs` | Integrated loudness target for normalization. | Use when delivering to a specific loudness standard. |
+| `--target-peak-dbfs` | Output peak ceiling target. | Useful to enforce headroom constraints and prevent clipping. |
+| `--true-peak / --sample-peak` | Peak mode used when applying peak ceilings. | `true-peak` is safer for codec/resampling headroom; `sample-peak` is faster and simpler. |
+| `--limiter / --no-limiter` | Enables/disables final safety limiting stage (where applicable). | Keep limiter on for robust output safety unless intentionally preserving raw dynamics. |
+| `--normalize-stage [none\|post\|per-pass]` | When normalization/targeting is applied. | `post` applies after full chain; `per-pass` applies after each repeat pass; `none` disables target normalization stage. |
+| `--repeat-target-lufs` | Loudness target specifically for each repeat pass. | Only meaningful with `--normalize-stage per-pass`. |
+| `--repeat-target-peak-dbfs` | Peak target specifically for each repeat pass. | Only meaningful with `--normalize-stage per-pass`. |
+| `--output-peak-norm [none\|input\|target\|full-scale]` | Final peak normalization strategy after processing. | `input` matches input peak, `target` uses explicit dBFS value, `full-scale` normalizes near 0 dBFS. |
+| `--output-peak-target-dbfs` | Target value for `--output-peak-norm target`. | Required when using target mode. |
+| `--out-subtype [auto\|float32\|float64\|pcm16\|pcm24\|pcm32]` | Output file subtype/bit depth. | Use `float32` for headroom-friendly exports and DSP interchange. |
+
+#### Ambient enhancement controls
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--shimmer` | Enables shimmer path (pitch-shifted reverb coloration). | Good for ambient/synth textures. |
+| `--shimmer-semitones` | Pitch offset used by shimmer effect. | `+12` is a common octave-up shimmer baseline. |
+| `--shimmer-mix` | Blend amount of shimmer component. | Lower values are subtle; higher values are obvious and synthetic. |
+| `--shimmer-feedback` | Feedback amount in shimmer path. | High values create long evolving tails but can get dense quickly. |
+| `--shimmer-highcut` | High-cut filter for shimmer contribution. | Use to smooth harsh top-end artifacts. |
+| `--shimmer-lowcut` | Low-cut filter for shimmer contribution. | Removes low buildup from shimmer layer. |
+| `--duck` | Enables ducking behavior (reverb pulls down while source is active). | Helps keep dry source intelligible in dense mixes. |
+| `--duck-attack` | Attack time for ducking envelope (ms). | Lower attack reacts faster to incoming transients. |
+| `--duck-release` | Release time for ducking envelope (ms). | Higher release gives smoother recovery; lower release recovers quickly. |
+| `--bloom` | Slow build-up emphasis in the wet field. | Useful for cinematic rise and tail growth. |
+| `--lowcut` | Post-wet high-pass cutoff (Hz). | Removes low-frequency mud from reverb field. |
+| `--highcut` | Post-wet low-pass cutoff (Hz). | Tames bright/hissy reverb highs. |
+| `--tilt` | Broadband tilt EQ over wet field. | Positive tilt brightens; negative tilt darkens. |
+
+#### Execution, resources, and reporting
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--device [auto\|cpu\|cuda\|mps]` | Compute platform preference. | `auto` picks best available backend; force `cuda`/`mps` when validating platform-specific behavior. |
+| `--threads` | CPU thread hint for processing/FFT stacks. | Tune for throughput on multi-core systems. |
+| `--frames-out` | Path for framewise CSV metrics output. | Exports per-frame analysis including modulation metrics. |
+| `--analysis-out` | Path for JSON analysis report. | If omitted, report is written to `<OUTFILE>.analysis.json` unless `--silent`. |
+| `--silent` | Suppresses analysis/report output and console summaries. | Use for minimal-output automation contexts. |
+| `--progress / --no-progress` | Enables or disables progress UI. | Disable for non-interactive logs or CI environments. |
 
 ### `verbx analyze` switches
 
-- `--json-out`
-- `--lufs`
-- `--frames-out`
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--json-out` | Writes full analysis payload to a JSON file. | Use for reproducible reports, automation, or comparing files over time. |
+| `--lufs` | Enables loudness-specific metrics (`integrated_lufs`, `true_peak_dbfs`, `lra`). | Turn on when targeting delivery specs or validating loudness normalization behavior. |
+| `--frames-out` | Writes framewise CSV metrics for temporal inspection. | Useful for debugging dynamics, modulation, and section-by-section behavior. |
 
 ### `verbx suggest` switches
 
-- No command-specific switches.
+No command-specific switches (other than `--help`).
 
 ### `verbx presets` switches
 
-- No command-specific switches.
+No command-specific switches (other than `--help`).
 
 ### `verbx ir gen OUT_IR` switches
 
-- `--format`
-- `--mode`
-- `--length`
-- `--sr`
-- `--channels`
-- `--seed`
-- `--rt60`
-- `--rt60-low`
-- `--rt60-high`
-- `--damping`
-- `--lowcut`
-- `--highcut`
-- `--tilt`
-- `--normalize`
-- `--peak-dbfs`
-- `--target-lufs`
-- `--true-peak / --sample-peak`
-- `--er-count`
-- `--er-max-delay-ms`
-- `--er-decay-shape`
-- `--er-stereo-width`
-- `--er-room`
-- `--diffusion`
-- `--mod-depth-ms`
-- `--mod-rate-hz`
-- `--density`
-- `--tuning`
-- `--modal-count`
-- `--modal-q-min`
-- `--modal-q-max`
-- `--modal-spread-cents`
-- `--modal-low-hz`
-- `--modal-high-hz`
-- `--fdn-lines`
-- `--fdn-matrix`
-- `--fdn-stereo-inject`
-- `--f0`
-- `--analyze-input`
-- `--harmonic-align-strength`
-- `--cache-dir`
-- `--silent`
+#### Base output and synthesis mode
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--format` | Output container format override (`auto`, `wav`, `flac`, `aiff`, `aif`, `ogg`, `caf`). | Use when extension and desired format differ or when standardizing archive format. |
+| `--mode` | IR synthesis model (`fdn`, `stochastic`, `modal`, `hybrid`). | `hybrid` is a strong default; choose `modal` for resonant tones and `stochastic` for diffuse spaces. |
+| `--length` | IR duration in seconds. | Longer IRs produce longer convolution tails and higher compute/storage cost. |
+| `--sr` | IR sample rate. | Match target render sample rate to avoid resampling overhead. |
+| `--channels` | Number of channels in generated IR. | Match your intended render bus (stereo, surround, etc.). |
+| `--seed` | Deterministic seed for random elements. | Keep fixed for reproducibility; change for controlled variation. |
+
+#### Decay shape and broadband tone controls
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--rt60` | Single RT60 target for the whole IR. | Use for straightforward decay design. |
+| `--rt60-low` | Low-band RT60 target (when using band range mode). | Pair with `--rt60-high` for frequency-dependent decay shaping. |
+| `--rt60-high` | High-band RT60 target (when using band range mode). | Shorter high-band decay often sounds more natural. |
+| `--damping` | High-frequency damping amount. | Higher damping darkens tails faster. |
+| `--lowcut` | High-pass cutoff applied in shaping stage. | Removes sub/low rumble in generated IRs. |
+| `--highcut` | Low-pass cutoff applied in shaping stage. | Tames harsh brightness in tails. |
+| `--tilt` | Broadband tilt EQ during shaping. | Positive tilt brightens, negative tilt darkens. |
+| `--normalize [none\|peak\|rms]` | IR normalization mode. | `peak` is common for predictable headroom; `none` preserves raw generator output level. |
+| `--peak-dbfs` | Target peak used with peak normalization. | Set slightly below 0 dBFS for safety margin. |
+| `--target-lufs` | Loudness target for generated IR output. | Optional; useful when normalizing IR libraries consistently. |
+| `--true-peak / --sample-peak` | Peak evaluation method when enforcing peak targeting. | `true-peak` is safer for distribution/interpolation contexts. |
+
+#### Early reflections and late-field density controls
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--er-count` | Number of synthetic early reflections. | More reflections increase early spatial complexity. |
+| `--er-max-delay-ms` | Maximum delay span for early reflections. | Larger values spread early reflections further in time. |
+| `--er-decay-shape` | Early reflection decay profile identifier. | Use default unless deliberately tuning reflection envelope behavior. |
+| `--er-stereo-width` | Stereo spread of early reflections. | Increase for wider perceived room edges. |
+| `--er-room` | Coarse room-size scaling factor for ER timing/energy behavior. | Higher values generally imply larger perceived room impression. |
+| `--diffusion` | Late-field diffusion amount. | Higher diffusion smooths and densifies the tail. |
+| `--mod-depth-ms` | Modulation depth for time-varying late response. | Subtle values reduce static ringing artifacts. |
+| `--mod-rate-hz` | Modulation rate for late response movement. | Slow values keep motion natural and less chorus-like. |
+| `--density` | Overall event/energy density in tail generation. | Higher density creates thicker ambient wash. |
+
+#### Modal and tuning controls
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--tuning` | Base tuning system string (example: `A4=440`). | Use to align modal resonances with project tuning conventions. |
+| `--modal-count` | Number of modal components. | More modes increase complexity but can raise ringing density. |
+| `--modal-q-min` | Lower bound for modal Q factor. | Lower Q broadens resonances and shortens modal ringing. |
+| `--modal-q-max` | Upper bound for modal Q factor. | Higher Q gives sharper, longer resonances. |
+| `--modal-spread-cents` | Randomized detune spread between modes. | Adds richness and avoids overly static harmonic stacks. |
+| `--modal-low-hz` | Lowest modal frequency region. | Raise to avoid excessive low-frequency modal buildup. |
+| `--modal-high-hz` | Highest modal frequency region. | Lower to keep modal content darker/less brittle. |
+
+#### FDN-specific and harmonic alignment controls
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--fdn-lines` | Number of FDN delay lines. | More lines can increase smoothness and complexity. |
+| `--fdn-matrix` | FDN feedback matrix type identifier. | Matrix choice affects coloration and energy diffusion style. |
+| `--fdn-stereo-inject` | Stereo cross-injection factor for FDN excitation. | Increase for stronger channel interaction in stereo fields. |
+| `--f0` | Explicit fundamental anchor frequency. | Useful when generating musically tuned IRs (example: `64 Hz`). |
+| `--analyze-input` | Source audio used to estimate tuning/harmonic targets. | Lets generator align IR resonance to real material. |
+| `--harmonic-align-strength` | Strength of harmonic alignment process. | Lower values are subtle; higher values enforce tuning more strongly. |
+
+#### Cache and output behavior
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--cache-dir` | Directory for deterministic IR cache artifacts. | Keep stable across sessions to maximize cache hits. |
+| `--silent` | Suppresses metadata sidecar emission and command output details. | Use in scripted generation runs where only IR file output is needed. |
 
 ### `verbx ir analyze IR_FILE` switches
 
-- `--json-out`
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--json-out` | Writes IR analysis metrics to JSON. | Useful for IR cataloging, QA checks, and fit/ranking workflows. |
 
 ### `verbx ir process IN_IR OUT_IR` switches
 
-- `--damping`
-- `--lowcut`
-- `--highcut`
-- `--tilt`
-- `--normalize`
-- `--peak-dbfs`
-- `--target-lufs`
-- `--true-peak / --sample-peak`
-- `--silent`
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--damping` | High-frequency damping in process/shaping stage. | Increase to darken and soften existing IR tails. |
+| `--lowcut` | High-pass cutoff applied to input IR. | Remove low-end buildup and rumble from old IR captures. |
+| `--highcut` | Low-pass cutoff applied to input IR. | Reduce bright hash and metallic highs. |
+| `--tilt` | Broadband tilt EQ during IR processing. | Positive tilt brightens; negative tilt darkens. |
+| `--normalize [none\|peak\|rms]` | Output level normalization mode. | `peak` is safest for reusable library assets. |
+| `--peak-dbfs` | Target peak value used by peak normalization. | Keep below 0 dBFS to preserve headroom. |
+| `--target-lufs` | Optional loudness target for processed IR. | Use when standardizing IR set loudness characteristics. |
+| `--true-peak / --sample-peak` | Peak measurement method for limiting/targeting. | `true-peak` is preferred for conservative peak control. |
+| `--silent` | Suppresses sidecar metadata and command summary output. | Good for quiet pipeline execution. |
 
 ### `verbx ir fit INFILE OUT_IR` switches
 
-- `--top-k`
-- `--base-mode`
-- `--length`
-- `--seed`
-- `--candidate-pool`
-- `--fit-workers`
-- `--analyze-tuning / --no-analyze-tuning`
-- `--cache-dir`
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--top-k` | Number of top-ranked fitted IR outputs to write. | Use larger values for auditioning multiple candidates. |
+| `--base-mode` | Preferred synthesis mode seed for candidate generation. | Use this to bias fit search toward a family of IR behaviors. |
+| `--length` | Length of generated candidate IRs. | Keep consistent with intended render tail duration. |
+| `--seed` | Base seed for deterministic candidate generation. | Same seed reproduces candidate search order and results. |
+| `--candidate-pool` | Size of scored candidate pool before selecting top-K. | Larger pools improve search quality but cost more compute. |
+| `--fit-workers` | Parallel workers for fit-scoring stage (`0` = auto). | Increase on multi-core systems to speed candidate scoring. |
+| `--analyze-tuning / --no-analyze-tuning` | Enables/disables source tuning analysis during fit. | Enable for musically aligned IRs; disable for faster neutral fitting. |
+| `--cache-dir` | Cache directory for generated/loaded candidates. | Reuse across runs to avoid recomputing identical candidates. |
 
 ### `verbx cache info` switches
 
-- `--cache-dir`
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--cache-dir` | Cache directory to inspect. | Point to alternate cache roots when managing multiple environments. |
 
 ### `verbx cache clear` switches
 
-- `--cache-dir`
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--cache-dir` | Cache directory to clear. | Use carefully; this removes reusable IR artifacts for that cache root. |
 
 ### `verbx batch template` switches
 
-- No command-specific switches.
+No command-specific switches (other than `--help`).
 
 ### `verbx batch render MANIFEST` switches
 
-- `--jobs`
-- `--schedule`
-- `--retries`
-- `--continue-on-error / --fail-fast`
-- `--dry-run`
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--jobs` | Number of concurrent workers (`0` = auto). | Set near available cores for throughput; reduce if system is memory-constrained. |
+| `--schedule [fifo\|shortest-first\|longest-first]` | Batch job ordering policy. | `longest-first` helps keep workers busy; `fifo` preserves manifest order semantics. |
+| `--retries` | Retry count per failed job. | Use `1-2` for transient I/O or resource hiccups. |
+| `--continue-on-error / --fail-fast` | Whether to continue processing after a failure. | Use fail-fast for strict pipelines; continue-on-error for large best-effort batches. |
+| `--dry-run` | Validates and prints plan without rendering audio. | Recommended before long multi-job runs. |
 
 ## CLI Command Cookbook
 
