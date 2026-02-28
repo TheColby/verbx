@@ -12,7 +12,7 @@ freeze/repeat processing, loudness and peak targeting, multichannel/surround
 routing, and synthetic IR generation with deterministic caching for reproducible
 results.
 
-## What is Reverberation? (a/k/a Reverb)?
+## What is Reverberation (a/k/a Reverb)?
 
 Reverberation is the persistence of sound in a space after the original sound
 is made. In practical mixing terms, a reverb sound usually contains:
