@@ -53,7 +53,8 @@ def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
 
     out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float32")
     assert out_sr == 48_000
-    assert out_audio.shape == audio.shape
+    assert out_audio.shape[0] > audio.shape[0]
+    assert out_audio.shape[1] == audio.shape[1]
 
     analysis_path = Path(f"{outfile}.analysis.json")
     with analysis_path.open("r", encoding="utf-8") as handle:
@@ -62,6 +63,11 @@ def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
     assert "input" in payload
     assert "output" in payload
     assert payload["engine"] == "algo"
+    assert payload["effective"]["engine_requested"] == "algo"
+    assert payload["effective"]["engine_resolved"] == "algo"
+    assert payload["effective"]["ir_used"] is None
+    assert payload["effective"]["tail_padding_seconds"] > 0.0
+    assert payload["output_samples"] > payload["input_samples"]
 
 
 def test_analyze_lufs_mode(tmp_path: Path) -> None:

@@ -169,11 +169,31 @@ def render(
     table = Table(title="Render Summary")
     table.add_column("Key", style="cyan")
     table.add_column("Value", style="white")
+    table.add_row("requested_engine", str(report.get("effective", {}).get("engine_requested", "")))
     table.add_row("engine", str(report.get("engine", "unknown")))
+    table.add_row("ir_used", str(report.get("effective", {}).get("ir_used")))
     table.add_row("sample_rate", str(report.get("sample_rate", "")))
     table.add_row("channels", str(report.get("channels", "")))
     table.add_row("input_samples", str(report.get("input_samples", "")))
     table.add_row("output_samples", str(report.get("output_samples", "")))
+    table.add_row(
+        "tail_padding_s",
+        str(report.get("effective", {}).get("tail_padding_seconds", "")),
+    )
+    config_report = report.get("config", {})
+    if isinstance(config_report, dict):
+        for key in (
+            "rt60",
+            "pre_delay_ms",
+            "wet",
+            "dry",
+            "repeat",
+            "damping",
+            "width",
+            "block_size",
+        ):
+            if key in config_report:
+                table.add_row(key, str(config_report[key]))
     table.add_row("analysis_json", str(report.get("analysis_path", "")))
     if "frames_path" in report:
         table.add_row("frames_csv", str(report.get("frames_path")))

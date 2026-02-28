@@ -58,6 +58,15 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 xfade_ms=100.0,
             )
 
+        tail_padding_seconds = 0.0
+        if engine_name == "algo":
+            tail_padding_seconds = _algo_tail_padding_seconds(runtime_config)
+            input_for_engine = _append_tail_padding(
+                audio=input_for_engine,
+                sr=sr,
+                tail_seconds=tail_padding_seconds,
+            )
+
         repeat_post_processor = _build_per_pass_processor(runtime_config, sr)
 
         rendered = repeat_process(
@@ -105,6 +114,13 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             "output_samples": int(rendered.shape[0]),
             "channels": int(rendered.shape[1]),
             "config": asdict(runtime_config),
+            "effective": {
+                "engine_requested": config.engine,
+                "engine_resolved": engine_name,
+                "ir_used": runtime_config.ir,
+                "tail_padding_seconds": tail_padding_seconds,
+                "non_default_settings": _non_default_settings(runtime_config),
+            },
         }
         if ir_runtime is not None:
             report["ir_runtime"] = ir_runtime
@@ -261,3 +277,24 @@ def _should_include_loudness(config: RenderConfig) -> bool:
             config.repeat_target_peak_dbfs,
         )
     )
+
+
+def _algo_tail_padding_seconds(config: RenderConfig) -> float:
+    """Compute explicit tail render duration for algorithmic reverbs."""
+    pre_delay = max(0.0, float(config.pre_delay_ms)) / 1000.0
+    return max(0.25, float(config.rt60) + pre_delay)
+
+
+def _append_tail_padding(audio: AudioArray, sr: int, tail_seconds: float) -> AudioArray:
+    """Append silence so stateful reverbs can decay naturally."""
+    tail_samples = int(np.ceil(max(0.0, tail_seconds) * float(sr)))
+    if tail_samples <= 0:
+        return audio
+    padding = np.zeros((tail_samples, audio.shape[1]), dtype=np.float32)
+    return np.concatenate((audio, padding), axis=0)
+
+
+def _non_default_settings(config: RenderConfig) -> dict[str, Any]:
+    defaults = asdict(RenderConfig())
+    current = asdict(config)
+    return {key: value for key, value in current.items() if defaults.get(key) != value}
