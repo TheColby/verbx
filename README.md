@@ -22,6 +22,18 @@ is made. In practical mixing terms, a reverb sound usually contains:
 - **Early reflections** (first few room bounces that create space cues)
 - A dense **wash / late tail** (the smooth decaying ambience)
 
+### Quick Reference Summary (from Wikipedia)
+
+- Reverberation comes from many closely spaced reflections that build up and then decay as energy is absorbed by surfaces, air, and objects in a space.
+- A common practical distinction is timing: discrete echoes are typically heard when reflections are delayed enough (around 50-100 ms), while denser arrivals below that range are perceived as reverberation.
+- Reverb decay is frequency dependent, which is why low and high bands can ring for different lengths of time.
+- `RT60` is the standard decay metric: how long it takes for level to fall by 60 dB after the source stops.
+- The best decay time depends on use case: speech-focused rooms usually need shorter decay for intelligibility, while music spaces can benefit from longer decay.
+- Too much reverberation can hurt clarity for speech, hearing-aid users, and automatic speech recognition.
+- Artificial reverb systems simulate these behaviors using chambers, springs/plates, or digital DSP.
+
+Source: [Wikipedia - Reverberation](https://en.wikipedia.org/wiki/Reverberation)
+
 ### Reverb Timeline (Single Hit)
 
 ```mermaid
@@ -34,19 +46,7 @@ flowchart LR
 
 #### Labeled Envelope Graph (Amplitude vs Time)
 
-```text
-Amplitude
-1.0 | Dry peak
-    |   *
-0.8 |   |\
-0.6 |   | \            Early reflections
-0.4 |   |  \         *   *   *   *
-0.2 |   |   \      *   *   *   *   *      Wash / late tail (diffuse decay)
-0.1 |   |    \____*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_
-0.0 +---+-----+-------------------+----------------------------------> Time
-      0 ms  10-80 ms            120 ms                               RT60
-            (pre-delay)      (ER region end)                    (tail to silence)
-```
+![Labeled reverb envelope graph](docs/assets/reverb_timeline_labeled.svg)
 
 ### Dry/Wet and Tail Flow
 
