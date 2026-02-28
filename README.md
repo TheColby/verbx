@@ -119,6 +119,70 @@ python -m pip install typer rich numpy scipy soundfile librosa pyloudnorm
 PYTHONPATH=src python -m verbx.cli --help
 ```
 
+## Add `verbx` to Your `PATH`
+
+If `verbx --help` says `command not found`, your shell likely cannot see the
+install location yet.
+
+### Virtualenv install (`.venv`)
+
+Activate the environment before running `verbx`:
+
+```bash
+source .venv/bin/activate
+verbx --help
+```
+
+To auto-activate in this project folder:
+
+```bash
+echo 'source .venv/bin/activate' >> .envrc
+direnv allow
+```
+
+### `pipx` install
+
+Make sure pipx paths are configured:
+
+```bash
+pipx ensurepath
+```
+
+Then open a new terminal and run:
+
+```bash
+verbx --help
+```
+
+### User-site `pip install --user`
+
+Add Python's user bin directory to `PATH` (zsh on macOS/Linux):
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+echo 'export PATH="$HOME/Library/Python/3.11/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+verbx --help
+```
+
+For bash:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+echo 'export PATH="$HOME/Library/Python/3.11/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+verbx --help
+```
+
+For fish:
+
+```fish
+fish_add_path $HOME/.local/bin
+fish_add_path $HOME/Library/Python/3.11/bin
+exec fish
+verbx --help
+```
+
 ## Choosing How To Run `verbx`
 
 ### Hatch
