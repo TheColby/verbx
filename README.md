@@ -485,6 +485,39 @@ verbx batch render manifest.json --jobs 8 --schedule longest-first
 verbx batch render manifest.json --jobs 8 --schedule shortest-first --retries 1 --continue-on-error
 ```
 
+### 12) Iterative room-resonance chain (inspired by Alvin Lucier's *I Am Sitting in a Room*)
+
+```bash
+# Start with a dry voice recording.
+mkdir -p passes
+cp input_voice.wav passes/pass_00.wav
+
+current="passes/pass_00.wav"
+
+# Render each pass from the previous pass, saving every generation.
+for i in $(seq 1 20); do
+  next=$(printf "passes/pass_%02d.wav" "$i")
+  verbx render "$current" "$next" \
+    --engine algo \
+    --rt60 35 \
+    --wet 1.0 \
+    --dry 0.0 \
+    --repeat 1 \
+    --target-peak-dbfs -2 \
+    --true-peak \
+    --output-peak-norm input \
+    --no-progress
+  current="$next"
+done
+```
+
+Tips:
+
+- Keep `--wet 1.0 --dry 0.0` so each pass is fully reprocessed.
+- Keep normalization enabled (as above) so levels stay controlled across many passes.
+- Use fewer passes (`8-12`) for subtle evolution, or more (`20+`) for stronger resonance imprint.
+- The `passes/` folder preserves every intermediate file for listening, editing, or montage.
+
 ## New User Guide
 
 ### Start Here (5-minute setup)
@@ -1190,6 +1223,18 @@ pytest
 - `Tonal correction stage`: add post-FDN tonal balancing inspired by energy-decay equalization practices so long tails stay smooth rather than frequency-skewed.
 - `Perceptual macro controls`: map low-level FDN coefficients to high-level room descriptors (size, clarity, warmth, envelopment) for faster design workflows.
 - `Validation tooling`: add decay-vs-target verification plots and spectral error summaries to verify calibration of FDN behavior against requested perceptual outcomes.
+
+### v1.1 - IR morphing and blending framework
+
+- `IR morph CLI`: add `verbx ir morph A.wav B.wav OUT.wav` with morph modes (`linear`, `equal-power`, `spectral`, `envelope-aware`) and mix control (`--alpha`).
+- `Render-time IR blending`: allow `verbx render` to accept multiple IRs with weighted blending (`--ir-blend`, `--ir-blend-mix`) so users can audition hybrid spaces without pre-baking files.
+- `Early/late independent morphing`: split IRs into early-reflection and late-tail zones and support separate blend curves for each zone to preserve transient localization while morphing tail character.
+- `Decay-shape alignment`: time-normalize and RT-align source IRs before blending so morph trajectories remain stable and do not collapse or over-extend tails.
+- `Spectral-phase safeguards`: add frequency-dependent smoothing and phase-coherence constraints to reduce combing/phasiness in spectral morph modes.
+- `Multichannel-safe morphing`: preserve channel topology and cross-channel energy relationships during morphing for surround, Atmos bed, and Ambisonics-adjacent workflows.
+- `Automation-ready morph control`: expose morph coefficient timelines so IR blending can evolve over time (bridging with v0.8 automation lanes).
+- `Caching and reproducibility`: cache morphed IR artifacts by source-hash + mode + parameters, with metadata sidecars documenting source IRs, weights, and normalization choices.
+- `QA metrics`: add morph quality reports (RT60 drift, early/late ratio drift, spectral distance, inter-channel coherence deltas) for objective validation in batch/CI workflows.
 
 ## License
 
