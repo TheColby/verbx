@@ -32,6 +32,22 @@ flowchart LR
   D --> E["Wash / Late Tail (hundreds of ms to many seconds)"]
 ```
 
+#### Labeled Envelope Graph (Amplitude vs Time)
+
+```text
+Amplitude
+1.0 | Dry peak
+    |   *
+0.8 |   |\
+0.6 |   | \            Early reflections
+0.4 |   |  \         *   *   *   *
+0.2 |   |   \      *   *   *   *   *      Wash / late tail (diffuse decay)
+0.1 |   |    \____*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_
+0.0 +---+-----+-------------------+----------------------------------> Time
+      0 ms  10-80 ms            120 ms                               RT60
+            (pre-delay)      (ER region end)                    (tail to silence)
+```
+
 ### Dry/Wet and Tail Flow
 
 ```mermaid
@@ -137,6 +153,16 @@ To auto-activate in this project folder:
 
 ```bash
 echo 'source .venv/bin/activate' >> .envrc
+direnv allow
+```
+
+If you see `zsh: command not found: direnv`, either skip this step and activate
+manually (`source .venv/bin/activate`) or install direnv:
+
+```bash
+brew install direnv
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+source ~/.zshrc
 direnv allow
 ```
 
