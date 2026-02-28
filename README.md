@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/verbx_logo.png" alt="verbx logo" width="520" />
+  <img src="./docs/assets/verbx_logo.png" alt="verbx logo" width="520" />
 </p>
 
 # verbx
@@ -521,6 +521,149 @@ Tips:
 - Keep normalization enabled (as above) so levels stay controlled across many passes.
 - Use fewer passes (`8-12`) for subtle evolution, or more (`20+`) for stronger resonance imprint.
 - The `passes/` folder preserves every intermediate file for listening, editing, or montage.
+
+### 13) Ambient loopbed (inspired by Brian Eno's *Discreet Music*)
+
+```bash
+verbx render input.wav output_eno.wav \
+  --engine algo \
+  --rt60 95 \
+  --wet 0.92 \
+  --dry 0.08 \
+  --damping 0.35 \
+  --width 1.25 \
+  --bloom 2.0 \
+  --tilt 0.8 \
+  --target-lufs -22 \
+  --target-peak-dbfs -2
+```
+
+### 14) Tape-loop evolution (inspired by Frippertronics)
+
+```bash
+mkdir -p fripp_passes
+cp guitar_phrase.wav fripp_passes/pass_00.wav
+current="fripp_passes/pass_00.wav"
+
+for i in $(seq 1 12); do
+  next=$(printf "fripp_passes/pass_%02d.wav" "$i")
+  verbx render "$current" "$next" \
+    --engine algo \
+    --rt60 28 \
+    --wet 0.88 \
+    --dry 0.12 \
+    --repeat 1 \
+    --output-peak-norm input \
+    --no-progress
+  current="$next"
+done
+```
+
+### 15) Gated drum-space style (inspired by 1980s gated reverb aesthetics)
+
+```bash
+verbx render drums.wav drums_gated_style.wav \
+  --engine conv \
+  --ir plate_short.wav \
+  --ir-normalize peak \
+  --tail-limit 1.2 \
+  --wet 0.75 \
+  --dry 0.4 \
+  --highcut 9000 \
+  --target-peak-dbfs -1
+```
+
+### 16) Dub chamber send chain (inspired by King Tubby / Lee Perry workflows)
+
+```bash
+verbx render snare_send.wav dub_chamber.wav \
+  --engine conv \
+  --ir spring_or_room_ir.wav \
+  --repeat 2 \
+  --wet 0.95 \
+  --dry 0.05 \
+  --lowcut 180 \
+  --highcut 4500 \
+  --tilt -2.0 \
+  --output-peak-norm input
+```
+
+### 17) Reverse-wash texture stack (inspired by shoegaze wash techniques)
+
+```bash
+verbx render guitar_pad.wav shoegaze_wash.wav \
+  --engine algo \
+  --freeze --start 1.0 --end 2.4 \
+  --shimmer --shimmer-semitones 12 --shimmer-mix 0.4 \
+  --rt60 80 \
+  --wet 0.95 \
+  --dry 0.08 \
+  --width 1.4 \
+  --target-peak-dbfs -2
+```
+
+### 18) Sparse hall clarity (inspired by Arvo Part-style acoustic spaciousness)
+
+```bash
+verbx render piano_sparse.wav piano_hall_clear.wav \
+  --engine conv \
+  --ir hall_ir.wav \
+  --pre-delay 1/16 --bpm 60 \
+  --wet 0.55 \
+  --dry 0.7 \
+  --lowcut 120 \
+  --highcut 11000 \
+  --target-lufs -20 \
+  --target-peak-dbfs -1
+```
+
+### 19) Deep-resonance long-space (inspired by Deep Listening aesthetics)
+
+```bash
+verbx render drone_input.wav drone_deep_space.wav \
+  --ir-gen \
+  --ir-gen-mode hybrid \
+  --ir-gen-length 240 \
+  --ir-gen-seed 108 \
+  --engine conv \
+  --wet 0.9 \
+  --dry 0.15 \
+  --tail-limit 180 \
+  --target-lufs -24 \
+  --target-peak-dbfs -2
+```
+
+### 20) Cathedral vocal/organ simulation
+
+```bash
+verbx render chant_or_organ.wav cathedral_render.wav \
+  --engine conv \
+  --ir cathedral_ir.wav \
+  --wet 0.82 \
+  --dry 0.35 \
+  --rt60 90 \
+  --lowcut 70 \
+  --highcut 10000 \
+  --target-lufs -21 \
+  --true-peak --target-peak-dbfs -1
+```
+
+### 21) Cinematic synth hall (inspired by classic analog-film synth spaces)
+
+```bash
+verbx render synth_lead.wav synth_cinematic_hall.wav \
+  --ir-gen \
+  --ir-gen-mode hybrid \
+  --ir-gen-length 120 \
+  --ir-gen-seed 77 \
+  --engine conv \
+  --wet 0.78 \
+  --dry 0.4 \
+  --width 1.3 \
+  --bloom 1.8 \
+  --tilt 1.2 \
+  --target-peak-dbfs -1.5
+```
 
 ## New User Guide
 
