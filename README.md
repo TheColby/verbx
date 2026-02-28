@@ -12,6 +12,47 @@ freeze/repeat processing, loudness and peak targeting, multichannel/surround
 routing, and synthetic IR generation with deterministic caching for reproducible
 results.
 
+## What is Reverberation? (a/k/a Reverb)?
+
+Reverberation is the persistence of sound in a space after the original sound
+is made. In practical mixing terms, a reverb sound usually contains:
+
+- A **dry peak** (direct sound reaching your ears first)
+- A **pre-delay** gap (optional short delay before reverb starts)
+- **Early reflections** (first few room bounces that create space cues)
+- A dense **wash / late tail** (the smooth decaying ambience)
+
+### Reverb Timeline (Single Hit)
+
+```mermaid
+flowchart LR
+  A["Source Hit"] --> B["Dry Peak (Direct Sound, ~0 ms)"]
+  B --> C["Pre-delay (e.g., 10-80 ms)"]
+  C --> D["Early Reflections (roughly first 20-120 ms)"]
+  D --> E["Wash / Late Tail (hundreds of ms to many seconds)"]
+```
+
+### Dry/Wet and Tail Flow
+
+```mermaid
+flowchart LR
+  A["Input Audio"] --> B["Dry Path"]
+  A --> C["Reverb Engine"]
+  C --> D["Pre-delay"]
+  D --> E["Early Reflection Stage"]
+  E --> F["Late Tail / Wash Stage"]
+  B --> G["Dry/Wet Mix"]
+  F --> G
+  G --> H["Output"]
+```
+
+In `verbx`, controls map directly to this anatomy:
+
+- `--pre-delay-ms` / `--pre-delay`: shifts the reverb onset
+- `--wet` and `--dry`: set balance between direct sound and reverb field
+- `--rt60`: sets how long the wash/tail decays
+- `--damping`, `--lowcut`, `--highcut`, `--tilt`: shape the tonal decay
+
 ## Status
 
 Current implementation level: **v0.4**
@@ -22,12 +63,6 @@ Current implementation level: **v0.4**
 - Prompt 4: IR factory, cache, batch, tempo sync, framewise analysis
 - v0.4 additions: framewise modulation analysis, advanced IR fitting heuristics, parallel batch scheduler
 
-## Can I Use `verbx` Without Hatch?
-
-Yes.
-
-Hatch is convenient, but optional. You can use `verbx` with plain `pip`, a virtualenv,
-`pipx`, or directly via `python -m verbx.cli`.
 ## Features
 
 - CLI-only architecture (Typer + Rich)
@@ -695,3 +730,22 @@ pytest
 ## Roadmap
 
 - v0.5: adaptive render quality presets, richer framewise modulation summaries, distributed batch execution
+
+## License
+
+This project is licensed under the MIT License.
+
+- Full text: [LICENSE](LICENSE)
+
+## Attribution
+
+`verbx` builds on the Python audio and DSP ecosystem, including:
+
+- [Typer](https://github.com/fastapi/typer) (CLI framework)
+- [Rich](https://github.com/Textualize/rich) (console UI/logging)
+- [NumPy](https://numpy.org/) and [SciPy](https://scipy.org/) (DSP/numerical core)
+- [SoundFile](https://github.com/bastibe/python-soundfile) / libsndfile (audio I/O)
+- [librosa](https://librosa.org/) (feature analysis and pitch utilities)
+- [pyloudnorm](https://github.com/csteinmetz1/pyloudnorm) (EBU R128 loudness)
+
+Reverb design in `verbx` is informed by established FDN, Schroeder, and partitioned-convolution techniques commonly used in digital audio DSP literature and practice.
