@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/verbx_logo.png" alt="verbx logo" width="520" />
+  <img src="docs/assets/verbx_logo.png" alt="verbx logo" width="420" />
 </p>
 
 # verbx
