@@ -23,7 +23,7 @@ results.
   - [2.2 Reverb Timeline (Single Hit)](#22-reverb-timeline-single-hit)
     - [2.2.1 Labeled Envelope Graph (Amplitude vs Time)](#221-labeled-envelope-graph-amplitude-vs-time)
   - [2.3 Dry/Wet and Tail Flow](#23-drywet-and-tail-flow)
-- [3.0 Status](#30-status)
+- [3.0 Project Status](#30-status)
 - [4.0 Features](#40-features)
 - [5.0 Requirements](#50-requirements)
 - [6.0 Installation and Quick Start](#60-installation-and-quick-start)
