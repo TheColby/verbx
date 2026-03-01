@@ -479,17 +479,23 @@ Recommendation:
 
 ### 7.1 First render (algorithmic)
 
+Use this as the baseline no-IR workflow to create a long algorithmic tail quickly.
+
 ```bash
 verbx render input.wav output.wav --engine algo --rt60 80 --wet 0.85 --dry 0.15
 ```
 
 ### 7.2 Convolution render with external IR
 
+Use this when you want the output character to follow a specific captured or designed impulse response.
+
 ```bash
 verbx render input.wav output.wav --engine conv --ir hall_ir.wav --partition-size 16384
 ```
 
 ### 7.3 Surround matrix convolution (true cross-channel routing)
+
+Use this for explicit multichannel bus mapping where each output channel receives contributions from multiple input channels through an IR matrix.
 
 ```bash
 # 5.1 input with matrix-packed IR channels
@@ -501,11 +507,15 @@ verbx render in_5p1.wav out_5p1.wav \
 
 ### 7.4 Freeze + repeat chain
 
+Use this to lock onto a time region, then repeatedly reprocess it to build a sustained evolving texture.
+
 ```bash
 verbx render input.wav output.wav --freeze --start 2.0 --end 4.0 --repeat 3
 ```
 
 ### 7.5 Loudness and peak-targeted render
+
+Use this for deliverables that need consistent loudness and strict peak ceilings.
 
 ```bash
 verbx render input.wav output.wav \
@@ -517,6 +527,8 @@ verbx render input.wav output.wav \
 
 ### 7.6 Shimmer + ambient controls
 
+Use this to create bright, cinematic ambience with pitch-shifted bloom plus ducking and tonal tilt control.
+
 ```bash
 verbx render input.wav output.wav \
   --shimmer --shimmer-semitones 12 --shimmer-mix 0.35 \
@@ -526,11 +538,15 @@ verbx render input.wav output.wav \
 
 ### 7.7 Tempo-synced pre-delay
 
+Use this when pre-delay should line up rhythmically with the musical tempo.
+
 ```bash
 verbx render input.wav output.wav --pre-delay 1/8D --bpm 120
 ```
 
 ### 7.8 Framewise analysis CSV during render
+
+Use this to export time-varying descriptors for plotting, QA, or feature-driven downstream workflows.
 
 ```bash
 verbx render input.wav output.wav --frames-out reports/output_frames.csv
@@ -543,12 +559,16 @@ verbx render input.wav output.wav --frames-out reports/output_frames.csv
 
 ### 7.9 Auto-generate cached IR during render
 
+Use this when you want convolution color but do not want to manage a separate IR file manually.
+
 ```bash
 verbx render input.wav output.wav \
   --ir-gen --ir-gen-mode hybrid --ir-gen-length 120 --ir-gen-seed 7
 ```
 
 ### 7.10 Force 32-bit float output + final peak normalization
+
+Use this to control output file precision and choose a final peak-matching strategy.
 
 ```bash
 # write WAV as 32-bit float
@@ -565,6 +585,8 @@ verbx render input.wav output.wav --output-peak-norm target --output-peak-target
 ```
 
 ### 7.11 Acceleration (CUDA / Apple Silicon)
+
+Use this to select compute backends and improve throughput on supported hardware.
 
 ```bash
 # auto-select compute device
@@ -585,6 +607,8 @@ Notes:
 
 ### 7.12 Batch throughput
 
+Use this for many renders at once, with scheduling and retry policies for large jobs.
+
 ```bash
 # run batch jobs concurrently
 verbx batch render manifest.json --jobs 8
@@ -597,6 +621,8 @@ verbx batch render manifest.json --jobs 8 --schedule shortest-first --retries 1 
 ```
 
 ### 7.13 Iterative room-resonance chain (inspired by Alvin Lucier's *I Am Sitting in a Room*)
+
+Use this to repeatedly feed each output back into the next pass and preserve every generation for listening or composition.
 
 ```bash
 # Start with a dry voice recording.
@@ -631,6 +657,8 @@ Tips:
 
 ### 7.14 Ambient loopbed (inspired by Brian Eno's *Discreet Music*)
 
+Use this to create a gentle, slowly evolving long-tail ambient bed with controlled level and tone.
+
 ```bash
 verbx render input.wav output_eno.wav \
   --engine algo \
@@ -646,6 +674,8 @@ verbx render input.wav output_eno.wav \
 ```
 
 ### 7.15 Tape-loop evolution (inspired by Frippertronics)
+
+Use this for iterative loop-style processing with moderate tail and gradual timbral drift.
 
 ```bash
 mkdir -p fripp_passes
@@ -668,6 +698,8 @@ done
 
 ### 7.16 Gated drum-space style (inspired by 1980s gated reverb aesthetics)
 
+Use this to get a punchy short-tail drum space by combining convolution tone with a constrained tail limit.
+
 ```bash
 verbx render drums.wav drums_gated_style.wav \
   --engine conv \
@@ -681,6 +713,8 @@ verbx render drums.wav drums_gated_style.wav \
 ```
 
 ### 7.17 Dub chamber send chain (inspired by King Tubby / Lee Perry workflows)
+
+Use this as a high-send parallel chamber treatment with repeats and bandwidth shaping.
 
 ```bash
 verbx render snare_send.wav dub_chamber.wav \
@@ -697,6 +731,8 @@ verbx render snare_send.wav dub_chamber.wav \
 
 ### 7.18 Reverse-wash texture stack (inspired by shoegaze wash techniques)
 
+Use this to build dense frozen/shimmered guitar pads with very long apparent sustain.
+
 ```bash
 verbx render guitar_pad.wav shoegaze_wash.wav \
   --engine algo \
@@ -710,6 +746,8 @@ verbx render guitar_pad.wav shoegaze_wash.wav \
 ```
 
 ### 7.19 Sparse hall clarity (inspired by Arvo Part-style acoustic spaciousness)
+
+Use this when you want depth and hall size while preserving articulation and intelligibility.
 
 ```bash
 verbx render piano_sparse.wav piano_hall_clear.wav \
@@ -725,6 +763,8 @@ verbx render piano_sparse.wav piano_hall_clear.wav \
 ```
 
 ### 7.20 Deep-resonance long-space (inspired by Deep Listening aesthetics)
+
+Use this for very long drone-oriented spaces via generated hybrid IRs and extended tail limits.
 
 ```bash
 verbx render drone_input.wav drone_deep_space.wav \
@@ -742,6 +782,8 @@ verbx render drone_input.wav drone_deep_space.wav \
 
 ### 7.21 Cathedral vocal/organ simulation
 
+Use this to emulate a large worship-space response for chant, choir, or organ sources.
+
 ```bash
 verbx render chant_or_organ.wav cathedral_render.wav \
   --engine conv \
@@ -756,6 +798,8 @@ verbx render chant_or_organ.wav cathedral_render.wav \
 ```
 
 ### 7.22 Cinematic synth hall (inspired by classic analog-film synth spaces)
+
+Use this for wide, polished synth leads with generated-hall depth and controlled bloom.
 
 ```bash
 verbx render synth_lead.wav synth_cinematic_hall.wav \
@@ -773,6 +817,8 @@ verbx render synth_lead.wav synth_cinematic_hall.wav \
 ```
 
 ### 7.23 Fast self-convolution (input as its own IR)
+
+Use this to smear and fuse a sound with its own spectral/time envelope; increase `--beast-mode` for extreme frozen-time behavior.
 
 ```bash
 verbx render input.wav self_convolved.wav \
