@@ -1,4 +1,8 @@
-"""Framewise analysis export helpers."""
+"""Framewise analysis export helpers.
+
+The framewise path is aimed at workflow diagnostics (CSV plotting, modulation
+inspection) and complements the single-shot metrics in :mod:`analyzer`.
+"""
 
 from __future__ import annotations
 
@@ -17,6 +21,8 @@ AudioArray = npt.NDArray[np.float32]
 
 @dataclass(slots=True)
 class _FrameFeatures:
+    """Internal typed container for per-frame feature snapshots."""
+
     start_s: float
     end_s: float
     rms_dbfs: float
@@ -32,7 +38,11 @@ def framewise_metrics(
     frame_size: int = 2048,
     hop_size: int = 1024,
 ) -> list[dict[str, float]]:
-    """Compute framewise metrics with modulation descriptors for CSV reporting."""
+    """Compute framewise metrics with simple modulation descriptors.
+
+    ``amp_mod_*`` values are computed on short local windows over frame RMS.
+    ``centroid_mod_*`` mirrors the same procedure for spectral centroid.
+    """
     features: list[_FrameFeatures] = []
     n = audio.shape[0]
     if n == 0:
@@ -61,6 +71,7 @@ def framewise_metrics(
         return []
 
     frame_rate_hz = float(sr) / float(hop_size)
+    # Two-second local context is a practical compromise for modulation cues.
     window_frames = max(8, round(2.0 * frame_rate_hz))
     half_window = max(1, window_frames // 2)
     rms_series = np.asarray([item.rms_linear for item in features], dtype=np.float64)
@@ -98,7 +109,7 @@ def write_framewise_csv(
     frame_size: int = 2048,
     hop_size: int = 1024,
 ) -> None:
-    """Write framewise analysis CSV."""
+    """Write framewise analysis CSV to disk."""
     rows = framewise_metrics(audio=audio, sr=sr, frame_size=frame_size, hop_size=hop_size)
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -124,6 +135,7 @@ def write_framewise_csv(
 
 
 def _relative_mod_depth(values: npt.NDArray[np.float64]) -> float:
+    """Return normalized modulation depth (std/mean)."""
     if values.size < 2:
         return 0.0
     mean = float(np.mean(np.abs(values)))
@@ -138,6 +150,7 @@ def _dominant_mod_rate_hz(
     min_hz: float = 0.05,
     max_hz: float = 20.0,
 ) -> float:
+    """Return dominant modulation frequency from a short scalar series."""
     if values.size < 8:
         return 0.0
 

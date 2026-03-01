@@ -1,4 +1,8 @@
-"""Early reflection synthesis helpers."""
+"""Early-reflection synthesis helpers.
+
+The reflection generator is stochastic but deterministic per seed. It models a
+sparse cloud of taps preceding the diffuse late tail in hybrid IR modes.
+"""
 
 from __future__ import annotations
 
@@ -18,11 +22,15 @@ def generate_early_reflections(
     er_room: float,
     rng: np.random.Generator,
 ) -> AudioArray:
-    """Generate sparse deterministic early reflections."""
+    """Generate sparse deterministic early reflections.
+
+    Reflection times are sampled in ``[1, er_max_delay_ms]`` and shaped by the
+    requested decay law (linear/sqrt/exp).
+    """
     max_delay_samples = max(1, int((er_max_delay_ms / 1000.0) * sr))
     out = np.zeros((max_delay_samples + 1, channels), dtype=np.float32)
 
-    # Direct path.
+    # Direct path anchor for convolution compatibility.
     out[0, :] = 1.0
 
     shape = er_decay_shape.strip().lower()
@@ -47,6 +55,7 @@ def generate_early_reflections(
             out[delay, 0] += np.float32(amp)
             continue
 
+        # Width is applied as deterministic pan spread for L/R channels.
         pan = float(rng.uniform(-1.0, 1.0) * width)
         left = amp * (0.5 * (2.0 - max(0.0, pan)))
         right = amp * (0.5 * (2.0 + min(0.0, pan)))

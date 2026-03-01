@@ -1,4 +1,8 @@
-"""Audio I/O helpers."""
+"""Audio I/O and gain-utility helpers.
+
+All public read/write utilities normalize to a predictable in-memory layout:
+``float32`` arrays with shape ``(samples, channels)``.
+"""
 
 from __future__ import annotations
 
@@ -13,27 +17,34 @@ AudioArray = npt.NDArray[np.float32]
 
 
 def read_audio(path: str) -> tuple[AudioArray, int]:
-    """Read an audio file as float32 with shape (samples, channels)."""
+    """Read audio as float32 with shape ``(samples, channels)``.
+
+    ``soundfile`` handles WAV/FLAC/AIFF and other libsndfile-backed formats.
+    """
     audio, sr = sf.read(path, always_2d=True, dtype="float32")
     array = np.asarray(audio, dtype=np.float32)
     return array, int(sr)
 
 
 def write_audio(path: str, audio: AudioArray, sr: int, subtype: str | None = None) -> None:
-    """Write audio as float32 with optional container subtype override."""
+    """Write audio with optional subtype override.
+
+    The signal is always converted to float32 before writing to keep engine
+    behavior deterministic across containers.
+    """
     output = ensure_mono_or_stereo(audio).astype(np.float32, copy=False)
     sf.write(file=path, data=output, samplerate=sr, subtype=subtype)
 
 
 def validate_audio_path(path: str) -> None:
-    """Raise an error if input path does not exist."""
+    """Raise ``FileNotFoundError`` when input path does not exist."""
     if not Path(path).exists():
         msg = f"Input audio file not found: {path}"
         raise FileNotFoundError(msg)
 
 
 def iter_audio_blocks(path: str, block_size: int) -> Iterator[AudioArray]:
-    """Yield float32 blocks with shape (samples, channels)."""
+    """Stream file blocks as float32 ``(samples, channels)`` arrays."""
     with sf.SoundFile(path, mode="r") as snd:
         for block in snd.blocks(blocksize=block_size, dtype="float32", always_2d=True):
             yield np.asarray(block, dtype=np.float32)
@@ -42,7 +53,8 @@ def iter_audio_blocks(path: str, block_size: int) -> Iterator[AudioArray]:
 def ensure_mono_or_stereo(audio: npt.ArrayLike) -> AudioArray:
     """Ensure audio has shape (samples, channels) and float32 dtype.
 
-    The function keeps arbitrary channel counts and does not force mono/stereo downmixing.
+    The function keeps arbitrary channel counts and does not force mono/stereo
+    downmixing despite the historical name.
     """
     array = np.asarray(audio, dtype=np.float32)
     if array.ndim == 1:
@@ -54,7 +66,7 @@ def ensure_mono_or_stereo(audio: npt.ArrayLike) -> AudioArray:
 
 
 def peak_normalize(audio: AudioArray, target_dbfs: float = -1.0) -> AudioArray:
-    """Scale audio so absolute peak reaches target dBFS."""
+    """Scale signal so absolute sample peak reaches ``target_dbfs``."""
     peak = float(np.max(np.abs(audio)))
     if peak <= 0.0:
         return audio.copy()
@@ -66,7 +78,10 @@ def peak_normalize(audio: AudioArray, target_dbfs: float = -1.0) -> AudioArray:
 def soft_limiter(
     audio: AudioArray, threshold_dbfs: float = -1.0, knee_db: float = 6.0
 ) -> AudioArray:
-    """Apply a soft-knee limiter using a tanh saturation stage."""
+    """Apply a soft-knee limiter using a tanh saturation stage.
+
+    This is a light safety limiter, not a full mastering limiter.
+    """
     threshold = float(10.0 ** (threshold_dbfs / 20.0))
     threshold = max(threshold, 1e-6)
     knee = max(knee_db, 0.1)
@@ -80,6 +95,7 @@ def soft_limiter(
     if np.any(mask):
         sign = np.sign(x[mask])
         scaled = (abs_x[mask] - threshold) / threshold
+        # Soft-knee mapping keeps slope continuous around threshold.
         shaped = threshold + threshold * np.tanh(scaled * drive) / np.tanh(drive)
         out[mask] = sign * shaped
 

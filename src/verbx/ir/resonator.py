@@ -1,4 +1,8 @@
-"""Modalys-inspired resonator layer for IR late-tail coloration."""
+"""Modalys-inspired resonator layer for IR late-tail coloration.
+
+This optional stage adds a physically-inspired resonant bed to the late tail,
+useful for metallic, string-like, or plate-like IR coloration.
+"""
 
 from __future__ import annotations
 
@@ -29,7 +33,11 @@ def apply_modalys_resonator_layer(
     harmonic_targets_hz: tuple[float, ...],
     align_strength: float,
 ) -> AudioArray:
-    """Apply a deterministic modal resonator bank to the late IR tail."""
+    """Apply a deterministic modal resonator bank to the late IR tail.
+
+    Resonators are excited by a mono fold-down of the IR and mixed back into
+    all channels with deterministic random gains.
+    """
     x = ensure_mono_or_stereo(ir).astype(np.float64, copy=True)
     if not enabled:
         return np.asarray(x, dtype=np.float32)
@@ -81,6 +89,7 @@ def apply_modalys_resonator_layer(
     tail_rms = _rms(x[start:, :]) if start < n else _rms(x)
     res_rms = _rms(reson[start:, :]) if start < n else _rms(reson)
     if res_rms > 1e-12 and tail_rms > 0.0:
+        # Match late-tail energy so resonator mix behaves predictably.
         reson *= 0.85 * (tail_rms / res_rms)
 
     envelope = _late_tail_envelope(n=n, sr=sr, start=start)
@@ -104,6 +113,7 @@ def _sample_mode_frequency(
     harmonic_targets_hz: tuple[float, ...],
     align_strength: float,
 ) -> float:
+    """Sample a mode frequency and optionally align toward harmonic targets."""
     base = float(np.exp(rng.uniform(np.log(low_hz), np.log(high_hz))))
 
     if len(harmonic_targets_hz) > 0 and rng.random() < 0.8:
@@ -128,6 +138,7 @@ def _resonator_mode(
     freq_hz: float,
     q: float,
 ) -> npt.NDArray[np.float64]:
+    """Render one second-order resonator response from a shared excitation."""
     # Pole radius from equivalent resonator bandwidth.
     bandwidth = max(0.2, float(freq_hz) / max(0.5, float(q)))
     radius = float(np.exp((-np.pi * bandwidth) / float(sr)))
@@ -140,6 +151,7 @@ def _resonator_mode(
 
 
 def _sample_channel_gains(rng: np.random.Generator, channels: int) -> npt.NDArray[np.float64]:
+    """Sample normalized per-channel gains for one resonator mode."""
     if channels == 1:
         return np.ones(1, dtype=np.float64)
 
@@ -151,6 +163,7 @@ def _sample_channel_gains(rng: np.random.Generator, channels: int) -> npt.NDArra
 
 
 def _late_tail_envelope(n: int, sr: int, start: int) -> npt.NDArray[np.float64]:
+    """Create a smooth late-tail gate starting near ``start`` sample index."""
     env = np.ones(n, dtype=np.float64)
     if start <= 0:
         return env
@@ -166,6 +179,7 @@ def _late_tail_envelope(n: int, sr: int, start: int) -> npt.NDArray[np.float64]:
 
 
 def _dc_block(signal: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    """One-pole DC blocker for stable resonator excitation."""
     out = np.empty_like(signal)
     xm1 = 0.0
     ym1 = 0.0
@@ -180,6 +194,7 @@ def _dc_block(signal: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
 
 
 def _rms(x: npt.ArrayLike) -> float:
+    """Return RMS with empty-array safety handling."""
     arr = np.asarray(x, dtype=np.float64)
     if arr.size == 0:
         return 0.0

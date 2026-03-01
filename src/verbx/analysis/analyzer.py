@@ -1,4 +1,8 @@
-"""Analyzer façade for reporting canonical audio metrics."""
+"""Analyzer façade for canonical audio metrics.
+
+This module centralizes feature extraction used by ``verbx analyze`` and by
+render-time JSON reports so the same definitions are reused everywhere.
+"""
 
 from __future__ import annotations
 
@@ -36,12 +40,26 @@ AudioArray = npt.NDArray[np.float32]
 
 
 class AudioAnalyzer:
-    """Analyze audio and return a dictionary of typed metrics."""
+    """Analyze audio and return a dictionary of scalar metrics.
+
+    Metrics are intentionally plain floats to simplify JSON serialization and
+    downstream tooling.
+    """
 
     def analyze(
         self, audio: AudioArray, sr: int, include_loudness: bool = False
     ) -> dict[str, float]:
-        """Return analysis metrics for CLI consumption."""
+        """Return analysis metrics for CLI consumption.
+
+        Parameters
+        ----------
+        audio:
+            Input signal in ``(samples, channels)`` format.
+        sr:
+            Sample rate in Hz.
+        include_loudness:
+            Enables slower EBU-R128 style metrics (LUFS, true-peak, LRA).
+        """
         channel_rms = np.sqrt(np.mean(np.square(audio), axis=0, dtype=np.float64))
 
         result: dict[str, float] = {
@@ -74,6 +92,7 @@ class AudioAnalyzer:
         }
 
         if include_loudness:
+            # Loudness metrics are optional to keep default analysis fast.
             result["integrated_lufs"] = integrated_lufs(audio, sr)
             result["true_peak_dbfs"] = true_peak_dbfs(audio, sr, oversample=4)
             result["lra"] = loudness_range_lu(audio, sr)

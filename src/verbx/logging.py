@@ -8,7 +8,11 @@ from rich.logging import RichHandler
 
 
 def configure_logging(verbose: bool) -> None:
-    """Configure root logging with Rich output."""
+    """Configure root logging with Rich output.
+
+    ``verbose=False`` keeps console noise low for long renders while preserving
+    warnings and critical runtime diagnostics.
+    """
     level = logging.INFO if verbose else logging.WARNING
     logging.basicConfig(
         level=level,

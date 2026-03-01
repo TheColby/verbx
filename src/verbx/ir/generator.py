@@ -1,4 +1,8 @@
-"""IR synthesis entrypoints and cache helpers."""
+"""IR synthesis entrypoints and cache helpers.
+
+This module is the high-level factory for synthetic IR creation across
+``fdn``, ``stochastic``, ``modal``, and ``hybrid`` modes.
+"""
 
 from __future__ import annotations
 
@@ -28,7 +32,11 @@ IRNormalize = Literal["none", "peak", "rms"]
 
 @dataclass(slots=True)
 class IRGenConfig:
-    """Configuration for IR generation modes and shaping."""
+    """Configuration for IR generation modes and shaping.
+
+    The dataclass is used both for CLI config transport and cache-key hashing,
+    so fields should remain JSON-serializable and deterministic.
+    """
 
     mode: IRMode = "hybrid"
     length: float = 60.0
@@ -85,7 +93,14 @@ class IRGenConfig:
 
 
 def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
-    """Generate IR and return audio, sample rate, and metadata."""
+    """Generate IR and return audio, sample rate, and metadata.
+
+    Processing stages:
+    1) Raw mode synthesis
+    2) Optional harmonic alignment bed
+    3) Optional resonator late-tail layer
+    4) Global shaping/normalization/loudness
+    """
     length_samples = max(1, int(config.length * config.sr))
     rt60_low, rt60_high = _resolve_rt60_band(config)
 
@@ -189,6 +204,7 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             seed=config.seed + 23,
         )
 
+        # Weighting biases toward diffuse stochastic texture with tonal support.
         ir = (0.55 * stoch) + (0.25 * modal) + (0.20 * fdn)
         early_len = min(early.shape[0], ir.shape[0])
         ir[:early_len, :] += early[:early_len, :]
@@ -247,7 +263,10 @@ def generate_or_load_cached_ir(
     config: IRGenConfig,
     cache_dir: Path,
 ) -> tuple[AudioArray, int, dict[str, Any], Path, bool]:
-    """Generate or load cached IR and return audio/sr/meta/path/cache_hit."""
+    """Generate or load cached IR and return audio/sr/meta/path/cache_hit.
+
+    Cache lookup is keyed by a stable hash of the full generation config.
+    """
     cache_dir.mkdir(parents=True, exist_ok=True)
     key = _cache_key(config)
     wav_path = cache_dir / f"{key}.wav"
@@ -271,7 +290,7 @@ def write_ir_artifacts(
     meta: dict[str, Any],
     silent: bool,
 ) -> None:
-    """Write IR wav and optional metadata sidecar."""
+    """Write IR audio and optional metadata sidecar."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     sf.write(str(out_path), np.asarray(audio, dtype=np.float32), sr)
 
@@ -281,6 +300,7 @@ def write_ir_artifacts(
 
 
 def _resolve_rt60_band(config: IRGenConfig) -> tuple[float, float]:
+    """Resolve low/high RT60 band from single-value or band config."""
     if config.rt60 is not None:
         value = max(0.1, float(config.rt60))
         return value, value
@@ -291,6 +311,7 @@ def _resolve_rt60_band(config: IRGenConfig) -> tuple[float, float]:
 
 
 def _cache_key(config: IRGenConfig) -> str:
+    """Return short deterministic cache key for one IR generation config."""
     payload = asdict(config)
     payload["_schema"] = "verbx-ir-v0.4"
     text = json.dumps(payload, sort_keys=True, separators=(",", ":"))

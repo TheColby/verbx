@@ -1,4 +1,11 @@
-"""Loudness and peak targeting utilities for v0.2."""
+"""Loudness and peak targeting utilities.
+
+The API is intentionally pragmatic for offline rendering:
+
+- LUFS normalization via ``pyloudnorm`` when available,
+- deterministic fallbacks when that dependency is missing,
+- optional true-peak approximation by oversampling.
+"""
 
 from __future__ import annotations
 
@@ -38,7 +45,8 @@ def integrated_lufs(audio: AudioArray, sr: int) -> float:
         except ValueError:
             pass
 
-    # Fallback approximation when pyloudnorm is unavailable.
+    # Fallback approximation when pyloudnorm is unavailable. This is not a full
+    # EBU implementation, but it keeps CLI behavior predictable in minimal envs.
     rms = float(np.sqrt(np.mean(np.square(x), dtype=np.float64)))
     return float(20.0 * np.log10(max(rms, 1e-12)))
 
@@ -105,16 +113,17 @@ def true_peak_dbfs(audio: AudioArray, sr: int, oversample: int = 4) -> float:
     if over == 1:
         return sample_peak_dbfs(x)
 
-    up = over
-    down = 1
-    upsampled = resample_poly(x.astype(np.float64), up=up, down=down, axis=0)
+    upsampled = resample_poly(x.astype(np.float64), up=over, down=1, axis=0)
     peak = float(np.max(np.abs(upsampled)))
     peak = max(peak, 1e-12)
     return float(20.0 * np.log10(peak))
 
 
 def peak_limit(audio: AudioArray, target_peak_dbfs: float) -> AudioArray:
-    """Apply a hard sample-peak ceiling."""
+    """Apply a hard sample-peak ceiling.
+
+    This is a final safety clamp and not a transparent mastering limiter.
+    """
     x = ensure_mono_or_stereo(audio)
     ceiling = float(10.0 ** (target_peak_dbfs / 20.0))
     limited = np.clip(x, -ceiling, ceiling)
@@ -130,7 +139,15 @@ def apply_output_targets(
     use_true_peak: bool = True,
     oversample: int = 4,
 ) -> AudioArray:
-    """Apply loudness and peak targets to output audio."""
+    """Apply loudness and peak targets to output audio.
+
+    Processing order:
+    1. loudness normalization (optional),
+    2. peak check and gain trim,
+    3. soft limiter (optional),
+    4. hard sample peak ceiling,
+    5. optional true-peak correction pass.
+    """
     x = ensure_mono_or_stereo(audio)
     if x.shape[0] == 0:
         return x.copy()

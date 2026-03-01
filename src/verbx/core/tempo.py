@@ -1,4 +1,8 @@
-"""Tempo and musical duration parsing helpers."""
+"""Tempo parsing helpers for note-synced timing controls.
+
+The parser supports either raw seconds (``"0.125"``) or note-value syntax
+(``"1/8"``, ``"1/8D"``, ``"1/8T"``) at a caller-provided BPM.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +13,11 @@ _NOTE_RE = re.compile(r"^\s*(\d+)\s*/\s*(\d+)([DTdt]?)\s*$")
 
 
 def parse_note_duration_seconds(value: str, bpm: float) -> float:
-    """Parse note durations like `1/8`, `1/8D`, or `1/8T` into seconds."""
+    """Parse note durations like ``1/8``, ``1/8D``, or ``1/8T`` into seconds.
+
+    ``D`` means dotted (x1.5), ``T`` means triplet (x2/3). If the token does
+    not match note syntax, it is parsed as a literal number of seconds.
+    """
     beats_per_second = max(bpm, 1e-6) / 60.0
     quarter_seconds = 1.0 / beats_per_second
 
@@ -41,7 +49,10 @@ def parse_note_duration_seconds(value: str, bpm: float) -> float:
 
 
 def parse_pre_delay_ms(value: str | None, bpm: float | None, fallback_ms: float) -> float:
-    """Resolve pre-delay value into milliseconds."""
+    """Resolve pre-delay into milliseconds with safe defaults.
+
+    ``value=None`` falls back to ``fallback_ms``. Missing BPM defaults to 120.
+    """
     if value is None:
         return fallback_ms
 

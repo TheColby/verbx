@@ -1,4 +1,8 @@
-"""Ambient enhancement modules: ducking, bloom, and tilt EQ."""
+"""Ambient enhancement modules: ducking, bloom, and tilt EQ.
+
+These are post-render color controls intended for musical shaping, not
+physically exact room simulation.
+"""
 
 from __future__ import annotations
 
@@ -19,7 +23,12 @@ def apply_ducking(
     release_ms: float,
     strength: float = 0.75,
 ) -> AudioArray:
-    """Apply envelope-based ducking to wet signal."""
+    """Apply envelope-based ducking to wet signal.
+
+    The dry/reference signal drives the sidechain envelope follower. Attack and
+    release constants are set in milliseconds and converted to one-pole
+    coefficients.
+    """
     x = ensure_mono_or_stereo(wet)
     sc = ensure_mono_or_stereo(sidechain)
     if sc.shape[0] < x.shape[0]:
@@ -52,7 +61,10 @@ def apply_ducking(
 
 
 def apply_bloom(audio: AudioArray, sr: int, bloom_seconds: float) -> AudioArray:
-    """Add soft trailing bloom via exponential convolution tail."""
+    """Add soft trailing bloom via exponential convolution tail.
+
+    This stage intentionally behaves like a gentle diffuse smear layer.
+    """
     x = ensure_mono_or_stereo(audio)
     if bloom_seconds <= 0.0:
         return x
@@ -81,7 +93,12 @@ def apply_tilt_eq(
     lowcut: float | None,
     highcut: float | None,
 ) -> AudioArray:
-    """Apply tilt EQ around 1kHz plus optional low/high cuts."""
+    """Apply tilt EQ around 1kHz plus optional low/high cuts.
+
+    Positive tilt boosts highs and attenuates lows; negative tilt does the
+    inverse. A frequency-domain shelf approximation is used for clarity and
+    deterministic behavior across channels.
+    """
     x = ensure_mono_or_stereo(audio)
     out = x.copy()
 
@@ -134,7 +151,10 @@ def apply_ambient_processing(
     highcut: float | None,
     tilt: float,
 ) -> AudioArray:
-    """Apply ambient enhancement chain to wet signal."""
+    """Apply ambient enhancement chain to wet signal.
+
+    Order: ducking -> bloom -> EQ.
+    """
     out = ensure_mono_or_stereo(wet)
     if duck:
         out = apply_ducking(out, dry_reference, sr, attack_ms=duck_attack, release_ms=duck_release)

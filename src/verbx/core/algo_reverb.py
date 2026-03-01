@@ -1,4 +1,23 @@
-"""Algorithmic extreme reverb engine (v0.1)."""
+"""Algorithmic reverb engine built around diffusion + an 8-line FDN.
+
+Design goals for this implementation:
+
+- stay stable at very long decay times (extreme RT60 settings),
+- process in blocks for large files without state resets,
+- remain deterministic and easy to extend with new feedback/matrix models.
+
+Signal flow (per channel):
+
+1. pre-delay line,
+2. short all-pass diffusion network,
+3. 8-line FDN late field with:
+   - RT60-calibrated per-line gains,
+   - one-pole damping in each feedback path,
+   - DC blocking in the loop,
+   - subtle delay modulation to reduce metallic ringing.
+4. optional stereo width stage (for 2ch),
+5. optional shimmer stage on the wet path.
+"""
 
 from __future__ import annotations
 
@@ -27,6 +46,7 @@ F = TypeVar("F", bound=Callable[..., object])
 
 
 def _maybe_njit(func: F) -> F:
+    """Decorate with ``numba.njit`` when available, else return unchanged."""
     if njit is None:
         return func
     return njit(cache=True, fastmath=True)(func)  # type: ignore[return-value,no-any-return]
@@ -56,6 +76,8 @@ class AlgoReverbConfig:
 
 @dataclass(slots=True)
 class _AllpassState:
+    """Mutable state for a single Schroeder all-pass section."""
+
     buffer: AudioArray
     index: int = 0
 
@@ -63,8 +85,10 @@ class _AllpassState:
 class AlgoReverbEngine(ReverbEngine):
     """Block-processed Schroeder + FDN algorithmic reverb.
 
-    This implementation focuses on stability for long RT60 settings and provides
-    practical placeholders for future refinements.
+    The core late reverb is intentionally conservative:
+    fixed-size topology, bounded gains, and explicit state safety scaling.
+    That makes it robust for long tails while still sounding dense enough for
+    cinematic/"frozen-time" use cases.
     """
 
     _BASE_DELAY_MS = np.array([31.0, 37.0, 41.0, 43.0, 47.0, 53.0, 59.0, 67.0], dtype=np.float32)
@@ -117,6 +141,7 @@ class AlgoReverbEngine(ReverbEngine):
 
     @staticmethod
     def _build_hadamard_matrix(size: int) -> npt.NDArray[np.float32]:
+        """Build an orthonormal Hadamard-style mix matrix."""
         matrix = np.array([[1.0]], dtype=np.float32)
         while matrix.shape[0] < size:
             matrix = np.block([[matrix, matrix], [matrix, -matrix]])
@@ -125,6 +150,7 @@ class AlgoReverbEngine(ReverbEngine):
 
     @staticmethod
     def _apply_stereo_width(wet: AudioArray, width: float) -> AudioArray:
+        """Apply a simple mid/side width transform to the wet signal."""
         w = np.clip(width, 0.0, 2.0)
         mid = 0.5 * (wet[:, 0] + wet[:, 1])
         side = 0.5 * (wet[:, 0] - wet[:, 1])
@@ -135,6 +161,7 @@ class AlgoReverbEngine(ReverbEngine):
         return np.asarray(out, dtype=np.float32)
 
     def _process_channel(self, signal: npt.NDArray[np.float32], sr: int) -> npt.NDArray[np.float32]:
+        """Run one channel through pre-delay, diffusion, and FDN late reverb."""
         if self._use_numba:
             return _process_channel_kernel(
                 signal=signal,
@@ -185,7 +212,7 @@ class AlgoReverbEngine(ReverbEngine):
         base_gain = np.power(10.0, (-3.0 * delays_sec) / rt60).astype(np.float32)
         base_gain = np.clip(base_gain, 0.0, 0.995)
 
-        # Larger damping value -> stronger high-frequency damping.
+        # Larger damping value -> stronger HF attenuation in the feedback loop.
         damping = float(np.clip(self._config.damping, 0.0, 1.0))
         lp_alpha = np.float32(0.15 + (0.83 * damping))
         dc_alpha = np.float32(0.995)
@@ -204,6 +231,8 @@ class AlgoReverbEngine(ReverbEngine):
                 pre_buffer[pre_idx] = signal[n]
                 pre_idx = (pre_idx + 1) % pre_buffer.shape[0]
 
+                # Diffusion stage: a short all-pass cascade to smear transients
+                # before they enter the long feedback network.
                 diffused = predelayed
                 for ap in allpasses:
                     diffused = self._allpass_process(diffused, ap, gain=np.float32(0.7))
@@ -222,6 +251,8 @@ class AlgoReverbEngine(ReverbEngine):
                         delay_samples=delay,
                     )
 
+                    # Damping + DC-blocking lives inside the feedback loop so
+                    # high frequencies and subsonic drift decay faster.
                     lp_state[i] = ((1.0 - lp_alpha) * read_value) + (lp_alpha * lp_state[i])
                     dc_filtered = lp_state[i] - dc_prev_in[i] + (dc_alpha * dc_prev_out[i])
                     dc_prev_in[i] = lp_state[i]
@@ -239,6 +270,7 @@ class AlgoReverbEngine(ReverbEngine):
                 sample_out = float(np.mean(fdn_out))
                 output[n] = np.float32(sample_out)
 
+                # Soft safety guard for pathological parameter combinations.
                 if np.max(np.abs(fdn_out)) > 64.0:
                     for i in range(num_lines):
                         delay_buffers[i] *= np.float32(0.5)
@@ -250,6 +282,7 @@ class AlgoReverbEngine(ReverbEngine):
 
     @staticmethod
     def _allpass_process(x: np.float32, state: _AllpassState, gain: np.float32) -> np.float32:
+        """Run one sample through a Schroeder all-pass section."""
         delayed = state.buffer[state.index]
         y = (-gain * x) + delayed
         state.buffer[state.index] = x + (gain * y)
@@ -260,6 +293,7 @@ class AlgoReverbEngine(ReverbEngine):
     def _read_fractional_delay(
         buffer: AudioArray, write_index: int, delay_samples: float
     ) -> np.float32:
+        """Read from a circular delay line with linear interpolation."""
         size = buffer.shape[0]
         read_pos = (float(write_index) - delay_samples) % size
         idx0 = int(np.floor(read_pos))
@@ -276,6 +310,7 @@ def _fractional_delay_read_nb(
     write_index: int,
     delay_samples: float,
 ) -> np.float32:
+    """Numba-compatible fractional delay read with linear interpolation."""
     read_pos = (float(write_index) - delay_samples) % size
     idx0 = int(np.floor(read_pos))
     idx1 = (idx0 + 1) % size
@@ -298,6 +333,11 @@ def _process_channel_kernel(
     base_delay_ms: npt.NDArray[np.float32],
     diffusion_delay_ms: npt.NDArray[np.float32],
 ) -> npt.NDArray[np.float32]:
+    """Numba kernel matching :meth:`AlgoReverbEngine._process_channel`.
+
+    The Python and Numba paths intentionally mirror each other to keep
+    behavior consistent across environments.
+    """
     n_samples = signal.shape[0]
     output = np.zeros(n_samples, dtype=np.float32)
     if n_samples == 0:

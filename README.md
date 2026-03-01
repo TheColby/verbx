@@ -149,6 +149,7 @@ results.
   - [20.5 v0.9 - Feature-vector-driven reverb control (audio-reactive DSP)](#205-v09-feature-vector-driven-reverb-control-audio-reactive-dsp)
   - [20.6 v1.0 - Jot-inspired FDN control and perceptual parameterization](#206-v10-jot-inspired-fdn-control-and-perceptual-parameterization)
   - [20.7 v1.1 - IR morphing and blending framework](#207-v11-ir-morphing-and-blending-framework)
+  - [20.8 Literature-Driven Implementation Plan (from Academic References)](#208-literature-driven-implementation-plan-from-academic-references)
 - [21.0 License](#210-license)
 - [22.0 Attribution](#220-attribution)
 
@@ -1688,6 +1689,27 @@ pytest
 - `Automation-ready morph control`: expose morph coefficient timelines so IR blending can evolve over time (bridging with v0.8 automation lanes).
 - `Caching and reproducibility`: cache morphed IR artifacts by source-hash + mode + parameters, with metadata sidecars documenting source IRs, weights, and normalization choices.
 - `QA metrics`: add morph quality reports (RT60 drift, early/late ratio drift, spectral distance, inter-channel coherence deltas) for objective validation in batch/CI workflows.
+
+### 20.8 Literature-Driven Implementation Plan (from Academic References)
+
+The following items are direct engineering takeaways from papers listed in [docs/REFERENCES.md](docs/REFERENCES.md), prioritized for `verbx` architecture:
+
+1. `Time-varying FDN matrices`: add smoothly-interpolated orthogonal feedback matrix evolution in `src/verbx/core/algo_reverb.py` to reduce metallic ringing while preserving stability.
+2. `Expanded matrix families`: expose matrix choices beyond static Hadamard (`householder`, `random_orthogonal`, circulant/elliptic-inspired variants) with explicit stability validation.
+3. `Multiband decay control`: implement low/mid/high RT targets in the algorithmic engine so `--rt60` can become a full decay profile rather than a single scalar.
+4. `Integrated blind RT/DRR estimation`: add built-in RT60/DRR/ELR estimation in `verbx analyze` and feed it into `verbx suggest` for better default parameter selection.
+5. `Late-field intelligibility mode`: add an optional late-reverberation suppression/post-shaping stage to preserve clarity for speech-heavy material without removing desired ambience.
+6. `Tail quality metrics`: extend analysis JSON and framewise CSV with echo-density growth, late-decay smoothness, and ringing/modality indicators for objective tuning.
+7. `Perceptual RT step safety`: add CLI guardrails that quantize or warn on sub-perceptual RT changes, based on room-dependent perceptual sensitivity findings.
+8. `Non-diffuse decay modeling`: improve IR fitting/analysis to support piecewise or modal-aware decay fits (not only single-slope RT assumptions), especially at low frequencies.
+9. `Canonical Schroeder validation pack`: add a test fixture suite that checks colorless-reverb behavior and decay coloration against classic algorithmic references.
+10. `Algorithm-vs-IR similarity scoring`: add a perceptual/spectral/decay distance metric to rank synthetic/algorithmic outputs against measured IR targets.
+
+Near-term implementation targeting:
+
+- `v0.5-v0.6`: items 1, 2, 4, 6, 9 (engine controls, analysis, and validation harness).
+- `v0.7-v0.8`: items 3, 5, 7 (perceptual control and intelligibility-aware workflows).
+- `v0.9-v1.1`: items 8, 10 (advanced fitting and perceptual matching pipelines).
 
 ## 21.0 License
 

@@ -1,4 +1,8 @@
-"""FDN IR mode synthesis using algorithmic reverb core."""
+"""FDN-mode IR synthesis via the algorithmic reverb engine.
+
+This mode renders an impulse through :class:`AlgoReverbEngine` to derive a
+late-tail IR with controllable RT60/damping/modulation.
+"""
 
 from __future__ import annotations
 
@@ -23,8 +27,12 @@ def generate_fdn_ir(
     fdn_stereo_inject: float,
     seed: int,
 ) -> AudioArray:
-    """Generate IR by feeding an impulse through the algorithmic FDN engine."""
-    _ = fdn_lines
+    """Generate IR by feeding an impulse through the algorithmic FDN engine.
+
+    ``fdn_lines`` is currently reserved for future topologies; v0.4 keeps the
+    core engine line count fixed for runtime stability.
+    """
+    _ = fdn_lines  # Reserved for future engine topology variants.
     n = max(1, length_samples)
     ch = max(1, channels)
 
@@ -61,6 +69,7 @@ def generate_fdn_ir(
             q, _ = np.linalg.qr(base)
             matrix = q.astype(np.float32)
 
+        # Optional output-space decorrelation matrix for multi-channel spread.
         out = out @ matrix.T
 
     return np.asarray(out, dtype=np.float32)

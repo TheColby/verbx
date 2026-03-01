@@ -1,4 +1,12 @@
-"""Shimmer processing utilities."""
+"""Shimmer processing utilities.
+
+The shimmer stage is treated as a wet-path enhancer:
+
+- optional band-limited input,
+- pitch-shifted layer (librosa if available),
+- controllable feedback memory,
+- safety limiting before returning to the render chain.
+"""
 
 from __future__ import annotations
 
@@ -66,6 +74,11 @@ class ShimmerProcessor:
 
 
 def _pitch_shift_audio(audio: AudioArray, sr: int, semitones: float) -> AudioArray:
+    """Pitch-shift each channel by semitone offset.
+
+    ``librosa`` is used when available for better quality. A deterministic
+    interpolation fallback is kept for minimal dependency environments.
+    """
     x = ensure_mono_or_stereo(audio)
     if abs(semitones) < 1e-6:
         return x.copy()
@@ -108,6 +121,7 @@ def _pitch_shift_audio(audio: AudioArray, sr: int, semitones: float) -> AudioArr
 def _bandlimit(
     audio: AudioArray, sr: int, lowcut: float | None, highcut: float | None
 ) -> AudioArray:
+    """Apply optional high/low cut filtering around shimmer pitch stage."""
     x = ensure_mono_or_stereo(audio)
     out = x.copy()
 

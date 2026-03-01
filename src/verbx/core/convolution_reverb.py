@@ -1,4 +1,13 @@
-"""Partitioned FFT convolution reverb (v0.1)."""
+"""Partitioned-FFT convolution reverb engine.
+
+This module supports two execution styles:
+
+- in-memory partitioned convolution for general use and CUDA path parity,
+- streaming block convolution for long files when post-processing allows it.
+
+It also handles multichannel IR routing, including matrix-packed IR layouts
+(`input-major` and `output-major`) for true cross-channel convolution maps.
+"""
 
 from __future__ import annotations
 
@@ -25,6 +34,8 @@ _cupy_probed = False
 
 @dataclass(slots=True)
 class _StreamConvolverState:
+    """State for one input->output IR route in streaming mode."""
+
     ir_parts_fft: npt.NDArray[np.complex64]
     hist: npt.NDArray[np.complex64]
     overlap: npt.NDArray[np.float32]
@@ -50,7 +61,14 @@ class ConvolutionReverbConfig:
 
 
 class ConvolutionReverbEngine(ReverbEngine):
-    """Block-based partitioned FFT convolution supporting long IRs."""
+    """Block-based partitioned FFT convolution supporting long IRs.
+
+    Notes for contributors:
+
+    - ``process`` is the generic in-memory path (CPU or CUDA).
+    - ``process_streaming_file`` is optimized for large-file CPU workflows and
+      avoids loading full input/output into RAM.
+    """
 
     def __init__(self, config: ConvolutionReverbConfig) -> None:
         self._config = config
@@ -104,13 +122,17 @@ class ConvolutionReverbEngine(ReverbEngine):
         outfile: str,
         output_subtype: str | None = None,
     ) -> dict[str, int | float]:
-        """Process file via block-streaming convolution to reduce peak RAM."""
+        """Process file via block streaming.
+
+        Returns a compact stats dictionary used by the pipeline/report layer.
+        """
         if self._config.ir_path is None:
             msg = "Convolution engine requires --ir PATH"
             raise ValueError(msg)
 
         if self._cupy is not None:
-            # CUDA backend currently uses in-memory convolution path.
+            # CUDA backend currently reuses the in-memory path; streaming mode
+            # is CPU-only for now.
             audio, sr = sf.read(infile, always_2d=True, dtype="float32")
             rendered = self.process(np.asarray(audio, dtype=np.float32), int(sr))
             sf.write(outfile, rendered, int(sr), subtype=output_subtype)
@@ -185,6 +207,7 @@ class ConvolutionReverbEngine(ReverbEngine):
                     dst.write(np.asarray(out_block, dtype=np.float32))
                     output_samples += samples
 
+                # Flush remaining IR tail by feeding silent input blocks.
                 while tail_remaining > 0:
                     tail_block_samples = min(partition_size, tail_remaining)
                     zeros_block = np.zeros((tail_block_samples, input_channels), dtype=np.float32)
@@ -209,6 +232,7 @@ class ConvolutionReverbEngine(ReverbEngine):
 
     @staticmethod
     def _load_ir(path: str, target_sr: int) -> AudioArray:
+        """Load IR and resample to the input sample-rate when needed."""
         ir, ir_sr = sf.read(path, always_2d=True, dtype="float32")
         ir_audio = np.asarray(ir, dtype=np.float32)
 
@@ -222,6 +246,7 @@ class ConvolutionReverbEngine(ReverbEngine):
 
     @staticmethod
     def _normalize_ir(ir: AudioArray, mode: str) -> AudioArray:
+        """Normalize IR according to requested policy (`none|rms|peak`)."""
         if mode == "none":
             return ir
         if mode == "rms":
@@ -242,6 +267,14 @@ class ConvolutionReverbEngine(ReverbEngine):
         out_channels: int,
         out_len: int,
     ) -> AudioArray:
+        """Map dry signal to output channel topology.
+
+        Rules:
+        - identical channel count -> passthrough,
+        - mono output -> average input channels,
+        - mono input -> replicate across output channels,
+        - otherwise copy overlapping channel range.
+        """
         in_channels = int(x.shape[1])
         dry = np.zeros((out_len, out_channels), dtype=np.float32)
         copy_len = min(int(x.shape[0]), out_len)
@@ -269,6 +302,7 @@ class ConvolutionReverbEngine(ReverbEngine):
         input_channels: int,
         layout: str,
     ) -> tuple[npt.NDArray[np.float32], int]:
+        """Resolve IR channel layout into an ``[in, out, taps]`` matrix."""
         ir_len = int(ir.shape[0])
         ir_channels = int(ir.shape[1])
 
@@ -277,6 +311,7 @@ class ConvolutionReverbEngine(ReverbEngine):
             raise ValueError(msg)
 
         if ir_channels == 1:
+            # Mono IR is broadcast diagonally across matching in/out channels.
             out_channels = input_channels
             matrix = np.zeros((input_channels, out_channels, ir_len), dtype=np.float32)
             for ch in range(input_channels):
@@ -284,6 +319,7 @@ class ConvolutionReverbEngine(ReverbEngine):
             return matrix, out_channels
 
         if ir_channels == input_channels:
+            # Per-channel IR behaves like channel-independent convolution.
             out_channels = input_channels
             matrix = np.zeros((input_channels, out_channels, ir_len), dtype=np.float32)
             for ch in range(input_channels):
@@ -308,6 +344,9 @@ class ConvolutionReverbEngine(ReverbEngine):
             msg = f"Unsupported IR matrix layout: {layout}"
             raise ValueError(msg)
 
+        # Matrix-packed IR route map:
+        # - output-major: index = out * in_channels + in
+        # - input-major:  index = in * out_channels + out
         matrix = np.zeros((input_channels, out_channels, ir_len), dtype=np.float32)
         for out_idx in range(out_channels):
             for in_idx in range(input_channels):
@@ -325,6 +364,7 @@ class ConvolutionReverbEngine(ReverbEngine):
         ir_matrix: npt.NDArray[np.float32],
         partition_size: int,
     ) -> AudioArray:
+        """Convolve an ``M``-channel input against an ``M x N`` IR matrix."""
         if self._cupy is not None:
             return self._partitioned_convolve_cuda_matrix(x, ir_matrix, partition_size)
 
@@ -359,6 +399,7 @@ class ConvolutionReverbEngine(ReverbEngine):
         input_block: AudioArray,
         out_channels: int,
     ) -> AudioArray:
+        """Accumulate one streamed input block across all active route states."""
         samples = int(input_block.shape[0])
         wet = np.zeros((samples, out_channels), dtype=np.float32)
         for in_idx, row in enumerate(states):
@@ -372,6 +413,7 @@ class ConvolutionReverbEngine(ReverbEngine):
     def _build_stream_state(
         self, ir: npt.NDArray[np.float32], partition_size: int
     ) -> _StreamConvolverState:
+        """Precompute FFT partitions and initialize overlap/history buffers."""
         ir_len = int(ir.shape[0])
         n_parts = int(np.ceil(ir_len / partition_size))
         fft_size = 1
@@ -406,15 +448,18 @@ class ConvolutionReverbEngine(ReverbEngine):
         state: _StreamConvolverState,
         x_block_in: npt.NDArray[np.float32],
     ) -> npt.NDArray[np.float32]:
+        """Process one block through one input->output partitioned route."""
         samples = int(x_block_in.shape[0])
         x_block = np.zeros(state.fft_size, dtype=np.float32)
         x_block[:samples] = x_block_in
 
+        # Insert the newest input partition spectrum into the ring buffer.
         state.hist[state.hist_index, :] = np.asarray(
             sp_fft.rfft(x_block, workers=self._workers),
             dtype=np.complex64,
         )
 
+        # Circular convolution in frequency domain using partition history.
         acc = np.zeros(state.fft_size // 2 + 1, dtype=np.complex64)
         for part_idx in range(state.n_parts):
             hist_slot = (state.hist_index - part_idx) % state.n_parts
@@ -424,6 +469,7 @@ class ConvolutionReverbEngine(ReverbEngine):
             sp_fft.irfft(acc, n=state.fft_size, workers=self._workers),
             dtype=np.float32,
         )
+        # Overlap-add the carried tail from the previous block.
         y_block[: state.overlap.shape[0]] += state.overlap
         state.overlap = y_block[state.partition_size :]
         state.hist_index = (state.hist_index + 1) % state.n_parts
@@ -436,6 +482,7 @@ class ConvolutionReverbEngine(ReverbEngine):
         partition_size: int,
         fft_size: int,
     ) -> npt.NDArray[np.float32]:
+        """Reference CPU partitioned convolution for one input/IR channel pair."""
         x_len = x.shape[0]
         ir_len = ir.shape[0]
         tail_samples = max(0, ir_len - 1)
@@ -453,6 +500,7 @@ class ConvolutionReverbEngine(ReverbEngine):
                 dtype=np.complex64,
             )
 
+        # ``hist`` is a circular spectrum buffer of the most recent input blocks.
         hist = np.zeros((n_parts, fft_size // 2 + 1), dtype=np.complex64)
         hist_index = 0
 
@@ -501,6 +549,7 @@ class ConvolutionReverbEngine(ReverbEngine):
         ir_matrix: npt.NDArray[np.float32],
         partition_size: int,
     ) -> AudioArray:
+        """CUDA matrix convolution wrapper around per-route mono kernels."""
         cp = self._cupy
         if cp is None:
             msg = "CuPy module not loaded for CUDA convolution backend"
@@ -544,6 +593,7 @@ class ConvolutionReverbEngine(ReverbEngine):
         partition_size: int,
         fft_size: int,
     ) -> Any:
+        """CuPy implementation of mono partitioned convolution."""
         x_len = int(x.shape[0])
         ir_len = int(ir.shape[0])
         tail_samples = max(0, ir_len - 1)
@@ -596,6 +646,7 @@ class ConvolutionReverbEngine(ReverbEngine):
 
 
 def _get_cupy_module() -> Any | None:
+    """Probe CuPy once and cache the module handle when CUDA is available."""
     global _cupy_module, _cupy_probed
     if _cupy_probed:
         return _cupy_module

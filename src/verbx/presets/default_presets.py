@@ -1,4 +1,8 @@
-"""Built-in preset definitions."""
+"""Built-in preset definitions.
+
+Presets are intentionally conservative defaults and can be treated as
+starting points rather than immutable production values.
+"""
 
 from __future__ import annotations
 
@@ -58,5 +62,5 @@ DEFAULT_PRESETS: dict[str, dict[str, float | int | bool | str]] = {
 
 
 def preset_names() -> list[str]:
-    """Return sorted preset names."""
+    """Return sorted preset names for CLI display."""
     return sorted(DEFAULT_PRESETS)

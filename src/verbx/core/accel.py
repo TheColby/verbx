@@ -1,4 +1,8 @@
-"""Acceleration and platform tuning helpers."""
+"""Acceleration and platform tuning helpers.
+
+These helpers provide conservative runtime detection and fallback behavior for
+CPU, CUDA, and Apple Silicon environments.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,8 @@
-"""Parallel batch scheduler with job ordering and retry handling."""
+"""Parallel batch scheduler with job ordering and retry handling.
+
+The scheduler is intentionally deterministic given a manifest and schedule
+policy, making long multi-job renders easier to reason about and resume.
+"""
 
 from __future__ import annotations
 
@@ -45,7 +49,7 @@ BatchResultCallback = Callable[[BatchJobResult], None]
 
 
 def estimate_job_cost(infile: Path, config: RenderConfig) -> float:
-    """Estimate relative render cost for ordering."""
+    """Estimate relative render cost for job ordering heuristics."""
     try:
         info = sf.info(str(infile))
         duration_seconds = (
@@ -125,6 +129,7 @@ def _run_job_with_retries(
     retries: int,
     runner: BatchRunner,
 ) -> BatchJobResult:
+    """Execute one job with bounded retry attempts."""
     start = time.perf_counter()
     max_attempts = max(1, retries + 1)
     last_error: str | None = None

@@ -1,4 +1,8 @@
-"""Modal IR mode synthesis."""
+"""Modal IR synthesis based on decaying sinusoidal resonances.
+
+Each mode is a damped sinusoid with randomized frequency/phase/Q, optionally
+nudged toward harmonic targets derived from user tuning or source analysis.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +19,7 @@ _TUNING_RE = re.compile(r"^\s*A4\s*=\s*([0-9]+(?:\.[0-9]+)?)\s*$", re.IGNORECASE
 
 
 def _parse_tuning(tuning: str) -> float:
+    """Parse strings like ``A4=440``; fallback to 440 Hz."""
     match = _TUNING_RE.match(tuning)
     if not match:
         return 440.0
@@ -38,7 +43,11 @@ def generate_modal_ir(
     harmonic_targets_hz: tuple[float, ...] = (),
     align_strength: float = 0.7,
 ) -> AudioArray:
-    """Generate deterministic modal-bank IR."""
+    """Generate deterministic modal-bank IR.
+
+    The modal bank is intentionally synthetic and musical, not a room-physics
+    solver. It works well for tonal or resonant IR design.
+    """
     rng = np.random.default_rng(seed)
     n = max(1, length_samples)
     ch = max(1, channels)
@@ -70,6 +79,7 @@ def generate_modal_ir(
         )
 
         q = float(rng.uniform(q_min, q_max))
+        # Blend Q-based decay with global RT target so tails stay plausible.
         tau_q = q / (np.pi * max(freq, 1.0))
         tau_rt = max(0.01, rt60 / 6.91)
         tau = min(max(tau_q, 0.01), max(tau_rt * 2.0, 0.03))

@@ -1,4 +1,8 @@
-"""Helpers for IR harmonic tuning and source-audio pitch analysis."""
+"""Helpers for IR harmonic tuning and source-audio pitch analysis.
+
+These utilities let synthetic IR modes align to a fixed fundamental (``f0``)
+or to harmonics estimated from user-provided source audio.
+"""
 
 from __future__ import annotations
 
@@ -38,7 +42,11 @@ def analyze_audio_for_tuning(
     min_hz: float = 20.0,
     max_hz: float = 4_000.0,
 ) -> tuple[float, list[float]]:
-    """Estimate fundamental and harmonic targets from an input WAV/AIFF/FLAC."""
+    """Estimate fundamental and harmonic targets from an audio file.
+
+    Analysis is intentionally bounded to a short prefix for deterministic
+    runtime on long files.
+    """
     audio, sr = sf.read(str(path), always_2d=True, dtype="float32")
     x = np.asarray(audio, dtype=np.float32)
     mono = np.asarray(np.mean(x, axis=1), dtype=np.float32)
@@ -87,7 +95,10 @@ def apply_harmonic_alignment(
     harmonic_targets_hz: tuple[float, ...],
     strength: float,
 ) -> AudioArray:
-    """Inject a harmonic decay bed so non-modal modes remain musically aligned."""
+    """Inject a harmonic decay bed so non-modal modes remain musically aligned.
+
+    This is a gentle additive bed, not a hard pitch-quantization stage.
+    """
     amount = float(np.clip(strength, 0.0, 1.0))
     if amount <= 0.0:
         return np.asarray(ir, dtype=np.float32)
@@ -118,6 +129,7 @@ def apply_harmonic_alignment(
 
 
 def _estimate_f0(mono: npt.NDArray[np.float32], sr: int, min_hz: float, max_hz: float) -> float:
+    """Estimate f0 via librosa YIN when available, else autocorrelation."""
     if librosa is not None:
         try:
             f0_track = librosa.yin(mono, fmin=min_hz, fmax=max_hz, sr=sr)
@@ -150,6 +162,7 @@ def _find_harmonics_from_spectrum(
     max_harmonics: int,
     max_hz: float,
 ) -> list[float]:
+    """Find harmonic peak locations around integer multiples of ``f0_hz``."""
     if mono.shape[0] < 256:
         return _harmonic_series(f0_hz, max_harmonics, max_hz=max_hz)
 
@@ -176,6 +189,7 @@ def _find_harmonics_from_spectrum(
 
 
 def _harmonic_series(f0_hz: float, count: int, max_hz: float) -> list[float]:
+    """Generate ideal harmonic series up to ``count`` or ``max_hz``."""
     out: list[float] = []
     for k in range(1, count + 1):
         freq = f0_hz * k

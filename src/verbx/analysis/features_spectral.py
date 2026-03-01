@@ -1,4 +1,9 @@
-"""Spectral feature extraction."""
+"""Spectral feature extraction utilities.
+
+When available, librosa implementations are used for feature parity with common
+audio-analysis tooling. NumPy fallbacks keep the CLI functional when librosa is
+not installed or optional dependencies are unavailable.
+"""
 
 from __future__ import annotations
 
@@ -14,12 +19,14 @@ except Exception:  # pragma: no cover - import fallback branch
 
 
 def _mono(audio: AudioArray) -> npt.NDArray[np.float32]:
+    """Return mono fold-down used by scalar spectral features."""
     return np.mean(audio, axis=1).astype(np.float32)
 
 
 def _magnitude_spectrum(
     audio: AudioArray, sr: int
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Return full-file RFFT magnitude and frequency bins."""
     mono = _mono(audio)
     if mono.shape[0] == 0:
         return np.array([0.0], dtype=np.float64), np.array([0.0], dtype=np.float64)
@@ -47,7 +54,7 @@ def spectral_centroid(audio: AudioArray, sr: int) -> float:
 
 
 def spectral_bandwidth(audio: AudioArray, sr: int) -> float:
-    """Compute spectral bandwidth."""
+    """Compute spectral bandwidth (2nd central moment in Hz)."""
     mono = _mono(audio)
     if librosa is not None and mono.shape[0] > 8:
         n_fft = max(8, min(2048, mono.shape[0]))
@@ -65,7 +72,7 @@ def spectral_bandwidth(audio: AudioArray, sr: int) -> float:
 
 
 def spectral_rolloff(audio: AudioArray, sr: int, roll_percent: float = 0.85) -> float:
-    """Compute rolloff frequency containing roll_percent spectral energy."""
+    """Compute rolloff frequency containing ``roll_percent`` spectral energy."""
     mono = _mono(audio)
     if librosa is not None and mono.shape[0] > 8:
         n_fft = max(8, min(2048, mono.shape[0]))
@@ -111,6 +118,7 @@ def spectral_flux(audio: AudioArray, sr: int) -> float:
     if mono.shape[0] < 32:
         return 0.0
 
+    # Choose a stable power-of-two FFT size bounded for CLI speed.
     n_fft = min(1024, max(32, 2 ** int(np.floor(np.log2(mono.shape[0])) - 1)))
     hop = max(16, n_fft // 4)
     window = np.hanning(n_fft).astype(np.float32)

@@ -1,4 +1,13 @@
-"""Render pipeline orchestration."""
+"""Top-level render orchestration for CLI commands.
+
+This module ties together:
+
+- input validation and runtime configuration expansion,
+- engine selection (algorithmic vs convolution),
+- optional freeze/repeat/ambient/loudness stages,
+- streaming fast path for long convolution renders,
+- output artifact generation (audio + JSON + framewise CSV).
+"""
 
 from __future__ import annotations
 
@@ -38,7 +47,7 @@ PassProcessor = Callable[[AudioArray, int, int], AudioArray]
 
 
 def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> dict[str, Any]:
-    """Run the complete render pipeline and return report metadata."""
+    """Run one end-to-end render and return a structured report dictionary."""
     validate_audio_path(str(infile))
 
     with RenderProgress(enabled=(config.progress and not config.silent)) as progress:
@@ -59,6 +68,8 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
         if engine_device in {"cpu", "mps"}:
             configure_cpu_threads(runtime_config.threads)
 
+        # Streaming path is deliberately conservative and only enabled when
+        # side processing would not require full in-memory post passes.
         if _can_stream_convolution(runtime_config, engine_name, engine):
             progress.set_passes(1)
             stream_engine = engine
@@ -146,6 +157,8 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
 
         tail_padding_seconds = 0.0
         if engine_name == "algo":
+            # Algorithmic reverb produces tail from internal state, so we append
+            # silence to give the network time to decay audibly.
             tail_padding_seconds = _algo_tail_padding_seconds(runtime_config)
             input_for_engine = _append_tail_padding(
                 audio=input_for_engine,
@@ -164,6 +177,8 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             progress_callback=lambda idx, total: progress.mark_process_pass(idx),
         )
 
+        # Ambient post stage is applied after repeat-chain rendering to shape
+        # the final wet field.
         rendered = apply_ambient_processing(
             wet=rendered,
             dry_reference=input_for_engine,
@@ -177,6 +192,8 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             tilt=runtime_config.tilt,
         )
 
+        # Normalize/limit strategy can be applied per-pass (inside repeat),
+        # post-render, or skipped entirely.
         if runtime_config.normalize_stage == "post":
             rendered = apply_output_targets(
                 rendered,
@@ -249,6 +266,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
 
 
 def _can_stream_convolution(config: RenderConfig, engine_name: str, engine: ReverbEngine) -> bool:
+    """Return ``True`` when safe to use the low-RAM streaming convolution path."""
     if engine_name != "conv":
         return False
     if not isinstance(engine, ConvolutionReverbEngine):
@@ -285,6 +303,7 @@ def _prepare_runtime_config(
     infile: Path,
     input_duration_seconds: float,
 ) -> tuple[RenderConfig, dict[str, Any] | None]:
+    """Build an execution config including derived IR runtime metadata."""
     runtime = _apply_beast_mode(
         RenderConfig(**asdict(config)),
         input_duration_seconds=input_duration_seconds,
@@ -292,6 +311,7 @@ def _prepare_runtime_config(
     ir_runtime: dict[str, Any] | None = None
 
     if runtime.self_convolve:
+        # Use input file as IR source and force convolution semantics.
         runtime.ir = str(infile)
         if runtime.engine == "auto":
             runtime.engine = "conv"
@@ -303,6 +323,7 @@ def _prepare_runtime_config(
         return runtime, ir_runtime
 
     if runtime.ir_gen:
+        # Generate or reuse deterministic cached IR before render.
         ir_cfg = IRGenConfig(
             mode=runtime.ir_gen_mode,
             length=runtime.ir_gen_length,
@@ -340,6 +361,7 @@ def _apply_beast_mode(config: RenderConfig, input_duration_seconds: float) -> Re
     if factor <= 1.0:
         return config
 
+    # Intentional in-place scaling of a copied config object.
     scaled = config
     scaled.rt60 = max(0.1, scaled.rt60 * factor)
     scaled.pre_delay_ms = max(0.0, scaled.pre_delay_ms * factor)
@@ -372,6 +394,7 @@ def _apply_beast_mode(config: RenderConfig, input_duration_seconds: float) -> Re
 
 
 def _resolve_engine(config: RenderConfig, device: str) -> tuple[str, ReverbEngine, str]:
+    """Resolve engine name and instantiate concrete engine instance."""
     engine_name = config.engine
     if engine_name == "auto":
         engine_name = "conv" if config.ir is not None else "algo"
@@ -418,12 +441,14 @@ def _resolve_engine(config: RenderConfig, device: str) -> tuple[str, ReverbEngin
 
 
 def _resolve_analysis_path(outfile: Path, analysis_out: str | None) -> Path:
+    """Resolve analysis JSON output path."""
     if analysis_out is not None:
         return Path(analysis_out)
     return Path(f"{outfile}.analysis.json")
 
 
 def _build_per_pass_processor(config: RenderConfig, sr: int) -> PassProcessor:
+    """Build per-pass post processor used by repeat chaining."""
     stage: NormalizeStage = config.normalize_stage
     if stage == "per-pass":
         target_lufs = (
@@ -461,6 +486,7 @@ def _build_per_pass_processor(config: RenderConfig, sr: int) -> PassProcessor:
 
 
 def _should_include_loudness(config: RenderConfig) -> bool:
+    """Return whether analysis should include LUFS/true-peak metrics."""
     return any(
         value is not None
         for value in (
@@ -488,12 +514,14 @@ def _append_tail_padding(audio: AudioArray, sr: int, tail_seconds: float) -> Aud
 
 
 def _non_default_settings(config: RenderConfig) -> dict[str, Any]:
+    """Return config entries that differ from ``RenderConfig`` defaults."""
     defaults = asdict(RenderConfig())
     current = asdict(config)
     return {key: value for key, value in current.items() if defaults.get(key) != value}
 
 
 def _resolve_output_subtype(mode: str) -> str | None:
+    """Map CLI output subtype mode to libsndfile subtype string."""
     mapping = {
         "auto": None,
         "float32": "FLOAT",
@@ -514,6 +542,7 @@ def _apply_final_peak_normalization(
     input_peak_linear: float,
     target_dbfs: float | None,
 ) -> AudioArray:
+    """Apply final optional peak normalization step after DSP processing."""
     if audio.shape[0] == 0:
         return audio.copy()
 

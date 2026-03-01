@@ -1,4 +1,4 @@
-"""Progress display utilities."""
+"""Progress display utilities for long-running render stages."""
 
 from __future__ import annotations
 
@@ -14,7 +14,10 @@ from rich.progress import (
 
 
 class RenderProgress:
-    """Progress manager for read/process/write/analyze workflow."""
+    """Progress manager for read/process/write/analyze workflow.
+
+    Designed as a context manager to guarantee progress teardown on errors.
+    """
 
     __slots__ = (
         "_analyze_task",

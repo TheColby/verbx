@@ -1,4 +1,4 @@
-"""Configuration models for CLI options and engine selection."""
+"""Typed configuration models shared across CLI and pipeline layers."""
 
 from __future__ import annotations
 
@@ -17,7 +17,11 @@ OutputPeakNorm = Literal["none", "input", "target", "full-scale"]
 
 @dataclass(slots=True)
 class RenderConfig:
-    """Typed render configuration used by CLI and pipeline."""
+    """Typed render configuration used by CLI and pipeline.
+
+    Centralizing options in one dataclass reduces drift between CLI parsing,
+    validation, and DSP pipeline behavior.
+    """
 
     engine: EngineName = "auto"
     rt60: float = 60.0

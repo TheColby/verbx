@@ -1,4 +1,11 @@
-"""Typer CLI for verbx."""
+"""Typer CLI entrypoint for verbx.
+
+Commands are grouped by workflow:
+- top-level render/analyze/suggest/presets
+- ``ir`` synthesis/inspection
+- ``cache`` management
+- ``batch`` orchestration
+"""
 
 from __future__ import annotations
 
@@ -911,6 +918,7 @@ def batch_render(
 
 
 def _render_config_from_options(options: dict[str, Any]) -> RenderConfig:
+    """Build ``RenderConfig`` from manifest options with safe field filtering."""
     fields = RenderConfig.__dataclass_fields__.keys()
     filtered = {key: value for key, value in options.items() if key in fields}
 
@@ -925,6 +933,8 @@ def _render_config_from_options(options: dict[str, Any]) -> RenderConfig:
 
 
 class _ScoredFitCandidate:
+    """Internal transport object for IR-fit ranking results."""
+
     def __init__(
         self,
         *,
@@ -950,6 +960,7 @@ def _score_fit_candidates(
     cache_dir: Path,
     fit_workers: int,
 ) -> list[_ScoredFitCandidate]:
+    """Evaluate IR-fit candidates serially or in parallel."""
     worker_count = int(os.cpu_count() or 1) if fit_workers == 0 else fit_workers
     worker_count = max(1, min(worker_count, len(candidates)))
 
@@ -991,6 +1002,7 @@ def _resolve_ir_output_path(out_ir: Path, out_format: IRFileFormat) -> Path:
 
 
 def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> None:
+    """Validate render CLI arguments before pipeline execution."""
     _ensure_distinct_paths(infile, outfile, "INFILE", "OUTFILE")
     _validate_output_audio_path(outfile, config.output_subtype)
 
@@ -1046,6 +1058,7 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
 
 
 def _validate_analyze_call(infile: Path, json_out: Path | None, frames_out: Path | None) -> None:
+    """Validate analyze command output paths."""
     if json_out is not None and infile.resolve() == json_out.resolve():
         msg = "--json-out must be different from input file."
         raise typer.BadParameter(msg)
@@ -1069,6 +1082,7 @@ def _validate_ir_gen_call(
     resonator_low_hz: float,
     resonator_high_hz: float,
 ) -> None:
+    """Validate IR generation options and output path constraints."""
     resolved = _resolve_ir_output_path(out_ir, out_format)
     _validate_output_audio_path(resolved, "auto")
 
@@ -1096,17 +1110,20 @@ def _validate_ir_gen_call(
 
 
 def _validate_ir_process_call(in_ir: Path, out_ir: Path) -> None:
+    """Validate IR process command path arguments."""
     _ensure_distinct_paths(in_ir, out_ir, "IN_IR", "OUT_IR")
     _validate_output_audio_path(out_ir, "auto")
 
 
 def _validate_ir_analyze_call(ir_file: Path, json_out: Path | None) -> None:
+    """Validate IR analyze optional output path."""
     if json_out is not None and ir_file.resolve() == json_out.resolve():
         msg = "--json-out must be different from input IR file."
         raise typer.BadParameter(msg)
 
 
 def _validate_batch_job_paths(infile: Path, outfile: Path, idx: int) -> None:
+    """Validate one batch job's input/output paths."""
     if infile.resolve() == outfile.resolve():
         msg = f"jobs[{idx - 1}] infile and outfile must be different."
         raise typer.BadParameter(msg)
@@ -1117,12 +1134,14 @@ def _validate_batch_job_paths(infile: Path, outfile: Path, idx: int) -> None:
 
 
 def _ensure_distinct_paths(in_path: Path, out_path: Path, in_label: str, out_label: str) -> None:
+    """Ensure input and output paths are not identical."""
     if in_path.resolve() == out_path.resolve():
         msg = f"{in_label} and {out_label} must be different paths."
         raise typer.BadParameter(msg)
 
 
 def _validate_output_audio_path(path: Path, out_subtype_mode: str) -> None:
+    """Validate output extension and requested SoundFile subtype support."""
     suffix = path.suffix.lower().lstrip(".")
     if suffix == "":
         msg = f"Output path must include an audio file extension: {path}"

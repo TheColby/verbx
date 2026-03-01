@@ -1,4 +1,8 @@
-"""Time-domain feature extraction."""
+"""Time-domain feature extraction primitives.
+
+The functions in this module are lightweight approximations intended for fast
+CLI diagnostics rather than forensic/mastering-grade metering.
+"""
 
 from __future__ import annotations
 
@@ -57,7 +61,10 @@ def dc_offset(audio: AudioArray) -> float:
 
 
 def dynamic_range(audio: AudioArray) -> float:
-    """Approximate dynamic range in dB using 95th/5th percentile envelope."""
+    """Approximate dynamic range in dB using a percentile envelope.
+
+    Uses 95th vs 5th percentile of absolute mono envelope as a robust proxy.
+    """
     envelope = np.abs(np.mean(audio, axis=1))
     hi = float(np.percentile(envelope, 95.0))
     lo = float(np.percentile(envelope, 5.0))
@@ -77,7 +84,7 @@ def l1_energy(audio: AudioArray) -> float:
 
 
 def silence_ratio(audio: AudioArray, threshold_dbfs: float = -50.0) -> float:
-    """Estimate proportion of samples below threshold."""
+    """Estimate proportion of samples below a silence threshold."""
     threshold = float(10.0 ** (threshold_dbfs / 20.0))
     envelope = np.abs(np.mean(audio, axis=1))
     silent = np.count_nonzero(envelope < threshold)
@@ -85,7 +92,7 @@ def silence_ratio(audio: AudioArray, threshold_dbfs: float = -50.0) -> float:
 
 
 def transient_density(audio: AudioArray) -> float:
-    """Compute transient density via first-order envelope differencing."""
+    """Estimate transient density via first-order envelope differencing."""
     env = np.abs(np.mean(audio, axis=1))
     diff = np.diff(env, prepend=env[:1])
     threshold = float(np.mean(diff) + (2.0 * np.std(diff)))
@@ -94,7 +101,10 @@ def transient_density(audio: AudioArray) -> float:
 
 
 def stereo_correlation(audio: AudioArray) -> float:
-    """Compute stereo L/R correlation when available."""
+    """Compute stereo L/R correlation when available.
+
+    Returns 1.0 for non-stereo content by convention.
+    """
     if audio.shape[1] < 2:
         return 1.0
     left = audio[:, 0]
@@ -106,7 +116,7 @@ def stereo_correlation(audio: AudioArray) -> float:
 
 
 def stereo_width(audio: AudioArray) -> float:
-    """Compute mid/side RMS ratio as width proxy."""
+    """Compute mid/side RMS ratio as a width proxy."""
     if audio.shape[1] < 2:
         return 0.0
     mid = 0.5 * (audio[:, 0] + audio[:, 1])

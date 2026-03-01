@@ -1,4 +1,7 @@
-"""IR post-shaping: filters, EQ, normalization, and loudness targets."""
+"""IR post-shaping: filters, EQ, normalization, and loudness targets.
+
+This module encapsulates "finishing" stages used after raw IR synthesis.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +16,10 @@ AudioArray = npt.NDArray[np.float32]
 
 
 def normalize_ir(audio: AudioArray, mode: str, peak_dbfs: float) -> AudioArray:
-    """Normalize IR according to mode."""
+    """Normalize IR according to mode.
+
+    ``mode`` may be ``none``, ``peak``, or ``rms``.
+    """
     x = ensure_mono_or_stereo(audio)
     norm_mode = mode.strip().lower()
 
@@ -46,13 +52,18 @@ def apply_ir_shaping(
     target_lufs: float | None,
     use_true_peak: bool,
 ) -> AudioArray:
-    """Apply deterministic shaping chain to generated IR."""
+    """Apply deterministic shaping chain to generated IR.
+
+    Processing order:
+    1) tilt/filters, 2) damping, 3) normalization, 4) optional loudness target.
+    """
     x = ensure_mono_or_stereo(audio)
 
     out = apply_tilt_eq(x, sr=sr, tilt_db=tilt, lowcut=lowcut, highcut=highcut)
 
     damp = float(np.clip(damping, 0.0, 1.0))
     if damp > 0.0:
+        # One-pole smoothing darkens high-frequency tail content.
         alpha = np.float32(0.1 + (0.85 * damp))
         state = np.zeros(out.shape[1], dtype=np.float32)
         for i in range(out.shape[0]):

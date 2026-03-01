@@ -1,4 +1,9 @@
-"""Freeze-related processing."""
+"""Freeze-segment preparation for reverb input streams.
+
+The v0.4 freeze path is intentionally simple: it extracts a user-selected region
+and tiles it to the original program length so downstream engines can run with
+the same framing assumptions as normal rendering.
+"""
 
 from __future__ import annotations
 
@@ -21,6 +26,20 @@ def freeze_segment(
     """Freeze a selected segment and loop it across the render input.
 
     The segment is made loop-safe with an equal-power boundary blend.
+
+    Parameters
+    ----------
+    audio:
+        Input program material as ``(samples, channels)`` or mono vector.
+    sr:
+        Sample rate in Hz.
+    start, end:
+        Freeze region in seconds. Invalid or missing bounds fall back to
+        pass-through behavior.
+    mode:
+        Currently only ``"loop"`` is implemented. Other values preserve input.
+    xfade_ms:
+        Boundary crossfade duration used to suppress discontinuity clicks.
     """
     x = ensure_mono_or_stereo(audio)
     if mode != "loop":
@@ -41,6 +60,7 @@ def freeze_segment(
     xfade = min(xfade, max(1, loop_len // 4))
 
     if xfade > 0:
+        # Equal-power crossfade keeps perceived level steady at loop boundary.
         theta = np.linspace(0.0, np.pi / 2.0, xfade, dtype=np.float32)
         fade_out = np.cos(theta)
         fade_in = np.sin(theta)
@@ -49,6 +69,7 @@ def freeze_segment(
         )
         segment[:xfade, :] = blended
 
+    # Tile the frozen buffer to preserve input render duration for v0.4.
     repeats = int(np.ceil(x.shape[0] / loop_len))
     frozen = np.tile(segment, (repeats, 1))[: x.shape[0], :]
     return np.asarray(frozen, dtype=np.float32)

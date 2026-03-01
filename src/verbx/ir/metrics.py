@@ -1,4 +1,8 @@
-"""IR analysis metrics and decay estimation."""
+"""IR analysis metrics and decay estimation.
+
+These routines provide compact room-response diagnostics for generated or
+captured IRs, including Schroeder decay and simple RT60 estimation.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +15,11 @@ AudioArray = npt.NDArray[np.float32]
 
 
 def schroeder_decay_db(ir: AudioArray) -> npt.NDArray[np.float64]:
-    """Compute Schroeder integrated decay curve in dB."""
+    """Compute Schroeder integrated decay curve in dB.
+
+    The decay is energy-integrated from tail to start and normalized to 0 dB at
+    the first sample.
+    """
     mono = np.mean(ir, axis=1).astype(np.float64)
     energy = np.square(mono) + 1e-18
     integ = np.cumsum(energy[::-1])[::-1]
@@ -21,7 +29,11 @@ def schroeder_decay_db(ir: AudioArray) -> npt.NDArray[np.float64]:
 
 
 def estimate_rt60(ir: AudioArray, sr: int) -> float:
-    """Estimate RT60 via linear regression on decay curve."""
+    """Estimate RT60 via linear regression on decay curve.
+
+    The default window is ``-5`` to ``-35`` dB, with a shallower fallback for
+    short/noisy IRs.
+    """
     decay = schroeder_decay_db(ir)
     t = np.arange(decay.shape[0], dtype=np.float64) / float(sr)
 
@@ -46,12 +58,13 @@ def estimate_rt60(ir: AudioArray, sr: int) -> float:
 
     rt60 = -60.0 / slope
     if np.max(y) > -20.0:
+        # Heuristic compensation for short-range regression windows.
         rt60 *= 3.0
     return float(max(0.0, rt60))
 
 
 def early_late_ratio_db(ir: AudioArray, sr: int, split_ms: float = 80.0) -> float:
-    """Compute early/late energy ratio in dB."""
+    """Compute early/late energy ratio in dB at the requested split time."""
     mono = np.mean(ir, axis=1).astype(np.float64)
     split = max(1, int((split_ms / 1000.0) * sr))
     split = min(split, mono.shape[0] - 1)
@@ -74,7 +87,10 @@ def stereo_coherence(ir: AudioArray) -> float:
 
 
 def analyze_ir(ir: AudioArray, sr: int) -> dict[str, float | list[float]]:
-    """Return IR analysis metrics and a compact decay curve."""
+    """Return IR analysis metrics and a compact decay curve.
+
+    The full decay curve is downsampled to at most 256 points for readable JSON.
+    """
     decay = schroeder_decay_db(ir)
     if decay.shape[0] > 256:
         idx = np.linspace(0, decay.shape[0] - 1, 256, dtype=np.int32)

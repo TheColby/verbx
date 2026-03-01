@@ -1,4 +1,8 @@
-"""Stochastic IR mode synthesis."""
+"""Stochastic IR mode synthesis.
+
+The stochastic mode starts from seeded noise and imposes a frequency-agnostic
+decay envelope, then adds lightweight diffusion and damping.
+"""
 
 from __future__ import annotations
 
@@ -19,7 +23,7 @@ def generate_stochastic_ir(
     density: float,
     seed: int,
 ) -> AudioArray:
-    """Generate deterministic stochastic tail IR."""
+    """Generate deterministic stochastic-tail IR."""
     rng = np.random.default_rng(seed)
     n = max(1, length_samples)
     ch = max(1, channels)
@@ -29,6 +33,7 @@ def generate_stochastic_ir(
 
     rt_low = max(0.1, rt60_low)
     rt_high = max(rt_low, rt60_high)
+    # A linearly varying RT profile can emulate gentle spectral/time tilt.
     rt_curve = np.linspace(rt_low, rt_high, n, dtype=np.float64)
     envelope = np.power(10.0, (-3.0 * t) / rt_curve).astype(np.float32)
 
@@ -36,6 +41,7 @@ def generate_stochastic_ir(
 
     diff = float(np.clip(diffusion, 0.0, 1.0))
     if diff > 0.0:
+        # Short decorrelation taps increase density without heavy FFT cost.
         delays = [31, 73, 151, 313]
         for delay in delays:
             if delay >= n:
@@ -45,6 +51,7 @@ def generate_stochastic_ir(
             out = ((1.0 - diff * 0.35) * out) + ((diff * 0.35) * shifted)
 
     damp = float(np.clip(damping, 0.0, 1.0))
+    # One-pole low-pass for progressively darker tails.
     alpha = np.float32(0.02 + (0.95 * damp))
     state = np.zeros(ch, dtype=np.float32)
     for i in range(n):

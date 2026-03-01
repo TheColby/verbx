@@ -1,4 +1,8 @@
-"""Heuristics for scoring and selecting generated IR candidates."""
+"""Heuristics for scoring and selecting generated IR candidates.
+
+The fitter derives coarse acoustic targets from source metrics, proposes a
+deterministic candidate pool, and ranks candidates against those targets.
+"""
 
 from __future__ import annotations
 
@@ -18,7 +22,10 @@ BatchPolicy = Literal["fifo", "shortest-first", "longest-first"]
 
 @dataclass(slots=True)
 class IRFitTarget:
-    """Target profile inferred from source-audio analysis."""
+    """Target profile inferred from source-audio analysis.
+
+    These are perceptual proxies, not strict physical room parameters.
+    """
 
     rt60_seconds: float
     early_late_ratio_db: float
@@ -51,7 +58,10 @@ class IRFitScore:
 
 
 def derive_ir_fit_target(metrics: dict[str, float], sr: int) -> IRFitTarget:
-    """Infer desired IR behavior from source analysis metrics."""
+    """Infer desired IR behavior from source analysis metrics.
+
+    The mapping emphasizes robust defaults over exact invertibility.
+    """
     duration = float(metrics.get("duration", 10.0))
     dynamic_range_db = float(metrics.get("dynamic_range", 20.0))
     transient_density = float(metrics.get("transient_density", 0.01))
@@ -92,7 +102,11 @@ def build_ir_fit_candidates(
     f0_hz: float | None = None,
     harmonic_targets_hz: tuple[float, ...] = (),
 ) -> list[IRFitCandidate]:
-    """Create deterministic IR candidate pool from target profile."""
+    """Create deterministic IR candidate pool from target profile.
+
+    Candidate variation spans RT60, damping, diffusion, density, mode family,
+    and selected mode-specific topology settings.
+    """
     pool = max(1, pool_size)
     modes = _prioritized_modes(base_mode, target.flatness, target.early_late_ratio_db)
 
@@ -149,7 +163,11 @@ def score_ir_candidate(
     sr: int,
     target: IRFitTarget,
 ) -> tuple[IRFitScore, dict[str, float]]:
-    """Score candidate IR against inferred target profile."""
+    """Score candidate IR against inferred target profile.
+
+    Returns both normalized score components and key measured metrics used for
+    ranking/inspection.
+    """
     metrics = analyze_ir(ir_audio, sr)
     rt60 = _metric_as_float(metrics, "rt60_estimate_seconds", 0.0)
     early_late = _metric_as_float(metrics, "early_late_ratio_db", 0.0)
@@ -163,6 +181,7 @@ def score_ir_candidate(
     centroid_error = abs(np.log2((centroid + 1.0) / (target.centroid_hz + 1.0)))
     flatness_error = abs(flatness - target.flatness)
 
+    # Weights prioritize decay behavior while keeping tone/spatial terms active.
     weighted = (
         (2.8 * rt60_error)
         + (1.8 * early_late_error)
@@ -193,6 +212,7 @@ def score_ir_candidate(
 def _prioritized_modes(
     base_mode: IRMode, flatness: float, early_late_ratio_db: float
 ) -> list[IRMode]:
+    """Rank likely IR modes based on broad source timbre/transient cues."""
     tonal = flatness < 0.15
     diffuse = flatness > 0.33
     transient_rich = early_late_ratio_db > 1.5
@@ -215,6 +235,7 @@ def _prioritized_modes(
 
 
 def _metric_as_float(metrics: dict[str, float | list[float]], key: str, default: float) -> float:
+    """Safely extract float metric values from mixed metric dictionaries."""
     value = metrics.get(key, default)
     if isinstance(value, (int, float, np.floating)):
         return float(value)
