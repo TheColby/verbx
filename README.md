@@ -124,23 +124,28 @@ results.
 - [14.0 Pregenerated IRs and Audio Examples](#140-pregenerated-irs-and-audio-examples)
   - [14.1 Pregenerated long IRs (60s–360s)](#141-pregenerated-long-irs-60s360s)
   - [14.2 Short audio demos](#142-short-audio-demos)
-- [15.0 Generate 25 IRs With Varying Parameters](#150-generate-25-irs-with-varying-parameters)
-  - [15.1 Python script](#151-python-script)
-  - [15.2 Bash script (CLI-driven)](#152-bash-script-cli-driven)
-- [16.0 Development](#160-development)
-  - [16.1 Lint / type-check / tests](#161-lint-type-check-tests)
-- [17.0 Project Layout](#170-project-layout)
-- [18.0 Additional Docs](#180-additional-docs)
-- [19.0 Roadmap](#190-roadmap)
-  - [19.1 v0.5 - Surround-first workflow hardening](#191-v05-surround-first-workflow-hardening)
-  - [19.2 v0.6 - Ambisonics and scene-domain spatial processing](#192-v06-ambisonics-and-scene-domain-spatial-processing)
-  - [19.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)](#193-v07-immersive-production-interoperability-atmos-and-large-scale-delivery)
-  - [19.4 v0.8 - Time-varying parameter automation for reverb engines](#194-v08-time-varying-parameter-automation-for-reverb-engines)
-  - [19.5 v0.9 - Feature-vector-driven reverb control (audio-reactive DSP)](#195-v09-feature-vector-driven-reverb-control-audio-reactive-dsp)
-  - [19.6 v1.0 - Jot-inspired FDN control and perceptual parameterization](#196-v10-jot-inspired-fdn-control-and-perceptual-parameterization)
-  - [19.7 v1.1 - IR morphing and blending framework](#197-v11-ir-morphing-and-blending-framework)
-- [20.0 License](#200-license)
-- [21.0 Attribution](#210-attribution)
+- [15.0 Where to Obtain New Impulse Responses (IRs)](#150-where-to-obtain-new-impulse-responses-irs)
+  - [15.1 Free and open libraries](#151-free-and-open-libraries)
+  - [15.2 Commercial plugin ecosystems](#152-commercial-plugin-ecosystems)
+  - [15.3 Capture your own IRs](#153-capture-your-own-irs)
+  - [15.4 Import workflow in `verbx`](#154-import-workflow-in-verbx)
+- [16.0 Generate 25 IRs With Varying Parameters](#160-generate-25-irs-with-varying-parameters)
+  - [16.1 Python script](#161-python-script)
+  - [16.2 Bash script (CLI-driven)](#162-bash-script-cli-driven)
+- [17.0 Development](#170-development)
+  - [17.1 Lint / type-check / tests](#171-lint-type-check-tests)
+- [18.0 Project Layout](#180-project-layout)
+- [19.0 Additional Docs](#190-additional-docs)
+- [20.0 Roadmap](#200-roadmap)
+  - [20.1 v0.5 - Surround-first workflow hardening](#201-v05-surround-first-workflow-hardening)
+  - [20.2 v0.6 - Ambisonics and scene-domain spatial processing](#202-v06-ambisonics-and-scene-domain-spatial-processing)
+  - [20.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)](#203-v07-immersive-production-interoperability-atmos-and-large-scale-delivery)
+  - [20.4 v0.8 - Time-varying parameter automation for reverb engines](#204-v08-time-varying-parameter-automation-for-reverb-engines)
+  - [20.5 v0.9 - Feature-vector-driven reverb control (audio-reactive DSP)](#205-v09-feature-vector-driven-reverb-control-audio-reactive-dsp)
+  - [20.6 v1.0 - Jot-inspired FDN control and perceptual parameterization](#206-v10-jot-inspired-fdn-control-and-perceptual-parameterization)
+  - [20.7 v1.1 - IR morphing and blending framework](#207-v11-ir-morphing-and-blending-framework)
+- [21.0 License](#210-license)
+- [22.0 Attribution](#220-attribution)
 
 ## 2.0 What is Reverberation? (a/k/a Reverb)?
 
@@ -1371,9 +1376,58 @@ Each IR includes a sidecar metadata file:
 - [Hybrid IR (short)](examples/audio/hybrid_ir_short.wav)
 - [Dry click reverbed](examples/audio/dry_click_reverbed.wav)
 
-## 15.0 Generate 25 IRs With Varying Parameters
+## 15.0 Where to Obtain New Impulse Responses (IRs)
 
-### 15.1 Python script
+This section lists practical sources for acquiring new impulse responses and
+getting them into `verbx` quickly.
+
+### 15.1 Free and open libraries
+
+- [OpenAIR (University of York)](https://www.openairlib.net/)
+  - Research/project context: [Open Acoustic Impulse Response Library](https://www.york.ac.uk/physics-engineering-technology/research/communication-technologies/projects/open-acoustic-impulse-response-library/)
+  - Includes many real-world spaces; useful baseline library for convolution work.
+- [EchoThief](https://www.echothief.com/downloads/)
+  - Creative spaces (caves, stairwells, tunnels, industrial spaces).
+- [Voxengo Impulses](https://www.voxengo.com/impulses/)
+  - Free WAV IR set with clear distribution context.
+- [Samplicity Bricasti M7 IR files](https://samplicity.com/bricasti-m7-impulse-response-files/)
+  - Widely used sampled hardware reverb captures.
+- [Airwindows Impulses](https://www.airwindows.com/airwindows-impulses/)
+  - Additional free IR material for experimentation.
+
+### 15.2 Commercial plugin ecosystems
+
+- [Altiverb library browser](https://www.audioease.com/altiverb/browse.php)
+  - Extensive curated IR collection inside the Altiverb ecosystem.
+- [Waves IR library install docs](https://www.waves.com/support/how-to-install-ir-reverb-preset-library)
+  - Additional IR content for Waves convolution workflows.
+
+### 15.3 Capture your own IRs
+
+- [Logic Pro impulse response workflow](https://support.apple.com/guide/logicpro/use-impulse-responses-lgcef2af4d05/mac)
+  - Practical for in-the-box IR capture/utility usage.
+- [Room EQ Wizard (REW) file/export docs](https://www.roomeqwizard.com/help/help_en-GB/html/file.html)
+  - Useful for measurement-derived impulse responses and export workflows.
+
+### 15.4 Import workflow in `verbx`
+
+```bash
+# Use an external IR directly
+verbx render in.wav out.wav --engine conv --ir your_ir.wav
+
+# Try self-convolution fast (input used as IR)
+verbx render in.wav out_self.wav --self-convolve
+```
+
+Practical guidance:
+
+- Prefer `WAV` initially for maximum compatibility during testing.
+- Use `--ir-normalize peak` when comparing different libraries at roughly similar levels.
+- Keep track of source licenses and attribution terms when redistributing IR packs.
+
+## 16.0 Generate 25 IRs With Varying Parameters
+
+### 16.1 Python script
 
 ```bash
 ./scripts/generate_ir_bank.py \
@@ -1384,7 +1438,7 @@ Each IR includes a sidecar metadata file:
   --format flac
 ```
 
-### 15.2 Bash script (CLI-driven)
+### 16.2 Bash script (CLI-driven)
 
 ```bash
 ./scripts/generate_ir_bank.sh IRs/generated_25_cli 25 flac
@@ -1395,9 +1449,9 @@ Scripts:
 - [scripts/generate_ir_bank.py](scripts/generate_ir_bank.py)
 - [scripts/generate_ir_bank.sh](scripts/generate_ir_bank.sh)
 
-## 16.0 Development
+## 17.0 Development
 
-### 16.1 Lint / type-check / tests
+### 17.1 Lint / type-check / tests
 
 With Hatch:
 
@@ -1415,7 +1469,7 @@ pyright
 pytest
 ```
 
-## 17.0 Project Layout
+## 18.0 Project Layout
 
 - `src/verbx/cli.py`: command routing and UX
 - `src/verbx/core/`: DSP engines, pipeline, loudness, shimmer, ambient, tempo
@@ -1425,13 +1479,13 @@ pytest
 - `tests/`: automated tests
 - `docs/`: deeper guides
 
-## 18.0 Additional Docs
+## 19.0 Additional Docs
 
 - [IR synthesis guide](docs/IR_SYNTHESIS.md)
 
-## 19.0 Roadmap
+## 20.0 Roadmap
 
-### 19.1 v0.5 - Surround-first workflow hardening
+### 20.1 v0.5 - Surround-first workflow hardening
 
 - `Render architecture`: add channel-layout-aware routing profiles (`mono`, `stereo`, `LCR`, `5.1`, `7.1`, `7.1.2`, `7.1.4`) so matrix mapping is no longer only index-based and becomes bus-semantic.
 - `Convolution engine`: add optional explicit route-map inputs (named channel maps) and validation that rejects ambiguous multichannel IR packs with clear diagnostics.
@@ -1440,7 +1494,7 @@ pytest
 - `Batch`: improve parallel scheduler with checkpoint/resume manifests and deterministic recovery after worker interruption.
 - `Testing`: add golden multichannel vectors (5.1/7.1) and routing regression tests for diagonal, broadcast, and full matrix convolution.
 
-### 19.2 v0.6 - Ambisonics and scene-domain spatial processing
+### 20.2 v0.6 - Ambisonics and scene-domain spatial processing
 
 - `Ambisonics I/O`: support first-order and higher-order Ambisonics (ACN/SN3D as baseline), including metadata checks and channel-order normalization.
 - `Spatial transforms`: add encode/decode transforms between channel buses and Ambisonic domain for reverb-field processing workflows.
@@ -1449,7 +1503,7 @@ pytest
 - `UX`: add explicit CLI switches for spatial conventions (`--ambi-order`, `--ambi-normalization`, `--channel-order`) with strict validation and fail-fast mismatch messages.
 - `Interoperability`: provide practical export guidance for DAW pipelines (Nuendo/Reaper/Pro Tools Atmos bed pre-production via intermediate formats).
 
-### 19.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)
+### 20.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)
 
 - `Dolby Atmos interoperability`: add structured bed/object prep workflows and ADM BWF metadata-sidecar generation for downstream authoring tools.
 - `Important scope boundary`: keep official Dolby encoding/rendering delegated to licensed external toolchains; `verbx` focuses on pre-processing, validation, and automation around those toolchains.
@@ -1458,7 +1512,7 @@ pytest
 - `Distributed execution`: introduce multi-host batch orchestration with queue backends, worker heartbeats, and idempotent job retries for large immersive catalogs.
 - `Quality assurance`: implement immersive QC gates (bed/object loudness compliance, true-peak ceilings, fold-down deltas, and channel occupancy checks) as reusable CI steps.
 
-### 19.4 v0.8 - Time-varying parameter automation for reverb engines
+### 20.4 v0.8 - Time-varying parameter automation for reverb engines
 
 - `Automation timeline`: add sample-accurate and block-rate automation lanes so any render parameter can vary over time (for example `wet`, `rt60`, `damping`, shimmer controls, ducking, IR blend controls).
 - `Control data model`: introduce a unified automation format (breakpoints, ramps, curves, LFO envelopes, and segment clips) that can be loaded from JSON/CSV and applied consistently across engines.
@@ -1467,7 +1521,7 @@ pytest
 - `Performance`: support sparse-event scheduling and cached interpolation so long renders with dense automation remain efficient.
 - `Safety`: enforce stability guards when automating sensitive parameters (feedback/decay/modulation) and provide deterministic behavior in repeat/batch modes.
 
-### 19.5 v0.9 - Feature-vector-driven reverb control (audio-reactive DSP)
+### 20.5 v0.9 - Feature-vector-driven reverb control (audio-reactive DSP)
 
 - `Feature control bus`: allow one or more input feature vectors to drive any reverb parameter via a flexible modulation graph.
 - `Feature extraction set`: provide built-in time-domain, spectral, onset/transient, loudness, and harmonic feature streams with configurable frame rates and smoothing.
@@ -1476,7 +1530,7 @@ pytest
 - `Offline and realtime-style modes`: render deterministically offline while preserving architecture compatibility for potential future low-latency/streaming reactive workflows.
 - `Explainability and QA`: emit control-trace reports (feature values + mapped parameter values) for debugging, reproducibility, and perceptual tuning.
 
-### 19.6 v1.0 - Jot-inspired FDN control and perceptual parameterization
+### 20.6 v1.0 - Jot-inspired FDN control and perceptual parameterization
 
 - `Multiband RT control`: add Jot-style decay-shaping filters inside FDN feedback loops so low/mid/high T60 targets can be tuned independently while preserving stability.
 - `Energy-preserving feedback families`: expand matrix options with orthogonal/unitary constructions and expose perceptual controls that map to diffusion, echo density, and coloration.
@@ -1484,7 +1538,7 @@ pytest
 - `Perceptual macro controls`: map low-level FDN coefficients to high-level room descriptors (size, clarity, warmth, envelopment) for faster design workflows.
 - `Validation tooling`: add decay-vs-target verification plots and spectral error summaries to verify calibration of FDN behavior against requested perceptual outcomes.
 
-### 19.7 v1.1 - IR morphing and blending framework
+### 20.7 v1.1 - IR morphing and blending framework
 
 - `IR morph CLI`: add `verbx ir morph A.wav B.wav OUT.wav` with morph modes (`linear`, `equal-power`, `spectral`, `envelope-aware`) and mix control (`--alpha`).
 - `Render-time IR blending`: allow `verbx render` to accept multiple IRs with weighted blending (`--ir-blend`, `--ir-blend-mix`) so users can audition hybrid spaces without pre-baking files.
@@ -1496,13 +1550,13 @@ pytest
 - `Caching and reproducibility`: cache morphed IR artifacts by source-hash + mode + parameters, with metadata sidecars documenting source IRs, weights, and normalization choices.
 - `QA metrics`: add morph quality reports (RT60 drift, early/late ratio drift, spectral distance, inter-channel coherence deltas) for objective validation in batch/CI workflows.
 
-## 20.0 License
+## 21.0 License
 
 This project is licensed under the MIT License.
 
 - Full text: [LICENSE](LICENSE)
 
-## 21.0 Attribution
+## 22.0 Attribution
 
 `verbx` builds on the Python audio and DSP ecosystem, including:
 
