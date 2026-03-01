@@ -46,7 +46,12 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
         input_sr = int(info.samplerate)
         input_channels = int(info.channels)
 
-        runtime_config, ir_runtime = _prepare_runtime_config(config, input_sr, input_channels)
+        runtime_config, ir_runtime = _prepare_runtime_config(
+            config,
+            input_sr,
+            input_channels,
+            infile,
+        )
         resolved_device = resolve_device(runtime_config.device)
         engine_name, engine, engine_device = _resolve_engine(runtime_config, resolved_device)
         if engine_device in {"cpu", "mps"}:
@@ -81,6 +86,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                     "device_platform_resolved": resolved_device,
                     "compute_backend": engine.backend_name(),
                     "ir_used": runtime_config.ir,
+                    "self_convolve": runtime_config.self_convolve,
                     "tail_padding_seconds": 0.0,
                     "input_peak_linear": float(stream_stats["input_peak_linear"]),
                     "output_subtype": output_subtype if output_subtype is not None else "auto",
@@ -207,6 +213,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 "device_platform_resolved": resolved_device,
                 "compute_backend": engine.backend_name(),
                 "ir_used": runtime_config.ir,
+                "self_convolve": runtime_config.self_convolve,
                 "tail_padding_seconds": tail_padding_seconds,
                 "input_peak_linear": input_peak_linear,
                 "output_subtype": output_subtype if output_subtype is not None else "auto",
@@ -268,10 +275,25 @@ def _can_stream_convolution(config: RenderConfig, engine_name: str, engine: Reve
 
 
 def _prepare_runtime_config(
-    config: RenderConfig, sr: int, input_channels: int
+    config: RenderConfig,
+    sr: int,
+    input_channels: int,
+    infile: Path,
 ) -> tuple[RenderConfig, dict[str, Any] | None]:
     runtime = config
     ir_runtime: dict[str, Any] | None = None
+
+    if config.self_convolve:
+        runtime = RenderConfig(**asdict(config))
+        runtime.ir = str(infile)
+        if runtime.engine == "auto":
+            runtime.engine = "conv"
+        ir_runtime = {
+            "mode": "self-convolve",
+            "cache_hit": False,
+            "ir_path": str(infile),
+        }
+        return runtime, ir_runtime
 
     if config.ir_gen:
         ir_cfg = IRGenConfig(

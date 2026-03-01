@@ -206,6 +206,44 @@ def test_render_conv_streaming_mode(tmp_path: Path) -> None:
     assert payload["output_samples"] >= payload["input_samples"]
 
 
+def test_render_self_convolve(tmp_path: Path) -> None:
+    sr = 24_000
+    n = 2048
+    t = np.arange(n, dtype=np.float32) / sr
+    audio = (0.35 * np.sin(2.0 * np.pi * 330.0 * t)).astype(np.float32)[:, np.newaxis]
+
+    infile = tmp_path / "self_in.wav"
+    outfile = tmp_path / "self_out.wav"
+    sf.write(str(infile), audio, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--self-convolve",
+            "--engine",
+            "auto",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float32")
+    assert out_sr == sr
+    assert out_audio.shape[0] > audio.shape[0]
+    assert out_audio.shape[1] == 1
+    assert np.any(np.abs(out_audio) > 1e-7)
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    assert payload["effective"]["engine_resolved"] == "conv"
+    assert payload["effective"]["self_convolve"] is True
+    assert str(payload["effective"]["ir_used"]).endswith("self_in.wav")
+
+
 def test_batch_render_parallel_jobs(tmp_path: Path) -> None:
     sr = 16_000
     irfile = tmp_path / "ir.wav"
@@ -288,6 +326,54 @@ def test_render_validation_errors(tmp_path: Path) -> None:
         ],
     )
     assert missing_peak_target.exit_code != 0
+
+    ir_file = tmp_path / "ir.wav"
+    sf.write(str(ir_file), np.array([[1.0]], dtype=np.float32), sr)
+
+    conflict_ir = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(tmp_path / "out3.wav"),
+            "--self-convolve",
+            "--ir",
+            str(ir_file),
+            "--engine",
+            "conv",
+            "--no-progress",
+        ],
+    )
+    assert conflict_ir.exit_code != 0
+
+    conflict_ir_gen = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(tmp_path / "out4.wav"),
+            "--self-convolve",
+            "--ir-gen",
+            "--engine",
+            "conv",
+            "--no-progress",
+        ],
+    )
+    assert conflict_ir_gen.exit_code != 0
+
+    conflict_algo = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(tmp_path / "out5.wav"),
+            "--self-convolve",
+            "--engine",
+            "algo",
+            "--no-progress",
+        ],
+    )
+    assert conflict_algo.exit_code != 0
 
 
 def test_ir_gen_validation_errors(tmp_path: Path) -> None:

@@ -94,6 +94,14 @@ def render(
     mod_depth_ms: float = typer.Option(2.0, "--mod-depth-ms", min=0.0),
     mod_rate_hz: float = typer.Option(0.1, "--mod-rate-hz", min=0.0),
     ir: Path | None = typer.Option(None, "--ir", exists=True, readable=True, resolve_path=True),
+    self_convolve: bool = typer.Option(
+        False,
+        "--self-convolve",
+        help=(
+            "Use INFILE as its own IR and force fast partitioned convolution "
+            "(equivalent to --engine conv --ir INFILE)."
+        ),
+    ),
     ir_normalize: IRNormalize = typer.Option("peak", "--ir-normalize"),
     ir_matrix_layout: IRMatrixLayout = typer.Option("output-major", "--ir-matrix-layout"),
     tail_limit: float | None = typer.Option(None, "--tail-limit", min=0.0),
@@ -173,6 +181,7 @@ def render(
         end=end,
         block_size=block_size,
         ir=None if ir is None else str(ir),
+        self_convolve=self_convolve,
         ir_normalize=ir_normalize,
         ir_matrix_layout=ir_matrix_layout,
         tail_limit=tail_limit,
@@ -237,6 +246,10 @@ def render(
     )
     table.add_row("compute_backend", str(report.get("effective", {}).get("compute_backend", "")))
     table.add_row("ir_used", str(report.get("effective", {}).get("ir_used")))
+    table.add_row(
+        "self_convolve",
+        str(report.get("effective", {}).get("self_convolve", False)),
+    )
     table.add_row("sample_rate", str(report.get("sample_rate", "")))
     table.add_row("channels", str(report.get("channels", "")))
     table.add_row("input_samples", str(report.get("input_samples", "")))
@@ -261,6 +274,7 @@ def render(
             "dry",
             "repeat",
             "ir_matrix_layout",
+            "self_convolve",
             "damping",
             "width",
             "block_size",
@@ -967,8 +981,24 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
     _ensure_distinct_paths(infile, outfile, "INFILE", "OUTFILE")
     _validate_output_audio_path(outfile, config.output_subtype)
 
-    if config.engine == "conv" and config.ir is None and not config.ir_gen:
-        msg = "Convolution render requires --ir PATH or --ir-gen."
+    if config.self_convolve:
+        if config.ir is not None:
+            msg = "Use either --ir or --self-convolve, not both."
+            raise typer.BadParameter(msg)
+        if config.ir_gen:
+            msg = "Use either --ir-gen or --self-convolve, not both."
+            raise typer.BadParameter(msg)
+        if config.engine == "algo":
+            msg = "--self-convolve is only valid with --engine conv or --engine auto."
+            raise typer.BadParameter(msg)
+
+    if (
+        config.engine == "conv"
+        and config.ir is None
+        and not config.ir_gen
+        and not config.self_convolve
+    ):
+        msg = "Convolution render requires --ir PATH, --ir-gen, or --self-convolve."
         raise typer.BadParameter(msg)
 
     if config.ir is not None and not Path(config.ir).exists():

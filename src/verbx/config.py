@@ -34,6 +34,7 @@ class RenderConfig:
     end: float | None = None
     block_size: int = 4096
     ir: str | None = None
+    self_convolve: bool = False
     ir_normalize: IRNormalize = "peak"
     ir_matrix_layout: IRMatrixLayout = "output-major"
     tail_limit: float | None = None

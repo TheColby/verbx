@@ -65,6 +65,7 @@ results.
   - [7.20 Deep-resonance long-space (inspired by Deep Listening aesthetics)](#720-deep-resonance-long-space-inspired-by-deep-listening-aesthetics)
   - [7.21 Cathedral vocal/organ simulation](#721-cathedral-vocalorgan-simulation)
   - [7.22 Cinematic synth hall (inspired by classic analog-film synth spaces)](#722-cinematic-synth-hall-inspired-by-classic-analog-film-synth-spaces)
+  - [7.23 Fast self-convolution (input as its own IR)](#723-fast-self-convolution-input-as-its-own-ir)
 - [8.0 New User Guide](#80-new-user-guide)
   - [8.1 Start Here (5-minute setup)](#81-start-here-5-minute-setup)
   - [8.2 Processing Architecture](#82-processing-architecture)
@@ -761,6 +762,18 @@ verbx render synth_lead.wav synth_cinematic_hall.wav \
   --target-peak-dbfs -1.5
 ```
 
+### 7.23 Fast self-convolution (input as its own IR)
+
+```bash
+verbx render input.wav self_convolved.wav \
+  --self-convolve \
+  --engine auto \
+  --ir-normalize peak \
+  --partition-size 16384 \
+  --normalize-stage none \
+  --output-peak-norm input
+```
+
 ## 8.0 New User Guide
 
 ### 8.1 Start Here (5-minute setup)
@@ -988,6 +1001,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | Switch | What it controls | Practical guidance |
 |---|---|---|
 | `--ir` | Path to external impulse response. | Required for explicit convolution engine runs (`--engine conv`) unless `--ir-gen` is used. |
+| `--self-convolve` | Uses the input file as its own IR for fast partitioned FFT self-convolution. | Useful for iterative texture/smear experiments without preparing a separate IR file. Equivalent to `--engine conv --ir INFILE`. |
 | `--ir-normalize [peak\|rms\|none]` | How IR amplitude is normalized before convolution. | `peak` is typical for predictable headroom; `none` preserves original IR level exactly. |
 | `--ir-matrix-layout [output-major\|input-major]` | Mapping for matrix-packed multichannel IRs. | Use this for true cross-channel routing (M-in × N-out IR channel packing). |
 | `--partition-size` | FFT partition size for convolution processing. | Larger partitions reduce FFT overhead but raise latency/memory per block; tune for workload. |
@@ -1234,6 +1248,9 @@ verbx render in.wav out.wav --engine algo --rt60 120 --damping 0.5 --width 1.2
 
 # convolution with IR normalization and tail cap
 verbx render in.wav out.wav --engine conv --ir plate.wav --ir-normalize peak --tail-limit 45
+
+# fast self-convolution (input as its own IR)
+verbx render in.wav out_self.wav --self-convolve --partition-size 16384 --normalize-stage none
 
 # cross-channel matrix routing (packed IR channels)
 verbx render in_7p1.wav out_7p1.wav --engine conv --ir matrix_7p1.wav --ir-matrix-layout output-major
