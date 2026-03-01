@@ -26,6 +26,7 @@ class RenderConfig:
     width: float = 1.0
     mod_depth_ms: float = 2.0
     mod_rate_hz: float = 0.1
+    beast_mode: int = 1
     wet: float = 0.8
     dry: float = 0.2
     repeat: int = 1

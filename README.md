@@ -77,6 +77,11 @@ results.
   - [9.4 Multichannel Matrix Convolution](#94-multichannel-matrix-convolution)
   - [9.5 Freeze Crossfade (Equal Power)](#95-freeze-crossfade-equal-power)
   - [9.6 Loudness / Peak Stages](#96-loudness-peak-stages)
+  - [9.7 Reference Room-Acoustics Equations (Beginner-Friendly)](#97-reference-room-acoustics-equations-beginner-friendly)
+    - [9.7.1 Sabine RT60 (classic approximation)](#971-sabine-rt60-classic-approximation)
+    - [9.7.2 Norris-Eyring RT60 (better at higher absorption)](#972-norris-eyring-rt60-better-at-higher-absorption)
+    - [9.7.3 Schroeder Energy Decay (from an impulse response)](#973-schroeder-energy-decay-from-an-impulse-response)
+    - [9.7.4 Slope-based RT estimates (EDT, T20, T30)](#974-slope-based-rt-estimates-edt-t20-t30)
 - [10.0 Performance Tuning](#100-performance-tuning)
   - [10.1 Device Selection](#101-device-selection)
   - [10.2 Threading](#102-threading)
@@ -777,6 +782,13 @@ verbx render input.wav self_convolved.wav \
   --partition-size 16384 \
   --normalize-stage none \
   --output-peak-norm input
+
+# beast-mode self-convolution (extreme frozen-time texture)
+verbx render input.wav self_convolved_beast.wav \
+  --self-convolve \
+  --beast-mode 12 \
+  --partition-size 16384 \
+  --normalize-stage none
 ```
 
 ## 8.0 New User Guide
@@ -910,6 +922,82 @@ This reduces clicks at loop boundaries.
   - `target` (specified dBFS)
   - `full-scale` (0 dBFS)
 
+### 9.7 Reference Room-Acoustics Equations (Beginner-Friendly)
+
+These equations come from room-acoustics literature. They are useful for
+building intuition about reverb time, decay behavior, and measurement.
+
+In plain terms:
+
+1. More room volume usually means longer decay.
+2. More absorption usually means shorter decay.
+3. IR analysis methods estimate decay from measured energy slope.
+
+`verbx` uses DSP methods internally, but these references help you choose
+reasonable targets.
+
+#### 9.7.1 Sabine RT60 (classic approximation)
+
+$$
+T_{60} \approx 0.161\,\frac{V}{A}
+$$
+
+Where:
+
+- $T_{60}$ is decay time in seconds.
+- $V$ is room volume in cubic meters.
+- $A$ is total equivalent absorption area in sabins.
+
+Beginner takeaway: if absorption $A$ increases, RT60 goes down.
+
+#### 9.7.2 Norris-Eyring RT60 (better at higher absorption)
+
+$$
+T_{60} \approx 0.161\,\frac{V}{-S\ln(1-\bar{\alpha})}
+$$
+
+Where:
+
+- $S$ is total surface area.
+- $\bar{\alpha}$ is average absorption coefficient.
+
+Beginner takeaway: Sabine can overestimate decay in highly absorbent rooms;
+Norris-Eyring usually behaves better there.
+
+#### 9.7.3 Schroeder Energy Decay (from an impulse response)
+
+Given impulse response $h(t)$:
+
+$$
+E(t)=\int_t^{\infty} h^2(\tau)\,d\tau
+$$
+
+Normalized decay curve in dB:
+
+$$
+L(t)=10\log_{10}\left(\frac{E(t)}{E(0)}\right)
+$$
+
+Beginner takeaway: this turns a raw IR into a smooth decay curve you can fit
+for RT estimates.
+
+#### 9.7.4 Slope-based RT estimates (EDT, T20, T30)
+
+If the fitted decay slope is $m$ dB/s, then:
+
+$$
+T_{60} \approx -\frac{60}{m}
+$$
+
+Common fit ranges:
+
+- EDT: around 0 dB to -10 dB (early impression of decay).
+- T20: around -5 dB to -25 dB (scaled to RT60).
+- T30: around -5 dB to -35 dB (scaled to RT60).
+
+Beginner takeaway: different fit windows can produce different RT numbers;
+that is normal and expected.
+
 ## 10.0 Performance Tuning
 
 ### 10.1 Device Selection
@@ -988,6 +1076,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--width` | Stereo/spatial spread behavior in the algorithmic path. | Increase for wider image; reduce for narrower/centered ambience. |
 | `--mod-depth-ms` | Delay modulation depth (ms) in the algorithmic late field. | Small depth reduces metallic ringing; too high can sound chorus-like. |
 | `--mod-rate-hz` | Delay modulation speed. | Very slow rates are subtle; faster rates make modulation more audible. |
+| `--beast-mode [1..100]` | Multiplies key reverb parameters (RT60, wet balance, modulation depth/rate, repeat intensity, and relevant tail controls). | Use `2-5` for heavier ambience and `10+` for extreme freeze-like density. |
 
 #### 12.2.2 Temporal structuring, repeats, and freeze
 
@@ -1256,6 +1345,9 @@ verbx render in.wav out.wav --engine conv --ir plate.wav --ir-normalize peak --t
 
 # fast self-convolution (input as its own IR)
 verbx render in.wav out_self.wav --self-convolve --partition-size 16384 --normalize-stage none
+
+# beast-mode multiplier for freeze-like tails
+verbx render in.wav out_beast.wav --engine algo --rt60 12 --beast-mode 8
 
 # cross-channel matrix routing (packed IR channels)
 verbx render in_7p1.wav out_7p1.wav --engine conv --ir matrix_7p1.wav --ir-matrix-layout output-major

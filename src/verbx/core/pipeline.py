@@ -45,12 +45,14 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
         info = sf.info(str(infile))
         input_sr = int(info.samplerate)
         input_channels = int(info.channels)
+        input_duration_seconds = float(info.frames) / float(max(1, input_sr))
 
         runtime_config, ir_runtime = _prepare_runtime_config(
             config,
             input_sr,
             input_channels,
             infile,
+            input_duration_seconds,
         )
         resolved_device = resolve_device(runtime_config.device)
         engine_name, engine, engine_device = _resolve_engine(runtime_config, resolved_device)
@@ -87,6 +89,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                     "compute_backend": engine.backend_name(),
                     "ir_used": runtime_config.ir,
                     "self_convolve": runtime_config.self_convolve,
+                    "beast_mode": runtime_config.beast_mode,
                     "tail_padding_seconds": 0.0,
                     "input_peak_linear": float(stream_stats["input_peak_linear"]),
                     "output_subtype": output_subtype if output_subtype is not None else "auto",
@@ -214,6 +217,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 "compute_backend": engine.backend_name(),
                 "ir_used": runtime_config.ir,
                 "self_convolve": runtime_config.self_convolve,
+                "beast_mode": runtime_config.beast_mode,
                 "tail_padding_seconds": tail_padding_seconds,
                 "input_peak_linear": input_peak_linear,
                 "output_subtype": output_subtype if output_subtype is not None else "auto",
@@ -279,12 +283,15 @@ def _prepare_runtime_config(
     sr: int,
     input_channels: int,
     infile: Path,
+    input_duration_seconds: float,
 ) -> tuple[RenderConfig, dict[str, Any] | None]:
-    runtime = config
+    runtime = _apply_beast_mode(
+        RenderConfig(**asdict(config)),
+        input_duration_seconds=input_duration_seconds,
+    )
     ir_runtime: dict[str, Any] | None = None
 
-    if config.self_convolve:
-        runtime = RenderConfig(**asdict(config))
+    if runtime.self_convolve:
         runtime.ir = str(infile)
         if runtime.engine == "auto":
             runtime.engine = "conv"
@@ -295,37 +302,73 @@ def _prepare_runtime_config(
         }
         return runtime, ir_runtime
 
-    if config.ir_gen:
+    if runtime.ir_gen:
         ir_cfg = IRGenConfig(
-            mode=config.ir_gen_mode,
-            length=config.ir_gen_length,
+            mode=runtime.ir_gen_mode,
+            length=runtime.ir_gen_length,
             sr=sr,
             channels=max(1, input_channels),
-            seed=config.ir_gen_seed,
-            rt60=config.rt60,
-            damping=config.damping,
-            lowcut=config.lowcut,
-            highcut=config.highcut,
-            tilt=config.tilt,
-            target_lufs=config.target_lufs,
-            true_peak=config.use_true_peak,
-            mod_depth_ms=config.mod_depth_ms,
-            mod_rate_hz=config.mod_rate_hz,
+            seed=runtime.ir_gen_seed,
+            rt60=runtime.rt60,
+            damping=runtime.damping,
+            lowcut=runtime.lowcut,
+            highcut=runtime.highcut,
+            tilt=runtime.tilt,
+            target_lufs=runtime.target_lufs,
+            true_peak=runtime.use_true_peak,
+            mod_depth_ms=runtime.mod_depth_ms,
+            mod_rate_hz=runtime.mod_rate_hz,
         )
-        cache_dir = Path(config.ir_gen_cache_dir)
+        cache_dir = Path(runtime.ir_gen_cache_dir)
         _, _, meta, wav_path, cache_hit = generate_or_load_cached_ir(ir_cfg, cache_dir=cache_dir)
-        runtime = RenderConfig(**asdict(config))
         runtime.ir = str(wav_path)
         if runtime.engine == "auto":
             runtime.engine = "conv"
         ir_runtime = {
-            "mode": config.ir_gen_mode,
+            "mode": runtime.ir_gen_mode,
             "cache_hit": cache_hit,
             "ir_path": str(wav_path),
             "meta": meta,
         }
 
     return runtime, ir_runtime
+
+
+def _apply_beast_mode(config: RenderConfig, input_duration_seconds: float) -> RenderConfig:
+    """Scale key reverb parameters for aggressive freeze-like tails."""
+    factor = max(1.0, float(config.beast_mode))
+    if factor <= 1.0:
+        return config
+
+    scaled = config
+    scaled.rt60 = max(0.1, scaled.rt60 * factor)
+    scaled.pre_delay_ms = max(0.0, scaled.pre_delay_ms * factor)
+    scaled.damping = float(np.clip(scaled.damping * factor, 0.0, 1.0))
+    scaled.width = float(np.clip(scaled.width * factor, 0.0, 2.0))
+    scaled.mod_depth_ms = max(0.0, scaled.mod_depth_ms * factor)
+    scaled.mod_rate_hz = max(0.0, scaled.mod_rate_hz * factor)
+
+    scaled.wet = float(np.clip(scaled.wet * factor, 0.0, 1.0))
+    scaled.dry = float(np.clip(scaled.dry / factor, 0.0, 1.0))
+    scaled.repeat = int(np.clip(round(scaled.repeat * np.sqrt(factor)), 1, 32))
+
+    scaled.shimmer_mix = float(np.clip(scaled.shimmer_mix * factor, 0.0, 1.0))
+    scaled.shimmer_feedback = float(np.clip(scaled.shimmer_feedback * factor, 0.0, 0.98))
+    scaled.bloom = max(0.0, scaled.bloom * factor)
+
+    if scaled.tail_limit is not None:
+        scaled.tail_limit = max(0.0, scaled.tail_limit * factor)
+    elif (
+        scaled.engine in {"conv", "auto"}
+        and (scaled.ir is not None or scaled.ir_gen or scaled.self_convolve)
+    ):
+        baseline = max(1.0, input_duration_seconds * 0.5)
+        scaled.tail_limit = baseline * factor
+
+    if scaled.ir_gen:
+        scaled.ir_gen_length = max(0.1, scaled.ir_gen_length * factor)
+
+    return scaled
 
 
 def _resolve_engine(config: RenderConfig, device: str) -> tuple[str, ReverbEngine, str]:

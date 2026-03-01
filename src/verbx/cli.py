@@ -93,6 +93,16 @@ def render(
     width: float = typer.Option(1.0, "--width", min=0.0, max=2.0),
     mod_depth_ms: float = typer.Option(2.0, "--mod-depth-ms", min=0.0),
     mod_rate_hz: float = typer.Option(0.1, "--mod-rate-hz", min=0.0),
+    beast_mode: int = typer.Option(
+        1,
+        "--beast-mode",
+        min=1,
+        max=100,
+        help=(
+            "Scales core reverb parameters by an intensity multiplier (1-100) "
+            "to push denser, longer, freeze-like tails."
+        ),
+    ),
     ir: Path | None = typer.Option(None, "--ir", exists=True, readable=True, resolve_path=True),
     self_convolve: bool = typer.Option(
         False,
@@ -173,6 +183,7 @@ def render(
         width=width,
         mod_depth_ms=mod_depth_ms,
         mod_rate_hz=mod_rate_hz,
+        beast_mode=beast_mode,
         wet=wet,
         dry=dry,
         repeat=repeat,
@@ -258,6 +269,7 @@ def render(
         "tail_padding_s",
         str(report.get("effective", {}).get("tail_padding_seconds", "")),
     )
+    table.add_row("beast_mode", str(report.get("effective", {}).get("beast_mode", 1)))
     table.add_row("out_subtype", str(report.get("effective", {}).get("output_subtype", "")))
     table.add_row("output_peak_norm", str(report.get("effective", {}).get("output_peak_norm", "")))
     table.add_row(
@@ -270,6 +282,7 @@ def render(
         for key in (
             "rt60",
             "pre_delay_ms",
+            "beast_mode",
             "wet",
             "dry",
             "repeat",

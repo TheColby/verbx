@@ -244,6 +244,61 @@ def test_render_self_convolve(tmp_path: Path) -> None:
     assert str(payload["effective"]["ir_used"]).endswith("self_in.wav")
 
 
+def test_render_beast_mode_scales_algo_tail(tmp_path: Path) -> None:
+    sr = 16_000
+    audio = np.zeros((1024, 1), dtype=np.float32)
+    audio[0, 0] = 0.7
+
+    infile = tmp_path / "beast_in.wav"
+    base_out = tmp_path / "base.wav"
+    beast_out = tmp_path / "beast.wav"
+    sf.write(str(infile), audio, sr)
+
+    base_result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(base_out),
+            "--engine",
+            "algo",
+            "--rt60",
+            "2.0",
+            "--repeat",
+            "1",
+            "--no-progress",
+        ],
+    )
+    assert base_result.exit_code == 0, base_result.stdout
+
+    beast_result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(beast_out),
+            "--engine",
+            "algo",
+            "--rt60",
+            "2.0",
+            "--repeat",
+            "1",
+            "--beast-mode",
+            "5",
+            "--no-progress",
+        ],
+    )
+    assert beast_result.exit_code == 0, beast_result.stdout
+
+    base_audio, _ = sf.read(str(base_out), always_2d=True, dtype="float32")
+    beast_audio, _ = sf.read(str(beast_out), always_2d=True, dtype="float32")
+    assert beast_audio.shape[0] > base_audio.shape[0]
+
+    payload = json.loads(Path(f"{beast_out}.analysis.json").read_text(encoding="utf-8"))
+    assert int(payload["effective"]["beast_mode"]) == 5
+    assert float(payload["config"]["rt60"]) > 2.0
+
+
 def test_batch_render_parallel_jobs(tmp_path: Path) -> None:
     sr = 16_000
     irfile = tmp_path / "ir.wav"
@@ -374,6 +429,21 @@ def test_render_validation_errors(tmp_path: Path) -> None:
         ],
     )
     assert conflict_algo.exit_code != 0
+
+    invalid_beast = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(tmp_path / "out6.wav"),
+            "--engine",
+            "algo",
+            "--beast-mode",
+            "101",
+            "--no-progress",
+        ],
+    )
+    assert invalid_beast.exit_code != 0
 
 
 def test_ir_gen_validation_errors(tmp_path: Path) -> None:
