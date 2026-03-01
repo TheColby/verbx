@@ -16,36 +16,132 @@ freeze/repeat processing, loudness and peak targeting, multichannel/surround
 routing, and synthetic IR generation with deterministic caching for reproducible
 results.
 
-## Table of Contents
+## 1.0 Table of Contents
 
-- [What is Reverberation? (a/k/a Reverb)?](#what-is-reverberation-aka-reverb)
-  - [Quick Reference Summary (from Wikipedia)](#quick-reference-summary-from-wikipedia)
-  - [Reverb Timeline (Single Hit)](#reverb-timeline-single-hit)
-  - [Dry/Wet and Tail Flow](#drywet-and-tail-flow)
-- [Status](#status)
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation and Quick Start](#installation-and-quick-start)
-  - [Install options](#install-options)
-  - [Add `verbx` to Your `PATH`](#add-verbx-to-your-path)
-  - [Choosing How To Run `verbx`](#choosing-how-to-run-verbx)
-- [Quick Start Recipes](#quick-start-recipes)
-- [New User Guide](#new-user-guide)
-- [DSP Math Notes](#dsp-math-notes)
-- [Performance Tuning](#performance-tuning)
-- [Surround / Multichannel IR Rules](#surround--multichannel-ir-rules)
-- [CLI Switch Reference](#cli-switch-reference)
-- [CLI Command Cookbook](#cli-command-cookbook)
-- [Pregenerated IRs and Audio Examples](#pregenerated-irs-and-audio-examples)
-- [Generate 25 IRs With Varying Parameters](#generate-25-irs-with-varying-parameters)
-- [Development](#development)
-- [Project Layout](#project-layout)
-- [Additional Docs](#additional-docs)
-- [Roadmap](#roadmap)
-- [License](#license)
-- [Attribution](#attribution)
+- [2.0 What is Reverberation? (a/k/a Reverb)?](#20-what-is-reverberation-aka-reverb)
+  - [2.1 Quick Reference Summary (from Wikipedia)](#21-quick-reference-summary-from-wikipedia)
+  - [2.2 Reverb Timeline (Single Hit)](#22-reverb-timeline-single-hit)
+    - [2.2.1 Labeled Envelope Graph (Amplitude vs Time)](#221-labeled-envelope-graph-amplitude-vs-time)
+  - [2.3 Dry/Wet and Tail Flow](#23-drywet-and-tail-flow)
+- [3.0 Status](#30-status)
+- [4.0 Features](#40-features)
+- [5.0 Requirements](#50-requirements)
+- [6.0 Installation and Quick Start](#60-installation-and-quick-start)
+  - [6.1 Install options](#61-install-options)
+    - [6.1.1 Option A: Hatch (recommended for contributors)](#611-option-a-hatch-recommended-for-contributors)
+    - [6.1.2 Option B: Plain virtualenv + pip (no Hatch)](#612-option-b-plain-virtualenv-pip-no-hatch)
+    - [6.1.3 Option C: pipx (isolated app install)](#613-option-c-pipx-isolated-app-install)
+    - [6.1.4 Option D: Run module directly (no console-script install)](#614-option-d-run-module-directly-no-console-script-install)
+  - [6.2 Add `verbx` to Your `PATH`](#62-add-verbx-to-your-path)
+    - [6.2.1 Virtualenv install (`.venv`)](#621-virtualenv-install-venv)
+    - [6.2.2 `pipx` install](#622-pipx-install)
+    - [6.2.3 User-site `pip install --user`](#623-user-site-pip-install-user)
+  - [6.3 Choosing How To Run `verbx`](#63-choosing-how-to-run-verbx)
+    - [6.3.1 Hatch](#631-hatch)
+    - [6.3.2 `uv`](#632-uv)
+    - [6.3.3 Plain `venv` + `pip`](#633-plain-venv-pip)
+    - [6.3.4 `pipx`](#634-pipx)
+    - [6.3.5 Direct `python -m verbx.cli`](#635-direct-python-m-verbxcli)
+- [7.0 Quick Start Recipes](#70-quick-start-recipes)
+  - [7.1 First render (algorithmic)](#71-first-render-algorithmic)
+  - [7.2 Convolution render with external IR](#72-convolution-render-with-external-ir)
+  - [7.3 Surround matrix convolution (true cross-channel routing)](#73-surround-matrix-convolution-true-cross-channel-routing)
+  - [7.4 Freeze + repeat chain](#74-freeze-repeat-chain)
+  - [7.5 Loudness and peak-targeted render](#75-loudness-and-peak-targeted-render)
+  - [7.6 Shimmer + ambient controls](#76-shimmer-ambient-controls)
+  - [7.7 Tempo-synced pre-delay](#77-tempo-synced-pre-delay)
+  - [7.8 Framewise analysis CSV during render](#78-framewise-analysis-csv-during-render)
+  - [7.9 Auto-generate cached IR during render](#79-auto-generate-cached-ir-during-render)
+  - [7.10 Force 32-bit float output + final peak normalization](#710-force-32-bit-float-output-final-peak-normalization)
+  - [7.11 Acceleration (CUDA / Apple Silicon)](#711-acceleration-cuda-apple-silicon)
+  - [7.12 Batch throughput](#712-batch-throughput)
+  - [7.13 Iterative room-resonance chain (inspired by Alvin Lucier's *I Am Sitting in a Room*)](#713-iterative-room-resonance-chain-inspired-by-alvin-luciers-i-am-sitting-in-a-room)
+  - [7.14 Ambient loopbed (inspired by Brian Eno's *Discreet Music*)](#714-ambient-loopbed-inspired-by-brian-enos-discreet-music)
+  - [7.15 Tape-loop evolution (inspired by Frippertronics)](#715-tape-loop-evolution-inspired-by-frippertronics)
+  - [7.16 Gated drum-space style (inspired by 1980s gated reverb aesthetics)](#716-gated-drum-space-style-inspired-by-1980s-gated-reverb-aesthetics)
+  - [7.17 Dub chamber send chain (inspired by King Tubby / Lee Perry workflows)](#717-dub-chamber-send-chain-inspired-by-king-tubby-lee-perry-workflows)
+  - [7.18 Reverse-wash texture stack (inspired by shoegaze wash techniques)](#718-reverse-wash-texture-stack-inspired-by-shoegaze-wash-techniques)
+  - [7.19 Sparse hall clarity (inspired by Arvo Part-style acoustic spaciousness)](#719-sparse-hall-clarity-inspired-by-arvo-part-style-acoustic-spaciousness)
+  - [7.20 Deep-resonance long-space (inspired by Deep Listening aesthetics)](#720-deep-resonance-long-space-inspired-by-deep-listening-aesthetics)
+  - [7.21 Cathedral vocal/organ simulation](#721-cathedral-vocalorgan-simulation)
+  - [7.22 Cinematic synth hall (inspired by classic analog-film synth spaces)](#722-cinematic-synth-hall-inspired-by-classic-analog-film-synth-spaces)
+- [8.0 New User Guide](#80-new-user-guide)
+  - [8.1 Start Here (5-minute setup)](#81-start-here-5-minute-setup)
+  - [8.2 Processing Architecture](#82-processing-architecture)
+  - [8.3 IR Generation + Cache Flow](#83-ir-generation-cache-flow)
+- [9.0 DSP Math Notes](#90-dsp-math-notes)
+  - [9.1 RT60 to Feedback Gain (FDN)](#91-rt60-to-feedback-gain-fdn)
+  - [9.2 FDN State Update](#92-fdn-state-update)
+  - [9.3 Partitioned FFT Convolution](#93-partitioned-fft-convolution)
+  - [9.4 Multichannel Matrix Convolution](#94-multichannel-matrix-convolution)
+  - [9.5 Freeze Crossfade (Equal Power)](#95-freeze-crossfade-equal-power)
+  - [9.6 Loudness / Peak Stages](#96-loudness-peak-stages)
+- [10.0 Performance Tuning](#100-performance-tuning)
+  - [10.1 Device Selection](#101-device-selection)
+  - [10.2 Threading](#102-threading)
+  - [10.3 Streaming Convolution Mode](#103-streaming-convolution-mode)
+- [11.0 Surround / Multichannel IR Rules](#110-surround-multichannel-ir-rules)
+  - [11.1 Parallel Batch Rendering](#111-parallel-batch-rendering)
+- [12.0 CLI Switch Reference](#120-cli-switch-reference)
+  - [12.1 Top-level commands](#121-top-level-commands)
+  - [12.2 `verbx render` switches](#122-verbx-render-switches)
+    - [12.2.1 Core engine and room behavior](#1221-core-engine-and-room-behavior)
+    - [12.2.2 Temporal structuring, repeats, and freeze](#1222-temporal-structuring-repeats-and-freeze)
+    - [12.2.3 Convolution and IR routing](#1223-convolution-and-ir-routing)
+    - [12.2.4 Runtime-generated IR path](#1224-runtime-generated-ir-path)
+    - [12.2.5 Loudness, peak targeting, and limiting](#1225-loudness-peak-targeting-and-limiting)
+    - [12.2.6 Ambient enhancement controls](#1226-ambient-enhancement-controls)
+    - [12.2.7 Execution, resources, and reporting](#1227-execution-resources-and-reporting)
+  - [12.3 `verbx analyze` switches](#123-verbx-analyze-switches)
+  - [12.4 `verbx suggest` switches](#124-verbx-suggest-switches)
+  - [12.5 `verbx presets` switches](#125-verbx-presets-switches)
+  - [12.6 `verbx ir gen OUT_IR` switches](#126-verbx-ir-gen-out_ir-switches)
+    - [12.6.1 Base output and synthesis mode](#1261-base-output-and-synthesis-mode)
+    - [12.6.2 Decay shape and broadband tone controls](#1262-decay-shape-and-broadband-tone-controls)
+    - [12.6.3 Early reflections and late-field density controls](#1263-early-reflections-and-late-field-density-controls)
+    - [12.6.4 Modal and tuning controls](#1264-modal-and-tuning-controls)
+    - [12.6.5 FDN-specific and harmonic alignment controls](#1265-fdn-specific-and-harmonic-alignment-controls)
+    - [12.6.6 Modalys-inspired resonator layer controls](#1266-modalys-inspired-resonator-layer-controls)
+    - [12.6.7 Cache and output behavior](#1267-cache-and-output-behavior)
+  - [12.7 `verbx ir analyze IR_FILE` switches](#127-verbx-ir-analyze-ir_file-switches)
+  - [12.8 `verbx ir process IN_IR OUT_IR` switches](#128-verbx-ir-process-in_ir-out_ir-switches)
+  - [12.9 `verbx ir fit INFILE OUT_IR` switches](#129-verbx-ir-fit-infile-out_ir-switches)
+  - [12.10 `verbx cache info` switches](#1210-verbx-cache-info-switches)
+  - [12.11 `verbx cache clear` switches](#1211-verbx-cache-clear-switches)
+  - [12.12 `verbx batch template` switches](#1212-verbx-batch-template-switches)
+  - [12.13 `verbx batch render MANIFEST` switches](#1213-verbx-batch-render-manifest-switches)
+- [13.0 CLI Command Cookbook](#130-cli-command-cookbook)
+  - [13.1 Global help](#131-global-help)
+  - [13.2 Core commands](#132-core-commands)
+  - [13.3 `render` examples](#133-render-examples)
+  - [13.4 `analyze` examples](#134-analyze-examples)
+  - [13.5 `ir` command group](#135-ir-command-group)
+    - [13.5.1 Generate IR examples](#1351-generate-ir-examples)
+    - [13.5.2 Analyze/process/fit IR examples](#1352-analyzeprocessfit-ir-examples)
+  - [13.6 Cache command group](#136-cache-command-group)
+  - [13.7 Batch command group](#137-batch-command-group)
+- [14.0 Pregenerated IRs and Audio Examples](#140-pregenerated-irs-and-audio-examples)
+  - [14.1 Pregenerated long IRs (60s–360s)](#141-pregenerated-long-irs-60s360s)
+  - [14.2 Short audio demos](#142-short-audio-demos)
+- [15.0 Generate 25 IRs With Varying Parameters](#150-generate-25-irs-with-varying-parameters)
+  - [15.1 Python script](#151-python-script)
+  - [15.2 Bash script (CLI-driven)](#152-bash-script-cli-driven)
+- [16.0 Development](#160-development)
+  - [16.1 Lint / type-check / tests](#161-lint-type-check-tests)
+- [17.0 Project Layout](#170-project-layout)
+- [18.0 Additional Docs](#180-additional-docs)
+- [19.0 Roadmap](#190-roadmap)
+  - [19.1 v0.5 - Surround-first workflow hardening](#191-v05-surround-first-workflow-hardening)
+  - [19.2 v0.6 - Ambisonics and scene-domain spatial processing](#192-v06-ambisonics-and-scene-domain-spatial-processing)
+  - [19.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)](#193-v07-immersive-production-interoperability-atmos-and-large-scale-delivery)
+  - [19.4 v0.8 - Time-varying parameter automation for reverb engines](#194-v08-time-varying-parameter-automation-for-reverb-engines)
+  - [19.5 v0.9 - Feature-vector-driven reverb control (audio-reactive DSP)](#195-v09-feature-vector-driven-reverb-control-audio-reactive-dsp)
+  - [19.6 v1.0 - Jot-inspired FDN control and perceptual parameterization](#196-v10-jot-inspired-fdn-control-and-perceptual-parameterization)
+  - [19.7 v1.1 - IR morphing and blending framework](#197-v11-ir-morphing-and-blending-framework)
+- [20.0 License](#200-license)
+- [21.0 Attribution](#210-attribution)
 
-## What is Reverberation? (a/k/a Reverb)?
+## 2.0 What is Reverberation? (a/k/a Reverb)?
 
 Reverberation is the persistence of sound in a space after the original sound
 is made. In practical mixing terms, a reverb sound usually contains:
@@ -55,7 +151,7 @@ is made. In practical mixing terms, a reverb sound usually contains:
 - **Early reflections** (first few room bounces that create space cues)
 - A dense **wash / late tail** (the smooth decaying ambience)
 
-### Quick Reference Summary (from Wikipedia)
+### 2.1 Quick Reference Summary (from Wikipedia)
 
 - Reverberation comes from many closely spaced reflections that build up and then decay as energy is absorbed by surfaces, air, and objects in a space.
 - A common practical distinction is timing: discrete echoes are typically heard when reflections are delayed enough (around 50-100 ms), while denser arrivals below that range are perceived as reverberation.
@@ -67,7 +163,7 @@ is made. In practical mixing terms, a reverb sound usually contains:
 
 Source: [Wikipedia - Reverberation](https://en.wikipedia.org/wiki/Reverberation)
 
-### Reverb Timeline (Single Hit)
+### 2.2 Reverb Timeline (Single Hit)
 
 ```mermaid
 flowchart LR
@@ -77,7 +173,7 @@ flowchart LR
   D --> E["Wash / Late Tail (hundreds of ms to many seconds)"]
 ```
 
-#### Labeled Envelope Graph (Amplitude vs Time)
+#### 2.2.1 Labeled Envelope Graph (Amplitude vs Time)
 
 ![Labeled reverb envelope graph](docs/assets/reverb_timeline_labeled.svg)
 
@@ -94,7 +190,7 @@ Plain-English explanation of the graph:
 - The **RT60 point** is explicitly where the envelope reaches **`peak - 60 dB`** (at the `-60 dB` reference line).
 - After RT60, the tail continues toward the noise floor (`-70 dB` in this visualization).
 
-### Dry/Wet and Tail Flow
+### 2.3 Dry/Wet and Tail Flow
 
 ```mermaid
 flowchart LR
@@ -115,7 +211,7 @@ In `verbx`, controls map directly to this anatomy:
 - `--rt60`: sets how long the wash/tail decays
 - `--damping`, `--lowcut`, `--highcut`, `--tilt`: shape the tonal decay
 
-## Status
+## 3.0 Status
 
 Current implementation level: **v0.4**
 
@@ -125,7 +221,7 @@ Current implementation level: **v0.4**
 - Prompt 4: IR factory, cache, batch, tempo sync, framewise analysis
 - v0.4 additions: framewise modulation analysis, advanced IR fitting heuristics, parallel batch scheduler
 
-## Features
+## 4.0 Features
 
 - CLI-only architecture (Typer + Rich)
 - Algorithmic reverb (FDN + diffusion topology)
@@ -140,7 +236,7 @@ Current implementation level: **v0.4**
 - Tempo-synced note parsing (`--pre-delay 1/8D --bpm 120`)
 - Framewise CSV analysis exports
 
-## Requirements
+## 5.0 Requirements
 
 - Python 3.11+
 - `libsndfile` available on system (required by `soundfile`)
@@ -148,18 +244,18 @@ Current implementation level: **v0.4**
   - `numba` (faster CPU algorithmic FDN path)
   - `cupy` / `cupy-cuda12x` (CUDA convolution backend)
 
-## Installation and Quick Start
+## 6.0 Installation and Quick Start
 
-### Install options
+### 6.1 Install options
 
-#### Option A: Hatch (recommended for contributors)
+#### 6.1.1 Option A: Hatch (recommended for contributors)
 
 ```bash
 hatch env create
 hatch run verbx --help
 ```
 
-#### Option B: Plain virtualenv + pip (no Hatch)
+#### 6.1.2 Option B: Plain virtualenv + pip (no Hatch)
 
 ```bash
 python3 -m venv .venv
@@ -169,26 +265,26 @@ python -m pip install -e ".[dev]"
 verbx --help
 ```
 
-#### Option C: pipx (isolated app install)
+#### 6.1.3 Option C: pipx (isolated app install)
 
 ```bash
 pipx install .
 verbx --help
 ```
 
-#### Option D: Run module directly (no console-script install)
+#### 6.1.4 Option D: Run module directly (no console-script install)
 
 ```bash
 python -m pip install typer rich numpy scipy soundfile librosa pyloudnorm
 PYTHONPATH=src python -m verbx.cli --help
 ```
 
-### Add `verbx` to Your `PATH`
+### 6.2 Add `verbx` to Your `PATH`
 
 If `verbx --help` says `command not found`, your shell likely cannot see the
 install location yet.
 
-#### Virtualenv install (`.venv`)
+#### 6.2.1 Virtualenv install (`.venv`)
 
 Activate the environment before running `verbx`:
 
@@ -214,7 +310,7 @@ source ~/.zshrc
 direnv allow
 ```
 
-#### `pipx` install
+#### 6.2.2 `pipx` install
 
 Make sure pipx paths are configured:
 
@@ -228,7 +324,7 @@ Then open a new terminal and run:
 verbx --help
 ```
 
-#### User-site `pip install --user`
+#### 6.2.3 User-site `pip install --user`
 
 Add Python's user bin directory to `PATH` (zsh on macOS/Linux):
 
@@ -257,9 +353,9 @@ exec fish
 verbx --help
 ```
 
-### Choosing How To Run `verbx`
+### 6.3 Choosing How To Run `verbx`
 
-#### Hatch
+#### 6.3.1 Hatch
 
 Pros:
 
@@ -277,7 +373,7 @@ Best for:
 - Contributors working on `verbx` itself
 - CI/local parity with documented project scripts
 
-#### `uv`
+#### 6.3.2 `uv`
 
 Pros:
 
@@ -311,7 +407,7 @@ uv pip install -e ".[dev]"
 verbx --help
 ```
 
-#### Plain `venv` + `pip`
+#### 6.3.3 Plain `venv` + `pip`
 
 Pros:
 
@@ -327,7 +423,7 @@ Best for:
 
 - Environments where only standard Python tooling is allowed
 
-#### `pipx`
+#### 6.3.4 `pipx`
 
 Pros:
 
@@ -343,7 +439,7 @@ Best for:
 
 - End users who only want to run `verbx` commands
 
-#### Direct `python -m verbx.cli`
+#### 6.3.5 Direct `python -m verbx.cli`
 
 Pros:
 
@@ -368,21 +464,21 @@ Recommendation:
 - Use `venv` + `pip` for maximal portability.
 - Use `python -m verbx.cli` for quick local debugging only.
 
-## Quick Start Recipes
+## 7.0 Quick Start Recipes
 
-### 1) First render (algorithmic)
+### 7.1 First render (algorithmic)
 
 ```bash
 verbx render input.wav output.wav --engine algo --rt60 80 --wet 0.85 --dry 0.15
 ```
 
-### 2) Convolution render with external IR
+### 7.2 Convolution render with external IR
 
 ```bash
 verbx render input.wav output.wav --engine conv --ir hall_ir.wav --partition-size 16384
 ```
 
-### 2b) Surround matrix convolution (true cross-channel routing)
+### 7.3 Surround matrix convolution (true cross-channel routing)
 
 ```bash
 # 5.1 input with matrix-packed IR channels
@@ -392,13 +488,13 @@ verbx render in_5p1.wav out_5p1.wav \
   --ir-matrix-layout output-major
 ```
 
-### 3) Freeze + repeat chain
+### 7.4 Freeze + repeat chain
 
 ```bash
 verbx render input.wav output.wav --freeze --start 2.0 --end 4.0 --repeat 3
 ```
 
-### 4) Loudness and peak-targeted render
+### 7.5 Loudness and peak-targeted render
 
 ```bash
 verbx render input.wav output.wav \
@@ -408,7 +504,7 @@ verbx render input.wav output.wav \
   --normalize-stage post
 ```
 
-### 5) Shimmer + ambient controls
+### 7.6 Shimmer + ambient controls
 
 ```bash
 verbx render input.wav output.wav \
@@ -417,13 +513,13 @@ verbx render input.wav output.wav \
   --bloom 2.0 --tilt 1.5
 ```
 
-### 6) Tempo-synced pre-delay
+### 7.7 Tempo-synced pre-delay
 
 ```bash
 verbx render input.wav output.wav --pre-delay 1/8D --bpm 120
 ```
 
-### 7) Framewise analysis CSV during render
+### 7.8 Framewise analysis CSV during render
 
 ```bash
 verbx render input.wav output.wav --frames-out reports/output_frames.csv
@@ -434,14 +530,14 @@ verbx render input.wav output.wav --frames-out reports/output_frames.csv
 - `amp_mod_depth`, `amp_mod_rate_hz`
 - `centroid_mod_depth`, `centroid_mod_rate_hz`
 
-### 8) Auto-generate cached IR during render
+### 7.9 Auto-generate cached IR during render
 
 ```bash
 verbx render input.wav output.wav \
   --ir-gen --ir-gen-mode hybrid --ir-gen-length 120 --ir-gen-seed 7
 ```
 
-### 9) Force 32-bit float output + final peak normalization
+### 7.10 Force 32-bit float output + final peak normalization
 
 ```bash
 # write WAV as 32-bit float
@@ -457,7 +553,7 @@ verbx render input.wav output.wav --output-peak-norm full-scale
 verbx render input.wav output.wav --output-peak-norm target --output-peak-target-dbfs -3
 ```
 
-### 10) Acceleration (CUDA / Apple Silicon)
+### 7.11 Acceleration (CUDA / Apple Silicon)
 
 ```bash
 # auto-select compute device
@@ -476,7 +572,7 @@ Notes:
 - Algorithmic FDN path uses CPU backend (optional Numba JIT when installed).
 - If requested acceleration is unavailable, `verbx` falls back to CPU and reports the effective backend.
 
-### 11) Batch throughput
+### 7.12 Batch throughput
 
 ```bash
 # run batch jobs concurrently
@@ -489,7 +585,7 @@ verbx batch render manifest.json --jobs 8 --schedule longest-first
 verbx batch render manifest.json --jobs 8 --schedule shortest-first --retries 1 --continue-on-error
 ```
 
-### 12) Iterative room-resonance chain (inspired by Alvin Lucier's *I Am Sitting in a Room*)
+### 7.13 Iterative room-resonance chain (inspired by Alvin Lucier's *I Am Sitting in a Room*)
 
 ```bash
 # Start with a dry voice recording.
@@ -522,7 +618,7 @@ Tips:
 - Use fewer passes (`8-12`) for subtle evolution, or more (`20+`) for stronger resonance imprint.
 - The `passes/` folder preserves every intermediate file for listening, editing, or montage.
 
-### 13) Ambient loopbed (inspired by Brian Eno's *Discreet Music*)
+### 7.14 Ambient loopbed (inspired by Brian Eno's *Discreet Music*)
 
 ```bash
 verbx render input.wav output_eno.wav \
@@ -538,7 +634,7 @@ verbx render input.wav output_eno.wav \
   --target-peak-dbfs -2
 ```
 
-### 14) Tape-loop evolution (inspired by Frippertronics)
+### 7.15 Tape-loop evolution (inspired by Frippertronics)
 
 ```bash
 mkdir -p fripp_passes
@@ -559,7 +655,7 @@ for i in $(seq 1 12); do
 done
 ```
 
-### 15) Gated drum-space style (inspired by 1980s gated reverb aesthetics)
+### 7.16 Gated drum-space style (inspired by 1980s gated reverb aesthetics)
 
 ```bash
 verbx render drums.wav drums_gated_style.wav \
@@ -573,7 +669,7 @@ verbx render drums.wav drums_gated_style.wav \
   --target-peak-dbfs -1
 ```
 
-### 16) Dub chamber send chain (inspired by King Tubby / Lee Perry workflows)
+### 7.17 Dub chamber send chain (inspired by King Tubby / Lee Perry workflows)
 
 ```bash
 verbx render snare_send.wav dub_chamber.wav \
@@ -588,7 +684,7 @@ verbx render snare_send.wav dub_chamber.wav \
   --output-peak-norm input
 ```
 
-### 17) Reverse-wash texture stack (inspired by shoegaze wash techniques)
+### 7.18 Reverse-wash texture stack (inspired by shoegaze wash techniques)
 
 ```bash
 verbx render guitar_pad.wav shoegaze_wash.wav \
@@ -602,7 +698,7 @@ verbx render guitar_pad.wav shoegaze_wash.wav \
   --target-peak-dbfs -2
 ```
 
-### 18) Sparse hall clarity (inspired by Arvo Part-style acoustic spaciousness)
+### 7.19 Sparse hall clarity (inspired by Arvo Part-style acoustic spaciousness)
 
 ```bash
 verbx render piano_sparse.wav piano_hall_clear.wav \
@@ -617,7 +713,7 @@ verbx render piano_sparse.wav piano_hall_clear.wav \
   --target-peak-dbfs -1
 ```
 
-### 19) Deep-resonance long-space (inspired by Deep Listening aesthetics)
+### 7.20 Deep-resonance long-space (inspired by Deep Listening aesthetics)
 
 ```bash
 verbx render drone_input.wav drone_deep_space.wav \
@@ -633,7 +729,7 @@ verbx render drone_input.wav drone_deep_space.wav \
   --target-peak-dbfs -2
 ```
 
-### 20) Cathedral vocal/organ simulation
+### 7.21 Cathedral vocal/organ simulation
 
 ```bash
 verbx render chant_or_organ.wav cathedral_render.wav \
@@ -648,7 +744,7 @@ verbx render chant_or_organ.wav cathedral_render.wav \
   --true-peak --target-peak-dbfs -1
 ```
 
-### 21) Cinematic synth hall (inspired by classic analog-film synth spaces)
+### 7.22 Cinematic synth hall (inspired by classic analog-film synth spaces)
 
 ```bash
 verbx render synth_lead.wav synth_cinematic_hall.wav \
@@ -665,9 +761,9 @@ verbx render synth_lead.wav synth_cinematic_hall.wav \
   --target-peak-dbfs -1.5
 ```
 
-## New User Guide
+## 8.0 New User Guide
 
-### Start Here (5-minute setup)
+### 8.1 Start Here (5-minute setup)
 
 1. Install dependencies (`uv` or `venv + pip`).
 2. Confirm CLI is available:
@@ -685,7 +781,7 @@ verbx render synth_lead.wav synth_cinematic_hall.wav \
    - wet/dry balance: `--wet`, `--dry`
    - tonal shape: `--lowcut`, `--highcut`, `--tilt`
 
-### Processing Architecture
+### 8.2 Processing Architecture
 
 ```mermaid
 flowchart LR
@@ -703,7 +799,7 @@ flowchart LR
   K --> L["Analysis JSON + Optional Frames CSV"]
 ```
 
-### IR Generation + Cache Flow
+### 8.3 IR Generation + Cache Flow
 
 ```mermaid
 flowchart TD
@@ -717,9 +813,9 @@ flowchart TD
   G --> H
 ```
 
-## DSP Math Notes
+## 9.0 DSP Math Notes
 
-### RT60 to Feedback Gain (FDN)
+### 9.1 RT60 to Feedback Gain (FDN)
 
 For each delay line with delay $d$ seconds and target RT60 $T_{60}$:
 
@@ -730,7 +826,7 @@ $$
 This maps exponential energy decay to delay-line feedback gain.  
 `verbx` applies this per-line, then applies damping filters for faster HF decay.
 
-### FDN State Update
+### 9.2 FDN State Update
 
 At each sample:
 
@@ -744,7 +840,7 @@ $$
 - $\mathbf{D}$: damping / DC filtering
 - $\mathbf{u}[n]$: injected input (after pre-delay and diffusion)
 
-### Partitioned FFT Convolution
+### 9.3 Partitioned FFT Convolution
 
 Convolution in frequency domain:
 
@@ -758,7 +854,7 @@ $$
 
 This reduces long-IR convolution cost and supports streaming block processing.
 
-### Multichannel Matrix Convolution
+### 9.4 Multichannel Matrix Convolution
 
 For $M$ input channels and $N$ output channels:
 
@@ -772,7 +868,7 @@ $$
   - `output-major`: channel index = `o*M + i`
   - `input-major`: channel index = `i*N + o`
 
-### Freeze Crossfade (Equal Power)
+### 9.5 Freeze Crossfade (Equal Power)
 
 For loop boundary crossfade parameter $\theta \in [0, \pi/2]$:
 
@@ -786,7 +882,7 @@ $$
 
 This reduces clicks at loop boundaries.
 
-### Loudness / Peak Stages
+### 9.6 Loudness / Peak Stages
 
 - Integrated LUFS normalization (EBU R128 via `pyloudnorm`)
 - True-peak approximation via oversampling
@@ -796,21 +892,21 @@ This reduces clicks at loop boundaries.
   - `target` (specified dBFS)
   - `full-scale` (0 dBFS)
 
-## Performance Tuning
+## 10.0 Performance Tuning
 
-### Device Selection
+### 10.1 Device Selection
 
 - `--device auto`: choose best available platform (`cuda` > `mps` > `cpu`)
 - `--device cuda`: enables CuPy backend for convolution if available
 - `--device mps`: optimized Apple Silicon profile (CPU backend + thread tuning)
 - `--device cpu`: deterministic CPU-only execution
 
-### Threading
+### 10.2 Threading
 
 - `--threads N` sets CPU threading hints for FFT/BLAS stacks.
 - Useful on Apple Silicon and multi-core x86 for convolution workloads.
 
-### Streaming Convolution Mode
+### 10.3 Streaming Convolution Mode
 
 `verbx render` automatically uses file-streaming convolution (low peak RAM) when compatible.
 
@@ -826,7 +922,7 @@ Current streaming-compatible constraints:
 
 When incompatible options are requested, `verbx` falls back to full-buffer processing.
 
-## Surround / Multichannel IR Rules
+## 11.0 Surround / Multichannel IR Rules
 
 - Input audio: arbitrary channel count (`M`).
 - IR file channel interpretation:
@@ -836,19 +932,19 @@ When incompatible options are requested, `verbx` falls back to full-buffer proce
 - Non-divisible IR channel counts now raise explicit CLI errors.
 - Render summary + analysis JSON report effective routing/backend details.
 
-### Parallel Batch Rendering
+### 11.1 Parallel Batch Rendering
 
 `verbx batch render manifest.json --jobs N` now executes jobs concurrently.
 
 - Use `--jobs` near CPU core count for throughput.
 - Use `--dry-run` to validate manifests before rendering.
 
-## CLI Switch Reference
+## 12.0 CLI Switch Reference
 
 This section lists all CLI switches available in the current `v0.4` interface.
 For full descriptions and defaults, run `verbx <command> --help`.
 
-### Top-level commands
+### 12.1 Top-level commands
 
 - `verbx render INFILE OUTFILE`
 - `verbx analyze INFILE`
@@ -858,11 +954,11 @@ For full descriptions and defaults, run `verbx <command> --help`.
 - `verbx cache ...`
 - `verbx batch ...`
 
-### `verbx render` switches
+### 12.2 `verbx render` switches
 
 Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 
-#### Core engine and room behavior
+#### 12.2.1 Core engine and room behavior
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -875,7 +971,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--mod-depth-ms` | Delay modulation depth (ms) in the algorithmic late field. | Small depth reduces metallic ringing; too high can sound chorus-like. |
 | `--mod-rate-hz` | Delay modulation speed. | Very slow rates are subtle; faster rates make modulation more audible. |
 
-#### Temporal structuring, repeats, and freeze
+#### 12.2.2 Temporal structuring, repeats, and freeze
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -887,7 +983,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--pre-delay` | Musical pre-delay notation (example: `1/8D`). | Useful for tempo-synced spaces; can override raw milliseconds. |
 | `--bpm` | Tempo used to resolve note-based pre-delay values. | Use with `--pre-delay` notation for rhythmic alignment. |
 
-#### Convolution and IR routing
+#### 12.2.3 Convolution and IR routing
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -898,7 +994,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--tail-limit` | Optional maximum rendered convolution tail (seconds). | Useful to cap very long IR tails in production batches. |
 | `--block-size` | Internal block size for block-based processing. | Relevant for algorithmic path and some processing stages; larger blocks can improve throughput. |
 
-#### Runtime-generated IR path
+#### 12.2.4 Runtime-generated IR path
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -908,7 +1004,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--ir-gen-seed` | Deterministic random seed for generated IRs. | Keep fixed for reproducibility across renders. |
 | `--ir-gen-cache-dir` | Cache location for generated IR artifacts. | Reusing cache speeds repeated renders with identical IR-gen settings. |
 
-#### Loudness, peak targeting, and limiting
+#### 12.2.5 Loudness, peak targeting, and limiting
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -923,7 +1019,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--output-peak-target-dbfs` | Target value for `--output-peak-norm target`. | Required when using target mode. |
 | `--out-subtype [auto\|float32\|float64\|pcm16\|pcm24\|pcm32]` | Output file subtype/bit depth. | Use `float32` for headroom-friendly exports and DSP interchange. |
 
-#### Ambient enhancement controls
+#### 12.2.6 Ambient enhancement controls
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -941,7 +1037,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--highcut` | Post-wet low-pass cutoff (Hz). | Tames bright/hissy reverb highs. |
 | `--tilt` | Broadband tilt EQ over wet field. | Positive tilt brightens; negative tilt darkens. |
 
-#### Execution, resources, and reporting
+#### 12.2.7 Execution, resources, and reporting
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -952,7 +1048,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--silent` | Suppresses analysis/report output and console summaries. | Use for minimal-output automation contexts. |
 | `--progress / --no-progress` | Enables or disables progress UI. | Disable for non-interactive logs or CI environments. |
 
-### `verbx analyze` switches
+### 12.3 `verbx analyze` switches
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -960,17 +1056,17 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--lufs` | Enables loudness-specific metrics (`integrated_lufs`, `true_peak_dbfs`, `lra`). | Turn on when targeting delivery specs or validating loudness normalization behavior. |
 | `--frames-out` | Writes framewise CSV metrics for temporal inspection. | Useful for debugging dynamics, modulation, and section-by-section behavior. |
 
-### `verbx suggest` switches
+### 12.4 `verbx suggest` switches
 
 No command-specific switches (other than `--help`).
 
-### `verbx presets` switches
+### 12.5 `verbx presets` switches
 
 No command-specific switches (other than `--help`).
 
-### `verbx ir gen OUT_IR` switches
+### 12.6 `verbx ir gen OUT_IR` switches
 
-#### Base output and synthesis mode
+#### 12.6.1 Base output and synthesis mode
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -981,7 +1077,7 @@ No command-specific switches (other than `--help`).
 | `--channels` | Number of channels in generated IR. | Match your intended render bus (stereo, surround, etc.). |
 | `--seed` | Deterministic seed for random elements. | Keep fixed for reproducibility; change for controlled variation. |
 
-#### Decay shape and broadband tone controls
+#### 12.6.2 Decay shape and broadband tone controls
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -997,7 +1093,7 @@ No command-specific switches (other than `--help`).
 | `--target-lufs` | Loudness target for generated IR output. | Optional; useful when normalizing IR libraries consistently. |
 | `--true-peak / --sample-peak` | Peak evaluation method when enforcing peak targeting. | `true-peak` is safer for distribution/interpolation contexts. |
 
-#### Early reflections and late-field density controls
+#### 12.6.3 Early reflections and late-field density controls
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -1011,7 +1107,7 @@ No command-specific switches (other than `--help`).
 | `--mod-rate-hz` | Modulation rate for late response movement. | Slow values keep motion natural and less chorus-like. |
 | `--density` | Overall event/energy density in tail generation. | Higher density creates thicker ambient wash. |
 
-#### Modal and tuning controls
+#### 12.6.4 Modal and tuning controls
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -1023,7 +1119,7 @@ No command-specific switches (other than `--help`).
 | `--modal-low-hz` | Lowest modal frequency region. | Raise to avoid excessive low-frequency modal buildup. |
 | `--modal-high-hz` | Highest modal frequency region. | Lower to keep modal content darker/less brittle. |
 
-#### FDN-specific and harmonic alignment controls
+#### 12.6.5 FDN-specific and harmonic alignment controls
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -1034,7 +1130,7 @@ No command-specific switches (other than `--help`).
 | `--analyze-input` | Source audio used to estimate tuning/harmonic targets. | Lets generator align IR resonance to real material. |
 | `--harmonic-align-strength` | Strength of harmonic alignment process. | Lower values are subtle; higher values enforce tuning more strongly. |
 
-#### Modalys-inspired resonator layer controls
+#### 12.6.6 Modalys-inspired resonator layer controls
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -1047,20 +1143,20 @@ No command-specific switches (other than `--help`).
 | `--resonator-high-hz` | Highest resonator frequency. | Lower to keep the resonator bed darker and smoother. |
 | `--resonator-late-start-ms` | Time offset before resonator layer fades in. | Keep this after early reflections so coloration emphasizes the late field. |
 
-#### Cache and output behavior
+#### 12.6.7 Cache and output behavior
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
 | `--cache-dir` | Directory for deterministic IR cache artifacts. | Keep stable across sessions to maximize cache hits. |
 | `--silent` | Suppresses metadata sidecar emission and command output details. | Use in scripted generation runs where only IR file output is needed. |
 
-### `verbx ir analyze IR_FILE` switches
+### 12.7 `verbx ir analyze IR_FILE` switches
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
 | `--json-out` | Writes IR analysis metrics to JSON. | Useful for IR cataloging, QA checks, and fit/ranking workflows. |
 
-### `verbx ir process IN_IR OUT_IR` switches
+### 12.8 `verbx ir process IN_IR OUT_IR` switches
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -1074,7 +1170,7 @@ No command-specific switches (other than `--help`).
 | `--true-peak / --sample-peak` | Peak measurement method for limiting/targeting. | `true-peak` is preferred for conservative peak control. |
 | `--silent` | Suppresses sidecar metadata and command summary output. | Good for quiet pipeline execution. |
 
-### `verbx ir fit INFILE OUT_IR` switches
+### 12.9 `verbx ir fit INFILE OUT_IR` switches
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -1087,23 +1183,23 @@ No command-specific switches (other than `--help`).
 | `--analyze-tuning / --no-analyze-tuning` | Enables/disables source tuning analysis during fit. | Enable for musically aligned IRs; disable for faster neutral fitting. |
 | `--cache-dir` | Cache directory for generated/loaded candidates. | Reuse across runs to avoid recomputing identical candidates. |
 
-### `verbx cache info` switches
+### 12.10 `verbx cache info` switches
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
 | `--cache-dir` | Cache directory to inspect. | Point to alternate cache roots when managing multiple environments. |
 
-### `verbx cache clear` switches
+### 12.11 `verbx cache clear` switches
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
 | `--cache-dir` | Cache directory to clear. | Use carefully; this removes reusable IR artifacts for that cache root. |
 
-### `verbx batch template` switches
+### 12.12 `verbx batch template` switches
 
 No command-specific switches (other than `--help`).
 
-### `verbx batch render MANIFEST` switches
+### 12.13 `verbx batch render MANIFEST` switches
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -1113,15 +1209,15 @@ No command-specific switches (other than `--help`).
 | `--continue-on-error / --fail-fast` | Whether to continue processing after a failure. | Use fail-fast for strict pipelines; continue-on-error for large best-effort batches. |
 | `--dry-run` | Validates and prints plan without rendering audio. | Recommended before long multi-job runs. |
 
-## CLI Command Cookbook
+## 13.0 CLI Command Cookbook
 
-### Global help
+### 13.1 Global help
 
 ```bash
 verbx --help
 ```
 
-### Core commands
+### 13.2 Core commands
 
 ```bash
 verbx render INFILE OUTFILE [options]
@@ -1130,7 +1226,7 @@ verbx suggest INFILE
 verbx presets
 ```
 
-### `render` examples
+### 13.3 `render` examples
 
 ```bash
 # high-density algorithmic tail
@@ -1160,7 +1256,7 @@ verbx render in.wav out.wav --output-peak-norm target --output-peak-target-dbfs 
 verbx render in.wav out.wav --no-limiter
 ```
 
-### `analyze` examples
+### 13.4 `analyze` examples
 
 ```bash
 verbx analyze in.wav
@@ -1169,7 +1265,7 @@ verbx analyze in.wav --json-out reports/in_analysis.json
 verbx analyze in.wav --frames-out reports/in_frames.csv
 ```
 
-### `ir` command group
+### 13.5 `ir` command group
 
 ```bash
 verbx ir gen OUT_IR.wav [options]
@@ -1178,7 +1274,7 @@ verbx ir process IN_IR.wav OUT_IR.wav [options]
 verbx ir fit INPUT.wav OUT_IR.wav --top-k 5
 ```
 
-#### Generate IR examples
+#### 13.5.1 Generate IR examples
 
 ```bash
 # hybrid, long tail
@@ -1205,7 +1301,7 @@ verbx ir gen IRs/cinematic.wav \
   --diffusion 0.7 --density 1.2 --tilt 1.5 --lowcut 80 --highcut 12000
 ```
 
-#### Analyze/process/fit IR examples
+#### 13.5.2 Analyze/process/fit IR examples
 
 ```bash
 verbx ir analyze IRs/hybrid_120.wav --json-out reports/hybrid_120_analysis.json
@@ -1216,14 +1312,14 @@ verbx ir process IRs/hybrid_120.wav IRs/hybrid_120_dark.wav \
 verbx ir fit input.wav IRs/fitted.wav --top-k 3 --candidate-pool 12 --fit-workers 4
 ```
 
-### Cache command group
+### 13.6 Cache command group
 
 ```bash
 verbx cache info
 verbx cache clear
 ```
 
-### Batch command group
+### 13.7 Batch command group
 
 ```bash
 verbx batch template > manifest.json
@@ -1232,9 +1328,9 @@ verbx batch render manifest.json --jobs 0 --schedule longest-first --retries 1
 verbx batch render manifest.json --jobs 4 --dry-run
 ```
 
-## Pregenerated IRs and Audio Examples
+## 14.0 Pregenerated IRs and Audio Examples
 
-### Pregenerated long IRs (60s–360s)
+### 14.1 Pregenerated long IRs (60s–360s)
 
 - Folder: [IRs](IRs/)
 - Details: [IRs/README.md](IRs/README.md)
@@ -1252,15 +1348,15 @@ Each IR includes a sidecar metadata file:
 
 - `<name>.ir.meta.json`
 
-### Short audio demos
+### 14.2 Short audio demos
 
 - [Dry click](examples/audio/dry_click.wav)
 - [Hybrid IR (short)](examples/audio/hybrid_ir_short.wav)
 - [Dry click reverbed](examples/audio/dry_click_reverbed.wav)
 
-## Generate 25 IRs With Varying Parameters
+## 15.0 Generate 25 IRs With Varying Parameters
 
-### Python script
+### 15.1 Python script
 
 ```bash
 ./scripts/generate_ir_bank.py \
@@ -1271,7 +1367,7 @@ Each IR includes a sidecar metadata file:
   --format flac
 ```
 
-### Bash script (CLI-driven)
+### 15.2 Bash script (CLI-driven)
 
 ```bash
 ./scripts/generate_ir_bank.sh IRs/generated_25_cli 25 flac
@@ -1282,9 +1378,9 @@ Scripts:
 - [scripts/generate_ir_bank.py](scripts/generate_ir_bank.py)
 - [scripts/generate_ir_bank.sh](scripts/generate_ir_bank.sh)
 
-## Development
+## 16.0 Development
 
-### Lint / type-check / tests
+### 16.1 Lint / type-check / tests
 
 With Hatch:
 
@@ -1302,7 +1398,7 @@ pyright
 pytest
 ```
 
-## Project Layout
+## 17.0 Project Layout
 
 - `src/verbx/cli.py`: command routing and UX
 - `src/verbx/core/`: DSP engines, pipeline, loudness, shimmer, ambient, tempo
@@ -1312,13 +1408,13 @@ pytest
 - `tests/`: automated tests
 - `docs/`: deeper guides
 
-## Additional Docs
+## 18.0 Additional Docs
 
 - [IR synthesis guide](docs/IR_SYNTHESIS.md)
 
-## Roadmap
+## 19.0 Roadmap
 
-### v0.5 - Surround-first workflow hardening
+### 19.1 v0.5 - Surround-first workflow hardening
 
 - `Render architecture`: add channel-layout-aware routing profiles (`mono`, `stereo`, `LCR`, `5.1`, `7.1`, `7.1.2`, `7.1.4`) so matrix mapping is no longer only index-based and becomes bus-semantic.
 - `Convolution engine`: add optional explicit route-map inputs (named channel maps) and validation that rejects ambiguous multichannel IR packs with clear diagnostics.
@@ -1327,7 +1423,7 @@ pytest
 - `Batch`: improve parallel scheduler with checkpoint/resume manifests and deterministic recovery after worker interruption.
 - `Testing`: add golden multichannel vectors (5.1/7.1) and routing regression tests for diagonal, broadcast, and full matrix convolution.
 
-### v0.6 - Ambisonics and scene-domain spatial processing
+### 19.2 v0.6 - Ambisonics and scene-domain spatial processing
 
 - `Ambisonics I/O`: support first-order and higher-order Ambisonics (ACN/SN3D as baseline), including metadata checks and channel-order normalization.
 - `Spatial transforms`: add encode/decode transforms between channel buses and Ambisonic domain for reverb-field processing workflows.
@@ -1336,7 +1432,7 @@ pytest
 - `UX`: add explicit CLI switches for spatial conventions (`--ambi-order`, `--ambi-normalization`, `--channel-order`) with strict validation and fail-fast mismatch messages.
 - `Interoperability`: provide practical export guidance for DAW pipelines (Nuendo/Reaper/Pro Tools Atmos bed pre-production via intermediate formats).
 
-### v0.7 - Immersive production interoperability (Atmos and large-scale delivery)
+### 19.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)
 
 - `Dolby Atmos interoperability`: add structured bed/object prep workflows and ADM BWF metadata-sidecar generation for downstream authoring tools.
 - `Important scope boundary`: keep official Dolby encoding/rendering delegated to licensed external toolchains; `verbx` focuses on pre-processing, validation, and automation around those toolchains.
@@ -1345,7 +1441,7 @@ pytest
 - `Distributed execution`: introduce multi-host batch orchestration with queue backends, worker heartbeats, and idempotent job retries for large immersive catalogs.
 - `Quality assurance`: implement immersive QC gates (bed/object loudness compliance, true-peak ceilings, fold-down deltas, and channel occupancy checks) as reusable CI steps.
 
-### v0.8 - Time-varying parameter automation for reverb engines
+### 19.4 v0.8 - Time-varying parameter automation for reverb engines
 
 - `Automation timeline`: add sample-accurate and block-rate automation lanes so any render parameter can vary over time (for example `wet`, `rt60`, `damping`, shimmer controls, ducking, IR blend controls).
 - `Control data model`: introduce a unified automation format (breakpoints, ramps, curves, LFO envelopes, and segment clips) that can be loaded from JSON/CSV and applied consistently across engines.
@@ -1354,7 +1450,7 @@ pytest
 - `Performance`: support sparse-event scheduling and cached interpolation so long renders with dense automation remain efficient.
 - `Safety`: enforce stability guards when automating sensitive parameters (feedback/decay/modulation) and provide deterministic behavior in repeat/batch modes.
 
-### v0.9 - Feature-vector-driven reverb control (audio-reactive DSP)
+### 19.5 v0.9 - Feature-vector-driven reverb control (audio-reactive DSP)
 
 - `Feature control bus`: allow one or more input feature vectors to drive any reverb parameter via a flexible modulation graph.
 - `Feature extraction set`: provide built-in time-domain, spectral, onset/transient, loudness, and harmonic feature streams with configurable frame rates and smoothing.
@@ -1363,7 +1459,7 @@ pytest
 - `Offline and realtime-style modes`: render deterministically offline while preserving architecture compatibility for potential future low-latency/streaming reactive workflows.
 - `Explainability and QA`: emit control-trace reports (feature values + mapped parameter values) for debugging, reproducibility, and perceptual tuning.
 
-### v1.0 - Jot-inspired FDN control and perceptual parameterization
+### 19.6 v1.0 - Jot-inspired FDN control and perceptual parameterization
 
 - `Multiband RT control`: add Jot-style decay-shaping filters inside FDN feedback loops so low/mid/high T60 targets can be tuned independently while preserving stability.
 - `Energy-preserving feedback families`: expand matrix options with orthogonal/unitary constructions and expose perceptual controls that map to diffusion, echo density, and coloration.
@@ -1371,7 +1467,7 @@ pytest
 - `Perceptual macro controls`: map low-level FDN coefficients to high-level room descriptors (size, clarity, warmth, envelopment) for faster design workflows.
 - `Validation tooling`: add decay-vs-target verification plots and spectral error summaries to verify calibration of FDN behavior against requested perceptual outcomes.
 
-### v1.1 - IR morphing and blending framework
+### 19.7 v1.1 - IR morphing and blending framework
 
 - `IR morph CLI`: add `verbx ir morph A.wav B.wav OUT.wav` with morph modes (`linear`, `equal-power`, `spectral`, `envelope-aware`) and mix control (`--alpha`).
 - `Render-time IR blending`: allow `verbx render` to accept multiple IRs with weighted blending (`--ir-blend`, `--ir-blend-mix`) so users can audition hybrid spaces without pre-baking files.
@@ -1383,13 +1479,13 @@ pytest
 - `Caching and reproducibility`: cache morphed IR artifacts by source-hash + mode + parameters, with metadata sidecars documenting source IRs, weights, and normalization choices.
 - `QA metrics`: add morph quality reports (RT60 drift, early/late ratio drift, spectral distance, inter-channel coherence deltas) for objective validation in batch/CI workflows.
 
-## License
+## 20.0 License
 
 This project is licensed under the MIT License.
 
 - Full text: [LICENSE](LICENSE)
 
-## Attribution
+## 21.0 Attribution
 
 `verbx` builds on the Python audio and DSP ecosystem, including:
 
