@@ -1574,6 +1574,7 @@ pytest
 ## 19.0 Additional Docs
 
 - [IR synthesis guide](docs/IR_SYNTHESIS.md)
+- [Academic references](docs/REFERENCES.md)
 
 ## 20.0 Roadmap
 
