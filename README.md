@@ -66,6 +66,7 @@ results.
   - [7.21 Cathedral vocal/organ simulation](#721-cathedral-vocalorgan-simulation)
   - [7.22 Cinematic synth hall (inspired by classic analog-film synth spaces)](#722-cinematic-synth-hall-inspired-by-classic-analog-film-synth-spaces)
   - [7.23 Fast self-convolution (input as its own IR)](#723-fast-self-convolution-input-as-its-own-ir)
+  - [7.24 Rapid convolution of `A.wav` with `B.wav`](#724-rapid-convolution-of-awav-with-bwav)
 - [8.0 New User Guide](#80-new-user-guide)
   - [8.1 Start Here (5-minute setup)](#81-start-here-5-minute-setup)
   - [8.2 Processing Architecture](#82-processing-architecture)
@@ -838,6 +839,29 @@ verbx render input.wav self_convolved_beast.wav \
   --normalize-stage none
 ```
 
+### 7.24 Rapid convolution of `A.wav` with `B.wav`
+
+Use this when `A.wav` is your source signal and `B.wav` is the impulse response you want to apply.
+
+```bash
+# fast partitioned FFT convolution: A.wav convolved with B.wav
+verbx render A.wav AB_convolved.wav \
+  --engine conv \
+  --ir B.wav \
+  --partition-size 32768 \
+  --repeat 1 \
+  --normalize-stage none \
+  --output-peak-norm none
+```
+
+Performance notes:
+
+- Use `--device cuda` on NVIDIA systems for fastest convolution throughput when CuPy is installed.
+- Use `--device mps` on Apple Silicon for optimized local execution.
+- Leave `--tail-limit` unset to keep full convolution length.
+- Set `--tail-limit <seconds>` only when you intentionally want to cap the tail.
+- Add `--out-subtype float32` if you want 32-bit float output explicitly.
+
 ## 8.0 New User Guide
 
 ### 8.1 Start Here (5-minute setup)
@@ -1389,6 +1413,9 @@ verbx render in.wav out.wav --engine algo --rt60 120 --damping 0.5 --width 1.2
 
 # convolution with IR normalization and tail cap
 verbx render in.wav out.wav --engine conv --ir plate.wav --ir-normalize peak --tail-limit 45
+
+# rapid A.wav * B.wav convolution (B.wav used as IR)
+verbx render A.wav AB_convolved.wav --engine conv --ir B.wav --partition-size 32768 --normalize-stage none --output-peak-norm none
 
 # fast self-convolution (input as its own IR)
 verbx render in.wav out_self.wav --self-convolve --partition-size 16384 --normalize-stage none
