@@ -151,6 +151,7 @@ results.
   - [20.1 v0.5 - Surround-first workflow hardening](#201-v05-surround-first-workflow-hardening)
   - [20.2 v0.6 - Ambisonics and scene-domain spatial processing](#202-v06-ambisonics-and-scene-domain-spatial-processing)
   - [20.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)](#203-v07-immersive-production-interoperability-atmos-and-large-scale-delivery)
+    - [20.3.1 FDN structures track (v0.5-v0.7 priority order)](#2031-fdn-structures-track-v05-v07-priority-order)
   - [20.4 v0.8 - Time-varying parameter automation for reverb engines](#204-v08-time-varying-parameter-automation-for-reverb-engines)
   - [20.5 v0.9 - Feature-vector-driven reverb control (audio-reactive DSP)](#205-v09-feature-vector-driven-reverb-control-audio-reactive-dsp)
   - [20.6 v1.0 - Jot-inspired FDN control and perceptual parameterization](#206-v10-jot-inspired-fdn-control-and-perceptual-parameterization)
@@ -1842,6 +1843,26 @@ export MANPATH="$HOME/.local/share/man:$MANPATH"
 - `Scene export pipeline`: add configurable deliverables (`stems`, `beds`, `object-stem manifests`, `analysis QA bundles`) for post-production handoff.
 - `Distributed execution`: introduce multi-host batch orchestration with queue backends, worker heartbeats, and idempotent job retries for large immersive catalogs.
 - `Quality assurance`: implement immersive QC gates (bed/object loudness compliance, true-peak ceilings, fold-down deltas, and channel occupancy checks) as reusable CI steps.
+
+#### 20.3.1 FDN structures track (v0.5-v0.7 priority order)
+
+Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass diffusion, damping/DC loop filters, and orthonormal Hadamard-derived mixing. The next FDN structures to add are:
+
+1. `v0.5 (highest priority, low risk)`:
+   - `Time-varying unitary matrices`: smoothly interpolate orthonormal matrices to reduce static coloration and metallic ringing.
+   - `Expanded matrix families`: expose stable families beyond Hadamard (Householder/circulant-style variants) with explicit stability tests.
+   - `Sparse high-order FDN mode`: allow larger line counts with sparse mixing for denser tails at practical CPU cost.
+   - `FDN QA harness`: add dedicated decay-density/ringing regression metrics so matrix/topology changes are objectively validated.
+2. `v0.6 (medium risk, high control value)`:
+   - `Multiband FDN`: split low/mid/high decay targets so one scalar RT60 becomes a profile.
+   - `Filter-feedback FDN`: allow frequency-shaped links inside the feedback matrix for more realistic late-field coloration.
+   - `Nested/cascaded FDN`: small fast network into larger late network for improved early-to-late evolution.
+   - `Graph-structured FDN (experimental)`: support adjacency/graph-defined mixing topologies for scene-style reverberation design.
+3. `v0.7 (higher complexity, immersive focus)`:
+   - `Directional/spatial FDN`: channel-group-aware feedback/mixing for surround beds and Ambisonics-adjacent workflows.
+   - `SDN hybrid mode`: scattering-delay-network style node coupling for geometry-inspired behavior.
+   - `Nonlinear in-loop options (experimental)`: controlled saturation/compression in feedback loops for extreme/frozen textures.
+   - `Topology fitting assistant`: analysis-guided candidate selection that proposes FDN structures from source material/target descriptors.
 
 ### 20.4 v0.8 - Time-varying parameter automation for reverb engines
 
