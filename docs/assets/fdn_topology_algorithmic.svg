@@ -17,14 +17,14 @@
       .line-thin { stroke: #59749a; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
       .loop { stroke: #6e86aa; stroke-width: 2.3; stroke-dasharray: 8 7; fill: none; marker-end: url(#arrow); }
       .title { fill: #13243f; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 36px; font-weight: 700; }
-      .subtitle { fill: #2e4468; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 600; }
+      .subtitle { fill: #2e4468; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 21px; font-weight: 600; }
       .label { fill: #1d2f4b; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 24px; font-weight: 700; }
-      .small { fill: #344e74; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; }
+      .small { fill: #344e74; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 17px; }
       .core-label { fill: #132747; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 20px; font-weight: 700; }
       .delay { fill: #ffffff; stroke: #6a84ab; stroke-width: 1.9; rx: 10; }
       .delay-text { fill: #1f3657; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 600; }
       .legend { fill: #f6f9ff; stroke: #d8e5f8; stroke-width: 2; rx: 12; }
-      .legend-text { fill: #273f63; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; }
+      .legend-text { fill: #273f63; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 17px; }
     </style>
   </defs>
 
@@ -47,8 +47,8 @@
   <rect class="box" x="660" y="290" width="230" height="98" rx="14"/>
   <text class="label" x="775" y="336" text-anchor="middle">Diffusion</text>
   <text class="small" x="775" y="362" text-anchor="middle">
-    <tspan x="775" dy="0">N allpass stages</tspan>
-    <tspan x="775" dy="21">(default: 6)</tspan>
+    <tspan x="775" dy="0">Allpass stages (N)</tspan>
+    <tspan x="775" dy="20">default: 6</tspan>
   </text>
 
   <rect class="box-core" x="955" y="230" width="720" height="340" rx="16"/>
@@ -114,9 +114,10 @@
   <path class="line" d="M1185,836 L1262,771"/>
   <path class="line" d="M1488,771 L1555,771"/>
 
-  <rect class="legend" x="92" y="890" width="1715" height="92" rx="12"/>
-  <text class="legend-text" x="120" y="928">
-    <tspan x="120" dy="0">Supported today: user-configurable allpass stages and FDN line counts in render path.</tspan>
-    <tspan x="120" dy="24">Stable long-RT60 behavior comes from per-line gain calibration and loop damping safeguards.</tspan>
+  <rect class="legend" x="92" y="882" width="1715" height="106" rx="12"/>
+  <text class="legend-text" x="120" y="918">
+    <tspan x="120" dy="0">Render path supports configurable allpass stages and FDN line counts.</tspan>
+    <tspan x="120" dy="22">RT60-calibrated gains and damping stabilize very long decay tails.</tspan>
+    <tspan x="120" dy="22">Subtle delay modulation helps reduce metallic ringing artifacts.</tspan>
   </text>
 </svg>

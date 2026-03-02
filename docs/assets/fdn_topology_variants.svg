@@ -16,8 +16,8 @@
       .line { stroke: #2c415f; stroke-width: 3; fill: none; marker-end: url(#arrow); }
       .title { fill: #152844; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 35px; font-weight: 700; }
       .subtitle { fill: #2f466c; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 21px; font-weight: 600; }
-      .h2 { fill: #1d3355; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 26px; font-weight: 700; }
-      .label { fill: #1f3558; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 700; }
+      .h2 { fill: #1d3355; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 25px; font-weight: 700; }
+      .label { fill: #1f3558; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 21px; font-weight: 700; }
       .small { fill: #36507b; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 17px; }
       .mono { font-family: "Menlo", "Consolas", monospace; }
       .note { fill: #244167; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; }
@@ -42,12 +42,16 @@
 
   <rect class="card" x="352" y="320" width="170" height="78" rx="12"/>
   <text class="label" x="437" y="352" text-anchor="middle">Pre-delay</text>
-  <text class="small" x="437" y="378" text-anchor="middle">Diffusion allpass (default x6)</text>
+  <text class="small" x="437" y="374" text-anchor="middle">
+    <tspan x="437" dy="0">Diffusion allpass</tspan>
+    <tspan x="437" dy="20">(default x6)</tspan>
+  </text>
 
-  <rect class="card" x="590" y="320" width="286" height="124" rx="12"/>
+  <rect class="card" x="590" y="320" width="286" height="138" rx="12"/>
   <text class="label" x="733" y="362" text-anchor="middle">N-line FDN Core</text>
   <text class="small" x="733" y="389" text-anchor="middle">Hadamard feedback matrix</text>
-  <text class="small" x="733" y="416" text-anchor="middle">RT60 gain + damping + DC block</text>
+  <text class="small" x="733" y="410" text-anchor="middle">RT60 gain + damping</text>
+  <text class="small" x="733" y="431" text-anchor="middle">DC block in feedback loop</text>
 
   <rect class="card" x="590" y="520" width="286" height="90" rx="12"/>
   <text class="label" x="733" y="575" text-anchor="middle">Wet / Dry Mix</text>
@@ -57,7 +61,7 @@
 
   <path class="line" d="M286,359 L352,359"/>
   <path class="line" d="M522,359 L590,359"/>
-  <path class="line" d="M733,444 L733,520"/>
+  <path class="line" d="M733,458 L733,520"/>
   <path class="line" d="M206,398 L206,565 L590,565"/>
   <path class="line" d="M733,610 L733,682"/>
 
@@ -89,7 +93,7 @@
   <path class="line" d="M1415,418 L1490,418"/>
 
   <rect class="card" x="990" y="516" width="780" height="160" rx="12"/>
-  <text class="label" x="1030" y="562">Variant 2: <tspan class="mono">householder</tspan> (channels &gt; 1)</text>
+  <text class="label" x="1030" y="562">Variant 2: <tspan class="mono">householder</tspan> (ch &gt; 1)</text>
   <rect class="card" x="1030" y="586" width="130" height="56" rx="10"/>
   <text class="small" x="1095" y="621" text-anchor="middle">Impulse</text>
   <rect class="card" x="1225" y="582" width="190" height="72" rx="10"/>
@@ -109,7 +113,7 @@
   <rect class="card" x="990" y="716" width="780" height="160" rx="12"/>
   <text class="label" x="1030" y="748">
     <tspan x="1030" dy="0">Variant 3:</tspan>
-    <tspan x="1030" dy="26"><tspan class="mono">random_orthogonal</tspan> (channels &gt; 1)</tspan>
+    <tspan x="1030" dy="26"><tspan class="mono">random_orthogonal</tspan> (ch &gt; 1)</tspan>
   </text>
   <rect class="card" x="1030" y="786" width="130" height="56" rx="10"/>
   <text class="small" x="1095" y="821" text-anchor="middle">Impulse</text>
@@ -130,6 +134,6 @@
   <rect class="card-soft" x="990" y="904" width="780" height="76" rx="10"/>
   <text class="warn" x="1015" y="935">
     <tspan x="1015" dy="0">Note (IR generation): <tspan class="mono">--fdn-lines</tspan> is currently reserved.</tspan>
-    <tspan x="1015" dy="22">It does not alter core line count in the shared IR FDN path yet.</tspan>
+    <tspan x="1015" dy="22">It does not change line count in the shared IR FDN core yet.</tspan>
   </text>
 </svg>
