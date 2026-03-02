@@ -10,8 +10,8 @@ both beginners and advanced users: you can start with simple one-line commands,
 then gradually use deeper controls as your workflow grows.
 
 Under the hood, `verbx` supports two main reverb approaches:
-algorithmic reverb (including FDN, or *Feedback Delay Network*, for very long,
-stable tails) and convolution reverb (using impulse responses). It also includes
+**algorithmic reverb** (including FDN, or *Feedback Delay Network*, for very long,
+stable tails) and **convolution reverb** (using impulse responses). It also includes
 freeze/repeat processing, loudness and peak targeting, multichannel/surround
 routing, and synthetic IR generation with deterministic caching for reproducible
 results.
