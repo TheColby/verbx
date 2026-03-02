@@ -97,7 +97,7 @@ def test_algo_engine_rejects_invalid_parameters() -> None:
     ]
     for kwargs in invalid_configs:
         try:
-            _ = AlgoReverbConfig(**kwargs)
+            _ = AlgoReverbConfig(**kwargs)  # type: ignore[arg-type]
         except ValueError:
             continue
         raise AssertionError(f"Expected ValueError for invalid parameters: {kwargs}")
