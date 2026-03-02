@@ -990,7 +990,7 @@ Implementation note:
 
 - `ir gen --mode fdn` uses the shared FDN8 core.
 - `--fdn-matrix householder` and `--fdn-matrix random_orthogonal` add a multichannel output-space decorrelation matrix when channels > 1.
-- `--fdn-lines` is currently reserved for future topology expansion.
+- `--fdn-lines` in `verbx ir gen` currently remains reserved for deeper IR-topology variants; in `verbx render --engine algo`, `--fdn-lines` and `--comb-delays-ms` are active controls for the algorithmic FDN line structure.
 
 ### 9.3 Partitioned FFT Convolution
 
