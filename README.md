@@ -1780,6 +1780,7 @@ export MANPATH="$HOME/.local/share/man:$MANPATH"
 
 - `Render architecture`: add channel-layout-aware routing profiles (`mono`, `stereo`, `LCR`, `5.1`, `7.1`, `7.1.2`, `7.1.4`) so matrix mapping is no longer only index-based and becomes bus-semantic.
 - `Convolution engine`: add optional explicit route-map inputs (named channel maps) and validation that rejects ambiguous multichannel IR packs with clear diagnostics.
+- `Spatial trajectory automation`: add native time-varying route gains for convolution (`mono/stereo -> multichannel`) so users can move a source from position A to B (and beyond) during one render.
 - `Algorithmic reverb`: add multichannel decorrelation presets (front/rear/top variance controls) so surround tails remain enveloping without collapsing or combing.
 - `Framewise analysis`: expand modulation summaries with confidence metrics and per-channel coherence drift over time (not just global frame descriptors).
 - `Batch`: improve parallel scheduler with checkpoint/resume manifests and deterministic recovery after worker interruption.

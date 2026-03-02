@@ -17,11 +17,11 @@
       .envelope { stroke: #1f57f2; stroke-width: 8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
       .pulse { fill: #4e7efc; opacity: 0.92; }
       .label { fill: #1f2d42; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
-      .tick { font-size: 25px; }
-      .title { font-size: 30px; font-weight: 700; }
-      .stage { font-size: 26px; font-weight: 700; fill: #112344; }
-      .legend { font-size: 23px; }
-      .note { font-size: 22px; }
+      .tick { font-size: 21px; }
+      .title { font-size: 28px; font-weight: 700; }
+      .stage { font-size: 23px; font-weight: 700; fill: #112344; }
+      .legend { font-size: 20px; }
+      .note { font-size: 19px; }
     </style>
   </defs>
 
@@ -95,20 +95,30 @@
   <text class="label tick" x="225" y="886">-70 dB</text>
 
   <!-- Time labels -->
-  <text class="label tick" x="334" y="922">0 ms</text>
-  <text class="label tick" x="480" y="922">pre-delay end</text>
-  <text class="label tick" x="680" y="922">early region end</text>
-  <text class="label tick" x="1492" y="922">RT60</text>
+  <text class="label tick" x="360" y="920" text-anchor="middle">0 ms</text>
+  <text class="label tick" x="560" y="908" text-anchor="middle">
+    <tspan x="560" dy="0">Pre-delay</tspan>
+    <tspan x="560" dy="24">end</tspan>
+  </text>
+  <text class="label tick" x="760" y="908" text-anchor="middle">
+    <tspan x="760" dy="0">Early region</tspan>
+    <tspan x="760" dy="24">end</tspan>
+  </text>
+  <text class="label tick" x="1540" y="920" text-anchor="middle">RT60</text>
 
   <!-- Stage labels -->
-  <text class="label stage" x="372" y="178">Dry Peak (0 dB reference)</text>
-  <text class="label stage" x="430" y="305">Pre-delay window</text>
-  <text class="label stage" x="592" y="383">Early Reflections</text>
-  <text class="label stage" x="980" y="603">Late Tail / Wash</text>
-  <text class="label stage" x="1446" y="744">RT60 point</text>
+  <text class="label stage" x="378" y="170">Dry Peak (0 dB reference)</text>
+  <text class="label stage" x="410" y="296">Pre-delay window</text>
+  <text class="label stage" x="584" y="370">Early Reflections</text>
+  <text class="label stage" x="965" y="594">Late Tail / Wash</text>
+  <text class="label stage" x="1488" y="733">RT60 point</text>
 
   <!-- RT60 callout -->
-  <text class="label note" x="1070" y="760" fill="#b32121">RT60 is where the envelope reaches peak - 60 dB</text>
+  <rect x="920" y="768" width="700" height="64" rx="10" fill="#fff8f8" stroke="#f0d5d5" stroke-width="1.6"/>
+  <text class="label note" x="950" y="796" fill="#b32121">
+    <tspan x="950" dy="0">RT60 is the time where the envelope reaches</tspan>
+    <tspan x="950" dy="22">peak - 60 dB (the dashed red reference line).</tspan>
+  </text>
 
   <!-- Legend -->
   <rect x="1065" y="155" width="690" height="170" rx="14" fill="#f1f6ff" stroke="#dbe6f8" stroke-width="2"/>
