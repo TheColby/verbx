@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pytest
 import soundfile as sf
 from typer.testing import CliRunner
 
@@ -12,10 +13,13 @@ from verbx.core.convolution_reverb import ConvolutionReverbConfig, ConvolutionRe
 from verbx.core.tempo import parse_note_duration_seconds, parse_pre_delay_ms
 from verbx.ir.generator import IRGenConfig, generate_or_load_cached_ir
 
-runner = CliRunner()
+
+@pytest.fixture
+def runner() -> CliRunner:
+    return CliRunner()
 
 
-def test_ir_gen_writes_wav_and_meta(tmp_path: Path) -> None:
+def test_ir_gen_writes_wav_and_meta(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "test_ir.wav"
 
     result = runner.invoke(
@@ -51,7 +55,7 @@ def test_ir_gen_writes_wav_and_meta(tmp_path: Path) -> None:
     assert payload["mode"] == "hybrid"
 
 
-def test_ir_gen_format_switch_overrides_extension(tmp_path: Path) -> None:
+def test_ir_gen_format_switch_overrides_extension(tmp_path: Path, runner: CliRunner) -> None:
     out_base = tmp_path / "custom_name.placeholder"
     expected = out_base.with_suffix(".aiff")
 
@@ -83,7 +87,7 @@ def test_ir_gen_format_switch_overrides_extension(tmp_path: Path) -> None:
     assert audio.shape[1] == 1
 
 
-def test_ir_gen_with_explicit_f0(tmp_path: Path) -> None:
+def test_ir_gen_with_explicit_f0(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "with_f0.wav"
     result = runner.invoke(
         app,
@@ -111,7 +115,7 @@ def test_ir_gen_with_explicit_f0(tmp_path: Path) -> None:
     assert abs(float(params["f0_hz"]) - 64.0) < 1e-6
 
 
-def test_ir_gen_analyze_input_tuning(tmp_path: Path) -> None:
+def test_ir_gen_analyze_input_tuning(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16000
     t = np.arange(sr, dtype=np.float32) / sr
     src = (0.4 * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float32)[:, np.newaxis]
@@ -147,7 +151,7 @@ def test_ir_gen_analyze_input_tuning(tmp_path: Path) -> None:
     assert len(params["harmonic_targets_hz"]) >= 3
 
 
-def test_ir_gen_resonator_layer(tmp_path: Path) -> None:
+def test_ir_gen_resonator_layer(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "resonated.wav"
     result = runner.invoke(
         app,
@@ -200,7 +204,7 @@ def test_ir_cache_hit(tmp_path: Path) -> None:
     assert hit2 is True
 
 
-def test_ir_fit_heuristic_scoring_outputs_top_k(tmp_path: Path) -> None:
+def test_ir_fit_heuristic_scoring_outputs_top_k(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     t = np.arange(sr, dtype=np.float32) / sr
     audio = (0.25 * np.sin(2.0 * np.pi * 196.0 * t)).astype(np.float32)[:, np.newaxis]

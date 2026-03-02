@@ -4,15 +4,19 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pytest
 import soundfile as sf
 from typer.testing import CliRunner
 
 from verbx.cli import app
 
-runner = CliRunner()
+
+@pytest.fixture
+def runner() -> CliRunner:
+    return CliRunner()
 
 
-def test_cli_boots() -> None:
+def test_cli_boots(runner: CliRunner) -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
     assert "render" in result.stdout
@@ -24,7 +28,7 @@ def test_cli_boots() -> None:
     assert "batch" in result.stdout
 
 
-def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
+def test_render_creates_output_and_analysis(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((2048, 2), dtype=np.float32)
     audio[100:130, 0] = 0.6
     audio[100:130, 1] = -0.6
@@ -73,7 +77,7 @@ def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
     assert payload["output_samples"] > payload["input_samples"]
 
 
-def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path) -> None:
+def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((2048, 2), dtype=np.float32)
     audio[200:280, :] = 0.3
     infile = tmp_path / "in.wav"
@@ -113,7 +117,7 @@ def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path) -> None:
     assert config["fdn_lines"] == 10
 
 
-def test_render_allpass_gain_count_mismatch_rejected(tmp_path: Path) -> None:
+def test_render_allpass_gain_count_mismatch_rejected(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((512, 1), dtype=np.float32)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -138,7 +142,7 @@ def test_render_allpass_gain_count_mismatch_rejected(tmp_path: Path) -> None:
     assert "exactly 4 entries" in result.output
 
 
-def test_analyze_lufs_mode(tmp_path: Path) -> None:
+def test_analyze_lufs_mode(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((4096, 2), dtype=np.float32)
     audio[64:512, :] = 0.2
     infile = tmp_path / "analyze.wav"
@@ -149,7 +153,7 @@ def test_analyze_lufs_mode(tmp_path: Path) -> None:
     assert "integrated_lufs" in result.stdout
 
 
-def test_analyze_edr_mode(tmp_path: Path) -> None:
+def test_analyze_edr_mode(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     n = sr * 2
     t = np.arange(n, dtype=np.float32) / sr
@@ -164,7 +168,7 @@ def test_analyze_edr_mode(tmp_path: Path) -> None:
     assert "edr_rt60_median_s" in result.stdout
 
 
-def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> None:
+def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     audio = np.zeros((1024, 2), dtype=np.float32)
     audio[100:140, :] = 0.25
@@ -249,7 +253,7 @@ def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> N
     assert abs(target_peak - expected_target) <= 0.01
 
 
-def test_render_conv_streaming_mode(tmp_path: Path) -> None:
+def test_render_conv_streaming_mode(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     audio = np.zeros((8192, 2), dtype=np.float32)
     audio[0:64, :] = 0.5
@@ -286,7 +290,7 @@ def test_render_conv_streaming_mode(tmp_path: Path) -> None:
     assert payload["output_samples"] >= payload["input_samples"]
 
 
-def test_render_self_convolve(tmp_path: Path) -> None:
+def test_render_self_convolve(tmp_path: Path, runner: CliRunner) -> None:
     sr = 24_000
     n = 2048
     t = np.arange(n, dtype=np.float32) / sr
@@ -324,7 +328,7 @@ def test_render_self_convolve(tmp_path: Path) -> None:
     assert str(payload["effective"]["ir_used"]).endswith("self_in.wav")
 
 
-def test_render_modulation_multi_source(tmp_path: Path) -> None:
+def test_render_modulation_multi_source(tmp_path: Path, runner: CliRunner) -> None:
     sr = 24_000
     n = 4096
     t = np.arange(n, dtype=np.float32) / np.float32(sr)
@@ -376,7 +380,7 @@ def test_render_modulation_multi_source(tmp_path: Path) -> None:
     assert len(modulation["sources"]) == 3
 
 
-def test_render_modulation_multiple_routes(tmp_path: Path) -> None:
+def test_render_modulation_multiple_routes(tmp_path: Path, runner: CliRunner) -> None:
     sr = 24_000
     n = 4096
     t = np.arange(n, dtype=np.float32) / np.float32(sr)
@@ -415,7 +419,7 @@ def test_render_modulation_multiple_routes(tmp_path: Path) -> None:
     assert routes[1]["target"] == "gain-db"
 
 
-def test_render_beast_mode_scales_algo_tail(tmp_path: Path) -> None:
+def test_render_beast_mode_scales_algo_tail(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     audio = np.zeros((1024, 1), dtype=np.float32)
     audio[0, 0] = 0.7
@@ -470,7 +474,7 @@ def test_render_beast_mode_scales_algo_tail(tmp_path: Path) -> None:
     assert float(payload["config"]["rt60"]) > 2.0
 
 
-def test_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
+def test_render_lucky_mode_creates_multiple_outputs(tmp_path: Path, runner: CliRunner) -> None:
     sr = 24_000
     audio = np.zeros((2048, 1), dtype=np.float32)
     audio[100:220, 0] = 0.5
@@ -504,7 +508,7 @@ def test_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
         assert analysis_path.exists()
 
 
-def test_ir_gen_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
+def test_ir_gen_lucky_mode_creates_multiple_outputs(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "gen_base.wav"
     out_dir = tmp_path / "gen_lucky"
 
@@ -539,7 +543,7 @@ def test_ir_gen_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
         assert Path(f"{path}.ir.meta.json").exists()
 
 
-def test_ir_process_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
+def test_ir_process_lucky_mode_creates_multiple_outputs(tmp_path: Path, runner: CliRunner) -> None:
     sr = 12_000
     in_ir = tmp_path / "in_ir.wav"
     out_ir = tmp_path / "proc_base.wav"
@@ -573,7 +577,7 @@ def test_ir_process_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
         assert Path(f"{path}.ir.meta.json").exists()
 
 
-def test_batch_render_parallel_jobs(tmp_path: Path) -> None:
+def test_batch_render_parallel_jobs(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     irfile = tmp_path / "ir.wav"
     ir = np.zeros((256, 1), dtype=np.float32)
@@ -621,7 +625,7 @@ def test_batch_render_parallel_jobs(tmp_path: Path) -> None:
     assert out2.exists()
 
 
-def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
+def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -668,7 +672,7 @@ def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> Non
     assert len(sorted(out_dir.glob("out.lucky_*.wav"))) == 2
 
 
-def test_render_validation_errors(tmp_path: Path) -> None:
+def test_render_validation_errors(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     audio = np.zeros((512, 1), dtype=np.float32)
     infile = tmp_path / "in.wav"
@@ -801,7 +805,7 @@ def test_render_validation_errors(tmp_path: Path) -> None:
     assert bad_mod_route.exit_code != 0
 
 
-def test_ir_gen_validation_errors(tmp_path: Path) -> None:
+def test_ir_gen_validation_errors(tmp_path: Path, runner: CliRunner) -> None:
     result = runner.invoke(
         app,
         [
