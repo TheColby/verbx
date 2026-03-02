@@ -40,6 +40,11 @@ class RenderConfig:
     mod_combine: ModCombine = "sum"
     mod_smooth_ms: float = 20.0
     beast_mode: int = 1
+    allpass_stages: int = 6
+    allpass_gain: float = 0.7
+    allpass_delays_ms: tuple[float, ...] = ()
+    comb_delays_ms: tuple[float, ...] = ()
+    fdn_lines: int = 8
     wet: float = 0.8
     dry: float = 0.2
     repeat: int = 1

@@ -160,6 +160,43 @@ def render(
         min=0.0,
         help="One-pole smoothing time for modulation control signals.",
     ),
+    allpass_stages: int = typer.Option(
+        6,
+        "--allpass-stages",
+        min=0,
+        max=64,
+        help="Number of Schroeder allpass diffusion stages (0 disables diffusion).",
+    ),
+    allpass_gain: float = typer.Option(
+        0.7,
+        "--allpass-gain",
+        min=-0.99,
+        max=0.99,
+        help="Per-stage allpass feedback/feedforward gain.",
+    ),
+    allpass_delays_ms: str | None = typer.Option(
+        None,
+        "--allpass-delays-ms",
+        help=(
+            "Optional comma-separated allpass delay list in milliseconds. "
+            "Example: 5,7,11,17,23,29"
+        ),
+    ),
+    comb_delays_ms: str | None = typer.Option(
+        None,
+        "--comb-delays-ms",
+        help=(
+            "Optional comma-separated FDN comb-like delay list in milliseconds. "
+            "Example: 31,37,41,43,47,53,59,67"
+        ),
+    ),
+    fdn_lines: int = typer.Option(
+        8,
+        "--fdn-lines",
+        min=1,
+        max=64,
+        help="FDN line count used when --comb-delays-ms is not provided.",
+    ),
     beast_mode: int = typer.Option(
         1,
         "--beast-mode",
@@ -260,6 +297,14 @@ def render(
 ) -> None:
     """Render input audio with algorithmic or convolution reverb."""
     resolved_pre_delay_ms = parse_pre_delay_ms(pre_delay, bpm, pre_delay_ms)
+    parsed_allpass_delays = _parse_delay_list_ms(
+        allpass_delays_ms,
+        option_name="--allpass-delays-ms",
+    )
+    parsed_comb_delays = _parse_delay_list_ms(
+        comb_delays_ms,
+        option_name="--comb-delays-ms",
+    )
 
     config = RenderConfig(
         engine=engine,
@@ -278,6 +323,11 @@ def render(
         mod_max=mod_max,
         mod_combine=mod_combine,
         mod_smooth_ms=mod_smooth_ms,
+        allpass_stages=allpass_stages,
+        allpass_gain=allpass_gain,
+        allpass_delays_ms=parsed_allpass_delays,
+        comb_delays_ms=parsed_comb_delays,
+        fdn_lines=fdn_lines,
         beast_mode=beast_mode,
         wet=wet,
         dry=dry,
@@ -1395,10 +1445,16 @@ def _print_render_summary(report: dict[str, Any]) -> None:
             "self_convolve",
             "damping",
             "width",
+            "allpass_stages",
+            "allpass_gain",
+            "fdn_lines",
             "block_size",
         ):
             if key in config_report:
                 table.add_row(key, str(config_report[key]))
+        for key in ("allpass_delays_ms", "comb_delays_ms"):
+            if key in config_report and isinstance(config_report[key], (list, tuple)):
+                table.add_row(f"{key}_count", str(len(config_report[key])))
     table.add_row("analysis_json", str(report.get("analysis_path", "")))
     if "frames_path" in report:
         table.add_row("frames_csv", str(report.get("frames_path")))
@@ -1658,6 +1714,33 @@ def _resolve_ir_output_path(out_ir: Path, out_format: IRFileFormat) -> Path:
     return out_ir.with_suffix(suffix)
 
 
+def _parse_delay_list_ms(raw: str | None, *, option_name: str) -> tuple[float, ...]:
+    """Parse a comma-separated millisecond delay list for CLI options."""
+    if raw is None:
+        return ()
+    cleaned = raw.strip()
+    if cleaned == "":
+        return ()
+    values: list[float] = []
+    for token in cleaned.split(","):
+        part = token.strip()
+        if part == "":
+            continue
+        try:
+            delay = float(part)
+        except ValueError as exc:
+            msg = f"{option_name} expects a comma-separated float list in milliseconds."
+            raise typer.BadParameter(msg) from exc
+        if delay <= 0.0:
+            msg = f"{option_name} values must be > 0 ms."
+            raise typer.BadParameter(msg)
+        values.append(delay)
+    if len(values) == 0:
+        msg = f"{option_name} must include at least one numeric value."
+        raise typer.BadParameter(msg)
+    return tuple(values)
+
+
 def _validate_lucky_call(
     config: RenderConfig,
     lucky: int | None,
@@ -1716,6 +1799,16 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
 
     if config.wet == 0.0 and config.dry == 0.0:
         msg = "At least one of --wet or --dry must be non-zero."
+        raise typer.BadParameter(msg)
+
+    if config.allpass_stages == 0 and len(config.allpass_delays_ms) > 0:
+        msg = "--allpass-delays-ms cannot be used when --allpass-stages is 0."
+        raise typer.BadParameter(msg)
+    if len(config.comb_delays_ms) > 64:
+        msg = "--comb-delays-ms supports at most 64 entries."
+        raise typer.BadParameter(msg)
+    if len(config.allpass_delays_ms) > 128:
+        msg = "--allpass-delays-ms supports at most 128 entries."
         raise typer.BadParameter(msg)
 
     if config.freeze:

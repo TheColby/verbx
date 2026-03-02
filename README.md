@@ -61,7 +61,7 @@ results.
   - [7.16 Gated drum-space style (inspired by 1980s gated reverb aesthetics)](#716-gated-drum-space-style-inspired-by-1980s-gated-reverb-aesthetics)
   - [7.17 Dub chamber send chain (inspired by King Tubby / Lee Perry workflows)](#717-dub-chamber-send-chain-inspired-by-king-tubby-lee-perry-workflows)
   - [7.18 Reverse-wash texture stack (inspired by shoegaze wash techniques)](#718-reverse-wash-texture-stack-inspired-by-shoegaze-wash-techniques)
-  - [7.19 Sparse hall clarity (inspired by Arvo Part-style acoustic spaciousness)](#719-sparse-hall-clarity-inspired-by-arvo-part-style-acoustic-spaciousness)
+  - [7.19 Sparse hall clarity (inspired by Arvo Pärt-style acoustic spaciousness)](#719-sparse-hall-clarity-inspired-by-arvo-part-style-acoustic-spaciousness)
   - [7.20 Deep-resonance long-space (inspired by Deep Listening aesthetics)](#720-deep-resonance-long-space-inspired-by-deep-listening-aesthetics)
   - [7.21 Cathedral vocal/organ simulation](#721-cathedral-vocalorgan-simulation)
   - [7.22 Cinematic synth hall (inspired by classic analog-film synth spaces)](#722-cinematic-synth-hall-inspired-by-classic-analog-film-synth-spaces)
@@ -242,7 +242,7 @@ Current implementation level: **v0.4**
 ## 4.0 Features
 
 - CLI-only architecture (Typer + Rich)
-- Algorithmic reverb (FDN + diffusion topology)
+- Algorithmic reverb (Schroeder allpass diffusion + 8-line FDN / coupled comb-like feedback loops)
 - Partitioned FFT convolution (long IR friendly)
 - Native multichannel/surround processing and matrix IR routing (M input × N output)
 - Freeze segment looping + repeat chaining
@@ -752,7 +752,7 @@ verbx render guitar_pad.wav shoegaze_wash.wav \
   --target-peak-dbfs -2
 ```
 
-### 7.19 Sparse hall clarity (inspired by Arvo Part-style acoustic spaciousness)
+### 7.19 Sparse hall clarity (inspired by Arvo Pärt-style acoustic spaciousness)
 
 Use this when you want depth and hall size while preserving articulation and intelligibility.
 
@@ -976,8 +976,11 @@ These graphs show the currently implemented FDN structures in `verbx`.
 
 Implementation note:
 
-- The render-time algorithmic engine uses a fixed per-channel topology:
-  pre-delay -> 6 allpass diffusion stages -> 8-line FDN with Hadamard feedback -> wet/dry mix.
+- The render-time algorithmic engine uses a per-channel topology:
+  pre-delay -> allpass diffusion cascade -> FDN with Hadamard-derived feedback mix -> wet/dry mix.
+- Defaults are 6 allpass stages and 8 FDN lines, but both are user-configurable.
+- Allpass filters are explicit in the diffusion stage.
+- Separate user-exposed Schroeder comb-bank modules are not currently present; instead, each FDN delay line with feedback gain behaves as a comb-like resonator, and the matrix coupling/damping stages control coloration and stability.
 
 ##### 9.2.1.2 IR FDN Variant Topologies
 
@@ -1195,6 +1198,11 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--width` | Stereo/spatial spread behavior in the algorithmic path. | Increase for wider image; reduce for narrower/centered ambience. |
 | `--mod-depth-ms` | Delay modulation depth (ms) in the algorithmic late field. | Small depth reduces metallic ringing; too high can sound chorus-like. |
 | `--mod-rate-hz` | Delay modulation speed. | Very slow rates are subtle; faster rates make modulation more audible. |
+| `--allpass-stages` | Number of Schroeder allpass diffusion stages in the algorithmic path. | `0` disables diffusion; `4-10` is a practical range for most material. |
+| `--allpass-gain` | Gain coefficient used inside each allpass stage. | Typical stable range is about `0.5-0.85`; very high absolute values increase resonance/ringing. |
+| `--allpass-delays-ms` | Optional comma-separated allpass delay list (milliseconds). | Use to tune diffusion timing explicitly; list length can be shorter/longer than `--allpass-stages`. |
+| `--comb-delays-ms` | Optional comma-separated FDN comb-like delay list (milliseconds). | Overrides default FDN line timing and effectively sets line count from the list length. |
+| `--fdn-lines` | FDN line count when `--comb-delays-ms` is not supplied. | More lines can increase density/smoothness but raise CPU usage. |
 | `--beast-mode [1..100]` | Multiplies key reverb parameters (RT60, wet balance, modulation depth/rate, repeat intensity, and relevant tail controls). | Use `2-5` for heavier ambience and `10+` for extreme freeze-like density. |
 
 #### 12.2.2 Temporal structuring, repeats, and freeze
@@ -1508,6 +1516,11 @@ verbx render in.wav out_self.wav --self-convolve --partition-size 16384 --normal
 
 # beast-mode multiplier for freeze-like tails
 verbx render in.wav out_beast.wav --engine algo --rt60 12 --beast-mode 8
+
+# tune diffusion/allpass and comb-like FDN delay topology directly
+verbx render in.wav out_tuned.wav --engine algo \
+  --allpass-stages 8 --allpass-gain 0.72 --allpass-delays-ms 4,6,9,13,18,24,31,39 \
+  --fdn-lines 10 --comb-delays-ms 29,33,37,41,43,47,53,59,67,73
 
 # cross-channel matrix routing (packed IR channels)
 verbx render in_7p1.wav out_7p1.wav --engine conv --ir matrix_7p1.wav --ir-matrix-layout output-major

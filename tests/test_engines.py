@@ -39,6 +39,32 @@ def test_algo_engine_stable_and_typed() -> None:
     assert np.all(np.isfinite(output))
 
 
+def test_algo_engine_custom_allpass_and_comb_delay_controls() -> None:
+    engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=22.0,
+            pre_delay_ms=8.0,
+            damping=0.35,
+            width=1.0,
+            mod_depth_ms=1.0,
+            mod_rate_hz=0.07,
+            allpass_stages=4,
+            allpass_gain=0.68,
+            allpass_delays_ms=(3.0, 5.0, 8.0, 13.0),
+            comb_delays_ms=(19.0, 23.0, 29.0, 31.0, 37.0),
+            fdn_lines=5,
+            wet=0.85,
+            dry=0.15,
+            block_size=256,
+        )
+    )
+    audio = np.random.default_rng(7).standard_normal((2048, 1)).astype(np.float32) * 0.05
+    output = engine.process(audio, sr=48_000)
+    assert output.shape == audio.shape
+    assert output.dtype == np.float32
+    assert np.all(np.isfinite(output))
+
+
 def test_convolution_engine_partitioned_fft(tmp_path: Path) -> None:
     rng = np.random.default_rng(1)
     audio = (rng.standard_normal((2048, 2)).astype(np.float32)) * 0.05

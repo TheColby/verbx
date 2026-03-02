@@ -73,6 +73,45 @@ def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
     assert payload["output_samples"] > payload["input_samples"]
 
 
+def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path) -> None:
+    audio = np.zeros((2048, 2), dtype=np.float32)
+    audio[200:280, :] = 0.3
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--allpass-stages",
+            "8",
+            "--allpass-gain",
+            "0.72",
+            "--allpass-delays-ms",
+            "4,6,9,13,18,24,31,39",
+            "--comb-delays-ms",
+            "29,33,37,41,43,47,53,59,67,73",
+            "--fdn-lines",
+            "10",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert config["allpass_stages"] == 8
+    assert abs(float(config["allpass_gain"]) - 0.72) < 1e-6
+    assert len(config["allpass_delays_ms"]) == 8
+    assert len(config["comb_delays_ms"]) == 10
+    assert config["fdn_lines"] == 10
+
+
 def test_analyze_lufs_mode(tmp_path: Path) -> None:
     audio = np.zeros((4096, 2), dtype=np.float32)
     audio[64:512, :] = 0.2

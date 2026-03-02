@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 1050" role="img" aria-labelledby="title desc">
   <title id="title">Algorithmic FDN Topology (verbx)</title>
-  <desc id="desc">Block diagram of the algorithmic reverb topology: input, pre-delay, Schroeder allpass diffusion, 8-line FDN with Hadamard feedback matrix, wet and dry mix, and output.</desc>
+  <desc id="desc">Block diagram of the algorithmic reverb topology: input, pre-delay, Schroeder allpass diffusion, configurable-line FDN with Hadamard-derived feedback matrix, wet and dry mix, and output.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#f7faff"/>
@@ -32,7 +32,10 @@
   <rect class="panel" x="56" y="96" width="1790" height="900" rx="18"/>
 
   <text class="title" x="92" y="154">Supported Algorithmic FDN Topology (Current Render Engine)</text>
-  <text class="subtitle" x="92" y="192">Per-channel chain in <tspan font-family="Menlo, Consolas, monospace">AlgoReverbEngine</tspan>: pre-delay -> diffusion -> 8-line FDN (Hadamard feedback)</text>
+  <text class="subtitle" x="92" y="192">
+    <tspan x="92" dy="0">Per-channel chain in <tspan font-family="Menlo, Consolas, monospace">AlgoReverbEngine</tspan>:</tspan>
+    <tspan x="92" dy="28">pre-delay -> diffusion -> N-line FDN (Hadamard-derived feedback)</tspan>
+  </text>
 
   <rect class="box" x="95" y="290" width="190" height="90" rx="14"/>
   <text class="label" x="190" y="345" text-anchor="middle">Input</text>
@@ -43,7 +46,7 @@
 
   <rect class="box" x="660" y="290" width="230" height="90" rx="14"/>
   <text class="label" x="775" y="336" text-anchor="middle">Diffusion</text>
-  <text class="small" x="775" y="362" text-anchor="middle">6 Schroeder allpass stages</text>
+  <text class="small" x="775" y="362" text-anchor="middle">N allpass stages (default 6)</text>
 
   <rect class="box-core" x="955" y="230" width="720" height="340" rx="16"/>
   <text class="label" x="1315" y="275" text-anchor="middle">FDN Late Reverb Core</text>
@@ -77,7 +80,10 @@
   <path class="line-thin" d="M1327,434 L1327,468"/>
   <path class="line-thin" d="M1327,360 L1327,338"/>
 
-  <text class="small" x="1085" y="536">Per-line loop internals: RT60-calibrated gain + one-pole damping + DC block + subtle delay modulation</text>
+  <text class="small" x="990" y="532">
+    <tspan x="990" dy="0">Per-line loop internals: RT60-calibrated gain, one-pole damping, and DC block.</tspan>
+    <tspan x="990" dy="24">Subtle delay-length modulation is also applied to reduce metallic ringing.</tspan>
+  </text>
 
   <rect class="box" x="955" y="650" width="230" height="92" rx="14"/>
   <text class="label" x="1070" y="700" text-anchor="middle">Wet Output</text>
@@ -102,8 +108,9 @@
   <path class="line" d="M1185,836 L1270,769"/>
   <path class="line" d="M1480,769 L1555,769"/>
 
-  <rect class="legend" x="92" y="908" width="1715" height="64" rx="12"/>
-  <text class="legend-text" x="120" y="948">
-    Supported today: fixed 8-line FDN with Hadamard feedback in render path; stable long-RT60 behavior via per-line gain calibration and loop damping safeguards.
+  <rect class="legend" x="92" y="890" width="1715" height="92" rx="12"/>
+  <text class="legend-text" x="120" y="928">
+    <tspan x="120" dy="0">Supported today: user-configurable allpass stages and FDN line counts in render path.</tspan>
+    <tspan x="120" dy="24">Stable long-RT60 behavior comes from per-line gain calibration and loop damping safeguards.</tspan>
   </text>
 </svg>

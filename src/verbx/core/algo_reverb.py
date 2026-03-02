@@ -1,4 +1,4 @@
-"""Algorithmic reverb engine built around diffusion + an 8-line FDN.
+"""Algorithmic reverb engine built around diffusion + an FDN late field.
 
 Design goals for this implementation:
 
@@ -10,7 +10,7 @@ Signal flow (per channel):
 
 1. pre-delay line,
 2. short all-pass diffusion network,
-3. 8-line FDN late field with:
+3. FDN late field with configurable delay-line count/lengths and:
    - RT60-calibrated per-line gains,
    - one-pole damping in each feedback path,
    - DC blocking in the loop,
@@ -62,6 +62,11 @@ class AlgoReverbConfig:
     width: float = 1.0
     mod_depth_ms: float = 2.0
     mod_rate_hz: float = 0.1
+    allpass_stages: int = 6
+    allpass_gain: float = 0.7
+    allpass_delays_ms: tuple[float, ...] = ()
+    comb_delays_ms: tuple[float, ...] = ()
+    fdn_lines: int = 8
     wet: float = 0.8
     dry: float = 0.2
     block_size: int = 4096
@@ -91,12 +96,21 @@ class AlgoReverbEngine(ReverbEngine):
     cinematic/"frozen-time" use cases.
     """
 
-    _BASE_DELAY_MS = np.array([31.0, 37.0, 41.0, 43.0, 47.0, 53.0, 59.0, 67.0], dtype=np.float32)
-    _DIFFUSION_DELAY_MS = np.array([5.0, 7.0, 11.0, 17.0, 23.0, 29.0], dtype=np.float32)
+    _DEFAULT_BASE_DELAY_MS = np.array(
+        [31.0, 37.0, 41.0, 43.0, 47.0, 53.0, 59.0, 67.0],
+        dtype=np.float32,
+    )
+    _DEFAULT_DIFFUSION_DELAY_MS = np.array(
+        [5.0, 7.0, 11.0, 17.0, 23.0, 29.0],
+        dtype=np.float32,
+    )
 
     def __init__(self, config: AlgoReverbConfig) -> None:
         self._config = config
-        self._hadamard = self._build_hadamard_matrix(8)
+        self._base_delay_ms = self._resolve_fdn_delay_ms(config)
+        self._diffusion_delay_ms = self._resolve_diffusion_delay_ms(config)
+        self._allpass_gain = np.float32(np.clip(config.allpass_gain, -0.99, 0.99))
+        self._hadamard = self._build_hadamard_matrix(int(self._base_delay_ms.shape[0]))
         self._use_numba = _numba_available and config.device != "cuda"
         self._shimmer = ShimmerProcessor(
             ShimmerConfig(
@@ -142,11 +156,51 @@ class AlgoReverbEngine(ReverbEngine):
     @staticmethod
     def _build_hadamard_matrix(size: int) -> npt.NDArray[np.float32]:
         """Build an orthonormal Hadamard-style mix matrix."""
+        if size <= 0:
+            return np.zeros((0, 0), dtype=np.float32)
         matrix = np.array([[1.0]], dtype=np.float32)
         while matrix.shape[0] < size:
             matrix = np.block([[matrix, matrix], [matrix, -matrix]])
         matrix = matrix[:size, :size]
-        return matrix / np.sqrt(np.float32(size))
+        # Truncating non-power-of-two Hadamards breaks strict orthogonality;
+        # QR restores an orthonormal mix while preserving the deterministic seed.
+        q, _ = np.linalg.qr(matrix.astype(np.float64))
+        return np.asarray(q, dtype=np.float32)
+
+    @classmethod
+    def _resolve_fdn_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float32]:
+        """Resolve user-configured comb-like FDN delay lengths in milliseconds."""
+        if len(config.comb_delays_ms) > 0:
+            delays = [max(0.1, float(value)) for value in config.comb_delays_ms]
+            return np.asarray(delays, dtype=np.float32)
+
+        requested = max(1, int(config.fdn_lines))
+        defaults = cls._DEFAULT_BASE_DELAY_MS.astype(np.float64).tolist()
+        while len(defaults) < requested:
+            next_delay = (defaults[-1] * 1.11) + 1.25
+            if next_delay <= defaults[-1]:
+                next_delay = defaults[-1] + 0.25
+            defaults.append(next_delay)
+        return np.asarray(defaults[:requested], dtype=np.float32)
+
+    @classmethod
+    def _resolve_diffusion_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float32]:
+        """Resolve user-configured allpass diffusion delay lengths in milliseconds."""
+        requested = max(0, int(config.allpass_stages))
+        if requested == 0:
+            return np.zeros((0,), dtype=np.float32)
+
+        if len(config.allpass_delays_ms) > 0:
+            delays = [max(0.1, float(value)) for value in config.allpass_delays_ms]
+        else:
+            delays = cls._DEFAULT_DIFFUSION_DELAY_MS.astype(np.float64).tolist()
+
+        while len(delays) < requested:
+            next_delay = (delays[-1] * 1.28) + 0.75
+            if next_delay <= delays[-1]:
+                next_delay = delays[-1] + 0.2
+            delays.append(next_delay)
+        return np.asarray(delays[:requested], dtype=np.float32)
 
     @staticmethod
     def _apply_stereo_width(wet: AudioArray, width: float) -> AudioArray:
@@ -173,8 +227,9 @@ class AlgoReverbEngine(ReverbEngine):
                 mod_rate_hz=np.float32(self._config.mod_rate_hz),
                 block_size=max(256, int(self._config.block_size)),
                 hadamard=self._hadamard,
-                base_delay_ms=self._BASE_DELAY_MS,
-                diffusion_delay_ms=self._DIFFUSION_DELAY_MS,
+                base_delay_ms=self._base_delay_ms,
+                diffusion_delay_ms=self._diffusion_delay_ms,
+                allpass_gain=self._allpass_gain,
             )
 
         pre_delay_samples = max(1, int((self._config.pre_delay_ms / 1000.0) * sr))
@@ -182,18 +237,18 @@ class AlgoReverbEngine(ReverbEngine):
 
         line_delays = np.maximum(
             2,
-            np.asarray(np.round((self._BASE_DELAY_MS / 1000.0) * sr), dtype=np.int32),
+            np.asarray(np.round((self._base_delay_ms / 1000.0) * sr), dtype=np.int32),
         )
         num_lines = int(line_delays.shape[0])
 
         diffusion_delays = np.maximum(
             1,
-            np.asarray(np.round((self._DIFFUSION_DELAY_MS / 1000.0) * sr), dtype=np.int32),
+            np.asarray(np.round((self._diffusion_delay_ms / 1000.0) * sr), dtype=np.int32),
         )
 
         allpasses = [
             _AllpassState(buffer=np.zeros(delay + 1, dtype=np.float32))
-            for delay in diffusion_delays[:6]
+            for delay in diffusion_delays
         ]
 
         delay_buffers = [
@@ -235,7 +290,7 @@ class AlgoReverbEngine(ReverbEngine):
                 # before they enter the long feedback network.
                 diffused = predelayed
                 for ap in allpasses:
-                    diffused = self._allpass_process(diffused, ap, gain=np.float32(0.7))
+                    diffused = self._allpass_process(diffused, ap, gain=self._allpass_gain)
 
                 fdn_out = np.zeros(num_lines, dtype=np.float32)
                 for i in range(num_lines):
@@ -332,6 +387,7 @@ def _process_channel_kernel(
     hadamard: npt.NDArray[np.float32],
     base_delay_ms: npt.NDArray[np.float32],
     diffusion_delay_ms: npt.NDArray[np.float32],
+    allpass_gain: np.float32,
 ) -> npt.NDArray[np.float32]:
     """Numba kernel matching :meth:`AlgoReverbEngine._process_channel`.
 
@@ -354,10 +410,12 @@ def _process_channel_kernel(
     )
     num_allpasses = int(diffusion_delays.shape[0])
 
-    max_ap_size = int(np.max(diffusion_delays)) + 1
-    allpass_buffers = np.zeros((num_allpasses, max_ap_size), dtype=np.float32)
-    allpass_sizes = np.zeros(num_allpasses, dtype=np.int32)
-    allpass_indices = np.zeros(num_allpasses, dtype=np.int32)
+    max_ap_size = 1
+    if num_allpasses > 0:
+        max_ap_size = int(np.max(diffusion_delays)) + 1
+    allpass_buffers = np.zeros((max(1, num_allpasses), max_ap_size), dtype=np.float32)
+    allpass_sizes = np.ones(max(1, num_allpasses), dtype=np.int32)
+    allpass_indices = np.zeros(max(1, num_allpasses), dtype=np.int32)
     for i in range(num_allpasses):
         allpass_sizes[i] = int(diffusion_delays[i]) + 1
 
@@ -397,7 +455,6 @@ def _process_channel_kernel(
 
     fdn_out = np.zeros(num_lines, dtype=np.float32)
     mixed_feedback = np.zeros(num_lines, dtype=np.float32)
-    gain_allpass = np.float32(0.7)
     two_pi = np.float32(2.0 * np.pi)
     inv_sqrt_lines = np.float32(1.0 / np.sqrt(float(num_lines)))
 
@@ -413,8 +470,8 @@ def _process_channel_kernel(
                 ap_size = allpass_sizes[ap]
                 ap_idx = allpass_indices[ap]
                 delayed = allpass_buffers[ap, ap_idx]
-                y = (-gain_allpass * diffused) + delayed
-                allpass_buffers[ap, ap_idx] = diffused + (gain_allpass * y)
+                y = (-allpass_gain * diffused) + delayed
+                allpass_buffers[ap, ap_idx] = diffused + (allpass_gain * y)
                 allpass_indices[ap] = (ap_idx + 1) % ap_size
                 diffused = np.float32(y)
 

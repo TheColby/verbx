@@ -422,6 +422,15 @@ def _apply_beast_mode(config: RenderConfig, input_duration_seconds: float) -> Re
     scaled.width = float(np.clip(scaled.width * factor, 0.0, 2.0))
     scaled.mod_depth_ms = max(0.0, scaled.mod_depth_ms * factor)
     scaled.mod_rate_hz = max(0.0, scaled.mod_rate_hz * factor)
+    scaled.allpass_gain = float(np.clip(scaled.allpass_gain * np.sqrt(factor), -0.99, 0.99))
+    if len(scaled.allpass_delays_ms) > 0:
+        scaled.allpass_delays_ms = tuple(
+            max(0.1, float(delay) * factor) for delay in scaled.allpass_delays_ms
+        )
+    if len(scaled.comb_delays_ms) > 0:
+        scaled.comb_delays_ms = tuple(
+            max(0.1, float(delay) * factor) for delay in scaled.comb_delays_ms
+        )
 
     scaled.wet = float(np.clip(scaled.wet * factor, 0.0, 1.0))
     scaled.dry = float(np.clip(scaled.dry / factor, 0.0, 1.0))
@@ -479,6 +488,11 @@ def _resolve_engine(config: RenderConfig, device: str) -> tuple[str, ReverbEngin
             width=config.width,
             mod_depth_ms=config.mod_depth_ms,
             mod_rate_hz=config.mod_rate_hz,
+            allpass_stages=config.allpass_stages,
+            allpass_gain=config.allpass_gain,
+            allpass_delays_ms=config.allpass_delays_ms,
+            comb_delays_ms=config.comb_delays_ms,
+            fdn_lines=config.fdn_lines,
             wet=config.wet,
             dry=config.dry,
             block_size=config.block_size,
