@@ -1,0 +1,37 @@
+.TH VERBX-ANALYZE 1 "March 2026" "verbx 0.3.0" "User Commands"
+.SH NAME
+verbx-analyze \- analyze audio metrics including loudness and EDR
+.SH SYNOPSIS
+.B verbx analyze
+\fIINFILE\fR [\fIOPTIONS\fR]
+.SH DESCRIPTION
+Analyze audio files and print structured metrics.
+Optional outputs include JSON payloads and framewise CSV features.
+.SH OPTIONS
+.TP
+.B --json-out PATH
+Write full analysis payload to JSON.
+.TP
+.B --lufs
+Include loudness metrics (\fBintegrated_lufs\fR, \fBtrue_peak_dbfs\fR, \fBlra\fR).
+.TP
+.B --edr
+Include Energy Decay Relief summary metrics:
+\fBedr_rt60_median_s\fR, \fBedr_rt60_low_s\fR, \fBedr_rt60_mid_s\fR,
+\fBedr_rt60_high_s\fR, and \fBedr_valid_bins\fR.
+.TP
+.B --frames-out PATH
+Write framewise feature CSV.
+.SH EXAMPLES
+.TP
+.B verbx analyze in.wav
+Basic analysis table.
+.TP
+.B verbx analyze in.wav --lufs --edr
+Include loudness and EDR summaries.
+.TP
+.B verbx analyze in.wav --json-out report.json --frames-out frames.csv
+Export JSON and framewise CSV outputs.
+.SH SEE ALSO
+.BR verbx (1),
+.BR verbx-render (1)

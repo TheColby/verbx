@@ -1,0 +1,57 @@
+.TH VERBX-IR 1 "March 2026" "verbx 0.3.0" "User Commands"
+.SH NAME
+verbx-ir \- impulse response generation and processing commands
+.SH SYNOPSIS
+.B verbx ir
+\fISUBCOMMAND\fR [\fIARGS\fR] [\fIOPTIONS\fR]
+.SH DESCRIPTION
+The \fBir\fR command group handles synthetic IR creation, IR analysis,
+IR post-processing, and IR fitting from source audio.
+.SH SUBCOMMANDS
+.TP
+.B gen OUT_IR
+Generate IR with deterministic cache support.
+.TP
+.B analyze IR_FILE
+Analyze IR metrics (duration, RT60 estimate, decay profile, coherence).
+.TP
+.B process IN_IR OUT_IR
+Apply shaping (filters, normalization, loudness targeting) to IR.
+.TP
+.B fit INFILE OUT_IR
+Analyze source, generate/scoring candidate IRs, and export top results.
+.SH COMMON gen OPTIONS
+.TP
+.B --mode [fdn|stochastic|modal|hybrid]
+IR synthesis mode.
+.TP
+.B --length FLOAT
+IR length in seconds.
+.TP
+.B --sr INT
+Output sample rate.
+.TP
+.B --channels INT
+Output channel count.
+.TP
+.B --seed INT
+Deterministic random seed.
+.TP
+.B --f0 FREQ
+Optional tuning anchor (e.g., 64Hz).
+.TP
+.B --analyze-input PATH
+Analyze fundamentals/harmonics from input to tune generated IR.
+.SH EXAMPLES
+.TP
+.B verbx ir gen out_ir.wav --mode hybrid --length 120 --seed 7
+Generate long hybrid IR.
+.TP
+.B verbx ir analyze out_ir.wav --json-out out_ir.analysis.json
+Analyze generated IR.
+.TP
+.B verbx ir fit in.wav fit_ir.wav --top-k 3
+Fit IR candidates from source analysis.
+.SH SEE ALSO
+.BR verbx (1),
+.BR verbx-render (1)

@@ -141,6 +141,7 @@ results.
   - [16.2 Bash script (CLI-driven)](#162-bash-script-cli-driven)
 - [17.0 Development](#170-development)
   - [17.1 Lint / type-check / tests](#171-lint-type-check-tests)
+  - [17.2 Installer Script and Man Pages](#172-installer-script-and-man-pages)
 - [18.0 Project Layout](#180-project-layout)
 - [19.0 Additional Docs](#190-additional-docs)
 - [20.0 Roadmap](#200-roadmap)
@@ -1662,6 +1663,49 @@ Without Hatch:
 ruff check .
 pyright
 pytest
+```
+
+### 17.2 Installer Script and Man Pages
+
+`verbx` now ships installable man pages and an install helper script:
+
+- `scripts/install.sh`
+- `man/man1/verbx.1`
+- `man/man1/verbx-render.1`
+- `man/man1/verbx-analyze.1`
+- `man/man1/verbx-ir.1`
+- `man/man1/verbx-batch.1`
+
+Install package + man pages:
+
+```bash
+./scripts/install.sh --prefix "$HOME/.local"
+```
+
+Install with dev dependencies:
+
+```bash
+./scripts/install.sh --dev --prefix "$HOME/.local"
+```
+
+Install only man pages (skip pip package installation):
+
+```bash
+./scripts/install.sh --skip-python-install --prefix "$HOME/.local"
+```
+
+After install, verify:
+
+```bash
+verbx --help
+man verbx
+man verbx-render
+```
+
+If your shell cannot find the man pages, add this to your shell profile:
+
+```bash
+export MANPATH="$HOME/.local/share/man:$MANPATH"
 ```
 
 ## 18.0 Project Layout

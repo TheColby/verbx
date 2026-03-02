@@ -1,0 +1,81 @@
+.TH VERBX-RENDER 1 "March 2026" "verbx 0.3.0" "User Commands"
+.SH NAME
+verbx-render \- render audio with extreme reverb processing
+.SH SYNOPSIS
+.B verbx render
+\fIINFILE\fR \fIOUTFILE\fR [\fIOPTIONS\fR]
+.SH DESCRIPTION
+The \fBrender\fR command is the main processing entrypoint.
+It supports algorithmic FDN reverb, partitioned FFT convolution, freeze/repeat
+chains, loudness/peak targets, ambient controls, and random lucky-mode batches.
+.SH CORE OPTIONS
+.TP
+.B --engine [conv|algo|auto]
+Select convolution, algorithmic, or automatic engine resolution.
+.TP
+.B --rt60 FLOAT
+Target decay time in seconds.
+.TP
+.B --wet FLOAT
+Wet level.
+.TP
+.B --dry FLOAT
+Dry level.
+.TP
+.B --repeat INT
+Repeat-pass count.
+.TP
+.B --freeze --start S --end E
+Enable freeze segment looping.
+.TP
+.B --ir PATH
+External impulse response path for convolution.
+.TP
+.B --self-convolve
+Use input file as its own IR.
+.TP
+.B --ir-gen
+Auto-generate and cache an IR before rendering.
+.TP
+.B --beast-mode INT
+Scale key reverb parameters for denser, longer tails.
+.SH ADVANCED OUTPUT OPTIONS
+.TP
+.B --target-lufs FLOAT
+Integrated loudness target.
+.TP
+.B --target-peak-dbfs FLOAT
+Peak ceiling target.
+.TP
+.B --normalize-stage [none|post|per-pass]
+Normalization timing strategy.
+.TP
+.B --out-subtype [auto|float32|float64|pcm16|pcm24|pcm32]
+Output subtype control.
+.TP
+.B --output-peak-norm [none|input|target|full-scale]
+Final peak normalization mode.
+.SH LUCKY MODE
+.TP
+.B --lucky N
+Generate \fIN\fR randomized "wild" renders instead of one fixed render.
+.TP
+.B --lucky-out-dir DIR
+Destination folder for lucky-mode outputs.
+.TP
+.B --lucky-seed INT
+Deterministic seed for reproducible lucky batches.
+.SH EXAMPLES
+.TP
+.B verbx render in.wav out.wav --engine algo --rt60 60
+Basic algorithmic render.
+.TP
+.B verbx render in.wav out.wav --engine conv --ir hall.wav --partition-size 32768
+Fast convolution render.
+.TP
+.B verbx render in.wav out/lucky.wav --lucky 25 --lucky-out-dir out/lucky_set
+Generate 25 randomized extreme variants.
+.SH SEE ALSO
+.BR verbx (1),
+.BR verbx-analyze (1),
+.BR verbx-ir (1)

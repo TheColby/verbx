@@ -1,0 +1,42 @@
+.TH VERBX-BATCH 1 "March 2026" "verbx 0.3.0" "User Commands"
+.SH NAME
+verbx-batch \- parallel manifest-driven render workflows
+.SH SYNOPSIS
+.B verbx batch
+\fISUBCOMMAND\fR [\fIARGS\fR] [\fIOPTIONS\fR]
+.SH DESCRIPTION
+The \fBbatch\fR command group supports manifest templating and parallel
+batch render execution for large-scale processing jobs.
+.SH SUBCOMMANDS
+.TP
+.B template
+Print a batch manifest template to stdout.
+.TP
+.B render MANIFEST
+Run batch jobs with scheduling and retry options.
+.SH render OPTIONS
+.TP
+.B --jobs INT
+Worker count (\fB0\fR means auto).
+.TP
+.B --schedule [fifo|shortest-first|longest-first]
+Batch ordering policy.
+.TP
+.B --retries INT
+Retry count per failed job.
+.TP
+.B --continue-on-error / --fail-fast
+Continue after failures or stop immediately.
+.TP
+.B --dry-run
+Validate and print execution plan without rendering.
+.SH EXAMPLES
+.TP
+.B verbx batch template > manifest.json
+Create starter manifest.
+.TP
+.B verbx batch render manifest.json --jobs 8 --schedule longest-first
+Execute parallel batch render.
+.SH SEE ALSO
+.BR verbx (1),
+.BR verbx-render (1)

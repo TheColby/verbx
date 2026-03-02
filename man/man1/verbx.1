@@ -1,0 +1,65 @@
+.TH VERBX 1 "March 2026" "verbx 0.3.0" "User Commands"
+.SH NAME
+verbx \- extreme reverb command-line processor
+.SH SYNOPSIS
+.B verbx
+[\fIOPTIONS\fR] \fICOMMAND\fR [\fIARGS\fR] ...
+.SH DESCRIPTION
+\fBverbx\fR is a production-grade Python CLI for extreme algorithmic and
+convolution reverb workflows.
+It supports long-tail processing, freeze/repeat chains, synthetic IR generation,
+loudness/peak targeting, multichannel routing, batch execution, and analysis.
+.PP
+Use \fBverbx --help\fR for full command discovery.
+.SH COMMANDS
+.TP
+.B render INFILE OUTFILE [OPTIONS]
+Render audio with algorithmic or convolution reverb.
+.TP
+.B analyze INFILE [OPTIONS]
+Compute analysis metrics, including optional loudness and EDR summaries.
+.TP
+.B suggest INFILE
+Suggest practical render defaults inferred from analysis.
+.TP
+.B presets
+List built-in preset names.
+.TP
+.B ir ...
+Impulse-response generation, analysis, processing, and fitting commands.
+.TP
+.B cache ...
+Inspect and clear IR cache artifacts.
+.TP
+.B batch ...
+Template and render batch-manifest workflows.
+.SH EXAMPLES
+.TP
+.B verbx render in.wav out.wav --engine algo --rt60 80 --wet 0.85 --dry 0.15
+Long algorithmic reverb render.
+.TP
+.B verbx render in.wav out.wav --engine conv --ir hall.wav --partition-size 32768
+Convolution render using external IR.
+.TP
+.B verbx render in.wav out/lucky.wav --lucky 12 --lucky-out-dir out/lucky_set
+Generate 12 randomized "wild" variants in one output folder.
+.TP
+.B verbx analyze in.wav --lufs --edr --json-out report.json
+Analyze loudness and EDR metrics to JSON.
+.SH FILES
+.TP
+\fBdocs/EXTREME_COOKBOOK.md\fR
+100 extreme workflow recipes.
+.TP
+\fBdocs/IR_SYNTHESIS.md\fR
+IR synthesis reference guide.
+.TP
+\fBdocs/REFERENCES.md\fR
+Academic references curated for reverb DSP.
+.SH SEE ALSO
+.BR verbx-render (1),
+.BR verbx-analyze (1),
+.BR verbx-ir (1),
+.BR verbx-batch (1)
+.SH AUTHORS
+verbx contributors.
