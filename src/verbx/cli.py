@@ -15,7 +15,7 @@ import shutil
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal, TypedDict, cast
 
 import numpy as np
 import soundfile as sf
@@ -63,6 +63,19 @@ from verbx.logging import configure_logging
 from verbx.presets.default_presets import preset_names
 
 IRFileFormat = Literal["auto", "wav", "flac", "aiff", "aif", "ogg", "caf"]
+
+
+class LuckyIRProcessConfig(TypedDict):
+    """Typed config payload for ``ir process --lucky`` randomization."""
+
+    damping: float
+    lowcut: float | None
+    highcut: float | None
+    tilt: float
+    normalize: Literal["none", "peak", "rms"]
+    peak_dbfs: float
+    target_lufs: float | None
+    true_peak: bool
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -276,11 +289,7 @@ def render(
 
         out_dir = outfile.parent if lucky_out_dir is None else lucky_out_dir
         out_dir.mkdir(parents=True, exist_ok=True)
-        seed = (
-            int(lucky_seed)
-            if lucky_seed is not None
-            else int(np.random.default_rng().integers(0, 2_147_483_647))
-        )
+        seed = _resolve_lucky_seed(lucky_seed)
 
         lucky_rows: list[dict[str, str]] = []
         for idx in range(lucky):
@@ -490,6 +499,27 @@ def ir_gen(
     resonator_high_hz: float = typer.Option(9000.0, "--resonator-high-hz", min=30.0),
     resonator_late_start_ms: float = typer.Option(80.0, "--resonator-late-start-ms", min=0.0),
     cache_dir: str = typer.Option(".verbx_cache/irs", "--cache-dir"),
+    lucky: int | None = typer.Option(
+        None,
+        "--lucky",
+        min=1,
+        max=500,
+        help=(
+            "Generate N randomized IR files from one base setup. "
+            "Outputs are written to --lucky-out-dir (or OUT_IR parent by default)."
+        ),
+    ),
+    lucky_out_dir: Path | None = typer.Option(
+        None,
+        "--lucky-out-dir",
+        resolve_path=True,
+        help="Output directory used when --lucky is enabled.",
+    ),
+    lucky_seed: int | None = typer.Option(
+        None,
+        "--lucky-seed",
+        help="Optional deterministic seed for --lucky IR generation.",
+    ),
     silent: bool = typer.Option(False, "--silent"),
 ) -> None:
     """Generate an IR file with deterministic caching."""
@@ -508,6 +538,7 @@ def ir_gen(
         resonator_low_hz=resonator_low_hz,
         resonator_high_hz=resonator_high_hz,
     )
+    _validate_generic_lucky_call(lucky, lucky_out_dir)
 
     f0_hz: float | None = None
     harmonic_targets_hz: tuple[float, ...] = ()
@@ -574,6 +605,66 @@ def ir_gen(
     )
 
     resolved_out_ir = _resolve_ir_output_path(out_ir, out_format)
+
+    if lucky is not None:
+        out_dir = resolved_out_ir.parent if lucky_out_dir is None else lucky_out_dir
+        out_dir.mkdir(parents=True, exist_ok=True)
+        seed_value = _resolve_lucky_seed(lucky_seed)
+
+        rows: list[dict[str, str]] = []
+        for idx in range(lucky):
+            rng = np.random.default_rng(seed_value + idx)
+            lucky_cfg = _build_lucky_ir_gen_config(cfg, rng=rng)
+            lucky_out = (
+                out_dir / f"{resolved_out_ir.stem}.lucky_{idx + 1:03d}{resolved_out_ir.suffix}"
+            )
+            try:
+                audio, out_sr, meta, cache_path, cache_hit = generate_or_load_cached_ir(
+                    lucky_cfg,
+                    cache_dir=Path(cache_dir),
+                )
+                write_ir_artifacts(lucky_out, audio, out_sr, meta, silent=silent)
+            except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+                raise typer.BadParameter(str(exc)) from exc
+
+            rows.append(
+                {
+                    "index": str(idx + 1),
+                    "out_ir": str(lucky_out),
+                    "mode": lucky_cfg.mode,
+                    "length_s": f"{float(lucky_cfg.length):.2f}",
+                    "rt60": (
+                        f"{float(lucky_cfg.rt60):.2f}"
+                        if lucky_cfg.rt60 is not None
+                        else (
+                            f"{float(lucky_cfg.rt60_low or 0.0):.2f}-"
+                            f"{float(lucky_cfg.rt60_high or 0.0):.2f}"
+                        )
+                    ),
+                    "cache_hit": str(cache_hit),
+                    "cache_path": str(cache_path),
+                }
+            )
+
+        if not silent:
+            table = Table(title=f"Lucky IR Generation Batch ({lucky} outputs)")
+            table.add_column("#", style="cyan", justify="right")
+            table.add_column("out_ir", style="white")
+            table.add_column("mode", style="green")
+            table.add_column("length_s", justify="right")
+            table.add_column("rt60", justify="right")
+            table.add_column("cache_hit", justify="right")
+            for row in rows:
+                table.add_row(
+                    row["index"],
+                    row["out_ir"],
+                    row["mode"],
+                    row["length_s"],
+                    row["rt60"],
+                    row["cache_hit"],
+                )
+            console.print(table)
+        return
 
     try:
         audio, out_sr, meta, cache_path, cache_hit = generate_or_load_cached_ir(
@@ -664,27 +755,126 @@ def ir_process(
     peak_dbfs: float = typer.Option(-1.0, "--peak-dbfs"),
     target_lufs: float | None = typer.Option(None, "--target-lufs"),
     true_peak: bool = typer.Option(True, "--true-peak/--sample-peak"),
+    lucky: int | None = typer.Option(
+        None,
+        "--lucky",
+        min=1,
+        max=500,
+        help=(
+            "Generate N randomized processed IR files from one input IR. "
+            "Outputs are written to --lucky-out-dir (or OUT_IR parent by default)."
+        ),
+    ),
+    lucky_out_dir: Path | None = typer.Option(
+        None,
+        "--lucky-out-dir",
+        resolve_path=True,
+        help="Output directory used when --lucky is enabled.",
+    ),
+    lucky_seed: int | None = typer.Option(
+        None,
+        "--lucky-seed",
+        help="Optional deterministic seed for --lucky IR processing.",
+    ),
     silent: bool = typer.Option(False, "--silent"),
 ) -> None:
     """Process an existing IR through shaping/targeting chain."""
     _validate_ir_process_call(in_ir, out_ir)
+    _validate_generic_lucky_call(lucky, lucky_out_dir)
     try:
         audio, sr = sf.read(str(in_ir), always_2d=True, dtype="float32")
-        processed = apply_ir_shaping(
-            np.asarray(audio, dtype=np.float32),
-            sr=int(sr),
-            damping=damping,
-            lowcut=lowcut,
-            highcut=highcut,
-            tilt=tilt,
-            normalize=normalize,
-            peak_dbfs=peak_dbfs,
-            target_lufs=target_lufs,
-            use_true_peak=true_peak,
-        )
+        base_audio = np.asarray(audio, dtype=np.float32)
+        sr_i = int(sr)
+        if lucky is None:
+            processed = apply_ir_shaping(
+                base_audio,
+                sr=sr_i,
+                damping=damping,
+                lowcut=lowcut,
+                highcut=highcut,
+                tilt=tilt,
+                normalize=normalize,
+                peak_dbfs=peak_dbfs,
+                target_lufs=target_lufs,
+                use_true_peak=true_peak,
+            )
 
-        meta = {"source": str(in_ir), "metrics": analyze_ir(processed, int(sr))}
-        write_ir_artifacts(out_ir, processed, int(sr), meta, silent=silent)
+            meta = {"source": str(in_ir), "metrics": analyze_ir(processed, sr_i)}
+            write_ir_artifacts(out_ir, processed, sr_i, meta, silent=silent)
+            return
+
+        out_dir = out_ir.parent if lucky_out_dir is None else lucky_out_dir
+        out_dir.mkdir(parents=True, exist_ok=True)
+        seed_value = _resolve_lucky_seed(lucky_seed)
+
+        rows: list[dict[str, str]] = []
+        for idx in range(lucky):
+            rng = np.random.default_rng(seed_value + idx)
+            cfg = _build_lucky_ir_process_config(
+                damping=damping,
+                lowcut=lowcut,
+                highcut=highcut,
+                tilt=tilt,
+                normalize=normalize,
+                peak_dbfs=peak_dbfs,
+                target_lufs=target_lufs,
+                true_peak=true_peak,
+                rng=rng,
+                sr=sr_i,
+            )
+            lucky_out = out_dir / f"{out_ir.stem}.lucky_{idx + 1:03d}{out_ir.suffix}"
+            processed = apply_ir_shaping(
+                base_audio,
+                sr=sr_i,
+                damping=cfg["damping"],
+                lowcut=cfg["lowcut"],
+                highcut=cfg["highcut"],
+                tilt=cfg["tilt"],
+                normalize=cfg["normalize"],
+                peak_dbfs=cfg["peak_dbfs"],
+                target_lufs=cfg["target_lufs"],
+                use_true_peak=cfg["true_peak"],
+            )
+
+            meta = {
+                "source": str(in_ir),
+                "lucky": {"index": idx + 1, **cfg},
+                "metrics": analyze_ir(processed, sr_i),
+            }
+            write_ir_artifacts(lucky_out, processed, sr_i, meta, silent=silent)
+            rows.append(
+                {
+                    "index": str(idx + 1),
+                    "out_ir": str(lucky_out),
+                    "normalize": cfg["normalize"],
+                    "tilt": f"{float(cfg['tilt']):.2f}",
+                    "damping": f"{float(cfg['damping']):.2f}",
+                    "target_lufs": (
+                        f"{float(cfg['target_lufs']):.2f}"
+                        if cfg["target_lufs"] is not None
+                        else "none"
+                    ),
+                }
+            )
+
+        if not silent:
+            table = Table(title=f"Lucky IR Process Batch ({lucky} outputs)")
+            table.add_column("#", style="cyan", justify="right")
+            table.add_column("out_ir", style="white")
+            table.add_column("normalize", style="green")
+            table.add_column("tilt", justify="right")
+            table.add_column("damping", justify="right")
+            table.add_column("target_lufs", justify="right")
+            for row in rows:
+                table.add_row(
+                    row["index"],
+                    row["out_ir"],
+                    row["normalize"],
+                    row["tilt"],
+                    row["damping"],
+                    row["target_lufs"],
+                )
+            console.print(table)
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -867,8 +1057,30 @@ def batch_render(
     retries: int = typer.Option(0, "--retries", min=0),
     continue_on_error: bool = typer.Option(False, "--continue-on-error/--fail-fast"),
     dry_run: bool = typer.Option(False, "--dry-run"),
+    lucky: int | None = typer.Option(
+        None,
+        "--lucky",
+        min=1,
+        max=500,
+        help=(
+            "For each manifest job, generate N wild random render variants. "
+            "Outputs are written to --lucky-out-dir (or each job OUTFILE parent by default)."
+        ),
+    ),
+    lucky_out_dir: Path | None = typer.Option(
+        None,
+        "--lucky-out-dir",
+        resolve_path=True,
+        help="Output directory used when --lucky is enabled.",
+    ),
+    lucky_seed: int | None = typer.Option(
+        None,
+        "--lucky-seed",
+        help="Optional deterministic seed for --lucky batch generation.",
+    ),
 ) -> None:
     """Render jobs from manifest.json."""
+    _validate_generic_lucky_call(lucky, lucky_out_dir)
     try:
         payload = json.loads(manifest.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -882,6 +1094,8 @@ def batch_render(
         raise typer.BadParameter("jobs must be a list")
 
     prepared_jobs: list[BatchJobSpec] = []
+    prepared_index = 1
+    lucky_seed_value = _resolve_lucky_seed(lucky_seed) if lucky is not None else 0
 
     for idx, job in enumerate(job_list, start=1):
         if not isinstance(job, dict):
@@ -898,15 +1112,54 @@ def batch_render(
             msg = f"jobs[{idx - 1}] has invalid options: {exc}"
             raise typer.BadParameter(msg) from exc
         _validate_batch_job_paths(infile, outfile, idx)
-        prepared_jobs.append(
-            BatchJobSpec(
-                index=idx,
-                infile=infile,
-                outfile=outfile,
-                config=render_config,
-                estimated_cost=estimate_job_cost(infile, render_config),
+        if lucky is None:
+            prepared_jobs.append(
+                BatchJobSpec(
+                    index=prepared_index,
+                    infile=infile,
+                    outfile=outfile,
+                    config=render_config,
+                    estimated_cost=estimate_job_cost(infile, render_config),
+                )
             )
-        )
+            prepared_index += 1
+            continue
+
+        try:
+            info = sf.info(str(infile))
+            duration_seconds = (
+                float(info.frames) / float(info.samplerate) if info.samplerate > 0 else 0.0
+            )
+        except (RuntimeError, TypeError, ValueError) as exc:
+            msg = f"jobs[{idx - 1}] failed to inspect infile: {exc}"
+            raise typer.BadParameter(msg) from exc
+
+        out_dir = outfile.parent if lucky_out_dir is None else lucky_out_dir
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for variant_idx in range(lucky):
+            rng = np.random.default_rng(lucky_seed_value + ((idx - 1) * lucky) + variant_idx)
+            lucky_config = _build_lucky_config(
+                base=render_config,
+                rng=rng,
+                input_duration_seconds=duration_seconds,
+            )
+            lucky_config.progress = False
+            lucky_config.analysis_out = None
+            lucky_config.frames_out = None
+            lucky_out = out_dir / f"{outfile.stem}.lucky_{variant_idx + 1:03d}{outfile.suffix}"
+            prepared_jobs.append(
+                BatchJobSpec(
+                    index=prepared_index,
+                    infile=infile,
+                    outfile=lucky_out,
+                    config=lucky_config,
+                    estimated_cost=estimate_job_cost(infile, lucky_config),
+                )
+            )
+            prepared_index += 1
+
+    if not prepared_jobs:
+        raise typer.BadParameter("Manifest has no jobs to render")
 
     if dry_run:
         ordered = order_jobs(prepared_jobs, schedule)
@@ -1200,6 +1453,133 @@ def _build_lucky_config(
     return cfg
 
 
+def _build_lucky_ir_gen_config(
+    base: IRGenConfig,
+    rng: np.random.Generator,
+) -> IRGenConfig:
+    """Build one randomized IR generation config for ``ir gen --lucky``."""
+    cfg = IRGenConfig(**asdict(base))
+
+    cfg.mode = cast(
+        IRMode,
+        rng.choice(np.array(["hybrid", "fdn", "stochastic", "modal"], dtype=object)),
+    )
+    cfg.seed = int(rng.integers(0, 2_147_483_647))
+    cfg.length = float(np.clip(base.length * rng.uniform(0.5, 2.5), 0.1, 120.0))
+    cfg.rt60 = float(np.clip((base.rt60 or 12.0) * rng.uniform(0.4, 2.5), 0.1, 180.0))
+    cfg.rt60_low = None
+    cfg.rt60_high = None
+
+    cfg.damping = float(rng.uniform(0.0, 1.0))
+    cfg.diffusion = float(rng.uniform(0.05, 1.0))
+    cfg.density = float(rng.uniform(0.1, 2.2))
+    cfg.mod_depth_ms = float(rng.uniform(0.0, 18.0))
+    cfg.mod_rate_hz = float(rng.uniform(0.02, 1.2))
+
+    cfg.lowcut = float(rng.uniform(20.0, 500.0)) if rng.random() < 0.6 else None
+    if rng.random() < 0.8:
+        min_high = (cfg.lowcut + 300.0) if cfg.lowcut is not None else 800.0
+        cfg.highcut = float(rng.uniform(min_high, (cfg.sr * 0.48)))
+    else:
+        cfg.highcut = None
+    cfg.tilt = float(rng.uniform(-8.0, 8.0))
+
+    cfg.normalize = cast(
+        Literal["none", "peak", "rms"],
+        rng.choice(np.array(["none", "peak", "rms"], dtype=object)),
+    )
+    cfg.peak_dbfs = float(rng.uniform(-12.0, -0.5))
+    cfg.target_lufs = float(rng.uniform(-32.0, -12.0)) if rng.random() < 0.45 else None
+    cfg.true_peak = bool(rng.random() < 0.7)
+
+    cfg.er_count = int(rng.integers(0, 96))
+    cfg.er_max_delay_ms = float(rng.uniform(5.0, 180.0))
+    cfg.er_decay_shape = cast(str, rng.choice(np.array(["exp", "linear", "sqrt"], dtype=object)))
+    cfg.er_stereo_width = float(rng.uniform(0.0, 2.0))
+    cfg.er_room = float(rng.uniform(0.1, 3.0))
+
+    cfg.modal_count = int(rng.integers(8, 128))
+    cfg.modal_q_min = float(rng.uniform(0.8, 20.0))
+    cfg.modal_q_max = float(rng.uniform(max(cfg.modal_q_min + 0.5, 5.0), 120.0))
+    cfg.modal_spread_cents = float(rng.uniform(0.0, 40.0))
+    cfg.modal_low_hz = float(rng.uniform(30.0, 400.0))
+    cfg.modal_high_hz = float(rng.uniform(max(cfg.modal_low_hz + 200.0, 1200.0), cfg.sr * 0.48))
+
+    cfg.fdn_lines = int(rng.choice(np.array([4, 6, 8, 10, 12, 16], dtype=np.int32)))
+    cfg.fdn_matrix = cast(
+        str,
+        rng.choice(np.array(["hadamard", "householder", "random_orthogonal"], dtype=object)),
+    )
+    cfg.fdn_stereo_inject = float(rng.uniform(0.0, 1.0))
+
+    cfg.harmonic_align_strength = float(rng.uniform(0.0, 1.0))
+    cfg.resonator = bool(rng.random() < 0.45)
+    cfg.resonator_mix = float(rng.uniform(0.0, 0.95))
+    cfg.resonator_modes = int(rng.integers(8, 80))
+    cfg.resonator_q_min = float(rng.uniform(0.8, 24.0))
+    cfg.resonator_q_max = float(rng.uniform(max(cfg.resonator_q_min + 0.5, 6.0), 140.0))
+    cfg.resonator_low_hz = float(rng.uniform(20.0, 250.0))
+    cfg.resonator_high_hz = float(
+        rng.uniform(max(cfg.resonator_low_hz + 500.0, 1500.0), cfg.sr * 0.48)
+    )
+    cfg.resonator_late_start_ms = float(rng.uniform(0.0, 400.0))
+    return cfg
+
+
+def _build_lucky_ir_process_config(
+    *,
+    damping: float,
+    lowcut: float | None,
+    highcut: float | None,
+    tilt: float,
+    normalize: Literal["none", "peak", "rms"],
+    peak_dbfs: float,
+    target_lufs: float | None,
+    true_peak: bool,
+    rng: np.random.Generator,
+    sr: int,
+) -> LuckyIRProcessConfig:
+    """Build one randomized shaping config for ``ir process --lucky``."""
+    lucky_lowcut = lowcut if lowcut is not None else float(rng.uniform(20.0, 500.0))
+    lucky_lowcut = float(np.clip(lucky_lowcut * rng.uniform(0.5, 2.0), 20.0, sr * 0.45))
+
+    if highcut is None:
+        min_high = min(sr * 0.48, lucky_lowcut + 100.0)
+        lucky_highcut = float(rng.uniform(max(min_high, 400.0), sr * 0.49))
+    else:
+        lucky_highcut = float(np.clip(highcut * rng.uniform(0.5, 1.7), 200.0, sr * 0.49))
+    if lucky_highcut <= lucky_lowcut:
+        lucky_highcut = min(sr * 0.49, lucky_lowcut + 200.0)
+
+    modes = np.array(["none", "peak", "rms"], dtype=object)
+    normalize_mode = (
+        cast(Literal["none", "peak", "rms"], rng.choice(modes))
+        if rng.random() < 0.85
+        else normalize
+    )
+    return {
+        "damping": float(np.clip(damping * rng.uniform(0.4, 2.2), 0.0, 1.0)),
+        "lowcut": lucky_lowcut if rng.random() < 0.8 else None,
+        "highcut": lucky_highcut if rng.random() < 0.9 else None,
+        "tilt": float(np.clip(tilt + rng.uniform(-6.0, 6.0), -12.0, 12.0)),
+        "normalize": normalize_mode,
+        "peak_dbfs": float(np.clip(peak_dbfs + rng.uniform(-8.0, 2.0), -18.0, -0.1)),
+        "target_lufs": (
+            float(np.clip((target_lufs or -22.0) + rng.uniform(-10.0, 10.0), -36.0, -8.0))
+            if rng.random() < 0.6
+            else None
+        ),
+        "true_peak": bool(rng.random() < 0.7 if true_peak else rng.random() < 0.4),
+    }
+
+
+def _resolve_lucky_seed(lucky_seed: int | None) -> int:
+    """Resolve deterministic seed for lucky-mode batches."""
+    if lucky_seed is not None:
+        return int(lucky_seed)
+    return int(np.random.default_rng().integers(0, 2_147_483_647))
+
+
 def _resolve_ir_output_path(out_ir: Path, out_format: IRFileFormat) -> Path:
     """Resolve output IR path based on explicit format switch."""
     if out_format == "auto":
@@ -1215,6 +1595,17 @@ def _validate_lucky_call(
     lucky_out_dir: Path | None,
 ) -> None:
     """Validate lucky-mode options for randomized batch rendering."""
+    _validate_generic_lucky_call(lucky, lucky_out_dir)
+    if config.analysis_out is not None:
+        msg = "Do not use --analysis-out with --lucky (analysis files are per-output by default)."
+        raise typer.BadParameter(msg)
+    if config.frames_out is not None:
+        msg = "Do not use --frames-out with --lucky."
+        raise typer.BadParameter(msg)
+
+
+def _validate_generic_lucky_call(lucky: int | None, lucky_out_dir: Path | None) -> None:
+    """Validate generic lucky-mode options shared by multiple commands."""
     if lucky is None:
         return
     if lucky < 1:
@@ -1222,12 +1613,6 @@ def _validate_lucky_call(
         raise typer.BadParameter(msg)
     if lucky_out_dir is not None and lucky_out_dir.exists() and not lucky_out_dir.is_dir():
         msg = f"--lucky-out-dir is not a directory: {lucky_out_dir}"
-        raise typer.BadParameter(msg)
-    if config.analysis_out is not None:
-        msg = "Do not use --analysis-out with --lucky (analysis files are per-output by default)."
-        raise typer.BadParameter(msg)
-    if config.frames_out is not None:
-        msg = "Do not use --frames-out with --lucky."
         raise typer.BadParameter(msg)
 
 

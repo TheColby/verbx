@@ -348,6 +348,75 @@ def test_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
         assert analysis_path.exists()
 
 
+def test_ir_gen_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
+    out_ir = tmp_path / "gen_base.wav"
+    out_dir = tmp_path / "gen_lucky"
+
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "hybrid",
+            "--length",
+            "1.0",
+            "--sr",
+            "12000",
+            "--channels",
+            "1",
+            "--lucky",
+            "3",
+            "--lucky-out-dir",
+            str(out_dir),
+            "--lucky-seed",
+            "123",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    outputs = sorted(out_dir.glob("gen_base.lucky_*.wav"))
+    assert len(outputs) == 3
+    for path in outputs:
+        assert path.exists()
+        assert Path(f"{path}.ir.meta.json").exists()
+
+
+def test_ir_process_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
+    sr = 12_000
+    in_ir = tmp_path / "in_ir.wav"
+    out_ir = tmp_path / "proc_base.wav"
+    out_dir = tmp_path / "proc_lucky"
+    ir_audio = np.zeros((2048, 1), dtype=np.float32)
+    ir_audio[0, 0] = 1.0
+    ir_audio[100, 0] = 0.25
+    sf.write(str(in_ir), ir_audio, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "process",
+            str(in_ir),
+            str(out_ir),
+            "--lucky",
+            "2",
+            "--lucky-out-dir",
+            str(out_dir),
+            "--lucky-seed",
+            "555",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    outputs = sorted(out_dir.glob("proc_base.lucky_*.wav"))
+    assert len(outputs) == 2
+    for path in outputs:
+        assert path.exists()
+        assert Path(f"{path}.ir.meta.json").exists()
+
+
 def test_batch_render_parallel_jobs(tmp_path: Path) -> None:
     sr = 16_000
     irfile = tmp_path / "ir.wav"
@@ -394,6 +463,53 @@ def test_batch_render_parallel_jobs(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
     assert out1.exists()
     assert out2.exists()
+
+
+def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    out_dir = tmp_path / "batch_lucky"
+    source = np.zeros((2048, 1), dtype=np.float32)
+    source[0, 0] = 0.5
+    sf.write(str(infile), source, sr)
+
+    manifest = tmp_path / "manifest_lucky.json"
+    payload = {
+        "version": "0.4",
+        "jobs": [
+            {
+                "infile": str(infile),
+                "outfile": str(outfile),
+                "options": {
+                    "engine": "algo",
+                    "rt60": 1.5,
+                    "repeat": 1,
+                    "progress": False,
+                },
+            }
+        ],
+    }
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            "render",
+            str(manifest),
+            "--jobs",
+            "1",
+            "--lucky",
+            "2",
+            "--lucky-out-dir",
+            str(out_dir),
+            "--lucky-seed",
+            "101",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert len(sorted(out_dir.glob("out.lucky_*.wav"))) == 2
 
 
 def test_render_validation_errors(tmp_path: Path) -> None:

@@ -866,7 +866,7 @@ Performance notes:
 
 ### 7.25 Lucky mode (`--lucky N`) for wild random batches
 
-Use this to generate multiple completely wild randomized renders from one input file.
+Use this to generate multiple completely wild randomized outputs from one base command.
 
 ```bash
 verbx render in.wav out/lucky.wav \
@@ -879,9 +879,10 @@ verbx render in.wav out/lucky.wav \
 Notes:
 
 - `--lucky N` controls how many output files are created.
-- Output files are written to `--lucky-out-dir` (or `OUTFILE`'s parent folder if omitted).
+- Output files are written to `--lucky-out-dir` (or the command's output parent folder if omitted).
 - Each run randomizes engine choice and many processing parameters for extreme variation.
 - Use `--lucky-seed` for deterministic/repeatable random sets.
+- Supported processing workflows: `render`, `ir gen`, `ir process`, and `batch render`.
 
 ## 8.0 New User Guide
 
@@ -1352,6 +1353,9 @@ No command-specific switches (other than `--help`).
 | Switch | What it controls | Practical guidance |
 |---|---|---|
 | `--cache-dir` | Directory for deterministic IR cache artifacts. | Keep stable across sessions to maximize cache hits. |
+| `--lucky` | Generates N randomized IR files from one base IR-generation setup. | Use with `--lucky-out-dir` to build audition sets quickly. |
+| `--lucky-out-dir` | Output directory for lucky IR-generation batches. | Keep batch outputs grouped for easy listening/review. |
+| `--lucky-seed` | Deterministic seed for lucky IR-generation randomization. | Fix seed to reproduce a previous lucky batch exactly. |
 | `--silent` | Suppresses metadata sidecar emission and command output details. | Use in scripted generation runs where only IR file output is needed. |
 
 ### 12.7 `verbx ir analyze IR_FILE` switches
@@ -1372,6 +1376,9 @@ No command-specific switches (other than `--help`).
 | `--peak-dbfs` | Target peak value used by peak normalization. | Keep below 0 dBFS to preserve headroom. |
 | `--target-lufs` | Optional loudness target for processed IR. | Use when standardizing IR set loudness characteristics. |
 | `--true-peak / --sample-peak` | Peak measurement method for limiting/targeting. | `true-peak` is preferred for conservative peak control. |
+| `--lucky` | Generates N randomized processed IR files from one input IR. | Great for fast sound-design sweeps from a single source IR. |
+| `--lucky-out-dir` | Output directory for lucky IR-processing batches. | Route to a dedicated folder for iterative comparison. |
+| `--lucky-seed` | Deterministic seed for lucky IR-processing randomization. | Reuse seed values when you need reproducible wild sets. |
 | `--silent` | Suppresses sidecar metadata and command summary output. | Good for quiet pipeline execution. |
 
 ### 12.9 `verbx ir fit INFILE OUT_IR` switches
@@ -1412,6 +1419,9 @@ No command-specific switches (other than `--help`).
 | `--retries` | Retry count per failed job. | Use `1-2` for transient I/O or resource hiccups. |
 | `--continue-on-error / --fail-fast` | Whether to continue processing after a failure. | Use fail-fast for strict pipelines; continue-on-error for large best-effort batches. |
 | `--dry-run` | Validates and prints plan without rendering audio. | Recommended before long multi-job runs. |
+| `--lucky` | For each manifest job, generates N randomized render variants. | Use when exploring wide parameter spaces from a fixed manifest set. |
+| `--lucky-out-dir` | Shared output directory for batch lucky renders. | Helpful for collecting all randomized outputs in one place. |
+| `--lucky-seed` | Deterministic seed for batch lucky randomization. | Keep fixed to regenerate the same lucky batch expansion. |
 
 ## 13.0 CLI Command Cookbook
 
