@@ -64,3 +64,11 @@ DEFAULT_PRESETS: dict[str, dict[str, float | int | bool | str]] = {
 def preset_names() -> list[str]:
     """Return sorted preset names for CLI display."""
     return sorted(DEFAULT_PRESETS)
+
+
+def get_preset(name: str) -> dict[str, float | int | bool | str] | None:
+    return DEFAULT_PRESETS.get(name)
+
+
+def list_presets() -> list[str]:
+    return list(DEFAULT_PRESETS.keys())
