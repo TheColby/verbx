@@ -18,7 +18,7 @@ results.
 
 ## 1.0 Table of Contents
 
-- [2.0 What is Reverberation? (a/k/a Reverb)?](#20-what-is-reverberation-aka-reverb)
+- [2.0 What is Reverberation (a/k/a Reverb)?](#20-what-is-reverberation-aka-reverb)
   - [2.1 Quick Reference Summary (from Wikipedia)](#21-quick-reference-summary-from-wikipedia)
   - [2.2 Reverb Timeline (Single Hit)](#22-reverb-timeline-single-hit)
     - [2.2.1 Labeled Envelope Graph (Amplitude vs Time)](#221-labeled-envelope-graph-amplitude-vs-time)
