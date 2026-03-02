@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 1050" role="img" aria-labelledby="title desc">
+  <title id="title">Algorithmic FDN Topology (verbx)</title>
+  <desc id="desc">Block diagram of the algorithmic reverb topology: input, pre-delay, Schroeder allpass diffusion, 8-line FDN with Hadamard feedback matrix, wet and dry mix, and output.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f7faff"/>
+      <stop offset="100%" stop-color="#eef4fd"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#2a3d59"/>
+    </marker>
+    <style>
+      .panel { fill: #ffffff; stroke: #d4e1f5; stroke-width: 2; }
+      .box { fill: #fbfdff; stroke: #6f87ab; stroke-width: 2.2; rx: 14; }
+      .box-core { fill: #f3f8ff; stroke: #5b77a3; stroke-width: 2.4; rx: 16; }
+      .line { stroke: #2a3d59; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .line-thin { stroke: #59749a; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .loop { stroke: #6e86aa; stroke-width: 2.3; stroke-dasharray: 8 7; fill: none; marker-end: url(#arrow); }
+      .title { fill: #13243f; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 36px; font-weight: 700; }
+      .subtitle { fill: #2e4468; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 600; }
+      .label { fill: #1d2f4b; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 24px; font-weight: 700; }
+      .small { fill: #344e74; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 19px; }
+      .core-label { fill: #132747; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 20px; font-weight: 700; }
+      .delay { fill: #ffffff; stroke: #6a84ab; stroke-width: 1.9; rx: 10; }
+      .delay-text { fill: #1f3657; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 600; }
+      .legend { fill: #f6f9ff; stroke: #d8e5f8; stroke-width: 2; rx: 12; }
+      .legend-text { fill: #273f63; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1900" height="1050" fill="url(#bg)"/>
+  <rect class="panel" x="56" y="96" width="1790" height="900" rx="18"/>
+
+  <text class="title" x="92" y="154">Supported Algorithmic FDN Topology (Current Render Engine)</text>
+  <text class="subtitle" x="92" y="192">Per-channel chain in <tspan font-family="Menlo, Consolas, monospace">AlgoReverbEngine</tspan>: pre-delay -> diffusion -> 8-line FDN (Hadamard feedback)</text>
+
+  <rect class="box" x="95" y="290" width="190" height="90" rx="14"/>
+  <text class="label" x="190" y="345" text-anchor="middle">Input</text>
+
+  <rect class="box" x="360" y="290" width="220" height="90" rx="14"/>
+  <text class="label" x="470" y="336" text-anchor="middle">Pre-delay</text>
+  <text class="small" x="470" y="362" text-anchor="middle">(<tspan font-family="Menlo, Consolas, monospace">--pre-delay-ms</tspan>)</text>
+
+  <rect class="box" x="660" y="290" width="230" height="90" rx="14"/>
+  <text class="label" x="775" y="336" text-anchor="middle">Diffusion</text>
+  <text class="small" x="775" y="362" text-anchor="middle">6 Schroeder allpass stages</text>
+
+  <rect class="box-core" x="955" y="230" width="720" height="340" rx="16"/>
+  <text class="label" x="1315" y="275" text-anchor="middle">FDN Late Reverb Core</text>
+
+  <rect class="delay" x="1030" y="300" width="120" height="52" rx="10"/>
+  <text class="delay-text" x="1090" y="333" text-anchor="middle">Delay 1</text>
+  <rect class="delay" x="1205" y="300" width="120" height="52" rx="10"/>
+  <text class="delay-text" x="1265" y="333" text-anchor="middle">Delay 2</text>
+  <rect class="delay" x="1380" y="300" width="120" height="52" rx="10"/>
+  <text class="delay-text" x="1440" y="333" text-anchor="middle">Delay 3</text>
+  <rect class="delay" x="1555" y="300" width="100" height="52" rx="10"/>
+  <text class="delay-text" x="1605" y="333" text-anchor="middle">D4</text>
+
+  <rect class="delay" x="1030" y="445" width="120" height="52" rx="10"/>
+  <text class="delay-text" x="1090" y="478" text-anchor="middle">Delay 8</text>
+  <rect class="delay" x="1205" y="445" width="120" height="52" rx="10"/>
+  <text class="delay-text" x="1265" y="478" text-anchor="middle">Delay 7</text>
+  <rect class="delay" x="1380" y="445" width="120" height="52" rx="10"/>
+  <text class="delay-text" x="1440" y="478" text-anchor="middle">Delay 6</text>
+  <rect class="delay" x="1555" y="445" width="100" height="52" rx="10"/>
+  <text class="delay-text" x="1605" y="478" text-anchor="middle">D5</text>
+
+  <rect class="box" x="1242" y="360" width="170" height="74" rx="12"/>
+  <text class="core-label" x="1327" y="389" text-anchor="middle">Hadamard</text>
+  <text class="core-label" x="1327" y="414" text-anchor="middle">Feedback Mix</text>
+
+  <path class="loop" d="M1090,352 C1088,390 1114,427 1205,445"/>
+  <path class="loop" d="M1265,352 C1265,390 1265,418 1265,445"/>
+  <path class="loop" d="M1440,352 C1440,390 1440,418 1440,445"/>
+  <path class="loop" d="M1605,352 C1624,384 1624,430 1605,445"/>
+  <path class="line-thin" d="M1327,434 L1327,468"/>
+  <path class="line-thin" d="M1327,360 L1327,338"/>
+
+  <text class="small" x="1085" y="536">Per-line loop internals: RT60-calibrated gain + one-pole damping + DC block + subtle delay modulation</text>
+
+  <rect class="box" x="955" y="650" width="230" height="92" rx="14"/>
+  <text class="label" x="1070" y="700" text-anchor="middle">Wet Output</text>
+  <text class="small" x="1070" y="727" text-anchor="middle">mean of FDN line outputs</text>
+
+  <rect class="box" x="955" y="790" width="230" height="92" rx="14"/>
+  <text class="label" x="1070" y="841" text-anchor="middle">Dry Tap</text>
+
+  <rect class="box" x="1270" y="720" width="210" height="102" rx="14"/>
+  <text class="label" x="1375" y="768" text-anchor="middle">Wet / Dry Mix</text>
+  <text class="small" x="1375" y="797" text-anchor="middle">(+ optional stereo width / shimmer)</text>
+
+  <rect class="box" x="1555" y="726" width="200" height="90" rx="14"/>
+  <text class="label" x="1655" y="780" text-anchor="middle">Output</text>
+
+  <path class="line" d="M285,335 L360,335"/>
+  <path class="line" d="M580,335 L660,335"/>
+  <path class="line" d="M890,335 L955,335"/>
+  <path class="line" d="M1070,570 L1070,650"/>
+  <path class="line" d="M190,380 L190,836 L955,836"/>
+  <path class="line" d="M1185,696 L1270,769"/>
+  <path class="line" d="M1185,836 L1270,769"/>
+  <path class="line" d="M1480,769 L1555,769"/>
+
+  <rect class="legend" x="92" y="908" width="1715" height="64" rx="12"/>
+  <text class="legend-text" x="120" y="948">
+    Supported today: fixed 8-line FDN with Hadamard feedback in render path; stable long-RT60 behavior via per-line gain calibration and loop damping safeguards.
+  </text>
+</svg>

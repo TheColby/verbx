@@ -75,6 +75,9 @@ results.
 - [9.0 DSP Math Notes](#90-dsp-math-notes)
   - [9.1 RT60 to Feedback Gain (FDN)](#91-rt60-to-feedback-gain-fdn)
   - [9.2 FDN State Update](#92-fdn-state-update)
+    - [9.2.1 Supported FDN Topologies (Graphs)](#921-supported-fdn-topologies-graphs)
+      - [9.2.1.1 Algorithmic Render Topology](#9211-algorithmic-render-topology)
+      - [9.2.1.2 IR FDN Variant Topologies](#9212-ir-fdn-variant-topologies)
   - [9.3 Partitioned FFT Convolution](#93-partitioned-fft-convolution)
   - [9.4 Multichannel Matrix Convolution](#94-multichannel-matrix-convolution)
   - [9.5 Freeze Crossfade (Equal Power)](#95-freeze-crossfade-equal-power)
@@ -962,6 +965,29 @@ $$
 - $\mathbf{G}$: diagonal feedback gains (RT60-calibrated)
 - $\mathbf{D}$: damping / DC filtering
 - $\mathbf{u}[n]$: injected input (after pre-delay and diffusion)
+
+#### 9.2.1 Supported FDN Topologies (Graphs)
+
+These graphs show the currently implemented FDN structures in `verbx`.
+
+##### 9.2.1.1 Algorithmic Render Topology
+
+![Algorithmic FDN topology graph](docs/assets/fdn_topology_algorithmic.svg)
+
+Implementation note:
+
+- The render-time algorithmic engine uses a fixed per-channel topology:
+  pre-delay -> 6 allpass diffusion stages -> 8-line FDN with Hadamard feedback -> wet/dry mix.
+
+##### 9.2.1.2 IR FDN Variant Topologies
+
+![Supported FDN variant graph](docs/assets/fdn_topology_variants.svg)
+
+Implementation note:
+
+- `ir gen --mode fdn` uses the shared FDN8 core.
+- `--fdn-matrix householder` and `--fdn-matrix random_orthogonal` add a multichannel output-space decorrelation matrix when channels > 1.
+- `--fdn-lines` is currently reserved for future topology expansion.
 
 ### 9.3 Partitioned FFT Convolution
 
