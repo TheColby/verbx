@@ -138,6 +138,14 @@ def test_render_allpass_gain_count_mismatch_rejected(tmp_path: Path) -> None:
     assert "exactly 4 entries" in result.output
 
 
+def test_presets_list() -> None:
+    result = runner.invoke(app, ["presets"])
+    assert result.exit_code == 0
+    assert "Available Presets" in result.stdout
+    assert "cathedral_extreme" in result.stdout
+    assert "shimmer_wash" in result.stdout
+
+
 def test_analyze_lufs_mode(tmp_path: Path) -> None:
     audio = np.zeros((4096, 2), dtype=np.float32)
     audio[64:512, :] = 0.2
