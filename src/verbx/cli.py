@@ -23,6 +23,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from verbx import __version__
 from verbx.analysis.analyzer import AudioAnalyzer
 from verbx.analysis.framewise import write_framewise_csv
 from verbx.config import (
@@ -80,6 +81,7 @@ class LuckyIRProcessConfig(TypedDict):
     target_lufs: float | None
     true_peak: bool
 
+
 app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
@@ -95,6 +97,12 @@ app.add_typer(cache_app, name="cache")
 app.add_typer(batch_app, name="batch")
 
 console = Console()
+
+
+@app.command()
+def version() -> None:
+    """Print the CLI version."""
+    console.print(f"verbx v{__version__}")
 
 
 @app.command()
@@ -179,8 +187,7 @@ def render(
         None,
         "--allpass-delays-ms",
         help=(
-            "Optional comma-separated allpass delay list in milliseconds. "
-            "Example: 5,7,11,17,23,29"
+            "Optional comma-separated allpass delay list in milliseconds. Example: 5,7,11,17,23,29"
         ),
     ),
     comb_delays_ms: str | None = typer.Option(
@@ -1056,9 +1063,7 @@ def ir_fit(
     created: list[str] = []
     for rank, item in enumerate(selected, start=1):
         target_path = (
-            out_ir
-            if top_k == 1
-            else out_ir.with_name(f"{out_ir.stem}_{rank:02d}{out_ir.suffix}")
+            out_ir if top_k == 1 else out_ir.with_name(f"{out_ir.stem}_{rank:02d}{out_ir.suffix}")
         )
         meta = dict(item.meta)
         meta["fit"] = {

@@ -446,9 +446,8 @@ def _apply_beast_mode(config: RenderConfig, input_duration_seconds: float) -> Re
 
     if scaled.tail_limit is not None:
         scaled.tail_limit = max(0.0, scaled.tail_limit * factor)
-    elif (
-        scaled.engine in {"conv", "auto"}
-        and (scaled.ir is not None or scaled.ir_gen or scaled.self_convolve)
+    elif scaled.engine in {"conv", "auto"} and (
+        scaled.ir is not None or scaled.ir_gen or scaled.self_convolve
     ):
         baseline = max(1.0, input_duration_seconds * 0.5)
         scaled.tail_limit = baseline * factor
@@ -469,47 +468,55 @@ def _resolve_engine(config: RenderConfig, device: str) -> tuple[str, ReverbEngin
         if config.ir is None:
             msg = "Convolution engine requires --ir when --engine conv is selected"
             raise ValueError(msg)
-        return "conv", ConvolutionReverbEngine(
-            ConvolutionReverbConfig(
-                wet=config.wet,
-                dry=config.dry,
-                ir_path=config.ir,
-                ir_normalize=config.ir_normalize,
-                ir_matrix_layout=config.ir_matrix_layout,
-                partition_size=config.partition_size,
-                tail_limit=config.tail_limit,
-                threads=config.threads,
-                device=device,
-            )
-        ), device
+        return (
+            "conv",
+            ConvolutionReverbEngine(
+                ConvolutionReverbConfig(
+                    wet=config.wet,
+                    dry=config.dry,
+                    ir_path=config.ir,
+                    ir_normalize=config.ir_normalize,
+                    ir_matrix_layout=config.ir_matrix_layout,
+                    partition_size=config.partition_size,
+                    tail_limit=config.tail_limit,
+                    threads=config.threads,
+                    device=device,
+                )
+            ),
+            device,
+        )
 
     algo_device = device if device in {"cpu", "mps"} else "cpu"
-    return "algo", AlgoReverbEngine(
-        AlgoReverbConfig(
-            rt60=config.rt60,
-            pre_delay_ms=config.pre_delay_ms,
-            damping=config.damping,
-            width=config.width,
-            mod_depth_ms=config.mod_depth_ms,
-            mod_rate_hz=config.mod_rate_hz,
-            allpass_stages=config.allpass_stages,
-            allpass_gain=config.allpass_gain,
-            allpass_gains=config.allpass_gains,
-            allpass_delays_ms=config.allpass_delays_ms,
-            comb_delays_ms=config.comb_delays_ms,
-            fdn_lines=config.fdn_lines,
-            wet=config.wet,
-            dry=config.dry,
-            block_size=config.block_size,
-            shimmer=config.shimmer,
-            shimmer_semitones=config.shimmer_semitones,
-            shimmer_mix=config.shimmer_mix,
-            shimmer_feedback=config.shimmer_feedback,
-            shimmer_highcut=config.shimmer_highcut,
-            shimmer_lowcut=config.shimmer_lowcut,
-            device=algo_device,
-        )
-    ), algo_device
+    return (
+        "algo",
+        AlgoReverbEngine(
+            AlgoReverbConfig(
+                rt60=config.rt60,
+                pre_delay_ms=config.pre_delay_ms,
+                damping=config.damping,
+                width=config.width,
+                mod_depth_ms=config.mod_depth_ms,
+                mod_rate_hz=config.mod_rate_hz,
+                allpass_stages=config.allpass_stages,
+                allpass_gain=config.allpass_gain,
+                allpass_gains=config.allpass_gains,
+                allpass_delays_ms=config.allpass_delays_ms,
+                comb_delays_ms=config.comb_delays_ms,
+                fdn_lines=config.fdn_lines,
+                wet=config.wet,
+                dry=config.dry,
+                block_size=config.block_size,
+                shimmer=config.shimmer,
+                shimmer_semitones=config.shimmer_semitones,
+                shimmer_mix=config.shimmer_mix,
+                shimmer_feedback=config.shimmer_feedback,
+                shimmer_highcut=config.shimmer_highcut,
+                shimmer_lowcut=config.shimmer_lowcut,
+                device=algo_device,
+            )
+        ),
+        algo_device,
+    )
 
 
 def _resolve_analysis_path(outfile: Path, analysis_out: str | None) -> Path:
