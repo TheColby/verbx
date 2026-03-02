@@ -13,6 +13,8 @@ IRMatrixLayout = Literal["output-major", "input-major"]
 DeviceName = Literal["auto", "cpu", "cuda", "mps"]
 OutputSubtype = Literal["auto", "float32", "float64", "pcm16", "pcm24", "pcm32"]
 OutputPeakNorm = Literal["none", "input", "target", "full-scale"]
+ModTarget = Literal["none", "mix", "wet", "gain-db"]
+ModCombine = Literal["sum", "avg", "max"]
 
 
 @dataclass(slots=True)
@@ -30,6 +32,13 @@ class RenderConfig:
     width: float = 1.0
     mod_depth_ms: float = 2.0
     mod_rate_hz: float = 0.1
+    mod_target: ModTarget = "none"
+    mod_sources: tuple[str, ...] = ()
+    mod_routes: tuple[str, ...] = ()
+    mod_min: float = 0.0
+    mod_max: float = 1.0
+    mod_combine: ModCombine = "sum"
+    mod_smooth_ms: float = 20.0
     beast_mode: int = 1
     wet: float = 0.8
     dry: float = 0.2

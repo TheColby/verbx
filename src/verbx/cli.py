@@ -31,6 +31,8 @@ from verbx.config import (
     IRMatrixLayout,
     IRMode,
     IRNormalize,
+    ModCombine,
+    ModTarget,
     NormalizeStage,
     OutputPeakNorm,
     OutputSubtype,
@@ -44,6 +46,7 @@ from verbx.core.batch_scheduler import (
     order_jobs,
     run_parallel_batch,
 )
+from verbx.core.modulation import parse_mod_route_spec, parse_mod_sources
 from verbx.core.pipeline import run_render_pipeline
 from verbx.core.tempo import parse_pre_delay_ms
 from verbx.io.audio import read_audio, validate_audio_path
@@ -113,6 +116,50 @@ def render(
     width: float = typer.Option(1.0, "--width", min=0.0, max=2.0),
     mod_depth_ms: float = typer.Option(2.0, "--mod-depth-ms", min=0.0),
     mod_rate_hz: float = typer.Option(0.1, "--mod-rate-hz", min=0.0),
+    mod_target: ModTarget = typer.Option(
+        "none",
+        "--mod-target",
+        help="Dynamic parameter target: none, mix/wet, or gain-db.",
+    ),
+    mod_source: list[str] | None = typer.Option(
+        None,
+        "--mod-source",
+        help=(
+            "Repeatable modulation source spec. "
+            "Examples: lfo:sine:0.08:1.0*0.7, env:20:350, "
+            "audio-env:sidechain.wav:10:200, const:0.5."
+        ),
+    ),
+    mod_route: list[str] | None = typer.Option(
+        None,
+        "--mod-route",
+        help=(
+            "Repeatable advanced route: "
+            "<target>:<min>:<max>:<combine>:<smooth_ms>:<src1>,<src2>,... "
+            "(target: mix|wet|gain-db)."
+        ),
+    ),
+    mod_min: float = typer.Option(
+        0.0,
+        "--mod-min",
+        help="Minimum mapped value for the modulation target.",
+    ),
+    mod_max: float = typer.Option(
+        1.0,
+        "--mod-max",
+        help="Maximum mapped value for the modulation target.",
+    ),
+    mod_combine: ModCombine = typer.Option(
+        "sum",
+        "--mod-combine",
+        help="How multiple sources are combined: sum, avg, or max.",
+    ),
+    mod_smooth_ms: float = typer.Option(
+        20.0,
+        "--mod-smooth-ms",
+        min=0.0,
+        help="One-pole smoothing time for modulation control signals.",
+    ),
     beast_mode: int = typer.Option(
         1,
         "--beast-mode",
@@ -224,6 +271,13 @@ def render(
         width=width,
         mod_depth_ms=mod_depth_ms,
         mod_rate_hz=mod_rate_hz,
+        mod_target=mod_target,
+        mod_sources=tuple(mod_source or []),
+        mod_routes=tuple(mod_route or []),
+        mod_min=mod_min,
+        mod_max=mod_max,
+        mod_combine=mod_combine,
+        mod_smooth_ms=mod_smooth_ms,
         beast_mode=beast_mode,
         wet=wet,
         dry=dry,
@@ -1312,6 +1366,21 @@ def _print_render_summary(report: dict[str, Any]) -> None:
         "output_peak_target_dbfs",
         str(report.get("effective", {}).get("output_peak_target_dbfs", "")),
     )
+    table.add_row("mod_target", str(report.get("config", {}).get("mod_target", "none")))
+    mod_sources = report.get("config", {}).get("mod_sources", ())
+    mod_routes = report.get("config", {}).get("mod_routes", ())
+    if isinstance(mod_sources, list):
+        table.add_row("mod_sources", str(len(mod_sources)))
+    elif isinstance(mod_sources, tuple):
+        table.add_row("mod_sources", str(len(mod_sources)))
+    else:
+        table.add_row("mod_sources", "0")
+    if isinstance(mod_routes, list):
+        table.add_row("mod_routes", str(len(mod_routes)))
+    elif isinstance(mod_routes, tuple):
+        table.add_row("mod_routes", str(len(mod_routes)))
+    else:
+        table.add_row("mod_routes", "0")
     table.add_row("streaming_mode", str(report.get("effective", {}).get("streaming_mode", "")))
     config_report = report.get("config", {})
     if isinstance(config_report, dict):
@@ -1670,6 +1739,33 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
     if config.ir_gen and config.ir is not None:
         msg = "Use either --ir or --ir-gen, not both."
         raise typer.BadParameter(msg)
+
+    if config.mod_min >= config.mod_max:
+        msg = "--mod-min must be less than --mod-max."
+        raise typer.BadParameter(msg)
+
+    if config.mod_target == "none" and len(config.mod_sources) > 0:
+        msg = "--mod-source requires --mod-target."
+        raise typer.BadParameter(msg)
+    if config.mod_target != "none" and len(config.mod_sources) == 0:
+        msg = "--mod-target requires at least one --mod-source."
+        raise typer.BadParameter(msg)
+
+    if config.mod_target in {"mix", "wet"}:
+        if config.mod_min < 0.0 or config.mod_max > 1.0:
+            msg = "For --mod-target mix/wet, use --mod-min/--mod-max in [0.0, 1.0]."
+            raise typer.BadParameter(msg)
+
+    try:
+        parse_mod_sources(config.mod_sources)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    for route_spec in config.mod_routes:
+        try:
+            parse_mod_route_spec(route_spec)
+        except ValueError as exc:
+            raise typer.BadParameter(f"invalid --mod-route '{route_spec}': {exc}") from exc
 
 
 def _validate_analyze_call(infile: Path, json_out: Path | None, frames_out: Path | None) -> None:

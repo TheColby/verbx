@@ -259,6 +259,97 @@ def test_render_self_convolve(tmp_path: Path) -> None:
     assert str(payload["effective"]["ir_used"]).endswith("self_in.wav")
 
 
+def test_render_modulation_multi_source(tmp_path: Path) -> None:
+    sr = 24_000
+    n = 4096
+    t = np.arange(n, dtype=np.float32) / np.float32(sr)
+    audio = (0.35 * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float32)[:, np.newaxis]
+    side = np.zeros((n, 1), dtype=np.float32)
+    side[500:1200, 0] = 0.8
+
+    infile = tmp_path / "mod_in.wav"
+    sidechain = tmp_path / "side.wav"
+    outfile = tmp_path / "mod_out.wav"
+    sf.write(str(infile), audio, sr)
+    sf.write(str(sidechain), side, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "1.2",
+            "--mod-target",
+            "mix",
+            "--mod-min",
+            "0.1",
+            "--mod-max",
+            "0.95",
+            "--mod-source",
+            "lfo:sine:0.2:1.0*0.8",
+            "--mod-source",
+            "env:10:150*0.4",
+            "--mod-source",
+            f"audio-env:{sidechain}:5:120*0.6",
+            "--mod-combine",
+            "avg",
+            "--mod-smooth-ms",
+            "25",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    modulation = payload["effective"]["modulation"]
+    assert modulation is not None
+    assert modulation["target"] == "mix"
+    assert len(modulation["sources"]) == 3
+
+
+def test_render_modulation_multiple_routes(tmp_path: Path) -> None:
+    sr = 24_000
+    n = 4096
+    t = np.arange(n, dtype=np.float32) / np.float32(sr)
+    audio = (0.25 * np.sin(2.0 * np.pi * 180.0 * t)).astype(np.float32)[:, np.newaxis]
+
+    infile = tmp_path / "routes_in.wav"
+    outfile = tmp_path / "routes_out.wav"
+    sf.write(str(infile), audio, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "1.5",
+            "--mod-route",
+            "wet:0.1:0.95:avg:20:lfo:sine:0.12:1.0*1.0",
+            "--mod-route",
+            "gain-db:-9.0:3.0:sum:15:lfo:triangle:0.04:1.0*0.9",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    modulation = payload["effective"]["modulation"]
+    assert modulation is not None
+    assert modulation["count"] == 2
+    routes = modulation["routes"]
+    assert isinstance(routes, list)
+    assert routes[0]["target"] == "wet"
+    assert routes[1]["target"] == "gain-db"
+
+
 def test_render_beast_mode_scales_algo_tail(tmp_path: Path) -> None:
     sr = 16_000
     audio = np.zeros((1024, 1), dtype=np.float32)
@@ -609,6 +700,40 @@ def test_render_validation_errors(tmp_path: Path) -> None:
         ],
     )
     assert invalid_beast.exit_code != 0
+
+    mod_missing_target = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(tmp_path / "out7.wav"),
+            "--engine",
+            "algo",
+            "--rt60",
+            "1.0",
+            "--mod-source",
+            "lfo:sine:0.1",
+            "--no-progress",
+        ],
+    )
+    assert mod_missing_target.exit_code != 0
+
+    bad_mod_route = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(tmp_path / "out8.wav"),
+            "--engine",
+            "algo",
+            "--rt60",
+            "1.0",
+            "--mod-route",
+            "wet:0.8:0.1:avg:20:lfo:sine:0.1",
+            "--no-progress",
+        ],
+    )
+    assert bad_mod_route.exit_code != 0
 
 
 def test_ir_gen_validation_errors(tmp_path: Path) -> None:

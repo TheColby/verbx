@@ -31,6 +31,7 @@ from verbx.core.convolution_reverb import ConvolutionReverbConfig, ConvolutionRe
 from verbx.core.engine_base import ReverbEngine
 from verbx.core.freeze import freeze_segment
 from verbx.core.loudness import apply_output_targets
+from verbx.core.modulation import apply_parameter_modulation, parse_mod_route_spec
 from verbx.core.repeat import repeat_process
 from verbx.io.audio import (
     peak_normalize,
@@ -192,6 +193,53 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             tilt=runtime_config.tilt,
         )
 
+        modulation_summaries: list[dict[str, Any]] = []
+        if runtime_config.mod_target != "none" and len(runtime_config.mod_sources) > 0:
+            rendered, modulation_summary = apply_parameter_modulation(
+                audio=rendered,
+                dry_reference=input_for_engine,
+                sr=sr,
+                target=runtime_config.mod_target,
+                source_specs=runtime_config.mod_sources,
+                value_min=runtime_config.mod_min,
+                value_max=runtime_config.mod_max,
+                combine=runtime_config.mod_combine,
+                smooth_ms=runtime_config.mod_smooth_ms,
+            )
+            if modulation_summary is not None:
+                modulation_summary["route_kind"] = "base"
+                modulation_summaries.append(modulation_summary)
+
+        for route_idx, route_spec in enumerate(runtime_config.mod_routes, start=1):
+            route = parse_mod_route_spec(route_spec)
+            rendered, route_summary = apply_parameter_modulation(
+                audio=rendered,
+                dry_reference=input_for_engine,
+                sr=sr,
+                target=route.target,
+                source_specs=route.source_specs,
+                value_min=route.value_min,
+                value_max=route.value_max,
+                combine=route.combine,
+                smooth_ms=route.smooth_ms,
+            )
+            if route_summary is not None:
+                route_summary["route_kind"] = "route"
+                route_summary["route_index"] = route_idx
+                route_summary["route_spec"] = route_spec
+                modulation_summaries.append(route_summary)
+
+        modulation_payload: dict[str, Any] | None
+        if len(modulation_summaries) == 0:
+            modulation_payload = None
+        elif len(modulation_summaries) == 1:
+            modulation_payload = modulation_summaries[0]
+        else:
+            modulation_payload = {
+                "count": len(modulation_summaries),
+                "routes": modulation_summaries,
+            }
+
         # Normalize/limit strategy can be applied per-pass (inside repeat),
         # post-render, or skipped entirely.
         if runtime_config.normalize_stage == "post":
@@ -241,6 +289,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 "output_peak_norm": runtime_config.output_peak_norm,
                 "output_peak_target_dbfs": runtime_config.output_peak_target_dbfs,
                 "streaming_mode": False,
+                "modulation": modulation_payload,
                 "non_default_settings": _non_default_settings(runtime_config),
             },
         }
@@ -292,6 +341,10 @@ def _can_stream_convolution(config: RenderConfig, engine_name: str, engine: Reve
     if config.duck or config.bloom > 0.0:
         return False
     if config.lowcut is not None or config.highcut is not None or config.tilt != 0.0:
+        return False
+    if config.mod_target != "none" and len(config.mod_sources) > 0:
+        return False
+    if len(config.mod_routes) > 0:
         return False
     return True
 

@@ -1244,6 +1244,13 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 |---|---|---|
 | `--device [auto\|cpu\|cuda\|mps]` | Compute platform preference. | `auto` picks best available backend; force `cuda`/`mps` when validating platform-specific behavior. |
 | `--threads` | CPU thread hint for processing/FFT stacks. | Tune for throughput on multi-core systems. |
+| `--mod-target [none\|mix\|wet\|gain-db]` | Time-varying parameter target driven by modulation sources. | Start with `mix` (or `wet`) for musically intuitive animated reverb depth. |
+| `--mod-source` | Repeatable modulation source spec. | Use multiple `--mod-source` switches to layer LFO + envelope + external sidechain control. |
+| `--mod-min` | Minimum mapped value for the selected modulation target. | For `mix/wet`, keep in `[0, 1]`; for `gain-db`, use a dB range like `-12` to `+3`. |
+| `--mod-max` | Maximum mapped value for the selected modulation target. | Must be greater than `--mod-min`; wider ranges produce stronger motion. |
+| `--mod-combine [sum\|avg\|max]` | Source-combination policy for multi-source modulation. | `sum` is most energetic, `avg` is smoother, `max` follows the strongest source instant-by-instant. |
+| `--mod-smooth-ms` | Smoothing time constant for control-signal de-zippering. | Increase when modulation sounds too stepped or twitchy. |
+| `--mod-route` | Repeatable advanced route for per-parameter modulation with independent source sets. | Use this when one LFO/source group should control one parameter and another group should control a different parameter. |
 | `--frames-out` | Path for framewise CSV metrics output. | Exports per-frame analysis including modulation metrics. |
 | `--analysis-out` | Path for JSON analysis report. | If omitted, report is written to `<OUTFILE>.analysis.json` unless `--silent`. |
 | `--lucky` | Generates N randomized "wild" render variants from one input. | Best for exploration and sound-design discovery; pair with `--lucky-out-dir`. |
@@ -1251,6 +1258,21 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--lucky-seed` | Deterministic seed for lucky mode randomization. | Keep fixed when you want reproducible variant batches. |
 | `--silent` | Suppresses analysis/report output and console summaries. | Use for minimal-output automation contexts. |
 | `--progress / --no-progress` | Enables or disables progress UI. | Disable for non-interactive logs or CI environments. |
+
+`--mod-source` syntax reference:
+
+- `lfo:<shape>:<rate_hz>[:depth[:phase_deg]][*weight]`
+- `env[:attack_ms[:release_ms]][*weight]`
+- `audio-env:<path>[:attack_ms[:release_ms]][*weight]`
+- `const:<value>[*weight]`
+- `--mod-route` format: `<target>:<min>:<max>:<combine>:<smooth_ms>:<src1>,<src2>,...`
+
+Examples:
+
+- `--mod-source "lfo:sine:0.08:1.0*0.7"`
+- `--mod-source "env:20:350*0.5"`
+- `--mod-source "audio-env:sidechain.wav:10:200*0.6"`
+- `--mod-route "wet:0.1:0.95:avg:20:lfo:sine:0.12:1.0*1.0"`
 
 ### 12.3 `verbx analyze` switches
 
@@ -1472,6 +1494,24 @@ verbx render in.wav out.wav --target-peak-dbfs -2 --sample-peak
 
 # force float32 output container subtype
 verbx render in.wav out.wav --out-subtype float32
+
+# multi-source modulation: LFO + input-envelope + external sidechain envelope
+verbx render in.wav out_mod.wav \
+  --engine algo \
+  --mod-target mix \
+  --mod-min 0.10 \
+  --mod-max 0.95 \
+  --mod-source "lfo:sine:0.07:1.0*0.7" \
+  --mod-source "env:20:350*0.4" \
+  --mod-source "audio-env:sidechain.wav:10:200*0.6" \
+  --mod-combine avg \
+  --mod-smooth-ms 35
+
+# independent modulation routes: one LFO controls wet mix, another controls gain
+verbx render in.wav out_dual_mod.wav \
+  --engine algo \
+  --mod-route "wet:0.10:0.95:avg:20:lfo:sine:0.12:1.0*1.0" \
+  --mod-route "gain-db:-9.0:3.0:sum:15:lfo:triangle:0.04:1.0*0.9"
 
 # final peak normalization options
 verbx render in.wav out.wav --output-peak-norm input

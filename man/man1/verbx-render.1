@@ -39,6 +39,32 @@ Auto-generate and cache an IR before rendering.
 .TP
 .B --beast-mode INT
 Scale key reverb parameters for denser, longer tails.
+.TP
+.B --mod-target [none|mix|wet|gain-db]
+Enable dynamic parameter control target for modulation sources.
+.TP
+.B --mod-source SPEC
+Repeatable modulation source. Formats:
+lfo:sine:rate[:depth[:phase]][*weight],
+env[:attack[:release]][*weight],
+audio-env:path[:attack[:release]][*weight], or const:value[*weight].
+.TP
+.B --mod-min FLOAT
+Minimum mapped value for modulation target.
+.TP
+.B --mod-max FLOAT
+Maximum mapped value for modulation target.
+.TP
+.B --mod-combine [sum|avg|max]
+How multiple modulation sources are combined.
+.TP
+.B --mod-smooth-ms FLOAT
+Control-signal smoothing time constant in milliseconds.
+.TP
+.B --mod-route SPEC
+Repeatable advanced modulation route:
+target:min:max:combine:smooth_ms:src1,src2,...
+Use this for independent source sets per parameter target.
 .SH ADVANCED OUTPUT OPTIONS
 .TP
 .B --target-lufs FLOAT
@@ -75,6 +101,12 @@ Fast convolution render.
 .TP
 .B verbx render in.wav out/lucky.wav --lucky 25 --lucky-out-dir out/lucky_set
 Generate 25 randomized extreme variants.
+.TP
+.B verbx render in.wav out_mod.wav --mod-target mix --mod-source lfo:sine:0.08*0.7 --mod-source env:20:350*0.4
+Layer LFO and envelope sources to animate reverb depth.
+.TP
+.B verbx render in.wav out_dual_mod.wav --mod-route wet:0.1:0.95:avg:20:lfo:sine:0.12 --mod-route gain-db:-9:3:sum:15:lfo:triangle:0.04
+Use different LFOs to control different parameters.
 .SH SEE ALSO
 .BR verbx (1),
 .BR verbx-analyze (1),

@@ -8,7 +8,8 @@ verbx \- extreme reverb command-line processor
 \fBverbx\fR is a production-grade Python CLI for extreme algorithmic and
 convolution reverb workflows.
 It supports long-tail processing, freeze/repeat chains, synthetic IR generation,
-loudness/peak targeting, multichannel routing, batch execution, and analysis.
+loudness/peak targeting, multichannel routing, multi-source parameter
+modulation, batch execution, and analysis.
 .PP
 Use \fBverbx --help\fR for full command discovery.
 .SH COMMANDS
@@ -43,6 +44,12 @@ Convolution render using external IR.
 .TP
 .B verbx render in.wav out/lucky.wav --lucky 12 --lucky-out-dir out/lucky_set
 Generate 12 randomized "wild" variants in one output folder.
+.TP
+.B verbx render in.wav out_mod.wav --mod-target mix --mod-source lfo:sine:0.08*0.7 --mod-source env:20:350*0.4
+Layer multiple modulation sources to animate reverb depth over time.
+.TP
+.B verbx render in.wav out_dual_mod.wav --mod-route wet:0.1:0.95:avg:20:lfo:sine:0.12 --mod-route gain-db:-9:3:sum:15:lfo:triangle:0.04
+Assign different LFOs to different modulation targets.
 .TP
 .B verbx analyze in.wav --lufs --edr --json-out report.json
 Analyze loudness and EDR metrics to JSON.
