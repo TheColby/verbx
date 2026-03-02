@@ -79,6 +79,42 @@ class AlgoReverbConfig:
     shimmer_lowcut: float | None = 300.0
     device: str = "cpu"
 
+    def __post_init__(self) -> None:
+        """Validate core algorithmic parameters to prevent math errors or instability."""
+        if self.rt60 <= 0.0:
+            msg = f"rt60 must be > 0.0, got {self.rt60}"
+            raise ValueError(msg)
+        if not (0.0 <= self.damping <= 1.0):
+            msg = f"damping must be between 0.0 and 1.0, got {self.damping}"
+            raise ValueError(msg)
+        if self.pre_delay_ms < 0.0:
+            msg = f"pre_delay_ms must be >= 0.0, got {self.pre_delay_ms}"
+            raise ValueError(msg)
+        if self.mod_depth_ms < 0.0:
+            msg = f"mod_depth_ms must be >= 0.0, got {self.mod_depth_ms}"
+            raise ValueError(msg)
+        if self.mod_rate_hz < 0.0:
+            msg = f"mod_rate_hz must be >= 0.0, got {self.mod_rate_hz}"
+            raise ValueError(msg)
+        if self.width < 0.0:
+            msg = f"width must be >= 0.0, got {self.width}"
+            raise ValueError(msg)
+        if self.wet < 0.0:
+            msg = f"wet must be >= 0.0, got {self.wet}"
+            raise ValueError(msg)
+        if self.dry < 0.0:
+            msg = f"dry must be >= 0.0, got {self.dry}"
+            raise ValueError(msg)
+        if self.allpass_stages < 0:
+            msg = f"allpass_stages must be >= 0, got {self.allpass_stages}"
+            raise ValueError(msg)
+        if self.fdn_lines <= 0:
+            msg = f"fdn_lines must be > 0, got {self.fdn_lines}"
+            raise ValueError(msg)
+        if self.block_size <= 0:
+            msg = f"block_size must be > 0, got {self.block_size}"
+            raise ValueError(msg)
+
 
 @dataclass(slots=True)
 class _AllpassState:

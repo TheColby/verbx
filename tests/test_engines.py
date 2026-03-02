@@ -79,6 +79,30 @@ def test_algo_engine_rejects_allpass_gain_count_mismatch() -> None:
     raise AssertionError("Expected ValueError for mismatched allpass_gains length")
 
 
+def test_algo_engine_rejects_invalid_parameters() -> None:
+    invalid_configs = [
+        {"rt60": -1.0},
+        {"rt60": 0.0},
+        {"damping": -0.1},
+        {"damping": 1.1},
+        {"pre_delay_ms": -5.0},
+        {"mod_depth_ms": -1.0},
+        {"mod_rate_hz": -0.5},
+        {"width": -0.5},
+        {"wet": -0.1},
+        {"dry": -0.1},
+        {"allpass_stages": -1},
+        {"fdn_lines": 0},
+        {"block_size": 0},
+    ]
+    for kwargs in invalid_configs:
+        try:
+            _ = AlgoReverbConfig(**kwargs)
+        except ValueError:
+            continue
+        raise AssertionError(f"Expected ValueError for invalid parameters: {kwargs}")
+
+
 def test_convolution_engine_partitioned_fft(tmp_path: Path) -> None:
     rng = np.random.default_rng(1)
     audio = (rng.standard_normal((2048, 2)).astype(np.float32)) * 0.05
