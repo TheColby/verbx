@@ -160,9 +160,9 @@ results.
 - [21.0 License](#210-license)
 - [22.0 Attribution](#220-attribution)
 
-## 2.0 What is Reverberation? (a/k/a Reverb)?
+## 2.0 What is Reverberation?
 
-Reverberation is the persistence of sound in a space after the original sound
+Reverberation ("reverb") is the persistence of sound in a space after the original sound
 is made. In practical mixing terms, a reverb sound usually contains:
 
 - A **dry peak** (direct sound reaching your ears first)
