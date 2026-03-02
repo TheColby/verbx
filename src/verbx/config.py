@@ -42,6 +42,7 @@ class RenderConfig:
     beast_mode: int = 1
     allpass_stages: int = 6
     allpass_gain: float = 0.7
+    allpass_gains: tuple[float, ...] = ()
     allpass_delays_ms: tuple[float, ...] = ()
     comb_delays_ms: tuple[float, ...] = ()
     fdn_lines: int = 8

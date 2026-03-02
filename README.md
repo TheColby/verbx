@@ -1199,7 +1199,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--mod-depth-ms` | Delay modulation depth (ms) in the algorithmic late field. | Small depth reduces metallic ringing; too high can sound chorus-like. |
 | `--mod-rate-hz` | Delay modulation speed. | Very slow rates are subtle; faster rates make modulation more audible. |
 | `--allpass-stages` | Number of Schroeder allpass diffusion stages in the algorithmic path. | `0` disables diffusion; `4-10` is a practical range for most material. |
-| `--allpass-gain` | Gain coefficient used inside each allpass stage. | Typical stable range is about `0.5-0.85`; very high absolute values increase resonance/ringing. |
+| `--allpass-gain` | Allpass gain control. Accepts one value (applied to all stages) or a comma-separated per-stage list. | If you provide a list, it must contain exactly `--allpass-stages` values; each value must be in `[-0.99, 0.99]`. |
 | `--allpass-delays-ms` | Optional comma-separated allpass delay list (milliseconds). | Use to tune diffusion timing explicitly; list length can be shorter/longer than `--allpass-stages`. |
 | `--comb-delays-ms` | Optional comma-separated FDN comb-like delay list (milliseconds). | Overrides default FDN line timing and effectively sets line count from the list length. |
 | `--fdn-lines` | FDN line count when `--comb-delays-ms` is not supplied. | More lines can increase density/smoothness but raise CPU usage. |
@@ -1519,7 +1519,7 @@ verbx render in.wav out_beast.wav --engine algo --rt60 12 --beast-mode 8
 
 # tune diffusion/allpass and comb-like FDN delay topology directly
 verbx render in.wav out_tuned.wav --engine algo \
-  --allpass-stages 8 --allpass-gain 0.72 --allpass-delays-ms 4,6,9,13,18,24,31,39 \
+  --allpass-stages 8 --allpass-gain 0.72,0.70,0.68,0.66,0.64,0.62,0.60,0.58 --allpass-delays-ms 4,6,9,13,18,24,31,39 \
   --fdn-lines 10 --comb-delays-ms 29,33,37,41,43,47,53,59,67,73
 
 # cross-channel matrix routing (packed IR channels)

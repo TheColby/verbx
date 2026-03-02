@@ -64,6 +64,7 @@ class AlgoReverbConfig:
     mod_rate_hz: float = 0.1
     allpass_stages: int = 6
     allpass_gain: float = 0.7
+    allpass_gains: tuple[float, ...] = ()
     allpass_delays_ms: tuple[float, ...] = ()
     comb_delays_ms: tuple[float, ...] = ()
     fdn_lines: int = 8
@@ -109,7 +110,7 @@ class AlgoReverbEngine(ReverbEngine):
         self._config = config
         self._base_delay_ms = self._resolve_fdn_delay_ms(config)
         self._diffusion_delay_ms = self._resolve_diffusion_delay_ms(config)
-        self._allpass_gain = np.float32(np.clip(config.allpass_gain, -0.99, 0.99))
+        self._allpass_gains = self._resolve_allpass_gains(config, self._diffusion_delay_ms.shape[0])
         self._hadamard = self._build_hadamard_matrix(int(self._base_delay_ms.shape[0]))
         self._use_numba = _numba_available and config.device != "cuda"
         self._shimmer = ShimmerProcessor(
@@ -203,6 +204,34 @@ class AlgoReverbEngine(ReverbEngine):
         return np.asarray(delays[:requested], dtype=np.float32)
 
     @staticmethod
+    def _resolve_allpass_gains(
+        config: AlgoReverbConfig,
+        stage_count: int,
+    ) -> npt.NDArray[np.float32]:
+        """Resolve one gain per allpass stage with strict count checks."""
+        if stage_count <= 0:
+            if len(config.allpass_gains) > 0:
+                msg = "allpass_gains requires at least one diffusion stage."
+                raise ValueError(msg)
+            return np.zeros((0,), dtype=np.float32)
+
+        if len(config.allpass_gains) > 0:
+            if len(config.allpass_gains) != stage_count:
+                msg = (
+                    "allpass_gains length must match resolved allpass stage count "
+                    f"({stage_count}), got {len(config.allpass_gains)}"
+                )
+                raise ValueError(msg)
+            gains = np.asarray(config.allpass_gains, dtype=np.float32)
+            return np.asarray(np.clip(gains, -0.99, 0.99), dtype=np.float32)
+
+        return np.full(
+            (stage_count,),
+            np.float32(np.clip(config.allpass_gain, -0.99, 0.99)),
+            dtype=np.float32,
+        )
+
+    @staticmethod
     def _apply_stereo_width(wet: AudioArray, width: float) -> AudioArray:
         """Apply a simple mid/side width transform to the wet signal."""
         w = np.clip(width, 0.0, 2.0)
@@ -229,7 +258,7 @@ class AlgoReverbEngine(ReverbEngine):
                 hadamard=self._hadamard,
                 base_delay_ms=self._base_delay_ms,
                 diffusion_delay_ms=self._diffusion_delay_ms,
-                allpass_gain=self._allpass_gain,
+                allpass_gains=self._allpass_gains,
             )
 
         pre_delay_samples = max(1, int((self._config.pre_delay_ms / 1000.0) * sr))
@@ -289,8 +318,12 @@ class AlgoReverbEngine(ReverbEngine):
                 # Diffusion stage: a short all-pass cascade to smear transients
                 # before they enter the long feedback network.
                 diffused = predelayed
-                for ap in allpasses:
-                    diffused = self._allpass_process(diffused, ap, gain=self._allpass_gain)
+                for ap_index, ap in enumerate(allpasses):
+                    diffused = self._allpass_process(
+                        diffused,
+                        ap,
+                        gain=np.float32(self._allpass_gains[ap_index]),
+                    )
 
                 fdn_out = np.zeros(num_lines, dtype=np.float32)
                 for i in range(num_lines):
@@ -387,7 +420,7 @@ def _process_channel_kernel(
     hadamard: npt.NDArray[np.float32],
     base_delay_ms: npt.NDArray[np.float32],
     diffusion_delay_ms: npt.NDArray[np.float32],
-    allpass_gain: np.float32,
+    allpass_gains: npt.NDArray[np.float32],
 ) -> npt.NDArray[np.float32]:
     """Numba kernel matching :meth:`AlgoReverbEngine._process_channel`.
 
@@ -470,8 +503,9 @@ def _process_channel_kernel(
                 ap_size = allpass_sizes[ap]
                 ap_idx = allpass_indices[ap]
                 delayed = allpass_buffers[ap, ap_idx]
-                y = (-allpass_gain * diffused) + delayed
-                allpass_buffers[ap, ap_idx] = diffused + (allpass_gain * y)
+                gain = allpass_gains[ap]
+                y = (-gain * diffused) + delayed
+                allpass_buffers[ap, ap_idx] = diffused + (gain * y)
                 allpass_indices[ap] = (ap_idx + 1) % ap_size
                 diffused = np.float32(y)
 

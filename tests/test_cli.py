@@ -91,7 +91,7 @@ def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path) -> None:
             "--allpass-stages",
             "8",
             "--allpass-gain",
-            "0.72",
+            "0.72,0.70,0.68,0.66,0.64,0.62,0.60,0.58",
             "--allpass-delays-ms",
             "4,6,9,13,18,24,31,39",
             "--comb-delays-ms",
@@ -107,9 +107,35 @@ def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path) -> None:
     config = payload["config"]
     assert config["allpass_stages"] == 8
     assert abs(float(config["allpass_gain"]) - 0.72) < 1e-6
+    assert len(config["allpass_gains"]) == 8
     assert len(config["allpass_delays_ms"]) == 8
     assert len(config["comb_delays_ms"]) == 10
     assert config["fdn_lines"] == 10
+
+
+def test_render_allpass_gain_count_mismatch_rejected(tmp_path: Path) -> None:
+    audio = np.zeros((512, 1), dtype=np.float32)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--allpass-stages",
+            "4",
+            "--allpass-gain",
+            "0.7,0.65,0.6",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "exactly 4 entries" in result.output
 
 
 def test_analyze_lufs_mode(tmp_path: Path) -> None:

@@ -65,6 +65,20 @@ def test_algo_engine_custom_allpass_and_comb_delay_controls() -> None:
     assert np.all(np.isfinite(output))
 
 
+def test_algo_engine_rejects_allpass_gain_count_mismatch() -> None:
+    try:
+        _ = AlgoReverbEngine(
+            AlgoReverbConfig(
+                allpass_stages=4,
+                allpass_gains=(0.7, 0.6, 0.5),
+            )
+        )
+    except ValueError as exc:
+        assert "allpass_gains length must match" in str(exc)
+        return
+    raise AssertionError("Expected ValueError for mismatched allpass_gains length")
+
+
 def test_convolution_engine_partitioned_fft(tmp_path: Path) -> None:
     rng = np.random.default_rng(1)
     audio = (rng.standard_normal((2048, 2)).astype(np.float32)) * 0.05

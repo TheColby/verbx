@@ -167,12 +167,13 @@ def render(
         max=64,
         help="Number of Schroeder allpass diffusion stages (0 disables diffusion).",
     ),
-    allpass_gain: float = typer.Option(
-        0.7,
+    allpass_gain: str = typer.Option(
+        "0.7",
         "--allpass-gain",
-        min=-0.99,
-        max=0.99,
-        help="Per-stage allpass feedback/feedforward gain.",
+        help=(
+            "Allpass gain. Use one value (e.g. 0.7) for all stages, or a "
+            "comma-separated list (e.g. 0.72,0.70,0.68,0.66) for per-stage gains."
+        ),
     ),
     allpass_delays_ms: str | None = typer.Option(
         None,
@@ -301,6 +302,12 @@ def render(
         allpass_delays_ms,
         option_name="--allpass-delays-ms",
     )
+    parsed_allpass_gain_values = _parse_gain_list(
+        allpass_gain,
+        option_name="--allpass-gain",
+        min_value=-0.99,
+        max_value=0.99,
+    )
     parsed_comb_delays = _parse_delay_list_ms(
         comb_delays_ms,
         option_name="--comb-delays-ms",
@@ -324,7 +331,8 @@ def render(
         mod_combine=mod_combine,
         mod_smooth_ms=mod_smooth_ms,
         allpass_stages=allpass_stages,
-        allpass_gain=allpass_gain,
+        allpass_gain=float(parsed_allpass_gain_values[0]),
+        allpass_gains=parsed_allpass_gain_values if len(parsed_allpass_gain_values) > 1 else (),
         allpass_delays_ms=parsed_allpass_delays,
         comb_delays_ms=parsed_comb_delays,
         fdn_lines=fdn_lines,
@@ -1452,7 +1460,7 @@ def _print_render_summary(report: dict[str, Any]) -> None:
         ):
             if key in config_report:
                 table.add_row(key, str(config_report[key]))
-        for key in ("allpass_delays_ms", "comb_delays_ms"):
+        for key in ("allpass_gains", "allpass_delays_ms", "comb_delays_ms"):
             if key in config_report and isinstance(config_report[key], (list, tuple)):
                 table.add_row(f"{key}_count", str(len(config_report[key])))
     table.add_row("analysis_json", str(report.get("analysis_path", "")))
@@ -1741,6 +1749,40 @@ def _parse_delay_list_ms(raw: str | None, *, option_name: str) -> tuple[float, .
     return tuple(values)
 
 
+def _parse_gain_list(
+    raw: str,
+    *,
+    option_name: str,
+    min_value: float,
+    max_value: float,
+) -> tuple[float, ...]:
+    """Parse one or more comma-separated gain values for CLI options."""
+    cleaned = raw.strip()
+    if cleaned == "":
+        msg = f"{option_name} requires at least one numeric value."
+        raise typer.BadParameter(msg)
+
+    values: list[float] = []
+    for token in cleaned.split(","):
+        part = token.strip()
+        if part == "":
+            continue
+        try:
+            gain = float(part)
+        except ValueError as exc:
+            msg = f"{option_name} expects float values, optionally comma-separated."
+            raise typer.BadParameter(msg) from exc
+        if gain < min_value or gain > max_value:
+            msg = f"{option_name} values must be in [{min_value}, {max_value}]."
+            raise typer.BadParameter(msg)
+        values.append(gain)
+
+    if len(values) == 0:
+        msg = f"{option_name} requires at least one numeric value."
+        raise typer.BadParameter(msg)
+    return tuple(values)
+
+
 def _validate_lucky_call(
     config: RenderConfig,
     lucky: int | None,
@@ -1803,6 +1845,15 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
 
     if config.allpass_stages == 0 and len(config.allpass_delays_ms) > 0:
         msg = "--allpass-delays-ms cannot be used when --allpass-stages is 0."
+        raise typer.BadParameter(msg)
+    if config.allpass_stages == 0 and len(config.allpass_gains) > 0:
+        msg = "--allpass-gain list cannot be used when --allpass-stages is 0."
+        raise typer.BadParameter(msg)
+    if len(config.allpass_gains) > 0 and len(config.allpass_gains) != config.allpass_stages:
+        msg = (
+            "When using comma-separated --allpass-gain values, provide exactly "
+            f"{config.allpass_stages} entries (got {len(config.allpass_gains)})."
+        )
         raise typer.BadParameter(msg)
     if len(config.comb_delays_ms) > 64:
         msg = "--comb-delays-ms supports at most 64 entries."
