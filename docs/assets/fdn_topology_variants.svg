@@ -18,7 +18,7 @@
       .subtitle { fill: #2f466c; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 21px; font-weight: 600; }
       .h2 { fill: #1d3355; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 26px; font-weight: 700; }
       .label { fill: #1f3558; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 700; }
-      .small { fill: #36507b; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; }
+      .small { fill: #36507b; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 17px; }
       .mono { font-family: "Menlo", "Consolas", monospace; }
       .note { fill: #244167; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; }
       .warn { fill: #7d2a2a; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 17px; font-weight: 700; }
@@ -42,7 +42,7 @@
 
   <rect class="card" x="352" y="320" width="170" height="78" rx="12"/>
   <text class="label" x="437" y="352" text-anchor="middle">Pre-delay</text>
-  <text class="small" x="437" y="378" text-anchor="middle">Diffusion allpass x6</text>
+  <text class="small" x="437" y="378" text-anchor="middle">Diffusion allpass (default x6)</text>
 
   <rect class="card" x="590" y="320" width="286" height="124" rx="12"/>
   <text class="label" x="733" y="362" text-anchor="middle">N-line FDN Core</text>
@@ -62,8 +62,8 @@
   <path class="line" d="M733,610 L733,682"/>
 
   <text class="note" x="126" y="838">
-    <tspan x="126" dy="0">Render topology is currently fixed for stability</tspan>
-    <tspan x="126" dy="23">(8 lines, Hadamard feedback).</tspan>
+    <tspan x="126" dy="0">Render defaults use 8 lines with Hadamard feedback.</tspan>
+    <tspan x="126" dy="23">Users can tune line count and delay lists from CLI.</tspan>
   </text>
   <text class="note" x="126" y="890">
     <tspan x="126" dy="0">Spatial width/shimmer stages are post-FDN;</tspan>
@@ -77,27 +77,34 @@
   <text class="label" x="1030" y="362">Variant 1: <tspan class="mono">hadamard</tspan> (default)</text>
   <rect class="card" x="1030" y="386" width="130" height="56" rx="10"/>
   <text class="small" x="1095" y="421" text-anchor="middle">Impulse</text>
-  <rect class="card" x="1225" y="386" width="190" height="56" rx="10"/>
-  <text class="small" x="1320" y="421" text-anchor="middle">Shared configurable FDN core</text>
+  <rect class="card" x="1225" y="382" width="190" height="72" rx="10"/>
+  <text class="small" x="1320" y="412" text-anchor="middle">
+    <tspan x="1320" dy="0">Shared configurable</tspan>
+    <tspan x="1320" dy="20">FDN core</tspan>
+  </text>
   <rect class="card" x="1490" y="386" width="220" height="56" rx="10"/>
   <text class="small" x="1600" y="410" text-anchor="middle">IR output channels</text>
   <text class="small" x="1600" y="432" text-anchor="middle">(no extra matrix stage)</text>
-  <path class="line" d="M1160,414 L1225,414"/>
-  <path class="line" d="M1415,414 L1490,414"/>
+  <path class="line" d="M1160,418 L1225,418"/>
+  <path class="line" d="M1415,418 L1490,418"/>
 
   <rect class="card" x="990" y="516" width="780" height="160" rx="12"/>
   <text class="label" x="1030" y="562">Variant 2: <tspan class="mono">householder</tspan> (channels &gt; 1)</text>
   <rect class="card" x="1030" y="586" width="130" height="56" rx="10"/>
   <text class="small" x="1095" y="621" text-anchor="middle">Impulse</text>
-  <rect class="card" x="1225" y="586" width="190" height="56" rx="10"/>
-  <text class="small" x="1320" y="621" text-anchor="middle">Shared configurable FDN core</text>
-  <rect class="card-soft" x="1455" y="586" width="170" height="56" rx="10"/>
-  <text class="small" x="1540" y="621" text-anchor="middle">Householder matrix</text>
-  <rect class="card" x="1665" y="586" width="105" height="56" rx="10"/>
-  <text class="small" x="1718" y="621" text-anchor="middle">IR out</text>
-  <path class="line" d="M1160,614 L1225,614"/>
-  <path class="line" d="M1415,614 L1455,614"/>
-  <path class="line" d="M1625,614 L1665,614"/>
+  <rect class="card" x="1225" y="582" width="190" height="72" rx="10"/>
+  <text class="small" x="1320" y="612" text-anchor="middle">
+    <tspan x="1320" dy="0">Shared configurable</tspan>
+    <tspan x="1320" dy="20">FDN core</tspan>
+  </text>
+  <rect class="card-soft" x="1455" y="582" width="170" height="72" rx="10"/>
+  <text class="small" x="1540" y="612" text-anchor="middle">Householder</text>
+  <text class="small" x="1540" y="632" text-anchor="middle">matrix</text>
+  <rect class="card" x="1665" y="582" width="105" height="72" rx="10"/>
+  <text class="small" x="1718" y="622" text-anchor="middle">IR out</text>
+  <path class="line" d="M1160,618 L1225,618"/>
+  <path class="line" d="M1415,618 L1455,618"/>
+  <path class="line" d="M1625,618 L1665,618"/>
 
   <rect class="card" x="990" y="716" width="780" height="160" rx="12"/>
   <text class="label" x="1030" y="748">
@@ -106,19 +113,23 @@
   </text>
   <rect class="card" x="1030" y="786" width="130" height="56" rx="10"/>
   <text class="small" x="1095" y="821" text-anchor="middle">Impulse</text>
-  <rect class="card" x="1225" y="786" width="190" height="56" rx="10"/>
-  <text class="small" x="1320" y="821" text-anchor="middle">Shared configurable FDN core</text>
-  <rect class="card-soft" x="1455" y="786" width="170" height="56" rx="10"/>
-  <text class="small" x="1540" y="821" text-anchor="middle">Seeded orthogonal Q</text>
-  <rect class="card" x="1665" y="786" width="105" height="56" rx="10"/>
-  <text class="small" x="1718" y="821" text-anchor="middle">IR out</text>
-  <path class="line" d="M1160,814 L1225,814"/>
-  <path class="line" d="M1415,814 L1455,814"/>
-  <path class="line" d="M1625,814 L1665,814"/>
+  <rect class="card" x="1225" y="782" width="190" height="72" rx="10"/>
+  <text class="small" x="1320" y="812" text-anchor="middle">
+    <tspan x="1320" dy="0">Shared configurable</tspan>
+    <tspan x="1320" dy="20">FDN core</tspan>
+  </text>
+  <rect class="card-soft" x="1455" y="782" width="170" height="72" rx="10"/>
+  <text class="small" x="1540" y="812" text-anchor="middle">Seeded orthogonal</text>
+  <text class="small" x="1540" y="832" text-anchor="middle">Q matrix</text>
+  <rect class="card" x="1665" y="782" width="105" height="72" rx="10"/>
+  <text class="small" x="1718" y="822" text-anchor="middle">IR out</text>
+  <path class="line" d="M1160,818 L1225,818"/>
+  <path class="line" d="M1415,818 L1455,818"/>
+  <path class="line" d="M1625,818 L1665,818"/>
 
   <rect class="card-soft" x="990" y="904" width="780" height="76" rx="10"/>
   <text class="warn" x="1015" y="935">
-    <tspan x="1015" dy="0">Note: <tspan class="mono">--fdn-lines</tspan> is reserved for future topology expansion.</tspan>
-    <tspan x="1015" dy="22">It does not alter core line count yet.</tspan>
+    <tspan x="1015" dy="0">Note (IR generation): <tspan class="mono">--fdn-lines</tspan> is currently reserved.</tspan>
+    <tspan x="1015" dy="22">It does not alter core line count in the shared IR FDN path yet.</tspan>
   </text>
 </svg>

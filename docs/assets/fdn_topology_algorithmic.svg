@@ -19,7 +19,7 @@
       .title { fill: #13243f; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 36px; font-weight: 700; }
       .subtitle { fill: #2e4468; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 600; }
       .label { fill: #1d2f4b; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 24px; font-weight: 700; }
-      .small { fill: #344e74; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 19px; }
+      .small { fill: #344e74; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; }
       .core-label { fill: #132747; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 20px; font-weight: 700; }
       .delay { fill: #ffffff; stroke: #6a84ab; stroke-width: 1.9; rx: 10; }
       .delay-text { fill: #1f3657; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 600; }
@@ -44,9 +44,12 @@
   <text class="label" x="470" y="336" text-anchor="middle">Pre-delay</text>
   <text class="small" x="470" y="362" text-anchor="middle">(<tspan font-family="Menlo, Consolas, monospace">--pre-delay-ms</tspan>)</text>
 
-  <rect class="box" x="660" y="290" width="230" height="90" rx="14"/>
+  <rect class="box" x="660" y="290" width="230" height="98" rx="14"/>
   <text class="label" x="775" y="336" text-anchor="middle">Diffusion</text>
-  <text class="small" x="775" y="362" text-anchor="middle">N allpass stages (default 6)</text>
+  <text class="small" x="775" y="362" text-anchor="middle">
+    <tspan x="775" dy="0">N allpass stages</tspan>
+    <tspan x="775" dy="21">(default: 6)</tspan>
+  </text>
 
   <rect class="box-core" x="955" y="230" width="720" height="340" rx="16"/>
   <text class="label" x="1315" y="275" text-anchor="middle">FDN Late Reverb Core</text>
@@ -92,9 +95,12 @@
   <rect class="box" x="955" y="790" width="230" height="92" rx="14"/>
   <text class="label" x="1070" y="841" text-anchor="middle">Dry Tap</text>
 
-  <rect class="box" x="1270" y="720" width="210" height="102" rx="14"/>
-  <text class="label" x="1375" y="768" text-anchor="middle">Wet / Dry Mix</text>
-  <text class="small" x="1375" y="797" text-anchor="middle">(+ optional stereo width / shimmer)</text>
+  <rect class="box" x="1262" y="712" width="226" height="118" rx="14"/>
+  <text class="label" x="1375" y="760" text-anchor="middle">Wet / Dry Mix</text>
+  <text class="small" x="1375" y="788" text-anchor="middle">
+    <tspan x="1375" dy="0">(+ optional stereo width</tspan>
+    <tspan x="1375" dy="21">and shimmer)</tspan>
+  </text>
 
   <rect class="box" x="1555" y="726" width="200" height="90" rx="14"/>
   <text class="label" x="1655" y="780" text-anchor="middle">Output</text>
@@ -104,9 +110,9 @@
   <path class="line" d="M890,335 L955,335"/>
   <path class="line" d="M1070,570 L1070,650"/>
   <path class="line" d="M190,380 L190,836 L955,836"/>
-  <path class="line" d="M1185,696 L1270,769"/>
-  <path class="line" d="M1185,836 L1270,769"/>
-  <path class="line" d="M1480,769 L1555,769"/>
+  <path class="line" d="M1185,696 L1262,771"/>
+  <path class="line" d="M1185,836 L1262,771"/>
+  <path class="line" d="M1488,771 L1555,771"/>
 
   <rect class="legend" x="92" y="890" width="1715" height="92" rx="12"/>
   <text class="legend-text" x="120" y="928">
