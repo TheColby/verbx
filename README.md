@@ -399,14 +399,21 @@ A practical method is A/B comparison at matched loudness:
 
 If you are new, use this sequence:
 
-1. Choose one primary target role from this table:
+1. Choose one primary target role from this table.
+
+These names are shorthand for intent:
+
+- `glue` = subtle cohesion
+- `space` = natural room placement
+- `special effect` = obvious creative coloration
+- `infinite texture` = long ambient sustain / near-frozen tail
 
 | Role | Goal | Typical starting range |
 |---|---|---|
-| `glue` | Add subtle cohesion without sounding obviously reverberant. | `--rt60 0.4-1.2`, `--wet 0.08-0.25`, `--pre-delay-ms 0-20` |
-| `space` | Make the source feel naturally placed in a room/hall. | `--rt60 1.2-3.5`, `--wet 0.2-0.45`, `--pre-delay-ms 10-40` |
-| `special effect` | Make reverb clearly audible and stylistic. | `--rt60 3-12`, `--wet 0.45-0.9`, `--pre-delay-ms 20-120` |
-| `infinite texture` | Create long, immersive, almost static ambience. | `--rt60 20+`, `--wet 0.7-1.0`, consider `--freeze` and/or `--repeat 2+` |
+| `glue` (subtle cohesion) | Add cohesion without sounding obviously reverberant. | `--rt60 0.4-1.2`, `--wet 0.08-0.25`, `--pre-delay-ms 0-20` |
+| `space` (natural room) | Make the source feel naturally placed in a room/hall. | `--rt60 1.2-3.5`, `--wet 0.2-0.45`, `--pre-delay-ms 10-40` |
+| `special effect` (obvious effect) | Make reverb clearly audible and stylistic. | `--rt60 3-12`, `--wet 0.45-0.9`, `--pre-delay-ms 20-120` |
+| `infinite texture` (ambient sustain) | Create long, immersive, almost static ambience. | `--rt60 20+`, `--wet 0.7-1.0`, consider `--freeze` and/or `--repeat 2+` |
 
 Use one role as your initial anchor, then refine from there.
 2. Start conservatively:
