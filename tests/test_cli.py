@@ -84,6 +84,21 @@ def test_analyze_lufs_mode(tmp_path: Path) -> None:
     assert "integrated_lufs" in result.stdout
 
 
+def test_analyze_edr_mode(tmp_path: Path) -> None:
+    sr = 48_000
+    n = sr * 2
+    t = np.arange(n, dtype=np.float32) / sr
+    signal = (np.exp(-t / 0.9).astype(np.float32) * np.sin(2.0 * np.pi * 200.0 * t)).astype(
+        np.float32
+    )
+    infile = tmp_path / "edr.wav"
+    sf.write(str(infile), signal[:, np.newaxis], sr)
+
+    result = runner.invoke(app, ["analyze", str(infile), "--edr"])
+    assert result.exit_code == 0
+    assert "edr_rt60_median_s" in result.stdout
+
+
 def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> None:
     sr = 48_000
     audio = np.zeros((1024, 2), dtype=np.float32)
@@ -297,6 +312,40 @@ def test_render_beast_mode_scales_algo_tail(tmp_path: Path) -> None:
     payload = json.loads(Path(f"{beast_out}.analysis.json").read_text(encoding="utf-8"))
     assert int(payload["effective"]["beast_mode"]) == 5
     assert float(payload["config"]["rt60"]) > 2.0
+
+
+def test_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
+    sr = 24_000
+    audio = np.zeros((2048, 1), dtype=np.float32)
+    audio[100:220, 0] = 0.5
+
+    infile = tmp_path / "lucky_in.wav"
+    outfile = tmp_path / "lucky_out.wav"
+    out_dir = tmp_path / "lucky_outputs"
+    sf.write(str(infile), audio, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--lucky",
+            "3",
+            "--lucky-out-dir",
+            str(out_dir),
+            "--lucky-seed",
+            "1234",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    outputs = sorted(out_dir.glob("lucky_out.lucky_*.wav"))
+    assert len(outputs) == 3
+    for path in outputs:
+        analysis_path = Path(f"{path}.analysis.json")
+        assert analysis_path.exists()
 
 
 def test_batch_render_parallel_jobs(tmp_path: Path) -> None:

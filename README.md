@@ -67,6 +67,7 @@ results.
   - [7.22 Cinematic synth hall (inspired by classic analog-film synth spaces)](#722-cinematic-synth-hall-inspired-by-classic-analog-film-synth-spaces)
   - [7.23 Fast self-convolution (input as its own IR)](#723-fast-self-convolution-input-as-its-own-ir)
   - [7.24 Rapid convolution of `A.wav` with `B.wav`](#724-rapid-convolution-of-awav-with-bwav)
+  - [7.25 Lucky mode (`--lucky N`) for wild random batches](#725-lucky-mode---lucky-n-for-wild-random-batches)
 - [8.0 New User Guide](#80-new-user-guide)
   - [8.1 Start Here (5-minute setup)](#81-start-here-5-minute-setup)
   - [8.2 Processing Architecture](#82-processing-architecture)
@@ -862,6 +863,25 @@ Performance notes:
 - Set `--tail-limit <seconds>` only when you intentionally want to cap the tail.
 - Add `--out-subtype float32` if you want 32-bit float output explicitly.
 
+### 7.25 Lucky mode (`--lucky N`) for wild random batches
+
+Use this to generate multiple completely wild randomized renders from one input file.
+
+```bash
+verbx render in.wav out/lucky.wav \
+  --lucky 12 \
+  --lucky-out-dir out/lucky_set \
+  --lucky-seed 2026 \
+  --no-progress
+```
+
+Notes:
+
+- `--lucky N` controls how many output files are created.
+- Output files are written to `--lucky-out-dir` (or `OUTFILE`'s parent folder if omitted).
+- Each run randomizes engine choice and many processing parameters for extreme variation.
+- Use `--lucky-seed` for deterministic/repeatable random sets.
+
 ## 8.0 New User Guide
 
 ### 8.1 Start Here (5-minute setup)
@@ -1224,6 +1244,9 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--threads` | CPU thread hint for processing/FFT stacks. | Tune for throughput on multi-core systems. |
 | `--frames-out` | Path for framewise CSV metrics output. | Exports per-frame analysis including modulation metrics. |
 | `--analysis-out` | Path for JSON analysis report. | If omitted, report is written to `<OUTFILE>.analysis.json` unless `--silent`. |
+| `--lucky` | Generates N randomized "wild" render variants from one input. | Best for exploration and sound-design discovery; pair with `--lucky-out-dir`. |
+| `--lucky-out-dir` | Output directory used by lucky mode. | Use a dedicated folder so variant sets are easy to browse and compare. |
+| `--lucky-seed` | Deterministic seed for lucky mode randomization. | Keep fixed when you want reproducible variant batches. |
 | `--silent` | Suppresses analysis/report output and console summaries. | Use for minimal-output automation contexts. |
 | `--progress / --no-progress` | Enables or disables progress UI. | Disable for non-interactive logs or CI environments. |
 
@@ -1233,6 +1256,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 |---|---|---|
 | `--json-out` | Writes full analysis payload to a JSON file. | Use for reproducible reports, automation, or comparing files over time. |
 | `--lufs` | Enables loudness-specific metrics (`integrated_lufs`, `true_peak_dbfs`, `lra`). | Turn on when targeting delivery specs or validating loudness normalization behavior. |
+| `--edr` | Enables EDR summary metrics (`edr_rt60_*`, `edr_valid_bins`). | Use for quick frequency-dependent decay analysis from a single source file. |
 | `--frames-out` | Writes framewise CSV metrics for temporal inspection. | Useful for debugging dynamics, modulation, and section-by-section behavior. |
 
 ### 12.4 `verbx suggest` switches
@@ -1417,6 +1441,9 @@ verbx render in.wav out.wav --engine conv --ir plate.wav --ir-normalize peak --t
 # rapid A.wav * B.wav convolution (B.wav used as IR)
 verbx render A.wav AB_convolved.wav --engine conv --ir B.wav --partition-size 32768 --normalize-stage none --output-peak-norm none
 
+# lucky mode: generate 20 wild variants into one folder
+verbx render in.wav out/lucky.wav --lucky 20 --lucky-out-dir out/lucky_set --lucky-seed 2026
+
 # fast self-convolution (input as its own IR)
 verbx render in.wav out_self.wav --self-convolve --partition-size 16384 --normalize-stage none
 
@@ -1449,6 +1476,8 @@ verbx render in.wav out.wav --no-limiter
 ```bash
 verbx analyze in.wav
 verbx analyze in.wav --lufs
+verbx analyze in.wav --edr
+verbx analyze in.wav --lufs --edr
 verbx analyze in.wav --json-out reports/in_analysis.json
 verbx analyze in.wav --frames-out reports/in_frames.csv
 ```
@@ -1648,6 +1677,7 @@ pytest
 ## 19.0 Additional Docs
 
 - [IR synthesis guide](docs/IR_SYNTHESIS.md)
+- [Extreme cookbook (100 workflows)](docs/EXTREME_COOKBOOK.md)
 - [Academic references](docs/REFERENCES.md)
 
 ## 20.0 Roadmap

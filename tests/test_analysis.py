@@ -40,6 +40,25 @@ def test_analyzer_loudness_keys() -> None:
     assert "lra" in metrics
 
 
+def test_analyzer_edr_keys() -> None:
+    analyzer = AudioAnalyzer()
+    sr = 48_000
+    n = sr * 2
+    t = np.arange(n, dtype=np.float32) / sr
+    env = np.exp(-t / 0.8).astype(np.float32)
+    tone = np.sin(2.0 * np.pi * 330.0 * t).astype(np.float32)
+    audio = (env * tone)[:, np.newaxis]
+
+    metrics = analyzer.analyze(audio, sr=sr, include_edr=True)
+
+    assert "edr_rt60_median_s" in metrics
+    assert "edr_rt60_low_s" in metrics
+    assert "edr_rt60_mid_s" in metrics
+    assert "edr_rt60_high_s" in metrics
+    assert "edr_valid_bins" in metrics
+    assert metrics["edr_valid_bins"] >= 0.0
+
+
 def test_framewise_modulation_metrics_present() -> None:
     sr = 8_000
     t = np.arange(sr, dtype=np.float32) / sr

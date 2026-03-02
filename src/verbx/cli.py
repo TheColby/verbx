@@ -15,7 +15,7 @@ import shutil
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import numpy as np
 import soundfile as sf
@@ -174,6 +174,27 @@ def render(
     tilt: float = typer.Option(0.0, "--tilt"),
     frames_out: str | None = typer.Option(None, "--frames-out"),
     analysis_out: str | None = typer.Option(None, "--analysis-out"),
+    lucky: int | None = typer.Option(
+        None,
+        "--lucky",
+        min=1,
+        max=500,
+        help=(
+            "Generate N wild random renders from one input using randomized parameters. "
+            "Outputs are written to --lucky-out-dir (or OUTFILE parent by default)."
+        ),
+    ),
+    lucky_out_dir: Path | None = typer.Option(
+        None,
+        "--lucky-out-dir",
+        resolve_path=True,
+        help="Output directory used when --lucky is enabled.",
+    ),
+    lucky_seed: int | None = typer.Option(
+        None,
+        "--lucky-seed",
+        help="Optional deterministic seed for --lucky render generation.",
+    ),
     silent: bool = typer.Option(False, "--silent", help="Disable analysis JSON + console output."),
     progress: bool = typer.Option(True, "--progress/--no-progress"),
 ) -> None:
@@ -241,7 +262,72 @@ def render(
     )
 
     _validate_render_call(infile, outfile, config)
+    _validate_lucky_call(config, lucky, lucky_out_dir)
     configure_logging(verbose=not config.silent)
+
+    if lucky is not None:
+        try:
+            info = sf.info(str(infile))
+            duration_seconds = (
+                float(info.frames) / float(info.samplerate) if info.samplerate > 0 else 0.0
+            )
+        except (RuntimeError, TypeError, ValueError) as exc:
+            raise typer.BadParameter(str(exc)) from exc
+
+        out_dir = outfile.parent if lucky_out_dir is None else lucky_out_dir
+        out_dir.mkdir(parents=True, exist_ok=True)
+        seed = (
+            int(lucky_seed)
+            if lucky_seed is not None
+            else int(np.random.default_rng().integers(0, 2_147_483_647))
+        )
+
+        lucky_rows: list[dict[str, str]] = []
+        for idx in range(lucky):
+            rng = np.random.default_rng(seed + idx)
+            lucky_config = _build_lucky_config(
+                base=config,
+                rng=rng,
+                input_duration_seconds=duration_seconds,
+            )
+            lucky_config.progress = config.progress
+            lucky_out = out_dir / f"{outfile.stem}.lucky_{idx + 1:03d}{outfile.suffix}"
+
+            try:
+                report = run_render_pipeline(infile=infile, outfile=lucky_out, config=lucky_config)
+            except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+                raise typer.BadParameter(str(exc)) from exc
+
+            lucky_rows.append(
+                {
+                    "index": str(idx + 1),
+                    "outfile": str(lucky_out),
+                    "engine": str(report.get("engine", "unknown")),
+                    "rt60": f"{float(lucky_config.rt60):.2f}",
+                    "repeat": str(int(lucky_config.repeat)),
+                    "beast": str(int(lucky_config.beast_mode)),
+                }
+            )
+
+        if not config.silent:
+            summary = Table(title=f"Lucky Render Batch ({lucky} outputs)")
+            summary.add_column("#", style="cyan", justify="right")
+            summary.add_column("outfile", style="white")
+            summary.add_column("engine", style="green")
+            summary.add_column("rt60", justify="right")
+            summary.add_column("repeat", justify="right")
+            summary.add_column("beast", justify="right")
+            for row in lucky_rows:
+                summary.add_row(
+                    row["index"],
+                    row["outfile"],
+                    row["engine"],
+                    row["rt60"],
+                    row["repeat"],
+                    row["beast"],
+                )
+            console.print(summary)
+        return
 
     try:
         report = run_render_pipeline(infile=infile, outfile=outfile, config=config)
@@ -251,65 +337,7 @@ def render(
     if config.silent:
         return
 
-    table = Table(title="Render Summary")
-    table.add_column("Key", style="cyan")
-    table.add_column("Value", style="white")
-    table.add_row("requested_engine", str(report.get("effective", {}).get("engine_requested", "")))
-    table.add_row("engine", str(report.get("engine", "unknown")))
-    table.add_row("requested_device", str(report.get("effective", {}).get("device_requested", "")))
-    table.add_row("device", str(report.get("effective", {}).get("device_resolved", "")))
-    table.add_row(
-        "device_platform",
-        str(report.get("effective", {}).get("device_platform_resolved", "")),
-    )
-    table.add_row("compute_backend", str(report.get("effective", {}).get("compute_backend", "")))
-    table.add_row("ir_used", str(report.get("effective", {}).get("ir_used")))
-    table.add_row(
-        "self_convolve",
-        str(report.get("effective", {}).get("self_convolve", False)),
-    )
-    table.add_row("sample_rate", str(report.get("sample_rate", "")))
-    table.add_row("channels", str(report.get("channels", "")))
-    table.add_row("input_samples", str(report.get("input_samples", "")))
-    table.add_row("output_samples", str(report.get("output_samples", "")))
-    table.add_row(
-        "tail_padding_s",
-        str(report.get("effective", {}).get("tail_padding_seconds", "")),
-    )
-    table.add_row("beast_mode", str(report.get("effective", {}).get("beast_mode", 1)))
-    table.add_row("out_subtype", str(report.get("effective", {}).get("output_subtype", "")))
-    table.add_row("output_peak_norm", str(report.get("effective", {}).get("output_peak_norm", "")))
-    table.add_row(
-        "output_peak_target_dbfs",
-        str(report.get("effective", {}).get("output_peak_target_dbfs", "")),
-    )
-    table.add_row("streaming_mode", str(report.get("effective", {}).get("streaming_mode", "")))
-    config_report = report.get("config", {})
-    if isinstance(config_report, dict):
-        for key in (
-            "rt60",
-            "pre_delay_ms",
-            "beast_mode",
-            "wet",
-            "dry",
-            "repeat",
-            "ir_matrix_layout",
-            "self_convolve",
-            "damping",
-            "width",
-            "block_size",
-        ):
-            if key in config_report:
-                table.add_row(key, str(config_report[key]))
-    table.add_row("analysis_json", str(report.get("analysis_path", "")))
-    if "frames_path" in report:
-        table.add_row("frames_csv", str(report.get("frames_path")))
-    if "ir_runtime" in report:
-        runtime = report["ir_runtime"]
-        if isinstance(runtime, dict):
-            table.add_row("ir_runtime_path", str(runtime.get("ir_path", "")))
-            table.add_row("ir_cache_hit", str(runtime.get("cache_hit", False)))
-    console.print(table)
+    _print_render_summary(report)
 
 
 @app.command()
@@ -317,6 +345,11 @@ def analyze(
     infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
     json_out: Path | None = typer.Option(None, "--json-out", resolve_path=True),
     lufs: bool = typer.Option(False, "--lufs", help="Include LUFS/true-peak/LRA metrics."),
+    edr: bool = typer.Option(
+        False,
+        "--edr",
+        help="Include EDR (Energy Decay Relief) summary metrics.",
+    ),
     frames_out: Path | None = typer.Option(None, "--frames-out", resolve_path=True),
 ) -> None:
     """Analyze an audio file and print a summary table."""
@@ -325,7 +358,7 @@ def analyze(
         validate_audio_path(str(infile))
         audio, sr = read_audio(str(infile))
         analyzer = AudioAnalyzer()
-        metrics = analyzer.analyze(audio, sr, include_loudness=lufs)
+        metrics = analyzer.analyze(audio, sr, include_loudness=lufs, include_edr=edr)
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -992,6 +1025,181 @@ def _score_fit_candidates(
     return scored
 
 
+def _print_render_summary(report: dict[str, Any]) -> None:
+    """Print the standard single-render summary table."""
+    table = Table(title="Render Summary")
+    table.add_column("Key", style="cyan")
+    table.add_column("Value", style="white")
+    table.add_row("requested_engine", str(report.get("effective", {}).get("engine_requested", "")))
+    table.add_row("engine", str(report.get("engine", "unknown")))
+    table.add_row("requested_device", str(report.get("effective", {}).get("device_requested", "")))
+    table.add_row("device", str(report.get("effective", {}).get("device_resolved", "")))
+    table.add_row(
+        "device_platform",
+        str(report.get("effective", {}).get("device_platform_resolved", "")),
+    )
+    table.add_row("compute_backend", str(report.get("effective", {}).get("compute_backend", "")))
+    table.add_row("ir_used", str(report.get("effective", {}).get("ir_used")))
+    table.add_row(
+        "self_convolve",
+        str(report.get("effective", {}).get("self_convolve", False)),
+    )
+    table.add_row("sample_rate", str(report.get("sample_rate", "")))
+    table.add_row("channels", str(report.get("channels", "")))
+    table.add_row("input_samples", str(report.get("input_samples", "")))
+    table.add_row("output_samples", str(report.get("output_samples", "")))
+    table.add_row(
+        "tail_padding_s",
+        str(report.get("effective", {}).get("tail_padding_seconds", "")),
+    )
+    table.add_row("beast_mode", str(report.get("effective", {}).get("beast_mode", 1)))
+    table.add_row("out_subtype", str(report.get("effective", {}).get("output_subtype", "")))
+    table.add_row("output_peak_norm", str(report.get("effective", {}).get("output_peak_norm", "")))
+    table.add_row(
+        "output_peak_target_dbfs",
+        str(report.get("effective", {}).get("output_peak_target_dbfs", "")),
+    )
+    table.add_row("streaming_mode", str(report.get("effective", {}).get("streaming_mode", "")))
+    config_report = report.get("config", {})
+    if isinstance(config_report, dict):
+        for key in (
+            "rt60",
+            "pre_delay_ms",
+            "beast_mode",
+            "wet",
+            "dry",
+            "repeat",
+            "ir_matrix_layout",
+            "self_convolve",
+            "damping",
+            "width",
+            "block_size",
+        ):
+            if key in config_report:
+                table.add_row(key, str(config_report[key]))
+    table.add_row("analysis_json", str(report.get("analysis_path", "")))
+    if "frames_path" in report:
+        table.add_row("frames_csv", str(report.get("frames_path")))
+    if "ir_runtime" in report:
+        runtime = report["ir_runtime"]
+        if isinstance(runtime, dict):
+            table.add_row("ir_runtime_path", str(runtime.get("ir_path", "")))
+            table.add_row("ir_cache_hit", str(runtime.get("cache_hit", False)))
+    console.print(table)
+
+
+def _build_lucky_config(
+    base: RenderConfig,
+    rng: np.random.Generator,
+    input_duration_seconds: float,
+) -> RenderConfig:
+    """Build one randomized high-intensity render config for ``--lucky`` mode."""
+    cfg = RenderConfig(**asdict(base))
+
+    cfg.engine = cast(EngineName, rng.choice(np.array(["algo", "conv", "auto"], dtype=object)))
+    cfg.beast_mode = int(rng.integers(1, 7))
+    cfg.rt60 = float(rng.uniform(0.8, 12.0))
+    cfg.pre_delay_ms = float(rng.uniform(0.0, 500.0))
+    cfg.damping = float(rng.uniform(0.0, 1.0))
+    cfg.width = float(rng.uniform(0.0, 2.0))
+    cfg.mod_depth_ms = float(rng.uniform(0.0, 25.0))
+    cfg.mod_rate_hz = float(rng.uniform(0.02, 2.0))
+    cfg.wet = float(rng.uniform(0.55, 1.0))
+    cfg.dry = float(rng.uniform(0.0, 0.6))
+    cfg.repeat = int(rng.integers(1, 4))
+    cfg.partition_size = int(rng.choice(np.array([4096, 8192, 16384, 32768], dtype=np.int32)))
+    cfg.block_size = int(rng.choice(np.array([1024, 2048, 4096, 8192], dtype=np.int32)))
+    cfg.progress = False
+    cfg.frames_out = None
+    cfg.analysis_out = None
+
+    cfg.freeze = bool(input_duration_seconds > 1.5 and rng.random() < 0.33)
+    if cfg.freeze:
+        max_start = max(0.0, input_duration_seconds - 0.25)
+        start = float(rng.uniform(0.0, max_start))
+        max_len = max(0.2, min(4.0, input_duration_seconds * 0.45))
+        end = float(min(input_duration_seconds, start + rng.uniform(0.2, max_len)))
+        if end <= start:
+            end = min(input_duration_seconds, start + 0.2)
+        cfg.start = start
+        cfg.end = end
+    else:
+        cfg.start = None
+        cfg.end = None
+
+    cfg.target_lufs = float(rng.uniform(-30.0, -10.0)) if rng.random() < 0.45 else None
+    cfg.target_peak_dbfs = float(rng.uniform(-9.0, -0.6)) if rng.random() < 0.7 else None
+    cfg.use_true_peak = bool(rng.random() < 0.8)
+    cfg.normalize_stage = cast(
+        NormalizeStage,
+        rng.choice(np.array(["none", "post", "per-pass"], dtype=object)),
+    )
+    if cfg.normalize_stage == "per-pass":
+        cfg.repeat_target_lufs = (
+            float(rng.uniform(-30.0, -12.0)) if rng.random() < 0.55 else cfg.target_lufs
+        )
+        cfg.repeat_target_peak_dbfs = (
+            float(rng.uniform(-10.0, -0.8)) if rng.random() < 0.6 else cfg.target_peak_dbfs
+        )
+    else:
+        cfg.repeat_target_lufs = None
+        cfg.repeat_target_peak_dbfs = None
+
+    cfg.shimmer = bool(rng.random() < 0.42)
+    cfg.shimmer_semitones = float(rng.choice(np.array([7.0, 12.0, 19.0, 24.0], dtype=np.float32)))
+    cfg.shimmer_mix = float(rng.uniform(0.05, 0.85))
+    cfg.shimmer_feedback = float(rng.uniform(0.05, 0.95))
+    cfg.shimmer_lowcut = float(rng.uniform(80.0, 600.0))
+    cfg.shimmer_highcut = float(rng.uniform(2_000.0, 16_000.0))
+
+    cfg.duck = bool(rng.random() < 0.45)
+    cfg.duck_attack = float(rng.uniform(2.0, 120.0))
+    cfg.duck_release = float(rng.uniform(80.0, 1200.0))
+    cfg.bloom = float(rng.uniform(0.0, 6.0))
+    cfg.tilt = float(rng.uniform(-8.0, 8.0))
+
+    if rng.random() < 0.6:
+        cfg.lowcut = float(rng.uniform(20.0, 500.0))
+    else:
+        cfg.lowcut = None
+    if rng.random() < 0.8:
+        min_high = (cfg.lowcut + 300.0) if cfg.lowcut is not None else 800.0
+        cfg.highcut = float(rng.uniform(min_high, 20_000.0))
+    else:
+        cfg.highcut = None
+
+    # Ensure convolution path has a valid IR source whenever selected.
+    if cfg.engine in {"conv", "auto"} and rng.random() < 0.75:
+        mode = int(rng.integers(0, 3))
+        if mode == 0 and base.ir is not None:
+            cfg.ir = base.ir
+            cfg.ir_gen = False
+            cfg.self_convolve = False
+        elif mode == 1:
+            cfg.self_convolve = True
+            cfg.ir = None
+            cfg.ir_gen = False
+        else:
+            cfg.ir_gen = True
+            cfg.ir = None
+            cfg.self_convolve = False
+            cfg.ir_gen_mode = cast(
+                IRMode,
+                rng.choice(np.array(["hybrid", "fdn", "modal", "stochastic"], dtype=object)),
+            )
+            cfg.ir_gen_length = float(rng.uniform(5.0, 60.0))
+            cfg.ir_gen_seed = int(rng.integers(0, 2_147_483_647))
+    else:
+        cfg.ir = None
+        cfg.ir_gen = False
+        cfg.self_convolve = False
+        if cfg.engine == "conv":
+            cfg.engine = "algo"
+
+    cfg.tail_limit = float(rng.uniform(2.0, 40.0)) if rng.random() < 0.4 else None
+    return cfg
+
+
 def _resolve_ir_output_path(out_ir: Path, out_format: IRFileFormat) -> Path:
     """Resolve output IR path based on explicit format switch."""
     if out_format == "auto":
@@ -999,6 +1207,28 @@ def _resolve_ir_output_path(out_ir: Path, out_format: IRFileFormat) -> Path:
 
     suffix = ".aiff" if out_format == "aiff" else f".{out_format}"
     return out_ir.with_suffix(suffix)
+
+
+def _validate_lucky_call(
+    config: RenderConfig,
+    lucky: int | None,
+    lucky_out_dir: Path | None,
+) -> None:
+    """Validate lucky-mode options for randomized batch rendering."""
+    if lucky is None:
+        return
+    if lucky < 1:
+        msg = "--lucky must be >= 1."
+        raise typer.BadParameter(msg)
+    if lucky_out_dir is not None and lucky_out_dir.exists() and not lucky_out_dir.is_dir():
+        msg = f"--lucky-out-dir is not a directory: {lucky_out_dir}"
+        raise typer.BadParameter(msg)
+    if config.analysis_out is not None:
+        msg = "Do not use --analysis-out with --lucky (analysis files are per-output by default)."
+        raise typer.BadParameter(msg)
+    if config.frames_out is not None:
+        msg = "Do not use --frames-out with --lucky."
+        raise typer.BadParameter(msg)
 
 
 def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> None:

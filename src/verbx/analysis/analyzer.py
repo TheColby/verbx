@@ -9,6 +9,7 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 
+from verbx.analysis.edr import edr_summary
 from verbx.analysis.features_spectral import (
     spectral_bandwidth,
     spectral_centroid,
@@ -47,7 +48,11 @@ class AudioAnalyzer:
     """
 
     def analyze(
-        self, audio: AudioArray, sr: int, include_loudness: bool = False
+        self,
+        audio: AudioArray,
+        sr: int,
+        include_loudness: bool = False,
+        include_edr: bool = False,
     ) -> dict[str, float]:
         """Return analysis metrics for CLI consumption.
 
@@ -59,6 +64,8 @@ class AudioAnalyzer:
             Sample rate in Hz.
         include_loudness:
             Enables slower EBU-R128 style metrics (LUFS, true-peak, LRA).
+        include_edr:
+            Enables frequency-dependent EDR summary metrics.
         """
         channel_rms = np.sqrt(np.mean(np.square(audio), axis=0, dtype=np.float64))
 
@@ -96,6 +103,9 @@ class AudioAnalyzer:
             result["integrated_lufs"] = integrated_lufs(audio, sr)
             result["true_peak_dbfs"] = true_peak_dbfs(audio, sr, oversample=4)
             result["lra"] = loudness_range_lu(audio, sr)
+
+        if include_edr:
+            result.update(edr_summary(audio, sr))
 
         for idx, value in enumerate(channel_rms.tolist(), start=1):
             result[f"channel_{idx}_rms"] = float(value)
