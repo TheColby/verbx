@@ -168,7 +168,9 @@ def test_analyze_edr_mode(tmp_path: Path, runner: CliRunner) -> None:
     assert "edr_rt60_median_s" in result.stdout
 
 
-def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path, runner: CliRunner) -> None:
+def test_render_output_subtype_and_peak_normalization_modes(
+    tmp_path: Path, runner: CliRunner
+) -> None:
     sr = 48_000
     audio = np.zeros((1024, 2), dtype=np.float32)
     audio[100:140, :] = 0.25
@@ -625,7 +627,9 @@ def test_batch_render_parallel_jobs(tmp_path: Path, runner: CliRunner) -> None:
     assert out2.exists()
 
 
-def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path, runner: CliRunner) -> None:
+def test_batch_render_lucky_mode_creates_multiple_outputs(
+    tmp_path: Path, runner: CliRunner
+) -> None:
     sr = 16_000
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"

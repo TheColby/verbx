@@ -176,10 +176,7 @@ def parse_mod_source(spec: str) -> ModulationSource:
 
     if head == "audio-env":
         if len(parts) < 2:
-            msg = (
-                "Invalid audio-env source. "
-                "Use audio-env:<path>[:attack_ms[:release_ms]][*weight]"
-            )
+            msg = "Invalid audio-env source. Use audio-env:<path>[:attack_ms[:release_ms]][*weight]"
             raise ValueError(msg)
         if len(parts) > 4:
             msg = (
@@ -211,10 +208,7 @@ def parse_mod_source(spec: str) -> ModulationSource:
             value=float(parts[1]),
         )
 
-    msg = (
-        "Unsupported modulation source kind. "
-        "Expected one of: lfo, env, audio-env, const."
-    )
+    msg = "Unsupported modulation source kind. Expected one of: lfo, env, audio-env, const."
     raise ValueError(msg)
 
 
