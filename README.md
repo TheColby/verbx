@@ -769,7 +769,7 @@ verbx render piano_sparse.wav piano_hall_clear.wav \
   --target-peak-dbfs -1
 ```
 
-### 7.20 Deep-resonance long-space (inspired by Deep Listening aesthetics)
+### 7.20 Deep-resonance long-space (inspired by Pauline Oliveros' Deep Listening aesthetics)
 
 Use this for very long drone-oriented spaces via generated hybrid IRs and extended tail limits.
 
