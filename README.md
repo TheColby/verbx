@@ -228,10 +228,10 @@ In `verbx`, controls map directly to this anatomy:
 
 Current implementation level: **v0.4**
 
-- Prompt 1: scaffolding and architecture
-- Prompt 2: functional DSP render path
-- Prompt 3: loudness/peak + shimmer/ambient controls
-- Prompt 4: IR factory, cache, batch, tempo sync, framewise analysis
+- scaffolding and architecture
+- functional DSP render path
+- loudness/peak + shimmer/ambient controls
+- IR factory, cache, batch, tempo sync, framewise analysis
 - v0.4 additions: framewise modulation analysis, advanced IR fitting heuristics, parallel batch scheduler
 
 ## 4.0 Features
