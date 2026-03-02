@@ -7,7 +7,7 @@ optional per-pass normalization/targeting, and progress callbacks.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 
 import numpy as np
 import numpy.typing as npt
@@ -58,3 +58,44 @@ def repeat_process(
             progress_callback(idx + 1, passes)
 
     return np.asarray(current, dtype=np.float32)
+
+
+def process_pass_stream(
+    engine: ReverbEngine,
+    input_stream: Iterator[np.ndarray],
+    sr: int,
+    wet_decay: float = 1.0,
+    normalize: bool = True,
+) -> Iterator[np.ndarray]:
+    """Process a stream of audio blocks through a reverb engine.
+
+    Parameters
+    ----------
+    engine:
+        The reverb engine to use.
+    input_stream:
+        An iterator yielding audio blocks as numpy arrays.
+    sr:
+        Sample rate in Hz.
+    wet_decay:
+        A gain multiplier applied to the processed block.
+    normalize:
+        If True, normalizes the processed block to its peak amplitude before yielding.
+        If the block is completely silent, normalization is skipped.
+
+    Yields
+    ------
+    numpy.ndarray
+        The processed audio block.
+    """
+    for block in input_stream:
+        block = np.asarray(block, dtype=np.float32)
+        processed = engine.process(block, sr)
+        processed = processed * wet_decay
+
+        if normalize:
+            peak = np.max(np.abs(processed))
+            if peak > 0.0:
+                processed = processed / peak
+
+        yield processed
