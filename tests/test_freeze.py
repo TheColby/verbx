@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from verbx.core.freeze import freeze_segment, create_crossfaded_loop
+from verbx.core.freeze import create_crossfaded_loop, freeze_segment
 
 
 def test_create_crossfaded_loop():
