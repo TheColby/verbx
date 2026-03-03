@@ -61,7 +61,7 @@ def test_parse_mod_sources_chaos() -> None:
     assert sources[0].weight == 0.8
 
 def test_chaos_wave_generator() -> None:
-    from verbx.core.modulation import _chaos_wave
+    from verbx.core.modulation import _chaos_wave  # pyright: ignore[reportPrivateUsage]
     wave = _chaos_wave(1000, 48_000, 1.0)
     assert wave.shape == (1000,)
     assert wave.dtype == "float32"
