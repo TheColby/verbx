@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import soundfile as sf
@@ -818,7 +819,6 @@ def test_ir_gen_validation_errors(tmp_path: Path) -> None:
     )
     assert result.exit_code != 0
 
-from unittest.mock import patch, MagicMock
 
 def test_suggest_conv_engine(tmp_path: Path) -> None:
     runner = CliRunner()
