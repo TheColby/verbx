@@ -2,6 +2,7 @@ import numpy as np
 
 from verbx.core.freeze import freeze_generator
 
+
 def test_freeze_generator_exact_multiple() -> None:
     buf = np.array([[1], [2], [3], [4]])
     gen = freeze_generator(buf, block_size=2)
