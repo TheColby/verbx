@@ -117,8 +117,8 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             if not runtime_config.silent:
                 include_loudness = _should_include_loudness(runtime_config)
                 analyzer = AudioAnalyzer()
-                audio_in, _ = read_audio(str(infile))
-                audio_out, _ = read_audio(str(outfile))
+                audio_in, _ = read_audio(str(infile), max_duration=300.0)
+                audio_out, _ = read_audio(str(outfile), max_duration=300.0)
                 report["input"] = analyzer.analyze(
                     audio_in,
                     input_sr,

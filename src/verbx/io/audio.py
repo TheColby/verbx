@@ -16,12 +16,19 @@ import soundfile as sf
 AudioArray = npt.NDArray[np.float32]
 
 
-def read_audio(path: str) -> tuple[AudioArray, int]:
+def read_audio(path: str, max_duration: float | None = None) -> tuple[AudioArray, int]:
     """Read audio as float32 with shape ``(samples, channels)``.
 
     ``soundfile`` handles WAV/FLAC/AIFF and other libsndfile-backed formats.
+    If ``max_duration`` is provided, reads at most that many seconds of audio.
     """
-    audio, sr = sf.read(path, always_2d=True, dtype="float32")
+    if max_duration is not None:
+        info = sf.info(path)
+        frames = int(max_duration * info.samplerate)
+        audio, sr = sf.read(path, always_2d=True, dtype="float32", frames=frames)
+    else:
+        audio, sr = sf.read(path, always_2d=True, dtype="float32")
+
     array = np.asarray(audio, dtype=np.float32)
     return array, int(sr)
 

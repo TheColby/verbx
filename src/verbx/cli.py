@@ -477,7 +477,7 @@ def analyze(
     _validate_analyze_call(infile, json_out, frames_out)
     try:
         validate_audio_path(str(infile))
-        audio, sr = read_audio(str(infile))
+        audio, sr = read_audio(str(infile), max_duration=300.0)
         analyzer = AudioAnalyzer()
         metrics = analyzer.analyze(audio, sr, include_loudness=lufs, include_edr=edr)
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
@@ -505,7 +505,7 @@ def suggest(
     """Suggest practical render defaults from input analysis."""
     try:
         validate_audio_path(str(infile))
-        audio, sr = read_audio(str(infile))
+        audio, sr = read_audio(str(infile), max_duration=300.0)
         analyzer = AudioAnalyzer()
         metrics = analyzer.analyze(audio, sr)
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
@@ -1007,7 +1007,7 @@ def ir_fit(
     """Analyze source audio, score candidate IRs, and write top-k results."""
     _validate_output_audio_path(out_ir, "auto")
     try:
-        audio, sr = read_audio(str(infile))
+        audio, sr = read_audio(str(infile), max_duration=300.0)
         analyzer = AudioAnalyzer()
         metrics = analyzer.analyze(audio, sr)
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
