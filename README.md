@@ -2,7 +2,7 @@
   <img src="docs/assets/verbx_logo.png" width="420" />
 </p>
 
-# verbx
+# 🎛️ verbx
 
 `verbx` is a production-grade Python command-line tool for creating spacious,
 cinematic, and experimental reverb effects from audio files. It is designed for
@@ -16,38 +16,38 @@ freeze/repeat processing, loudness and peak targeting, multichannel/surround
 routing, and synthetic IR generation with deterministic caching for reproducible
 results.
 
-## 1.0 Table of Contents
+## 📑 1.0 Table of Contents
 
-- [2.0 What is Reverberation (a/k/a Reverb)?](#20-what-is-reverberation-aka-reverb)
-  - [2.1 Quick Reference Summary (from Wikipedia)](#21-quick-reference-summary-from-wikipedia)
-  - [2.2 Reverb Timeline (Single Hit)](#22-reverb-timeline-single-hit)
-    - [2.2.1 Labeled Envelope Graph (Amplitude vs Time)](#221-labeled-envelope-graph-amplitude-vs-time)
-  - [2.3 Dry/Wet and Tail Flow](#23-drywet-and-tail-flow)
-  - [2.4 Reverb vs Echo vs Delay](#24-reverb-vs-echo-vs-delay)
-  - [2.5 Physical Building Blocks of Reverb](#25-physical-building-blocks-of-reverb)
-  - [2.6 How Humans Perceive Reverb](#26-how-humans-perceive-reverb)
-  - [2.7 Why Frequency-Dependent Decay Matters](#27-why-frequency-dependent-decay-matters)
-  - [2.8 Core Reverb Metrics (RT60, EDT, DRR, EDR, and more)](#28-core-reverb-metrics-rt60-edt-drr-edr-and-more)
-  - [2.9 Main Reverb Methods in Practice](#29-main-reverb-methods-in-practice)
-  - [2.10 How `verbx` Controls Map to Reverb Physics](#210-how-verbx-controls-map-to-reverb-physics)
-  - [2.11 How to Listen Critically to Reverb](#211-how-to-listen-critically-to-reverb)
-  - [2.12 Beginner Workflow: Choosing Reverb on Purpose](#212-beginner-workflow-choosing-reverb-on-purpose)
-- [3.0 Project Status](#30-status)
-- [4.0 Features](#40-features)
-- [5.0 Requirements](#50-requirements)
-- [6.0 Installation and Quick Start](#60-installation-and-quick-start)
-  - [6.1 Install options](#61-install-options)
-    - [6.1.1 Option A: Hatch (recommended for contributors)](#611-option-a-hatch-recommended-for-contributors)
-    - [6.1.2 Option B: Plain virtualenv + pip (no Hatch)](#612-option-b-plain-virtualenv-pip-no-hatch)
-    - [6.1.3 Option C: pipx (isolated app install)](#613-option-c-pipx-isolated-app-install)
-    - [6.1.4 Option D: Run module directly (no console-script install)](#614-option-d-run-module-directly-no-console-script-install)
-  - [6.2 Add `verbx` to Your `PATH`](#62-add-verbx-to-your-path)
+- [🌊 2.0 What is Reverberation (a/k/a Reverb)?](#20-what-is-reverberation-aka-reverb)
+  - [📖 2.1 Quick Reference Summary (from Wikipedia)](#21-quick-reference-summary-from-wikipedia)
+  - [⏱️ 2.2 Reverb Timeline (Single Hit)](#22-reverb-timeline-single-hit)
+    - [📈 2.2.1 Labeled Envelope Graph (Amplitude vs Time)](#221-labeled-envelope-graph-amplitude-vs-time)
+  - [🎚️ 2.3 Dry/Wet and Tail Flow](#23-drywet-and-tail-flow)
+  - [🔄 2.4 Reverb vs Echo vs Delay](#24-reverb-vs-echo-vs-delay)
+  - [🧱 2.5 Physical Building Blocks of Reverb](#25-physical-building-blocks-of-reverb)
+  - [🧠 2.6 How Humans Perceive Reverb](#26-how-humans-perceive-reverb)
+  - [🎛️ 2.7 Why Frequency-Dependent Decay Matters](#27-why-frequency-dependent-decay-matters)
+  - [📊 2.8 Core Reverb Metrics (RT60, EDT, DRR, EDR, and more)](#28-core-reverb-metrics-rt60-edt-drr-edr-and-more)
+  - [🛠️ 2.9 Main Reverb Methods in Practice](#29-main-reverb-methods-in-practice)
+  - [🗺️ 2.10 How `verbx` Controls Map to Reverb Physics](#210-how-verbx-controls-map-to-reverb-physics)
+  - [🎧 2.11 How to Listen Critically to Reverb](#211-how-to-listen-critically-to-reverb)
+  - [🚀 2.12 Beginner Workflow: Choosing Reverb on Purpose](#212-beginner-workflow-choosing-reverb-on-purpose)
+- [🚧 3.0 Project Status](#30-status)
+- [✨ 4.0 Features](#40-features)
+- [📦 5.0 Requirements](#50-requirements)
+- [⚡ 6.0 Installation and Quick Start](#60-installation-and-quick-start)
+  - [⚙️ 6.1 Install options](#61-install-options)
+    - [🏗️ 6.1.1 Option A: Hatch (recommended for contributors)](#611-option-a-hatch-recommended-for-contributors)
+    - [🐍 6.1.2 Option B: Plain virtualenv + pip (no Hatch)](#612-option-b-plain-virtualenv-pip-no-hatch)
+    - [📦 6.1.3 Option C: pipx (isolated app install)](#613-option-c-pipx-isolated-app-install)
+    - [📜 6.1.4 Option D: Run module directly (no console-script install)](#614-option-d-run-module-directly-no-console-script-install)
+  - [🛣️ 6.2 Add `verbx` to Your `PATH`](#62-add-verbx-to-your-path)
     - [6.2.1 Virtualenv install (`.venv`)](#621-virtualenv-install-venv)
-    - [6.2.2 `pipx` install](#622-pipx-install)
-    - [6.2.3 User-site `pip install --user`](#623-user-site-pip-install-user)
-  - [6.3 Choosing How To Run `verbx`](#63-choosing-how-to-run-verbx)
-    - [6.3.1 Hatch](#631-hatch)
-    - [6.3.2 `uv`](#632-uv)
+    - [📦 6.2.2 `pipx` install](#622-pipx-install)
+    - [👤 6.2.3 User-site `pip install --user`](#623-user-site-pip-install-user)
+  - [🏃 6.3 Choosing How To Run `verbx`](#63-choosing-how-to-run-verbx)
+    - [🥚 6.3.1 Hatch](#631-hatch)
+    - [🚀 6.3.2 `uv`](#632-uv)
     - [6.3.3 Plain `venv` + `pip`](#633-plain-venv-pip)
     - [6.3.4 `pipx`](#634-pipx)
     - [6.3.5 Direct `python -m verbx.cli`](#635-direct-python-m-verbxcli)
@@ -191,7 +191,7 @@ In practical audio production, a reverb impression usually contains:
 - **early reflections** (directional first bounces)
 - a dense **late field / wash** (tail)
 
-### 2.1 Quick Reference Summary (from Wikipedia)
+### 📖 2.1 Quick Reference Summary (from Wikipedia)
 
 - Reverberation is the cumulative result of many reflections whose energy
   decays over time due to absorption and scattering.
@@ -209,7 +209,7 @@ In practical audio production, a reverb impression usually contains:
 
 Source: [Wikipedia - Reverberation](https://en.wikipedia.org/wiki/Reverberation)
 
-### 2.2 Reverb Timeline (Single Hit)
+### ⏱️ 2.2 Reverb Timeline (Single Hit)
 
 ```mermaid
 flowchart LR
@@ -219,7 +219,7 @@ flowchart LR
   D --> E["Wash / Late Tail (hundreds of ms to many seconds)"]
 ```
 
-#### 2.2.1 Labeled Envelope Graph (Amplitude vs Time)
+#### 📈 2.2.1 Labeled Envelope Graph (Amplitude vs Time)
 
 ![Labeled reverb envelope graph](docs/assets/reverb_timeline_labeled.svg)
 
@@ -236,7 +236,7 @@ Plain-English explanation of the graph:
 - The **RT60 point** is explicitly where the envelope reaches **`peak - 60 dB`** (at the `-60 dB` reference line).
 - After RT60, the tail continues toward the noise floor (`-70 dB` in this visualization).
 
-### 2.3 Dry/Wet and Tail Flow
+### 🎚️ 2.3 Dry/Wet and Tail Flow
 
 ```mermaid
 flowchart LR
@@ -257,7 +257,7 @@ In `verbx`, controls map directly to this anatomy:
 - `--rt60`: sets how long the wash/tail decays
 - `--damping`, `--lowcut`, `--highcut`, `--tilt`: shape the tonal decay
 
-### 2.4 Reverb vs Echo vs Delay
+### 🔄 2.4 Reverb vs Echo vs Delay
 
 These terms are related but not identical:
 
@@ -275,7 +275,7 @@ In practice, mix decisions rely on density and masking as much as raw delay
 time. Two signals with the same delay can feel like either "echo" or "reverb"
 depending on spectrum, transient content, and level.
 
-### 2.5 Physical Building Blocks of Reverb
+### 🧱 2.5 Physical Building Blocks of Reverb
 
 At a high level, real-room reverberation is determined by:
 
@@ -294,7 +294,7 @@ Conceptually, a room response is:
 That is exactly why modern digital reverbs split processing into early/late
 behavior, even when implemented differently.
 
-### 2.6 How Humans Perceive Reverb
+### 🧠 2.6 How Humans Perceive Reverb
 
 Reverb perception is not just "how long the tail is." Important psychoacoustic
 effects include:
@@ -314,7 +314,7 @@ For production, this means the same RT60 can feel very different depending on:
 - spectral tilt/damping
 - modulation/decorrelation
 
-### 2.7 Why Frequency-Dependent Decay Matters
+### 🎛️ 2.7 Why Frequency-Dependent Decay Matters
 
 Most spaces do not decay uniformly across frequency.
 
@@ -326,7 +326,7 @@ So a single scalar RT60 is useful but incomplete. Good reverb design often
 requires separate low/mid/high control, or at least tonal shaping (`damping`,
 filters, tilt) so the decay profile matches artistic intent.
 
-### 2.8 Core Reverb Metrics (RT60, EDT, DRR, EDR, and more)
+### 📊 2.8 Core Reverb Metrics (RT60, EDT, DRR, EDR, and more)
 
 | Metric | What it means | Why it matters |
 |---|---|---|
@@ -346,7 +346,7 @@ In `verbx`:
   `edr_valid_bins`),
 - use framewise CSV exports for time-evolving behavior checks.
 
-### 2.9 Main Reverb Methods in Practice
+### 🛠️ 2.9 Main Reverb Methods in Practice
 
 `verbx` supports the two dominant modern approaches:
 
@@ -363,7 +363,7 @@ Under the hood, algorithmic reverbs commonly use structures inspired by
 Schroeder/comb/allpass ideas and modern FDN designs. Convolution reverbs rely
 on partitioned FFT methods for long IR efficiency.
 
-### 2.10 How `verbx` Controls Map to Reverb Physics
+### 🗺️ 2.10 How `verbx` Controls Map to Reverb Physics
 
 | `verbx` control | Physical/perceptual concept | Typical outcome |
 |---|---|---|
@@ -377,7 +377,7 @@ on partitioned FFT methods for long IR efficiency.
 | `--freeze`, `--repeat` | Extreme temporal extension | Sustained or recursively thickened textures |
 | `--lowcut`, `--highcut`, `--tilt` | Post-wet tonal shaping | Controls mud/brightness/warmth |
 
-### 2.11 How to Listen Critically to Reverb
+### 🎧 2.11 How to Listen Critically to Reverb
 
 When evaluating settings, listen for:
 
@@ -395,7 +395,7 @@ A practical method is A/B comparison at matched loudness:
 3. bright vs dark damping
 4. different diffusion/topology settings
 
-### 2.12 Beginner Workflow: Choosing Reverb on Purpose
+### 🚀 2.12 Beginner Workflow: Choosing Reverb on Purpose
 
 If you are new, use this sequence:
 
@@ -445,7 +445,7 @@ Current implementation level: **v0.4**
 - IR factory, cache, batch, tempo sync, framewise analysis
 - v0.4 additions: framewise modulation analysis, advanced IR fitting heuristics, parallel batch scheduler
 
-## 4.0 Features
+## ✨ 4.0 Features
 
 - CLI-only architecture (Typer + Rich)
 - Algorithmic reverb (Schroeder allpass diffusion + 8-line FDN / coupled comb-like feedback loops)
@@ -460,7 +460,7 @@ Current implementation level: **v0.4**
 - Tempo-synced note parsing (`--pre-delay 1/8D --bpm 120`)
 - Framewise CSV analysis exports
 
-## 5.0 Requirements
+## 📦 5.0 Requirements
 
 - Python 3.11+
 - `libsndfile` available on system (required by `soundfile`)
@@ -468,18 +468,18 @@ Current implementation level: **v0.4**
   - `numba` (faster CPU algorithmic FDN path)
   - `cupy` / `cupy-cuda12x` (CUDA convolution backend)
 
-## 6.0 Installation and Quick Start
+## ⚡ 6.0 Installation and Quick Start
 
-### 6.1 Install options
+### ⚙️ 6.1 Install options
 
-#### 6.1.1 Option A: Hatch (recommended for contributors)
+#### 🏗️ 6.1.1 Option A: Hatch (recommended for contributors)
 
 ```bash
 hatch env create
 hatch run verbx --help
 ```
 
-#### 6.1.2 Option B: Plain virtualenv + pip (no Hatch)
+#### 🐍 6.1.2 Option B: Plain virtualenv + pip (no Hatch)
 
 ```bash
 python3 -m venv .venv
@@ -489,21 +489,21 @@ python -m pip install -e ".[dev]"
 verbx --help
 ```
 
-#### 6.1.3 Option C: pipx (isolated app install)
+#### 📦 6.1.3 Option C: pipx (isolated app install)
 
 ```bash
 pipx install .
 verbx --help
 ```
 
-#### 6.1.4 Option D: Run module directly (no console-script install)
+#### 📜 6.1.4 Option D: Run module directly (no console-script install)
 
 ```bash
 python -m pip install typer rich numpy scipy soundfile librosa pyloudnorm
 PYTHONPATH=src python -m verbx.cli --help
 ```
 
-### 6.2 Add `verbx` to Your `PATH`
+### 🛣️ 6.2 Add `verbx` to Your `PATH`
 
 If `verbx --help` says `command not found`, your shell likely cannot see the
 install location yet.
@@ -534,7 +534,7 @@ source ~/.zshrc
 direnv allow
 ```
 
-#### 6.2.2 `pipx` install
+#### 📦 6.2.2 `pipx` install
 
 Make sure pipx paths are configured:
 
@@ -548,7 +548,7 @@ Then open a new terminal and run:
 verbx --help
 ```
 
-#### 6.2.3 User-site `pip install --user`
+#### 👤 6.2.3 User-site `pip install --user`
 
 Add Python's user bin directory to `PATH` (zsh on macOS/Linux):
 
@@ -577,9 +577,9 @@ exec fish
 verbx --help
 ```
 
-### 6.3 Choosing How To Run `verbx`
+### 🏃 6.3 Choosing How To Run `verbx`
 
-#### 6.3.1 Hatch
+#### 🥚 6.3.1 Hatch
 
 Pros:
 
@@ -597,7 +597,7 @@ Best for:
 - Contributors working on `verbx` itself
 - CI/local parity with documented project scripts
 
-#### 6.3.2 `uv`
+#### 🚀 6.3.2 `uv`
 
 Pros:
 
