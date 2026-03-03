@@ -15,6 +15,54 @@ from verbx.io.audio import ensure_mono_or_stereo
 AudioArray = npt.NDArray[np.float32]
 
 
+def create_crossfaded_loop(
+    audio: np.ndarray, sr: int, start: float, end: float, xfade_ms: float = 100.0
+) -> np.ndarray:
+    """
+    Create a seamless loop from an audio segment using crossfading.
+
+    Args:
+        audio: Input audio array.
+        sr: Sample rate.
+        start: Start time (s).
+        end: End time (s).
+        xfade_ms: Crossfade duration (ms).
+
+    Returns:
+        The loop buffer (numpy array).
+    """
+    x = ensure_mono_or_stereo(audio)
+    start_idx = max(0, int(start * sr))
+    end_idx = min(x.shape[0], int(end * sr))
+
+    if end_idx <= start_idx:
+        return np.array([], dtype=np.float32)
+
+    segment = x[start_idx:end_idx, :].copy()
+    loop_len = segment.shape[0]
+
+    xfade = int(max(0.0, xfade_ms) * sr / 1000.0)
+    xfade = min(xfade, max(1, loop_len // 4))
+
+    if xfade > 0 and loop_len >= xfade * 2:
+        # Equal-power crossfade keeps perceived level steady at loop boundary.
+        theta = np.linspace(0.0, np.pi / 2.0, xfade, dtype=np.float32)
+        fade_out = np.cos(theta)
+        fade_in = np.sin(theta)
+
+        # Mix the end of the segment into the start of the segment
+        blended = (segment[-xfade:, :] * fade_out[:, np.newaxis]) + (
+            segment[:xfade, :] * fade_in[:, np.newaxis]
+        )
+        segment[:xfade, :] = blended
+
+        # Truncate the segment to remove the tail that was crossfaded
+        # since it's already mixed into the front.
+        segment = segment[:-xfade, :]
+
+    return segment
+
+
 def freeze_segment(
     audio: AudioArray,
     sr: int,
