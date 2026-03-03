@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import numpy as np
 import soundfile as sf
 
@@ -147,3 +148,35 @@ def test_convolution_engine_cross_channel_ir_matrix(tmp_path: Path) -> None:
     assert out.shape[0] >= audio.shape[0]
     assert np.isclose(out[0, 0], 1.5, atol=5e-5)
     assert np.isclose(out[0, 1], 1.25, atol=5e-5)
+
+
+def test_convolution_engine_invalid_ir_path(tmp_path: Path) -> None:
+    invalid_path = tmp_path / "does_not_exist.wav"
+    engine = ConvolutionReverbEngine(
+        ConvolutionReverbConfig(
+            ir_path=str(invalid_path),
+            wet=1.0,
+            dry=0.0,
+        )
+    )
+    audio = np.zeros((100, 1), dtype=np.float32)
+    with pytest.raises(sf.LibsndfileError) as excinfo:
+        engine.process(audio, sr=48_000)
+    assert "Error opening" in str(excinfo.value)
+
+
+def test_convolution_engine_non_audio_file(tmp_path: Path) -> None:
+    text_file = tmp_path / "not_audio.txt"
+    text_file.write_text("This is not an audio file")
+
+    engine = ConvolutionReverbEngine(
+        ConvolutionReverbConfig(
+            ir_path=str(text_file),
+            wet=1.0,
+            dry=0.0,
+        )
+    )
+    audio = np.zeros((100, 1), dtype=np.float32)
+    with pytest.raises(sf.LibsndfileError) as excinfo:
+        engine.process(audio, sr=48_000)
+    assert "Error opening" in str(excinfo.value)
