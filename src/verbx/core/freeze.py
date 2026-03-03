@@ -7,6 +7,8 @@ the same framing assumptions as normal rendering.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import numpy as np
 import numpy.typing as npt
 
@@ -73,3 +75,32 @@ def freeze_segment(
     repeats = int(np.ceil(x.shape[0] / loop_len))
     frozen = np.tile(segment, (repeats, 1))[: x.shape[0], :]
     return np.asarray(frozen, dtype=np.float32)
+
+
+def freeze_generator(
+    loop_buffer: np.ndarray, block_size: int = 4096
+) -> Iterator[np.ndarray]:
+    """
+    Yield infinite blocks from the loop buffer.
+    """
+    idx = 0
+    loop_len = len(loop_buffer)
+
+    while True:
+        if loop_len == 0:
+            shape = (block_size, *loop_buffer.shape[1:])
+            yield np.zeros(shape, dtype=loop_buffer.dtype)
+            continue
+
+        if idx + block_size <= loop_len:
+            yield loop_buffer[idx : idx + block_size]
+            idx = (idx + block_size) % loop_len
+        else:
+            parts = [loop_buffer[idx:]]
+            rem = block_size - len(parts[0])
+            while rem > 0:
+                chunk = min(rem, loop_len)
+                parts.append(loop_buffer[:chunk])
+                rem -= chunk
+            yield np.concatenate(parts, axis=0)
+            idx = (idx + block_size) % loop_len
