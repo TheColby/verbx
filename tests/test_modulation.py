@@ -51,3 +51,17 @@ def test_parse_mod_route_spec() -> None:
     assert route.combine == "avg"
     assert route.smooth_ms == 25.0
     assert len(route.source_specs) == 2
+
+def test_parse_mod_sources_chaos() -> None:
+    sources = parse_mod_sources(["chaos:0.1:0.5*0.8"])
+    assert len(sources) == 1
+    assert sources[0].kind == "chaos"
+    assert sources[0].rate_hz == 0.1
+    assert sources[0].depth == 0.5
+    assert sources[0].weight == 0.8
+
+def test_chaos_wave_generator() -> None:
+    from verbx.core.modulation import _chaos_wave
+    wave = _chaos_wave(1000, 48_000, 1.0)
+    assert wave.shape == (1000,)
+    assert wave.dtype == "float32"

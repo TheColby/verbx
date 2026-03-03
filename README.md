@@ -1505,6 +1505,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 - `env[:attack_ms[:release_ms]][*weight]`
 - `audio-env:<path>[:attack_ms[:release_ms]][*weight]`
 - `const:<value>[*weight]`
+- `chaos:<rate_hz>[:depth][*weight]`
 - `--mod-route` format: `<target>:<min>:<max>:<combine>:<smooth_ms>:<src1>,<src2>,...`
 
 Examples:
@@ -1512,6 +1513,7 @@ Examples:
 - `--mod-source "lfo:sine:0.08:1.0*0.7"`
 - `--mod-source "env:20:350*0.5"`
 - `--mod-source "audio-env:sidechain.wav:10:200*0.6"`
+- `--mod-source "chaos:0.1:1.0*0.8"`
 - `--mod-route "wet:0.1:0.95:avg:20:lfo:sine:0.12:1.0*1.0"`
 
 ### 12.3 `verbx analyze` switches
@@ -1749,6 +1751,7 @@ verbx render in.wav out_mod.wav \
   --mod-source "lfo:sine:0.07:1.0*0.7" \
   --mod-source "env:20:350*0.4" \
   --mod-source "audio-env:sidechain.wav:10:200*0.6" \
+  --mod-source "chaos:0.25:1.0*0.5" \
   --mod-combine avg \
   --mod-smooth-ms 35
 

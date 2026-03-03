@@ -20,7 +20,7 @@ ControlArray = npt.NDArray[np.float32]
 CombineMode = Literal["sum", "avg", "max"]
 LFOWave = Literal["sine", "triangle", "square", "saw"]
 TargetName = Literal["mix", "wet", "gain-db"]
-SourceKind = Literal["lfo", "env", "audio-env", "const"]
+SourceKind = Literal["lfo", "env", "audio-env", "const", "chaos"]
 
 
 @dataclass(slots=True)
@@ -61,6 +61,7 @@ def parse_mod_sources(specs: tuple[str, ...] | list[str]) -> list[ModulationSour
     - ``env[:attack_ms[:release_ms]][*weight]``
     - ``audio-env:<path>[:attack_ms[:release_ms]][*weight]``
     - ``const:<value>[*weight]``
+    - ``chaos:<rate_hz>[:depth][*weight]``
     """
     parsed: list[ModulationSource] = []
     for spec in specs:
@@ -211,9 +212,23 @@ def parse_mod_source(spec: str) -> ModulationSource:
             value=float(parts[1]),
         )
 
+    if head == "chaos":
+        if len(parts) < 2 or len(parts) > 3:
+            msg = "Invalid chaos source. Expected chaos:<rate_hz>[:depth][*weight]"
+            raise ValueError(msg)
+        rate_hz = _parse_positive_float(parts[1], "chaos rate_hz")
+        depth = _parse_positive_float(parts[2], "chaos depth") if len(parts) >= 3 else 1.0
+        return ModulationSource(
+            spec=raw,
+            kind="chaos",
+            weight=weight,
+            rate_hz=rate_hz,
+            depth=depth,
+        )
+
     msg = (
         "Unsupported modulation source kind. "
-        "Expected one of: lfo, env, audio-env, const."
+        "Expected one of: lfo, env, audio-env, const, chaos."
     )
     raise ValueError(msg)
 
@@ -359,6 +374,11 @@ def _source_to_unit(
         value = float(np.clip(source.value, 0.0, 1.0))
         return np.full((n_samples,), np.float32(value), dtype=np.float32)
 
+    if source.kind == "chaos":
+        wave = _chaos_wave(n_samples=n_samples, sr=sr, rate_hz=source.rate_hz)
+        depth = float(np.clip(source.depth, 0.0, 2.0))
+        return np.clip(0.5 + (0.5 * depth * wave), 0.0, 1.0).astype(np.float32)
+
     msg = f"Unsupported modulation source kind: {source.kind}"
     raise ValueError(msg)
 
@@ -395,6 +415,35 @@ def _extract_envelope(
     if normalizer <= 1e-12:
         return np.zeros_like(env)
     return np.clip(env / np.float32(normalizer), 0.0, 1.0)
+
+
+def _chaos_wave(n_samples: int, sr: int, rate_hz: float) -> ControlArray:
+    """Generate a chaotic control signal using a Lorenz attractor.
+
+    The speed of the evolution is scaled by ``rate_hz``.
+    Returns a float32 array roughly in the range [-1.0, 1.0].
+    """
+    sigma, rho, beta = 10.0, 28.0, 8.0 / 3.0
+    x, y, z = 1.0, 1.0, 1.0
+
+    # Scale physical dt so 1 Hz equals 20 Lorenz time-units per second
+    dt = (rate_hz * 20.0) / float(sr)
+
+    out = np.zeros(n_samples, dtype=np.float32)
+    for i in range(n_samples):
+        dx = sigma * (y - x)
+        dy = x * (rho - z) - y
+        dz = x * y - beta * z
+
+        x += dx * dt
+        y += dy * dt
+        z += dz * dt
+
+        out[i] = x
+
+    # The x-coordinate typically oscillates between roughly -20 and 20
+    # Normalize it into [-1, 1] range for standard depth mapping
+    return np.clip(out / 20.0, -1.0, 1.0).astype(np.float32)
 
 
 def _lfo_wave(

@@ -127,7 +127,7 @@ def render(
         help=(
             "Repeatable modulation source spec. "
             "Examples: lfo:sine:0.08:1.0*0.7, env:20:350, "
-            "audio-env:sidechain.wav:10:200, const:0.5."
+            "audio-env:sidechain.wav:10:200, const:0.5, chaos:0.1:1.0."
         ),
     ),
     mod_route: list[str] | None = typer.Option(
