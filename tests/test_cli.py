@@ -817,3 +817,56 @@ def test_ir_gen_validation_errors(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
+
+from unittest.mock import patch, MagicMock
+
+def test_suggest_conv_engine(tmp_path: Path) -> None:
+    runner = CliRunner()
+    infile = tmp_path / "dummy.wav"
+    infile.touch()
+
+    with patch("verbx.cli.validate_audio_path"):
+        with patch("verbx.cli.read_audio", return_value=(np.zeros((10, 2)), 48000)):
+            mock_analyzer = MagicMock()
+            mock_analyzer.analyze.return_value = {
+                "duration": 5.0,
+                "dynamic_range": 40.0,
+                "spectral_flatness": 0.05
+            }
+            with patch("verbx.cli.AudioAnalyzer", return_value=mock_analyzer):
+                result = runner.invoke(app, ["suggest", str(infile)])
+
+    assert result.exit_code == 0
+    assert "conv" in result.stdout
+    # rt60: np.clip(5.0 * 1.8, 25.0, 120.0) -> np.clip(9.0, 25.0, 120.0) -> 25.0
+    assert "25.00" in result.stdout
+
+def test_suggest_algo_engine(tmp_path: Path) -> None:
+    runner = CliRunner()
+    infile = tmp_path / "dummy2.wav"
+    infile.touch()
+
+    with patch("verbx.cli.validate_audio_path"):
+        with patch("verbx.cli.read_audio", return_value=(np.zeros((10, 2)), 48000)):
+            mock_analyzer = MagicMock()
+            mock_analyzer.analyze.return_value = {
+                "duration": 20.0,
+                "dynamic_range": 10.0,
+                "spectral_flatness": 0.5
+            }
+            with patch("verbx.cli.AudioAnalyzer", return_value=mock_analyzer):
+                result = runner.invoke(app, ["suggest", str(infile)])
+
+    assert result.exit_code == 0
+    assert "algo" in result.stdout
+    # rt60: np.clip(20.0 * 1.8, 25.0, 120.0) -> np.clip(36.0, 25.0, 120.0) -> 36.0
+    assert "36.00" in result.stdout
+
+def test_suggest_file_error(tmp_path: Path) -> None:
+    runner = CliRunner()
+    infile = tmp_path / "missing.wav"
+
+    result = runner.invoke(app, ["suggest", str(infile)])
+    assert result.exit_code != 0
+    output = result.stdout or result.stderr
+    assert "Invalid value for 'INFILE'" in output or "No such file" in output
