@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 import numpy as np
+import pytest
 import soundfile as sf
 
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
