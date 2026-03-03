@@ -16,6 +16,8 @@ freeze/repeat processing, loudness and peak targeting, multichannel/surround
 routing, and synthetic IR generation with deterministic caching for reproducible
 results.
 
+For computationally intensive audio sweetening, verbx supports both Apple Silicon and CUDA acceleration when available and specified. This allows massively dense, lush reverbs, and verbx is inherently well suited for unattended batch processing. Awesome!
+
 ## 1.0 Table of Contents
 
 - [2.0 What is Reverberation (a/k/a Reverb)?](#20-what-is-reverberation-aka-reverb)
