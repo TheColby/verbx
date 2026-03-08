@@ -507,6 +507,45 @@ def test_render_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
     assert "--fdn-link-filter must be one of" in result.output
 
 
+def test_render_track_c_perceptual_fdn_controls_are_applied(tmp_path: Path) -> None:
+    audio = np.zeros((1400, 1), dtype=np.float32)
+    audio[45:180, 0] = 0.28
+    infile = tmp_path / "track_c_in.wav"
+    outfile = tmp_path / "track_c_out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-rt60-tilt",
+            "0.45",
+            "--room-size-macro",
+            "0.35",
+            "--clarity-macro",
+            "-0.20",
+            "--warmth-macro",
+            "0.55",
+            "--envelopment-macro",
+            "0.60",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert abs(float(config["fdn_rt60_tilt"]) - 0.45) < 1e-6
+    assert abs(float(config["room_size_macro"]) - 0.35) < 1e-6
+    assert abs(float(config["clarity_macro"]) + 0.20) < 1e-6
+    assert abs(float(config["warmth_macro"]) - 0.55) < 1e-6
+    assert abs(float(config["envelopment_macro"]) - 0.60) < 1e-6
+
+
 def test_render_convolution_route_map_and_trajectory(tmp_path: Path) -> None:
     sr = 16_000
     infile = tmp_path / "mono_in.wav"
@@ -1618,6 +1657,86 @@ def test_render_automation_points_wet_ramp_without_file(tmp_path: Path) -> None:
     assert "wet" in automation.get("post_targets", [])
 
 
+def test_render_rejects_invalid_automation_point_interp(tmp_path: Path) -> None:
+    sr = 16_000
+    n = sr // 4
+    x = np.ones((n, 1), dtype=np.float32)
+    ir = np.zeros((64, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+    infile = tmp_path / "bad_interp_in.wav"
+    irfile = tmp_path / "bad_interp_ir.wav"
+    outfile = tmp_path / "bad_interp_out.wav"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--automation-point",
+            "wet:0.0:0.8:not-a-real-interp",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "Unsupported automation interpolation" in result.output
+
+
+def test_render_rejects_invalid_automation_file_interp(tmp_path: Path) -> None:
+    sr = 16_000
+    n = sr // 4
+    x = np.ones((n, 1), dtype=np.float32)
+    ir = np.zeros((64, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+    infile = tmp_path / "bad_file_interp_in.wav"
+    irfile = tmp_path / "bad_file_interp_ir.wav"
+    outfile = tmp_path / "bad_file_interp_out.wav"
+    auto_file = tmp_path / "bad_interp_automation.json"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+    auto_file.write_text(
+        json.dumps(
+            {
+                "mode": "block",
+                "block_ms": 10.0,
+                "lanes": [
+                    {
+                        "target": "wet",
+                        "type": "breakpoints",
+                        "interp": "invalid-curve",
+                        "points": [[0.0, 0.1], [0.2, 0.9]],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--automation-file",
+            str(auto_file),
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "Unsupported automation interpolation" in result.output
+
+
 def test_render_automation_points_drive_algo_engine_targets(tmp_path: Path) -> None:
     sr = 16_000
     x = np.zeros((sr // 4, 1), dtype=np.float32)
@@ -1661,6 +1780,49 @@ def test_render_automation_points_drive_algo_engine_targets(tmp_path: Path) -> N
     assert "room-size" in automation["targets"]
     assert "rt60" in automation.get("engine_targets", [])
     assert "room-size" in automation.get("engine_targets", [])
+
+
+def test_render_automation_points_drive_perceptual_macro_targets(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.zeros((sr // 4, 1), dtype=np.float32)
+    x[0, 0] = 1.0
+    infile = tmp_path / "macro_auto_in.wav"
+    outfile = tmp_path / "macro_auto_out.wav"
+    sf.write(str(infile), x, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--normalize-stage",
+            "none",
+            "--automation-point",
+            "warmth:0.0:0.7:linear",
+            "--automation-point",
+            "warmth:0.25:0.2:linear",
+            "--automation-point",
+            "clarity:0.0:-0.4:linear",
+            "--automation-point",
+            "room-size-macro:0.0:0.5:linear",
+            "--automation-point",
+            "envelopment:0.0:0.6:linear",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    automation = payload["effective"]["automation"]
+    assert isinstance(automation, dict)
+    assert "warmth-macro" in automation["targets"]
+    assert "clarity-macro" in automation["targets"]
+    assert "room-size-macro" in automation["targets"]
+    assert "envelopment-macro" in automation["targets"]
+    assert "warmth-macro" in automation.get("engine_targets", [])
 
 
 def test_render_rejects_engine_automation_targets_for_convolution(tmp_path: Path) -> None:

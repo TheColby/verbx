@@ -1,4 +1,4 @@
-.TH VERBX-IR 1 "March 2026" "verbx 0.3.0" "User Commands"
+.TH VERBX-IR 1 "March 2026" "verbx 0.4.1" "User Commands"
 .SH NAME
 verbx-ir \- impulse response generation and processing commands
 .SH SYNOPSIS
@@ -37,6 +37,21 @@ Output channel count.
 .B --seed INT
 Deterministic random seed.
 .TP
+.B --fdn-rt60-tilt FLOAT
+Jot-style low/high RT skew around mid-band decay (\-1..1) for FDN/hybrid modes.
+.TP
+.B --room-size-macro FLOAT
+Perceptual room-size macro (\-1..1) for FDN/hybrid generation.
+.TP
+.B --clarity-macro FLOAT
+Perceptual clarity macro (\-1..1) for FDN/hybrid generation.
+.TP
+.B --warmth-macro FLOAT
+Perceptual warmth macro (\-1..1) for FDN/hybrid generation.
+.TP
+.B --envelopment-macro FLOAT
+Perceptual envelopment macro (\-1..1) for FDN/hybrid generation.
+.TP
 .B --f0 FREQ
 Optional tuning anchor (e.g., 64Hz).
 .TP
@@ -46,6 +61,9 @@ Analyze fundamentals/harmonics from input to tune generated IR.
 .TP
 .B verbx ir gen out_ir.wav --mode hybrid --length 120 --seed 7
 Generate long hybrid IR.
+.TP
+.B verbx ir gen out_ir.wav --mode fdn --fdn-rt60-tilt 0.35 --room-size-macro 0.4 --warmth-macro 0.5
+Generate IR with Track C perceptual FDN controls.
 .TP
 .B verbx ir analyze out_ir.wav --json-out out_ir.analysis.json
 Analyze generated IR.

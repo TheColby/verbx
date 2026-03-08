@@ -317,6 +317,45 @@ def test_ir_gen_supports_multiband_fdn_controls(tmp_path: Path) -> None:
     assert abs(float(params["fdn_xover_high_hz"]) - 3200.0) < 1e-6
 
 
+def test_ir_gen_supports_track_c_perceptual_fdn_controls(tmp_path: Path) -> None:
+    out_ir = tmp_path / "fdn_track_c.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "fdn",
+            "--length",
+            "0.5",
+            "--sr",
+            "12000",
+            "--channels",
+            "1",
+            "--fdn-rt60-tilt",
+            "0.35",
+            "--room-size-macro",
+            "0.40",
+            "--clarity-macro",
+            "-0.25",
+            "--warmth-macro",
+            "0.55",
+            "--envelopment-macro",
+            "0.30",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(out_ir.with_suffix(".wav.ir.meta.json").read_text(encoding="utf-8"))
+    params = payload["params"]
+    assert abs(float(params["fdn_rt60_tilt"]) - 0.35) < 1e-6
+    assert abs(float(params["room_size_macro"]) - 0.40) < 1e-6
+    assert abs(float(params["clarity_macro"]) + 0.25) < 1e-6
+    assert abs(float(params["warmth_macro"]) - 0.55) < 1e-6
+    assert abs(float(params["envelopment_macro"]) - 0.30) < 1e-6
+
+
 def test_ir_gen_rejects_partial_multiband_rt60_set(tmp_path: Path) -> None:
     out_ir = tmp_path / "bad_multiband.wav"
     result = runner.invoke(

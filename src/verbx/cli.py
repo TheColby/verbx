@@ -354,6 +354,16 @@ def render(
         min=0.1,
         help="High-band RT60 target for multiband FDN decay shaping (seconds).",
     ),
+    fdn_rt60_tilt: float = typer.Option(
+        0.0,
+        "--fdn-rt60-tilt",
+        min=-1.0,
+        max=1.0,
+        help=(
+            "Jot-style low/high RT skew around mid band (-1..1). "
+            "Positive extends low-band decay and shortens highs."
+        ),
+    ),
     fdn_xover_low_hz: float = typer.Option(
         250.0,
         "--fdn-xover-low-hz",
@@ -403,6 +413,34 @@ def render(
         2026,
         "--fdn-graph-seed",
         help="Deterministic seed used to build graph-structured FDN pairings.",
+    ),
+    room_size_macro: float = typer.Option(
+        0.0,
+        "--room-size-macro",
+        min=-1.0,
+        max=1.0,
+        help="Perceptual room-size macro (-1..1) mapped to decay-time and spacing behavior.",
+    ),
+    clarity_macro: float = typer.Option(
+        0.0,
+        "--clarity-macro",
+        min=-1.0,
+        max=1.0,
+        help="Perceptual clarity macro (-1..1) mapped to decay, damping, and wet balance.",
+    ),
+    warmth_macro: float = typer.Option(
+        0.0,
+        "--warmth-macro",
+        min=-1.0,
+        max=1.0,
+        help="Perceptual warmth macro (-1..1) mapped to damping and spectral decay tilt.",
+    ),
+    envelopment_macro: float = typer.Option(
+        0.0,
+        "--envelopment-macro",
+        min=-1.0,
+        max=1.0,
+        help="Perceptual envelopment macro (-1..1) mapped to width/decorrelation emphasis.",
     ),
     beast_mode: int = typer.Option(
         1,
@@ -690,6 +728,7 @@ def render(
         fdn_rt60_low=fdn_rt60_low,
         fdn_rt60_mid=fdn_rt60_mid,
         fdn_rt60_high=fdn_rt60_high,
+        fdn_rt60_tilt=fdn_rt60_tilt,
         fdn_xover_low_hz=fdn_xover_low_hz,
         fdn_xover_high_hz=fdn_xover_high_hz,
         fdn_link_filter=_normalize_fdn_link_filter_name(fdn_link_filter),
@@ -698,6 +737,10 @@ def render(
         fdn_graph_topology=_normalize_fdn_graph_topology_name(fdn_graph_topology),
         fdn_graph_degree=fdn_graph_degree,
         fdn_graph_seed=fdn_graph_seed,
+        room_size_macro=room_size_macro,
+        clarity_macro=clarity_macro,
+        warmth_macro=warmth_macro,
+        envelopment_macro=envelopment_macro,
         algo_decorrelation_front=algo_decorrelation_front,
         algo_decorrelation_rear=algo_decorrelation_rear,
         algo_decorrelation_top=algo_decorrelation_top,
@@ -1078,6 +1121,16 @@ def ir_gen(
         min=0.1,
         help="High-band RT60 target for multiband FDN decay shaping (seconds).",
     ),
+    fdn_rt60_tilt: float = typer.Option(
+        0.0,
+        "--fdn-rt60-tilt",
+        min=-1.0,
+        max=1.0,
+        help=(
+            "Jot-style low/high RT skew around mid band (-1..1). "
+            "Positive extends low-band decay and shortens highs."
+        ),
+    ),
     fdn_xover_low_hz: float = typer.Option(
         250.0,
         "--fdn-xover-low-hz",
@@ -1127,6 +1180,34 @@ def ir_gen(
         2026,
         "--fdn-graph-seed",
         help="Deterministic seed used to build graph-structured FDN pairings.",
+    ),
+    room_size_macro: float = typer.Option(
+        0.0,
+        "--room-size-macro",
+        min=-1.0,
+        max=1.0,
+        help="Perceptual room-size macro (-1..1) mapped to decay-time and spacing behavior.",
+    ),
+    clarity_macro: float = typer.Option(
+        0.0,
+        "--clarity-macro",
+        min=-1.0,
+        max=1.0,
+        help="Perceptual clarity macro (-1..1) mapped to decay, damping, and wet balance.",
+    ),
+    warmth_macro: float = typer.Option(
+        0.0,
+        "--warmth-macro",
+        min=-1.0,
+        max=1.0,
+        help="Perceptual warmth macro (-1..1) mapped to damping and spectral decay tilt.",
+    ),
+    envelopment_macro: float = typer.Option(
+        0.0,
+        "--envelopment-macro",
+        min=-1.0,
+        max=1.0,
+        help="Perceptual envelopment macro (-1..1) mapped to width/decorrelation emphasis.",
     ),
     fdn_stereo_inject: float = typer.Option(1.0, "--fdn-stereo-inject", min=0.0, max=1.0),
     f0: str | None = typer.Option(None, "--f0", help="e.g. 64, 64Hz, or 64 Hz"),
@@ -1205,6 +1286,7 @@ def ir_gen(
         fdn_rt60_low=fdn_rt60_low,
         fdn_rt60_mid=fdn_rt60_mid,
         fdn_rt60_high=fdn_rt60_high,
+        fdn_rt60_tilt=fdn_rt60_tilt,
         fdn_xover_low_hz=fdn_xover_low_hz,
         fdn_xover_high_hz=fdn_xover_high_hz,
         fdn_link_filter=fdn_link_filter,
@@ -1212,6 +1294,10 @@ def ir_gen(
         fdn_link_filter_mix=fdn_link_filter_mix,
         fdn_graph_topology=fdn_graph_topology,
         fdn_graph_degree=fdn_graph_degree,
+        room_size_macro=room_size_macro,
+        clarity_macro=clarity_macro,
+        warmth_macro=warmth_macro,
+        envelopment_macro=envelopment_macro,
     )
     _validate_generic_lucky_call(lucky, lucky_out_dir)
 
@@ -1289,6 +1375,7 @@ def ir_gen(
         fdn_rt60_low=fdn_rt60_low,
         fdn_rt60_mid=fdn_rt60_mid,
         fdn_rt60_high=fdn_rt60_high,
+        fdn_rt60_tilt=fdn_rt60_tilt,
         fdn_xover_low_hz=fdn_xover_low_hz,
         fdn_xover_high_hz=fdn_xover_high_hz,
         fdn_link_filter=_normalize_fdn_link_filter_name(fdn_link_filter),
@@ -1298,6 +1385,10 @@ def ir_gen(
         fdn_graph_degree=fdn_graph_degree,
         fdn_graph_seed=fdn_graph_seed,
         fdn_stereo_inject=fdn_stereo_inject,
+        room_size_macro=room_size_macro,
+        clarity_macro=clarity_macro,
+        warmth_macro=warmth_macro,
+        envelopment_macro=envelopment_macro,
         f0_hz=f0_hz,
         harmonic_targets_hz=harmonic_targets_hz,
         harmonic_align_strength=harmonic_align_strength,
@@ -2772,6 +2863,28 @@ def _validate_fdn_link_filter_settings(
         raise typer.BadParameter(msg)
 
 
+def _validate_perceptual_macro_settings(
+    *,
+    fdn_rt60_tilt: float,
+    room_size_macro: float,
+    clarity_macro: float,
+    warmth_macro: float,
+    envelopment_macro: float,
+) -> None:
+    """Validate perceptual macro controls and Jot-inspired RT tilt."""
+    values = {
+        "--fdn-rt60-tilt": float(fdn_rt60_tilt),
+        "--room-size-macro": float(room_size_macro),
+        "--clarity-macro": float(clarity_macro),
+        "--warmth-macro": float(warmth_macro),
+        "--envelopment-macro": float(envelopment_macro),
+    }
+    for option_name, value in values.items():
+        if value < -1.0 or value > 1.0:
+            msg = f"{option_name} must be in [-1.0, 1.0]."
+            raise typer.BadParameter(msg)
+
+
 def _normalize_fdn_matrix_name(value: str) -> str:
     """Normalize FDN matrix identifier for CLI/API compatibility."""
     return value.strip().lower().replace("-", "_")
@@ -3162,6 +3275,13 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
         fdn_link_filter_hz=config.fdn_link_filter_hz,
         fdn_link_filter_mix=config.fdn_link_filter_mix,
     )
+    _validate_perceptual_macro_settings(
+        fdn_rt60_tilt=config.fdn_rt60_tilt,
+        room_size_macro=config.room_size_macro,
+        clarity_macro=config.clarity_macro,
+        warmth_macro=config.warmth_macro,
+        envelopment_macro=config.envelopment_macro,
+    )
     resolved_fdn_lines = (
         len(config.comb_delays_ms) if len(config.comb_delays_ms) > 0 else int(config.fdn_lines)
     )
@@ -3266,6 +3386,7 @@ def _validate_ir_gen_call(
     fdn_rt60_low: float | None,
     fdn_rt60_mid: float | None,
     fdn_rt60_high: float | None,
+    fdn_rt60_tilt: float,
     fdn_xover_low_hz: float,
     fdn_xover_high_hz: float,
     fdn_link_filter: str,
@@ -3273,6 +3394,10 @@ def _validate_ir_gen_call(
     fdn_link_filter_mix: float,
     fdn_graph_topology: str,
     fdn_graph_degree: int,
+    room_size_macro: float,
+    clarity_macro: float,
+    warmth_macro: float,
+    envelopment_macro: float,
 ) -> None:
     """Validate IR generation options and output path constraints."""
     resolved = _resolve_ir_output_path(out_ir, out_format)
@@ -3334,6 +3459,13 @@ def _validate_ir_gen_call(
         fdn_link_filter=fdn_link_filter,
         fdn_link_filter_hz=fdn_link_filter_hz,
         fdn_link_filter_mix=fdn_link_filter_mix,
+    )
+    _validate_perceptual_macro_settings(
+        fdn_rt60_tilt=fdn_rt60_tilt,
+        room_size_macro=room_size_macro,
+        clarity_macro=clarity_macro,
+        warmth_macro=warmth_macro,
+        envelopment_macro=envelopment_macro,
     )
 
 

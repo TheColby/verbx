@@ -12,18 +12,28 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from verbx.core.control_targets import (
+    CONTROL_TARGET_LIMITS,
+    ENGINE_CONTROL_TARGETS,
+    POST_RENDER_CONTROL_TARGETS,
+    SUPPORTED_CONTROL_TARGETS,
+    normalize_control_target_name,
+)
+
 AudioArray = npt.NDArray[np.float32]
 
-POST_RENDER_AUTOMATION_TARGETS = {"wet", "dry", "gain-db"}
-ENGINE_AUTOMATION_TARGETS = {"rt60", "damping", "room-size"}
+POST_RENDER_AUTOMATION_TARGETS = set(POST_RENDER_CONTROL_TARGETS)
+ENGINE_AUTOMATION_TARGETS = set(ENGINE_CONTROL_TARGETS)
 SUPPORTED_AUTOMATION_TARGETS = POST_RENDER_AUTOMATION_TARGETS | ENGINE_AUTOMATION_TARGETS
-TARGET_LIMITS: dict[str, tuple[float, float]] = {
-    "wet": (0.0, 1.0),
-    "dry": (0.0, 1.0),
-    "gain-db": (-48.0, 24.0),
-    "rt60": (0.1, 300.0),
-    "damping": (0.0, 1.0),
-    "room-size": (0.25, 4.0),
+TARGET_LIMITS: dict[str, tuple[float, float]] = dict(CONTROL_TARGET_LIMITS)
+BREAKPOINT_INTERP_CHOICES = {
+    "linear",
+    "hold",
+    "step",
+    "smooth",
+    "smoothstep",
+    "exp",
+    "exponential",
 }
 
 
@@ -109,7 +119,14 @@ def parse_automation_point_specs(specs: tuple[str, ...] | list[str]) -> list[dic
             raise ValueError(f"Automation point value must be finite: {raw}")
         grouped.setdefault(target, []).append((time_s, value))
         if len(parts) == 4 and parts[3] != "":
-            interp_per_target[target] = parts[3].strip().lower()
+            interp = parts[3].strip().lower()
+            if interp not in BREAKPOINT_INTERP_CHOICES:
+                choices = ", ".join(sorted(BREAKPOINT_INTERP_CHOICES))
+                raise ValueError(
+                    f"Unsupported automation interpolation '{interp}'. "
+                    f"Supported: {choices}"
+                )
+            interp_per_target[target] = interp
 
     lanes: list[dict[str, Any]] = []
     for target, points in grouped.items():
@@ -414,6 +431,8 @@ def _render_breakpoints(
     values = np.asarray([item[1] for item in parsed], dtype=np.float64)
 
     interp = str(lane.get("interp", lane.get("curve", "linear"))).strip().lower()
+    if interp == "":
+        interp = "linear"
     if interp in {"hold", "step"}:
         idx = np.searchsorted(times, ctrl_times, side="right") - 1
         idx = np.clip(idx, 0, len(values) - 1)
@@ -425,7 +444,13 @@ def _render_breakpoints(
     if interp in {"exp", "exponential"}:
         return _exp_interpolate(ctrl_times, times, values)
 
-    return np.interp(ctrl_times, times, values, left=values[0], right=values[-1]).astype(np.float64)
+    if interp == "linear":
+        return np.interp(ctrl_times, times, values, left=values[0], right=values[-1]).astype(np.float64)
+
+    choices = ", ".join(sorted(BREAKPOINT_INTERP_CHOICES))
+    raise ValueError(
+        f"Unsupported automation interpolation '{interp}'. Supported: {choices}"
+    )
 
 
 def _render_lfo(
@@ -639,11 +664,4 @@ def _target_stats(curves: dict[str, AudioArray]) -> dict[str, dict[str, float]]:
 
 def _normalize_target_name(value: str) -> str:
     """Normalize automation target name and aliases."""
-    normalized = str(value).strip().lower().replace("_", "-")
-    if normalized in {"output-gain-db", "gain", "gaindb"}:
-        return "gain-db"
-    if normalized in {"room", "roomsize", "size"}:
-        return "room-size"
-    if normalized in {"t60"}:
-        return "rt60"
-    return normalized
+    return normalize_control_target_name(value)

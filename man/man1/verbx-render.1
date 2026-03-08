@@ -40,6 +40,21 @@ Auto-generate and cache an IR before rendering.
 .B --beast-mode INT
 Scale key reverb parameters for denser, longer tails.
 .TP
+.B --fdn-rt60-tilt FLOAT
+Jot-style low/high RT skew around mid-band decay (\-1..1).
+.TP
+.B --room-size-macro FLOAT
+Perceptual room-size macro (\-1..1) mapped to decay/timing behavior.
+.TP
+.B --clarity-macro FLOAT
+Perceptual clarity macro (\-1..1) mapped to damping/decay balance.
+.TP
+.B --warmth-macro FLOAT
+Perceptual warmth macro (\-1..1) mapped to tonal decay coloration.
+.TP
+.B --envelopment-macro FLOAT
+Perceptual envelopment macro (\-1..1) mapped to width/decorrelation emphasis.
+.TP
 .B --mod-target [none|mix|wet|gain-db]
 Enable dynamic parameter control target for modulation sources.
 .TP
@@ -68,6 +83,7 @@ Use this for independent source sets per parameter target.
 .TP
 .B --automation-file PATH
 JSON/CSV automation lane file for render-time control.
+Engine targets include rt60, damping, room-size, and perceptual macros.
 .TP
 .B --automation-point SPEC
 Inline control point:
@@ -135,6 +151,9 @@ Use different LFOs to control different parameters.
 .TP
 .B verbx render in.wav out_room_sweep.wav --engine algo --automation-point rt60:0.0:0.8 --automation-point rt60:10.0:8.0 --automation-point room-size:0.0:0.8 --automation-point room-size:10.0:1.8
 Drive internal algorithmic room behavior over time from inline CLI points.
+.TP
+.B verbx render in.wav out_trackc.wav --engine algo --fdn-rt60-tilt 0.4 --room-size-macro 0.5 --warmth-macro 0.35 --envelopment-macro 0.45
+Use Track C perceptual controls for Jot-inspired FDN shaping.
 .SH SEE ALSO
 .BR verbx (1),
 .BR verbx-analyze (1),

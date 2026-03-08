@@ -66,6 +66,7 @@ class RenderConfig:
     fdn_rt60_low: float | None = None
     fdn_rt60_mid: float | None = None
     fdn_rt60_high: float | None = None
+    fdn_rt60_tilt: float = 0.0
     fdn_xover_low_hz: float = 250.0
     fdn_xover_high_hz: float = 4_000.0
     fdn_link_filter: str = "none"
@@ -74,6 +75,10 @@ class RenderConfig:
     fdn_graph_topology: str = "ring"
     fdn_graph_degree: int = 2
     fdn_graph_seed: int = 2026
+    room_size_macro: float = 0.0
+    clarity_macro: float = 0.0
+    warmth_macro: float = 0.0
+    envelopment_macro: float = 0.0
     algo_decorrelation_front: float = 0.0
     algo_decorrelation_rear: float = 0.0
     algo_decorrelation_top: float = 0.0

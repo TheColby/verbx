@@ -90,6 +90,7 @@ class IRGenConfig:
     fdn_rt60_low: float | None = None
     fdn_rt60_mid: float | None = None
     fdn_rt60_high: float | None = None
+    fdn_rt60_tilt: float = 0.0
     fdn_xover_low_hz: float = 250.0
     fdn_xover_high_hz: float = 4_000.0
     fdn_link_filter: str = "none"
@@ -99,6 +100,10 @@ class IRGenConfig:
     fdn_graph_degree: int = 2
     fdn_graph_seed: int = 2026
     fdn_stereo_inject: float = 1.0
+    room_size_macro: float = 0.0
+    clarity_macro: float = 0.0
+    warmth_macro: float = 0.0
+    envelopment_macro: float = 0.0
 
     f0_hz: float | None = None
     harmonic_targets_hz: tuple[float, ...] = ()
@@ -149,6 +154,7 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             fdn_rt60_low=config.fdn_rt60_low,
             fdn_rt60_mid=config.fdn_rt60_mid,
             fdn_rt60_high=config.fdn_rt60_high,
+            fdn_rt60_tilt=config.fdn_rt60_tilt,
             fdn_xover_low_hz=config.fdn_xover_low_hz,
             fdn_xover_high_hz=config.fdn_xover_high_hz,
             fdn_link_filter=config.fdn_link_filter,
@@ -158,6 +164,10 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             fdn_graph_degree=config.fdn_graph_degree,
             fdn_graph_seed=config.fdn_graph_seed,
             fdn_stereo_inject=config.fdn_stereo_inject,
+            room_size_macro=config.room_size_macro,
+            clarity_macro=config.clarity_macro,
+            warmth_macro=config.warmth_macro,
+            envelopment_macro=config.envelopment_macro,
             seed=config.seed,
         )
     elif config.mode == "stochastic":
@@ -255,6 +265,7 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             fdn_rt60_low=config.fdn_rt60_low,
             fdn_rt60_mid=config.fdn_rt60_mid,
             fdn_rt60_high=config.fdn_rt60_high,
+            fdn_rt60_tilt=config.fdn_rt60_tilt,
             fdn_xover_low_hz=config.fdn_xover_low_hz,
             fdn_xover_high_hz=config.fdn_xover_high_hz,
             fdn_link_filter=config.fdn_link_filter,
@@ -264,6 +275,10 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             fdn_graph_degree=config.fdn_graph_degree,
             fdn_graph_seed=config.fdn_graph_seed,
             fdn_stereo_inject=config.fdn_stereo_inject,
+            room_size_macro=config.room_size_macro,
+            clarity_macro=config.clarity_macro,
+            warmth_macro=config.warmth_macro,
+            envelopment_macro=config.envelopment_macro,
             seed=config.seed + 23,
         )
 

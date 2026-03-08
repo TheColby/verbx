@@ -465,6 +465,7 @@ def _prepare_runtime_config(
         RenderConfig(**asdict(config)),
         input_duration_seconds=input_duration_seconds,
     )
+    runtime = _apply_perceptual_fdn_macros(runtime)
     ir_runtime: dict[str, Any] | None = None
     ir_channels = max(1, int(input_channels))
     if runtime.ambi_order > 0:
@@ -510,6 +511,7 @@ def _prepare_runtime_config(
             fdn_rt60_low=runtime.fdn_rt60_low,
             fdn_rt60_mid=runtime.fdn_rt60_mid,
             fdn_rt60_high=runtime.fdn_rt60_high,
+            fdn_rt60_tilt=runtime.fdn_rt60_tilt,
             fdn_xover_low_hz=runtime.fdn_xover_low_hz,
             fdn_xover_high_hz=runtime.fdn_xover_high_hz,
             fdn_link_filter=runtime.fdn_link_filter,
@@ -518,6 +520,10 @@ def _prepare_runtime_config(
             fdn_graph_topology=runtime.fdn_graph_topology,
             fdn_graph_degree=runtime.fdn_graph_degree,
             fdn_graph_seed=runtime.fdn_graph_seed,
+            room_size_macro=runtime.room_size_macro,
+            clarity_macro=runtime.clarity_macro,
+            warmth_macro=runtime.warmth_macro,
+            envelopment_macro=runtime.envelopment_macro,
         )
         cache_dir = Path(runtime.ir_gen_cache_dir)
         _, _, meta, wav_path, cache_hit = generate_or_load_cached_ir(ir_cfg, cache_dir=cache_dir)
@@ -585,6 +591,78 @@ def _apply_beast_mode(config: RenderConfig, input_duration_seconds: float) -> Re
     return scaled
 
 
+def _apply_perceptual_fdn_macros(config: RenderConfig) -> RenderConfig:
+    """Map perceptual macro controls into low-level reverb parameters."""
+    mapped = config
+    room_size = float(np.clip(mapped.room_size_macro, -1.0, 1.0))
+    clarity = float(np.clip(mapped.clarity_macro, -1.0, 1.0))
+    warmth = float(np.clip(mapped.warmth_macro, -1.0, 1.0))
+    envelopment = float(np.clip(mapped.envelopment_macro, -1.0, 1.0))
+    mapped.room_size_macro = room_size
+    mapped.clarity_macro = clarity
+    mapped.warmth_macro = warmth
+    mapped.envelopment_macro = envelopment
+
+    if max(abs(room_size), abs(clarity), abs(warmth), abs(envelopment)) <= 1e-9:
+        return mapped
+
+    mapped.pre_delay_ms = float(
+        max(
+            0.0,
+            mapped.pre_delay_ms
+            * float(np.clip(np.power(2.0, (0.45 * room_size) + (0.25 * clarity)), 0.5, 2.0)),
+        )
+    )
+    mapped.width = float(
+        np.clip(
+            mapped.width * float(np.clip(np.power(2.0, 0.35 * envelopment), 0.6, 2.0)),
+            0.0,
+            2.0,
+        )
+    )
+    mapped.wet = float(
+        np.clip(
+            mapped.wet
+            * float(np.clip(np.power(2.0, (0.20 * envelopment) - (0.16 * clarity)), 0.55, 1.55)),
+            0.0,
+            1.0,
+        )
+    )
+    mapped.dry = float(
+        np.clip(
+            mapped.dry
+            * float(np.clip(np.power(2.0, (0.20 * clarity) - (0.15 * envelopment)), 0.55, 1.55)),
+            0.0,
+            1.0,
+        )
+    )
+    mapped.algo_decorrelation_front = float(
+        np.clip(mapped.algo_decorrelation_front + (0.18 * envelopment), 0.0, 1.0)
+    )
+    mapped.algo_decorrelation_rear = float(
+        np.clip(mapped.algo_decorrelation_rear + (0.28 * envelopment), 0.0, 1.0)
+    )
+    mapped.algo_decorrelation_top = float(
+        np.clip(mapped.algo_decorrelation_top + (0.25 * envelopment), 0.0, 1.0)
+    )
+
+    if mapped.fdn_link_filter == "none":
+        if warmth > 0.25:
+            mapped.fdn_link_filter = "lowpass"
+            mapped.fdn_link_filter_hz = float(
+                np.clip(mapped.fdn_link_filter_hz * np.power(2.0, -0.65 * warmth), 120.0, 12_000.0)
+            )
+            mapped.fdn_link_filter_mix = float(np.clip(0.30 + (0.50 * warmth), 0.0, 1.0))
+        elif clarity > 0.35:
+            mapped.fdn_link_filter = "highpass"
+            mapped.fdn_link_filter_hz = float(
+                np.clip(mapped.fdn_link_filter_hz * np.power(2.0, 0.45 * clarity), 80.0, 12_000.0)
+            )
+            mapped.fdn_link_filter_mix = float(np.clip(0.20 + (0.35 * clarity), 0.0, 1.0))
+
+    return mapped
+
+
 def _resolve_engine(config: RenderConfig, device: str) -> tuple[str, ReverbEngine, str]:
     """Resolve engine name and instantiate concrete engine instance."""
     engine_name = config.engine
@@ -648,6 +726,7 @@ def _resolve_engine(config: RenderConfig, device: str) -> tuple[str, ReverbEngin
             fdn_rt60_low=config.fdn_rt60_low,
             fdn_rt60_mid=config.fdn_rt60_mid,
             fdn_rt60_high=config.fdn_rt60_high,
+            fdn_rt60_tilt=config.fdn_rt60_tilt,
             fdn_xover_low_hz=config.fdn_xover_low_hz,
             fdn_xover_high_hz=config.fdn_xover_high_hz,
             fdn_link_filter=config.fdn_link_filter,
@@ -656,6 +735,10 @@ def _resolve_engine(config: RenderConfig, device: str) -> tuple[str, ReverbEngin
             fdn_graph_topology=config.fdn_graph_topology,
             fdn_graph_degree=config.fdn_graph_degree,
             fdn_graph_seed=config.fdn_graph_seed,
+            room_size_macro=config.room_size_macro,
+            clarity_macro=config.clarity_macro,
+            warmth_macro=config.warmth_macro,
+            envelopment_macro=config.envelopment_macro,
             algo_decorrelation_front=config.algo_decorrelation_front,
             algo_decorrelation_rear=config.algo_decorrelation_rear,
             algo_decorrelation_top=config.algo_decorrelation_top,

@@ -28,6 +28,7 @@ from typing import TypeVar
 import numpy as np
 import numpy.typing as npt
 
+from verbx.core.control_targets import ENGINE_CONTROL_TARGETS, normalize_control_target_name
 from verbx.core.engine_base import ReverbEngine
 from verbx.core.shimmer import ShimmerConfig, ShimmerProcessor
 from verbx.io.audio import ensure_mono_or_stereo
@@ -83,6 +84,7 @@ class AlgoReverbConfig:
     fdn_rt60_low: float | None = None
     fdn_rt60_mid: float | None = None
     fdn_rt60_high: float | None = None
+    fdn_rt60_tilt: float = 0.0
     fdn_xover_low_hz: float = 250.0
     fdn_xover_high_hz: float = 4_000.0
     fdn_link_filter: str = "none"
@@ -91,6 +93,10 @@ class AlgoReverbConfig:
     fdn_graph_topology: str = "ring"
     fdn_graph_degree: int = 2
     fdn_graph_seed: int = 2026
+    room_size_macro: float = 0.0
+    clarity_macro: float = 0.0
+    warmth_macro: float = 0.0
+    envelopment_macro: float = 0.0
     algo_decorrelation_front: float = 0.0
     algo_decorrelation_rear: float = 0.0
     algo_decorrelation_top: float = 0.0
@@ -132,7 +138,9 @@ class AlgoReverbEngine(ReverbEngine):
         [5.0, 7.0, 11.0, 17.0, 23.0, 29.0],
         dtype=np.float32,
     )
-    _AUTOMATION_TARGETS = {"rt60", "damping", "room-size"}
+    _AUTOMATION_TARGETS = set(ENGINE_CONTROL_TARGETS)
+    _RT60_UPDATE_EPS = 1e-3
+    _LP_ALPHA_UPDATE_EPS = 1e-5
 
     def __init__(self, config: AlgoReverbConfig) -> None:
         self._config = config
@@ -149,9 +157,14 @@ class AlgoReverbEngine(ReverbEngine):
         self._cascade_rt60_ratio = float(np.clip(config.fdn_cascade_rt60_ratio, 0.1, 1.0))
         self._sparse_enabled = bool(config.fdn_sparse)
         self._sparse_degree = max(1, int(config.fdn_sparse_degree))
+        self._rt60_tilt = float(np.clip(config.fdn_rt60_tilt, -1.0, 1.0))
         self._multiband_enabled = all(
             value is not None
             for value in (config.fdn_rt60_low, config.fdn_rt60_mid, config.fdn_rt60_high)
+        ) or (
+            abs(self._rt60_tilt) > 1e-6
+            or abs(float(config.warmth_macro)) > 1e-6
+            or abs(float(config.clarity_macro)) > 1e-6
         )
         self._link_filter_mode = self._resolve_link_filter_mode(config.fdn_link_filter)
         self._link_filter_mix = float(np.clip(config.fdn_link_filter_mix, 0.0, 1.0))
@@ -220,6 +233,10 @@ class AlgoReverbEngine(ReverbEngine):
             and not self._multiband_enabled
             and not self._link_filter_enabled
             and not self._cascade_enabled
+            and abs(float(config.room_size_macro)) <= 1e-9
+            and abs(float(config.clarity_macro)) <= 1e-9
+            and abs(float(config.warmth_macro)) <= 1e-9
+            and abs(float(config.envelopment_macro)) <= 1e-9
         )
         self._shimmer = ShimmerProcessor(
             ShimmerConfig(
@@ -240,7 +257,7 @@ class AlgoReverbEngine(ReverbEngine):
             return
         parsed: CurveMap = {}
         for raw_target, raw_curve in curves.items():
-            target = str(raw_target).strip().lower().replace("_", "-")
+            target = normalize_control_target_name(str(raw_target))
             if target not in self._AUTOMATION_TARGETS:
                 continue
             vec = np.asarray(raw_curve, dtype=np.float32).reshape(-1)
@@ -272,6 +289,13 @@ class AlgoReverbEngine(ReverbEngine):
                 vec = np.asarray(np.clip(vec, 0.0, 1.0), dtype=np.float32)
             elif target == "room-size":
                 vec = np.asarray(np.clip(vec, 0.25, 4.0), dtype=np.float32)
+            elif target in {
+                "room-size-macro",
+                "clarity-macro",
+                "warmth-macro",
+                "envelopment-macro",
+            }:
+                vec = np.asarray(np.clip(vec, -1.0, 1.0), dtype=np.float32)
             resolved[target] = vec
         return resolved
 
@@ -765,6 +789,17 @@ class AlgoReverbEngine(ReverbEngine):
             0.1,
             float(config.fdn_rt60_high if config.fdn_rt60_high is not None else base_rt60),
         )
+        tilt = float(
+            np.clip(
+                config.fdn_rt60_tilt + (0.45 * config.warmth_macro) - (0.18 * config.clarity_macro),
+                -1.0,
+                1.0,
+            )
+        )
+        if abs(tilt) > 1e-9:
+            ratio = float(np.power(2.0, 0.85 * tilt))
+            low = float(np.clip(low * ratio, 0.1, 300.0))
+            high = float(np.clip(high / ratio, 0.1, 300.0))
         return low, mid, high
 
     @staticmethod
@@ -772,6 +807,18 @@ class AlgoReverbEngine(ReverbEngine):
         """Compute stable one-pole lowpass alpha from cutoff frequency."""
         fc = max(1.0, float(cutoff_hz))
         return np.float32(1.0 - np.exp((-2.0 * np.pi * fc) / float(max(1, sr))))
+
+    @staticmethod
+    def _macro_scale(
+        macro_value: float,
+        *,
+        sensitivity: float,
+        minimum: float,
+        maximum: float,
+    ) -> float:
+        """Convert perceptual macro in ``[-1, 1]`` to positive scale factor."""
+        scale = float(np.power(2.0, sensitivity * float(np.clip(macro_value, -1.0, 1.0))))
+        return float(np.clip(scale, minimum, maximum))
 
     @classmethod
     def _resolve_diffusion_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float32]:
@@ -844,10 +891,18 @@ class AlgoReverbEngine(ReverbEngine):
         rt60_curve = automation.get("rt60")
         damping_curve = automation.get("damping")
         room_size_curve = automation.get("room-size")
+        room_size_macro_curve = automation.get("room-size-macro")
+        clarity_macro_curve = automation.get("clarity-macro")
+        warmth_macro_curve = automation.get("warmth-macro")
+        envelopment_macro_curve = automation.get("envelopment-macro")
         has_dynamic_params = (
             rt60_curve is not None
             or damping_curve is not None
             or room_size_curve is not None
+            or room_size_macro_curve is not None
+            or clarity_macro_curve is not None
+            or warmth_macro_curve is not None
+            or envelopment_macro_curve is not None
         )
         if self._use_numba and not has_dynamic_params:
             return _process_channel_kernel(
@@ -905,6 +960,10 @@ class AlgoReverbEngine(ReverbEngine):
 
         base_rt60 = max(self._config.rt60, 0.1)
         base_damping = float(np.clip(self._config.damping, 0.0, 1.0))
+        room_size_macro_default = float(np.clip(self._config.room_size_macro, -1.0, 1.0))
+        clarity_macro_default = float(np.clip(self._config.clarity_macro, -1.0, 1.0))
+        warmth_macro_default = float(np.clip(self._config.warmth_macro, -1.0, 1.0))
+        envelopment_macro_default = float(np.clip(self._config.envelopment_macro, -1.0, 1.0))
         delays_sec = line_delays.astype(np.float64) / float(sr)
         feedback_gain = np.power(10.0, (-3.0 * delays_sec) / base_rt60).astype(np.float32)
         feedback_gain = np.clip(feedback_gain, 0.0, 0.995)
@@ -1001,7 +1060,43 @@ class AlgoReverbEngine(ReverbEngine):
             cascade_base_gain = np.clip(cascade_base_gain, 0.0, 0.995)
             cascade_inv_sqrt_lines = np.float32(1.0 / np.sqrt(np.float32(cascade_num_lines)))
 
-        last_rt60_effective = float(base_rt60)
+        macro_eps = 1e-5
+        room_size_macro = room_size_macro_default
+        clarity_macro = clarity_macro_default
+        warmth_macro = warmth_macro_default
+        envelopment_macro = envelopment_macro_default
+        macro_rt60_scale = (
+            self._macro_scale(
+                room_size_macro + (0.30 * envelopment_macro),
+                sensitivity=0.85,
+                minimum=0.4,
+                maximum=3.2,
+            )
+            * self._macro_scale(
+                clarity_macro,
+                sensitivity=-0.70,
+                minimum=0.45,
+                maximum=1.9,
+            )
+            * self._macro_scale(
+                warmth_macro,
+                sensitivity=0.15,
+                minimum=0.8,
+                maximum=1.3,
+            )
+        )
+        macro_rt60_scale = float(np.clip(macro_rt60_scale, 0.35, 4.0))
+        macro_damping_delta = float(
+            np.clip(
+                (0.22 * warmth_macro) - (0.20 * clarity_macro) - (0.08 * room_size_macro),
+                -0.45,
+                0.45,
+            )
+        )
+
+        # Force a first-sample gain refresh so static macro scaling is applied
+        # even when no explicit automation lanes are active.
+        last_rt60_effective = -1.0
         last_lp_alpha = float(lp_alpha)
         room_size_default = np.float32(1.0)
 
@@ -1020,13 +1115,72 @@ class AlgoReverbEngine(ReverbEngine):
                     rt60_effective = float(np.clip(rt60_curve[n], 0.1, 300.0))
                 if damping_curve is not None:
                     damping_effective = float(np.clip(damping_curve[n], 0.0, 1.0))
+                room_size_macro_sample = room_size_macro_default
+                clarity_macro_sample = clarity_macro_default
+                warmth_macro_sample = warmth_macro_default
+                envelopment_macro_sample = envelopment_macro_default
+                if room_size_macro_curve is not None:
+                    room_size_macro_sample = float(np.clip(room_size_macro_curve[n], -1.0, 1.0))
+                if clarity_macro_curve is not None:
+                    clarity_macro_sample = float(np.clip(clarity_macro_curve[n], -1.0, 1.0))
+                if warmth_macro_curve is not None:
+                    warmth_macro_sample = float(np.clip(warmth_macro_curve[n], -1.0, 1.0))
+                if envelopment_macro_curve is not None:
+                    envelopment_macro_sample = float(
+                        np.clip(envelopment_macro_curve[n], -1.0, 1.0)
+                    )
+                if (
+                    abs(room_size_macro_sample - room_size_macro) > macro_eps
+                    or abs(clarity_macro_sample - clarity_macro) > macro_eps
+                    or abs(warmth_macro_sample - warmth_macro) > macro_eps
+                    or abs(envelopment_macro_sample - envelopment_macro) > macro_eps
+                ):
+                    room_size_macro = room_size_macro_sample
+                    clarity_macro = clarity_macro_sample
+                    warmth_macro = warmth_macro_sample
+                    envelopment_macro = envelopment_macro_sample
+                    macro_rt60_scale = (
+                        self._macro_scale(
+                            room_size_macro + (0.30 * envelopment_macro),
+                            sensitivity=0.85,
+                            minimum=0.4,
+                            maximum=3.2,
+                        )
+                        * self._macro_scale(
+                            clarity_macro,
+                            sensitivity=-0.70,
+                            minimum=0.45,
+                            maximum=1.9,
+                        )
+                        * self._macro_scale(
+                            warmth_macro,
+                            sensitivity=0.15,
+                            minimum=0.8,
+                            maximum=1.3,
+                        )
+                    )
+                    macro_rt60_scale = float(np.clip(macro_rt60_scale, 0.35, 4.0))
+                    macro_damping_delta = float(
+                        np.clip(
+                            (0.22 * warmth_macro)
+                            - (0.20 * clarity_macro)
+                            - (0.08 * room_size_macro),
+                            -0.45,
+                            0.45,
+                        )
+                    )
+
+                rt60_effective *= macro_rt60_scale
+                damping_effective = float(np.clip(damping_effective + macro_damping_delta, 0.0, 1.0))
                 room_size = float(room_size_default)
                 if room_size_curve is not None:
                     room_size = float(np.clip(room_size_curve[n], 0.25, 4.0))
                     rt60_effective *= room_size
-                    damping_effective = float(np.clip(damping_effective - (0.15 * (room_size - 1.0)), 0.0, 1.0))
+                    damping_effective = float(
+                        np.clip(damping_effective - (0.15 * (room_size - 1.0)), 0.0, 1.0)
+                    )
 
-                if abs(rt60_effective - last_rt60_effective) > 1e-5:
+                if abs(rt60_effective - last_rt60_effective) > self._RT60_UPDATE_EPS:
                     feedback_gain[:] = np.clip(
                         np.power(10.0, (-3.0 * delays_sec) / max(rt60_effective, 0.1)),
                         0.0,
@@ -1062,7 +1216,7 @@ class AlgoReverbEngine(ReverbEngine):
                     last_rt60_effective = float(rt60_effective)
 
                 lp_alpha_sample = float(0.15 + (0.83 * np.clip(damping_effective, 0.0, 1.0)))
-                if abs(lp_alpha_sample - last_lp_alpha) > 1e-7:
+                if abs(lp_alpha_sample - last_lp_alpha) > self._LP_ALPHA_UPDATE_EPS:
                     lp_alpha = np.float32(lp_alpha_sample)
                     last_lp_alpha = lp_alpha_sample
 
