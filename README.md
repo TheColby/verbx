@@ -16,9 +16,29 @@ freeze/repeat processing, loudness and peak targeting, multichannel/surround
 routing, and synthetic IR generation with deterministic caching for reproducible
 results.
 
-For computationally intensive audio sweetening, verbx supports both Apple Silicon and CUDA acceleration when available and specified. This allows massively dense, lush reverbs, and verbx is inherently well suited for unattended batch processing. Awesome!
+For computationally intensive processing, `verbx` supports both Apple Silicon and
+CUDA acceleration when available and selected, and is well suited for unattended
+batch workflows.
 
 ## 1.0 Table of Contents
+
+### 1.1 Choose Your Path
+
+- New users:
+  [4.0 Installation and Quick Start](#40-installation-and-quick-start) ->
+  [7.0 Quick Start Recipes](#70-quick-start-recipes) ->
+  [8.0 New User Guide](#80-new-user-guide) ->
+  [12.2 `verbx render` switches](#122-verbx-render-switches)
+- Experienced DSP users:
+  [9.0 DSP Math Notes](#90-dsp-math-notes) ->
+  [12.0 CLI Switch Reference](#120-cli-switch-reference) ->
+  [12.6 `verbx ir gen OUT_IR` switches](#126-verbx-ir-gen-out_ir-switches) ->
+  [20.0 Roadmap](#200-roadmap)
+
+### 1.2 Full Outline
+
+<details>
+<summary>Expand full outline</summary>
 
 - [2.0 Features](#20-features)
 - [3.0 Requirements](#30-requirements)
@@ -173,12 +193,14 @@ For computationally intensive audio sweetening, verbx supports both Apple Silico
   - [20.5 v0.7 Track B: Feature-vector-driven reverb control (audio-reactive DSP)](#205-v07-track-b-feature-vector-driven-reverb-control-audio-reactive-dsp)
   - [20.6 v0.7 Track C: Jot-inspired FDN control and perceptual parameterization](#206-v07-track-c-jot-inspired-fdn-control-and-perceptual-parameterization)
   - [20.7 v0.7 Track D: IR morphing and blending framework](#207-v07-track-d-ir-morphing-and-blending-framework)
-  - [20.8 Literature-Driven Implementation Plan (from Academic References)](#208-literature-driven-implementation-plan-from-academic-references)
+- [20.8 Literature-Driven Implementation Plan (from Academic References)](#208-literature-driven-implementation-plan-from-academic-references)
     - [20.8.1 Rollout status (v0.5 FDN track)](#2081-rollout-status-v05-fdn-track)
     - [20.8.2 Rollout status (v0.6 FDN track)](#2082-rollout-status-v06-fdn-track)
     - [20.8.3 Sources for rollout steps 1-3](#2083-sources-for-rollout-steps-1-3)
 - [21.0 License](#210-license)
 - [22.0 Attribution](#220-attribution)
+
+</details>
 
 ## 2.0 Features
 
@@ -187,9 +209,11 @@ For computationally intensive audio sweetening, verbx supports both Apple Silico
 - Experimental graph-structured FDN matrix mode (`--fdn-matrix graph`)
 - Partitioned FFT convolution (long IR friendly)
 - Native multichannel/surround processing and matrix IR routing (M input × N output)
+- Explicit convolution route-map + trajectory controls for multichannel workflows
 - Freeze segment looping + repeat chaining
 - Loudness/peak controls (LUFS, sample peak, true-peak approximation)
 - Ambient controls (shimmer, ducking, bloom, tilt EQ)
+- Modulation source/route system for dynamic parameter control
 - Synthetic IR generation (`fdn`, `stochastic`, `modal`, `hybrid`)
 - Deterministic IR cache with metadata sidecars
 - Batch rendering manifests
@@ -742,6 +766,7 @@ Current implementation level: **v0.6.0**
 - loudness/peak + shimmer/ambient controls
 - IR factory, cache, batch, tempo sync, framewise analysis
 - v0.4 additions: framewise modulation analysis, advanced IR fitting heuristics, parallel batch scheduler
+- v0.5 additions: surround route maps/trajectories, algorithmic surround decorrelation, and batch checkpoint/resume hardening
 - v0.6 additions: graph-structured FDN topology mode and expanded FDN topology controls
 
 ## 7.0 Quick Start Recipes
@@ -1519,7 +1544,7 @@ When incompatible options are requested, `verbx` falls back to full-buffer proce
 
 ## 12.0 CLI Switch Reference
 
-This section lists all CLI switches available in the current `v0.4` interface.
+This section lists all CLI switches available in the current `v0.6.0` interface.
 For full descriptions and defaults, run `verbx <command> --help`.
 
 ### 12.1 Top-level commands
@@ -1546,6 +1571,9 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--dry` | Amount of original (unprocessed) signal in the output mix. | Keep some dry for clarity and source definition. |
 | `--damping` | High-frequency damping in the decay network. | Higher damping darkens tails faster; lower damping keeps brighter highs longer. |
 | `--width` | Stereo/spatial spread behavior in the algorithmic path. | Increase for wider image; reduce for narrower/centered ambience. |
+| `--algo-front-variance` | Front-channel decorrelation strength in algorithmic surround mode. | Use low-to-moderate values to reduce front-stage channel collapse. |
+| `--algo-rear-variance` | Rear-channel decorrelation strength in algorithmic surround mode. | Increase when rear channels need more independent late-field motion. |
+| `--algo-top-variance` | Top-channel decorrelation strength in algorithmic surround mode. | Useful for immersive height-bed decorrelation without over-widening fronts/rears. |
 | `--mod-depth-ms` | Delay modulation depth (ms) in the algorithmic late field. | Small depth reduces metallic ringing; too high can sound chorus-like. |
 | `--mod-rate-hz` | Delay modulation speed. | Very slow rates are subtle; faster rates make modulation more audible. |
 | `--allpass-stages` | Number of Schroeder allpass diffusion stages in the algorithmic path. | `0` disables diffusion; `4-10` is a practical range for most material. |
@@ -1585,6 +1613,12 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 |---|---|---|
 | `--ir` | Path to external impulse response. | Required for explicit convolution engine runs (`--engine conv`) unless `--ir-gen` is used. |
 | `--self-convolve` | Uses the input file as its own IR for fast partitioned FFT self-convolution. | Useful for iterative texture/smear experiments without preparing a separate IR file. Equivalent to `--engine conv --ir INFILE`. |
+| `--ir-route-map [auto\|diagonal\|broadcast\|full]` | Route-map strategy for multichannel convolution. | Use `full` for explicit MxN routing, `diagonal` for one-to-one, `broadcast` for mono-style sends, or `auto` for default behavior. |
+| `--input-layout [auto\|mono\|stereo\|LCR\|5.1\|7.1\|7.1.2\|7.1.4]` | Semantic layout for input channel interpretation. | Set explicitly when working with surround/immersive buses to avoid ambiguous index-only routing. |
+| `--output-layout [auto\|mono\|stereo\|LCR\|5.1\|7.1\|7.1.2\|7.1.4]` | Semantic layout for output channel rendering. | Use explicit layout for deterministic multichannel routing and safer matrix IR validation. |
+| `--conv-route-start` | Start position for convolution route trajectory. | Pair with `--conv-route-end` to pan trajectory across output buses during one render. |
+| `--conv-route-end` | End position for convolution route trajectory. | Pair with `--conv-route-start` to define trajectory endpoints. |
+| `--conv-route-curve [linear\|equal-power]` | Interpolation curve for convolution route trajectory. | `equal-power` gives smoother perceived energy during movement; `linear` is more literal gain interpolation. |
 | `--ir-normalize [peak\|rms\|none]` | How IR amplitude is normalized before convolution. | `peak` is typical for predictable headroom; `none` preserves original IR level exactly. |
 | `--ir-matrix-layout [output-major\|input-major]` | Mapping for matrix-packed multichannel IRs. | Use this for true cross-channel routing (M-in × N-out IR channel packing). |
 | `--partition-size` | FFT partition size for convolution processing. | Larger partitions reduce FFT overhead but raise latency/memory per block; tune for workload. |
