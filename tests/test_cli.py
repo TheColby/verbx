@@ -637,6 +637,90 @@ def test_render_convolution_route_map_and_trajectory(tmp_path: Path) -> None:
     assert late_right > late_left
 
 
+def test_render_convolution_ir_blend_generates_composite_ir_runtime(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    base_ir = tmp_path / "base_ir.wav"
+    blend_ir = tmp_path / "blend_ir.wav"
+
+    x = np.zeros((sr // 3, 1), dtype=np.float32)
+    x[0, 0] = 1.0
+    ir_a = np.zeros((1024, 1), dtype=np.float32)
+    ir_b = np.zeros((1024, 1), dtype=np.float32)
+    ir_a[0, 0] = 1.0
+    ir_a[120, 0] = 0.4
+    ir_b[0, 0] = 1.0
+    ir_b[600, 0] = 0.28
+    sf.write(str(infile), x, sr)
+    sf.write(str(base_ir), ir_a, sr)
+    sf.write(str(blend_ir), ir_b, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(base_ir),
+            "--ir-blend",
+            str(blend_ir),
+            "--ir-blend-mix",
+            "0.65",
+            "--ir-blend-mode",
+            "spectral",
+            "--ir-blend-phase-coherence",
+            "0.85",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    ir_runtime = payload.get("ir_runtime")
+    assert isinstance(ir_runtime, dict)
+    assert ir_runtime["mode"] == "ir-blend"
+    assert str(ir_runtime["ir_path"]).endswith(".wav")
+    assert str(payload["effective"]["ir_used"]).endswith(".wav")
+    blend_meta = ir_runtime.get("meta", {})
+    assert blend_meta.get("mode") == "ir-blend"
+    assert len(blend_meta.get("sources", [])) == 2
+
+
+def test_render_rejects_ir_blend_without_base_ir_source(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    blend_ir = tmp_path / "blend_ir.wav"
+    x = np.zeros((512, 1), dtype=np.float32)
+    x[0, 0] = 1.0
+    ir = np.zeros((64, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+    sf.write(str(infile), x, sr)
+    sf.write(str(blend_ir), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "auto",
+            "--ir-blend",
+            str(blend_ir),
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--ir-blend requires base IR source" in result.output
+
+
 def test_render_rejects_ambiguous_matrix_ir_without_route_hint(tmp_path: Path) -> None:
     sr = 16_000
     infile = tmp_path / "st_in.wav"

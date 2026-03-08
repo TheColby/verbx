@@ -58,19 +58,25 @@ from verbx.core.batch_scheduler import (
     order_jobs,
     run_parallel_batch,
 )
+from verbx.core.fdn_capabilities import (
+    FDN_GRAPH_TOPOLOGY_CHOICES,
+    FDN_LINK_FILTER_CHOICES,
+    FDN_MATRIX_CHOICES,
+)
+from verbx.core.fdn_capabilities import (
+    normalize_fdn_graph_topology_name as _shared_normalize_fdn_graph_topology_name,
+)
+from verbx.core.fdn_capabilities import (
+    normalize_fdn_link_filter_name as _shared_normalize_fdn_link_filter_name,
+)
+from verbx.core.fdn_capabilities import (
+    normalize_fdn_matrix_name as _shared_normalize_fdn_matrix_name,
+)
 from verbx.core.modulation import parse_mod_route_spec, parse_mod_sources
 from verbx.core.pipeline import run_render_pipeline
 from verbx.core.spatial import (
     ambisonic_channel_count,
     normalize_ambisonic_metadata,
-)
-from verbx.core.fdn_capabilities import (
-    FDN_GRAPH_TOPOLOGY_CHOICES,
-    FDN_LINK_FILTER_CHOICES,
-    FDN_MATRIX_CHOICES,
-    normalize_fdn_graph_topology_name as _shared_normalize_fdn_graph_topology_name,
-    normalize_fdn_link_filter_name as _shared_normalize_fdn_link_filter_name,
-    normalize_fdn_matrix_name as _shared_normalize_fdn_matrix_name,
 )
 from verbx.core.tempo import parse_pre_delay_ms
 from verbx.io.audio import read_audio, validate_audio_path
@@ -84,6 +90,13 @@ from verbx.ir.fitting import (
 )
 from verbx.ir.generator import IRGenConfig, generate_or_load_cached_ir, write_ir_artifacts
 from verbx.ir.metrics import analyze_ir
+from verbx.ir.morph import (
+    IRMorphConfig,
+    generate_or_load_cached_morphed_ir,
+    normalize_ir_morph_mode_name,
+    resolve_blend_mix_values,
+    validate_ir_morph_mode_name,
+)
 from verbx.ir.shaping import apply_ir_shaping
 from verbx.ir.tuning import analyze_audio_for_tuning, parse_frequency_hz
 from verbx.logging import configure_logging
@@ -128,6 +141,12 @@ _AUTOMATION_MODE_CHOICES = {
     "sample",
     "block",
 }
+_IR_MORPH_MODE_CHOICES = {
+    "linear",
+    "equal-power",
+    "spectral",
+    "envelope-aware",
+}
 
 
 class LuckyIRProcessConfig(TypedDict):
@@ -141,6 +160,7 @@ class LuckyIRProcessConfig(TypedDict):
     peak_dbfs: float
     target_lufs: float | None
     true_peak: bool
+
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -241,8 +261,7 @@ def render(
         None,
         "--allpass-delays-ms",
         help=(
-            "Optional comma-separated allpass delay list in milliseconds. "
-            "Example: 5,7,11,17,23,29"
+            "Optional comma-separated allpass delay list in milliseconds. Example: 5,7,11,17,23,29"
         ),
     ),
     comb_delays_ms: str | None = typer.Option(
@@ -380,10 +399,7 @@ def render(
     fdn_link_filter: str = typer.Option(
         "none",
         "--fdn-link-filter",
-        help=(
-            "Feedback-link filter mode inside the FDN matrix path: "
-            "none, lowpass, or highpass."
-        ),
+        help=("Feedback-link filter mode inside the FDN matrix path: none, lowpass, or highpass."),
     ),
     fdn_link_filter_hz: float = typer.Option(
         2_500.0,
@@ -454,6 +470,76 @@ def render(
         ),
     ),
     ir: Path | None = typer.Option(None, "--ir", exists=True, readable=True, resolve_path=True),
+    ir_blend: list[Path] | None = typer.Option(
+        None,
+        "--ir-blend",
+        exists=True,
+        readable=True,
+        resolve_path=True,
+        help=(
+            "Repeatable additional IR path for render-time convolution blending. "
+            "Requires convolution render path."
+        ),
+    ),
+    ir_blend_mix: list[float] | None = typer.Option(
+        None,
+        "--ir-blend-mix",
+        min=0.0,
+        max=1.0,
+        help=(
+            "Repeatable blend coefficient for each --ir-blend IR (0..1). "
+            "Provide one value to broadcast to all blend IRs."
+        ),
+    ),
+    ir_blend_mode: str = typer.Option(
+        "equal-power",
+        "--ir-blend-mode",
+        help="IR blend morph mode: linear, equal-power, spectral, or envelope-aware.",
+    ),
+    ir_blend_early_ms: float = typer.Option(
+        80.0,
+        "--ir-blend-early-ms",
+        min=0.0,
+        help="Early/late split time (ms) used by envelope-aware and split blending modes.",
+    ),
+    ir_blend_early_alpha: float | None = typer.Option(
+        None,
+        "--ir-blend-early-alpha",
+        min=0.0,
+        max=1.0,
+        help="Optional override alpha for early-reflection blend region.",
+    ),
+    ir_blend_late_alpha: float | None = typer.Option(
+        None,
+        "--ir-blend-late-alpha",
+        min=0.0,
+        max=1.0,
+        help="Optional override alpha for late-tail blend region.",
+    ),
+    ir_blend_align_decay: bool = typer.Option(
+        True,
+        "--ir-blend-align-decay/--no-ir-blend-align-decay",
+        help="Enable RT60 alignment before morphing to stabilize blend trajectories.",
+    ),
+    ir_blend_phase_coherence: float = typer.Option(
+        0.75,
+        "--ir-blend-phase-coherence",
+        min=0.0,
+        max=1.0,
+        help="Phase-coherence safeguard strength for spectral/envelope-aware blending.",
+    ),
+    ir_blend_spectral_smooth_bins: int = typer.Option(
+        3,
+        "--ir-blend-spectral-smooth-bins",
+        min=0,
+        max=128,
+        help="Frequency smoothing radius (FFT bins) used by spectral blend modes.",
+    ),
+    ir_blend_cache_dir: str = typer.Option(
+        ".verbx_cache/ir_morph",
+        "--ir-blend-cache-dir",
+        help="Cache directory for blended/morphed IR artifacts used by render workflow.",
+    ),
     self_convolve: bool = typer.Option(
         False,
         "--self-convolve",
@@ -632,8 +718,7 @@ def render(
         None,
         "--automation-point",
         help=(
-            "Inline automation control point in target:time_s:value[:interp] format "
-            "(repeatable)."
+            "Inline automation control point in target:time_s:value[:interp] format (repeatable)."
         ),
     ),
     automation_trace_out: str | None = typer.Option(
@@ -755,6 +840,18 @@ def render(
         end=end,
         block_size=block_size,
         ir=None if ir is None else str(ir),
+        ir_blend=tuple(str(path) for path in (ir_blend or [])),
+        ir_blend_mix=tuple(float(value) for value in (ir_blend_mix or [])),
+        ir_blend_mode=normalize_ir_morph_mode_name(ir_blend_mode),
+        ir_blend_early_ms=float(ir_blend_early_ms),
+        ir_blend_early_alpha=(
+            None if ir_blend_early_alpha is None else float(ir_blend_early_alpha)
+        ),
+        ir_blend_late_alpha=(None if ir_blend_late_alpha is None else float(ir_blend_late_alpha)),
+        ir_blend_align_decay=bool(ir_blend_align_decay),
+        ir_blend_phase_coherence=float(ir_blend_phase_coherence),
+        ir_blend_spectral_smooth_bins=int(ir_blend_spectral_smooth_bins),
+        ir_blend_cache_dir=ir_blend_cache_dir,
         input_layout=input_layout,
         output_layout=output_layout,
         self_convolve=self_convolve,
@@ -1158,10 +1255,7 @@ def ir_gen(
     fdn_link_filter: str = typer.Option(
         "none",
         "--fdn-link-filter",
-        help=(
-            "Feedback-link filter mode inside the FDN matrix path: "
-            "none, lowpass, or highpass."
-        ),
+        help=("Feedback-link filter mode inside the FDN matrix path: none, lowpass, or highpass."),
     ),
     fdn_link_filter_hz: float = typer.Option(
         2_500.0,
@@ -1319,10 +1413,7 @@ def ir_gen(
         option_name="--fdn-dfm-delays-ms",
     )
     if len(parsed_fdn_dfm_delays) not in {0, 1, fdn_lines}:
-        msg = (
-            "--fdn-dfm-delays-ms must include either 1 value or exactly "
-            f"{fdn_lines} values."
-        )
+        msg = f"--fdn-dfm-delays-ms must include either 1 value or exactly {fdn_lines} values."
         raise typer.BadParameter(msg)
 
     f0_hz: float | None = None
@@ -1691,6 +1782,128 @@ def ir_process(
         raise typer.BadParameter(str(exc)) from exc
 
 
+@ir_app.command("morph")
+def ir_morph(
+    ir_a: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
+    ir_b: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
+    out_ir: Path = typer.Argument(..., resolve_path=True),
+    mode: str = typer.Option(
+        "equal-power",
+        "--mode",
+        help="Morph mode: linear, equal-power, spectral, or envelope-aware.",
+    ),
+    alpha: float = typer.Option(0.5, "--alpha", min=0.0, max=1.0),
+    early_ms: float = typer.Option(
+        80.0,
+        "--early-ms",
+        min=0.0,
+        help="Early/late split used by split/envelope-aware morphing (ms).",
+    ),
+    early_alpha: float | None = typer.Option(
+        None,
+        "--early-alpha",
+        min=0.0,
+        max=1.0,
+        help="Optional alpha override for early-reflection region.",
+    ),
+    late_alpha: float | None = typer.Option(
+        None,
+        "--late-alpha",
+        min=0.0,
+        max=1.0,
+        help="Optional alpha override for late-tail region.",
+    ),
+    align_decay: bool = typer.Option(
+        True,
+        "--align-decay/--no-align-decay",
+        help="Align decay profiles before morphing for stable RT trajectories.",
+    ),
+    phase_coherence: float = typer.Option(
+        0.75,
+        "--phase-coherence",
+        min=0.0,
+        max=1.0,
+        help="Phase-coherence safeguard strength for spectral morphing.",
+    ),
+    spectral_smooth_bins: int = typer.Option(
+        3,
+        "--spectral-smooth-bins",
+        min=0,
+        max=128,
+        help="Frequency smoothing radius (FFT bins) used by spectral modes.",
+    ),
+    target_sr: int | None = typer.Option(
+        None,
+        "--target-sr",
+        min=1,
+        help="Optional target sample rate for morph processing and output.",
+    ),
+    cache_dir: str = typer.Option(".verbx_cache/ir_morph", "--cache-dir"),
+    silent: bool = typer.Option(False, "--silent"),
+) -> None:
+    """Morph two IR files with cache-backed Track D processing."""
+    _validate_ir_morph_call(
+        ir_a=ir_a,
+        ir_b=ir_b,
+        out_ir=out_ir,
+        mode=mode,
+        early_alpha=early_alpha,
+        late_alpha=late_alpha,
+        cache_dir=cache_dir,
+    )
+
+    cfg = IRMorphConfig(
+        mode=cast(
+            Literal["linear", "equal-power", "spectral", "envelope-aware"],
+            validate_ir_morph_mode_name(mode),
+        ),
+        alpha=float(alpha),
+        early_ms=float(early_ms),
+        early_alpha=None if early_alpha is None else float(early_alpha),
+        late_alpha=None if late_alpha is None else float(late_alpha),
+        align_decay=bool(align_decay),
+        phase_coherence=float(phase_coherence),
+        spectral_smooth_bins=int(spectral_smooth_bins),
+    )
+
+    try:
+        audio, sr, meta, cache_path, cache_hit = generate_or_load_cached_morphed_ir(
+            ir_a_path=ir_a,
+            ir_b_path=ir_b,
+            config=cfg,
+            cache_dir=Path(cache_dir),
+            target_sr=None if target_sr is None else int(target_sr),
+        )
+        write_ir_artifacts(out_ir, audio, sr, meta, silent=silent)
+    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if silent:
+        return
+
+    table = Table(title="IR Morph")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="white")
+    table.add_row("mode", cfg.mode)
+    table.add_row("alpha", f"{cfg.alpha:.3f}")
+    table.add_row("early_ms", f"{cfg.early_ms:.2f}")
+    table.add_row("out_ir", str(out_ir))
+    table.add_row("cache_path", str(cache_path))
+    table.add_row("cache_hit", str(cache_hit))
+    table.add_row("sample_rate", str(int(sr)))
+    table.add_row("channels", str(int(audio.shape[1])))
+    table.add_row("duration_s", f"{float(audio.shape[0]) / float(sr):.3f}")
+    quality = meta.get("quality", {})
+    if isinstance(quality, dict):
+        drift = quality.get("rt60_drift_s")
+        if drift is not None:
+            table.add_row("rt60_drift_s", f"{float(drift):.4f}")
+        spectral = quality.get("spectral_distance_db")
+        if spectral is not None:
+            table.add_row("spectral_distance_db", f"{float(spectral):.4f}")
+    console.print(table)
+
+
 @ir_app.command("fit")
 def ir_fit(
     infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
@@ -1756,9 +1969,7 @@ def ir_fit(
     created: list[str] = []
     for rank, item in enumerate(selected, start=1):
         target_path = (
-            out_ir
-            if top_k == 1
-            else out_ir.with_name(f"{out_ir.stem}_{rank:02d}{out_ir.suffix}")
+            out_ir if top_k == 1 else out_ir.with_name(f"{out_ir.stem}_{rank:02d}{out_ir.suffix}")
         )
         meta = dict(item.meta)
         meta["fit"] = {
@@ -2585,10 +2796,7 @@ def _build_lucky_ir_gen_config(
         cfg.fdn_link_filter_mix = 1.0
     if rng.random() < 0.4:
         dfm_count = int(rng.choice(np.array([1, cfg.fdn_lines], dtype=np.int32)))
-        cfg.fdn_dfm_delays_ms = tuple(
-            float(rng.uniform(0.1, 8.0))
-            for _ in range(dfm_count)
-        )
+        cfg.fdn_dfm_delays_ms = tuple(float(rng.uniform(0.1, 8.0)) for _ in range(dfm_count))
     else:
         cfg.fdn_dfm_delays_ms = ()
     cfg.fdn_stereo_inject = float(rng.uniform(0.0, 1.0))
@@ -2753,8 +2961,7 @@ def _validate_fdn_tv_settings(
     if normalized == "tv_unitary":
         if rate <= 0.0 or depth <= 0.0:
             msg = (
-                "--fdn-matrix tv_unitary requires both --fdn-tv-rate-hz > 0 "
-                "and --fdn-tv-depth > 0."
+                "--fdn-matrix tv_unitary requires both --fdn-tv-rate-hz > 0 and --fdn-tv-depth > 0."
             )
             raise typer.BadParameter(msg)
         return
@@ -2805,10 +3012,7 @@ def _validate_fdn_graph_settings(
 
     # Non-default graph options are considered a configuration mismatch unless graph mode is active.
     if normalized_topology != "ring" or int(fdn_graph_degree) != 2:
-        msg = (
-            "--fdn-graph-topology/--fdn-graph-degree are only valid with "
-            "--fdn-matrix graph."
-        )
+        msg = "--fdn-graph-topology/--fdn-graph-degree are only valid with --fdn-matrix graph."
         raise typer.BadParameter(msg)
 
 
@@ -2846,9 +3050,7 @@ def _validate_fdn_multiband_settings(
     fdn_xover_high_hz: float,
 ) -> None:
     """Validate multiband FDN decay controls."""
-    set_count = sum(
-        value is not None for value in (fdn_rt60_low, fdn_rt60_mid, fdn_rt60_high)
-    )
+    set_count = sum(value is not None for value in (fdn_rt60_low, fdn_rt60_mid, fdn_rt60_high))
     if set_count not in {0, 3}:
         msg = (
             "For multiband decay use either none of --fdn-rt60-low/mid/high "
@@ -2950,6 +3152,52 @@ def _validate_ir_route_map_name(value: str) -> None:
         raise typer.BadParameter(msg)
 
 
+def _validate_ir_blend_settings(config: RenderConfig) -> None:
+    """Validate render-time IR blending controls."""
+    has_blend = len(config.ir_blend) > 0
+    has_blend_args = (
+        len(config.ir_blend_mix) > 0
+        or config.ir_blend_mode != "equal-power"
+        or abs(float(config.ir_blend_early_ms) - 80.0) > 1e-12
+        or config.ir_blend_early_alpha is not None
+        or config.ir_blend_late_alpha is not None
+        or not bool(config.ir_blend_align_decay)
+        or abs(float(config.ir_blend_phase_coherence) - 0.75) > 1e-12
+        or int(config.ir_blend_spectral_smooth_bins) != 3
+        or config.ir_blend_cache_dir != ".verbx_cache/ir_morph"
+    )
+    if not has_blend and has_blend_args:
+        msg = (
+            "--ir-blend-mix/--ir-blend-mode/--ir-blend-early-ms/"
+            "--ir-blend-early-alpha/--ir-blend-late-alpha/"
+            "--ir-blend-align-decay/--ir-blend-phase-coherence/"
+            "--ir-blend-spectral-smooth-bins/--ir-blend-cache-dir "
+            "require at least one --ir-blend path."
+        )
+        raise typer.BadParameter(msg)
+    if not has_blend:
+        return
+
+    if config.engine == "algo":
+        msg = "--ir-blend requires convolution render path (use --engine conv or --engine auto)."
+        raise typer.BadParameter(msg)
+
+    has_base_ir_source = config.ir is not None or config.ir_gen or config.self_convolve
+    if not has_base_ir_source:
+        msg = "--ir-blend requires base IR source via --ir, --ir-gen, or --self-convolve."
+        raise typer.BadParameter(msg)
+
+    try:
+        config.ir_blend_mode = validate_ir_morph_mode_name(config.ir_blend_mode)
+        resolve_blend_mix_values(config.ir_blend_mix, len(config.ir_blend))
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if str(config.ir_blend_cache_dir).strip() == "":
+        msg = "--ir-blend-cache-dir must not be empty."
+        raise typer.BadParameter(msg)
+
+
 def _validate_conv_route_settings(
     *,
     conv_route_start: str | None,
@@ -3013,7 +3261,9 @@ def _validate_ambisonic_settings(infile: Path, config: RenderConfig) -> None:
         msg = "Ambisonics mode requires --input-layout auto."
         raise typer.BadParameter(msg)
     if config.ambi_decode_to == "none" and config.output_layout != "auto":
-        msg = "Ambisonics mode requires --output-layout auto unless --ambi-decode-to stereo is used."
+        msg = (
+            "Ambisonics mode requires --output-layout auto unless --ambi-decode-to stereo is used."
+        )
         raise typer.BadParameter(msg)
 
     try:
@@ -3058,10 +3308,7 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
     if config.automation_smoothing_ms < 0.0:
         raise typer.BadParameter("--automation-smoothing-ms must be >= 0.")
 
-    has_automation_source = (
-        config.automation_file is not None
-        or len(config.automation_points) > 0
-    )
+    has_automation_source = config.automation_file is not None or len(config.automation_points) > 0
     has_automation_args = (
         config.automation_mode != "auto"
         or abs(float(config.automation_block_ms) - 20.0) > 1e-12
@@ -3099,7 +3346,13 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
         raise typer.BadParameter(str(exc)) from exc
 
     conv_selected = config.engine == "conv" or (
-        config.engine == "auto" and (config.ir is not None or config.ir_gen or config.self_convolve)
+        config.engine == "auto"
+        and (
+            config.ir is not None
+            or config.ir_gen
+            or config.self_convolve
+            or len(config.ir_blend) > 0
+        )
     )
     if conv_selected:
         engine_targets = sorted(target for target in targets if target in ENGINE_AUTOMATION_TARGETS)
@@ -3167,6 +3420,8 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
             msg = "--self-convolve is only valid with --engine conv or --engine auto."
             raise typer.BadParameter(msg)
 
+    _validate_ir_blend_settings(config)
+
     if (
         config.engine == "conv"
         and config.ir is None
@@ -3189,12 +3444,8 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
     _validate_ambisonic_settings(infile, config)
     _validate_automation_settings(config, outfile)
 
-    conv_enabled = (
-        config.engine == "conv"
-        or (
-            config.engine == "auto"
-            and (config.ir is not None or config.ir_gen or config.self_convolve)
-        )
+    conv_enabled = config.engine == "conv" or (
+        config.engine == "auto" and (config.ir is not None or config.ir_gen or config.self_convolve)
     )
     if (
         config.conv_route_start is not None or config.conv_route_end is not None
@@ -3222,9 +3473,10 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
         effective_in_channels = in_channels
         if config.ambi_order > 0:
             effective_in_channels = ambisonic_channel_count(int(config.ambi_order))
-            if ir_channels not in {1, effective_in_channels} and (
-                ir_channels % max(1, effective_in_channels)
-            ) != 0:
+            if (
+                ir_channels not in {1, effective_in_channels}
+                and (ir_channels % max(1, effective_in_channels)) != 0
+            ):
                 msg = (
                     f"IR channel layout ({ir_channels}) is incompatible with Ambisonics order "
                     f"{config.ambi_order} ({effective_in_channels} channels)."
@@ -3497,6 +3749,39 @@ def _validate_ir_gen_call(
     _validate_fdn_tonal_correction_settings(
         fdn_tonal_correction_strength=fdn_tonal_correction_strength,
     )
+
+
+def _validate_ir_morph_call(
+    *,
+    ir_a: Path,
+    ir_b: Path,
+    out_ir: Path,
+    mode: str,
+    early_alpha: float | None,
+    late_alpha: float | None,
+    cache_dir: str,
+) -> None:
+    """Validate IR morph command inputs."""
+    _ensure_distinct_paths(ir_a, ir_b, "IR_A", "IR_B")
+    _ensure_distinct_paths(ir_a, out_ir, "IR_A", "OUT_IR")
+    _ensure_distinct_paths(ir_b, out_ir, "IR_B", "OUT_IR")
+    _validate_output_audio_path(out_ir, "auto")
+
+    try:
+        validate_ir_morph_mode_name(mode)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if early_alpha is not None and not (0.0 <= float(early_alpha) <= 1.0):
+        msg = "--early-alpha must be in [0.0, 1.0]."
+        raise typer.BadParameter(msg)
+    if late_alpha is not None and not (0.0 <= float(late_alpha) <= 1.0):
+        msg = "--late-alpha must be in [0.0, 1.0]."
+        raise typer.BadParameter(msg)
+
+    if str(cache_dir).strip() == "":
+        msg = "--cache-dir must not be empty."
+        raise typer.BadParameter(msg)
 
 
 def _validate_ir_process_call(in_ir: Path, out_ir: Path) -> None:

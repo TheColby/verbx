@@ -83,6 +83,51 @@ def test_ir_gen_format_switch_overrides_extension(tmp_path: Path) -> None:
     assert audio.shape[1] == 1
 
 
+def test_ir_morph_command_writes_output_and_meta(tmp_path: Path) -> None:
+    sr = 16_000
+    a = np.zeros((2400, 1), dtype=np.float32)
+    b = np.zeros((2400, 1), dtype=np.float32)
+    a[0, 0] = 1.0
+    a[220, 0] = 0.42
+    b[0, 0] = 1.0
+    b[900, 0] = 0.35
+    a_path = tmp_path / "morph_a.wav"
+    b_path = tmp_path / "morph_b.wav"
+    out_path = tmp_path / "morphed.wav"
+    sf.write(str(a_path), a, sr)
+    sf.write(str(b_path), b, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "morph",
+            str(a_path),
+            str(b_path),
+            str(out_path),
+            "--mode",
+            "envelope-aware",
+            "--alpha",
+            "0.4",
+            "--early-ms",
+            "55",
+            "--phase-coherence",
+            "0.8",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert out_path.exists()
+    out, out_sr = sf.read(str(out_path), always_2d=True, dtype="float32")
+    assert out_sr == sr
+    assert out.shape[1] == 1
+    assert np.all(np.isfinite(out))
+    payload = json.loads(out_path.with_suffix(".wav.ir.meta.json").read_text(encoding="utf-8"))
+    assert payload["mode"] == "ir-morph"
+    assert payload["params"]["mode"] == "envelope-aware"
+    assert abs(float(payload["params"]["alpha"]) - 0.4) < 1e-6
+    assert "quality" in payload
+
+
 def test_ir_gen_supports_tvu_and_dfm_controls(tmp_path: Path) -> None:
     out_ir = tmp_path / "fdn_tvu.wav"
     result = runner.invoke(

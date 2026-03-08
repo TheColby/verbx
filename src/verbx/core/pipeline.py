@@ -26,6 +26,7 @@ from verbx.analysis.framewise import write_framewise_csv
 from verbx.config import NormalizeStage, RenderConfig
 from verbx.core.accel import configure_cpu_threads, resolve_device
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
+from verbx.core.ambient import apply_ambient_processing
 from verbx.core.automation import (
     ENGINE_AUTOMATION_TARGETS,
     POST_RENDER_AUTOMATION_TARGETS,
@@ -34,12 +35,12 @@ from verbx.core.automation import (
     parse_automation_clamp_overrides,
     write_automation_trace,
 )
-from verbx.core.ambient import apply_ambient_processing
 from verbx.core.convolution_reverb import ConvolutionReverbConfig, ConvolutionReverbEngine
 from verbx.core.engine_base import ReverbEngine
 from verbx.core.freeze import freeze_segment
 from verbx.core.loudness import apply_output_targets
 from verbx.core.modulation import apply_parameter_modulation, parse_mod_route_spec
+from verbx.core.repeat import repeat_process
 from verbx.core.spatial import (
     ambisonic_channel_count,
     convert_ambisonic_convention,
@@ -47,7 +48,6 @@ from verbx.core.spatial import (
     encode_bus_to_foa,
     rotate_ambisonic_yaw,
 )
-from verbx.core.repeat import repeat_process
 from verbx.io.audio import (
     peak_normalize,
     read_audio,
@@ -57,6 +57,11 @@ from verbx.io.audio import (
 )
 from verbx.io.progress import RenderProgress
 from verbx.ir.generator import IRGenConfig, generate_or_load_cached_ir
+from verbx.ir.morph import (
+    IRMorphConfig,
+    generate_or_load_cached_blended_ir,
+    resolve_blend_mix_values,
+)
 
 AudioArray = npt.NDArray[np.float32]
 PassProcessor = Callable[[AudioArray, int, int], AudioArray]
@@ -185,14 +190,15 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             )
 
         has_automation_source = (
-            runtime_config.automation_file is not None
-            or len(runtime_config.automation_points) > 0
+            runtime_config.automation_file is not None or len(runtime_config.automation_points) > 0
         )
         preloaded_automation_bundle = None
         if has_automation_source and engine_name == "algo":
             clamp_overrides = parse_automation_clamp_overrides(runtime_config.automation_clamp)
             preloaded_automation_bundle = load_automation_bundle(
-                path=None if runtime_config.automation_file is None else Path(runtime_config.automation_file),
+                path=None
+                if runtime_config.automation_file is None
+                else Path(runtime_config.automation_file),
                 point_specs=runtime_config.automation_points,
                 sr=sr,
                 num_samples=int(input_for_engine.shape[0]),
@@ -272,7 +278,9 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             bundle = preloaded_automation_bundle
             if bundle is None or int(bundle.num_samples) != int(rendered.shape[0]):
                 bundle = load_automation_bundle(
-                    path=None if runtime_config.automation_file is None else Path(runtime_config.automation_file),
+                    path=None
+                    if runtime_config.automation_file is None
+                    else Path(runtime_config.automation_file),
                     point_specs=runtime_config.automation_points,
                     sr=sr,
                     num_samples=int(rendered.shape[0]),
@@ -287,8 +295,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 )
                 if len(unsupported) > 0:
                     raise ValueError(
-                        "Automation targets require algorithmic engine: "
-                        + ", ".join(unsupported)
+                        "Automation targets require algorithmic engine: " + ", ".join(unsupported)
                     )
             dry_reference = _build_dry_reference_for_automation(
                 engine_name=engine_name,
@@ -469,7 +476,7 @@ def _prepare_runtime_config(
         input_duration_seconds=input_duration_seconds,
     )
     runtime = _apply_perceptual_fdn_macros(runtime)
-    ir_runtime: dict[str, Any] | None = None
+    ir_runtime_steps: list[dict[str, Any]] = []
     ir_channels = max(1, int(input_channels))
     if runtime.ambi_order > 0:
         ir_channels = ambisonic_channel_count(int(runtime.ambi_order))
@@ -479,12 +486,13 @@ def _prepare_runtime_config(
         runtime.ir = str(infile)
         if runtime.engine == "auto":
             runtime.engine = "conv"
-        ir_runtime = {
-            "mode": "self-convolve",
-            "cache_hit": False,
-            "ir_path": str(infile),
-        }
-        return runtime, ir_runtime
+        ir_runtime_steps.append(
+            {
+                "mode": "self-convolve",
+                "cache_hit": False,
+                "ir_path": str(infile),
+            }
+        )
 
     if runtime.ir_gen:
         # Generate or reuse deterministic cached IR before render.
@@ -534,11 +542,60 @@ def _prepare_runtime_config(
         runtime.ir = str(wav_path)
         if runtime.engine == "auto":
             runtime.engine = "conv"
+        ir_runtime_steps.append(
+            {
+                "mode": runtime.ir_gen_mode,
+                "cache_hit": cache_hit,
+                "ir_path": str(wav_path),
+                "meta": meta,
+            }
+        )
+
+    if len(runtime.ir_blend) > 0:
+        base_path = runtime.ir
+        if base_path is None:
+            msg = "IR blending requires base IR source."
+            raise ValueError(msg)
+        blend_paths = tuple(Path(path) for path in runtime.ir_blend)
+        blend_mix = resolve_blend_mix_values(runtime.ir_blend_mix, len(blend_paths))
+        blend_cfg = IRMorphConfig(
+            mode=runtime.ir_blend_mode,
+            alpha=0.5,
+            early_ms=float(runtime.ir_blend_early_ms),
+            early_alpha=runtime.ir_blend_early_alpha,
+            late_alpha=runtime.ir_blend_late_alpha,
+            align_decay=bool(runtime.ir_blend_align_decay),
+            phase_coherence=float(runtime.ir_blend_phase_coherence),
+            spectral_smooth_bins=int(runtime.ir_blend_spectral_smooth_bins),
+        )
+        _, _, blend_meta, blended_path, blend_cache_hit = generate_or_load_cached_blended_ir(
+            base_ir_path=Path(base_path),
+            blend_ir_paths=blend_paths,
+            blend_mix=blend_mix,
+            config=blend_cfg,
+            cache_dir=Path(runtime.ir_blend_cache_dir),
+            target_sr=sr,
+        )
+        runtime.ir = str(blended_path)
+        if runtime.engine == "auto":
+            runtime.engine = "conv"
+        ir_runtime_steps.append(
+            {
+                "mode": "ir-blend",
+                "cache_hit": blend_cache_hit,
+                "ir_path": str(blended_path),
+                "meta": blend_meta,
+            }
+        )
+
+    ir_runtime: dict[str, Any] | None = None
+    if len(ir_runtime_steps) == 1:
+        ir_runtime = ir_runtime_steps[0]
+    elif len(ir_runtime_steps) > 1:
         ir_runtime = {
-            "mode": runtime.ir_gen_mode,
-            "cache_hit": cache_hit,
-            "ir_path": str(wav_path),
-            "meta": meta,
+            "mode": "composite",
+            "steps": ir_runtime_steps,
+            "ir_path": str(runtime.ir) if runtime.ir is not None else None,
         }
 
     return runtime, ir_runtime
@@ -582,9 +639,8 @@ def _apply_beast_mode(config: RenderConfig, input_duration_seconds: float) -> Re
 
     if scaled.tail_limit is not None:
         scaled.tail_limit = max(0.0, scaled.tail_limit * factor)
-    elif (
-        scaled.engine in {"conv", "auto"}
-        and (scaled.ir is not None or scaled.ir_gen or scaled.self_convolve)
+    elif scaled.engine in {"conv", "auto"} and (
+        scaled.ir is not None or scaled.ir_gen or scaled.self_convolve or len(scaled.ir_blend) > 0
     ):
         baseline = max(1.0, input_duration_seconds * 0.5)
         scaled.tail_limit = baseline * factor
@@ -694,9 +750,7 @@ def _build_perceptual_macro_summary(
         "algo_decorrelation_rear",
         "algo_decorrelation_top",
     )
-    resolved_values: dict[str, Any] = {
-        key: float(getattr(resolved, key)) for key in numeric_keys
-    }
+    resolved_values: dict[str, Any] = {key: float(getattr(resolved, key)) for key in numeric_keys}
     resolved_values["fdn_link_filter"] = str(resolved.fdn_link_filter)
     resolved_values["fdn_link_filter_hz"] = float(resolved.fdn_link_filter_hz)
     resolved_values["fdn_link_filter_mix"] = float(resolved.fdn_link_filter_mix)
@@ -721,89 +775,97 @@ def _resolve_engine(config: RenderConfig, device: str) -> tuple[str, ReverbEngin
         if config.ir is None:
             msg = "Convolution engine requires --ir when --engine conv is selected"
             raise ValueError(msg)
-        return "conv", ConvolutionReverbEngine(
-            ConvolutionReverbConfig(
-                wet=config.wet,
-                dry=config.dry,
-                ir_path=config.ir,
-                ir_normalize=config.ir_normalize,
-                ir_matrix_layout=config.ir_matrix_layout,
-                ir_route_map=config.ir_route_map,
-                partition_size=config.partition_size,
-                tail_limit=config.tail_limit,
-                threads=config.threads,
-                device=device,
-                input_layout=config.input_layout,
-                output_layout=config.output_layout,
-                route_start=config.conv_route_start,
-                route_end=config.conv_route_end,
-                route_curve=config.conv_route_curve,
-                ambi_order=config.ambi_order,
-                ambi_normalization=config.ambi_normalization,
-                channel_order=config.channel_order,
-                ambi_rotate_yaw_deg=config.ambi_rotate_yaw_deg,
-            )
-        ), device
+        return (
+            "conv",
+            ConvolutionReverbEngine(
+                ConvolutionReverbConfig(
+                    wet=config.wet,
+                    dry=config.dry,
+                    ir_path=config.ir,
+                    ir_normalize=config.ir_normalize,
+                    ir_matrix_layout=config.ir_matrix_layout,
+                    ir_route_map=config.ir_route_map,
+                    partition_size=config.partition_size,
+                    tail_limit=config.tail_limit,
+                    threads=config.threads,
+                    device=device,
+                    input_layout=config.input_layout,
+                    output_layout=config.output_layout,
+                    route_start=config.conv_route_start,
+                    route_end=config.conv_route_end,
+                    route_curve=config.conv_route_curve,
+                    ambi_order=config.ambi_order,
+                    ambi_normalization=config.ambi_normalization,
+                    channel_order=config.channel_order,
+                    ambi_rotate_yaw_deg=config.ambi_rotate_yaw_deg,
+                )
+            ),
+            device,
+        )
 
     algo_device = device if device in {"cpu", "mps"} else "cpu"
-    return "algo", AlgoReverbEngine(
-        AlgoReverbConfig(
-            rt60=config.rt60,
-            pre_delay_ms=config.pre_delay_ms,
-            damping=config.damping,
-            width=config.width,
-            mod_depth_ms=config.mod_depth_ms,
-            mod_rate_hz=config.mod_rate_hz,
-            allpass_stages=config.allpass_stages,
-            allpass_gain=config.allpass_gain,
-            allpass_gains=config.allpass_gains,
-            allpass_delays_ms=config.allpass_delays_ms,
-            comb_delays_ms=config.comb_delays_ms,
-            fdn_lines=config.fdn_lines,
-            fdn_matrix=config.fdn_matrix,
-            fdn_tv_rate_hz=config.fdn_tv_rate_hz,
-            fdn_tv_depth=config.fdn_tv_depth,
-            fdn_tv_seed=config.fdn_tv_seed,
-            fdn_dfm_delays_ms=config.fdn_dfm_delays_ms,
-            fdn_sparse=config.fdn_sparse,
-            fdn_sparse_degree=config.fdn_sparse_degree,
-            fdn_cascade=config.fdn_cascade,
-            fdn_cascade_mix=config.fdn_cascade_mix,
-            fdn_cascade_delay_scale=config.fdn_cascade_delay_scale,
-            fdn_cascade_rt60_ratio=config.fdn_cascade_rt60_ratio,
-            fdn_rt60_low=config.fdn_rt60_low,
-            fdn_rt60_mid=config.fdn_rt60_mid,
-            fdn_rt60_high=config.fdn_rt60_high,
-            fdn_rt60_tilt=config.fdn_rt60_tilt,
-            fdn_tonal_correction_strength=config.fdn_tonal_correction_strength,
-            fdn_xover_low_hz=config.fdn_xover_low_hz,
-            fdn_xover_high_hz=config.fdn_xover_high_hz,
-            fdn_link_filter=config.fdn_link_filter,
-            fdn_link_filter_hz=config.fdn_link_filter_hz,
-            fdn_link_filter_mix=config.fdn_link_filter_mix,
-            fdn_graph_topology=config.fdn_graph_topology,
-            fdn_graph_degree=config.fdn_graph_degree,
-            fdn_graph_seed=config.fdn_graph_seed,
-            room_size_macro=config.room_size_macro,
-            clarity_macro=config.clarity_macro,
-            warmth_macro=config.warmth_macro,
-            envelopment_macro=config.envelopment_macro,
-            algo_decorrelation_front=config.algo_decorrelation_front,
-            algo_decorrelation_rear=config.algo_decorrelation_rear,
-            algo_decorrelation_top=config.algo_decorrelation_top,
-            wet=config.wet,
-            dry=config.dry,
-            block_size=config.block_size,
-            shimmer=config.shimmer,
-            shimmer_semitones=config.shimmer_semitones,
-            shimmer_mix=config.shimmer_mix,
-            shimmer_feedback=config.shimmer_feedback,
-            shimmer_highcut=config.shimmer_highcut,
-            shimmer_lowcut=config.shimmer_lowcut,
-            output_layout=config.output_layout,
-            device=algo_device,
-        )
-    ), algo_device
+    return (
+        "algo",
+        AlgoReverbEngine(
+            AlgoReverbConfig(
+                rt60=config.rt60,
+                pre_delay_ms=config.pre_delay_ms,
+                damping=config.damping,
+                width=config.width,
+                mod_depth_ms=config.mod_depth_ms,
+                mod_rate_hz=config.mod_rate_hz,
+                allpass_stages=config.allpass_stages,
+                allpass_gain=config.allpass_gain,
+                allpass_gains=config.allpass_gains,
+                allpass_delays_ms=config.allpass_delays_ms,
+                comb_delays_ms=config.comb_delays_ms,
+                fdn_lines=config.fdn_lines,
+                fdn_matrix=config.fdn_matrix,
+                fdn_tv_rate_hz=config.fdn_tv_rate_hz,
+                fdn_tv_depth=config.fdn_tv_depth,
+                fdn_tv_seed=config.fdn_tv_seed,
+                fdn_dfm_delays_ms=config.fdn_dfm_delays_ms,
+                fdn_sparse=config.fdn_sparse,
+                fdn_sparse_degree=config.fdn_sparse_degree,
+                fdn_cascade=config.fdn_cascade,
+                fdn_cascade_mix=config.fdn_cascade_mix,
+                fdn_cascade_delay_scale=config.fdn_cascade_delay_scale,
+                fdn_cascade_rt60_ratio=config.fdn_cascade_rt60_ratio,
+                fdn_rt60_low=config.fdn_rt60_low,
+                fdn_rt60_mid=config.fdn_rt60_mid,
+                fdn_rt60_high=config.fdn_rt60_high,
+                fdn_rt60_tilt=config.fdn_rt60_tilt,
+                fdn_tonal_correction_strength=config.fdn_tonal_correction_strength,
+                fdn_xover_low_hz=config.fdn_xover_low_hz,
+                fdn_xover_high_hz=config.fdn_xover_high_hz,
+                fdn_link_filter=config.fdn_link_filter,
+                fdn_link_filter_hz=config.fdn_link_filter_hz,
+                fdn_link_filter_mix=config.fdn_link_filter_mix,
+                fdn_graph_topology=config.fdn_graph_topology,
+                fdn_graph_degree=config.fdn_graph_degree,
+                fdn_graph_seed=config.fdn_graph_seed,
+                room_size_macro=config.room_size_macro,
+                clarity_macro=config.clarity_macro,
+                warmth_macro=config.warmth_macro,
+                envelopment_macro=config.envelopment_macro,
+                algo_decorrelation_front=config.algo_decorrelation_front,
+                algo_decorrelation_rear=config.algo_decorrelation_rear,
+                algo_decorrelation_top=config.algo_decorrelation_top,
+                wet=config.wet,
+                dry=config.dry,
+                block_size=config.block_size,
+                shimmer=config.shimmer,
+                shimmer_semitones=config.shimmer_semitones,
+                shimmer_mix=config.shimmer_mix,
+                shimmer_feedback=config.shimmer_feedback,
+                shimmer_highcut=config.shimmer_highcut,
+                shimmer_lowcut=config.shimmer_lowcut,
+                output_layout=config.output_layout,
+                device=algo_device,
+            )
+        ),
+        algo_device,
+    )
 
 
 def _resolve_analysis_path(outfile: Path, analysis_out: str | None) -> Path:

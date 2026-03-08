@@ -18,6 +18,9 @@ Analyze IR metrics (duration, RT60 estimate, decay profile, coherence).
 .B process IN_IR OUT_IR
 Apply shaping (filters, normalization, loudness targeting) to IR.
 .TP
+.B morph IR_A IR_B OUT_IR
+Morph two IRs with cache-backed Track D blending modes.
+.TP
 .B fit INFILE OUT_IR
 Analyze source, generate/scoring candidate IRs, and export top results.
 .SH COMMON gen OPTIONS
@@ -60,6 +63,37 @@ Optional tuning anchor (e.g., 64Hz).
 .TP
 .B --analyze-input PATH
 Analyze fundamentals/harmonics from input to tune generated IR.
+.SH COMMON morph OPTIONS
+.TP
+.B --mode [linear|equal-power|spectral|envelope-aware]
+Morph mode.
+.TP
+.B --alpha FLOAT
+Global morph coefficient (0..1).
+.TP
+.B --early-ms FLOAT
+Early/late split time in milliseconds.
+.TP
+.B --early-alpha FLOAT
+Optional early-region alpha override.
+.TP
+.B --late-alpha FLOAT
+Optional late-region alpha override.
+.TP
+.B --align-decay / --no-align-decay
+Enable/disable RT-alignment before morphing.
+.TP
+.B --phase-coherence FLOAT
+Spectral phase-coherence safeguard strength (0..1).
+.TP
+.B --spectral-smooth-bins INT
+Frequency smoothing radius (FFT bins) for spectral modes.
+.TP
+.B --target-sr INT
+Optional output sample rate target.
+.TP
+.B --cache-dir PATH
+Cache directory for morphed IR artifacts and metadata.
 .SH EXAMPLES
 .TP
 .B verbx ir gen out_ir.wav --mode hybrid --length 120 --seed 7
@@ -70,6 +104,9 @@ Generate IR with Track C perceptual FDN controls.
 .TP
 .B verbx ir analyze out_ir.wav --json-out out_ir.analysis.json
 Analyze generated IR.
+.TP
+.B verbx ir morph A.wav B.wav OUT.wav --mode envelope-aware --alpha 0.4 --early-ms 70
+Morph two IRs with early/late-aware Track D controls.
 .TP
 .B verbx ir fit in.wav fit_ir.wav --top-k 3
 Fit IR candidates from source analysis.

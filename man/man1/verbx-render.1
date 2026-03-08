@@ -31,6 +31,36 @@ Enable freeze segment looping.
 .B --ir PATH
 External impulse response path for convolution.
 .TP
+.B --ir-blend PATH
+Repeatable additional IR path for render-time convolution blending.
+.TP
+.B --ir-blend-mix FLOAT
+Blend coefficient for each --ir-blend IR (0..1; one value may be broadcast).
+.TP
+.B --ir-blend-mode [linear|equal-power|spectral|envelope-aware]
+IR blend morph mode.
+.TP
+.B --ir-blend-early-ms FLOAT
+Early/late split in milliseconds for envelope-aware or split blending.
+.TP
+.B --ir-blend-early-alpha FLOAT
+Optional early-region alpha override for IR blending.
+.TP
+.B --ir-blend-late-alpha FLOAT
+Optional late-region alpha override for IR blending.
+.TP
+.B --ir-blend-align-decay / --no-ir-blend-align-decay
+Enable/disable decay alignment before blending.
+.TP
+.B --ir-blend-phase-coherence FLOAT
+Spectral phase-coherence safeguard strength for IR blending (0..1).
+.TP
+.B --ir-blend-spectral-smooth-bins INT
+Frequency smoothing radius (FFT bins) for spectral blending.
+.TP
+.B --ir-blend-cache-dir PATH
+Cache directory used for blended/morphed IR artifacts.
+.TP
 .B --self-convolve
 Use input file as its own IR.
 .TP
@@ -143,6 +173,9 @@ Basic algorithmic render.
 .TP
 .B verbx render in.wav out.wav --engine conv --ir hall.wav --partition-size 32768
 Fast convolution render.
+.TP
+.B verbx render in.wav out_blend.wav --engine conv --ir hall_A.wav --ir-blend hall_B.wav --ir-blend-mix 0.6 --ir-blend-mode envelope-aware
+Blend two IRs at render time using Track D morph controls.
 .TP
 .B verbx render in.wav out/lucky.wav --lucky 25 --lucky-out-dir out/lucky_set
 Generate 25 randomized extreme variants.

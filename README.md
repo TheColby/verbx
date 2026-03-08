@@ -155,10 +155,11 @@ batch workflows.
   - [12.7 `verbx ir analyze IR_FILE` switches](#127-verbx-ir-analyze-ir_file-switches)
   - [12.8 `verbx ir process IN_IR OUT_IR` switches](#128-verbx-ir-process-in_ir-out_ir-switches)
   - [12.9 `verbx ir fit INFILE OUT_IR` switches](#129-verbx-ir-fit-infile-out_ir-switches)
-  - [12.10 `verbx cache info` switches](#1210-verbx-cache-info-switches)
-  - [12.11 `verbx cache clear` switches](#1211-verbx-cache-clear-switches)
-  - [12.12 `verbx batch template` switches](#1212-verbx-batch-template-switches)
-  - [12.13 `verbx batch render MANIFEST` switches](#1213-verbx-batch-render-manifest-switches)
+  - [12.10 `verbx ir morph IR_A IR_B OUT_IR` switches](#1210-verbx-ir-morph-ir_a-ir_b-out_ir-switches)
+  - [12.11 `verbx cache info` switches](#1211-verbx-cache-info-switches)
+  - [12.12 `verbx cache clear` switches](#1212-verbx-cache-clear-switches)
+  - [12.13 `verbx batch template` switches](#1213-verbx-batch-template-switches)
+  - [12.14 `verbx batch render MANIFEST` switches](#1214-verbx-batch-render-manifest-switches)
 - [13.0 CLI Command Cookbook](#130-cli-command-cookbook)
   - [13.1 Global help](#131-global-help)
   - [13.2 Core commands](#132-core-commands)
@@ -166,7 +167,7 @@ batch workflows.
   - [13.4 `analyze` examples](#134-analyze-examples)
   - [13.5 `ir` command group](#135-ir-command-group)
     - [13.5.1 Generate IR examples](#1351-generate-ir-examples)
-    - [13.5.2 Analyze/process/fit IR examples](#1352-analyzeprocessfit-ir-examples)
+    - [13.5.2 Analyze/morph/process/fit IR examples](#1352-analyzemorphprocessfit-ir-examples)
   - [13.6 Cache command group](#136-cache-command-group)
   - [13.7 Batch command group](#137-batch-command-group)
 - [14.0 Pregenerated IRs and Audio Examples](#140-pregenerated-irs-and-audio-examples)
@@ -770,6 +771,7 @@ Current implementation level: **v0.6.0**
 - v0.6 additions: graph-structured FDN topology mode and expanded FDN topology controls
 - v0.6 spatial additions: Ambisonics convention validation (`--ambi-order`, `--ambi-normalization`, `--channel-order`), FOA encode/decode transforms, yaw rotation, and Ambisonics spatial metrics in analysis mode
 - v0.7 Track A/C additions: JSON/CSV automation lanes (`--automation-file`), inline CLI points (`--automation-point`), block/sample evaluation, smoothing, clamp overrides, automation trace export, and Track C automation targets for `fdn-rt60-tilt` and `fdn-tonal-correction-strength`
+- v0.7 Track D additions: cache-backed `ir morph` command (`linear`, `equal-power`, `spectral`, `envelope-aware`), render-time IR blending via `--ir-blend`/`--ir-blend-mix`, and morph quality metadata (RT drift, spectral distance, coherence deltas)
 
 ## 7.0 Quick Start Recipes
 
@@ -1546,7 +1548,7 @@ When incompatible options are requested, `verbx` falls back to full-buffer proce
 
 ## 12.0 CLI Switch Reference
 
-This section lists all CLI switches available in the current `v0.6.0 + v0.7 Track A/C starter` interface.
+This section lists all CLI switches available in the current `v0.6.0 + v0.7 Track A/C/D` interface.
 For full descriptions and defaults, run `verbx <command> --help`.
 
 ### 12.1 Top-level commands
@@ -1620,6 +1622,16 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | Switch | What it controls | Practical guidance |
 |---|---|---|
 | `--ir` | Path to external impulse response. | Required for explicit convolution engine runs (`--engine conv`) unless `--ir-gen` is used. |
+| `--ir-blend` | Repeatable additional IR path used for Track D render-time blending. | Use with `--ir` (or `--ir-gen`/`--self-convolve`) to audition hybrid spaces without pre-baking an IR file manually. |
+| `--ir-blend-mix` | Blend coefficient(s) for `--ir-blend` inputs (`0..1`, repeatable or broadcast). | Provide one value to apply the same coefficient to all blend IRs, or one per `--ir-blend` path. |
+| `--ir-blend-mode [linear\|equal-power\|spectral\|envelope-aware]` | Blend/morph mode used when combining convolution IRs. | Start with `equal-power` for safe musical transitions; use `spectral`/`envelope-aware` for stronger timbral interpolation. |
+| `--ir-blend-early-ms` | Early/late split time used by envelope-aware and split blending behavior. | Tune around `40-120 ms` depending on how much transient localization you want to preserve. |
+| `--ir-blend-early-alpha` | Optional alpha override for early-reflection region. | Keep low (`0.1-0.4`) to retain source localization while morphing late tail more aggressively. |
+| `--ir-blend-late-alpha` | Optional alpha override for late-tail region. | Higher values (`0.5-0.9`) push stronger tail-character transfer from blend IRs. |
+| `--ir-blend-align-decay / --no-ir-blend-align-decay` | Enables/disables RT-alignment before blending. | Keep enabled for stable trajectories; disable only for intentionally raw/asymmetric decay transitions. |
+| `--ir-blend-phase-coherence` | Spectral phase-coherence safeguard strength (`0..1`). | Increase when spectral morphing sounds combed/phasier; lower for more aggressive phase movement. |
+| `--ir-blend-spectral-smooth-bins` | Frequency smoothing radius used by spectral blend modes (FFT bins). | Small values preserve detail; larger values reduce narrow-band artifacts. |
+| `--ir-blend-cache-dir` | Cache location for Track D morphed/blended IR artifacts. | Reuse this directory to make repeated blend renders deterministic and fast. |
 | `--self-convolve` | Uses the input file as its own IR for fast partitioned FFT self-convolution. | Useful for iterative texture/smear experiments without preparing a separate IR file. Equivalent to `--engine conv --ir INFILE`. |
 | `--ir-route-map [auto\|diagonal\|broadcast\|full]` | Route-map strategy for multichannel convolution. | Use `full` for explicit MxN routing, `diagonal` for one-to-one, `broadcast` for mono-style sends, or `auto` for default behavior. |
 | `--input-layout [auto\|mono\|stereo\|LCR\|5.1\|7.1\|7.1.2\|7.1.4]` | Semantic layout for input channel interpretation. | Set explicitly when working with surround/immersive buses to avoid ambiguous index-only routing. |
@@ -1891,23 +1903,38 @@ No command-specific switches (other than `--help`).
 | `--analyze-tuning / --no-analyze-tuning` | Enables/disables source tuning analysis during fit. | Enable for musically aligned IRs; disable for faster neutral fitting. |
 | `--cache-dir` | Cache directory for generated/loaded candidates. | Reuse across runs to avoid recomputing identical candidates. |
 
-### 12.10 `verbx cache info` switches
+### 12.10 `verbx ir morph IR_A IR_B OUT_IR` switches
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--mode [linear\|equal-power\|spectral\|envelope-aware]` | Track D IR morph mode. | Start with `equal-power`; use `spectral`/`envelope-aware` for stronger timbral interpolation. |
+| `--alpha` | Global morph coefficient (`0..1`). | `0.0` favors `IR_A`; `1.0` favors `IR_B`; use `0.3-0.7` for practical hybrids. |
+| `--early-ms` | Early/late split time for split-aware modes. | Tune around `40-120 ms` to preserve transient localization while morphing late tail. |
+| `--early-alpha` | Optional early-region alpha override. | Keep lower than late alpha when preserving localization is important. |
+| `--late-alpha` | Optional late-tail alpha override. | Increase to transfer more late-field character from `IR_B`. |
+| `--align-decay / --no-align-decay` | Enable/disable decay-shape alignment before morphing. | Keep enabled for stable RT behavior and fewer collapse/stretch artifacts. |
+| `--phase-coherence` | Spectral phase-coherence safeguard strength (`0..1`). | Increase when spectral morphing sounds phasey/comb-filtered. |
+| `--spectral-smooth-bins` | Spectral smoothing radius (FFT bins). | Higher values smooth narrow resonances; lower values preserve fine detail. |
+| `--target-sr` | Optional target sample rate for morph processing/output. | Set when normalizing a mixed IR library to one sample rate. |
+| `--cache-dir` | Cache directory for morphed IR artifacts and sidecars. | Reuse for deterministic reruns and fast iterative auditioning. |
+
+### 12.11 `verbx cache info` switches
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
 | `--cache-dir` | Cache directory to inspect. | Point to alternate cache roots when managing multiple environments. |
 
-### 12.11 `verbx cache clear` switches
+### 12.12 `verbx cache clear` switches
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
 | `--cache-dir` | Cache directory to clear. | Use carefully; this removes reusable IR artifacts for that cache root. |
 
-### 12.12 `verbx batch template` switches
+### 12.13 `verbx batch template` switches
 
 No command-specific switches (other than `--help`).
 
-### 12.13 `verbx batch render MANIFEST` switches
+### 12.14 `verbx batch render MANIFEST` switches
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
@@ -1945,6 +1972,10 @@ verbx render in.wav out.wav --engine algo --rt60 120 --damping 0.5 --width 1.2
 
 # convolution with IR normalization and tail cap
 verbx render in.wav out.wav --engine conv --ir plate.wav --ir-normalize peak --tail-limit 45
+
+# Track D render-time IR blending
+verbx render in.wav out_blend.wav --engine conv --ir hall_A.wav \
+  --ir-blend hall_B.wav --ir-blend-mix 0.6 --ir-blend-mode envelope-aware
 
 # rapid A.wav * B.wav convolution (B.wav used as IR)
 verbx render A.wav AB_convolved.wav --engine conv --ir B.wav --partition-size 32768 --normalize-stage none --output-peak-norm none
@@ -2026,6 +2057,7 @@ verbx analyze in.wav --frames-out reports/in_frames.csv
 ```bash
 verbx ir gen OUT_IR.wav [options]
 verbx ir analyze IR.wav
+verbx ir morph IR_A.wav IR_B.wav OUT_IR.wav [options]
 verbx ir process IN_IR.wav OUT_IR.wav [options]
 verbx ir fit INPUT.wav OUT_IR.wav --top-k 5
 ```
@@ -2057,10 +2089,13 @@ verbx ir gen IRs/cinematic.wav \
   --diffusion 0.7 --density 1.2 --tilt 1.5 --lowcut 80 --highcut 12000
 ```
 
-#### 13.5.2 Analyze/process/fit IR examples
+#### 13.5.2 Analyze/morph/process/fit IR examples
 
 ```bash
 verbx ir analyze IRs/hybrid_120.wav --json-out reports/hybrid_120_analysis.json
+
+verbx ir morph IRs/hall_A.wav IRs/hall_B.wav IRs/hall_AB.wav \
+  --mode envelope-aware --alpha 0.45 --early-ms 70 --phase-coherence 0.8
 
 verbx ir process IRs/hybrid_120.wav IRs/hybrid_120_dark.wav \
   --lowcut 120 --highcut 7000 --tilt -1.0 --normalize peak
@@ -2302,15 +2337,9 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
 
 ### 20.7 v0.7 Track D: IR morphing and blending framework
 
-- `IR morph CLI`: add `verbx ir morph A.wav B.wav OUT.wav` with morph modes (`linear`, `equal-power`, `spectral`, `envelope-aware`) and mix control (`--alpha`).
-- `Render-time IR blending`: allow `verbx render` to accept multiple IRs with weighted blending (`--ir-blend`, `--ir-blend-mix`) so users can audition hybrid spaces without pre-baking files.
-- `Early/late independent morphing`: split IRs into early-reflection and late-tail zones and support separate blend curves for each zone to preserve transient localization while morphing tail character.
-- `Decay-shape alignment`: time-normalize and RT-align source IRs before blending so morph trajectories remain stable and do not collapse or over-extend tails.
-- `Spectral-phase safeguards`: add frequency-dependent smoothing and phase-coherence constraints to reduce combing/phasiness in spectral morph modes.
-- `Multichannel-safe morphing`: preserve channel topology and cross-channel energy relationships during morphing for surround, Atmos bed, and Ambisonics-adjacent workflows.
-- `Automation-ready morph control`: expose morph coefficient timelines so IR blending can evolve over time (bridging with v0.7 Track A automation lanes).
-- `Caching and reproducibility`: cache morphed IR artifacts by source-hash + mode + parameters, with metadata sidecars documenting source IRs, weights, and normalization choices.
-- `QA metrics`: add morph quality reports (RT60 drift, early/late ratio drift, spectral distance, inter-channel coherence deltas) for objective validation in batch/CI workflows.
+- `Status update (implemented)`: Track D now includes cache-backed `verbx ir morph A.wav B.wav OUT.wav` with modes (`linear`, `equal-power`, `spectral`, `envelope-aware`) and `--alpha`, plus render-time weighted IR blending in `verbx render` via `--ir-blend`/`--ir-blend-mix`.
+- `Implemented`: early/late split controls (`--early-ms`, `--early-alpha`, `--late-alpha` for `ir morph`; corresponding render-side blend controls), decay-shape alignment, spectral phase-coherence/smoothing safeguards, multichannel-safe channel/length alignment, deterministic cache sidecars, and QA metrics (`rt60_drift_s`, early/late drift, spectral distance, coherence deltas).
+- `Remaining`: automation-ready morph coefficient timelines for convolution render (`Track A` lane integration), plus expanded QA visualization/report exports for large batch comparison workflows.
 
 ### 20.8 Literature-Driven Implementation Plan (from Academic References)
 
