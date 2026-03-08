@@ -29,6 +29,12 @@ import numpy as np
 import numpy.typing as npt
 
 from verbx.core.control_targets import ENGINE_CONTROL_TARGETS, normalize_control_target_name
+from verbx.core.fdn_capabilities import (
+    FDN_LINK_FILTER_CHOICES,
+    normalize_fdn_graph_topology_name,
+    normalize_fdn_link_filter_name,
+    normalize_fdn_matrix_name,
+)
 from verbx.core.engine_base import ReverbEngine
 from verbx.core.shimmer import ShimmerConfig, ShimmerProcessor
 from verbx.io.audio import ensure_mono_or_stereo
@@ -496,18 +502,18 @@ class AlgoReverbEngine(ReverbEngine):
     @staticmethod
     def _normalize_matrix_type(matrix_type: str) -> str:
         """Normalize user matrix string to lowercase identifier."""
-        return matrix_type.strip().lower().replace("-", "_")
+        return normalize_fdn_matrix_name(matrix_type)
 
     @staticmethod
     def _normalize_graph_topology(topology: str) -> str:
         """Normalize graph topology string to lowercase identifier."""
-        return topology.strip().lower().replace("-", "_")
+        return normalize_fdn_graph_topology_name(topology)
 
     @staticmethod
     def _resolve_link_filter_mode(mode: str) -> str:
         """Normalize and validate in-matrix feedback link filter mode."""
-        normalized = mode.strip().lower().replace("-", "_")
-        if normalized in {"none", "lowpass", "highpass"}:
+        normalized = normalize_fdn_link_filter_name(mode)
+        if normalized in FDN_LINK_FILTER_CHOICES:
             return normalized
         msg = f"Unsupported FDN link filter mode: {mode}"
         raise ValueError(msg)

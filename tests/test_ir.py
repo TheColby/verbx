@@ -439,6 +439,32 @@ def test_ir_gen_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
     assert "--fdn-link-filter must be one of" in result.output
 
 
+def test_ir_gen_accepts_hyphenated_filter_feedback_alias(tmp_path: Path) -> None:
+    out_ir = tmp_path / "fdn_filter_alias.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "fdn",
+            "--length",
+            "0.3",
+            "--sr",
+            "12000",
+            "--channels",
+            "1",
+            "--fdn-link-filter",
+            "low-pass",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(out_ir.with_suffix(".wav.ir.meta.json").read_text(encoding="utf-8"))
+    assert payload["params"]["fdn_link_filter"] == "lowpass"
+
+
 def test_ir_gen_with_explicit_f0(tmp_path: Path) -> None:
     out_ir = tmp_path / "with_f0.wav"
     result = runner.invoke(

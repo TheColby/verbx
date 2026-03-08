@@ -70,6 +70,7 @@ def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
     assert isinstance(payload["effective"]["compute_backend"], str)
     assert payload["effective"]["ir_used"] is None
     assert payload["effective"]["tail_padding_seconds"] > 0.0
+    assert payload["effective"]["perceptual_macros"] is None
     assert payload["output_samples"] > payload["input_samples"]
 
 
@@ -507,6 +508,32 @@ def test_render_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
     assert "--fdn-link-filter must be one of" in result.output
 
 
+def test_render_accepts_hyphenated_filter_feedback_alias(tmp_path: Path) -> None:
+    audio = np.zeros((1200, 1), dtype=np.float32)
+    audio[60:180, 0] = 0.32
+    infile = tmp_path / "alias_filter_in.wav"
+    outfile = tmp_path / "alias_filter_out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-link-filter",
+            "low-pass",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    assert payload["config"]["fdn_link_filter"] == "lowpass"
+
+
 def test_render_track_c_perceptual_fdn_controls_are_applied(tmp_path: Path) -> None:
     audio = np.zeros((1400, 1), dtype=np.float32)
     audio[45:180, 0] = 0.28
@@ -544,6 +571,11 @@ def test_render_track_c_perceptual_fdn_controls_are_applied(tmp_path: Path) -> N
     assert abs(float(config["clarity_macro"]) + 0.20) < 1e-6
     assert abs(float(config["warmth_macro"]) - 0.55) < 1e-6
     assert abs(float(config["envelopment_macro"]) - 0.60) < 1e-6
+    macro_report = payload["effective"]["perceptual_macros"]
+    assert isinstance(macro_report, dict)
+    assert abs(float(macro_report["input"]["room_size_macro"]) - 0.35) < 1e-6
+    assert "resolved" in macro_report
+    assert "delta_from_requested" in macro_report
 
 
 def test_render_convolution_route_map_and_trajectory(tmp_path: Path) -> None:
@@ -1807,9 +1839,9 @@ def test_render_automation_points_drive_perceptual_macro_targets(tmp_path: Path)
             "--automation-point",
             "clarity:0.0:-0.4:linear",
             "--automation-point",
-            "room-size-macro:0.0:0.5:linear",
+            "size-macro:0.0:0.5:linear",
             "--automation-point",
-            "envelopment:0.0:0.6:linear",
+            "enveloping:0.0:0.6:linear",
             "--no-progress",
         ],
     )

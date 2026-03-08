@@ -64,6 +64,14 @@ from verbx.core.spatial import (
     ambisonic_channel_count,
     normalize_ambisonic_metadata,
 )
+from verbx.core.fdn_capabilities import (
+    FDN_GRAPH_TOPOLOGY_CHOICES,
+    FDN_LINK_FILTER_CHOICES,
+    FDN_MATRIX_CHOICES,
+    normalize_fdn_graph_topology_name as _shared_normalize_fdn_graph_topology_name,
+    normalize_fdn_link_filter_name as _shared_normalize_fdn_link_filter_name,
+    normalize_fdn_matrix_name as _shared_normalize_fdn_matrix_name,
+)
 from verbx.core.tempo import parse_pre_delay_ms
 from verbx.io.audio import read_audio, validate_audio_path
 from verbx.ir.fitting import (
@@ -82,26 +90,9 @@ from verbx.logging import configure_logging
 from verbx.presets.default_presets import preset_names
 
 IRFileFormat = Literal["auto", "wav", "flac", "aiff", "aif", "ogg", "caf"]
-_FDN_MATRIX_CHOICES = {
-    "hadamard",
-    "householder",
-    "random_orthogonal",
-    "circulant",
-    "elliptic",
-    "tv_unitary",
-    "graph",
-}
-_FDN_GRAPH_TOPOLOGY_CHOICES = {
-    "ring",
-    "path",
-    "star",
-    "random",
-}
-_FDN_LINK_FILTER_CHOICES = {
-    "none",
-    "lowpass",
-    "highpass",
-}
+_FDN_MATRIX_CHOICES = set(FDN_MATRIX_CHOICES)
+_FDN_GRAPH_TOPOLOGY_CHOICES = set(FDN_GRAPH_TOPOLOGY_CHOICES)
+_FDN_LINK_FILTER_CHOICES = set(FDN_LINK_FILTER_CHOICES)
 _IR_ROUTE_MAP_CHOICES = {
     "auto",
     "diagonal",
@@ -2887,20 +2878,17 @@ def _validate_perceptual_macro_settings(
 
 def _normalize_fdn_matrix_name(value: str) -> str:
     """Normalize FDN matrix identifier for CLI/API compatibility."""
-    return value.strip().lower().replace("-", "_")
+    return _shared_normalize_fdn_matrix_name(value)
 
 
 def _normalize_fdn_link_filter_name(value: str) -> str:
     """Normalize FDN feedback-link filter identifier for CLI/API compatibility."""
-    return value.strip().lower().replace("-", "_")
+    return _shared_normalize_fdn_link_filter_name(value)
 
 
 def _normalize_fdn_graph_topology_name(value: str) -> str:
     """Normalize graph-structured FDN topology identifier."""
-    normalized = value.strip().lower().replace("-", "_")
-    if normalized in {"line"}:
-        return "path"
-    return normalized
+    return _shared_normalize_fdn_graph_topology_name(value)
 
 
 def _normalize_ir_route_map_name(value: str) -> str:

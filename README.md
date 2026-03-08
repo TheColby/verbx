@@ -1702,7 +1702,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--automation-clamp` | Per-target clamp override (`target:min:max`, repeatable). | Use to enforce safe control ranges per target for deterministic batch behavior. |
 | `--automation-trace-out` | CSV path for resolved sample-level automation curves. | Use for QA, reproducibility, and perceptual tuning audits. |
 | `--frames-out` | Path for framewise CSV metrics output. | Exports per-frame analysis including modulation metrics. |
-| `--analysis-out` | Path for JSON analysis report. | If omitted, report is written to `<OUTFILE>.analysis.json` unless `--silent`. |
+| `--analysis-out` | Path for JSON analysis report. | If omitted, report is written to `<OUTFILE>.analysis.json` unless `--silent`; when perceptual macros are used, resolved mapping details are included under `effective.perceptual_macros`. |
 | `--lucky` | Generates N randomized "wild" render variants from one input. | Best for exploration and sound-design discovery; pair with `--lucky-out-dir`. |
 | `--lucky-out-dir` | Output directory used by lucky mode. | Use a dedicated folder so variant sets are easy to browse and compare. |
 | `--lucky-seed` | Deterministic seed for lucky mode randomization. | Keep fixed when you want reproducible variant batches. |
@@ -2277,7 +2277,7 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
 - `CLI workflow`: add automation inputs (`--automation-file`, `--automation-point`, and optional per-parameter overrides) plus validation to catch out-of-range events before rendering.
 - `Performance`: support sparse-event scheduling and cached interpolation so long renders with dense automation remain efficient.
 - `Safety`: enforce stability guards when automating sensitive parameters (feedback/decay/modulation) and provide deterministic behavior in repeat/batch modes.
-- `Status update`: Track A starter is implemented with JSON/CSV timeline support plus inline CLI control points, lane types (breakpoints/ramps, LFO, segments), block/sample evaluation modes, smoothing and clamp guardrails, deterministic application in render pipeline, and CSV trace export. Current post-render targets are `wet`, `dry`, and `gain-db`; current algorithmic-engine targets are `rt60`, `damping`, `room-size`, `room-size-macro`, `clarity-macro`, `warmth-macro`, and `envelopment-macro`.
+- `Status update`: Track A starter is implemented with JSON/CSV timeline support plus inline CLI control points, lane types (breakpoints/ramps, LFO, segments), block/sample evaluation modes, smoothing and clamp guardrails, deterministic application in render pipeline, and CSV trace export. Current post-render targets are `wet`, `dry`, and `gain-db`; current algorithmic-engine targets are `rt60`, `damping`, `room-size`, `room-size-macro`, `clarity-macro`, `warmth-macro`, and `envelopment-macro`. Control-target aliases/limits are centralized in a shared registry to prevent CLI/engine drift.
 
 ### 20.5 v0.7 Track B: Feature-vector-driven reverb control (audio-reactive DSP)
 
@@ -2295,7 +2295,7 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
 - `Tonal correction stage`: add post-FDN tonal balancing inspired by energy-decay equalization practices so long tails stay smooth rather than frequency-skewed.
 - `Perceptual macro controls`: map low-level FDN coefficients to high-level room descriptors (size, clarity, warmth, envelopment) for faster design workflows.
 - `Validation tooling`: add decay-vs-target verification plots and spectral error summaries to verify calibration of FDN behavior against requested perceptual outcomes.
-- `Status update`: Track C starter is implemented with `--fdn-rt60-tilt` plus perceptual macro CLI controls (`--room-size-macro`, `--clarity-macro`, `--warmth-macro`, `--envelopment-macro`) in both `render` and `ir gen` paths, with matching automation targets for algorithmic-engine control.
+- `Status update`: Track C starter is implemented with `--fdn-rt60-tilt` plus perceptual macro CLI controls (`--room-size-macro`, `--clarity-macro`, `--warmth-macro`, `--envelopment-macro`) in both `render` and `ir gen` paths, with matching automation targets for algorithmic-engine control. Analysis JSON now records resolved macro mapping under `effective.perceptual_macros` for reproducibility.
 
 ### 20.7 v0.7 Track D: IR morphing and blending framework
 

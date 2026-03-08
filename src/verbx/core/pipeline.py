@@ -79,6 +79,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             infile,
             input_duration_seconds,
         )
+        perceptual_macro_summary = _build_perceptual_macro_summary(config, runtime_config)
         resolved_device = resolve_device(runtime_config.device)
         engine_name, engine, engine_device = _resolve_engine(runtime_config, resolved_device)
         if engine_device in {"cpu", "mps"}:
@@ -123,6 +124,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                     "output_peak_norm": runtime_config.output_peak_norm,
                     "output_peak_target_dbfs": runtime_config.output_peak_target_dbfs,
                     "streaming_mode": True,
+                    "perceptual_macros": perceptual_macro_summary,
                     "non_default_settings": _non_default_settings(runtime_config),
                 },
             }
@@ -377,6 +379,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 "streaming_mode": False,
                 "modulation": modulation_payload,
                 "automation": automation_summary,
+                "perceptual_macros": perceptual_macro_summary,
                 "non_default_settings": _non_default_settings(runtime_config),
             },
         }
@@ -661,6 +664,49 @@ def _apply_perceptual_fdn_macros(config: RenderConfig) -> RenderConfig:
             mapped.fdn_link_filter_mix = float(np.clip(0.20 + (0.35 * clarity), 0.0, 1.0))
 
     return mapped
+
+
+def _build_perceptual_macro_summary(
+    requested: RenderConfig,
+    resolved: RenderConfig,
+) -> dict[str, Any] | None:
+    """Build a reproducible summary of perceptual-macro resolution."""
+    input_macros = {
+        "room_size_macro": float(requested.room_size_macro),
+        "clarity_macro": float(requested.clarity_macro),
+        "warmth_macro": float(requested.warmth_macro),
+        "envelopment_macro": float(requested.envelopment_macro),
+    }
+    if max(abs(value) for value in input_macros.values()) <= 1e-9:
+        return None
+
+    numeric_keys = (
+        "rt60",
+        "pre_delay_ms",
+        "damping",
+        "width",
+        "wet",
+        "dry",
+        "fdn_rt60_tilt",
+        "algo_decorrelation_front",
+        "algo_decorrelation_rear",
+        "algo_decorrelation_top",
+    )
+    resolved_values: dict[str, Any] = {
+        key: float(getattr(resolved, key)) for key in numeric_keys
+    }
+    resolved_values["fdn_link_filter"] = str(resolved.fdn_link_filter)
+    resolved_values["fdn_link_filter_hz"] = float(resolved.fdn_link_filter_hz)
+    resolved_values["fdn_link_filter_mix"] = float(resolved.fdn_link_filter_mix)
+
+    delta: dict[str, float] = {}
+    for key in numeric_keys:
+        delta[key] = float(getattr(resolved, key) - getattr(requested, key))
+    return {
+        "input": input_macros,
+        "resolved": resolved_values,
+        "delta_from_requested": delta,
+    }
 
 
 def _resolve_engine(config: RenderConfig, device: str) -> tuple[str, ReverbEngine, str]:
