@@ -26,6 +26,7 @@ from rich.table import Table
 from verbx.analysis.analyzer import AudioAnalyzer
 from verbx.analysis.framewise import write_framewise_csv
 from verbx.config import (
+    ChannelLayout,
     DeviceName,
     EngineName,
     IRMatrixLayout,
@@ -66,6 +67,36 @@ from verbx.logging import configure_logging
 from verbx.presets.default_presets import preset_names
 
 IRFileFormat = Literal["auto", "wav", "flac", "aiff", "aif", "ogg", "caf"]
+_FDN_MATRIX_CHOICES = {
+    "hadamard",
+    "householder",
+    "random_orthogonal",
+    "circulant",
+    "elliptic",
+    "tv_unitary",
+    "graph",
+}
+_FDN_GRAPH_TOPOLOGY_CHOICES = {
+    "ring",
+    "path",
+    "star",
+    "random",
+}
+_FDN_LINK_FILTER_CHOICES = {
+    "none",
+    "lowpass",
+    "highpass",
+}
+_IR_ROUTE_MAP_CHOICES = {
+    "auto",
+    "diagonal",
+    "broadcast",
+    "full",
+}
+_CONV_ROUTE_CURVE_CHOICES = {
+    "linear",
+    "equal-power",
+}
 
 
 class LuckyIRProcessConfig(TypedDict):
@@ -198,6 +229,141 @@ def render(
         max=64,
         help="FDN line count used when --comb-delays-ms is not provided.",
     ),
+    fdn_matrix: str = typer.Option(
+        "auto",
+        "--fdn-matrix",
+        help=(
+            "FDN matrix topology: hadamard, householder, random_orthogonal, "
+            "circulant, elliptic, tv_unitary, or graph. Default resolves to hadamard."
+        ),
+    ),
+    fdn_tv_rate_hz: float = typer.Option(
+        0.0,
+        "--fdn-tv-rate-hz",
+        min=0.0,
+        help="Block-rate update speed for --fdn-matrix tv_unitary (Hz).",
+    ),
+    fdn_tv_depth: float = typer.Option(
+        0.0,
+        "--fdn-tv-depth",
+        min=0.0,
+        max=1.0,
+        help="Blend depth for --fdn-matrix tv_unitary (0..1).",
+    ),
+    fdn_dfm_delays_ms: str | None = typer.Option(
+        None,
+        "--fdn-dfm-delays-ms",
+        help=(
+            "Optional delay-feedback-matrix delays in milliseconds. "
+            "Provide one value for broadcast or one per FDN line."
+        ),
+    ),
+    fdn_sparse: bool = typer.Option(
+        False,
+        "--fdn-sparse/--no-fdn-sparse",
+        help="Enable sparse high-order FDN pair-mixing mode.",
+    ),
+    fdn_sparse_degree: int = typer.Option(
+        2,
+        "--fdn-sparse-degree",
+        min=1,
+        max=16,
+        help="Number of sparse pair-mixing stages used when --fdn-sparse is enabled.",
+    ),
+    fdn_cascade: bool = typer.Option(
+        False,
+        "--fdn-cascade/--no-fdn-cascade",
+        help="Enable nested/cascaded FDN mode (small fast network into late network).",
+    ),
+    fdn_cascade_mix: float = typer.Option(
+        0.35,
+        "--fdn-cascade-mix",
+        min=0.0,
+        max=1.0,
+        help="Injection amount from nested FDN into the main late-field network (0..1).",
+    ),
+    fdn_cascade_delay_scale: float = typer.Option(
+        0.5,
+        "--fdn-cascade-delay-scale",
+        min=0.2,
+        max=1.0,
+        help="Delay scaling for nested FDN relative to primary FDN delays (0.2..1.0).",
+    ),
+    fdn_cascade_rt60_ratio: float = typer.Option(
+        0.55,
+        "--fdn-cascade-rt60-ratio",
+        min=0.1,
+        max=1.0,
+        help="RT60 ratio for nested FDN relative to --rt60 (0.1..1.0).",
+    ),
+    fdn_rt60_low: float | None = typer.Option(
+        None,
+        "--fdn-rt60-low",
+        min=0.1,
+        help="Low-band RT60 target for multiband FDN decay shaping (seconds).",
+    ),
+    fdn_rt60_mid: float | None = typer.Option(
+        None,
+        "--fdn-rt60-mid",
+        min=0.1,
+        help="Mid-band RT60 target for multiband FDN decay shaping (seconds).",
+    ),
+    fdn_rt60_high: float | None = typer.Option(
+        None,
+        "--fdn-rt60-high",
+        min=0.1,
+        help="High-band RT60 target for multiband FDN decay shaping (seconds).",
+    ),
+    fdn_xover_low_hz: float = typer.Option(
+        250.0,
+        "--fdn-xover-low-hz",
+        min=20.0,
+        help="Low/mid crossover frequency used by multiband FDN decay shaping.",
+    ),
+    fdn_xover_high_hz: float = typer.Option(
+        4_000.0,
+        "--fdn-xover-high-hz",
+        min=100.0,
+        help="Mid/high crossover frequency used by multiband FDN decay shaping.",
+    ),
+    fdn_link_filter: str = typer.Option(
+        "none",
+        "--fdn-link-filter",
+        help=(
+            "Feedback-link filter mode inside the FDN matrix path: "
+            "none, lowpass, or highpass."
+        ),
+    ),
+    fdn_link_filter_hz: float = typer.Option(
+        2_500.0,
+        "--fdn-link-filter-hz",
+        min=20.0,
+        help="Cutoff frequency used by --fdn-link-filter (Hz).",
+    ),
+    fdn_link_filter_mix: float = typer.Option(
+        1.0,
+        "--fdn-link-filter-mix",
+        min=0.0,
+        max=1.0,
+        help="Wet mix of feedback-link filter processing (0..1).",
+    ),
+    fdn_graph_topology: str = typer.Option(
+        "ring",
+        "--fdn-graph-topology",
+        help="Graph topology for --fdn-matrix graph: ring, path, star, or random.",
+    ),
+    fdn_graph_degree: int = typer.Option(
+        2,
+        "--fdn-graph-degree",
+        min=1,
+        max=32,
+        help="Graph neighborhood/connectivity degree for --fdn-matrix graph.",
+    ),
+    fdn_graph_seed: int = typer.Option(
+        2026,
+        "--fdn-graph-seed",
+        help="Deterministic seed used to build graph-structured FDN pairings.",
+    ),
     beast_mode: int = typer.Option(
         1,
         "--beast-mode",
@@ -217,8 +383,59 @@ def render(
             "(equivalent to --engine conv --ir INFILE)."
         ),
     ),
+    ir_route_map: str = typer.Option(
+        "auto",
+        "--ir-route-map",
+        help="Convolution route-map mode: auto, diagonal, broadcast, or full.",
+    ),
+    input_layout: ChannelLayout = typer.Option(
+        "auto",
+        "--input-layout",
+        help="Input signal channel layout: auto, mono, stereo, LCR, 5.1, 7.1, 7.1.2, 7.1.4",
+    ),
+    output_layout: ChannelLayout = typer.Option(
+        "auto",
+        "--output-layout",
+        help="Output signal channel layout: auto, mono, stereo, LCR, 5.1, 7.1, 7.1.2, 7.1.4",
+    ),
     ir_normalize: IRNormalize = typer.Option("peak", "--ir-normalize"),
     ir_matrix_layout: IRMatrixLayout = typer.Option("output-major", "--ir-matrix-layout"),
+    conv_route_start: str | None = typer.Option(
+        None,
+        "--conv-route-start",
+        help="Convolution trajectory start position (index or alias, e.g. left, rear-left).",
+    ),
+    conv_route_end: str | None = typer.Option(
+        None,
+        "--conv-route-end",
+        help="Convolution trajectory end position (index or alias).",
+    ),
+    conv_route_curve: str = typer.Option(
+        "equal-power",
+        "--conv-route-curve",
+        help="Convolution trajectory curve: linear or equal-power.",
+    ),
+    algo_decorrelation_front: float = typer.Option(
+        0.0,
+        "--algo-front-variance",
+        min=0.0,
+        max=1.0,
+        help="Algorithmic surround decorrelation variance for front channels.",
+    ),
+    algo_decorrelation_rear: float = typer.Option(
+        0.0,
+        "--algo-rear-variance",
+        min=0.0,
+        max=1.0,
+        help="Algorithmic surround decorrelation variance for rear channels.",
+    ),
+    algo_decorrelation_top: float = typer.Option(
+        0.0,
+        "--algo-top-variance",
+        min=0.0,
+        max=1.0,
+        help="Algorithmic surround decorrelation variance for top channels.",
+    ),
     tail_limit: float | None = typer.Option(None, "--tail-limit", min=0.0),
     threads: int | None = typer.Option(None, "--threads", min=1),
     device: DeviceName = typer.Option(
@@ -312,6 +529,10 @@ def render(
         comb_delays_ms,
         option_name="--comb-delays-ms",
     )
+    parsed_dfm_delays = _parse_delay_list_ms(
+        fdn_dfm_delays_ms,
+        option_name="--fdn-dfm-delays-ms",
+    )
 
     config = RenderConfig(
         engine=engine,
@@ -336,6 +557,35 @@ def render(
         allpass_delays_ms=parsed_allpass_delays,
         comb_delays_ms=parsed_comb_delays,
         fdn_lines=fdn_lines,
+        fdn_matrix=(
+            "hadamard"
+            if fdn_matrix.strip().lower() == "auto"
+            else _normalize_fdn_matrix_name(fdn_matrix)
+        ),
+        fdn_tv_rate_hz=fdn_tv_rate_hz,
+        fdn_tv_depth=fdn_tv_depth,
+        fdn_tv_seed=2026,
+        fdn_dfm_delays_ms=parsed_dfm_delays,
+        fdn_sparse=fdn_sparse,
+        fdn_sparse_degree=fdn_sparse_degree,
+        fdn_cascade=fdn_cascade,
+        fdn_cascade_mix=fdn_cascade_mix,
+        fdn_cascade_delay_scale=fdn_cascade_delay_scale,
+        fdn_cascade_rt60_ratio=fdn_cascade_rt60_ratio,
+        fdn_rt60_low=fdn_rt60_low,
+        fdn_rt60_mid=fdn_rt60_mid,
+        fdn_rt60_high=fdn_rt60_high,
+        fdn_xover_low_hz=fdn_xover_low_hz,
+        fdn_xover_high_hz=fdn_xover_high_hz,
+        fdn_link_filter=_normalize_fdn_link_filter_name(fdn_link_filter),
+        fdn_link_filter_hz=fdn_link_filter_hz,
+        fdn_link_filter_mix=fdn_link_filter_mix,
+        fdn_graph_topology=_normalize_fdn_graph_topology_name(fdn_graph_topology),
+        fdn_graph_degree=fdn_graph_degree,
+        fdn_graph_seed=fdn_graph_seed,
+        algo_decorrelation_front=algo_decorrelation_front,
+        algo_decorrelation_rear=algo_decorrelation_rear,
+        algo_decorrelation_top=algo_decorrelation_top,
         beast_mode=beast_mode,
         wet=wet,
         dry=dry,
@@ -345,9 +595,15 @@ def render(
         end=end,
         block_size=block_size,
         ir=None if ir is None else str(ir),
+        input_layout=input_layout,
+        output_layout=output_layout,
         self_convolve=self_convolve,
         ir_normalize=ir_normalize,
         ir_matrix_layout=ir_matrix_layout,
+        ir_route_map=_normalize_ir_route_map_name(ir_route_map),
+        conv_route_start=conv_route_start,
+        conv_route_end=conv_route_end,
+        conv_route_curve=_normalize_conv_route_curve_name(conv_route_curve),
         tail_limit=tail_limit,
         threads=threads,
         device=device,
@@ -584,7 +840,141 @@ def ir_gen(
     modal_low_hz: float = typer.Option(80.0, "--modal-low-hz", min=20.0),
     modal_high_hz: float = typer.Option(12_000.0, "--modal-high-hz", min=50.0),
     fdn_lines: int = typer.Option(8, "--fdn-lines", min=1),
-    fdn_matrix: str = typer.Option("hadamard", "--fdn-matrix"),
+    fdn_matrix: str = typer.Option(
+        "hadamard",
+        "--fdn-matrix",
+        help=(
+            "FDN matrix topology: hadamard, householder, random_orthogonal, "
+            "circulant, elliptic, tv_unitary, or graph."
+        ),
+    ),
+    fdn_tv_rate_hz: float = typer.Option(
+        0.0,
+        "--fdn-tv-rate-hz",
+        min=0.0,
+        help="Block-rate update speed for --fdn-matrix tv_unitary (Hz).",
+    ),
+    fdn_tv_depth: float = typer.Option(
+        0.0,
+        "--fdn-tv-depth",
+        min=0.0,
+        max=1.0,
+        help="Blend depth for --fdn-matrix tv_unitary (0..1).",
+    ),
+    fdn_dfm_delays_ms: str | None = typer.Option(
+        None,
+        "--fdn-dfm-delays-ms",
+        help=(
+            "Optional delay-feedback-matrix delays in milliseconds. "
+            "Provide one value for broadcast or one per FDN line."
+        ),
+    ),
+    fdn_sparse: bool = typer.Option(
+        False,
+        "--fdn-sparse/--no-fdn-sparse",
+        help="Enable sparse high-order FDN pair-mixing mode.",
+    ),
+    fdn_sparse_degree: int = typer.Option(
+        2,
+        "--fdn-sparse-degree",
+        min=1,
+        max=16,
+        help="Number of sparse pair-mixing stages used when --fdn-sparse is enabled.",
+    ),
+    fdn_cascade: bool = typer.Option(
+        False,
+        "--fdn-cascade/--no-fdn-cascade",
+        help="Enable nested/cascaded FDN mode (small fast network into late network).",
+    ),
+    fdn_cascade_mix: float = typer.Option(
+        0.35,
+        "--fdn-cascade-mix",
+        min=0.0,
+        max=1.0,
+        help="Injection amount from nested FDN into the main late-field network (0..1).",
+    ),
+    fdn_cascade_delay_scale: float = typer.Option(
+        0.5,
+        "--fdn-cascade-delay-scale",
+        min=0.2,
+        max=1.0,
+        help="Delay scaling for nested FDN relative to primary FDN delays (0.2..1.0).",
+    ),
+    fdn_cascade_rt60_ratio: float = typer.Option(
+        0.55,
+        "--fdn-cascade-rt60-ratio",
+        min=0.1,
+        max=1.0,
+        help="RT60 ratio for nested FDN relative to --rt60 (0.1..1.0).",
+    ),
+    fdn_rt60_low: float | None = typer.Option(
+        None,
+        "--fdn-rt60-low",
+        min=0.1,
+        help="Low-band RT60 target for multiband FDN decay shaping (seconds).",
+    ),
+    fdn_rt60_mid: float | None = typer.Option(
+        None,
+        "--fdn-rt60-mid",
+        min=0.1,
+        help="Mid-band RT60 target for multiband FDN decay shaping (seconds).",
+    ),
+    fdn_rt60_high: float | None = typer.Option(
+        None,
+        "--fdn-rt60-high",
+        min=0.1,
+        help="High-band RT60 target for multiband FDN decay shaping (seconds).",
+    ),
+    fdn_xover_low_hz: float = typer.Option(
+        250.0,
+        "--fdn-xover-low-hz",
+        min=20.0,
+        help="Low/mid crossover frequency used by multiband FDN decay shaping.",
+    ),
+    fdn_xover_high_hz: float = typer.Option(
+        4_000.0,
+        "--fdn-xover-high-hz",
+        min=100.0,
+        help="Mid/high crossover frequency used by multiband FDN decay shaping.",
+    ),
+    fdn_link_filter: str = typer.Option(
+        "none",
+        "--fdn-link-filter",
+        help=(
+            "Feedback-link filter mode inside the FDN matrix path: "
+            "none, lowpass, or highpass."
+        ),
+    ),
+    fdn_link_filter_hz: float = typer.Option(
+        2_500.0,
+        "--fdn-link-filter-hz",
+        min=20.0,
+        help="Cutoff frequency used by --fdn-link-filter (Hz).",
+    ),
+    fdn_link_filter_mix: float = typer.Option(
+        1.0,
+        "--fdn-link-filter-mix",
+        min=0.0,
+        max=1.0,
+        help="Wet mix of feedback-link filter processing (0..1).",
+    ),
+    fdn_graph_topology: str = typer.Option(
+        "ring",
+        "--fdn-graph-topology",
+        help="Graph topology for --fdn-matrix graph: ring, path, star, or random.",
+    ),
+    fdn_graph_degree: int = typer.Option(
+        2,
+        "--fdn-graph-degree",
+        min=1,
+        max=32,
+        help="Graph neighborhood/connectivity degree for --fdn-matrix graph.",
+    ),
+    fdn_graph_seed: int = typer.Option(
+        2026,
+        "--fdn-graph-seed",
+        help="Deterministic seed used to build graph-structured FDN pairings.",
+    ),
     fdn_stereo_inject: float = typer.Option(1.0, "--fdn-stereo-inject", min=0.0, max=1.0),
     f0: str | None = typer.Option(None, "--f0", help="e.g. 64, 64Hz, or 64 Hz"),
     analyze_input: Path | None = typer.Option(
@@ -649,8 +1039,39 @@ def ir_gen(
         resonator_q_max=resonator_q_max,
         resonator_low_hz=resonator_low_hz,
         resonator_high_hz=resonator_high_hz,
+        fdn_lines=fdn_lines,
+        fdn_matrix=fdn_matrix,
+        fdn_tv_rate_hz=fdn_tv_rate_hz,
+        fdn_tv_depth=fdn_tv_depth,
+        fdn_sparse=fdn_sparse,
+        fdn_sparse_degree=fdn_sparse_degree,
+        fdn_cascade=fdn_cascade,
+        fdn_cascade_mix=fdn_cascade_mix,
+        fdn_cascade_delay_scale=fdn_cascade_delay_scale,
+        fdn_cascade_rt60_ratio=fdn_cascade_rt60_ratio,
+        fdn_rt60_low=fdn_rt60_low,
+        fdn_rt60_mid=fdn_rt60_mid,
+        fdn_rt60_high=fdn_rt60_high,
+        fdn_xover_low_hz=fdn_xover_low_hz,
+        fdn_xover_high_hz=fdn_xover_high_hz,
+        fdn_link_filter=fdn_link_filter,
+        fdn_link_filter_hz=fdn_link_filter_hz,
+        fdn_link_filter_mix=fdn_link_filter_mix,
+        fdn_graph_topology=fdn_graph_topology,
+        fdn_graph_degree=fdn_graph_degree,
     )
     _validate_generic_lucky_call(lucky, lucky_out_dir)
+
+    parsed_fdn_dfm_delays = _parse_delay_list_ms(
+        fdn_dfm_delays_ms,
+        option_name="--fdn-dfm-delays-ms",
+    )
+    if len(parsed_fdn_dfm_delays) not in {0, 1, fdn_lines}:
+        msg = (
+            "--fdn-dfm-delays-ms must include either 1 value or exactly "
+            f"{fdn_lines} values."
+        )
+        raise typer.BadParameter(msg)
 
     f0_hz: float | None = None
     harmonic_targets_hz: tuple[float, ...] = ()
@@ -701,7 +1122,28 @@ def ir_gen(
         modal_low_hz=modal_low_hz,
         modal_high_hz=modal_high_hz,
         fdn_lines=fdn_lines,
-        fdn_matrix=fdn_matrix,
+        fdn_matrix=_normalize_fdn_matrix_name(fdn_matrix),
+        fdn_tv_rate_hz=fdn_tv_rate_hz,
+        fdn_tv_depth=fdn_tv_depth,
+        fdn_tv_seed=seed,
+        fdn_dfm_delays_ms=parsed_fdn_dfm_delays,
+        fdn_sparse=fdn_sparse,
+        fdn_sparse_degree=fdn_sparse_degree,
+        fdn_cascade=fdn_cascade,
+        fdn_cascade_mix=fdn_cascade_mix,
+        fdn_cascade_delay_scale=fdn_cascade_delay_scale,
+        fdn_cascade_rt60_ratio=fdn_cascade_rt60_ratio,
+        fdn_rt60_low=fdn_rt60_low,
+        fdn_rt60_mid=fdn_rt60_mid,
+        fdn_rt60_high=fdn_rt60_high,
+        fdn_xover_low_hz=fdn_xover_low_hz,
+        fdn_xover_high_hz=fdn_xover_high_hz,
+        fdn_link_filter=_normalize_fdn_link_filter_name(fdn_link_filter),
+        fdn_link_filter_hz=fdn_link_filter_hz,
+        fdn_link_filter_mix=fdn_link_filter_mix,
+        fdn_graph_topology=_normalize_fdn_graph_topology_name(fdn_graph_topology),
+        fdn_graph_degree=fdn_graph_degree,
+        fdn_graph_seed=fdn_graph_seed,
         fdn_stereo_inject=fdn_stereo_inject,
         f0_hz=f0_hz,
         harmonic_targets_hz=harmonic_targets_hz,
@@ -1143,7 +1585,7 @@ def cache_clear(
 def batch_template() -> None:
     """Print a batch manifest template as JSON."""
     template = {
-        "version": "0.4",
+        "version": "0.5",
         "jobs": [
             {
                 "infile": "input.wav",
@@ -1168,6 +1610,17 @@ def batch_render(
     schedule: BatchSchedulePolicy = typer.Option("longest-first", "--schedule"),
     retries: int = typer.Option(0, "--retries", min=0),
     continue_on_error: bool = typer.Option(False, "--continue-on-error/--fail-fast"),
+    checkpoint_file: Path | None = typer.Option(
+        None,
+        "--checkpoint-file",
+        resolve_path=True,
+        help="Optional checkpoint file used to persist per-job completion state.",
+    ),
+    resume: bool = typer.Option(
+        False,
+        "--resume",
+        help="Resume from --checkpoint-file and skip already completed jobs.",
+    ),
     dry_run: bool = typer.Option(False, "--dry-run"),
     lucky: int | None = typer.Option(
         None,
@@ -1192,6 +1645,9 @@ def batch_render(
     ),
 ) -> None:
     """Render jobs from manifest.json."""
+    if resume and checkpoint_file is None:
+        msg = "--resume requires --checkpoint-file."
+        raise typer.BadParameter(msg)
     _validate_generic_lucky_call(lucky, lucky_out_dir)
     try:
         payload = json.loads(manifest.read_text(encoding="utf-8"))
@@ -1273,6 +1729,33 @@ def batch_render(
     if not prepared_jobs:
         raise typer.BadParameter("Manifest has no jobs to render")
 
+    checkpoint_payload: dict[str, Any] | None = None
+    resumed_outfiles: set[str] = set()
+    if checkpoint_file is not None:
+        if resume:
+            checkpoint_payload = _load_batch_checkpoint(checkpoint_file)
+            resumed_outfiles = _checkpoint_success_outfiles(checkpoint_payload)
+            if len(resumed_outfiles) > 0:
+                before = len(prepared_jobs)
+                prepared_jobs = [
+                    job
+                    for job in prepared_jobs
+                    if str(job.outfile.resolve()) not in resumed_outfiles
+                ]
+                skipped = before - len(prepared_jobs)
+                if skipped > 0:
+                    console.print(f"resuming batch: skipped {skipped} completed jobs")
+        else:
+            checkpoint_payload = {
+                "version": "0.5",
+                "manifest": str(manifest.resolve()),
+                "results": [],
+            }
+
+    if len(prepared_jobs) == 0:
+        console.print("batch complete: no pending jobs after resume filtering")
+        return
+
     if dry_run:
         ordered = order_jobs(prepared_jobs, schedule)
         for job in ordered:
@@ -1290,6 +1773,21 @@ def batch_render(
         run_render_pipeline(infile=job.infile, outfile=job.outfile, config=job.config)
 
     def on_result(result: BatchJobResult) -> None:
+        if checkpoint_file is not None and checkpoint_payload is not None:
+            checkpoint_payload.setdefault("results", [])
+            assert isinstance(checkpoint_payload["results"], list)
+            checkpoint_payload["results"].append(
+                {
+                    "index": int(result.index),
+                    "outfile": str(result.outfile.resolve()),
+                    "success": bool(result.success),
+                    "attempts": int(result.attempts),
+                    "duration_seconds": float(result.duration_seconds),
+                    "estimated_cost": float(result.estimated_cost),
+                    "error": result.error,
+                }
+            )
+            _write_json_atomic(checkpoint_file, checkpoint_payload)
         if result.success:
             console.print(
                 f"rendered job {result.index}: {result.outfile} "
@@ -1328,6 +1826,50 @@ def _render_config_from_options(options: dict[str, Any]) -> RenderConfig:
         filtered["pre_delay_ms"] = parse_pre_delay_ms(pre_delay_note, resolved_bpm, fallback_ms)
 
     return RenderConfig(**filtered)
+
+
+def _load_batch_checkpoint(path: Path) -> dict[str, Any]:
+    """Load checkpoint payload with graceful fallback when missing/invalid."""
+    if not path.exists():
+        return {"version": "0.5", "results": []}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"version": "0.5", "results": []}
+    if not isinstance(payload, dict):
+        return {"version": "0.5", "results": []}
+    results = payload.get("results")
+    if not isinstance(results, list):
+        payload["results"] = []
+    return payload
+
+
+def _checkpoint_success_outfiles(payload: dict[str, Any]) -> set[str]:
+    """Return canonical outfile paths marked successful in checkpoint payload."""
+    completed: set[str] = set()
+    rows = payload.get("results", [])
+    if not isinstance(rows, list):
+        return completed
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if not bool(row.get("success", False)):
+            continue
+        outfile = row.get("outfile")
+        if not isinstance(outfile, str):
+            continue
+        out_path = Path(outfile)
+        if out_path.exists():
+            completed.add(str(out_path.resolve()))
+    return completed
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    """Atomically write JSON payload to disk."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(f"{path.suffix}.tmp")
+    tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    tmp.replace(path)
 
 
 class _ScoredFitCandidate:
@@ -1554,6 +2096,61 @@ def _build_lucky_config(
     else:
         cfg.highcut = None
 
+    if rng.random() < 0.4:
+        cfg.fdn_rt60_low = float(rng.uniform(6.0, 70.0))
+        cfg.fdn_rt60_mid = float(rng.uniform(3.0, 40.0))
+        cfg.fdn_rt60_high = float(rng.uniform(0.8, 20.0))
+        cfg.fdn_xover_low_hz = float(rng.uniform(100.0, 700.0))
+        cfg.fdn_xover_high_hz = float(
+            rng.uniform(max(cfg.fdn_xover_low_hz + 250.0, 1_000.0), 8_000.0)
+        )
+    else:
+        cfg.fdn_rt60_low = None
+        cfg.fdn_rt60_mid = None
+        cfg.fdn_rt60_high = None
+        cfg.fdn_xover_low_hz = 250.0
+        cfg.fdn_xover_high_hz = 4_000.0
+    cfg.fdn_cascade = bool(rng.random() < 0.4)
+    if cfg.fdn_cascade:
+        cfg.fdn_cascade_mix = float(rng.uniform(0.15, 0.85))
+        cfg.fdn_cascade_delay_scale = float(rng.uniform(0.25, 0.85))
+        cfg.fdn_cascade_rt60_ratio = float(rng.uniform(0.2, 0.95))
+    else:
+        cfg.fdn_cascade_mix = 0.35
+        cfg.fdn_cascade_delay_scale = 0.5
+        cfg.fdn_cascade_rt60_ratio = 0.55
+    if rng.random() < 0.45:
+        cfg.fdn_link_filter = cast(
+            str,
+            rng.choice(np.array(["lowpass", "highpass"], dtype=object)),
+        )
+        cfg.fdn_link_filter_hz = float(rng.uniform(80.0, 12_000.0))
+        cfg.fdn_link_filter_mix = float(rng.uniform(0.2, 1.0))
+    else:
+        cfg.fdn_link_filter = "none"
+        cfg.fdn_link_filter_hz = 2_500.0
+        cfg.fdn_link_filter_mix = 1.0
+    cfg.algo_decorrelation_front = float(rng.uniform(0.0, 0.8)) if rng.random() < 0.45 else 0.0
+    cfg.algo_decorrelation_rear = float(rng.uniform(0.0, 0.9)) if rng.random() < 0.45 else 0.0
+    cfg.algo_decorrelation_top = float(rng.uniform(0.0, 0.9)) if rng.random() < 0.3 else 0.0
+    cfg.ir_route_map = cast(
+        str,
+        rng.choice(np.array(["auto", "diagonal", "broadcast", "full"], dtype=object)),
+    )
+    if cfg.ir_route_map == "auto":
+        cfg.conv_route_start = None
+        cfg.conv_route_end = None
+    elif rng.random() < 0.35:
+        cfg.conv_route_start = "left"
+        cfg.conv_route_end = "right"
+    else:
+        cfg.conv_route_start = None
+        cfg.conv_route_end = None
+    cfg.conv_route_curve = cast(
+        str,
+        rng.choice(np.array(["linear", "equal-power"], dtype=object)),
+    )
+
     # Ensure convolution path has a valid IR source whenever selected.
     if cfg.engine in {"conv", "auto"} and rng.random() < 0.75:
         mode = int(rng.integers(0, 3))
@@ -1581,6 +2178,9 @@ def _build_lucky_config(
         cfg.self_convolve = False
         if cfg.engine == "conv":
             cfg.engine = "algo"
+        cfg.ir_route_map = "auto"
+        cfg.conv_route_start = None
+        cfg.conv_route_end = None
 
     cfg.tail_limit = float(rng.uniform(2.0, 40.0)) if rng.random() < 0.4 else None
     return cfg
@@ -1641,8 +2241,87 @@ def _build_lucky_ir_gen_config(
     cfg.fdn_lines = int(rng.choice(np.array([4, 6, 8, 10, 12, 16], dtype=np.int32)))
     cfg.fdn_matrix = cast(
         str,
-        rng.choice(np.array(["hadamard", "householder", "random_orthogonal"], dtype=object)),
+        rng.choice(
+            np.array(
+                [
+                    "hadamard",
+                    "householder",
+                    "random_orthogonal",
+                    "circulant",
+                    "elliptic",
+                    "tv_unitary",
+                    "graph",
+                ],
+                dtype=object,
+            )
+        ),
     )
+    if cfg.fdn_matrix == "tv_unitary":
+        cfg.fdn_tv_rate_hz = float(rng.uniform(0.03, 0.45))
+        cfg.fdn_tv_depth = float(rng.uniform(0.1, 0.8))
+    else:
+        cfg.fdn_tv_rate_hz = 0.0
+        cfg.fdn_tv_depth = 0.0
+    cfg.fdn_tv_seed = int(rng.integers(0, 2_147_483_647))
+    cfg.fdn_sparse = bool(rng.random() < 0.45)
+    cfg.fdn_sparse_degree = int(rng.integers(1, 6))
+    if cfg.fdn_sparse and cfg.fdn_matrix in {"tv_unitary", "graph"}:
+        cfg.fdn_sparse = False
+    if cfg.fdn_matrix == "graph":
+        cfg.fdn_graph_topology = cast(
+            str,
+            rng.choice(np.array(["ring", "path", "star", "random"], dtype=object)),
+        )
+        cfg.fdn_graph_degree = int(rng.integers(1, 8))
+    else:
+        cfg.fdn_graph_topology = "ring"
+        cfg.fdn_graph_degree = 2
+    cfg.fdn_graph_seed = int(rng.integers(0, 2_147_483_647))
+    cfg.fdn_cascade = bool(rng.random() < 0.45)
+    if cfg.fdn_cascade:
+        cfg.fdn_cascade_mix = float(rng.uniform(0.1, 0.85))
+        cfg.fdn_cascade_delay_scale = float(rng.uniform(0.2, 0.85))
+        cfg.fdn_cascade_rt60_ratio = float(rng.uniform(0.15, 0.9))
+    else:
+        cfg.fdn_cascade_mix = 0.35
+        cfg.fdn_cascade_delay_scale = 0.5
+        cfg.fdn_cascade_rt60_ratio = 0.55
+    if rng.random() < 0.55:
+        cfg.fdn_rt60_low = float(rng.uniform(8.0, 90.0))
+        cfg.fdn_rt60_mid = float(rng.uniform(4.0, 50.0))
+        cfg.fdn_rt60_high = float(rng.uniform(1.0, 30.0))
+        cfg.fdn_xover_low_hz = float(rng.uniform(80.0, 800.0))
+        cfg.fdn_xover_high_hz = float(
+            rng.uniform(
+                max(1_200.0, cfg.fdn_xover_low_hz + 200.0),
+                9_000.0,
+            )
+        )
+    else:
+        cfg.fdn_rt60_low = None
+        cfg.fdn_rt60_mid = None
+        cfg.fdn_rt60_high = None
+        cfg.fdn_xover_low_hz = 250.0
+        cfg.fdn_xover_high_hz = 4_000.0
+    if rng.random() < 0.5:
+        cfg.fdn_link_filter = cast(
+            str,
+            rng.choice(np.array(["lowpass", "highpass"], dtype=object)),
+        )
+        cfg.fdn_link_filter_hz = float(rng.uniform(80.0, cfg.sr * 0.45))
+        cfg.fdn_link_filter_mix = float(rng.uniform(0.2, 1.0))
+    else:
+        cfg.fdn_link_filter = "none"
+        cfg.fdn_link_filter_hz = 2_500.0
+        cfg.fdn_link_filter_mix = 1.0
+    if rng.random() < 0.4:
+        dfm_count = int(rng.choice(np.array([1, cfg.fdn_lines], dtype=np.int32)))
+        cfg.fdn_dfm_delays_ms = tuple(
+            float(rng.uniform(0.1, 8.0))
+            for _ in range(dfm_count)
+        )
+    else:
+        cfg.fdn_dfm_delays_ms = ()
     cfg.fdn_stereo_inject = float(rng.uniform(0.0, 1.0))
 
     cfg.harmonic_align_strength = float(rng.uniform(0.0, 1.0))
@@ -1783,6 +2462,215 @@ def _parse_gain_list(
     return tuple(values)
 
 
+def _validate_fdn_matrix_name(fdn_matrix: str) -> None:
+    """Validate FDN matrix topology identifier."""
+    normalized = _normalize_fdn_matrix_name(fdn_matrix)
+    if normalized not in _FDN_MATRIX_CHOICES:
+        options = ", ".join(sorted(_FDN_MATRIX_CHOICES))
+        msg = f"--fdn-matrix must be one of: {options}."
+        raise typer.BadParameter(msg)
+
+
+def _validate_fdn_tv_settings(
+    *,
+    fdn_matrix: str,
+    fdn_tv_rate_hz: float,
+    fdn_tv_depth: float,
+) -> None:
+    """Validate time-varying unitary matrix controls."""
+    normalized = _normalize_fdn_matrix_name(fdn_matrix)
+    rate = float(fdn_tv_rate_hz)
+    depth = float(fdn_tv_depth)
+    if normalized == "tv_unitary":
+        if rate <= 0.0 or depth <= 0.0:
+            msg = (
+                "--fdn-matrix tv_unitary requires both --fdn-tv-rate-hz > 0 "
+                "and --fdn-tv-depth > 0."
+            )
+            raise typer.BadParameter(msg)
+        return
+
+    if rate > 0.0 or depth > 0.0:
+        msg = "--fdn-tv-rate-hz and --fdn-tv-depth are only valid with --fdn-matrix tv_unitary."
+        raise typer.BadParameter(msg)
+
+
+def _validate_fdn_sparse_settings(
+    *,
+    fdn_matrix: str,
+    fdn_sparse: bool,
+    fdn_sparse_degree: int,
+) -> None:
+    """Validate sparse high-order FDN settings."""
+    normalized = _normalize_fdn_matrix_name(fdn_matrix)
+    if fdn_sparse_degree < 1:
+        msg = "--fdn-sparse-degree must be >= 1."
+        raise typer.BadParameter(msg)
+    if fdn_sparse and normalized == "tv_unitary":
+        msg = "--fdn-sparse cannot be combined with --fdn-matrix tv_unitary."
+        raise typer.BadParameter(msg)
+    if fdn_sparse and normalized == "graph":
+        msg = "--fdn-sparse cannot be combined with --fdn-matrix graph."
+        raise typer.BadParameter(msg)
+
+
+def _validate_fdn_graph_settings(
+    *,
+    fdn_matrix: str,
+    fdn_graph_topology: str,
+    fdn_graph_degree: int,
+) -> None:
+    """Validate graph-structured FDN controls."""
+    normalized_matrix = _normalize_fdn_matrix_name(fdn_matrix)
+    normalized_topology = _normalize_fdn_graph_topology_name(fdn_graph_topology)
+
+    if normalized_matrix == "graph":
+        if normalized_topology not in _FDN_GRAPH_TOPOLOGY_CHOICES:
+            options = ", ".join(sorted(_FDN_GRAPH_TOPOLOGY_CHOICES))
+            msg = f"--fdn-graph-topology must be one of: {options}."
+            raise typer.BadParameter(msg)
+        if int(fdn_graph_degree) < 1:
+            msg = "--fdn-graph-degree must be >= 1."
+            raise typer.BadParameter(msg)
+        return
+
+    # Non-default graph options are considered a configuration mismatch unless graph mode is active.
+    if normalized_topology != "ring" or int(fdn_graph_degree) != 2:
+        msg = (
+            "--fdn-graph-topology/--fdn-graph-degree are only valid with "
+            "--fdn-matrix graph."
+        )
+        raise typer.BadParameter(msg)
+
+
+def _validate_fdn_cascade_settings(
+    *,
+    fdn_lines: int,
+    fdn_cascade: bool,
+    fdn_cascade_mix: float,
+    fdn_cascade_delay_scale: float,
+    fdn_cascade_rt60_ratio: float,
+) -> None:
+    """Validate nested/cascaded FDN controls."""
+    if not fdn_cascade:
+        return
+    if fdn_lines < 2:
+        msg = "--fdn-cascade requires at least 2 FDN lines."
+        raise typer.BadParameter(msg)
+    if float(fdn_cascade_mix) <= 0.0:
+        msg = "--fdn-cascade-mix must be > 0 when --fdn-cascade is enabled."
+        raise typer.BadParameter(msg)
+    if float(fdn_cascade_delay_scale) <= 0.0:
+        msg = "--fdn-cascade-delay-scale must be > 0."
+        raise typer.BadParameter(msg)
+    if float(fdn_cascade_rt60_ratio) <= 0.0:
+        msg = "--fdn-cascade-rt60-ratio must be > 0."
+        raise typer.BadParameter(msg)
+
+
+def _validate_fdn_multiband_settings(
+    *,
+    fdn_rt60_low: float | None,
+    fdn_rt60_mid: float | None,
+    fdn_rt60_high: float | None,
+    fdn_xover_low_hz: float,
+    fdn_xover_high_hz: float,
+) -> None:
+    """Validate multiband FDN decay controls."""
+    set_count = sum(
+        value is not None for value in (fdn_rt60_low, fdn_rt60_mid, fdn_rt60_high)
+    )
+    if set_count not in {0, 3}:
+        msg = (
+            "For multiband decay use either none of --fdn-rt60-low/mid/high "
+            "or provide all three values."
+        )
+        raise typer.BadParameter(msg)
+    if float(fdn_xover_low_hz) >= float(fdn_xover_high_hz):
+        msg = "--fdn-xover-low-hz must be < --fdn-xover-high-hz."
+        raise typer.BadParameter(msg)
+
+
+def _validate_fdn_link_filter_settings(
+    *,
+    fdn_link_filter: str,
+    fdn_link_filter_hz: float,
+    fdn_link_filter_mix: float,
+) -> None:
+    """Validate feedback-link filter controls used in the FDN path."""
+    normalized = _normalize_fdn_link_filter_name(fdn_link_filter)
+    if normalized not in _FDN_LINK_FILTER_CHOICES:
+        options = ", ".join(sorted(_FDN_LINK_FILTER_CHOICES))
+        msg = f"--fdn-link-filter must be one of: {options}."
+        raise typer.BadParameter(msg)
+    if float(fdn_link_filter_hz) <= 0.0:
+        msg = "--fdn-link-filter-hz must be > 0."
+        raise typer.BadParameter(msg)
+    mix = float(fdn_link_filter_mix)
+    if mix < 0.0 or mix > 1.0:
+        msg = "--fdn-link-filter-mix must be in [0.0, 1.0]."
+        raise typer.BadParameter(msg)
+
+
+def _normalize_fdn_matrix_name(value: str) -> str:
+    """Normalize FDN matrix identifier for CLI/API compatibility."""
+    return value.strip().lower().replace("-", "_")
+
+
+def _normalize_fdn_link_filter_name(value: str) -> str:
+    """Normalize FDN feedback-link filter identifier for CLI/API compatibility."""
+    return value.strip().lower().replace("-", "_")
+
+
+def _normalize_fdn_graph_topology_name(value: str) -> str:
+    """Normalize graph-structured FDN topology identifier."""
+    normalized = value.strip().lower().replace("-", "_")
+    if normalized in {"line"}:
+        return "path"
+    return normalized
+
+
+def _normalize_ir_route_map_name(value: str) -> str:
+    """Normalize convolution IR route-map identifier."""
+    normalized = value.strip().lower().replace("-", "_")
+    if normalized in {"diag"}:
+        return "diagonal"
+    if normalized in {"full_matrix", "fullmatrix"}:
+        return "full"
+    return normalized
+
+
+def _normalize_conv_route_curve_name(value: str) -> str:
+    """Normalize convolution route trajectory curve name."""
+    return value.strip().lower().replace("_", "-")
+
+
+def _validate_ir_route_map_name(value: str) -> None:
+    """Validate named convolution route-map preset."""
+    normalized = _normalize_ir_route_map_name(value)
+    if normalized not in _IR_ROUTE_MAP_CHOICES:
+        options = ", ".join(sorted(_IR_ROUTE_MAP_CHOICES))
+        msg = f"--ir-route-map must be one of: {options}."
+        raise typer.BadParameter(msg)
+
+
+def _validate_conv_route_settings(
+    *,
+    conv_route_start: str | None,
+    conv_route_end: str | None,
+    conv_route_curve: str,
+) -> None:
+    """Validate convolution route-trajectory controls."""
+    if (conv_route_start is None) != (conv_route_end is None):
+        msg = "Use both --conv-route-start and --conv-route-end together."
+        raise typer.BadParameter(msg)
+    normalized_curve = _normalize_conv_route_curve_name(conv_route_curve)
+    if normalized_curve not in _CONV_ROUTE_CURVE_CHOICES:
+        options = ", ".join(sorted(_CONV_ROUTE_CURVE_CHOICES))
+        msg = f"--conv-route-curve must be one of: {options}."
+        raise typer.BadParameter(msg)
+
+
 def _validate_lucky_call(
     config: RenderConfig,
     lucky: int | None,
@@ -1839,6 +2727,56 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
         msg = f"IR file not found: {config.ir}"
         raise typer.BadParameter(msg)
 
+    _validate_ir_route_map_name(config.ir_route_map)
+    _validate_conv_route_settings(
+        conv_route_start=config.conv_route_start,
+        conv_route_end=config.conv_route_end,
+        conv_route_curve=config.conv_route_curve,
+    )
+
+    conv_enabled = (
+        config.engine == "conv"
+        or (
+            config.engine == "auto"
+            and (config.ir is not None or config.ir_gen or config.self_convolve)
+        )
+    )
+    if (
+        config.conv_route_start is not None or config.conv_route_end is not None
+    ) and not conv_enabled:
+        msg = "--conv-route-start/--conv-route-end are only valid for convolution renders."
+        raise typer.BadParameter(msg)
+
+    if config.ir_route_map != "auto" and not conv_enabled:
+        msg = "--ir-route-map is only valid for convolution render workflows."
+        raise typer.BadParameter(msg)
+
+    if (
+        config.ir is not None
+        and (config.engine == "conv" or config.engine == "auto")
+        and not config.self_convolve
+    ):
+        try:
+            in_info = sf.info(str(infile))
+            ir_info = sf.info(str(config.ir))
+            in_channels = int(in_info.channels)
+            ir_channels = int(ir_info.channels)
+        except (RuntimeError, TypeError, ValueError) as exc:
+            raise typer.BadParameter(str(exc)) from exc
+
+        if (
+            config.ir_route_map == "auto"
+            and config.output_layout == "auto"
+            and in_channels > 0
+            and ir_channels > in_channels
+            and ir_channels % in_channels == 0
+        ):
+            msg = (
+                "Ambiguous matrix-packed IR layout detected. "
+                "Set --output-layout and/or --ir-route-map (for example: --ir-route-map full)."
+            )
+            raise typer.BadParameter(msg)
+
     if config.wet == 0.0 and config.dry == 0.0:
         msg = "At least one of --wet or --dry must be non-zero."
         raise typer.BadParameter(msg)
@@ -1860,6 +2798,54 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
         raise typer.BadParameter(msg)
     if len(config.allpass_delays_ms) > 128:
         msg = "--allpass-delays-ms supports at most 128 entries."
+        raise typer.BadParameter(msg)
+    if len(config.fdn_dfm_delays_ms) > 64:
+        msg = "--fdn-dfm-delays-ms supports at most 64 entries."
+        raise typer.BadParameter(msg)
+
+    _validate_fdn_matrix_name(config.fdn_matrix)
+    _validate_fdn_tv_settings(
+        fdn_matrix=config.fdn_matrix,
+        fdn_tv_rate_hz=config.fdn_tv_rate_hz,
+        fdn_tv_depth=config.fdn_tv_depth,
+    )
+    _validate_fdn_sparse_settings(
+        fdn_matrix=config.fdn_matrix,
+        fdn_sparse=config.fdn_sparse,
+        fdn_sparse_degree=config.fdn_sparse_degree,
+    )
+    _validate_fdn_graph_settings(
+        fdn_matrix=config.fdn_matrix,
+        fdn_graph_topology=config.fdn_graph_topology,
+        fdn_graph_degree=config.fdn_graph_degree,
+    )
+    _validate_fdn_multiband_settings(
+        fdn_rt60_low=config.fdn_rt60_low,
+        fdn_rt60_mid=config.fdn_rt60_mid,
+        fdn_rt60_high=config.fdn_rt60_high,
+        fdn_xover_low_hz=config.fdn_xover_low_hz,
+        fdn_xover_high_hz=config.fdn_xover_high_hz,
+    )
+    _validate_fdn_link_filter_settings(
+        fdn_link_filter=config.fdn_link_filter,
+        fdn_link_filter_hz=config.fdn_link_filter_hz,
+        fdn_link_filter_mix=config.fdn_link_filter_mix,
+    )
+    resolved_fdn_lines = (
+        len(config.comb_delays_ms) if len(config.comb_delays_ms) > 0 else int(config.fdn_lines)
+    )
+    _validate_fdn_cascade_settings(
+        fdn_lines=resolved_fdn_lines,
+        fdn_cascade=config.fdn_cascade,
+        fdn_cascade_mix=config.fdn_cascade_mix,
+        fdn_cascade_delay_scale=config.fdn_cascade_delay_scale,
+        fdn_cascade_rt60_ratio=config.fdn_cascade_rt60_ratio,
+    )
+    if len(config.fdn_dfm_delays_ms) not in {0, 1, resolved_fdn_lines}:
+        msg = (
+            "--fdn-dfm-delays-ms must include either 1 value or exactly "
+            f"{resolved_fdn_lines} values."
+        )
         raise typer.BadParameter(msg)
 
     if config.freeze:
@@ -1936,6 +2922,26 @@ def _validate_ir_gen_call(
     resonator_q_max: float,
     resonator_low_hz: float,
     resonator_high_hz: float,
+    fdn_lines: int,
+    fdn_matrix: str,
+    fdn_tv_rate_hz: float,
+    fdn_tv_depth: float,
+    fdn_sparse: bool,
+    fdn_sparse_degree: int,
+    fdn_cascade: bool,
+    fdn_cascade_mix: float,
+    fdn_cascade_delay_scale: float,
+    fdn_cascade_rt60_ratio: float,
+    fdn_rt60_low: float | None,
+    fdn_rt60_mid: float | None,
+    fdn_rt60_high: float | None,
+    fdn_xover_low_hz: float,
+    fdn_xover_high_hz: float,
+    fdn_link_filter: str,
+    fdn_link_filter_hz: float,
+    fdn_link_filter_mix: float,
+    fdn_graph_topology: str,
+    fdn_graph_degree: int,
 ) -> None:
     """Validate IR generation options and output path constraints."""
     resolved = _resolve_ir_output_path(out_ir, out_format)
@@ -1962,6 +2968,42 @@ def _validate_ir_gen_call(
     if resonator_low_hz >= resonator_high_hz:
         msg = "--resonator-low-hz must be < --resonator-high-hz."
         raise typer.BadParameter(msg)
+
+    _validate_fdn_matrix_name(fdn_matrix)
+    _validate_fdn_tv_settings(
+        fdn_matrix=fdn_matrix,
+        fdn_tv_rate_hz=fdn_tv_rate_hz,
+        fdn_tv_depth=fdn_tv_depth,
+    )
+    _validate_fdn_sparse_settings(
+        fdn_matrix=fdn_matrix,
+        fdn_sparse=fdn_sparse,
+        fdn_sparse_degree=fdn_sparse_degree,
+    )
+    _validate_fdn_graph_settings(
+        fdn_matrix=fdn_matrix,
+        fdn_graph_topology=fdn_graph_topology,
+        fdn_graph_degree=fdn_graph_degree,
+    )
+    _validate_fdn_cascade_settings(
+        fdn_lines=fdn_lines,
+        fdn_cascade=fdn_cascade,
+        fdn_cascade_mix=fdn_cascade_mix,
+        fdn_cascade_delay_scale=fdn_cascade_delay_scale,
+        fdn_cascade_rt60_ratio=fdn_cascade_rt60_ratio,
+    )
+    _validate_fdn_multiband_settings(
+        fdn_rt60_low=fdn_rt60_low,
+        fdn_rt60_mid=fdn_rt60_mid,
+        fdn_rt60_high=fdn_rt60_high,
+        fdn_xover_low_hz=fdn_xover_low_hz,
+        fdn_xover_high_hz=fdn_xover_high_hz,
+    )
+    _validate_fdn_link_filter_settings(
+        fdn_link_filter=fdn_link_filter,
+        fdn_link_filter_hz=fdn_link_filter_hz,
+        fdn_link_filter_mix=fdn_link_filter_mix,
+    )
 
 
 def _validate_ir_process_call(in_ir: Path, out_ir: Path) -> None:

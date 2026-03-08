@@ -113,6 +113,503 @@ def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path) -> None:
     assert config["fdn_lines"] == 10
 
 
+def test_render_tvu_and_dfm_switches_are_applied(tmp_path: Path) -> None:
+    audio = np.zeros((1536, 1), dtype=np.float32)
+    audio[120:220, 0] = 0.4
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-lines",
+            "4",
+            "--fdn-matrix",
+            "tv-unitary",
+            "--fdn-tv-rate-hz",
+            "0.2",
+            "--fdn-tv-depth",
+            "0.5",
+            "--fdn-dfm-delays-ms",
+            "0.5,0.75,1.0,1.25",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert config["fdn_matrix"] == "tv_unitary"
+    assert abs(float(config["fdn_tv_rate_hz"]) - 0.2) < 1e-6
+    assert abs(float(config["fdn_tv_depth"]) - 0.5) < 1e-6
+    assert len(config["fdn_dfm_delays_ms"]) == 4
+
+
+def test_render_rejects_invalid_tvu_combo(tmp_path: Path) -> None:
+    audio = np.zeros((512, 1), dtype=np.float32)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-matrix",
+            "tv_unitary",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--fdn-matrix tv_unitary requires both" in result.output
+    assert "--fdn-tv-depth > 0" in result.output
+
+
+def test_render_sparse_high_order_switches_are_applied(tmp_path: Path) -> None:
+    audio = np.zeros((1024, 1), dtype=np.float32)
+    audio[20:120, 0] = 0.35
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "2.0",
+            "--fdn-lines",
+            "24",
+            "--fdn-sparse",
+            "--fdn-sparse-degree",
+            "4",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert config["fdn_sparse"] is True
+    assert int(config["fdn_sparse_degree"]) == 4
+
+
+def test_render_rejects_sparse_with_tv_unitary(tmp_path: Path) -> None:
+    audio = np.zeros((1024, 1), dtype=np.float32)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-matrix",
+            "tv_unitary",
+            "--fdn-tv-rate-hz",
+            "0.15",
+            "--fdn-tv-depth",
+            "0.3",
+            "--fdn-sparse",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--fdn-sparse cannot be combined with --fdn-matrix tv_unitary" in result.output
+
+
+def test_render_graph_fdn_switches_are_applied(tmp_path: Path) -> None:
+    audio = np.zeros((1200, 1), dtype=np.float32)
+    audio[80:180, 0] = 0.3
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-matrix",
+            "graph",
+            "--fdn-graph-topology",
+            "star",
+            "--fdn-graph-degree",
+            "3",
+            "--fdn-graph-seed",
+            "777",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert config["fdn_matrix"] == "graph"
+    assert config["fdn_graph_topology"] == "star"
+    assert int(config["fdn_graph_degree"]) == 3
+    assert int(config["fdn_graph_seed"]) == 777
+    assert "graph" in str(payload["effective"]["compute_backend"])
+
+
+def test_render_rejects_graph_options_without_graph_matrix(tmp_path: Path) -> None:
+    audio = np.zeros((512, 1), dtype=np.float32)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-graph-topology",
+            "star",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--fdn-graph-topology/--fdn-graph-degree are only valid with" in result.output
+    assert "--fdn-matrix graph" in result.output
+
+
+def test_render_rejects_sparse_with_graph_matrix(tmp_path: Path) -> None:
+    audio = np.zeros((512, 1), dtype=np.float32)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-matrix",
+            "graph",
+            "--fdn-sparse",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--fdn-sparse cannot be combined with --fdn-matrix graph" in result.output
+
+
+def test_render_cascaded_fdn_switches_are_applied(tmp_path: Path) -> None:
+    audio = np.zeros((1400, 1), dtype=np.float32)
+    audio[40:170, 0] = 0.3
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-lines",
+            "8",
+            "--fdn-cascade",
+            "--fdn-cascade-mix",
+            "0.6",
+            "--fdn-cascade-delay-scale",
+            "0.4",
+            "--fdn-cascade-rt60-ratio",
+            "0.5",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert config["fdn_cascade"] is True
+    assert abs(float(config["fdn_cascade_mix"]) - 0.6) < 1e-6
+    assert abs(float(config["fdn_cascade_delay_scale"]) - 0.4) < 1e-6
+    assert abs(float(config["fdn_cascade_rt60_ratio"]) - 0.5) < 1e-6
+    assert "cascade" in str(payload["effective"]["compute_backend"])
+
+
+def test_render_rejects_cascade_with_single_line_fdn(tmp_path: Path) -> None:
+    audio = np.zeros((1024, 1), dtype=np.float32)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-lines",
+            "1",
+            "--fdn-cascade",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--fdn-cascade requires at least 2 FDN lines." in result.output
+
+
+def test_render_multiband_fdn_switches_are_applied(tmp_path: Path) -> None:
+    audio = np.zeros((1400, 1), dtype=np.float32)
+    audio[40:170, 0] = 0.3
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "2.0",
+            "--fdn-rt60-low",
+            "22",
+            "--fdn-rt60-mid",
+            "14",
+            "--fdn-rt60-high",
+            "7",
+            "--fdn-xover-low-hz",
+            "240",
+            "--fdn-xover-high-hz",
+            "3600",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert abs(float(config["fdn_rt60_low"]) - 22.0) < 1e-6
+    assert abs(float(config["fdn_rt60_mid"]) - 14.0) < 1e-6
+    assert abs(float(config["fdn_rt60_high"]) - 7.0) < 1e-6
+    assert abs(float(config["fdn_xover_low_hz"]) - 240.0) < 1e-6
+    assert abs(float(config["fdn_xover_high_hz"]) - 3600.0) < 1e-6
+
+
+def test_render_rejects_partial_multiband_rt60_set(tmp_path: Path) -> None:
+    audio = np.zeros((1024, 1), dtype=np.float32)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-rt60-low",
+            "20",
+            "--fdn-rt60-mid",
+            "12",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "provide all three values" in result.output
+
+
+def test_render_filter_feedback_switches_are_applied(tmp_path: Path) -> None:
+    audio = np.zeros((1200, 1), dtype=np.float32)
+    audio[60:180, 0] = 0.32
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "2.0",
+            "--fdn-link-filter",
+            "highpass",
+            "--fdn-link-filter-hz",
+            "2200",
+            "--fdn-link-filter-mix",
+            "0.65",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert config["fdn_link_filter"] == "highpass"
+    assert abs(float(config["fdn_link_filter_hz"]) - 2200.0) < 1e-6
+    assert abs(float(config["fdn_link_filter_mix"]) - 0.65) < 1e-6
+
+
+def test_render_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
+    audio = np.zeros((640, 1), dtype=np.float32)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-link-filter",
+            "bandpass",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--fdn-link-filter must be one of" in result.output
+
+
+def test_render_convolution_route_map_and_trajectory(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "mono_in.wav"
+    outfile = tmp_path / "stereo_out.wav"
+    irfile = tmp_path / "mono_ir.wav"
+
+    # Keep energy present across the full render so start/end trajectory checks
+    # are meaningful.
+    x = np.ones((sr // 2, 1), dtype=np.float32)
+    ir = np.zeros((256, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--input-layout",
+            "mono",
+            "--output-layout",
+            "stereo",
+            "--ir-route-map",
+            "broadcast",
+            "--conv-route-start",
+            "left",
+            "--conv-route-end",
+            "right",
+            "--conv-route-curve",
+            "equal-power",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float32")
+    assert out_sr == sr
+    assert out.shape[1] == 2
+    q = max(8, out.shape[0] // 4)
+    early_left = float(np.mean(np.abs(out[:q, 0])))
+    early_right = float(np.mean(np.abs(out[:q, 1])))
+    late_left = float(np.mean(np.abs(out[-q:, 0])))
+    late_right = float(np.mean(np.abs(out[-q:, 1])))
+    assert early_left > early_right
+    assert late_right > late_left
+
+
+def test_render_rejects_ambiguous_matrix_ir_without_route_hint(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "st_in.wav"
+    outfile = tmp_path / "st_out.wav"
+    irfile = tmp_path / "matrix_ir.wav"
+
+    x = np.zeros((1024, 2), dtype=np.float32)
+    x[0, :] = 1.0
+    ir = np.zeros((128, 4), dtype=np.float32)
+    ir[0, 0] = 1.0
+    ir[0, 3] = 1.0
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    bad = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--no-progress",
+        ],
+    )
+    assert bad.exit_code != 0
+    assert "Ambiguous matrix-packed IR layout detected" in bad.output
+
+    good = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--ir-route-map",
+            "full",
+            "--no-progress",
+        ],
+    )
+    assert good.exit_code == 0, good.stdout
+
+
 def test_render_allpass_gain_count_mismatch_rejected(tmp_path: Path) -> None:
     audio = np.zeros((512, 1), dtype=np.float32)
     infile = tmp_path / "in.wav"
@@ -666,6 +1163,71 @@ def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> Non
     )
     assert result.exit_code == 0, result.stdout
     assert len(sorted(out_dir.glob("out.lucky_*.wav"))) == 2
+
+
+def test_batch_render_checkpoint_resume_skips_completed(tmp_path: Path) -> None:
+    sr = 16_000
+    irfile = tmp_path / "ir.wav"
+    ir = np.zeros((128, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+    sf.write(str(irfile), ir, sr)
+
+    in1 = tmp_path / "in1.wav"
+    in2 = tmp_path / "in2.wav"
+    out1 = tmp_path / "out1.wav"
+    out2 = tmp_path / "out2.wav"
+    sf.write(str(in1), np.zeros((1024, 1), dtype=np.float32), sr)
+    sf.write(str(in2), np.zeros((1024, 1), dtype=np.float32), sr)
+
+    manifest = tmp_path / "manifest_resume.json"
+    checkpoint = tmp_path / "batch.checkpoint.json"
+    payload = {
+        "version": "0.5",
+        "jobs": [
+            {
+                "infile": str(in1),
+                "outfile": str(out1),
+                "options": {"engine": "conv", "ir": str(irfile), "normalize_stage": "none"},
+            },
+            {
+                "infile": str(in2),
+                "outfile": str(out2),
+                "options": {"engine": "conv", "ir": str(irfile), "normalize_stage": "none"},
+            },
+        ],
+    }
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    first = runner.invoke(
+        app,
+        [
+            "batch",
+            "render",
+            str(manifest),
+            "--jobs",
+            "1",
+            "--checkpoint-file",
+            str(checkpoint),
+        ],
+    )
+    assert first.exit_code == 0, first.stdout
+    assert checkpoint.exists()
+
+    second = runner.invoke(
+        app,
+        [
+            "batch",
+            "render",
+            str(manifest),
+            "--jobs",
+            "1",
+            "--checkpoint-file",
+            str(checkpoint),
+            "--resume",
+        ],
+    )
+    assert second.exit_code == 0, second.stdout
+    assert "skipped 2 completed jobs" in second.stdout
 
 
 def test_render_validation_errors(tmp_path: Path) -> None:

@@ -68,6 +68,31 @@ class AlgoReverbConfig:
     allpass_delays_ms: tuple[float, ...] = ()
     comb_delays_ms: tuple[float, ...] = ()
     fdn_lines: int = 8
+    fdn_matrix: str = "hadamard"
+    fdn_tv_rate_hz: float = 0.0
+    fdn_tv_depth: float = 0.0
+    fdn_tv_seed: int = 2026
+    fdn_dfm_delays_ms: tuple[float, ...] = ()
+    fdn_sparse: bool = False
+    fdn_sparse_degree: int = 2
+    fdn_cascade: bool = False
+    fdn_cascade_mix: float = 0.35
+    fdn_cascade_delay_scale: float = 0.5
+    fdn_cascade_rt60_ratio: float = 0.55
+    fdn_rt60_low: float | None = None
+    fdn_rt60_mid: float | None = None
+    fdn_rt60_high: float | None = None
+    fdn_xover_low_hz: float = 250.0
+    fdn_xover_high_hz: float = 4_000.0
+    fdn_link_filter: str = "none"
+    fdn_link_filter_hz: float = 2_500.0
+    fdn_link_filter_mix: float = 1.0
+    fdn_graph_topology: str = "ring"
+    fdn_graph_degree: int = 2
+    fdn_graph_seed: int = 2026
+    algo_decorrelation_front: float = 0.0
+    algo_decorrelation_rear: float = 0.0
+    algo_decorrelation_top: float = 0.0
     wet: float = 0.8
     dry: float = 0.2
     block_size: int = 4096
@@ -77,6 +102,7 @@ class AlgoReverbConfig:
     shimmer_feedback: float = 0.35
     shimmer_highcut: float | None = 10_000.0
     shimmer_lowcut: float | None = 300.0
+    output_layout: str = "auto"
     device: str = "cpu"
 
 
@@ -110,9 +136,89 @@ class AlgoReverbEngine(ReverbEngine):
         self._config = config
         self._base_delay_ms = self._resolve_fdn_delay_ms(config)
         self._diffusion_delay_ms = self._resolve_diffusion_delay_ms(config)
-        self._allpass_gains = self._resolve_allpass_gains(config, self._diffusion_delay_ms.shape[0])
-        self._hadamard = self._build_hadamard_matrix(int(self._base_delay_ms.shape[0]))
-        self._use_numba = _numba_available and config.device != "cuda"
+        self._dfm_delay_ms = self._resolve_dfm_delay_ms(config, int(self._base_delay_ms.shape[0]))
+        self._allpass_gains = self._resolve_allpass_gains(
+            config,
+            self._diffusion_delay_ms.shape[0],
+        )
+        self._cascade_enabled = bool(config.fdn_cascade)
+        self._cascade_mix = float(np.clip(config.fdn_cascade_mix, 0.0, 1.0))
+        self._cascade_delay_scale = float(np.clip(config.fdn_cascade_delay_scale, 0.2, 1.0))
+        self._cascade_rt60_ratio = float(np.clip(config.fdn_cascade_rt60_ratio, 0.1, 1.0))
+        self._sparse_enabled = bool(config.fdn_sparse)
+        self._sparse_degree = max(1, int(config.fdn_sparse_degree))
+        self._multiband_enabled = all(
+            value is not None
+            for value in (config.fdn_rt60_low, config.fdn_rt60_mid, config.fdn_rt60_high)
+        )
+        self._link_filter_mode = self._resolve_link_filter_mode(config.fdn_link_filter)
+        self._link_filter_mix = float(np.clip(config.fdn_link_filter_mix, 0.0, 1.0))
+        self._link_filter_enabled = (
+            self._link_filter_mode != "none"
+            and self._link_filter_mix > 0.0
+        )
+        tv_seed = int(config.fdn_tv_seed)
+        self._sparse_pairings = self._build_sparse_pairings(
+            size=int(self._base_delay_ms.shape[0]),
+            stages=self._sparse_degree,
+            seed=tv_seed,
+        )
+        self._matrix_kind = self._normalize_matrix_type(config.fdn_matrix)
+        self._graph_enabled = self._matrix_kind == "graph"
+        self._graph_pairings = self._build_graph_pairings(
+            size=int(self._base_delay_ms.shape[0]),
+            topology=config.fdn_graph_topology,
+            degree=max(1, int(config.fdn_graph_degree)),
+            seed=int(config.fdn_graph_seed),
+        )
+        self._fdn_matrix = self._build_fdn_matrix(
+            int(self._base_delay_ms.shape[0]),
+            config.fdn_matrix,
+        )
+        if self._sparse_enabled:
+            self._fdn_matrix = self._build_sparse_mix_matrix(
+                size=int(self._base_delay_ms.shape[0]),
+                pairings=self._sparse_pairings,
+            )
+        elif self._graph_enabled:
+            self._fdn_matrix = self._build_sparse_mix_matrix(
+                size=int(self._base_delay_ms.shape[0]),
+                pairings=self._graph_pairings,
+            )
+        self._tv_matrix_enabled = (
+            self._matrix_kind == "tv_unitary"
+            and float(config.fdn_tv_rate_hz) > 0.0
+            and float(config.fdn_tv_depth) > 0.0
+            and not self._sparse_enabled
+            and not self._graph_enabled
+            and not self._multiband_enabled
+        )
+        self._tv_phase = np.float32(0.0)
+        self._tv_target_matrix = self._build_random_orthogonal_matrix(
+            size=int(self._base_delay_ms.shape[0]),
+            seed=tv_seed,
+        )
+        self._tv_rng = np.random.default_rng(tv_seed)
+        cascade_lines = int(np.clip(round(float(self._base_delay_ms.shape[0]) * 0.5), 1, 32))
+        self._cascade_delay_ms = np.asarray(
+            np.clip(self._base_delay_ms[:cascade_lines] * self._cascade_delay_scale, 2.0, None),
+            dtype=np.float32,
+        )
+        cascade_matrix_kind = (
+            "hadamard" if self._matrix_kind in {"tv_unitary", "graph"} else config.fdn_matrix
+        )
+        self._cascade_matrix = self._build_fdn_matrix(cascade_lines, cascade_matrix_kind)
+        self._dfm_enabled = len(self._dfm_delay_ms) > 0
+        self._use_numba = (
+            _numba_available
+            and config.device != "cuda"
+            and not self._tv_matrix_enabled
+            and not self._graph_enabled
+            and not self._dfm_enabled
+            and not self._multiband_enabled
+            and not self._link_filter_enabled
+            and not self._cascade_enabled
+        )
         self._shimmer = ShimmerProcessor(
             ShimmerConfig(
                 enabled=config.shimmer,
@@ -135,6 +241,8 @@ class AlgoReverbEngine(ReverbEngine):
         for channel in range(n_channels):
             wet[:, channel] = self._process_channel(x[:, channel], sr)
 
+        wet = self._apply_multichannel_decorrelation(wet, sr)
+
         if n_channels == 2 and self._config.width != 1.0:
             wet = self._apply_stereo_width(wet, self._config.width)
 
@@ -150,23 +258,408 @@ class AlgoReverbEngine(ReverbEngine):
 
         return np.asarray(output, dtype=np.float32)
 
-    def backend_name(self) -> str:
-        """Return current algorithmic backend."""
-        return "cpu-numba-fdn" if self._use_numba else "cpu-python-fdn"
+    def _apply_multichannel_decorrelation(self, wet: AudioArray, sr: int) -> AudioArray:
+        """Apply lightweight channel-group decorrelation for surround layouts."""
+        channels = int(wet.shape[1])
+        if channels <= 2:
+            return wet
+
+        front_v = float(np.clip(self._config.algo_decorrelation_front, 0.0, 1.0))
+        rear_v = float(np.clip(self._config.algo_decorrelation_rear, 0.0, 1.0))
+        top_v = float(np.clip(self._config.algo_decorrelation_top, 0.0, 1.0))
+        if max(front_v, rear_v, top_v) <= 0.0:
+            return wet
+
+        out = np.asarray(wet.copy(), dtype=np.float32)
+        rng = np.random.default_rng(int(self._config.fdn_tv_seed) + 8191)
+
+        layout = self._config.output_layout.strip().lower()
+        if layout == "auto":
+            layout = {
+                3: "lcr",
+                6: "5.1",
+                8: "7.1",
+                10: "7.1.2",
+                12: "7.1.4",
+            }.get(channels, "auto")
+
+        front_idx, rear_idx, top_idx = self._layout_channel_groups(layout=layout, channels=channels)
+        variance_by_channel = np.zeros((channels,), dtype=np.float32)
+        for idx in front_idx:
+            variance_by_channel[idx] = np.float32(max(variance_by_channel[idx], front_v))
+        for idx in rear_idx:
+            variance_by_channel[idx] = np.float32(max(variance_by_channel[idx], rear_v))
+        for idx in top_idx:
+            variance_by_channel[idx] = np.float32(max(variance_by_channel[idx], top_v))
+
+        for ch in range(channels):
+            variance = float(variance_by_channel[ch])
+            if variance <= 0.0:
+                continue
+            jitter = float(rng.uniform(-1.0, 1.0))
+            max_delay_ms = 2.0 + (18.0 * variance)
+            delay_samples = max(1, int((max_delay_ms / 1000.0) * float(sr)))
+            delay_samples = max(1, min(delay_samples, max(1, out.shape[0] // 4)))
+            mix = float(np.clip((0.1 + (0.35 * variance)) + (0.05 * abs(jitter)), 0.05, 0.55))
+            gain = float(np.clip((1.0 - (0.12 * variance)) + (0.06 * jitter), 0.75, 1.1))
+            delayed = np.roll(out[:, ch], delay_samples)
+            out[:, ch] = np.asarray(
+                ((1.0 - mix) * out[:, ch] * gain) + (mix * delayed),
+                dtype=np.float32,
+            )
+
+        return np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float32)
 
     @staticmethod
-    def _build_hadamard_matrix(size: int) -> npt.NDArray[np.float32]:
-        """Build an orthonormal Hadamard-style mix matrix."""
-        if size <= 0:
-            return np.zeros((0, 0), dtype=np.float32)
-        matrix = np.array([[1.0]], dtype=np.float32)
+    def _layout_channel_groups(
+        layout: str,
+        channels: int,
+    ) -> tuple[list[int], list[int], list[int]]:
+        """Return front/rear/top channel groups for common bus layouts."""
+        if layout == "lcr":
+            return [0, 1, 2], [], []
+        if layout == "5.1":
+            return [0, 1, 2, 3], [4, 5], []
+        if layout == "7.1":
+            return [0, 1, 2, 3], [4, 5, 6, 7], []
+        if layout == "7.1.2":
+            return [0, 1, 2, 3], [4, 5, 6, 7], [8, 9]
+        if layout == "7.1.4":
+            return [0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]
+        # Fallback: all channels treated as front group.
+        return list(range(channels)), [], []
+
+    def backend_name(self) -> str:
+        """Return current algorithmic backend."""
+        base = "cpu-numba-fdn" if self._use_numba else "cpu-python-fdn"
+        suffixes: list[str] = []
+        if self._sparse_enabled:
+            suffixes.append("sparse")
+        if self._graph_enabled:
+            suffixes.append("graph")
+        if self._cascade_enabled:
+            suffixes.append("cascade")
+        if self._multiband_enabled:
+            suffixes.append("multiband")
+        if self._link_filter_enabled:
+            suffixes.append("linkfilter")
+        if len(suffixes) == 0:
+            return base
+        return f"{base}-{'-'.join(suffixes)}"
+
+    @staticmethod
+    def _orthonormalize(matrix: npt.NDArray[np.float64]) -> npt.NDArray[np.float32]:
+        """Project matrix to the nearest orthonormal basis with deterministic QR."""
+        q, _ = np.linalg.qr(np.asarray(matrix, dtype=np.float64))
+        return np.asarray(q, dtype=np.float32)
+
+    @classmethod
+    def _build_hadamard_matrix(cls, size: int) -> npt.NDArray[np.float32]:
+        """Build a deterministic Hadamard-derived orthonormal matrix."""
+        matrix = np.array([[1.0]], dtype=np.float64)
         while matrix.shape[0] < size:
             matrix = np.block([[matrix, matrix], [matrix, -matrix]])
         matrix = matrix[:size, :size]
-        # Truncating non-power-of-two Hadamards breaks strict orthogonality;
-        # QR restores an orthonormal mix while preserving the deterministic seed.
-        q, _ = np.linalg.qr(matrix.astype(np.float64))
+        # Truncating non-power-of-two Hadamards breaks strict orthogonality.
+        return cls._orthonormalize(matrix)
+
+    @staticmethod
+    def _build_random_orthogonal_matrix(
+        size: int,
+        seed: int = 2026,
+    ) -> npt.NDArray[np.float32]:
+        """Build deterministic random orthonormal matrix with QR."""
+        rng = np.random.default_rng(seed)
+        base = rng.standard_normal((size, size)).astype(np.float64)
+        q, _ = np.linalg.qr(base)
         return np.asarray(q, dtype=np.float32)
+
+    @staticmethod
+    def _build_shift_permutation(size: int, shift: int) -> npt.NDArray[np.float64]:
+        """Build cyclic permutation matrix for circulant-style constructions."""
+        matrix = np.zeros((size, size), dtype=np.float64)
+        for row in range(size):
+            col = (row - shift) % size
+            matrix[row, col] = 1.0
+        return matrix
+
+    @classmethod
+    def _build_circulant_matrix(cls, size: int) -> npt.NDArray[np.float32]:
+        """Build a real orthogonal circulant matrix via unit-modulus spectrum."""
+        spectrum = np.ones(size, dtype=np.complex128)
+        for k in range(1, (size + 1) // 2):
+            angle = (2.0 * np.pi * float(k * k)) / float(max(1, size))
+            value = np.exp(1j * angle)
+            spectrum[k] = value
+            spectrum[-k] = np.conjugate(value)
+        if size % 2 == 0:
+            spectrum[size // 2] = -1.0 + 0.0j
+
+        first_column = np.fft.ifft(spectrum).real.astype(np.float64)
+        matrix = np.zeros((size, size), dtype=np.float64)
+        for col in range(size):
+            matrix[:, col] = np.roll(first_column, col)
+
+        gram = matrix.T @ matrix
+        if np.allclose(gram, np.eye(size, dtype=np.float64), atol=1e-4):
+            return np.asarray(matrix, dtype=np.float32)
+        return cls._orthonormalize(matrix)
+
+    @classmethod
+    def _build_elliptic_matrix(cls, size: int) -> npt.NDArray[np.float32]:
+        """Build deterministic elliptic-inspired prototype and orthonormalize it."""
+        eye = np.eye(size, dtype=np.float64)
+        shift_1 = cls._build_shift_permutation(size, shift=1)
+        shift_2 = cls._build_shift_permutation(size, shift=2)
+
+        proto = (
+            (0.62 * eye)
+            + (0.19 * (shift_1 + shift_1.T))
+            + (0.05 * (shift_2 + shift_2.T))
+        )
+        return cls._orthonormalize(proto)
+
+    @staticmethod
+    def _normalize_matrix_type(matrix_type: str) -> str:
+        """Normalize user matrix string to lowercase identifier."""
+        return matrix_type.strip().lower().replace("-", "_")
+
+    @staticmethod
+    def _normalize_graph_topology(topology: str) -> str:
+        """Normalize graph topology string to lowercase identifier."""
+        return topology.strip().lower().replace("-", "_")
+
+    @staticmethod
+    def _resolve_link_filter_mode(mode: str) -> str:
+        """Normalize and validate in-matrix feedback link filter mode."""
+        normalized = mode.strip().lower().replace("-", "_")
+        if normalized in {"none", "lowpass", "highpass"}:
+            return normalized
+        msg = f"Unsupported FDN link filter mode: {mode}"
+        raise ValueError(msg)
+
+    @staticmethod
+    def _build_sparse_pairings(
+        size: int,
+        stages: int,
+        seed: int,
+    ) -> npt.NDArray[np.int32]:
+        """Build deterministic pairwise mixing schedules for sparse FDN mode."""
+        if size <= 1:
+            return np.zeros((0, 0), dtype=np.int32)
+
+        stage_count = max(1, int(stages))
+        rng = np.random.default_rng(seed)
+        pairings = np.zeros((stage_count, size), dtype=np.int32)
+        for stage_idx in range(stage_count):
+            pairings[stage_idx, :] = rng.permutation(size).astype(np.int32)
+        return pairings
+
+    @classmethod
+    def _build_graph_pairings(
+        cls,
+        size: int,
+        topology: str,
+        degree: int,
+        seed: int,
+    ) -> npt.NDArray[np.int32]:
+        """Build deterministic graph-constrained pairwise mixing schedules."""
+        if size <= 1:
+            return np.zeros((0, 0), dtype=np.int32)
+
+        edges = cls._build_graph_edges(
+            size=size,
+            topology=topology,
+            degree=degree,
+            seed=seed,
+        )
+        if len(edges) == 0:
+            return np.zeros((0, 0), dtype=np.int32)
+
+        stage_count = max(1, int(degree))
+        rng = np.random.default_rng(seed)
+        pairings = np.zeros((stage_count, size), dtype=np.int32)
+        edge_array = np.asarray(edges, dtype=np.int32)
+
+        for stage_idx in range(stage_count):
+            order = np.arange(edge_array.shape[0], dtype=np.int32)
+            rng.shuffle(order)
+            used = np.zeros((size,), dtype=bool)
+            paired: list[int] = []
+            for edge_idx in order:
+                a = int(edge_array[edge_idx, 0])
+                b = int(edge_array[edge_idx, 1])
+                if used[a] or used[b]:
+                    continue
+                if rng.random() < 0.5:
+                    paired.extend([a, b])
+                else:
+                    paired.extend([b, a])
+                used[a] = True
+                used[b] = True
+
+            leftovers = [idx for idx in range(size) if not used[idx]]
+            rng.shuffle(leftovers)
+            paired.extend(leftovers)
+            pairings[stage_idx, :] = np.asarray(paired[:size], dtype=np.int32)
+        return pairings
+
+    @classmethod
+    def _build_graph_edges(
+        cls,
+        *,
+        size: int,
+        topology: str,
+        degree: int,
+        seed: int,
+    ) -> list[tuple[int, int]]:
+        """Build unique undirected edges for graph-structured FDN mode."""
+        normalized = cls._normalize_graph_topology(topology)
+        max_degree = max(1, min(int(degree), max(1, size - 1)))
+        edges: set[tuple[int, int]] = set()
+
+        if normalized == "star":
+            center = 0
+            for node in range(1, size):
+                edges.add((center, node))
+            return sorted(edges)
+
+        if normalized == "path":
+            for step in range(1, max_degree + 1):
+                for start in range(0, size - step):
+                    a = start
+                    b = start + step
+                    edges.add((a, b) if a < b else (b, a))
+            return sorted(edges)
+
+        if normalized == "random":
+            all_pairs = [(a, b) for a in range(size) for b in range(a + 1, size)]
+            if len(all_pairs) == 0:
+                return []
+            rng = np.random.default_rng(seed)
+            rng.shuffle(all_pairs)
+            target = min(len(all_pairs), max(size - 1, (size * max_degree) // 2))
+            return sorted(all_pairs[:target])
+
+        # Default "ring" behavior, including unknown values.
+        for step in range(1, max_degree + 1):
+            for node in range(size):
+                a = node
+                b = (node + step) % size
+                edge = (a, b) if a < b else (b, a)
+                if edge[0] != edge[1]:
+                    edges.add(edge)
+        return sorted(edges)
+
+    @staticmethod
+    def _apply_sparse_pair_mix(
+        input_vec: npt.NDArray[np.float32],
+        pairings: npt.NDArray[np.int32],
+        out_vec: npt.NDArray[np.float32],
+        scratch: npt.NDArray[np.float32],
+    ) -> None:
+        """Apply sparse orthogonal pair-mixing stages to feedback vector."""
+        if pairings.size == 0:
+            out_vec[:] = input_vec
+            return
+
+        out_vec[:] = input_vec
+        size = int(out_vec.shape[0])
+        inv_sqrt2 = np.float32(1.0 / np.sqrt(2.0))
+
+        for stage_idx in range(pairings.shape[0]):
+            scratch[:] = out_vec
+            perm = pairings[stage_idx]
+            for idx in range(0, size - 1, 2):
+                a = int(perm[idx])
+                b = int(perm[idx + 1])
+                va = scratch[a]
+                vb = scratch[b]
+                out_vec[a] = (va + vb) * inv_sqrt2
+                out_vec[b] = (va - vb) * inv_sqrt2
+            if size % 2 == 1:
+                last = int(perm[size - 1])
+                out_vec[last] = scratch[last]
+
+    @staticmethod
+    def _build_sparse_mix_matrix(
+        size: int,
+        pairings: npt.NDArray[np.int32],
+    ) -> npt.NDArray[np.float32]:
+        """Build dense matrix equivalent of sparse pair-mixing stages."""
+        if size <= 0:
+            return np.zeros((0, 0), dtype=np.float32)
+        if pairings.size == 0:
+            return np.eye(size, dtype=np.float32)
+
+        matrix = np.eye(size, dtype=np.float64)
+        inv_sqrt2 = 1.0 / np.sqrt(2.0)
+        for stage_idx in range(pairings.shape[0]):
+            perm = pairings[stage_idx]
+            stage_matrix = np.eye(size, dtype=np.float64)
+            for idx in range(0, size - 1, 2):
+                a = int(perm[idx])
+                b = int(perm[idx + 1])
+                stage_matrix[a, a] = inv_sqrt2
+                stage_matrix[a, b] = inv_sqrt2
+                stage_matrix[b, a] = inv_sqrt2
+                stage_matrix[b, b] = -inv_sqrt2
+            matrix = stage_matrix @ matrix
+        return np.asarray(matrix, dtype=np.float32)
+
+    @classmethod
+    def _build_fdn_matrix(cls, size: int, matrix_type: str) -> npt.NDArray[np.float32]:
+        """Build an orthonormal mix matrix of the requested type."""
+        if size <= 0:
+            return np.zeros((0, 0), dtype=np.float32)
+
+        kind = cls._normalize_matrix_type(matrix_type)
+        if kind == "householder":
+            v = np.ones((size, 1), dtype=np.float64)
+            matrix = np.eye(size, dtype=np.float64) - ((2.0 / size) * (v @ v.T))
+            return np.asarray(matrix, dtype=np.float32)
+
+        if kind == "random_orthogonal":
+            return cls._build_random_orthogonal_matrix(size=size, seed=2026)
+
+        if kind == "circulant":
+            return cls._build_circulant_matrix(size=size)
+
+        if kind == "elliptic":
+            return cls._build_elliptic_matrix(size=size)
+
+        if kind == "graph":
+            pairings = cls._build_graph_pairings(
+                size=size,
+                topology="ring",
+                degree=2,
+                seed=2026,
+            )
+            return cls._build_sparse_mix_matrix(size=size, pairings=pairings)
+
+        # "hadamard", "tv_unitary", and unknown values default here.
+        return cls._build_hadamard_matrix(size=size)
+
+    def _current_block_matrix(self, sr: int, block_samples: int) -> npt.NDArray[np.float32]:
+        """Return the active FDN matrix for one processing block."""
+        if not self._tv_matrix_enabled:
+            return self._fdn_matrix
+
+        block_seconds = float(block_samples) / float(max(1, sr))
+        phase_inc = np.float32((2.0 * np.pi * float(self._config.fdn_tv_rate_hz)) * block_seconds)
+        self._tv_phase += phase_inc
+        while self._tv_phase >= np.float32(2.0 * np.pi):
+            self._tv_phase -= np.float32(2.0 * np.pi)
+            seed = int(self._tv_rng.integers(0, 2_147_483_647))
+            self._tv_target_matrix = self._build_random_orthogonal_matrix(
+                size=int(self._fdn_matrix.shape[0]),
+                seed=seed,
+            )
+
+        depth = float(np.clip(self._config.fdn_tv_depth, 0.0, 1.0))
+        blend = depth * (0.5 * (1.0 + np.sin(float(self._tv_phase))))
+        candidate = ((1.0 - blend) * self._fdn_matrix) + (blend * self._tv_target_matrix)
+        return self._orthonormalize(candidate.astype(np.float64))
 
     @classmethod
     def _resolve_fdn_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float32]:
@@ -183,6 +676,52 @@ class AlgoReverbEngine(ReverbEngine):
                 next_delay = defaults[-1] + 0.25
             defaults.append(next_delay)
         return np.asarray(defaults[:requested], dtype=np.float32)
+
+    @staticmethod
+    def _resolve_dfm_delay_ms(
+        config: AlgoReverbConfig,
+        line_count: int,
+    ) -> npt.NDArray[np.float32]:
+        """Resolve delay-feedback-matrix (DFM) delays for each FDN line."""
+        if len(config.fdn_dfm_delays_ms) == 0:
+            return np.zeros((0,), dtype=np.float32)
+
+        delays = [max(0.05, float(value)) for value in config.fdn_dfm_delays_ms]
+        if len(delays) == 1 and line_count > 1:
+            delays = delays * line_count
+
+        if len(delays) != line_count:
+            msg = (
+                "fdn_dfm_delays_ms length must be 1 or match FDN line count "
+                f"({line_count}), got {len(delays)}"
+            )
+            raise ValueError(msg)
+
+        return np.asarray(delays, dtype=np.float32)
+
+    @staticmethod
+    def _resolve_multiband_rt60(config: AlgoReverbConfig) -> tuple[float, float, float]:
+        """Resolve low/mid/high RT60 values with scalar fallback."""
+        base_rt60 = max(0.1, float(config.rt60))
+        low = max(
+            0.1,
+            float(config.fdn_rt60_low if config.fdn_rt60_low is not None else base_rt60),
+        )
+        mid = max(
+            0.1,
+            float(config.fdn_rt60_mid if config.fdn_rt60_mid is not None else base_rt60),
+        )
+        high = max(
+            0.1,
+            float(config.fdn_rt60_high if config.fdn_rt60_high is not None else base_rt60),
+        )
+        return low, mid, high
+
+    @staticmethod
+    def _one_pole_alpha(cutoff_hz: float, sr: int) -> np.float32:
+        """Compute stable one-pole lowpass alpha from cutoff frequency."""
+        fc = max(1.0, float(cutoff_hz))
+        return np.float32(1.0 - np.exp((-2.0 * np.pi * fc) / float(max(1, sr))))
 
     @classmethod
     def _resolve_diffusion_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float32]:
@@ -255,7 +794,7 @@ class AlgoReverbEngine(ReverbEngine):
                 mod_depth_ms=np.float32(self._config.mod_depth_ms),
                 mod_rate_hz=np.float32(self._config.mod_rate_hz),
                 block_size=max(256, int(self._config.block_size)),
-                hadamard=self._hadamard,
+                fdn_matrix=self._fdn_matrix,
                 base_delay_ms=self._base_delay_ms,
                 diffusion_delay_ms=self._diffusion_delay_ms,
                 allpass_gains=self._allpass_gains,
@@ -287,6 +826,14 @@ class AlgoReverbEngine(ReverbEngine):
         lp_state = np.zeros(num_lines, dtype=np.float32)
         dc_prev_in = np.zeros(num_lines, dtype=np.float32)
         dc_prev_out = np.zeros(num_lines, dtype=np.float32)
+        dfm_indices = np.zeros(num_lines, dtype=np.int32)
+        dfm_buffers: list[npt.NDArray[np.float32]] = []
+        if self._dfm_enabled:
+            dfm_delays = np.maximum(
+                1,
+                np.asarray(np.round((self._dfm_delay_ms / 1000.0) * sr), dtype=np.int32),
+            )
+            dfm_buffers = [np.zeros(delay + 1, dtype=np.float32) for delay in dfm_delays]
 
         base_phase = np.linspace(0.0, 2.0 * np.pi, num_lines, endpoint=False, dtype=np.float32)
         phase = base_phase.copy()
@@ -295,6 +842,29 @@ class AlgoReverbEngine(ReverbEngine):
         delays_sec = line_delays.astype(np.float64) / float(sr)
         base_gain = np.power(10.0, (-3.0 * delays_sec) / rt60).astype(np.float32)
         base_gain = np.clip(base_gain, 0.0, 0.995)
+        rt60_low, rt60_mid, rt60_high = self._resolve_multiband_rt60(self._config)
+        base_gain_low = np.power(10.0, (-3.0 * delays_sec) / rt60_low).astype(np.float32)
+        base_gain_mid = np.power(10.0, (-3.0 * delays_sec) / rt60_mid).astype(np.float32)
+        base_gain_high = np.power(10.0, (-3.0 * delays_sec) / rt60_high).astype(np.float32)
+        base_gain_low = np.clip(base_gain_low, 0.0, 0.995)
+        base_gain_mid = np.clip(base_gain_mid, 0.0, 0.995)
+        base_gain_high = np.clip(base_gain_high, 0.0, 0.995)
+        xover_low = max(20.0, float(self._config.fdn_xover_low_hz))
+        xover_high = max(xover_low + 10.0, float(self._config.fdn_xover_high_hz))
+        nyquist_guard = max(200.0, (float(sr) * 0.5) - 50.0)
+        if xover_high > nyquist_guard:
+            xover_high = nyquist_guard
+        if xover_low >= xover_high:
+            xover_low = max(20.0, xover_high * 0.25)
+        lp_alpha_low = self._one_pole_alpha(xover_low, sr)
+        lp_alpha_high = self._one_pole_alpha(xover_high, sr)
+        mb_lp_low_state = np.zeros(num_lines, dtype=np.float32)
+        mb_lp_high_state = np.zeros(num_lines, dtype=np.float32)
+        link_filter_alpha = self._one_pole_alpha(float(self._config.fdn_link_filter_hz), sr)
+        link_filter_state = np.zeros(num_lines, dtype=np.float32)
+        link_filter_mix = np.float32(self._link_filter_mix)
+        link_filter_dry = np.float32(1.0 - self._link_filter_mix)
+        link_filter_mode = self._link_filter_mode
 
         # Larger damping value -> stronger HF attenuation in the feedback loop.
         damping = float(np.clip(self._config.damping, 0.0, 1.0))
@@ -307,9 +877,72 @@ class AlgoReverbEngine(ReverbEngine):
 
         output = np.zeros_like(signal, dtype=np.float32)
         block_size = max(256, int(self._config.block_size))
+        inv_sqrt_lines = np.float32(1.0 / np.sqrt(np.float32(num_lines)))
+        fdn_out = np.zeros(num_lines, dtype=np.float32)
+        feedback_source = np.zeros(num_lines, dtype=np.float32)
+        mixed_feedback = np.zeros(num_lines, dtype=np.float32)
+        sparse_scratch = np.zeros(num_lines, dtype=np.float32)
+        cascade_enabled = (
+            self._cascade_enabled
+            and self._cascade_mix > 0.0
+            and int(self._cascade_delay_ms.shape[0]) > 0
+        )
+        cascade_mix = np.float32(self._cascade_mix if cascade_enabled else 0.0)
+        cascade_fdn_out = np.zeros((0,), dtype=np.float32)
+        cascade_feedback = np.zeros((0,), dtype=np.float32)
+        cascade_base_gain = np.zeros((0,), dtype=np.float32)
+        cascade_delay_buffers: list[npt.NDArray[np.float32]] = []
+        cascade_write_indices = np.zeros((0,), dtype=np.int32)
+        cascade_lp_state = np.zeros((0,), dtype=np.float32)
+        cascade_dc_prev_in = np.zeros((0,), dtype=np.float32)
+        cascade_dc_prev_out = np.zeros((0,), dtype=np.float32)
+        cascade_line_delays = np.zeros((0,), dtype=np.int32)
+        cascade_phase = np.zeros((0,), dtype=np.float32)
+        cascade_max_mod_samples = 1
+        cascade_inv_sqrt_lines = np.float32(1.0)
+        if cascade_enabled:
+            cascade_line_delays = np.maximum(
+                2,
+                np.asarray(np.round((self._cascade_delay_ms / 1000.0) * sr), dtype=np.int32),
+            )
+            cascade_num_lines = int(cascade_line_delays.shape[0])
+            cascade_max_mod_samples = max(
+                1,
+                int(max_mod_samples * self._cascade_delay_scale),
+            )
+            cascade_delay_buffers = [
+                np.zeros(delay + (2 * cascade_max_mod_samples) + 4, dtype=np.float32)
+                for delay in cascade_line_delays
+            ]
+            cascade_write_indices = np.zeros(cascade_num_lines, dtype=np.int32)
+            cascade_lp_state = np.zeros(cascade_num_lines, dtype=np.float32)
+            cascade_dc_prev_in = np.zeros(cascade_num_lines, dtype=np.float32)
+            cascade_dc_prev_out = np.zeros(cascade_num_lines, dtype=np.float32)
+            cascade_phase = np.linspace(
+                np.pi * 0.25,
+                (2.0 * np.pi) + (np.pi * 0.25),
+                cascade_num_lines,
+                endpoint=False,
+                dtype=np.float32,
+            )
+            cascade_fdn_out = np.zeros(cascade_num_lines, dtype=np.float32)
+            cascade_feedback = np.zeros(cascade_num_lines, dtype=np.float32)
+            cascade_delays_sec = cascade_line_delays.astype(np.float64) / float(sr)
+            cascade_rt60 = max(0.1, float(self._config.rt60) * self._cascade_rt60_ratio)
+            cascade_base_gain = np.power(10.0, (-3.0 * cascade_delays_sec) / cascade_rt60).astype(
+                np.float32
+            )
+            cascade_base_gain = np.clip(cascade_base_gain, 0.0, 0.995)
+            cascade_inv_sqrt_lines = np.float32(1.0 / np.sqrt(np.float32(cascade_num_lines)))
 
         for block_start in range(0, signal.shape[0], block_size):
             block_end = min(signal.shape[0], block_start + block_size)
+            block_matrix: npt.NDArray[np.float32] | None = None
+            if not self._sparse_enabled and not self._graph_enabled:
+                block_matrix = self._current_block_matrix(
+                    sr=sr,
+                    block_samples=max(1, block_end - block_start),
+                )
             for n in range(block_start, block_end):
                 predelayed = pre_buffer[pre_idx]
                 pre_buffer[pre_idx] = signal[n]
@@ -325,7 +958,40 @@ class AlgoReverbEngine(ReverbEngine):
                         gain=np.float32(self._allpass_gains[ap_index]),
                     )
 
-                fdn_out = np.zeros(num_lines, dtype=np.float32)
+                if cascade_enabled:
+                    for i in range(cascade_fdn_out.shape[0]):
+                        mod = cascade_max_mod_samples * np.sin(cascade_phase[i])
+                        cascade_phase[i] += np.float32((2.0 * np.pi * mod_rate) / sr)
+                        if cascade_phase[i] > (2.0 * np.pi):
+                            cascade_phase[i] -= np.float32(2.0 * np.pi)
+
+                        delay = float(cascade_line_delays[i]) + float(mod)
+                        read_value = self._read_fractional_delay(
+                            buffer=cascade_delay_buffers[i],
+                            write_index=int(cascade_write_indices[i]),
+                            delay_samples=delay,
+                        )
+                        cascade_lp_state[i] = ((1.0 - lp_alpha) * read_value) + (
+                            lp_alpha * cascade_lp_state[i]
+                        )
+                        dc_filtered = (
+                            cascade_lp_state[i]
+                            - cascade_dc_prev_in[i]
+                            + (dc_alpha * cascade_dc_prev_out[i])
+                        )
+                        cascade_dc_prev_in[i] = cascade_lp_state[i]
+                        cascade_dc_prev_out[i] = dc_filtered
+                        cascade_fdn_out[i] = dc_filtered
+
+                    cascade_feedback[:] = self._cascade_matrix @ cascade_fdn_out
+                    cascade_injection = np.float32(diffused * cascade_inv_sqrt_lines)
+                    for i in range(cascade_fdn_out.shape[0]):
+                        value = cascade_injection + (cascade_base_gain[i] * cascade_feedback[i])
+                        cascade_delay_buffers[i][cascade_write_indices[i]] = value
+                        cascade_write_indices[i] = (
+                            cascade_write_indices[i] + 1
+                        ) % cascade_delay_buffers[i].shape[0]
+
                 for i in range(num_lines):
                     mod = max_mod_samples * np.sin(phase[i])
                     phase[i] += np.float32((2.0 * np.pi * mod_rate) / sr)
@@ -347,11 +1013,63 @@ class AlgoReverbEngine(ReverbEngine):
                     dc_prev_out[i] = dc_filtered
                     fdn_out[i] = dc_filtered
 
-                mixed_feedback = self._hadamard @ fdn_out
-                injection = np.float32(diffused / np.sqrt(np.float32(num_lines)))
+                if self._link_filter_enabled:
+                    for i in range(num_lines):
+                        raw = fdn_out[i]
+                        link_filter_state[i] += link_filter_alpha * (raw - link_filter_state[i])
+                        if link_filter_mode == "lowpass":
+                            filtered = link_filter_state[i]
+                        else:
+                            filtered = raw - link_filter_state[i]
+                        feedback_source[i] = (link_filter_dry * raw) + (link_filter_mix * filtered)
+                else:
+                    feedback_source[:] = fdn_out
+
+                if self._sparse_enabled or self._graph_enabled:
+                    self._apply_sparse_pair_mix(
+                        input_vec=feedback_source,
+                        pairings=(
+                            self._sparse_pairings if self._sparse_enabled else self._graph_pairings
+                        ),
+                        out_vec=mixed_feedback,
+                        scratch=sparse_scratch,
+                    )
+                elif block_matrix is not None:
+                    mixed_feedback[:] = block_matrix @ feedback_source
+                else:  # pragma: no cover
+                    mixed_feedback[:] = feedback_source
+                if self._dfm_enabled:
+                    for i in range(num_lines):
+                        delayed_feedback = dfm_buffers[i][dfm_indices[i]]
+                        dfm_buffers[i][dfm_indices[i]] = mixed_feedback[i]
+                        dfm_indices[i] = (dfm_indices[i] + 1) % dfm_buffers[i].shape[0]
+                        mixed_feedback[i] = delayed_feedback
+                if cascade_enabled and cascade_feedback.size > 0:
+                    cascade_size = int(cascade_feedback.shape[0])
+                    for i in range(num_lines):
+                        mixed_feedback[i] += cascade_mix * cascade_feedback[i % cascade_size]
+
+                injection = np.float32(diffused * inv_sqrt_lines)
 
                 for i in range(num_lines):
-                    value = injection + (base_gain[i] * mixed_feedback[i])
+                    if self._multiband_enabled:
+                        mb_lp_low_state[i] += lp_alpha_low * (
+                            mixed_feedback[i] - mb_lp_low_state[i]
+                        )
+                        mb_lp_high_state[i] += lp_alpha_high * (
+                            mixed_feedback[i] - mb_lp_high_state[i]
+                        )
+                        band_low = mb_lp_low_state[i]
+                        band_mid = mb_lp_high_state[i] - mb_lp_low_state[i]
+                        band_high = mixed_feedback[i] - mb_lp_high_state[i]
+                        shaped_feedback = (
+                            (base_gain_low[i] * band_low)
+                            + (base_gain_mid[i] * band_mid)
+                            + (base_gain_high[i] * band_high)
+                        )
+                        value = injection + shaped_feedback
+                    else:
+                        value = injection + (base_gain[i] * mixed_feedback[i])
                     delay_buffers[i][write_indices[i]] = value
                     write_indices[i] = (write_indices[i] + 1) % delay_buffers[i].shape[0]
 
@@ -359,12 +1077,28 @@ class AlgoReverbEngine(ReverbEngine):
                 output[n] = np.float32(sample_out)
 
                 # Soft safety guard for pathological parameter combinations.
-                if np.max(np.abs(fdn_out)) > 64.0:
+                state_peak = float(np.max(np.abs(fdn_out)))
+                if cascade_enabled and cascade_fdn_out.size > 0:
+                    state_peak = max(state_peak, float(np.max(np.abs(cascade_fdn_out))))
+                if state_peak > 64.0:
                     for i in range(num_lines):
                         delay_buffers[i] *= np.float32(0.5)
                         lp_state[i] *= np.float32(0.5)
                         dc_prev_in[i] *= np.float32(0.5)
                         dc_prev_out[i] *= np.float32(0.5)
+                        if self._dfm_enabled:
+                            dfm_buffers[i] *= np.float32(0.5)
+                        if self._multiband_enabled:
+                            mb_lp_low_state[i] *= np.float32(0.5)
+                            mb_lp_high_state[i] *= np.float32(0.5)
+                        if self._link_filter_enabled:
+                            link_filter_state[i] *= np.float32(0.5)
+                    if cascade_enabled:
+                        for i in range(cascade_fdn_out.shape[0]):
+                            cascade_delay_buffers[i] *= np.float32(0.5)
+                            cascade_lp_state[i] *= np.float32(0.5)
+                            cascade_dc_prev_in[i] *= np.float32(0.5)
+                            cascade_dc_prev_out[i] *= np.float32(0.5)
 
         return output
 
@@ -417,7 +1151,7 @@ def _process_channel_kernel(
     mod_depth_ms: np.float32,
     mod_rate_hz: np.float32,
     block_size: int,
-    hadamard: npt.NDArray[np.float32],
+    fdn_matrix: npt.NDArray[np.float32],
     base_delay_ms: npt.NDArray[np.float32],
     diffusion_delay_ms: npt.NDArray[np.float32],
     allpass_gains: npt.NDArray[np.float32],
@@ -533,7 +1267,7 @@ def _process_channel_kernel(
             for i in range(num_lines):
                 acc = np.float32(0.0)
                 for j in range(num_lines):
-                    acc += hadamard[i, j] * fdn_out[j]
+                    acc += fdn_matrix[i, j] * fdn_out[j]
                 mixed_feedback[i] = acc
 
             injection = np.float32(diffused * inv_sqrt_lines)

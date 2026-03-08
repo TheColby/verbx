@@ -24,15 +24,35 @@ def generate_fdn_ir(
     mod_rate_hz: float,
     fdn_lines: int,
     fdn_matrix: str,
+    fdn_tv_rate_hz: float,
+    fdn_tv_depth: float,
+    fdn_tv_seed: int,
+    fdn_dfm_delays_ms: tuple[float, ...],
+    fdn_sparse: bool,
+    fdn_sparse_degree: int,
+    fdn_cascade: bool,
+    fdn_cascade_mix: float,
+    fdn_cascade_delay_scale: float,
+    fdn_cascade_rt60_ratio: float,
+    fdn_rt60_low: float | None,
+    fdn_rt60_mid: float | None,
+    fdn_rt60_high: float | None,
+    fdn_xover_low_hz: float,
+    fdn_xover_high_hz: float,
+    fdn_link_filter: str,
+    fdn_link_filter_hz: float,
+    fdn_link_filter_mix: float,
+    fdn_graph_topology: str,
+    fdn_graph_degree: int,
+    fdn_graph_seed: int,
     fdn_stereo_inject: float,
     seed: int,
 ) -> AudioArray:
     """Generate IR by feeding an impulse through the algorithmic FDN engine.
 
-    ``fdn_lines`` is currently reserved for future topologies; v0.4 keeps the
-    core engine line count fixed for runtime stability.
+    This path reuses the algorithmic engine so matrix/topology options align
+    with ``verbx render --engine algo`` behavior.
     """
-    _ = fdn_lines  # Reserved for future engine topology variants.
     n = max(1, length_samples)
     ch = max(1, channels)
 
@@ -50,6 +70,29 @@ def generate_fdn_ir(
             width=1.0,
             mod_depth_ms=max(0.0, mod_depth_ms),
             mod_rate_hz=max(0.0, mod_rate_hz),
+            fdn_lines=max(1, int(fdn_lines)),
+            fdn_matrix=fdn_matrix.strip().lower().replace("-", "_"),
+            fdn_tv_rate_hz=max(0.0, float(fdn_tv_rate_hz)),
+            fdn_tv_depth=float(np.clip(fdn_tv_depth, 0.0, 1.0)),
+            fdn_tv_seed=int(fdn_tv_seed if fdn_tv_seed != 0 else seed),
+            fdn_dfm_delays_ms=tuple(float(value) for value in fdn_dfm_delays_ms),
+            fdn_sparse=bool(fdn_sparse),
+            fdn_sparse_degree=max(1, int(fdn_sparse_degree)),
+            fdn_cascade=bool(fdn_cascade),
+            fdn_cascade_mix=float(np.clip(fdn_cascade_mix, 0.0, 1.0)),
+            fdn_cascade_delay_scale=float(np.clip(fdn_cascade_delay_scale, 0.2, 1.0)),
+            fdn_cascade_rt60_ratio=float(np.clip(fdn_cascade_rt60_ratio, 0.1, 1.0)),
+            fdn_rt60_low=fdn_rt60_low,
+            fdn_rt60_mid=fdn_rt60_mid,
+            fdn_rt60_high=fdn_rt60_high,
+            fdn_xover_low_hz=max(20.0, float(fdn_xover_low_hz)),
+            fdn_xover_high_hz=max(100.0, float(fdn_xover_high_hz)),
+            fdn_link_filter=fdn_link_filter.strip().lower().replace("-", "_"),
+            fdn_link_filter_hz=max(20.0, float(fdn_link_filter_hz)),
+            fdn_link_filter_mix=float(np.clip(fdn_link_filter_mix, 0.0, 1.0)),
+            fdn_graph_topology=fdn_graph_topology.strip().lower().replace("-", "_"),
+            fdn_graph_degree=max(1, int(fdn_graph_degree)),
+            fdn_graph_seed=int(fdn_graph_seed if fdn_graph_seed != 0 else seed),
             wet=1.0,
             dry=0.0,
             block_size=4096,
@@ -57,19 +100,5 @@ def generate_fdn_ir(
     )
 
     out = engine.process(impulse, sr)
-
-    matrix_name = fdn_matrix.strip().lower()
-    if ch > 1 and matrix_name in {"householder", "random_orthogonal"}:
-        if matrix_name == "householder":
-            v = np.ones((ch, 1), dtype=np.float32)
-            matrix = np.eye(ch, dtype=np.float32) - (2.0 / ch) * (v @ v.T)
-        else:
-            rng = np.random.default_rng(seed)
-            base = rng.standard_normal((ch, ch)).astype(np.float32)
-            q, _ = np.linalg.qr(base)
-            matrix = q.astype(np.float32)
-
-        # Optional output-space decorrelation matrix for multi-channel spread.
-        out = out @ matrix.T
 
     return np.asarray(out, dtype=np.float32)

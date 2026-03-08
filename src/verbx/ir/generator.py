@@ -77,6 +77,27 @@ class IRGenConfig:
 
     fdn_lines: int = 8
     fdn_matrix: str = "hadamard"
+    fdn_tv_rate_hz: float = 0.0
+    fdn_tv_depth: float = 0.0
+    fdn_tv_seed: int = 2026
+    fdn_dfm_delays_ms: tuple[float, ...] = ()
+    fdn_sparse: bool = False
+    fdn_sparse_degree: int = 2
+    fdn_cascade: bool = False
+    fdn_cascade_mix: float = 0.35
+    fdn_cascade_delay_scale: float = 0.5
+    fdn_cascade_rt60_ratio: float = 0.55
+    fdn_rt60_low: float | None = None
+    fdn_rt60_mid: float | None = None
+    fdn_rt60_high: float | None = None
+    fdn_xover_low_hz: float = 250.0
+    fdn_xover_high_hz: float = 4_000.0
+    fdn_link_filter: str = "none"
+    fdn_link_filter_hz: float = 2_500.0
+    fdn_link_filter_mix: float = 1.0
+    fdn_graph_topology: str = "ring"
+    fdn_graph_degree: int = 2
+    fdn_graph_seed: int = 2026
     fdn_stereo_inject: float = 1.0
 
     f0_hz: float | None = None
@@ -115,6 +136,27 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             mod_rate_hz=config.mod_rate_hz,
             fdn_lines=config.fdn_lines,
             fdn_matrix=config.fdn_matrix,
+            fdn_tv_rate_hz=config.fdn_tv_rate_hz,
+            fdn_tv_depth=config.fdn_tv_depth,
+            fdn_tv_seed=config.fdn_tv_seed,
+            fdn_dfm_delays_ms=config.fdn_dfm_delays_ms,
+            fdn_sparse=config.fdn_sparse,
+            fdn_sparse_degree=config.fdn_sparse_degree,
+            fdn_cascade=config.fdn_cascade,
+            fdn_cascade_mix=config.fdn_cascade_mix,
+            fdn_cascade_delay_scale=config.fdn_cascade_delay_scale,
+            fdn_cascade_rt60_ratio=config.fdn_cascade_rt60_ratio,
+            fdn_rt60_low=config.fdn_rt60_low,
+            fdn_rt60_mid=config.fdn_rt60_mid,
+            fdn_rt60_high=config.fdn_rt60_high,
+            fdn_xover_low_hz=config.fdn_xover_low_hz,
+            fdn_xover_high_hz=config.fdn_xover_high_hz,
+            fdn_link_filter=config.fdn_link_filter,
+            fdn_link_filter_hz=config.fdn_link_filter_hz,
+            fdn_link_filter_mix=config.fdn_link_filter_mix,
+            fdn_graph_topology=config.fdn_graph_topology,
+            fdn_graph_degree=config.fdn_graph_degree,
+            fdn_graph_seed=config.fdn_graph_seed,
             fdn_stereo_inject=config.fdn_stereo_inject,
             seed=config.seed,
         )
@@ -200,6 +242,27 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             mod_rate_hz=config.mod_rate_hz,
             fdn_lines=config.fdn_lines,
             fdn_matrix=config.fdn_matrix,
+            fdn_tv_rate_hz=config.fdn_tv_rate_hz,
+            fdn_tv_depth=config.fdn_tv_depth,
+            fdn_tv_seed=config.fdn_tv_seed,
+            fdn_dfm_delays_ms=config.fdn_dfm_delays_ms,
+            fdn_sparse=config.fdn_sparse,
+            fdn_sparse_degree=config.fdn_sparse_degree,
+            fdn_cascade=config.fdn_cascade,
+            fdn_cascade_mix=config.fdn_cascade_mix,
+            fdn_cascade_delay_scale=config.fdn_cascade_delay_scale,
+            fdn_cascade_rt60_ratio=config.fdn_cascade_rt60_ratio,
+            fdn_rt60_low=config.fdn_rt60_low,
+            fdn_rt60_mid=config.fdn_rt60_mid,
+            fdn_rt60_high=config.fdn_rt60_high,
+            fdn_xover_low_hz=config.fdn_xover_low_hz,
+            fdn_xover_high_hz=config.fdn_xover_high_hz,
+            fdn_link_filter=config.fdn_link_filter,
+            fdn_link_filter_hz=config.fdn_link_filter_hz,
+            fdn_link_filter_mix=config.fdn_link_filter_mix,
+            fdn_graph_topology=config.fdn_graph_topology,
+            fdn_graph_degree=config.fdn_graph_degree,
+            fdn_graph_seed=config.fdn_graph_seed,
             fdn_stereo_inject=config.fdn_stereo_inject,
             seed=config.seed + 23,
         )
@@ -249,7 +312,7 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
     )
 
     meta: dict[str, Any] = {
-        "version": "0.4.1",
+        "version": "0.6.0",
         "mode": config.mode,
         "seed": config.seed,
         "params": asdict(config),

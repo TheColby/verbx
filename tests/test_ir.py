@@ -83,6 +83,323 @@ def test_ir_gen_format_switch_overrides_extension(tmp_path: Path) -> None:
     assert audio.shape[1] == 1
 
 
+def test_ir_gen_supports_tvu_and_dfm_controls(tmp_path: Path) -> None:
+    out_ir = tmp_path / "fdn_tvu.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "fdn",
+            "--length",
+            "0.5",
+            "--sr",
+            "12000",
+            "--channels",
+            "1",
+            "--fdn-lines",
+            "4",
+            "--fdn-matrix",
+            "tv_unitary",
+            "--fdn-tv-rate-hz",
+            "0.12",
+            "--fdn-tv-depth",
+            "0.45",
+            "--fdn-dfm-delays-ms",
+            "0.4,0.6,0.8,1.0",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    meta_path = out_ir.with_suffix(".wav.ir.meta.json")
+    payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    params = payload["params"]
+    assert params["fdn_matrix"] == "tv_unitary"
+    assert abs(float(params["fdn_tv_rate_hz"]) - 0.12) < 1e-6
+    assert abs(float(params["fdn_tv_depth"]) - 0.45) < 1e-6
+    assert len(params["fdn_dfm_delays_ms"]) == 4
+
+
+def test_ir_gen_supports_sparse_high_order_controls(tmp_path: Path) -> None:
+    out_ir = tmp_path / "fdn_sparse.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "fdn",
+            "--length",
+            "0.4",
+            "--sr",
+            "12000",
+            "--channels",
+            "1",
+            "--fdn-lines",
+            "20",
+            "--fdn-sparse",
+            "--fdn-sparse-degree",
+            "3",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    meta_path = out_ir.with_suffix(".wav.ir.meta.json")
+    payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    params = payload["params"]
+    assert params["fdn_sparse"] is True
+    assert int(params["fdn_sparse_degree"]) == 3
+
+
+def test_ir_gen_supports_graph_fdn_controls(tmp_path: Path) -> None:
+    out_ir = tmp_path / "fdn_graph.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "fdn",
+            "--length",
+            "0.4",
+            "--sr",
+            "12000",
+            "--channels",
+            "1",
+            "--fdn-matrix",
+            "graph",
+            "--fdn-graph-topology",
+            "path",
+            "--fdn-graph-degree",
+            "3",
+            "--fdn-graph-seed",
+            "42",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(out_ir.with_suffix(".wav.ir.meta.json").read_text(encoding="utf-8"))
+    params = payload["params"]
+    assert params["fdn_matrix"] == "graph"
+    assert params["fdn_graph_topology"] == "path"
+    assert int(params["fdn_graph_degree"]) == 3
+    assert int(params["fdn_graph_seed"]) == 42
+
+
+def test_ir_gen_rejects_graph_options_without_graph_matrix(tmp_path: Path) -> None:
+    out_ir = tmp_path / "bad_graph.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "fdn",
+            "--length",
+            "0.2",
+            "--sr",
+            "8000",
+            "--channels",
+            "1",
+            "--fdn-graph-topology",
+            "star",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--fdn-graph-topology/--fdn-graph-degree are only valid with" in result.output
+    assert "--fdn-matrix graph" in result.output
+
+
+def test_ir_gen_supports_cascaded_fdn_controls(tmp_path: Path) -> None:
+    out_ir = tmp_path / "fdn_cascade.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "fdn",
+            "--length",
+            "0.4",
+            "--sr",
+            "12000",
+            "--channels",
+            "1",
+            "--fdn-lines",
+            "8",
+            "--fdn-cascade",
+            "--fdn-cascade-mix",
+            "0.65",
+            "--fdn-cascade-delay-scale",
+            "0.35",
+            "--fdn-cascade-rt60-ratio",
+            "0.45",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    meta_path = out_ir.with_suffix(".wav.ir.meta.json")
+    payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    params = payload["params"]
+    assert params["fdn_cascade"] is True
+    assert abs(float(params["fdn_cascade_mix"]) - 0.65) < 1e-6
+    assert abs(float(params["fdn_cascade_delay_scale"]) - 0.35) < 1e-6
+    assert abs(float(params["fdn_cascade_rt60_ratio"]) - 0.45) < 1e-6
+
+
+def test_ir_gen_rejects_cascade_with_single_line_fdn(tmp_path: Path) -> None:
+    out_ir = tmp_path / "bad_cascade.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "fdn",
+            "--length",
+            "0.2",
+            "--sr",
+            "8000",
+            "--channels",
+            "1",
+            "--fdn-lines",
+            "1",
+            "--fdn-cascade",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--fdn-cascade requires at least 2 FDN lines." in result.output
+
+
+def test_ir_gen_supports_multiband_fdn_controls(tmp_path: Path) -> None:
+    out_ir = tmp_path / "fdn_multiband.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "fdn",
+            "--length",
+            "0.5",
+            "--sr",
+            "12000",
+            "--channels",
+            "1",
+            "--fdn-rt60-low",
+            "20",
+            "--fdn-rt60-mid",
+            "12",
+            "--fdn-rt60-high",
+            "6",
+            "--fdn-xover-low-hz",
+            "220",
+            "--fdn-xover-high-hz",
+            "3200",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(out_ir.with_suffix(".wav.ir.meta.json").read_text(encoding="utf-8"))
+    params = payload["params"]
+    assert abs(float(params["fdn_rt60_low"]) - 20.0) < 1e-6
+    assert abs(float(params["fdn_rt60_mid"]) - 12.0) < 1e-6
+    assert abs(float(params["fdn_rt60_high"]) - 6.0) < 1e-6
+    assert abs(float(params["fdn_xover_low_hz"]) - 220.0) < 1e-6
+    assert abs(float(params["fdn_xover_high_hz"]) - 3200.0) < 1e-6
+
+
+def test_ir_gen_rejects_partial_multiband_rt60_set(tmp_path: Path) -> None:
+    out_ir = tmp_path / "bad_multiband.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "fdn",
+            "--length",
+            "0.2",
+            "--sr",
+            "8000",
+            "--channels",
+            "1",
+            "--fdn-rt60-low",
+            "20",
+            "--fdn-rt60-high",
+            "6",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "provide all three values" in result.output
+
+
+def test_ir_gen_supports_filter_feedback_controls(tmp_path: Path) -> None:
+    out_ir = tmp_path / "fdn_filter.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "fdn",
+            "--length",
+            "0.5",
+            "--sr",
+            "12000",
+            "--channels",
+            "1",
+            "--fdn-link-filter",
+            "lowpass",
+            "--fdn-link-filter-hz",
+            "1800",
+            "--fdn-link-filter-mix",
+            "0.8",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(out_ir.with_suffix(".wav.ir.meta.json").read_text(encoding="utf-8"))
+    params = payload["params"]
+    assert params["fdn_link_filter"] == "lowpass"
+    assert abs(float(params["fdn_link_filter_hz"]) - 1800.0) < 1e-6
+    assert abs(float(params["fdn_link_filter_mix"]) - 0.8) < 1e-6
+
+
+def test_ir_gen_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
+    out_ir = tmp_path / "bad_filter.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "fdn",
+            "--length",
+            "0.2",
+            "--sr",
+            "8000",
+            "--channels",
+            "1",
+            "--fdn-link-filter",
+            "tilt",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--fdn-link-filter must be one of" in result.output
+
+
 def test_ir_gen_with_explicit_f0(tmp_path: Path) -> None:
     out_ir = tmp_path / "with_f0.wav"
     result = runner.invoke(

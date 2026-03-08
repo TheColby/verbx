@@ -95,6 +95,7 @@ For computationally intensive audio sweetening, verbx supports both Apple Silico
       - [9.2.1.5 Sparse High-Order Pair-Mixing Graph](#9215-sparse-high-order-pair-mixing-graph)
       - [9.2.1.6 Nested/Cascaded FDN Graph](#9216-nestedcascaded-fdn-graph)
       - [9.2.1.7 Multiband + Filter-Feedback Graph](#9217-multiband--filter-feedback-graph)
+      - [9.2.1.8 Graph-Structured FDN Graph](#9218-graph-structured-fdn-graph)
   - [9.3 Partitioned FFT Convolution](#93-partitioned-fft-convolution)
   - [9.4 Multichannel Matrix Convolution](#94-multichannel-matrix-convolution)
   - [9.5 Freeze Crossfade (Equal Power)](#95-freeze-crossfade-equal-power)
@@ -183,6 +184,7 @@ For computationally intensive audio sweetening, verbx supports both Apple Silico
 
 - CLI-only architecture (Typer + Rich)
 - Algorithmic reverb (Schroeder allpass diffusion + 8-line FDN / coupled comb-like feedback loops)
+- Experimental graph-structured FDN matrix mode (`--fdn-matrix graph`)
 - Partitioned FFT convolution (long IR friendly)
 - Native multichannel/surround processing and matrix IR routing (M input × N output)
 - Freeze segment looping + repeat chaining
@@ -733,13 +735,14 @@ verbx render in.wav out.wav --engine algo --pre-delay-ms 20 --rt60 2.5 --wet 0.3
 
 ## 6.0 Status
 
-Current implementation level: **v0.4.1**
+Current implementation level: **v0.6.0**
 
 - scaffolding and architecture
 - functional DSP render path
 - loudness/peak + shimmer/ambient controls
 - IR factory, cache, batch, tempo sync, framewise analysis
 - v0.4 additions: framewise modulation analysis, advanced IR fitting heuristics, parallel batch scheduler
+- v0.6 additions: graph-structured FDN topology mode and expanded FDN topology controls
 
 ## 7.0 Quick Start Recipes
 
@@ -1253,7 +1256,7 @@ Implementation notes:
 Implementation notes:
 
 - Supported matrix families:
-  `hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`.
+  `hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`, `graph`.
 - `tv-unitary` and `tv_unitary` are equivalent aliases.
 - All matrix families are orthonormalized before use in feedback mixing.
 
@@ -1289,7 +1292,7 @@ Implementation notes:
 
 - Sparse mode is enabled with `--fdn-sparse`; pair-mixing stage count is set by `--fdn-sparse-degree`.
 - Sparse pairing schedules are deterministic per seed/stage to keep renders reproducible.
-- Current implementation treats sparse mode as exclusive with `--fdn-matrix tv_unitary`.
+- Current implementation treats sparse mode as exclusive with `--fdn-matrix tv_unitary` and `--fdn-matrix graph`.
 
 ##### 9.2.1.6 Nested/Cascaded FDN Graph
 
@@ -1310,6 +1313,34 @@ Implementation notes:
 - Multiband decay is enabled by providing all of `--fdn-rt60-low`, `--fdn-rt60-mid`, and `--fdn-rt60-high`.
 - Multiband crossovers are controlled by `--fdn-xover-low-hz` and `--fdn-xover-high-hz`.
 - In-loop feedback-link filtering is enabled with `--fdn-link-filter`, `--fdn-link-filter-hz`, and `--fdn-link-filter-mix`.
+
+##### 9.2.1.8 Graph-Structured FDN Graph
+
+```mermaid
+flowchart LR
+  In["diffused input"] --> Split["input injection (N lines)"]
+  Split --> V0["v0"]
+  Split --> V1["v1"]
+  Split --> V2["v2"]
+  Split --> V3["v3 ... vN-1"]
+  V0 --> E01["edge-mix (0,1)"]
+  V1 --> E01
+  V2 --> E23["edge-mix (2,3)"]
+  V3 --> E23
+  E01 --> Acc["graph stage accumulate"]
+  E23 --> Acc
+  Acc --> D["per-line delay + damping + dc block"]
+  D --> FB["feedback write"]
+  FB --> Out["wet output (mean/sum projection)"]
+```
+
+Implementation notes:
+
+- Graph mode is enabled with `--fdn-matrix graph`.
+- Topology is controlled via `--fdn-graph-topology` (`ring`, `path`, `star`, `random`).
+- Connectivity/stage density is controlled by `--fdn-graph-degree`.
+- Pairing schedules are deterministic with `--fdn-graph-seed` for reproducible renders.
+- Graph mode is mutually exclusive with sparse mode (`--fdn-sparse`).
 
 ### 9.3 Partitioned FFT Convolution
 
@@ -1522,7 +1553,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--allpass-delays-ms` | Optional comma-separated allpass delay list (milliseconds). | Use to tune diffusion timing explicitly; list length can be shorter/longer than `--allpass-stages`. |
 | `--comb-delays-ms` | Optional comma-separated FDN comb-like delay list (milliseconds). | Overrides default FDN line timing and effectively sets line count from the list length. |
 | `--fdn-lines` | FDN line count when `--comb-delays-ms` is not supplied. | More lines can increase density/smoothness but raise CPU usage. |
-| `--fdn-matrix` | FDN matrix family (`hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`). | Use `circulant`/`elliptic` for alternative diffusion color; use `tv_unitary` to reduce static ringing. |
+| `--fdn-matrix` | FDN matrix family (`hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`, `graph`). | Use `circulant`/`elliptic` for alternative diffusion color; use `tv_unitary` for evolving orthonormal mixing; use `graph` for adjacency-structured pair mixing. |
 | `--fdn-tv-rate-hz` | Update rate for time-varying unitary mode. | Active only with `--fdn-matrix tv_unitary`; start with low rates. |
 | `--fdn-tv-depth` | Blend depth for time-varying unitary mode. | Active only with `--fdn-matrix tv_unitary`; keep moderate for stability/color balance. |
 | `--fdn-dfm-delays-ms` | Delay-feedback-matrix (DFM) delays (one value broadcast or one per line). | Very short delays can increase late-tail density and smoothness. |
@@ -1531,6 +1562,9 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--fdn-link-filter` | FDN feedback-link filter mode (`none`, `lowpass`, `highpass`). | Use to shape spectral flow inside the feedback matrix path. |
 | `--fdn-link-filter-hz` | Cutoff frequency for `--fdn-link-filter`. | Start around `1200-4000 Hz` and tune for desired tail color. |
 | `--fdn-link-filter-mix` | Wet mix of feedback-link filtering (`0..1`). | Lower values blend filtered and unfiltered feedback for subtler coloration. |
+| `--fdn-graph-topology` | Graph topology used by `--fdn-matrix graph` (`ring`, `path`, `star`, `random`). | `ring` is a balanced default; `star` produces hub-heavy energy routing; `random` increases variation. |
+| `--fdn-graph-degree` | Graph connectivity/stage degree for graph mode. | Increase gradually (`2-6`) to raise feedback mixing density. |
+| `--fdn-graph-seed` | Deterministic seed for graph pairing schedule generation. | Use fixed values for reproducible renders and A/B comparisons. |
 | `--beast-mode [1..100]` | Multiplies key reverb parameters (RT60, wet balance, modulation depth/rate, repeat intensity, and relevant tail controls). | Use `2-5` for heavier ambience and `10+` for extreme freeze-like density. |
 
 #### 12.2.2 Temporal structuring, repeats, and freeze
@@ -1713,7 +1747,7 @@ No command-specific switches (other than `--help`).
 | Switch | What it controls | Practical guidance |
 |---|---|---|
 | `--fdn-lines` | Number of FDN delay lines. | More lines can increase smoothness and complexity. |
-| `--fdn-matrix` | FDN feedback matrix type identifier (`hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`). | Matrix choice affects coloration and energy diffusion style. |
+| `--fdn-matrix` | FDN feedback matrix type identifier (`hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`, `graph`). | Matrix choice affects coloration and energy diffusion style. |
 | `--fdn-tv-rate-hz` | Block-rate update frequency for `tv_unitary` matrix evolution. | Start slow (`0.05-0.30 Hz`) to reduce metallic ringing without audible modulation. |
 | `--fdn-tv-depth` | Blend depth for `tv_unitary` matrix evolution. | Start moderate (`0.2-0.6`) for stable decorrelation. |
 | `--fdn-dfm-delays-ms` | Delay-feedback-matrix (DFM) delays (one value broadcast or one per line). | Use very short values (`0.1-3.0 ms`) to increase late-tail density. |
@@ -1722,6 +1756,9 @@ No command-specific switches (other than `--help`).
 | `--fdn-link-filter` | FDN feedback-link filter mode (`none`, `lowpass`, `highpass`). | Enables in-loop spectral shaping on matrix links. |
 | `--fdn-link-filter-hz` | Cutoff frequency for feedback-link filtering. | Practical starting range is `1200-4000 Hz` depending on source brightness. |
 | `--fdn-link-filter-mix` | Wet mix of feedback-link filtering (`0..1`). | Lower values keep more unfiltered energy for less coloration. |
+| `--fdn-graph-topology` | Graph topology used by `--fdn-matrix graph` (`ring`, `path`, `star`, `random`). | Choose based on desired coupling shape and tail texture. |
+| `--fdn-graph-degree` | Graph connectivity/stage degree for graph mode. | Increase to thicken graph-mixed tail diffusion. |
+| `--fdn-graph-seed` | Deterministic seed for graph pairing schedule generation. | Keep fixed for reproducible IR generation workflows. |
 | `--fdn-stereo-inject` | Stereo cross-injection factor for FDN excitation. | Increase for stronger channel interaction in stereo fields. |
 | `--f0` | Explicit fundamental anchor frequency. | Useful when generating musically tuned IRs (example: `64 Hz`). |
 | `--analyze-input` | Source audio used to estimate tuning/harmonic targets. | Lets generator align IR resonance to real material. |
@@ -2127,7 +2164,7 @@ pytest
 - `Analysis`: add spherical energy distribution metrics and directionality stability features for HOA validation.
 - `UX`: add explicit CLI switches for spatial conventions (`--ambi-order`, `--ambi-normalization`, `--channel-order`) with strict validation and fail-fast mismatch messages.
 - `Interoperability`: provide practical export guidance for DAW pipelines (Nuendo/Reaper/Pro Tools Atmos bed pre-production via intermediate formats).
-- `Status update`: multiband, filter-feedback, and nested/cascaded FDN controls are implemented; remaining v0.6 FDN work is graph-structured topology mode.
+- `Status update`: v0.6 FDN track is implemented (multiband decay, filter-feedback links, nested/cascaded FDN, and graph-structured topology mode). Ambisonics/HOA-specific spatial features remain planned in the broader v0.6 spatial track.
 
 ### 20.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)
 
@@ -2152,7 +2189,7 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
    - `Multiband FDN` (implemented): split low/mid/high decay targets so one scalar RT60 becomes a profile.
    - `Filter-feedback FDN` (implemented): frequency-shaped feedback links via `--fdn-link-filter`, `--fdn-link-filter-hz`, and `--fdn-link-filter-mix`.
    - `Nested/cascaded FDN` (implemented): small fast network into larger late network for improved early-to-late evolution.
-   - `Graph-structured FDN (experimental)`: support adjacency/graph-defined mixing topologies for scene-style reverberation design.
+   - `Graph-structured FDN (implemented, experimental)`: adjacency/graph-defined mixing topologies via `--fdn-matrix graph`, `--fdn-graph-topology`, `--fdn-graph-degree`, and `--fdn-graph-seed`.
 3. `v0.7 (higher complexity, immersive focus)`:
    - `Directional/spatial FDN`: channel-group-aware feedback/mixing for surround beds and Ambisonics-adjacent workflows.
    - `SDN hybrid mode`: scattering-delay-network style node coupling for geometry-inspired behavior.
@@ -2231,7 +2268,7 @@ Near-term implementation targeting:
 - `Step 6 complete`: multiband FDN decay profile controls are available via `--fdn-rt60-low`, `--fdn-rt60-mid`, and `--fdn-rt60-high` with crossover controls.
 - `Step 7 complete`: filter-feedback FDN controls are available via `--fdn-link-filter`, `--fdn-link-filter-hz`, and `--fdn-link-filter-mix`.
 - `Step 8 complete`: nested/cascaded FDN architecture is available via `--fdn-cascade` with tuning controls `--fdn-cascade-mix`, `--fdn-cascade-delay-scale`, and `--fdn-cascade-rt60-ratio`.
-- `Step 9 in progress`: graph-structured FDN (adjacency-defined topology mode).
+- `Step 9 complete`: graph-structured FDN (adjacency-defined topology mode) is available via `--fdn-matrix graph` with topology/degree/seed controls.
 
 #### 20.8.3 Sources for rollout steps 1-3
 

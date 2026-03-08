@@ -147,3 +147,201 @@ def test_convolution_engine_cross_channel_ir_matrix(tmp_path: Path) -> None:
     assert out.shape[0] >= audio.shape[0]
     assert np.isclose(out[0, 0], 1.5, atol=5e-5)
     assert np.isclose(out[0, 1], 1.25, atol=5e-5)
+
+
+def test_algo_engine_matrix_families() -> None:
+    for matrix_type in [
+        "hadamard",
+        "householder",
+        "random_orthogonal",
+        "circulant",
+        "elliptic",
+    ]:
+        engine = AlgoReverbEngine(
+            AlgoReverbConfig(
+                rt60=20.0,
+                fdn_lines=4,
+                fdn_matrix=matrix_type,
+                block_size=256,
+            )
+        )
+        audio = np.random.default_rng(42).standard_normal((1024, 2)).astype(np.float32) * 0.1
+        output = engine.process(audio, sr=48_000)
+        assert output.shape == audio.shape
+        assert output.dtype == np.float32
+        assert np.all(np.isfinite(output))
+
+
+def test_algo_engine_graph_matrix_mode() -> None:
+    for topology in ["ring", "path", "star", "random"]:
+        engine = AlgoReverbEngine(
+            AlgoReverbConfig(
+                rt60=18.0,
+                fdn_lines=10,
+                fdn_matrix="graph",
+                fdn_graph_topology=topology,
+                fdn_graph_degree=3,
+                fdn_graph_seed=314,
+                block_size=256,
+            )
+        )
+        audio = np.random.default_rng(11).standard_normal((1536, 1)).astype(np.float32) * 0.05
+        output = engine.process(audio, sr=48_000)
+        assert output.shape == audio.shape
+        assert output.dtype == np.float32
+        assert np.all(np.isfinite(output))
+        assert "graph" in engine.backend_name()
+
+
+def test_algo_engine_tv_unitary_and_dfm() -> None:
+    engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=18.0,
+            fdn_lines=4,
+            fdn_matrix="tv_unitary",
+            fdn_tv_rate_hz=0.15,
+            fdn_tv_depth=0.4,
+            fdn_dfm_delays_ms=(0.5, 0.7, 0.9, 1.1),
+            block_size=256,
+        )
+    )
+    audio = np.random.default_rng(123).standard_normal((1536, 1)).astype(np.float32) * 0.05
+    output = engine.process(audio, sr=48_000)
+    assert output.shape == audio.shape
+    assert output.dtype == np.float32
+    assert np.all(np.isfinite(output))
+
+
+def test_algo_engine_sparse_high_order_mode() -> None:
+    engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=22.0,
+            fdn_lines=32,
+            fdn_matrix="hadamard",
+            fdn_sparse=True,
+            fdn_sparse_degree=4,
+            block_size=256,
+        )
+    )
+    audio = np.random.default_rng(321).standard_normal((2048, 1)).astype(np.float32) * 0.05
+    output = engine.process(audio, sr=48_000)
+    assert output.shape == audio.shape
+    assert output.dtype == np.float32
+    assert np.all(np.isfinite(output))
+    assert engine.backend_name() in {"cpu-python-fdn-sparse", "cpu-numba-fdn-sparse"}
+
+
+def test_algo_engine_cascaded_fdn_mode() -> None:
+    audio = np.random.default_rng(456).standard_normal((4096, 1)).astype(np.float32) * 0.05
+    base_engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=20.0,
+            pre_delay_ms=0.0,
+            fdn_lines=8,
+            comb_delays_ms=(3.0, 5.0, 7.0, 11.0, 13.0, 17.0, 19.0, 23.0),
+            fdn_matrix="hadamard",
+            block_size=256,
+        )
+    )
+    cascade_engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=20.0,
+            pre_delay_ms=0.0,
+            fdn_lines=8,
+            comb_delays_ms=(3.0, 5.0, 7.0, 11.0, 13.0, 17.0, 19.0, 23.0),
+            fdn_matrix="hadamard",
+            fdn_cascade=True,
+            fdn_cascade_mix=0.7,
+            fdn_cascade_delay_scale=0.4,
+            fdn_cascade_rt60_ratio=0.5,
+            block_size=256,
+        )
+    )
+
+    out_base = base_engine.process(audio, sr=48_000)
+    out_cascade = cascade_engine.process(audio, sr=48_000)
+
+    assert out_cascade.shape == audio.shape
+    assert out_cascade.dtype == np.float32
+    assert np.all(np.isfinite(out_cascade))
+    assert "cascade" in cascade_engine.backend_name()
+    delta = float(np.mean(np.abs(out_base - out_cascade)))
+    assert delta > 1e-5
+
+
+def test_algo_engine_multiband_decay_mode() -> None:
+    engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=18.0,
+            fdn_lines=12,
+            fdn_matrix="hadamard",
+            fdn_rt60_low=24.0,
+            fdn_rt60_mid=14.0,
+            fdn_rt60_high=6.0,
+            fdn_xover_low_hz=220.0,
+            fdn_xover_high_hz=3600.0,
+            block_size=256,
+        )
+    )
+    audio = np.random.default_rng(999).standard_normal((2048, 1)).astype(np.float32) * 0.04
+    output = engine.process(audio, sr=48_000)
+    assert output.shape == audio.shape
+    assert output.dtype == np.float32
+    assert np.all(np.isfinite(output))
+    assert engine.backend_name() == "cpu-python-fdn-multiband"
+
+
+def test_algo_engine_filter_feedback_mode() -> None:
+    engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=16.0,
+            fdn_lines=10,
+            fdn_matrix="circulant",
+            fdn_link_filter="highpass",
+            fdn_link_filter_hz=1800.0,
+            fdn_link_filter_mix=0.7,
+            block_size=256,
+        )
+    )
+    audio = np.random.default_rng(212).standard_normal((2048, 1)).astype(np.float32) * 0.05
+    output = engine.process(audio, sr=48_000)
+    assert output.shape == audio.shape
+    assert output.dtype == np.float32
+    assert np.all(np.isfinite(output))
+    assert engine.backend_name() == "cpu-python-fdn-linkfilter"
+
+
+def test_algo_engine_surround_decorrelation_controls() -> None:
+    signal = np.random.default_rng(77).standard_normal((4096, 1)).astype(np.float32) * 0.05
+    audio = np.repeat(signal, 6, axis=1)
+
+    base_engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=4.0,
+            fdn_lines=8,
+            output_layout="5.1",
+            block_size=256,
+        )
+    )
+    deco_engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=4.0,
+            fdn_lines=8,
+            output_layout="5.1",
+            algo_decorrelation_front=0.35,
+            algo_decorrelation_rear=0.65,
+            algo_decorrelation_top=0.0,
+            block_size=256,
+        )
+    )
+
+    out_base = base_engine.process(audio, sr=48_000)
+    out_deco = deco_engine.process(audio, sr=48_000)
+
+    assert out_base.shape == audio.shape
+    assert out_deco.shape == audio.shape
+    assert np.all(np.isfinite(out_deco))
+    # Identical-channel source should decorrelate rear from front when enabled.
+    base_delta = float(np.mean(np.abs(out_base[:, 0] - out_base[:, 4])))
+    deco_delta = float(np.mean(np.abs(out_deco[:, 0] - out_deco[:, 4])))
+    assert deco_delta > base_delta
