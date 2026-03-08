@@ -160,6 +160,10 @@ batch workflows.
   - [12.12 `verbx cache clear` switches](#1212-verbx-cache-clear-switches)
   - [12.13 `verbx batch template` switches](#1213-verbx-batch-template-switches)
   - [12.14 `verbx batch render MANIFEST` switches](#1214-verbx-batch-render-manifest-switches)
+  - [12.15 `verbx immersive template` switches](#1215-verbx-immersive-template-switches)
+  - [12.16 `verbx immersive handoff SCENE_FILE OUT_DIR` switches](#1216-verbx-immersive-handoff-scene_file-out_dir-switches)
+  - [12.17 `verbx immersive qc INFILE` switches](#1217-verbx-immersive-qc-infile-switches)
+  - [12.18 `verbx immersive queue` switches](#1218-verbx-immersive-queue-switches)
 - [13.0 CLI Command Cookbook](#130-cli-command-cookbook)
   - [13.1 Global help](#131-global-help)
   - [13.2 Core commands](#132-core-commands)
@@ -186,7 +190,7 @@ batch workflows.
 - [18.0 Project Layout](#180-project-layout)
 - [19.0 Additional Docs](#190-additional-docs)
 - [20.0 Roadmap](#200-roadmap)
-  - [20.1 Remaining v0.7 Objective: Immersive production interoperability](#201-remaining-v07-objective-immersive-production-interoperability)
+  - [20.1 v0.7 Objective: Immersive production interoperability (implemented)](#201-v07-objective-immersive-production-interoperability-implemented)
   - [20.2 Remaining v0.7 Track A: Time-varying automation hardening](#202-remaining-v07-track-a-time-varying-automation-hardening)
   - [20.3 Remaining v0.7 Track B: Feature-vector-driven reverb control](#203-remaining-v07-track-b-feature-vector-driven-reverb-control)
   - [20.4 Remaining v0.7 Track C: Jot-inspired control completion](#204-remaining-v07-track-c-jot-inspired-control-completion)
@@ -214,6 +218,9 @@ batch workflows.
 - Synthetic IR generation (`fdn`, `stochastic`, `modal`, `hybrid`)
 - Deterministic IR cache with metadata sidecars
 - Batch rendering manifests
+- Immersive handoff package generation (ADM/BWF-style sidecars + deliverable manifests)
+- Immersive QC gates (LUFS, true-peak, fold-down delta, channel occupancy)
+- Distributed file-queue worker with heartbeats and idempotent retries
 - Tempo-synced note parsing (`--pre-delay 1/8D --bpm 120`)
 - Framewise CSV analysis exports
 
@@ -768,6 +775,7 @@ Current implementation level: **v0.6.0**
 - v0.6 spatial additions: Ambisonics convention validation (`--ambi-order`, `--ambi-normalization`, `--channel-order`), FOA encode/decode transforms, yaw rotation, and Ambisonics spatial metrics in analysis mode
 - v0.7 Track A/C additions: JSON/CSV automation lanes (`--automation-file`), inline CLI points (`--automation-point`), block/sample evaluation, smoothing, clamp overrides, automation trace export, and Track C automation targets for `fdn-rt60-tilt` and `fdn-tonal-correction-strength`
 - v0.7 Track D additions: cache-backed `ir morph` command (`linear`, `equal-power`, `spectral`, `envelope-aware`), render-time IR blending via `--ir-blend`/`--ir-blend-mix`, and morph quality metadata (RT drift, spectral distance, coherence deltas)
+- v0.7 immersive interoperability additions: `immersive handoff` sidecar/deliverable packaging, object/bed policy checks, `immersive qc` gates, and distributed `immersive queue` worker heartbeats/retry semantics
 
 ## 7.0 Quick Start Recipes
 
@@ -1544,7 +1552,8 @@ When incompatible options are requested, `verbx` falls back to full-buffer proce
 
 ## 12.0 CLI Switch Reference
 
-This section lists all CLI switches available in the current `v0.6.0 + v0.7 Track A/C/D` interface.
+This section lists all CLI switches available in the current
+`v0.6.0 + v0.7 Track A/C/D + immersive interoperability` interface.
 For full descriptions and defaults, run `verbx <command> --help`.
 
 ### 12.1 Top-level commands
@@ -1556,6 +1565,7 @@ For full descriptions and defaults, run `verbx <command> --help`.
 - `verbx ir ...`
 - `verbx cache ...`
 - `verbx batch ...`
+- `verbx immersive ...`
 
 ### 12.2 `verbx render` switches
 
@@ -1943,6 +1953,50 @@ No command-specific switches (other than `--help`).
 | `--lucky-out-dir` | Shared output directory for batch lucky renders. | Helpful for collecting all randomized outputs in one place. |
 | `--lucky-seed` | Deterministic seed for batch lucky randomization. | Keep fixed to regenerate the same lucky batch expansion. |
 
+### 12.15 `verbx immersive template` switches
+
+No command-specific switches (other than `--help`).
+
+### 12.16 `verbx immersive handoff SCENE_FILE OUT_DIR` switches
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--strict / --warn-only` | Whether policy/QC errors stop generation. | Use `--strict` in CI delivery gates; use `--warn-only` when iterating scene metadata. |
+
+### 12.17 `verbx immersive qc INFILE` switches
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--layout` | Layout hint used for fold-down/QC interpretation. | Set explicit layout for beds (`5.1`, `7.1`, `7.1.2`, `7.1.4`) to avoid ambiguous routing assumptions. |
+| `--target-lufs` | LUFS target for gate checking. | Match delivery target used by downstream spec/toolchain. |
+| `--lufs-tolerance` | Allowed LUFS error window. | Tighten for final QC, widen for exploratory tuning. |
+| `--max-true-peak-dbfs` | Maximum allowed true-peak level. | Keep conservative (for example `-1 dBFS`) for robust downstream encoding headroom. |
+| `--max-fold-down-delta-db` | Max allowed stereo fold-down delta versus channel peak reference. | Use lower values to catch downmix-risk scenes earlier. |
+| `--min-channel-occupancy` | Minimum active-channel ratio threshold. | Helps detect under-utilized immersive beds (for example silence in surround/top channels). |
+| `--occupancy-threshold-dbfs` | Per-channel activity threshold used for occupancy scoring. | Raise toward `-40` dBFS for stricter activity requirements, lower for sparse scenes. |
+| `--json-out` | Optional QC report output path. | Use for CI artifacts and machine-readable QA dashboards. |
+| `--fail-on-violation` | Exit non-zero when any gate fails. | Turn on in CI to enforce QC policy as a hard gate. |
+
+### 12.18 `verbx immersive queue` switches
+
+`verbx immersive queue` provides file-backed distributed orchestration commands:
+
+- `template`
+- `status QUEUE_FILE`
+- `worker QUEUE_FILE`
+
+`worker` switches:
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--worker-id` | Worker identity written to heartbeat/result state. | Set explicitly in multi-host fleets so ownership is easy to trace. |
+| `--heartbeat-dir` | Heartbeat JSON output directory. | Point to a shared location for distributed monitoring. |
+| `--poll-ms` | Queue polling interval. | Lower values reduce latency; higher values reduce metadata churn. |
+| `--max-jobs` | Optional cap for jobs processed by this worker (`0` = drain queue). | Use small values for rolling worker restarts or controlled canary runs. |
+| `--stale-claim-seconds` | Claim lock timeout for reclaiming orphaned jobs. | Increase on slow renders; decrease for aggressive failover. |
+| `--continue-on-error / --fail-fast` | Retry/continue behavior when job execution fails. | Use fail-fast for strict pipelines; continue for best-effort large queues. |
+| `--fail-if-any-failed` | Exit non-zero if any jobs end in failed state. | Useful for CI and scheduler health checks. |
+
 ## 13.0 CLI Command Cookbook
 
 ### 13.1 Global help
@@ -1958,6 +2012,9 @@ verbx render INFILE OUTFILE [options]
 verbx analyze INFILE [--lufs] [--json-out report.json] [--frames-out frames.csv]
 verbx suggest INFILE
 verbx presets
+verbx immersive template
+verbx immersive handoff scene.json out_dir
+verbx immersive qc mix.wav --layout 7.1.2 --fail-on-violation
 ```
 
 ### 13.3 `render` examples
@@ -2252,21 +2309,21 @@ pytest
 
 ## 20.0 Roadmap
 
-This section tracks only unfinished work. Completed items are summarized in
-`20.7` to keep planning signal high.
+This section tracks active roadmap work and recently completed milestones.
 
-### 20.1 Remaining v0.7 Objective: Immersive production interoperability
+### 20.1 v0.7 Objective: Immersive production interoperability (implemented)
 
-- `Atmos handoff`: finalize bed/object preparation workflows and emit
-  machine-readable ADM/BWF sidecar manifests for downstream authoring tools.
-- `Object-aware policy layer`: add bed-safe vs object-safe processing profiles
-  and explicit downmix-risk checks before export.
-- `Scene deliverables`: complete configurable deliverable packs (`stems`,
-  `beds`, object-stem manifests, and QA bundles) for post workflows.
-- `Scale-out execution`: add multi-host batch orchestration (worker heartbeat,
-  retry, idempotent job keying) for large immersive catalogs.
-- `Immersive QC gates`: ship reusable checks for loudness, true-peak, fold-down
-  delta, and channel occupancy.
+- `Atmos handoff` (implemented): `verbx immersive handoff SCENE_FILE OUT_DIR`
+  now emits machine-readable ADM/BWF-style sidecars and deliverable manifests.
+- `Object-aware policy layer` (implemented): bed/object policy validation is
+  available with downmix-risk checks and strict/warn-only CLI gating.
+- `Scene deliverables` (implemented): handoff package generation now emits
+  object-stem manifest, QA bundle, and deliverable manifest artifacts.
+- `Scale-out execution` (implemented baseline): file-backed distributed queue
+  worker (`verbx immersive queue worker`) now provides heartbeats,
+  claim/reclaim, idempotent success markers, and retry semantics.
+- `Immersive QC gates` (implemented): reusable QC command (`verbx immersive qc`)
+  enforces LUFS, true-peak, fold-down delta, and channel-occupancy checks.
 
 ### 20.2 Remaining v0.7 Track A: Time-varying automation hardening
 

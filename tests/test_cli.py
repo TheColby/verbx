@@ -22,6 +22,7 @@ def test_cli_boots() -> None:
     assert "ir" in result.stdout
     assert "cache" in result.stdout
     assert "batch" in result.stdout
+    assert "immersive" in result.stdout
 
 
 def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
