@@ -5,6 +5,14 @@ Focused bibliography for extreme reverberation DSP and reverberation research in
 Pruned from the broader bibliography on 2026-03-01 to keep only reverb-centric papers.
 
 Total entries: 100
+
+## Rollout Citation Index (FDN Steps 1-3)
+
+- [Schlecht and Habets (2015) - time-varying FDN matrices](#ref-fdn-tv-matrix-2015)
+- [Rocchesso and Smith (1997) - circulant/elliptic FDN families](#ref-fdn-circulant-elliptic-1997)
+- [Schlecht and Habets (2019) - delay feedback matrices](#ref-fdn-delay-feedback-2019)
+- [Valimaki et al. (2012) - fifty years of artificial reverberation](#ref-reverb-survey-2012)
+
 1. Schneiderwind, Christian; De Sena, Enzo; Neidhardt, Annika (2026). Perceptual effects of modified late reverberation and reverberation time in auditory augmented reality in two rooms. *Acta Acustica*. DOI: [10.1051/aacus/2026012](https://doi.org/10.1051/aacus/2026012)
 
 2. Ducasse, Éric; Rodriguez, Samuel; Bonnet, Marc (2026). Early-reverberation imaging functions for bounded elastic domains. *Acta Acustica*. DOI: [10.1051/aacus/2025069](https://doi.org/10.1051/aacus/2025069)
@@ -63,6 +71,7 @@ Total entries: 100
 
 29. Hodoshima, Nao (2019). Effects of Urgent Speech and Congruent/Incongruent Text on Speech Intelligibility in Noise and Reverberation. *Interspeech 2019*. DOI: [10.21437/interspeech.2019-1902](https://doi.org/10.21437/interspeech.2019-1902)
 
+<a id="ref-fdn-delay-feedback-2019"></a>
 30. Schlecht, S.J.; Habets, E.A.P. (2019). Dense Reverberation with Delay Feedback Matrices. *2019 IEEE Workshop on Applications of Signal Processing to Audio and Acoustics (WASPAA)*. DOI: [10.1109/waspaa.2019.8937284](https://doi.org/10.1109/waspaa.2019.8937284)
 
 31. Kodrasi, Ina; Bourlard, Hervé (2018). Single-channel Late Reverberation Power Spectral Density Estimation Using Denoising Autoencoders. *Interspeech 2018*. DOI: [10.21437/interspeech.2018-1660](https://doi.org/10.21437/interspeech.2018-1660)
@@ -83,6 +92,7 @@ Total entries: 100
 
 39. Petkov, Petko N.; Braunschweiler, Norbert; Stylianou, Yannis (2016). Automated Pause Insertion for Improved Intelligibility Under Reverberation. *Interspeech 2016*. DOI: [10.21437/interspeech.2016-960](https://doi.org/10.21437/interspeech.2016-960)
 
+<a id="ref-fdn-tv-matrix-2015"></a>
 40. Schlecht, S.J.; Habets, E.A.P. (2015). Time-varying feedback matrices in feedback delay networks and their application in artificial reverberation. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.4928394](https://doi.org/10.1121/1.4928394)
 
 41. Prodeus, Arkadiy (2015). Parameter optimization of the single channel late reverberation suppression technique. *2015 IEEE 35th International Conference on Electronics and Nanotechnology (ELNANO)*. DOI: [10.1109/elnano.2015.7146889](https://doi.org/10.1109/elnano.2015.7146889)
@@ -123,6 +133,7 @@ Total entries: 100
 
 59. Hodoshima, Nao; Arai, Takayuki; Kurisu, Kiyohiro (2012). Intelligibility of speech spoken in noise/reverberation for older adults in reverberant environments. *Interspeech 2012*. DOI: [10.21437/interspeech.2012-415](https://doi.org/10.21437/interspeech.2012-415)
 
+<a id="ref-reverb-survey-2012"></a>
 60. Valimaki, V.; Parker, J.D.; Savioja, L.; et al. (2012). Fifty Years of Artificial Reverberation. *IEEE Transactions on Audio, Speech, and Language Processing*. DOI: [10.1109/tasl.2012.2189567](https://doi.org/10.1109/tasl.2012.2189567)
 
 61. Mechel, Fridolin (2012). Reverberation with Mirror Sources. *Room Acoustical Fields*. DOI: [10.1007/978-3-642-22356-3_17](https://doi.org/10.1007/978-3-642-22356-3_17)
@@ -197,6 +208,7 @@ Total entries: 100
 
 96. Jot, J.-M.; Chaigne, A. (1997). Maximally diffusive yet efficient feedback delay networks for artificial reverberation. *IEEE Signal Processing Letters*. DOI: [10.1109/97.623041](https://doi.org/10.1109/97.623041)
 
+<a id="ref-fdn-circulant-elliptic-1997"></a>
 97. Rocchesso, D.; Smith, J.O. (1997). Circulant and elliptic feedback delay networks for artificial reverberation. *IEEE Transactions on Speech and Audio Processing*. DOI: [10.1109/89.554269](https://doi.org/10.1109/89.554269)
 
 98. Schroeder, M.R. (1961). Further Progress with Colorless Artificial Reverberation. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.1936895](https://doi.org/10.1121/1.1936895)
@@ -204,4 +216,3 @@ Total entries: 100
 99. Schroeder, M.R.; Logan, B.F. (1961). "Colorless" artificial reverberation. *IRE Transactions on Audio*. DOI: [10.1109/tau.1961.1166351](https://doi.org/10.1109/tau.1961.1166351)
 
 100. Unknown authors (1955). Artificial reverberation. *Journal of the Institution of Electrical Engineers*. DOI: [10.1049/jiee-3.1955.0135](https://doi.org/10.1049/jiee-3.1955.0135)
-

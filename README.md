@@ -2306,10 +2306,12 @@ Near-term implementation targeting:
 
 #### 20.8.3 Sources for rollout steps 1-3
 
-- Schlecht, S. J.; Habets, E. A. P. (2015). Time-varying feedback matrices in feedback delay networks and their application in artificial reverberation. DOI: [10.1121/1.4928394](https://doi.org/10.1121/1.4928394)
-- Rocchesso, D.; Smith, J. O. (1997). Circulant and elliptic feedback delay networks for artificial reverberation. DOI: [10.1109/89.554269](https://doi.org/10.1109/89.554269)
-- Schlecht, S. J.; Habets, E. A. P. (2019). Dense Reverberation with Delay Feedback Matrices. DOI: [10.1109/WASPAA.2019.8937284](https://doi.org/10.1109/WASPAA.2019.8937284)
-- Välimäki, V.; Parker, J. D.; Savioja, L.; et al. (2012). Fifty Years of Artificial Reverberation. DOI: [10.1109/TASL.2012.2189567](https://doi.org/10.1109/TASL.2012.2189567)
+Canonical source: [docs/REFERENCES.md](docs/REFERENCES.md)
+
+- [Schlecht and Habets (2015) - time-varying FDN matrices](docs/REFERENCES.md#ref-fdn-tv-matrix-2015)
+- [Rocchesso and Smith (1997) - circulant/elliptic FDN families](docs/REFERENCES.md#ref-fdn-circulant-elliptic-1997)
+- [Schlecht and Habets (2019) - delay feedback matrices](docs/REFERENCES.md#ref-fdn-delay-feedback-2019)
+- [Valimaki et al. (2012) - fifty years of artificial reverberation](docs/REFERENCES.md#ref-reverb-survey-2012)
 
 ## 21.0 License
 
