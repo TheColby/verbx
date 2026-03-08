@@ -20,21 +20,6 @@ For computationally intensive audio sweetening, verbx supports both Apple Silico
 
 ## 1.0 Table of Contents
 
-- [2.0 What is Reverberation (a/k/a Reverb)?](#20-what-is-reverberation-aka-reverb)
-  - [2.1 Quick Reference Summary (from Wikipedia)](#21-quick-reference-summary-from-wikipedia)
-  - [2.2 Reverb Timeline (Single Hit)](#22-reverb-timeline-single-hit)
-    - [2.2.1 Labeled Envelope Graph (Amplitude vs Time)](#221-labeled-envelope-graph-amplitude-vs-time)
-  - [2.3 Dry/Wet and Tail Flow](#23-drywet-and-tail-flow)
-  - [2.4 Reverb vs Echo vs Delay](#24-reverb-vs-echo-vs-delay)
-  - [2.5 Physical Building Blocks of Reverb](#25-physical-building-blocks-of-reverb)
-  - [2.6 How Humans Perceive Reverb](#26-how-humans-perceive-reverb)
-  - [2.7 Why Frequency-Dependent Decay Matters](#27-why-frequency-dependent-decay-matters)
-  - [2.8 Core Reverb Metrics (RT60, EDT, DRR, EDR, and more)](#28-core-reverb-metrics-rt60-edt-drr-edr-and-more)
-  - [2.9 Main Reverb Methods in Practice](#29-main-reverb-methods-in-practice)
-  - [2.10 How `verbx` Controls Map to Reverb Physics](#210-how-verbx-controls-map-to-reverb-physics)
-  - [2.11 How to Listen Critically to Reverb](#211-how-to-listen-critically-to-reverb)
-  - [2.12 Beginner Workflow: Choosing Reverb on Purpose](#212-beginner-workflow-choosing-reverb-on-purpose)
-- [3.0 Project Status](#30-status)
 - [4.0 Features](#40-features)
 - [5.0 Requirements](#50-requirements)
 - [6.0 Installation and Quick Start](#60-installation-and-quick-start)
@@ -54,6 +39,21 @@ For computationally intensive audio sweetening, verbx supports both Apple Silico
     - [6.3.4 `pipx`](#634-pipx)
     - [6.3.5 Direct `python -m verbx.cli`](#635-direct-python-m-verbxcli)
   - [6.4 Installer Script and Man Pages](#64-installer-script-and-man-pages)
+- [2.0 What is Reverberation (a/k/a Reverb)?](#20-what-is-reverberation-aka-reverb)
+  - [2.1 Quick Reference Summary (from Wikipedia)](#21-quick-reference-summary-from-wikipedia)
+  - [2.2 Reverb Timeline (Single Hit)](#22-reverb-timeline-single-hit)
+    - [2.2.1 Labeled Envelope Graph (Amplitude vs Time)](#221-labeled-envelope-graph-amplitude-vs-time)
+  - [2.3 Dry/Wet and Tail Flow](#23-drywet-and-tail-flow)
+  - [2.4 Reverb vs Echo vs Delay](#24-reverb-vs-echo-vs-delay)
+  - [2.5 Physical Building Blocks of Reverb](#25-physical-building-blocks-of-reverb)
+  - [2.6 How Humans Perceive Reverb](#26-how-humans-perceive-reverb)
+  - [2.7 Why Frequency-Dependent Decay Matters](#27-why-frequency-dependent-decay-matters)
+  - [2.8 Core Reverb Metrics (RT60, EDT, DRR, EDR, and more)](#28-core-reverb-metrics-rt60-edt-drr-edr-and-more)
+  - [2.9 Main Reverb Methods in Practice](#29-main-reverb-methods-in-practice)
+  - [2.10 How `verbx` Controls Map to Reverb Physics](#210-how-verbx-controls-map-to-reverb-physics)
+  - [2.11 How to Listen Critically to Reverb](#211-how-to-listen-critically-to-reverb)
+  - [2.12 Beginner Workflow: Choosing Reverb on Purpose](#212-beginner-workflow-choosing-reverb-on-purpose)
+- [3.0 Project Status](#30-status)
 - [7.0 Quick Start Recipes](#70-quick-start-recipes)
   - [7.1 First render (algorithmic)](#71-first-render-algorithmic)
   - [7.2 Convolution render with external IR](#72-convolution-render-with-external-ir)
@@ -178,282 +178,6 @@ For computationally intensive audio sweetening, verbx supports both Apple Silico
     - [20.8.3 Sources for rollout steps 1-3](#2083-sources-for-rollout-steps-1-3)
 - [21.0 License](#210-license)
 - [22.0 Attribution](#220-attribution)
-
-## 2.0 What is Reverberation?
-
-Reverberation is the persistence of sound in a space after the direct source
-arrives. In plain terms, if you clap in a room, you first hear the clap itself,
-then many reflections arriving from walls/ceiling/floor/objects, and finally a
-smoothly decaying tail.
-
-That behavior is one of the main cues your brain uses to infer:
-
-- room size
-- distance to walls
-- surface hardness/softness
-- source distance from listener
-- whether a sound feels "close and dry" or "far and spacious"
-
-In practical audio production, a reverb impression usually contains:
-
-- a **dry peak** (direct sound)
-- a **pre-delay window** (optional gap before reverb onset)
-- **early reflections** (directional first bounces)
-- a dense **late field / wash** (tail)
-
-### 2.1 Quick Reference Summary (from Wikipedia)
-
-- Reverberation is the cumulative result of many reflections whose energy
-  decays over time due to absorption and scattering.
-- The perception boundary between "echo" and "reverb" is largely temporal and
-  density-related: isolated delayed arrivals are heard as echoes, while dense
-  arrivals fuse into reverberation.
-- Decay is frequency dependent: low and high bands usually decay differently.
-- `RT60` is the classic headline metric: time to decay by 60 dB.
-- The "best" amount of reverb depends on context: speech intelligibility often
-  benefits from shorter decay, while music can benefit from longer tails.
-- Excess reverberation reduces clarity and can negatively affect speech
-  communication and machine recognition tasks.
-- Artificial reverbs emulate room behavior using physical systems (chamber,
-  plate, spring) or digital DSP (algorithmic / convolution / hybrid).
-
-Source: [Wikipedia - Reverberation](https://en.wikipedia.org/wiki/Reverberation)
-
-### 2.2 Reverb Timeline (Single Hit)
-
-```mermaid
-flowchart LR
-  A["Source Hit"] --> B["Dry Peak (Direct Sound, ~0 ms)"]
-  B --> C["Pre-delay (e.g., 10-80 ms)"]
-  C --> D["Early Reflections (roughly first 20-120 ms)"]
-  D --> E["Wash / Late Tail (hundreds of ms to many seconds)"]
-```
-
-#### 2.2.1 Labeled Envelope Graph (Amplitude vs Time)
-
-![Labeled reverb envelope graph](docs/assets/reverb_timeline_labeled.svg)
-
-Plain-English explanation of the graph:
-
-- The **horizontal axis** is time. Left is the source hit; right is later in the decay.
-- The **vertical axis is logarithmic in decibels (dB)**, not linear amplitude.
-- `0 dB` is the peak reference in this diagram (the dry/direct peak).
-- Every step downward on the y-axis is a fixed dB drop (`-10, -20, ..., -70 dB`), which represents multiplicative energy decay.
-- The first tall spike (**Dry Peak**) is the direct sound arriving immediately.
-- The short region after it (**Pre-delay window**) is the intentional delay before the reverb field builds.
-- The small vertical pulses (**Early Reflections**) are the first discrete room returns.
-- The blue curve is the **reverb envelope in dB space** and shows how level decays over time.
-- The **RT60 point** is explicitly where the envelope reaches **`peak - 60 dB`** (at the `-60 dB` reference line).
-- After RT60, the tail continues toward the noise floor (`-70 dB` in this visualization).
-
-### 2.3 Dry/Wet and Tail Flow
-
-```mermaid
-flowchart LR
-  A["Input Audio"] --> B["Dry Path"]
-  A --> C["Reverb Engine"]
-  C --> D["Pre-delay"]
-  D --> E["Early Reflection Stage"]
-  E --> F["Late Tail / Wash Stage"]
-  B --> G["Dry/Wet Mix"]
-  F --> G
-  G --> H["Output"]
-```
-
-In `verbx`, controls map directly to this anatomy:
-
-- `--pre-delay-ms` / `--pre-delay`: shifts the reverb onset
-- `--wet` and `--dry`: set balance between direct sound and reverb field
-- `--rt60`: sets how long the wash/tail decays
-- `--damping`, `--lowcut`, `--highcut`, `--tilt`: shape the tonal decay
-
-### 2.4 Reverb vs Echo vs Delay
-
-These terms are related but not identical:
-
-- **Delay**: intentional discrete repeats (for example, quarter-note repeats).
-- **Echo**: physically or digitally delayed reflections that are still perceived
-  as separate events.
-- **Reverb**: dense reflection field that fuses into a spatial decay texture.
-
-Rule-of-thumb timing:
-
-- Below roughly `50-100 ms`, repeated energy often fuses perceptually.
-- Above that range, repeats are more likely to be heard as discrete echoes.
-
-In practice, mix decisions rely on density and masking as much as raw delay
-time. Two signals with the same delay can feel like either "echo" or "reverb"
-depending on spectrum, transient content, and level.
-
-### 2.5 Physical Building Blocks of Reverb
-
-At a high level, real-room reverberation is determined by:
-
-- **Geometry**: room dimensions and shape
-- **Materials**: absorption coefficients by frequency
-- **Scattering/Diffusion**: how much energy is redirected vs mirrored
-- **Source/listener position**: changing relative paths alters arrival times
-- **Air losses**: especially relevant for high frequencies over long paths
-
-Conceptually, a room response is:
-
-1. direct path
-2. early reflections (small count, high directional information)
-3. late diffuse field (large reflection count, lower directional specificity)
-
-That is exactly why modern digital reverbs split processing into early/late
-behavior, even when implemented differently.
-
-### 2.6 How Humans Perceive Reverb
-
-Reverb perception is not just "how long the tail is." Important psychoacoustic
-effects include:
-
-- **Precedence effect**: early direct sound dominates localization.
-- **Distance cueing**: more reverberant energy relative to direct energy
-  generally implies greater perceived distance.
-- **Envelopment**: decorrelated late energy increases spaciousness.
-- **Clarity vs blur tradeoff**: longer or brighter tails can mask transients and
-  consonants.
-- **Temporal fusion**: dense reflection fields become one perceptual texture.
-
-For production, this means the same RT60 can feel very different depending on:
-
-- pre-delay
-- early-reflection density
-- spectral tilt/damping
-- modulation/decorrelation
-
-### 2.7 Why Frequency-Dependent Decay Matters
-
-Most spaces do not decay uniformly across frequency.
-
-- High frequencies often decay faster due to air/material absorption.
-- Low frequencies can ring longer due to room modes and weaker absorption.
-- Mid-band behavior often dominates perceived "body" of the room.
-
-So a single scalar RT60 is useful but incomplete. Good reverb design often
-requires separate low/mid/high control, or at least tonal shaping (`damping`,
-filters, tilt) so the decay profile matches artistic intent.
-
-### 2.8 Core Reverb Metrics (RT60, EDT, DRR, EDR, and more)
-
-| Metric | What it means | Why it matters |
-|---|---|---|
-| `RT60` | Time for level to drop by 60 dB | Overall decay length |
-| `EDT` | Early decay estimate (first 10 dB, scaled) | Perceived initial decay speed |
-| `T20` / `T30` | Slope-based decay estimates over 20/30 dB windows | More robust RT estimation in noisy data |
-| `DRR` | Direct-to-reverberant ratio | Distance and intelligibility cue |
-| `C50` / `C80` | Clarity ratios (early vs late energy windows) | Speech/music definition |
-| `D50` | Definition ratio (early energy fraction) | Speech-focused readability |
-| `LRA` | Loudness range | Perceived dynamic spread |
-| `EDR` | Energy Decay Relief (time-frequency decay behavior) | Frequency-dependent decay diagnosis, ringing detection |
-
-In `verbx`:
-
-- use `verbx analyze --lufs` for loudness-related metrics,
-- use `verbx analyze --edr` for EDR summary metrics (`edr_rt60_*`,
-  `edr_valid_bins`),
-- use framewise CSV exports for time-evolving behavior checks.
-
-### 2.9 Main Reverb Methods in Practice
-
-`verbx` supports the two dominant modern approaches:
-
-1. **Algorithmic reverb**:
-   - synthetic DSP topology (diffusion + feedback network)
-   - efficient and highly controllable
-   - good for very long, stylized, evolving tails
-2. **Convolution reverb**:
-   - filter audio by an impulse response (IR)
-   - reproduces measured or synthetic spaces
-   - strong realism and capture reproducibility
-
-Under the hood, algorithmic reverbs commonly use structures inspired by
-Schroeder/comb/allpass ideas and modern FDN designs. Convolution reverbs rely
-on partitioned FFT methods for long IR efficiency.
-
-### 2.10 How `verbx` Controls Map to Reverb Physics
-
-| `verbx` control | Physical/perceptual concept | Typical outcome |
-|---|---|---|
-| `--pre-delay-ms`, `--pre-delay` | Direct-to-room onset gap | Keeps transients clear before tail |
-| `--rt60` | Decay target | Longer/shorter room persistence |
-| `--allpass-stages`, `--allpass-gain` | Diffusion density/smearing | Smoother or grainier early-to-late transition |
-| `--comb-delays-ms`, `--fdn-lines` | Resonant path structure / modal spacing | Tail density and coloration |
-| `--damping` | HF decay emphasis | Darker or brighter long tail |
-| `--wet`, `--dry` | Direct vs reverberant balance | Near/far impression and clarity |
-| `--width` | Stereo decorrelation/spread | Wider or narrower space |
-| `--freeze`, `--repeat` | Extreme temporal extension | Sustained or recursively thickened textures |
-| `--lowcut`, `--highcut`, `--tilt` | Post-wet tonal shaping | Controls mud/brightness/warmth |
-
-### 2.11 How to Listen Critically to Reverb
-
-When evaluating settings, listen for:
-
-- **onset clarity**: does the dry attack remain readable?
-- **tail smoothness**: is decay smooth or metallic/ringing?
-- **low-end control**: is there modal buildup or mud?
-- **speech intelligibility**: consonants and syllable boundaries still clear?
-- **stereo/spatial stability**: does the image collapse or wander?
-- **mix interaction**: does reverb mask key musical elements?
-
-A practical method is A/B comparison at matched loudness:
-
-1. bypass vs enabled
-2. short/medium/long RT60 presets
-3. bright vs dark damping
-4. different diffusion/topology settings
-
-### 2.12 Beginner Workflow: Choosing Reverb on Purpose
-
-If you are new, use this sequence:
-
-1. Choose one primary target role from this table.
-
-These names are shorthand for intent:
-
-- `glue` = subtle cohesion
-- `space` = natural room placement
-- `special effect` = obvious creative coloration
-- `infinite texture` = long ambient sustain / near-frozen tail
-
-| Role | Goal | Typical starting range |
-|---|---|---|
-| `glue` (subtle cohesion) | Add cohesion without sounding obviously reverberant. | `--rt60 0.4-1.2`, `--wet 0.08-0.25`, `--pre-delay-ms 0-20` |
-| `space` (natural room) | Make the source feel naturally placed in a room/hall. | `--rt60 1.2-3.5`, `--wet 0.2-0.45`, `--pre-delay-ms 10-40` |
-| `special effect` (obvious effect) | Make reverb clearly audible and stylistic. | `--rt60 3-12`, `--wet 0.45-0.9`, `--pre-delay-ms 20-120` |
-| `infinite texture` (ambient sustain) | Create long, immersive, almost static ambience. | `--rt60 20+`, `--wet 0.7-1.0`, consider `--freeze` and/or `--repeat 2+` |
-
-Use one role as your initial anchor, then refine from there.
-2. Start conservatively:
-   - `--pre-delay-ms 20`
-   - `--rt60 1.5` to `3.0` for subtle spaces, much longer for ambient
-   - `--wet 0.2` to `0.4`, keep some dry signal
-3. Increase only one dimension at a time:
-   - time (`rt60`)
-   - tone (`damping`, EQ)
-   - density (`allpass`/`fdn` parameters)
-4. For realism, try convolution with a measured IR.
-5. For extreme design, use algorithmic + repeat/freeze + modulation.
-6. Analyze output to verify intent:
-   - `verbx analyze OUT.wav --lufs --edr`
-
-Beginner-safe starting command:
-
-```bash
-verbx render in.wav out.wav --engine algo --pre-delay-ms 20 --rt60 2.5 --wet 0.3 --dry 0.7
-```
-
-## 3.0 Status
-
-Current implementation level: **v0.4.1**
-
-- scaffolding and architecture
-- functional DSP render path
-- loudness/peak + shimmer/ambient controls
-- IR factory, cache, batch, tempo sync, framewise analysis
-- v0.4 additions: framewise modulation analysis, advanced IR fitting heuristics, parallel batch scheduler
 
 ## 4.0 Features
 
@@ -740,6 +464,282 @@ If your shell cannot find the man pages, add this to your shell profile:
 ```bash
 export MANPATH="$HOME/.local/share/man:$MANPATH"
 ```
+
+## 2.0 What is Reverberation?
+
+Reverberation is the persistence of sound in a space after the direct source
+arrives. In plain terms, if you clap in a room, you first hear the clap itself,
+then many reflections arriving from walls/ceiling/floor/objects, and finally a
+smoothly decaying tail.
+
+That behavior is one of the main cues your brain uses to infer:
+
+- room size
+- distance to walls
+- surface hardness/softness
+- source distance from listener
+- whether a sound feels "close and dry" or "far and spacious"
+
+In practical audio production, a reverb impression usually contains:
+
+- a **dry peak** (direct sound)
+- a **pre-delay window** (optional gap before reverb onset)
+- **early reflections** (directional first bounces)
+- a dense **late field / wash** (tail)
+
+### 2.1 Quick Reference Summary (from Wikipedia)
+
+- Reverberation is the cumulative result of many reflections whose energy
+  decays over time due to absorption and scattering.
+- The perception boundary between "echo" and "reverb" is largely temporal and
+  density-related: isolated delayed arrivals are heard as echoes, while dense
+  arrivals fuse into reverberation.
+- Decay is frequency dependent: low and high bands usually decay differently.
+- `RT60` is the classic headline metric: time to decay by 60 dB.
+- The "best" amount of reverb depends on context: speech intelligibility often
+  benefits from shorter decay, while music can benefit from longer tails.
+- Excess reverberation reduces clarity and can negatively affect speech
+  communication and machine recognition tasks.
+- Artificial reverbs emulate room behavior using physical systems (chamber,
+  plate, spring) or digital DSP (algorithmic / convolution / hybrid).
+
+Source: [Wikipedia - Reverberation](https://en.wikipedia.org/wiki/Reverberation)
+
+### 2.2 Reverb Timeline (Single Hit)
+
+```mermaid
+flowchart LR
+  A["Source Hit"] --> B["Dry Peak (Direct Sound, ~0 ms)"]
+  B --> C["Pre-delay (e.g., 10-80 ms)"]
+  C --> D["Early Reflections (roughly first 20-120 ms)"]
+  D --> E["Wash / Late Tail (hundreds of ms to many seconds)"]
+```
+
+#### 2.2.1 Labeled Envelope Graph (Amplitude vs Time)
+
+![Labeled reverb envelope graph](docs/assets/reverb_timeline_labeled.svg)
+
+Plain-English explanation of the graph:
+
+- The **horizontal axis** is time. Left is the source hit; right is later in the decay.
+- The **vertical axis is logarithmic in decibels (dB)**, not linear amplitude.
+- `0 dB` is the peak reference in this diagram (the dry/direct peak).
+- Every step downward on the y-axis is a fixed dB drop (`-10, -20, ..., -70 dB`), which represents multiplicative energy decay.
+- The first tall spike (**Dry Peak**) is the direct sound arriving immediately.
+- The short region after it (**Pre-delay window**) is the intentional delay before the reverb field builds.
+- The small vertical pulses (**Early Reflections**) are the first discrete room returns.
+- The blue curve is the **reverb envelope in dB space** and shows how level decays over time.
+- The **RT60 point** is explicitly where the envelope reaches **`peak - 60 dB`** (at the `-60 dB` reference line).
+- After RT60, the tail continues toward the noise floor (`-70 dB` in this visualization).
+
+### 2.3 Dry/Wet and Tail Flow
+
+```mermaid
+flowchart LR
+  A["Input Audio"] --> B["Dry Path"]
+  A --> C["Reverb Engine"]
+  C --> D["Pre-delay"]
+  D --> E["Early Reflection Stage"]
+  E --> F["Late Tail / Wash Stage"]
+  B --> G["Dry/Wet Mix"]
+  F --> G
+  G --> H["Output"]
+```
+
+In `verbx`, controls map directly to this anatomy:
+
+- `--pre-delay-ms` / `--pre-delay`: shifts the reverb onset
+- `--wet` and `--dry`: set balance between direct sound and reverb field
+- `--rt60`: sets how long the wash/tail decays
+- `--damping`, `--lowcut`, `--highcut`, `--tilt`: shape the tonal decay
+
+### 2.4 Reverb vs Echo vs Delay
+
+These terms are related but not identical:
+
+- **Delay**: intentional discrete repeats (for example, quarter-note repeats).
+- **Echo**: physically or digitally delayed reflections that are still perceived
+  as separate events.
+- **Reverb**: dense reflection field that fuses into a spatial decay texture.
+
+Rule-of-thumb timing:
+
+- Below roughly `50-100 ms`, repeated energy often fuses perceptually.
+- Above that range, repeats are more likely to be heard as discrete echoes.
+
+In practice, mix decisions rely on density and masking as much as raw delay
+time. Two signals with the same delay can feel like either "echo" or "reverb"
+depending on spectrum, transient content, and level.
+
+### 2.5 Physical Building Blocks of Reverb
+
+At a high level, real-room reverberation is determined by:
+
+- **Geometry**: room dimensions and shape
+- **Materials**: absorption coefficients by frequency
+- **Scattering/Diffusion**: how much energy is redirected vs mirrored
+- **Source/listener position**: changing relative paths alters arrival times
+- **Air losses**: especially relevant for high frequencies over long paths
+
+Conceptually, a room response is:
+
+1. direct path
+2. early reflections (small count, high directional information)
+3. late diffuse field (large reflection count, lower directional specificity)
+
+That is exactly why modern digital reverbs split processing into early/late
+behavior, even when implemented differently.
+
+### 2.6 How Humans Perceive Reverb
+
+Reverb perception is not just "how long the tail is." Important psychoacoustic
+effects include:
+
+- **Precedence effect**: early direct sound dominates localization.
+- **Distance cueing**: more reverberant energy relative to direct energy
+  generally implies greater perceived distance.
+- **Envelopment**: decorrelated late energy increases spaciousness.
+- **Clarity vs blur tradeoff**: longer or brighter tails can mask transients and
+  consonants.
+- **Temporal fusion**: dense reflection fields become one perceptual texture.
+
+For production, this means the same RT60 can feel very different depending on:
+
+- pre-delay
+- early-reflection density
+- spectral tilt/damping
+- modulation/decorrelation
+
+### 2.7 Why Frequency-Dependent Decay Matters
+
+Most spaces do not decay uniformly across frequency.
+
+- High frequencies often decay faster due to air/material absorption.
+- Low frequencies can ring longer due to room modes and weaker absorption.
+- Mid-band behavior often dominates perceived "body" of the room.
+
+So a single scalar RT60 is useful but incomplete. Good reverb design often
+requires separate low/mid/high control, or at least tonal shaping (`damping`,
+filters, tilt) so the decay profile matches artistic intent.
+
+### 2.8 Core Reverb Metrics (RT60, EDT, DRR, EDR, and more)
+
+| Metric | What it means | Why it matters |
+|---|---|---|
+| `RT60` | Time for level to drop by 60 dB | Overall decay length |
+| `EDT` | Early decay estimate (first 10 dB, scaled) | Perceived initial decay speed |
+| `T20` / `T30` | Slope-based decay estimates over 20/30 dB windows | More robust RT estimation in noisy data |
+| `DRR` | Direct-to-reverberant ratio | Distance and intelligibility cue |
+| `C50` / `C80` | Clarity ratios (early vs late energy windows) | Speech/music definition |
+| `D50` | Definition ratio (early energy fraction) | Speech-focused readability |
+| `LRA` | Loudness range | Perceived dynamic spread |
+| `EDR` | Energy Decay Relief (time-frequency decay behavior) | Frequency-dependent decay diagnosis, ringing detection |
+
+In `verbx`:
+
+- use `verbx analyze --lufs` for loudness-related metrics,
+- use `verbx analyze --edr` for EDR summary metrics (`edr_rt60_*`,
+  `edr_valid_bins`),
+- use framewise CSV exports for time-evolving behavior checks.
+
+### 2.9 Main Reverb Methods in Practice
+
+`verbx` supports the two dominant modern approaches:
+
+1. **Algorithmic reverb**:
+   - synthetic DSP topology (diffusion + feedback network)
+   - efficient and highly controllable
+   - good for very long, stylized, evolving tails
+2. **Convolution reverb**:
+   - filter audio by an impulse response (IR)
+   - reproduces measured or synthetic spaces
+   - strong realism and capture reproducibility
+
+Under the hood, algorithmic reverbs commonly use structures inspired by
+Schroeder/comb/allpass ideas and modern FDN designs. Convolution reverbs rely
+on partitioned FFT methods for long IR efficiency.
+
+### 2.10 How `verbx` Controls Map to Reverb Physics
+
+| `verbx` control | Physical/perceptual concept | Typical outcome |
+|---|---|---|
+| `--pre-delay-ms`, `--pre-delay` | Direct-to-room onset gap | Keeps transients clear before tail |
+| `--rt60` | Decay target | Longer/shorter room persistence |
+| `--allpass-stages`, `--allpass-gain` | Diffusion density/smearing | Smoother or grainier early-to-late transition |
+| `--comb-delays-ms`, `--fdn-lines` | Resonant path structure / modal spacing | Tail density and coloration |
+| `--damping` | HF decay emphasis | Darker or brighter long tail |
+| `--wet`, `--dry` | Direct vs reverberant balance | Near/far impression and clarity |
+| `--width` | Stereo decorrelation/spread | Wider or narrower space |
+| `--freeze`, `--repeat` | Extreme temporal extension | Sustained or recursively thickened textures |
+| `--lowcut`, `--highcut`, `--tilt` | Post-wet tonal shaping | Controls mud/brightness/warmth |
+
+### 2.11 How to Listen Critically to Reverb
+
+When evaluating settings, listen for:
+
+- **onset clarity**: does the dry attack remain readable?
+- **tail smoothness**: is decay smooth or metallic/ringing?
+- **low-end control**: is there modal buildup or mud?
+- **speech intelligibility**: consonants and syllable boundaries still clear?
+- **stereo/spatial stability**: does the image collapse or wander?
+- **mix interaction**: does reverb mask key musical elements?
+
+A practical method is A/B comparison at matched loudness:
+
+1. bypass vs enabled
+2. short/medium/long RT60 presets
+3. bright vs dark damping
+4. different diffusion/topology settings
+
+### 2.12 Beginner Workflow: Choosing Reverb on Purpose
+
+If you are new, use this sequence:
+
+1. Choose one primary target role from this table.
+
+These names are shorthand for intent:
+
+- `glue` = subtle cohesion
+- `space` = natural room placement
+- `special effect` = obvious creative coloration
+- `infinite texture` = long ambient sustain / near-frozen tail
+
+| Role | Goal | Typical starting range |
+|---|---|---|
+| `glue` (subtle cohesion) | Add cohesion without sounding obviously reverberant. | `--rt60 0.4-1.2`, `--wet 0.08-0.25`, `--pre-delay-ms 0-20` |
+| `space` (natural room) | Make the source feel naturally placed in a room/hall. | `--rt60 1.2-3.5`, `--wet 0.2-0.45`, `--pre-delay-ms 10-40` |
+| `special effect` (obvious effect) | Make reverb clearly audible and stylistic. | `--rt60 3-12`, `--wet 0.45-0.9`, `--pre-delay-ms 20-120` |
+| `infinite texture` (ambient sustain) | Create long, immersive, almost static ambience. | `--rt60 20+`, `--wet 0.7-1.0`, consider `--freeze` and/or `--repeat 2+` |
+
+Use one role as your initial anchor, then refine from there.
+2. Start conservatively:
+   - `--pre-delay-ms 20`
+   - `--rt60 1.5` to `3.0` for subtle spaces, much longer for ambient
+   - `--wet 0.2` to `0.4`, keep some dry signal
+3. Increase only one dimension at a time:
+   - time (`rt60`)
+   - tone (`damping`, EQ)
+   - density (`allpass`/`fdn` parameters)
+4. For realism, try convolution with a measured IR.
+5. For extreme design, use algorithmic + repeat/freeze + modulation.
+6. Analyze output to verify intent:
+   - `verbx analyze OUT.wav --lufs --edr`
+
+Beginner-safe starting command:
+
+```bash
+verbx render in.wav out.wav --engine algo --pre-delay-ms 20 --rt60 2.5 --wet 0.3 --dry 0.7
+```
+
+## 3.0 Status
+
+Current implementation level: **v0.4.1**
+
+- scaffolding and architecture
+- functional DSP render path
+- loudness/peak + shimmer/ambient controls
+- IR factory, cache, batch, tempo sync, framewise analysis
+- v0.4 additions: framewise modulation analysis, advanced IR fitting heuristics, parallel batch scheduler
 
 ## 7.0 Quick Start Recipes
 
