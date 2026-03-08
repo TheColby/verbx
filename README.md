@@ -769,7 +769,7 @@ Current implementation level: **v0.6.0**
 - v0.5 additions: surround route maps/trajectories, algorithmic surround decorrelation, and batch checkpoint/resume hardening
 - v0.6 additions: graph-structured FDN topology mode and expanded FDN topology controls
 - v0.6 spatial additions: Ambisonics convention validation (`--ambi-order`, `--ambi-normalization`, `--channel-order`), FOA encode/decode transforms, yaw rotation, and Ambisonics spatial metrics in analysis mode
-- v0.7 Track A starter additions: JSON/CSV automation lanes (`--automation-file`) with block/sample evaluation, smoothing, clamp overrides, and automation trace export
+- v0.7 Track A starter additions: JSON/CSV automation lanes (`--automation-file`), inline CLI points (`--automation-point`), block/sample evaluation, smoothing, clamp overrides, and automation trace export
 
 ## 7.0 Quick Start Recipes
 
@@ -1689,7 +1689,8 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--mod-combine [sum\|avg\|max]` | Source-combination policy for multi-source modulation. | `sum` is most energetic, `avg` is smoother, `max` follows the strongest source instant-by-instant. |
 | `--mod-smooth-ms` | Smoothing time constant for control-signal de-zippering. | Increase when modulation sounds too stepped or twitchy. |
 | `--mod-route` | Repeatable advanced route for per-parameter modulation with independent source sets. | Use this when one LFO/source group should control one parameter and another group should control a different parameter. |
-| `--automation-file` | JSON/CSV timeline automation source for render-time control. | Current Track A starter targets are `wet`, `dry`, and `gain-db`. |
+| `--automation-file` | JSON/CSV timeline automation source for render-time control. | Supports post-render targets (`wet`, `dry`, `gain-db`) and algorithmic engine targets (`rt60`, `damping`, `room-size`). |
+| `--automation-point` | Repeatable inline control point (`target:time_s:value[:interp]`). | Useful for quick breakpoint authoring directly from CLI without creating a file first. |
 | `--automation-mode [auto\|sample\|block]` | Automation evaluation mode. | `sample` is highest precision; `block` is efficient for long renders. |
 | `--automation-block-ms` | Control block size for block-mode automation. | Smaller values increase precision; larger values reduce control-rate overhead. |
 | `--automation-smoothing-ms` | Default lane smoothing time constant. | Increase to reduce zipper artifacts on aggressive ramps/LFOs. |
@@ -1710,6 +1711,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 - `audio-env:<path>[:attack_ms[:release_ms]][*weight]`
 - `const:<value>[*weight]`
 - `--mod-route` format: `<target>:<min>:<max>:<combine>:<smooth_ms>:<src1>,<src2>,...`
+- `--automation-point` format: `<target>:<time_s>:<value>[:interp]`
 
 Examples:
 
@@ -1717,6 +1719,8 @@ Examples:
 - `--mod-source "env:20:350*0.5"`
 - `--mod-source "audio-env:sidechain.wav:10:200*0.6"`
 - `--mod-route "wet:0.1:0.95:avg:20:lfo:sine:0.12:1.0*1.0"`
+- `--automation-point "rt60:0.0:0.6:linear" --automation-point "rt60:12.0:8.0:linear"`
+- `--automation-point "room-size:0.0:0.8" --automation-point "room-size:12.0:1.8"`
 
 ### 12.3 `verbx analyze` switches
 
@@ -1975,6 +1979,14 @@ verbx render in.wav out_dual_mod.wav \
   --engine algo \
   --mod-route "wet:0.10:0.95:avg:20:lfo:sine:0.12:1.0*1.0" \
   --mod-route "gain-db:-9.0:3.0:sum:15:lfo:triangle:0.04:1.0*0.9"
+
+# inline automation control points (no JSON/CSV file required)
+verbx render in.wav out_room_sweep.wav \
+  --engine algo \
+  --automation-point "rt60:0.0:0.8:linear" \
+  --automation-point "rt60:15.0:10.0:linear" \
+  --automation-point "room-size:0.0:0.75" \
+  --automation-point "room-size:15.0:1.9"
 
 # final peak normalization options
 verbx render in.wav out.wav --output-peak-norm input
@@ -2252,10 +2264,10 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
 - `Automation timeline`: add sample-accurate and block-rate automation lanes so any render parameter can vary over time (for example `wet`, `rt60`, `damping`, shimmer controls, ducking, IR blend controls).
 - `Control data model`: introduce a unified automation format (breakpoints, ramps, curves, LFO envelopes, and segment clips) that can be loaded from JSON/CSV and applied consistently across engines.
 - `Runtime integration`: make both algorithmic and convolution paths automation-aware with smoothing and anti-zipper interpolation to avoid clicks and unstable transitions.
-- `CLI workflow`: add automation inputs (`--automation-file`, optional per-parameter overrides) plus validation to catch out-of-range events before rendering.
+- `CLI workflow`: add automation inputs (`--automation-file`, `--automation-point`, and optional per-parameter overrides) plus validation to catch out-of-range events before rendering.
 - `Performance`: support sparse-event scheduling and cached interpolation so long renders with dense automation remain efficient.
 - `Safety`: enforce stability guards when automating sensitive parameters (feedback/decay/modulation) and provide deterministic behavior in repeat/batch modes.
-- `Status update`: Track A starter is implemented with JSON/CSV timeline support, lane types (breakpoints/ramps, LFO, segments), block/sample evaluation modes, smoothing and clamp guardrails, deterministic application in render pipeline, and CSV trace export. Current automated render targets are `wet`, `dry`, and `gain-db`.
+- `Status update`: Track A starter is implemented with JSON/CSV timeline support plus inline CLI control points, lane types (breakpoints/ramps, LFO, segments), block/sample evaluation modes, smoothing and clamp guardrails, deterministic application in render pipeline, and CSV trace export. Current post-render targets are `wet`, `dry`, and `gain-db`; current algorithmic-engine targets are `rt60`, `damping`, and `room-size`.
 
 ### 20.5 v0.7 Track B: Feature-vector-driven reverb control (audio-reactive DSP)
 

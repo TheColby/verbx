@@ -33,6 +33,7 @@ from verbx.core.shimmer import ShimmerConfig, ShimmerProcessor
 from verbx.io.audio import ensure_mono_or_stereo
 
 AudioArray = npt.NDArray[np.float32]
+CurveMap = dict[str, npt.NDArray[np.float32]]
 
 try:
     from numba import njit  # type: ignore[import-untyped]
@@ -131,6 +132,7 @@ class AlgoReverbEngine(ReverbEngine):
         [5.0, 7.0, 11.0, 17.0, 23.0, 29.0],
         dtype=np.float32,
     )
+    _AUTOMATION_TARGETS = {"rt60", "damping", "room-size"}
 
     def __init__(self, config: AlgoReverbConfig) -> None:
         self._config = config
@@ -229,6 +231,49 @@ class AlgoReverbEngine(ReverbEngine):
                 lowcut=config.shimmer_lowcut,
             )
         )
+        self._parameter_automation: CurveMap = {}
+
+    def set_parameter_automation(self, curves: CurveMap | None) -> None:
+        """Set sample-rate automation curves for internal FDN parameters."""
+        if curves is None:
+            self._parameter_automation = {}
+            return
+        parsed: CurveMap = {}
+        for raw_target, raw_curve in curves.items():
+            target = str(raw_target).strip().lower().replace("_", "-")
+            if target not in self._AUTOMATION_TARGETS:
+                continue
+            vec = np.asarray(raw_curve, dtype=np.float32).reshape(-1)
+            if vec.size == 0:
+                continue
+            parsed[target] = vec
+        self._parameter_automation = parsed
+
+    @staticmethod
+    def _resample_curve(curve: npt.NDArray[np.float32], n_samples: int) -> npt.NDArray[np.float32]:
+        if curve.shape[0] == n_samples:
+            return np.asarray(curve, dtype=np.float32)
+        if curve.shape[0] <= 1:
+            value = float(curve[0]) if curve.shape[0] == 1 else 0.0
+            return np.full((n_samples,), value, dtype=np.float32)
+        src = np.linspace(0.0, 1.0, curve.shape[0], dtype=np.float64)
+        dst = np.linspace(0.0, 1.0, n_samples, dtype=np.float64)
+        return np.asarray(np.interp(dst, src, curve.astype(np.float64)), dtype=np.float32)
+
+    def _resolve_parameter_automation(self, n_samples: int) -> CurveMap:
+        resolved: CurveMap = {}
+        if n_samples <= 0:
+            return resolved
+        for target, curve in self._parameter_automation.items():
+            vec = self._resample_curve(curve, n_samples)
+            if target == "rt60":
+                vec = np.asarray(np.clip(vec, 0.1, 300.0), dtype=np.float32)
+            elif target == "damping":
+                vec = np.asarray(np.clip(vec, 0.0, 1.0), dtype=np.float32)
+            elif target == "room-size":
+                vec = np.asarray(np.clip(vec, 0.25, 4.0), dtype=np.float32)
+            resolved[target] = vec
+        return resolved
 
     def process(self, audio: AudioArray, sr: int) -> AudioArray:
         """Process audio with pre-diffusion + late FDN and wet/dry mix."""
@@ -237,9 +282,14 @@ class AlgoReverbEngine(ReverbEngine):
         if n_samples == 0:
             return x.copy()
 
+        param_automation = self._resolve_parameter_automation(n_samples)
         wet = np.zeros_like(x, dtype=np.float32)
         for channel in range(n_channels):
-            wet[:, channel] = self._process_channel(x[:, channel], sr)
+            wet[:, channel] = self._process_channel(
+                x[:, channel],
+                sr,
+                parameter_automation=param_automation,
+            )
 
         wet = self._apply_multichannel_decorrelation(wet, sr)
 
@@ -782,9 +832,24 @@ class AlgoReverbEngine(ReverbEngine):
         out[:, 1] = mid - side
         return np.asarray(out, dtype=np.float32)
 
-    def _process_channel(self, signal: npt.NDArray[np.float32], sr: int) -> npt.NDArray[np.float32]:
+    def _process_channel(
+        self,
+        signal: npt.NDArray[np.float32],
+        sr: int,
+        *,
+        parameter_automation: CurveMap | None = None,
+    ) -> npt.NDArray[np.float32]:
         """Run one channel through pre-delay, diffusion, and FDN late reverb."""
-        if self._use_numba:
+        automation = parameter_automation or {}
+        rt60_curve = automation.get("rt60")
+        damping_curve = automation.get("damping")
+        room_size_curve = automation.get("room-size")
+        has_dynamic_params = (
+            rt60_curve is not None
+            or damping_curve is not None
+            or room_size_curve is not None
+        )
+        if self._use_numba and not has_dynamic_params:
             return _process_channel_kernel(
                 signal=signal,
                 sr=sr,
@@ -838,17 +903,18 @@ class AlgoReverbEngine(ReverbEngine):
         base_phase = np.linspace(0.0, 2.0 * np.pi, num_lines, endpoint=False, dtype=np.float32)
         phase = base_phase.copy()
 
-        rt60 = max(self._config.rt60, 0.1)
+        base_rt60 = max(self._config.rt60, 0.1)
+        base_damping = float(np.clip(self._config.damping, 0.0, 1.0))
         delays_sec = line_delays.astype(np.float64) / float(sr)
-        base_gain = np.power(10.0, (-3.0 * delays_sec) / rt60).astype(np.float32)
-        base_gain = np.clip(base_gain, 0.0, 0.995)
+        feedback_gain = np.power(10.0, (-3.0 * delays_sec) / base_rt60).astype(np.float32)
+        feedback_gain = np.clip(feedback_gain, 0.0, 0.995)
         rt60_low, rt60_mid, rt60_high = self._resolve_multiband_rt60(self._config)
-        base_gain_low = np.power(10.0, (-3.0 * delays_sec) / rt60_low).astype(np.float32)
-        base_gain_mid = np.power(10.0, (-3.0 * delays_sec) / rt60_mid).astype(np.float32)
-        base_gain_high = np.power(10.0, (-3.0 * delays_sec) / rt60_high).astype(np.float32)
-        base_gain_low = np.clip(base_gain_low, 0.0, 0.995)
-        base_gain_mid = np.clip(base_gain_mid, 0.0, 0.995)
-        base_gain_high = np.clip(base_gain_high, 0.0, 0.995)
+        feedback_gain_low = np.power(10.0, (-3.0 * delays_sec) / rt60_low).astype(np.float32)
+        feedback_gain_mid = np.power(10.0, (-3.0 * delays_sec) / rt60_mid).astype(np.float32)
+        feedback_gain_high = np.power(10.0, (-3.0 * delays_sec) / rt60_high).astype(np.float32)
+        feedback_gain_low = np.clip(feedback_gain_low, 0.0, 0.995)
+        feedback_gain_mid = np.clip(feedback_gain_mid, 0.0, 0.995)
+        feedback_gain_high = np.clip(feedback_gain_high, 0.0, 0.995)
         xover_low = max(20.0, float(self._config.fdn_xover_low_hz))
         xover_high = max(xover_low + 10.0, float(self._config.fdn_xover_high_hz))
         nyquist_guard = max(200.0, (float(sr) * 0.5) - 50.0)
@@ -867,8 +933,7 @@ class AlgoReverbEngine(ReverbEngine):
         link_filter_mode = self._link_filter_mode
 
         # Larger damping value -> stronger HF attenuation in the feedback loop.
-        damping = float(np.clip(self._config.damping, 0.0, 1.0))
-        lp_alpha = np.float32(0.15 + (0.83 * damping))
+        lp_alpha = np.float32(0.15 + (0.83 * base_damping))
         dc_alpha = np.float32(0.995)
         mod_rate = np.float32(max(self._config.mod_rate_hz, 0.0))
 
@@ -900,6 +965,7 @@ class AlgoReverbEngine(ReverbEngine):
         cascade_phase = np.zeros((0,), dtype=np.float32)
         cascade_max_mod_samples = 1
         cascade_inv_sqrt_lines = np.float32(1.0)
+        cascade_delays_sec = np.zeros((0,), dtype=np.float64)
         if cascade_enabled:
             cascade_line_delays = np.maximum(
                 2,
@@ -928,12 +994,16 @@ class AlgoReverbEngine(ReverbEngine):
             cascade_fdn_out = np.zeros(cascade_num_lines, dtype=np.float32)
             cascade_feedback = np.zeros(cascade_num_lines, dtype=np.float32)
             cascade_delays_sec = cascade_line_delays.astype(np.float64) / float(sr)
-            cascade_rt60 = max(0.1, float(self._config.rt60) * self._cascade_rt60_ratio)
+            cascade_rt60 = max(0.1, float(base_rt60) * self._cascade_rt60_ratio)
             cascade_base_gain = np.power(10.0, (-3.0 * cascade_delays_sec) / cascade_rt60).astype(
                 np.float32
             )
             cascade_base_gain = np.clip(cascade_base_gain, 0.0, 0.995)
             cascade_inv_sqrt_lines = np.float32(1.0 / np.sqrt(np.float32(cascade_num_lines)))
+
+        last_rt60_effective = float(base_rt60)
+        last_lp_alpha = float(lp_alpha)
+        room_size_default = np.float32(1.0)
 
         for block_start in range(0, signal.shape[0], block_size):
             block_end = min(signal.shape[0], block_start + block_size)
@@ -944,6 +1014,58 @@ class AlgoReverbEngine(ReverbEngine):
                     block_samples=max(1, block_end - block_start),
                 )
             for n in range(block_start, block_end):
+                rt60_effective = float(base_rt60)
+                damping_effective = float(base_damping)
+                if rt60_curve is not None:
+                    rt60_effective = float(np.clip(rt60_curve[n], 0.1, 300.0))
+                if damping_curve is not None:
+                    damping_effective = float(np.clip(damping_curve[n], 0.0, 1.0))
+                room_size = float(room_size_default)
+                if room_size_curve is not None:
+                    room_size = float(np.clip(room_size_curve[n], 0.25, 4.0))
+                    rt60_effective *= room_size
+                    damping_effective = float(np.clip(damping_effective - (0.15 * (room_size - 1.0)), 0.0, 1.0))
+
+                if abs(rt60_effective - last_rt60_effective) > 1e-5:
+                    feedback_gain[:] = np.clip(
+                        np.power(10.0, (-3.0 * delays_sec) / max(rt60_effective, 0.1)),
+                        0.0,
+                        0.995,
+                    ).astype(np.float32)
+                    if self._multiband_enabled:
+                        ratio = max(0.05, rt60_effective / max(base_rt60, 0.1))
+                        rt60_low_eff = max(0.1, float(rt60_low) * ratio)
+                        rt60_mid_eff = max(0.1, float(rt60_mid) * ratio)
+                        rt60_high_eff = max(0.1, float(rt60_high) * ratio)
+                        feedback_gain_low[:] = np.clip(
+                            np.power(10.0, (-3.0 * delays_sec) / rt60_low_eff),
+                            0.0,
+                            0.995,
+                        ).astype(np.float32)
+                        feedback_gain_mid[:] = np.clip(
+                            np.power(10.0, (-3.0 * delays_sec) / rt60_mid_eff),
+                            0.0,
+                            0.995,
+                        ).astype(np.float32)
+                        feedback_gain_high[:] = np.clip(
+                            np.power(10.0, (-3.0 * delays_sec) / rt60_high_eff),
+                            0.0,
+                            0.995,
+                        ).astype(np.float32)
+                    if cascade_enabled and cascade_base_gain.size > 0:
+                        cascade_rt60_eff = max(0.1, rt60_effective * self._cascade_rt60_ratio)
+                        cascade_base_gain[:] = np.clip(
+                            np.power(10.0, (-3.0 * cascade_delays_sec) / cascade_rt60_eff),
+                            0.0,
+                            0.995,
+                        ).astype(np.float32)
+                    last_rt60_effective = float(rt60_effective)
+
+                lp_alpha_sample = float(0.15 + (0.83 * np.clip(damping_effective, 0.0, 1.0)))
+                if abs(lp_alpha_sample - last_lp_alpha) > 1e-7:
+                    lp_alpha = np.float32(lp_alpha_sample)
+                    last_lp_alpha = lp_alpha_sample
+
                 predelayed = pre_buffer[pre_idx]
                 pre_buffer[pre_idx] = signal[n]
                 pre_idx = (pre_idx + 1) % pre_buffer.shape[0]
@@ -1063,13 +1185,13 @@ class AlgoReverbEngine(ReverbEngine):
                         band_mid = mb_lp_high_state[i] - mb_lp_low_state[i]
                         band_high = mixed_feedback[i] - mb_lp_high_state[i]
                         shaped_feedback = (
-                            (base_gain_low[i] * band_low)
-                            + (base_gain_mid[i] * band_mid)
-                            + (base_gain_high[i] * band_high)
+                            (feedback_gain_low[i] * band_low)
+                            + (feedback_gain_mid[i] * band_mid)
+                            + (feedback_gain_high[i] * band_high)
                         )
                         value = injection + shaped_feedback
                     else:
-                        value = injection + (base_gain[i] * mixed_feedback[i])
+                        value = injection + (feedback_gain[i] * mixed_feedback[i])
                     delay_buffers[i][write_indices[i]] = value
                     write_indices[i] = (write_indices[i] + 1) % delay_buffers[i].shape[0]
 

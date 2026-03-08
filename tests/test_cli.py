@@ -1568,4 +1568,127 @@ def test_render_rejects_automation_options_without_file(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "require --automation-file" in result.output
+    assert "--automation-point" in result.output
+
+
+def test_render_automation_points_wet_ramp_without_file(tmp_path: Path) -> None:
+    sr = 16_000
+    n = sr // 2
+    x = np.ones((n, 1), dtype=np.float32)
+    ir = np.zeros((64, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+    infile = tmp_path / "auto_points_in.wav"
+    irfile = tmp_path / "auto_points_ir.wav"
+    outfile = tmp_path / "auto_points_out.wav"
+    trace_file = tmp_path / "auto_points_trace.csv"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--wet",
+            "1.0",
+            "--dry",
+            "0.0",
+            "--normalize-stage",
+            "none",
+            "--automation-point",
+            "wet:0.0:0.0:linear",
+            "--automation-point",
+            "wet:0.5:1.0:linear",
+            "--automation-trace-out",
+            str(trace_file),
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert trace_file.exists()
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    automation = payload["effective"]["automation"]
+    assert isinstance(automation, dict)
+    assert "wet" in automation["targets"]
+    assert "wet" in automation.get("post_targets", [])
+
+
+def test_render_automation_points_drive_algo_engine_targets(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.zeros((sr // 4, 1), dtype=np.float32)
+    x[0, 0] = 1.0
+    infile = tmp_path / "algo_auto_in.wav"
+    outfile = tmp_path / "algo_auto_out.wav"
+    sf.write(str(infile), x, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--normalize-stage",
+            "none",
+            "--automation-point",
+            "rt60:0.0:0.4:linear",
+            "--automation-point",
+            "rt60:0.25:6.0:linear",
+            "--automation-point",
+            "damping:0.0:0.65:linear",
+            "--automation-point",
+            "room-size:0.0:0.8:linear",
+            "--automation-point",
+            "room-size:0.25:1.6:linear",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    out, _ = sf.read(str(outfile), always_2d=True, dtype="float32")
+    assert float(np.max(np.abs(out))) > 1e-6
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    automation = payload["effective"]["automation"]
+    assert isinstance(automation, dict)
+    assert "rt60" in automation["targets"]
+    assert "damping" in automation["targets"]
+    assert "room-size" in automation["targets"]
+    assert "rt60" in automation.get("engine_targets", [])
+    assert "room-size" in automation.get("engine_targets", [])
+
+
+def test_render_rejects_engine_automation_targets_for_convolution(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.zeros((sr // 4, 1), dtype=np.float32)
+    x[0, 0] = 1.0
+    ir = np.zeros((64, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+    infile = tmp_path / "conv_auto_in.wav"
+    irfile = tmp_path / "conv_auto_ir.wav"
+    outfile = tmp_path / "conv_auto_out.wav"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--automation-point",
+            "rt60:0.0:2.0",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "require algorithmic render path" in result.output

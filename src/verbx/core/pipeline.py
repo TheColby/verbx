@@ -27,6 +27,8 @@ from verbx.config import NormalizeStage, RenderConfig
 from verbx.core.accel import configure_cpu_threads, resolve_device
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
 from verbx.core.automation import (
+    ENGINE_AUTOMATION_TARGETS,
+    POST_RENDER_AUTOMATION_TARGETS,
     apply_render_automation,
     load_automation_bundle,
     parse_automation_clamp_overrides,
@@ -180,6 +182,26 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 tail_seconds=tail_padding_seconds,
             )
 
+        has_automation_source = (
+            runtime_config.automation_file is not None
+            or len(runtime_config.automation_points) > 0
+        )
+        preloaded_automation_bundle = None
+        if has_automation_source and engine_name == "algo":
+            clamp_overrides = parse_automation_clamp_overrides(runtime_config.automation_clamp)
+            preloaded_automation_bundle = load_automation_bundle(
+                path=None if runtime_config.automation_file is None else Path(runtime_config.automation_file),
+                point_specs=runtime_config.automation_points,
+                sr=sr,
+                num_samples=int(input_for_engine.shape[0]),
+                mode=runtime_config.automation_mode,
+                block_ms=runtime_config.automation_block_ms,
+                smoothing_ms=runtime_config.automation_smoothing_ms,
+                clamp_overrides=clamp_overrides,
+            )
+            if isinstance(engine, AlgoReverbEngine):
+                engine.set_parameter_automation(preloaded_automation_bundle.curves)
+
         repeat_post_processor = _build_per_pass_processor(runtime_config, sr)
 
         rendered = repeat_process(
@@ -243,17 +265,29 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 modulation_summaries.append(route_summary)
 
         automation_summary: dict[str, Any] | None = None
-        if runtime_config.automation_file is not None:
+        if has_automation_source:
             clamp_overrides = parse_automation_clamp_overrides(runtime_config.automation_clamp)
-            bundle = load_automation_bundle(
-                path=Path(runtime_config.automation_file),
-                sr=sr,
-                num_samples=int(rendered.shape[0]),
-                mode=runtime_config.automation_mode,
-                block_ms=runtime_config.automation_block_ms,
-                smoothing_ms=runtime_config.automation_smoothing_ms,
-                clamp_overrides=clamp_overrides,
-            )
+            bundle = preloaded_automation_bundle
+            if bundle is None or int(bundle.num_samples) != int(rendered.shape[0]):
+                bundle = load_automation_bundle(
+                    path=None if runtime_config.automation_file is None else Path(runtime_config.automation_file),
+                    point_specs=runtime_config.automation_points,
+                    sr=sr,
+                    num_samples=int(rendered.shape[0]),
+                    mode=runtime_config.automation_mode,
+                    block_ms=runtime_config.automation_block_ms,
+                    smoothing_ms=runtime_config.automation_smoothing_ms,
+                    clamp_overrides=clamp_overrides,
+                )
+            if engine_name != "algo":
+                unsupported = sorted(
+                    target for target in bundle.curves.keys() if target in ENGINE_AUTOMATION_TARGETS
+                )
+                if len(unsupported) > 0:
+                    raise ValueError(
+                        "Automation targets require algorithmic engine: "
+                        + ", ".join(unsupported)
+                    )
             dry_reference = _build_dry_reference_for_automation(
                 engine_name=engine_name,
                 input_for_engine=input_for_engine,
@@ -267,6 +301,14 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 base_dry=float(runtime_config.dry),
                 bundle=bundle,
             )
+            if automation_summary is not None:
+                targets = set(bundle.curves.keys())
+                automation_summary["engine_targets"] = sorted(
+                    target for target in targets if target in ENGINE_AUTOMATION_TARGETS
+                )
+                automation_summary["post_targets"] = sorted(
+                    target for target in targets if target in POST_RENDER_AUTOMATION_TARGETS
+                )
             if runtime_config.automation_trace_out is not None:
                 trace_path = Path(runtime_config.automation_trace_out)
                 write_automation_trace(trace_path, bundle)
@@ -404,7 +446,7 @@ def _can_stream_convolution(config: RenderConfig, engine_name: str, engine: Reve
         return False
     if len(config.mod_routes) > 0:
         return False
-    if config.automation_file is not None:
+    if config.automation_file is not None or len(config.automation_points) > 0:
         return False
     if config.ambi_order > 0:
         return False

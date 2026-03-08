@@ -14,11 +14,16 @@ import numpy.typing as npt
 
 AudioArray = npt.NDArray[np.float32]
 
-SUPPORTED_AUTOMATION_TARGETS = {"wet", "dry", "gain-db"}
+POST_RENDER_AUTOMATION_TARGETS = {"wet", "dry", "gain-db"}
+ENGINE_AUTOMATION_TARGETS = {"rt60", "damping", "room-size"}
+SUPPORTED_AUTOMATION_TARGETS = POST_RENDER_AUTOMATION_TARGETS | ENGINE_AUTOMATION_TARGETS
 TARGET_LIMITS: dict[str, tuple[float, float]] = {
     "wet": (0.0, 1.0),
     "dry": (0.0, 1.0),
     "gain-db": (-48.0, 24.0),
+    "rt60": (0.1, 300.0),
+    "damping": (0.0, 1.0),
+    "room-size": (0.25, 4.0),
 }
 
 
@@ -67,9 +72,91 @@ def parse_automation_clamp_overrides(
     return overrides
 
 
+def parse_automation_point_specs(specs: tuple[str, ...] | list[str]) -> list[dict[str, Any]]:
+    """Parse repeatable ``--automation-point`` specs into breakpoint lanes.
+
+    Point spec format:
+    ``target:time_s:value[:interp]``
+    """
+    grouped: dict[str, list[tuple[float, float]]] = {}
+    interp_per_target: dict[str, str] = {}
+    for raw in specs:
+        token = str(raw).strip()
+        if token == "":
+            continue
+        parts = [chunk.strip() for chunk in token.split(":")]
+        if len(parts) not in {3, 4}:
+            raise ValueError(
+                "Automation point must use target:time_s:value[:interp] format. "
+                f"Invalid value: {raw}"
+            )
+        target = _normalize_target_name(parts[0])
+        if target not in SUPPORTED_AUTOMATION_TARGETS:
+            options = ", ".join(sorted(SUPPORTED_AUTOMATION_TARGETS))
+            raise ValueError(
+                f"Unsupported automation point target '{target}'. Supported: {options}"
+            )
+        try:
+            time_s = float(parts[1])
+            value = float(parts[2])
+        except ValueError as exc:
+            raise ValueError(
+                f"Automation point time/value must be numeric: {raw}"
+            ) from exc
+        if not math.isfinite(time_s) or time_s < 0.0:
+            raise ValueError(f"Automation point time must be finite and >= 0: {raw}")
+        if not math.isfinite(value):
+            raise ValueError(f"Automation point value must be finite: {raw}")
+        grouped.setdefault(target, []).append((time_s, value))
+        if len(parts) == 4 and parts[3] != "":
+            interp_per_target[target] = parts[3].strip().lower()
+
+    lanes: list[dict[str, Any]] = []
+    for target, points in grouped.items():
+        sorted_points = sorted(points, key=lambda item: item[0])
+        lanes.append(
+            {
+                "target": target,
+                "type": "breakpoints",
+                "interp": interp_per_target.get(target, "linear"),
+                "points": [{"time": t, "value": v} for t, v in sorted_points],
+            }
+        )
+    return lanes
+
+
+def collect_automation_targets(
+    *,
+    path: Path | None,
+    point_specs: tuple[str, ...] | list[str] = (),
+) -> set[str]:
+    """Collect normalized automation targets from file and inline point specs."""
+    targets: set[str] = set()
+    if path is not None:
+        spec = _read_automation_spec(path)
+        for lane in spec.get("lanes", []):
+            if not isinstance(lane, dict):
+                continue
+            target = _normalize_target_name(lane.get("target", ""))
+            if target == "":
+                continue
+            if target not in SUPPORTED_AUTOMATION_TARGETS:
+                options = ", ".join(sorted(SUPPORTED_AUTOMATION_TARGETS))
+                raise ValueError(
+                    f"Unsupported automation target '{target}'. Supported: {options}."
+                )
+            targets.add(target)
+    for lane in parse_automation_point_specs(point_specs):
+        target = _normalize_target_name(lane.get("target", ""))
+        if target != "":
+            targets.add(target)
+    return targets
+
+
 def load_automation_bundle(
     *,
-    path: Path,
+    path: Path | None,
+    point_specs: tuple[str, ...] | list[str] = (),
     sr: int,
     num_samples: int,
     mode: str = "auto",
@@ -78,12 +165,21 @@ def load_automation_bundle(
     clamp_overrides: dict[str, tuple[float, float]] | None = None,
 ) -> AutomationBundle:
     """Load automation lanes from JSON/CSV and evaluate to sample-rate curves."""
-    if not path.exists():
-        msg = f"Automation file not found: {path}"
-        raise ValueError(msg)
+    spec: dict[str, Any] = {"mode": "block", "block_ms": float(block_ms), "lanes": []}
+    source_tokens: list[str] = []
+    if path is not None:
+        if not path.exists():
+            msg = f"Automation file not found: {path}"
+            raise ValueError(msg)
+        spec = _read_automation_spec(path)
+        source_tokens.append(str(path))
 
-    spec = _read_automation_spec(path)
-    lanes = spec["lanes"]
+    lanes = list(spec.get("lanes", []))
+    inline_lanes = parse_automation_point_specs(point_specs)
+    if len(inline_lanes) > 0:
+        lanes.extend(inline_lanes)
+        source_tokens.append("inline-cli")
+
     file_mode = str(spec.get("mode", "block")).strip().lower()
     file_block_ms = float(spec.get("block_ms", block_ms))
     resolved_mode = str(mode).strip().lower()
@@ -138,9 +234,10 @@ def load_automation_bundle(
     for target, control in controls.items():
         expanded = _expand_control_to_samples(control, step=control_step, num_samples=num_samples)
         curves[target] = np.asarray(expanded, dtype=np.float32)
+    source_path = "+".join(source_tokens) if len(source_tokens) > 0 else "inline-empty"
 
     return AutomationBundle(
-        source_path=str(path),
+        source_path=source_path,
         mode=resolved_mode,
         control_step=control_step,
         sample_rate=int(sr),
@@ -545,5 +642,8 @@ def _normalize_target_name(value: str) -> str:
     normalized = str(value).strip().lower().replace("_", "-")
     if normalized in {"output-gain-db", "gain", "gaindb"}:
         return "gain-db"
+    if normalized in {"room", "roomsize", "size"}:
+        return "room-size"
+    if normalized in {"t60"}:
+        return "rt60"
     return normalized
-

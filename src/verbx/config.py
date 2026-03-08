@@ -141,6 +141,7 @@ class RenderConfig:
     automation_block_ms: float = 20.0
     automation_smoothing_ms: float = 20.0
     automation_clamp: tuple[str, ...] = ()
+    automation_points: tuple[str, ...] = ()
     automation_trace_out: str | None = None
     silent: bool = False
     progress: bool = True

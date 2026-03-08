@@ -44,7 +44,12 @@ from verbx.config import (
     OutputSubtype,
     RenderConfig,
 )
-from verbx.core.automation import parse_automation_clamp_overrides
+from verbx.core.automation import (
+    ENGINE_AUTOMATION_TARGETS,
+    collect_automation_targets,
+    parse_automation_clamp_overrides,
+    parse_automation_point_specs,
+)
 from verbx.core.batch_scheduler import (
     BatchJobResult,
     BatchJobSpec,
@@ -584,6 +589,14 @@ def render(
         "--automation-clamp",
         help="Clamp override in target:min:max format (repeatable).",
     ),
+    automation_point: list[str] | None = typer.Option(
+        None,
+        "--automation-point",
+        help=(
+            "Inline automation control point in target:time_s:value[:interp] format "
+            "(repeatable)."
+        ),
+    ),
     automation_trace_out: str | None = typer.Option(
         None,
         "--automation-trace-out",
@@ -749,6 +762,7 @@ def render(
         automation_block_ms=float(automation_block_ms),
         automation_smoothing_ms=float(automation_smoothing_ms),
         automation_clamp=tuple(automation_clamp or ()),
+        automation_points=tuple(automation_point or ()),
         automation_trace_out=automation_trace_out,
         frames_out=frames_out,
         analysis_out=analysis_out,
@@ -2908,6 +2922,10 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
     if config.automation_smoothing_ms < 0.0:
         raise typer.BadParameter("--automation-smoothing-ms must be >= 0.")
 
+    has_automation_source = (
+        config.automation_file is not None
+        or len(config.automation_points) > 0
+    )
     has_automation_args = (
         config.automation_mode != "auto"
         or abs(float(config.automation_block_ms) - 20.0) > 1e-12
@@ -2915,25 +2933,47 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
         or len(config.automation_clamp) > 0
         or config.automation_trace_out is not None
     )
-    if config.automation_file is None and has_automation_args:
+    if not has_automation_source and has_automation_args:
         msg = (
             "--automation-mode/--automation-block-ms/--automation-smoothing-ms/"
-            "--automation-clamp/--automation-trace-out require --automation-file."
+            "--automation-clamp/--automation-trace-out require --automation-file "
+            "or --automation-point."
         )
         raise typer.BadParameter(msg)
 
-    if config.automation_file is None:
+    if not has_automation_source:
         return
 
-    if not Path(config.automation_file).exists():
-        raise typer.BadParameter(f"Automation file not found: {config.automation_file}")
-    if Path(config.automation_file).suffix.lower() not in {".json", ".csv"}:
-        raise typer.BadParameter("--automation-file must be a .json or .csv file.")
+    source_path: Path | None = None
+    if config.automation_file is not None:
+        source_path = Path(config.automation_file)
+        if not source_path.exists():
+            raise typer.BadParameter(f"Automation file not found: {config.automation_file}")
+        if source_path.suffix.lower() not in {".json", ".csv"}:
+            raise typer.BadParameter("--automation-file must be a .json or .csv file.")
 
     try:
         parse_automation_clamp_overrides(config.automation_clamp)
+        parse_automation_point_specs(config.automation_points)
+        targets = collect_automation_targets(
+            path=source_path,
+            point_specs=config.automation_points,
+        )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
+
+    conv_selected = config.engine == "conv" or (
+        config.engine == "auto" and (config.ir is not None or config.ir_gen or config.self_convolve)
+    )
+    if conv_selected:
+        engine_targets = sorted(target for target in targets if target in ENGINE_AUTOMATION_TARGETS)
+        if len(engine_targets) > 0:
+            joined = ", ".join(engine_targets)
+            msg = (
+                "Automation targets require algorithmic render path; "
+                f"use --engine algo (targets: {joined})."
+            )
+            raise typer.BadParameter(msg)
 
     if config.automation_trace_out is not None:
         trace_path = Path(config.automation_trace_out)
