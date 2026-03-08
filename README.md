@@ -53,6 +53,7 @@ For computationally intensive audio sweetening, verbx supports both Apple Silico
     - [6.3.3 Plain `venv` + `pip`](#633-plain-venv-pip)
     - [6.3.4 `pipx`](#634-pipx)
     - [6.3.5 Direct `python -m verbx.cli`](#635-direct-python-m-verbxcli)
+  - [6.4 Installer Script and Man Pages](#64-installer-script-and-man-pages)
 - [7.0 Quick Start Recipes](#70-quick-start-recipes)
   - [7.1 First render (algorithmic)](#71-first-render-algorithmic)
   - [7.2 Convolution render with external IR](#72-convolution-render-with-external-ir)
@@ -88,7 +89,9 @@ For computationally intensive audio sweetening, verbx supports both Apple Silico
   - [9.2 FDN State Update](#92-fdn-state-update)
     - [9.2.1 Supported FDN Topologies (Graphs)](#921-supported-fdn-topologies-graphs)
       - [9.2.1.1 Algorithmic Render Topology](#9211-algorithmic-render-topology)
-      - [9.2.1.2 IR FDN Variant Topologies](#9212-ir-fdn-variant-topologies)
+      - [9.2.1.2 FDN Matrix Family Graph](#9212-fdn-matrix-family-graph)
+      - [9.2.1.3 TV-Unitary + DFM Feedback Graph](#9213-tv-unitary-dfm-feedback-graph)
+      - [9.2.1.4 IR FDN Path Parity Graph](#9214-ir-fdn-path-parity-graph)
   - [9.3 Partitioned FFT Convolution](#93-partitioned-fft-convolution)
   - [9.4 Multichannel Matrix Convolution](#94-multichannel-matrix-convolution)
   - [9.5 Freeze Crossfade (Equal Power)](#95-freeze-crossfade-equal-power)
@@ -155,19 +158,21 @@ For computationally intensive audio sweetening, verbx supports both Apple Silico
   - [16.2 Bash script (CLI-driven)](#162-bash-script-cli-driven)
 - [17.0 Development](#170-development)
   - [17.1 Lint / type-check / tests](#171-lint-type-check-tests)
-  - [17.2 Installer Script and Man Pages](#172-installer-script-and-man-pages)
 - [18.0 Project Layout](#180-project-layout)
 - [19.0 Additional Docs](#190-additional-docs)
 - [20.0 Roadmap](#200-roadmap)
   - [20.1 v0.5 - Surround-first workflow hardening](#201-v05-surround-first-workflow-hardening)
-  - [20.2 v0.6 - Ambisonics and scene-domain spatial processing](#202-v06-ambisonics-and-scene-domain-spatial-processing)
+  - [20.2 v0.6 - Spatial foundations and advanced FDN controls](#202-v06---spatial-foundations-and-advanced-fdn-controls)
   - [20.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)](#203-v07-immersive-production-interoperability-atmos-and-large-scale-delivery)
     - [20.3.1 FDN structures track (v0.5-v0.7 priority order)](#2031-fdn-structures-track-v05-v07-priority-order)
-  - [20.4 v0.8 - Time-varying parameter automation for reverb engines](#204-v08-time-varying-parameter-automation-for-reverb-engines)
-  - [20.5 v0.9 - Feature-vector-driven reverb control (audio-reactive DSP)](#205-v09-feature-vector-driven-reverb-control-audio-reactive-dsp)
-  - [20.6 v1.0 - Jot-inspired FDN control and perceptual parameterization](#206-v10-jot-inspired-fdn-control-and-perceptual-parameterization)
-  - [20.7 v1.1 - IR morphing and blending framework](#207-v11-ir-morphing-and-blending-framework)
+  - [20.4 v0.7 Track A: Time-varying parameter automation for reverb engines](#204-v07-track-a-time-varying-parameter-automation-for-reverb-engines)
+  - [20.5 v0.7 Track B: Feature-vector-driven reverb control (audio-reactive DSP)](#205-v07-track-b-feature-vector-driven-reverb-control-audio-reactive-dsp)
+  - [20.6 v0.7 Track C: Jot-inspired FDN control and perceptual parameterization](#206-v07-track-c-jot-inspired-fdn-control-and-perceptual-parameterization)
+  - [20.7 v0.7 Track D: IR morphing and blending framework](#207-v07-track-d-ir-morphing-and-blending-framework)
   - [20.8 Literature-Driven Implementation Plan (from Academic References)](#208-literature-driven-implementation-plan-from-academic-references)
+    - [20.8.1 Rollout status (v0.5 FDN track)](#2081-rollout-status-v05-fdn-track)
+    - [20.8.2 Rollout status (v0.6 FDN track)](#2082-rollout-status-v06-fdn-track)
+    - [20.8.3 Sources for rollout steps 1-3](#2083-sources-for-rollout-steps-1-3)
 - [21.0 License](#210-license)
 - [22.0 Attribution](#220-attribution)
 
@@ -439,7 +444,7 @@ verbx render in.wav out.wav --engine algo --pre-delay-ms 20 --rt60 2.5 --wet 0.3
 
 ## 3.0 Status
 
-Current implementation level: **v0.4**
+Current implementation level: **v0.4.1**
 
 - scaffolding and architecture
 - functional DSP render path
@@ -689,6 +694,49 @@ Recommendation:
 - Use `uv` if you want the same result with faster dependency operations.
 - Use `venv` + `pip` for maximal portability.
 - Use `python -m verbx.cli` for quick local debugging only.
+
+### 6.4 Installer Script and Man Pages
+
+`verbx` ships installable man pages and an install helper script:
+
+- `scripts/install.sh`
+- `man/man1/verbx.1`
+- `man/man1/verbx-render.1`
+- `man/man1/verbx-analyze.1`
+- `man/man1/verbx-ir.1`
+- `man/man1/verbx-batch.1`
+
+Install package + man pages:
+
+```bash
+./scripts/install.sh --prefix "$HOME/.local"
+```
+
+Install with dev dependencies:
+
+```bash
+./scripts/install.sh --dev --prefix "$HOME/.local"
+```
+
+Install only man pages (skip pip package installation):
+
+```bash
+./scripts/install.sh --skip-python-install --prefix "$HOME/.local"
+```
+
+After install, verify:
+
+```bash
+verbx --help
+man verbx
+man verbx-render
+```
+
+If your shell cannot find the man pages, add this to your shell profile:
+
+```bash
+export MANPATH="$HOME/.local/share/man:$MANPATH"
+```
 
 ## 7.0 Quick Start Recipes
 
@@ -1169,36 +1217,66 @@ $$
 \mathbf{x}_{fb}[n+1] = \mathbf{G}\mathbf{M}\mathbf{y}[n] + \mathbf{u}[n]
 $$
 
-- $\mathbf{M}$: mixing matrix (Hadamard-style orthogonal mix)
+- $\mathbf{M}$: mixing matrix (selected orthonormal family, optionally time-varying)
 - $\mathbf{G}$: diagonal feedback gains (RT60-calibrated)
 - $\mathbf{D}$: damping / DC filtering
 - $\mathbf{u}[n]$: injected input (after pre-delay and diffusion)
 
 #### 9.2.1 Supported FDN Topologies (Graphs)
 
-These graphs show the currently implemented FDN structures in `verbx`.
+These graphs reflect the current implementation in:
+
+- `src/verbx/core/algo_reverb.py`
+- `src/verbx/ir/modes_fdn.py`
 
 ##### 9.2.1.1 Algorithmic Render Topology
 
 ![Algorithmic FDN topology graph](docs/assets/fdn_topology_algorithmic.svg)
 
-Implementation note:
+Implementation notes:
 
-- The render-time algorithmic engine uses a per-channel topology:
-  pre-delay -> allpass diffusion cascade -> FDN with Hadamard-derived feedback mix -> wet/dry mix.
-- Defaults are 6 allpass stages and 8 FDN lines, but both are user-configurable.
-- Allpass filters are explicit in the diffusion stage.
-- Separate user-exposed Schroeder comb-bank modules are not currently present; instead, each FDN delay line with feedback gain behaves as a comb-like resonator, and the matrix coupling/damping stages control coloration and stability.
+- Per-channel signal path is:
+  `input -> pre-delay -> allpass diffusion -> FDN feedback loop -> wet post -> wet/dry mix`.
+- Defaults are 6 allpass stages and 8 FDN lines; both are configurable.
+- Optional DFM branch is inserted in the feedback path when `--fdn-dfm-delays-ms` is provided.
+- Optional sparse high-order pair-mixing path is enabled with `--fdn-sparse`.
+- Optional feedback-link spectral shaping is enabled with `--fdn-link-filter`.
+- Separate user-exposed Schroeder comb-bank modules are not present; each FDN delay line behaves as a comb-like resonant path inside the coupled feedback network.
 
-##### 9.2.1.2 IR FDN Variant Topologies
+##### 9.2.1.2 FDN Matrix Family Graph
 
-![Supported FDN variant graph](docs/assets/fdn_topology_variants.svg)
+![FDN matrix family graph](docs/assets/fdn_topology_variants.svg)
 
-Implementation note:
+Implementation notes:
 
-- `ir gen --mode fdn` uses the shared FDN8 core.
-- `--fdn-matrix householder` and `--fdn-matrix random_orthogonal` add a multichannel output-space decorrelation matrix when channels > 1.
-- `--fdn-lines` in `verbx ir gen` currently remains reserved for deeper IR-topology variants; in `verbx render --engine algo`, `--fdn-lines` and `--comb-delays-ms` are active controls for the algorithmic FDN line structure.
+- Supported matrix families:
+  `hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`.
+- `tv-unitary` and `tv_unitary` are equivalent aliases.
+- All matrix families are orthonormalized before use in feedback mixing.
+
+##### 9.2.1.3 TV-Unitary + DFM Feedback Graph
+
+![TV-unitary and DFM feedback graph](docs/assets/fdn_topology_tvu_dfm.svg)
+
+Implementation notes:
+
+- `tv_unitary` requires:
+  - `--fdn-tv-rate-hz > 0`
+  - `--fdn-tv-depth > 0`
+- DFM is enabled with `--fdn-dfm-delays-ms`:
+  - one value broadcasts to all lines
+  - or provide one value per resolved FDN line.
+- Sparse high-order mode is enabled with `--fdn-sparse` and `--fdn-sparse-degree` (mutually exclusive with `tv_unitary`).
+
+##### 9.2.1.4 IR FDN Path Parity Graph
+
+![IR and render FDN parity graph](docs/assets/fdn_topology_ir_path.svg)
+
+Implementation notes:
+
+- `ir gen --mode fdn` and `ir gen --mode hybrid` use the same configurable algorithmic FDN core as render mode.
+- `--fdn-lines` is active in IR generation (no longer reserved).
+- Matrix, TV-unitary, and DFM options are portable between render and IR workflows.
 
 ### 9.3 Partitioned FFT Convolution
 
@@ -1411,6 +1489,15 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--allpass-delays-ms` | Optional comma-separated allpass delay list (milliseconds). | Use to tune diffusion timing explicitly; list length can be shorter/longer than `--allpass-stages`. |
 | `--comb-delays-ms` | Optional comma-separated FDN comb-like delay list (milliseconds). | Overrides default FDN line timing and effectively sets line count from the list length. |
 | `--fdn-lines` | FDN line count when `--comb-delays-ms` is not supplied. | More lines can increase density/smoothness but raise CPU usage. |
+| `--fdn-matrix` | FDN matrix family (`hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`). | Use `circulant`/`elliptic` for alternative diffusion color; use `tv_unitary` to reduce static ringing. |
+| `--fdn-tv-rate-hz` | Update rate for time-varying unitary mode. | Active only with `--fdn-matrix tv_unitary`; start with low rates. |
+| `--fdn-tv-depth` | Blend depth for time-varying unitary mode. | Active only with `--fdn-matrix tv_unitary`; keep moderate for stability/color balance. |
+| `--fdn-dfm-delays-ms` | Delay-feedback-matrix (DFM) delays (one value broadcast or one per line). | Very short delays can increase late-tail density and smoothness. |
+| `--fdn-sparse / --no-fdn-sparse` | Enables/disables sparse high-order FDN pair-mixing topology. | Enable for larger line-count workflows when you want denser tails with practical CPU behavior. |
+| `--fdn-sparse-degree` | Number of sparse pair-mixing stages. | Higher values increase mixing density; start around `2-4`. |
+| `--fdn-link-filter` | FDN feedback-link filter mode (`none`, `lowpass`, `highpass`). | Use to shape spectral flow inside the feedback matrix path. |
+| `--fdn-link-filter-hz` | Cutoff frequency for `--fdn-link-filter`. | Start around `1200-4000 Hz` and tune for desired tail color. |
+| `--fdn-link-filter-mix` | Wet mix of feedback-link filtering (`0..1`). | Lower values blend filtered and unfiltered feedback for subtler coloration. |
 | `--beast-mode [1..100]` | Multiplies key reverb parameters (RT60, wet balance, modulation depth/rate, repeat intensity, and relevant tail controls). | Use `2-5` for heavier ambience and `10+` for extreme freeze-like density. |
 
 #### 12.2.2 Temporal structuring, repeats, and freeze
@@ -1593,7 +1680,15 @@ No command-specific switches (other than `--help`).
 | Switch | What it controls | Practical guidance |
 |---|---|---|
 | `--fdn-lines` | Number of FDN delay lines. | More lines can increase smoothness and complexity. |
-| `--fdn-matrix` | FDN feedback matrix type identifier. | Matrix choice affects coloration and energy diffusion style. |
+| `--fdn-matrix` | FDN feedback matrix type identifier (`hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`). | Matrix choice affects coloration and energy diffusion style. |
+| `--fdn-tv-rate-hz` | Block-rate update frequency for `tv_unitary` matrix evolution. | Start slow (`0.05-0.30 Hz`) to reduce metallic ringing without audible modulation. |
+| `--fdn-tv-depth` | Blend depth for `tv_unitary` matrix evolution. | Start moderate (`0.2-0.6`) for stable decorrelation. |
+| `--fdn-dfm-delays-ms` | Delay-feedback-matrix (DFM) delays (one value broadcast or one per line). | Use very short values (`0.1-3.0 ms`) to increase late-tail density. |
+| `--fdn-sparse / --no-fdn-sparse` | Enables/disables sparse high-order FDN pair-mixing topology. | Use with higher `--fdn-lines` for practical-cost high-order tail generation. |
+| `--fdn-sparse-degree` | Number of sparse pair-mixing stages. | Start around `2-4`; increase for stronger diffusion at higher line counts. |
+| `--fdn-link-filter` | FDN feedback-link filter mode (`none`, `lowpass`, `highpass`). | Enables in-loop spectral shaping on matrix links. |
+| `--fdn-link-filter-hz` | Cutoff frequency for feedback-link filtering. | Practical starting range is `1200-4000 Hz` depending on source brightness. |
+| `--fdn-link-filter-mix` | Wet mix of feedback-link filtering (`0..1`). | Lower values keep more unfiltered energy for less coloration. |
 | `--fdn-stereo-inject` | Stereo cross-injection factor for FDN excitation. | Increase for stronger channel interaction in stereo fields. |
 | `--f0` | Explicit fundamental anchor frequency. | Useful when generating musically tuned IRs (example: `64 Hz`). |
 | `--analyze-input` | Source audio used to estimate tuning/harmonic targets. | Lets generator align IR resonance to real material. |
@@ -1962,49 +2057,6 @@ pyright
 pytest
 ```
 
-### 17.2 Installer Script and Man Pages
-
-`verbx` now ships installable man pages and an install helper script:
-
-- `scripts/install.sh`
-- `man/man1/verbx.1`
-- `man/man1/verbx-render.1`
-- `man/man1/verbx-analyze.1`
-- `man/man1/verbx-ir.1`
-- `man/man1/verbx-batch.1`
-
-Install package + man pages:
-
-```bash
-./scripts/install.sh --prefix "$HOME/.local"
-```
-
-Install with dev dependencies:
-
-```bash
-./scripts/install.sh --dev --prefix "$HOME/.local"
-```
-
-Install only man pages (skip pip package installation):
-
-```bash
-./scripts/install.sh --skip-python-install --prefix "$HOME/.local"
-```
-
-After install, verify:
-
-```bash
-verbx --help
-man verbx
-man verbx-render
-```
-
-If your shell cannot find the man pages, add this to your shell profile:
-
-```bash
-export MANPATH="$HOME/.local/share/man:$MANPATH"
-```
-
 ## 18.0 Project Layout
 
 - `src/verbx/cli.py`: command routing and UX
@@ -2033,7 +2085,7 @@ export MANPATH="$HOME/.local/share/man:$MANPATH"
 - `Batch`: improve parallel scheduler with checkpoint/resume manifests and deterministic recovery after worker interruption.
 - `Testing`: add golden multichannel vectors (5.1/7.1) and routing regression tests for diagonal, broadcast, and full matrix convolution.
 
-### 20.2 v0.6 - Ambisonics and scene-domain spatial processing
+### 20.2 v0.6 - Spatial foundations and advanced FDN controls
 
 - `Ambisonics I/O`: support first-order and higher-order Ambisonics (ACN/SN3D as baseline), including metadata checks and channel-order normalization.
 - `Spatial transforms`: add encode/decode transforms between channel buses and Ambisonic domain for reverb-field processing workflows.
@@ -2041,6 +2093,7 @@ export MANPATH="$HOME/.local/share/man:$MANPATH"
 - `Analysis`: add spherical energy distribution metrics and directionality stability features for HOA validation.
 - `UX`: add explicit CLI switches for spatial conventions (`--ambi-order`, `--ambi-normalization`, `--channel-order`) with strict validation and fail-fast mismatch messages.
 - `Interoperability`: provide practical export guidance for DAW pipelines (Nuendo/Reaper/Pro Tools Atmos bed pre-production via intermediate formats).
+- `Status update`: multiband and filter-feedback FDN controls are implemented; remaining v0.6 FDN work is nested/cascaded and graph-structured topologies.
 
 ### 20.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)
 
@@ -2056,13 +2109,14 @@ export MANPATH="$HOME/.local/share/man:$MANPATH"
 Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass diffusion, damping/DC loop filters, and orthonormal Hadamard-derived mixing. The next FDN structures to add are:
 
 1. `v0.5 (highest priority, low risk)`:
-   - `Time-varying unitary matrices`: smoothly interpolate orthonormal matrices to reduce static coloration and metallic ringing.
-   - `Expanded matrix families`: expose stable families beyond Hadamard (Householder/circulant-style variants) with explicit stability tests.
-   - `Sparse high-order FDN mode`: allow larger line counts with sparse mixing for denser tails at practical CPU cost.
-   - `FDN QA harness`: add dedicated decay-density/ringing regression metrics so matrix/topology changes are objectively validated.
+   - `Time-varying unitary matrices` (implemented): smoothly interpolate orthonormal matrices to reduce static coloration and metallic ringing.
+   - `Expanded matrix families` (implemented): stable families beyond Hadamard (Householder, circulant, elliptic, and random orthogonal variants) with stability tests.
+   - `Delay feedback matrix (DFM) mode` (implemented): optional in-loop delay-feedback layer to increase tail density while preserving stability.
+   - `Sparse high-order FDN mode` (implemented): optional sparse pair-mixing topology (`--fdn-sparse`, `--fdn-sparse-degree`) for larger line counts with practical CPU behavior.
+   - `FDN QA harness` (implemented): dedicated decay-density and ringing regression metrics in `src/verbx/analysis/fdn_qa.py` with automated tests.
 2. `v0.6 (medium risk, high control value)`:
-   - `Multiband FDN`: split low/mid/high decay targets so one scalar RT60 becomes a profile.
-   - `Filter-feedback FDN`: allow frequency-shaped links inside the feedback matrix for more realistic late-field coloration.
+   - `Multiband FDN` (implemented): split low/mid/high decay targets so one scalar RT60 becomes a profile.
+   - `Filter-feedback FDN` (implemented): frequency-shaped feedback links via `--fdn-link-filter`, `--fdn-link-filter-hz`, and `--fdn-link-filter-mix`.
    - `Nested/cascaded FDN`: small fast network into larger late network for improved early-to-late evolution.
    - `Graph-structured FDN (experimental)`: support adjacency/graph-defined mixing topologies for scene-style reverberation design.
 3. `v0.7 (higher complexity, immersive focus)`:
@@ -2071,7 +2125,7 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
    - `Nonlinear in-loop options (experimental)`: controlled saturation/compression in feedback loops for extreme/frozen textures.
    - `Topology fitting assistant`: analysis-guided candidate selection that proposes FDN structures from source material/target descriptors.
 
-### 20.4 v0.8 - Time-varying parameter automation for reverb engines
+### 20.4 v0.7 Track A: Time-varying parameter automation for reverb engines
 
 - `Automation timeline`: add sample-accurate and block-rate automation lanes so any render parameter can vary over time (for example `wet`, `rt60`, `damping`, shimmer controls, ducking, IR blend controls).
 - `Control data model`: introduce a unified automation format (breakpoints, ramps, curves, LFO envelopes, and segment clips) that can be loaded from JSON/CSV and applied consistently across engines.
@@ -2080,7 +2134,7 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
 - `Performance`: support sparse-event scheduling and cached interpolation so long renders with dense automation remain efficient.
 - `Safety`: enforce stability guards when automating sensitive parameters (feedback/decay/modulation) and provide deterministic behavior in repeat/batch modes.
 
-### 20.5 v0.9 - Feature-vector-driven reverb control (audio-reactive DSP)
+### 20.5 v0.7 Track B: Feature-vector-driven reverb control (audio-reactive DSP)
 
 - `Feature control bus`: allow one or more input feature vectors to drive any reverb parameter via a flexible modulation graph.
 - `Feature extraction set`: provide built-in time-domain, spectral, onset/transient, loudness, and harmonic feature streams with configurable frame rates and smoothing.
@@ -2089,7 +2143,7 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
 - `Offline and realtime-style modes`: render deterministically offline while preserving architecture compatibility for potential future low-latency/streaming reactive workflows.
 - `Explainability and QA`: emit control-trace reports (feature values + mapped parameter values) for debugging, reproducibility, and perceptual tuning.
 
-### 20.6 v1.0 - Jot-inspired FDN control and perceptual parameterization
+### 20.6 v0.7 Track C: Jot-inspired FDN control and perceptual parameterization
 
 - `Multiband RT control`: add Jot-style decay-shaping filters inside FDN feedback loops so low/mid/high T60 targets can be tuned independently while preserving stability.
 - `Energy-preserving feedback families`: expand matrix options with orthogonal/unitary constructions and expose perceptual controls that map to diffusion, echo density, and coloration.
@@ -2097,7 +2151,7 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
 - `Perceptual macro controls`: map low-level FDN coefficients to high-level room descriptors (size, clarity, warmth, envelopment) for faster design workflows.
 - `Validation tooling`: add decay-vs-target verification plots and spectral error summaries to verify calibration of FDN behavior against requested perceptual outcomes.
 
-### 20.7 v1.1 - IR morphing and blending framework
+### 20.7 v0.7 Track D: IR morphing and blending framework
 
 - `IR morph CLI`: add `verbx ir morph A.wav B.wav OUT.wav` with morph modes (`linear`, `equal-power`, `spectral`, `envelope-aware`) and mix control (`--alpha`).
 - `Render-time IR blending`: allow `verbx render` to accept multiple IRs with weighted blending (`--ir-blend`, `--ir-blend-mix`) so users can audition hybrid spaces without pre-baking files.
@@ -2105,7 +2159,7 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
 - `Decay-shape alignment`: time-normalize and RT-align source IRs before blending so morph trajectories remain stable and do not collapse or over-extend tails.
 - `Spectral-phase safeguards`: add frequency-dependent smoothing and phase-coherence constraints to reduce combing/phasiness in spectral morph modes.
 - `Multichannel-safe morphing`: preserve channel topology and cross-channel energy relationships during morphing for surround, Atmos bed, and Ambisonics-adjacent workflows.
-- `Automation-ready morph control`: expose morph coefficient timelines so IR blending can evolve over time (bridging with v0.8 automation lanes).
+- `Automation-ready morph control`: expose morph coefficient timelines so IR blending can evolve over time (bridging with v0.7 Track A automation lanes).
 - `Caching and reproducibility`: cache morphed IR artifacts by source-hash + mode + parameters, with metadata sidecars documenting source IRs, weights, and normalization choices.
 - `QA metrics`: add morph quality reports (RT60 drift, early/late ratio drift, spectral distance, inter-channel coherence deltas) for objective validation in batch/CI workflows.
 
@@ -2127,8 +2181,30 @@ The following items are direct engineering takeaways from papers listed in [docs
 Near-term implementation targeting:
 
 - `v0.5-v0.6`: items 1, 2, 4, 6, 9 (engine controls, analysis, and validation harness).
-- `v0.7-v0.8`: items 3, 5, 7 (perceptual control and intelligibility-aware workflows).
-- `v0.9-v1.1`: items 8, 10 (advanced fitting and perceptual matching pipelines).
+- `v0.6-v0.7 Track A/B`: items 3, 5, 7 (perceptual control and intelligibility-aware workflows).
+- `v0.7 Track C/D`: items 8, 10 (advanced fitting and perceptual matching pipelines).
+
+#### 20.8.1 Rollout status (v0.5 FDN track)
+
+- `Step 1 complete`: expanded matrix families are available via `--fdn-matrix` (`circulant`, `elliptic` added).
+- `Step 2 complete`: time-varying unitary mode is available via `--fdn-matrix tv_unitary` plus `--fdn-tv-rate-hz` and `--fdn-tv-depth`.
+- `Step 3 complete`: delay-feedback-matrix behavior is available via `--fdn-dfm-delays-ms` (render and `ir gen` paths).
+- `Step 4 complete`: sparse high-order mode is available via `--fdn-sparse` with configurable `--fdn-sparse-degree`.
+- `Step 5 complete`: FDN QA harness metrics are available in `src/verbx/analysis/fdn_qa.py` and validated in `tests/test_fdn_qa.py`.
+
+#### 20.8.2 Rollout status (v0.6 FDN track)
+
+- `Step 6 complete`: multiband FDN decay profile controls are available via `--fdn-rt60-low`, `--fdn-rt60-mid`, and `--fdn-rt60-high` with crossover controls.
+- `Step 7 complete`: filter-feedback FDN controls are available via `--fdn-link-filter`, `--fdn-link-filter-hz`, and `--fdn-link-filter-mix`.
+- `Step 8 in progress`: nested/cascaded FDN architecture for improved early-to-late evolution.
+- `Step 9 pending`: graph-structured FDN (adjacency-defined topology mode).
+
+#### 20.8.3 Sources for rollout steps 1-3
+
+- Schlecht, S. J.; Habets, E. A. P. (2015). Time-varying feedback matrices in feedback delay networks and their application in artificial reverberation. DOI: [10.1121/1.4928394](https://doi.org/10.1121/1.4928394)
+- Rocchesso, D.; Smith, J. O. (1997). Circulant and elliptic feedback delay networks for artificial reverberation. DOI: [10.1109/89.554269](https://doi.org/10.1109/89.554269)
+- Schlecht, S. J.; Habets, E. A. P. (2019). Dense Reverberation with Delay Feedback Matrices. DOI: [10.1109/WASPAA.2019.8937284](https://doi.org/10.1109/WASPAA.2019.8937284)
+- Välimäki, V.; Parker, J. D.; Savioja, L.; et al. (2012). Fifty Years of Artificial Reverberation. DOI: [10.1109/TASL.2012.2189567](https://doi.org/10.1109/TASL.2012.2189567)
 
 ## 21.0 License
 
