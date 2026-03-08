@@ -1379,3 +1379,193 @@ def test_ir_gen_validation_errors(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
+
+
+def test_render_ambisonics_encode_rotate_decode(tmp_path: Path) -> None:
+    sr = 24_000
+    n = 4096
+    t = np.arange(n, dtype=np.float32) / np.float32(sr)
+    left = (0.2 * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float32)
+    right = (0.2 * np.sin(2.0 * np.pi * 330.0 * t)).astype(np.float32)
+    stereo = np.column_stack((left, right)).astype(np.float32)
+
+    infile = tmp_path / "ambi_in.wav"
+    outfile = tmp_path / "ambi_out.wav"
+    sf.write(str(infile), stereo, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "1.2",
+            "--ambi-order",
+            "1",
+            "--ambi-encode-from",
+            "stereo",
+            "--ambi-rotate-yaw-deg",
+            "35",
+            "--ambi-decode-to",
+            "stereo",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float32")
+    assert out_sr == sr
+    assert out.shape[1] == 2
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    assert int(payload["config"]["ambi_order"]) == 1
+    assert payload["config"]["ambi_decode_to"] == "stereo"
+
+
+def test_render_rejects_ambi_channel_mismatch_without_encode(tmp_path: Path) -> None:
+    sr = 24_000
+    stereo = np.zeros((2048, 2), dtype=np.float32)
+    infile = tmp_path / "bad_ambi_in.wav"
+    outfile = tmp_path / "bad_ambi_out.wav"
+    sf.write(str(infile), stereo, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--ambi-order",
+            "2",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "Input channels" in result.output
+    assert "--ambi-order 2" in result.output
+
+
+def test_analyze_ambisonic_metrics_mode(tmp_path: Path) -> None:
+    sr = 48_000
+    n = 4096
+    t = np.arange(n, dtype=np.float32) / np.float32(sr)
+    foa = np.column_stack(
+        (
+            0.2 * np.sin(2.0 * np.pi * 120.0 * t),
+            0.1 * np.sin(2.0 * np.pi * 150.0 * t),
+            0.1 * np.sin(2.0 * np.pi * 80.0 * t),
+            0.15 * np.sin(2.0 * np.pi * 200.0 * t),
+        )
+    ).astype(np.float32)
+    infile = tmp_path / "foa.wav"
+    sf.write(str(infile), foa, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "analyze",
+            str(infile),
+            "--ambi-order",
+            "1",
+            "--ambi-normalization",
+            "sn3d",
+            "--channel-order",
+            "acn",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert "ambi_directionality_stability" in result.stdout
+
+
+def test_render_automation_file_wet_ramp_and_trace(tmp_path: Path) -> None:
+    sr = 16_000
+    n = sr // 2
+    x = np.ones((n, 1), dtype=np.float32)
+    ir = np.zeros((64, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+
+    infile = tmp_path / "auto_in.wav"
+    irfile = tmp_path / "auto_ir.wav"
+    outfile = tmp_path / "auto_out.wav"
+    auto_file = tmp_path / "automation.json"
+    trace_file = tmp_path / "automation_trace.csv"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    auto_payload = {
+        "mode": "block",
+        "block_ms": 10.0,
+        "lanes": [
+            {
+                "target": "wet",
+                "type": "breakpoints",
+                "interp": "linear",
+                "points": [[0.0, 0.0], [0.5, 1.0]],
+            }
+        ],
+    }
+    auto_file.write_text(json.dumps(auto_payload), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--wet",
+            "1.0",
+            "--dry",
+            "0.0",
+            "--normalize-stage",
+            "none",
+            "--automation-file",
+            str(auto_file),
+            "--automation-trace-out",
+            str(trace_file),
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    out, _ = sf.read(str(outfile), always_2d=True, dtype="float32")
+    q = max(8, out.shape[0] // 4)
+    early = float(np.mean(np.abs(out[:q, 0])))
+    late = float(np.mean(np.abs(out[-q:, 0])))
+    assert late > early
+    assert trace_file.exists()
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    automation = payload["effective"]["automation"]
+    assert isinstance(automation, dict)
+    assert "wet" in automation["targets"]
+
+
+def test_render_rejects_automation_options_without_file(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.zeros((512, 1), dtype=np.float32)
+    infile = tmp_path / "no_auto_in.wav"
+    outfile = tmp_path / "no_auto_out.wav"
+    sf.write(str(infile), x, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--automation-mode",
+            "sample",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "require --automation-file" in result.output

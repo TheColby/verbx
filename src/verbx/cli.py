@@ -26,6 +26,11 @@ from rich.table import Table
 from verbx.analysis.analyzer import AudioAnalyzer
 from verbx.analysis.framewise import write_framewise_csv
 from verbx.config import (
+    AmbiChannelOrder,
+    AmbiDecodeTo,
+    AmbiEncodeFrom,
+    AmbiNormalization,
+    AutomationMode,
     ChannelLayout,
     DeviceName,
     EngineName,
@@ -39,6 +44,7 @@ from verbx.config import (
     OutputSubtype,
     RenderConfig,
 )
+from verbx.core.automation import parse_automation_clamp_overrides
 from verbx.core.batch_scheduler import (
     BatchJobResult,
     BatchJobSpec,
@@ -49,6 +55,10 @@ from verbx.core.batch_scheduler import (
 )
 from verbx.core.modulation import parse_mod_route_spec, parse_mod_sources
 from verbx.core.pipeline import run_render_pipeline
+from verbx.core.spatial import (
+    ambisonic_channel_count,
+    normalize_ambisonic_metadata,
+)
 from verbx.core.tempo import parse_pre_delay_ms
 from verbx.io.audio import read_audio, validate_audio_path
 from verbx.ir.fitting import (
@@ -96,6 +106,31 @@ _IR_ROUTE_MAP_CHOICES = {
 _CONV_ROUTE_CURVE_CHOICES = {
     "linear",
     "equal-power",
+}
+_AMBI_NORMALIZATION_CHOICES = {
+    "auto",
+    "sn3d",
+    "n3d",
+    "fuma",
+}
+_AMBI_CHANNEL_ORDER_CHOICES = {
+    "auto",
+    "acn",
+    "fuma",
+}
+_AMBI_ENCODE_CHOICES = {
+    "none",
+    "mono",
+    "stereo",
+}
+_AMBI_DECODE_CHOICES = {
+    "none",
+    "stereo",
+}
+_AUTOMATION_MODE_CHOICES = {
+    "auto",
+    "sample",
+    "block",
 }
 
 
@@ -415,6 +450,38 @@ def render(
         "--conv-route-curve",
         help="Convolution trajectory curve: linear or equal-power.",
     ),
+    ambi_order: int = typer.Option(
+        0,
+        "--ambi-order",
+        min=0,
+        max=7,
+        help="Ambisonics order (0 disables Ambisonics-specific processing).",
+    ),
+    ambi_normalization: AmbiNormalization = typer.Option(
+        "auto",
+        "--ambi-normalization",
+        help="Ambisonics normalization convention: auto, sn3d, n3d, or fuma.",
+    ),
+    channel_order: AmbiChannelOrder = typer.Option(
+        "auto",
+        "--channel-order",
+        help="Ambisonics channel order convention: auto, acn, or fuma.",
+    ),
+    ambi_encode_from: AmbiEncodeFrom = typer.Option(
+        "none",
+        "--ambi-encode-from",
+        help="Encode input bus into FOA before render: none, mono, or stereo.",
+    ),
+    ambi_decode_to: AmbiDecodeTo = typer.Option(
+        "none",
+        "--ambi-decode-to",
+        help="Decode Ambisonics output after render: none or stereo.",
+    ),
+    ambi_rotate_yaw_deg: float = typer.Option(
+        0.0,
+        "--ambi-rotate-yaw-deg",
+        help="Listener yaw rotation in degrees applied in Ambisonic domain.",
+    ),
     algo_decorrelation_front: float = typer.Option(
         0.0,
         "--algo-front-variance",
@@ -487,6 +554,41 @@ def render(
     lowcut: float | None = typer.Option(None, "--lowcut", min=10.0),
     highcut: float | None = typer.Option(None, "--highcut", min=10.0),
     tilt: float = typer.Option(0.0, "--tilt"),
+    automation_file: Path | None = typer.Option(
+        None,
+        "--automation-file",
+        exists=True,
+        readable=True,
+        resolve_path=True,
+        help="JSON/CSV automation lanes used for time-varying render control.",
+    ),
+    automation_mode: AutomationMode = typer.Option(
+        "auto",
+        "--automation-mode",
+        help="Automation evaluation mode: auto, sample, or block.",
+    ),
+    automation_block_ms: float = typer.Option(
+        20.0,
+        "--automation-block-ms",
+        min=0.1,
+        help="Control block size in milliseconds when automation mode is block.",
+    ),
+    automation_smoothing_ms: float = typer.Option(
+        20.0,
+        "--automation-smoothing-ms",
+        min=0.0,
+        help="Default smoothing time (ms) applied to automation lanes.",
+    ),
+    automation_clamp: list[str] | None = typer.Option(
+        None,
+        "--automation-clamp",
+        help="Clamp override in target:min:max format (repeatable).",
+    ),
+    automation_trace_out: str | None = typer.Option(
+        None,
+        "--automation-trace-out",
+        help="Optional CSV path for resolved sample-level automation curves.",
+    ),
     frames_out: str | None = typer.Option(None, "--frames-out"),
     analysis_out: str | None = typer.Option(None, "--analysis-out"),
     lucky: int | None = typer.Option(
@@ -604,6 +706,12 @@ def render(
         conv_route_start=conv_route_start,
         conv_route_end=conv_route_end,
         conv_route_curve=_normalize_conv_route_curve_name(conv_route_curve),
+        ambi_order=int(ambi_order),
+        ambi_normalization=cast(AmbiNormalization, str(ambi_normalization).strip().lower()),
+        channel_order=cast(AmbiChannelOrder, str(channel_order).strip().lower()),
+        ambi_encode_from=cast(AmbiEncodeFrom, str(ambi_encode_from).strip().lower()),
+        ambi_decode_to=cast(AmbiDecodeTo, str(ambi_decode_to).strip().lower()),
+        ambi_rotate_yaw_deg=float(ambi_rotate_yaw_deg),
         tail_limit=tail_limit,
         threads=threads,
         device=device,
@@ -636,6 +744,12 @@ def render(
         lowcut=lowcut,
         highcut=highcut,
         tilt=tilt,
+        automation_file=None if automation_file is None else str(automation_file),
+        automation_mode=cast(AutomationMode, str(automation_mode).strip().lower()),
+        automation_block_ms=float(automation_block_ms),
+        automation_smoothing_ms=float(automation_smoothing_ms),
+        automation_clamp=tuple(automation_clamp or ()),
+        automation_trace_out=automation_trace_out,
         frames_out=frames_out,
         analysis_out=analysis_out,
         silent=silent,
@@ -728,6 +842,23 @@ def analyze(
         help="Include EDR (Energy Decay Relief) summary metrics.",
     ),
     frames_out: Path | None = typer.Option(None, "--frames-out", resolve_path=True),
+    ambi_order: int = typer.Option(
+        0,
+        "--ambi-order",
+        min=0,
+        max=7,
+        help="Enable Ambisonics spatial metrics for the given order.",
+    ),
+    ambi_normalization: AmbiNormalization = typer.Option(
+        "auto",
+        "--ambi-normalization",
+        help="Ambisonics normalization convention for analysis mode.",
+    ),
+    channel_order: AmbiChannelOrder = typer.Option(
+        "auto",
+        "--channel-order",
+        help="Ambisonics channel order convention for analysis mode.",
+    ),
 ) -> None:
     """Analyze an audio file and print a summary table."""
     _validate_analyze_call(infile, json_out, frames_out)
@@ -735,7 +866,15 @@ def analyze(
         validate_audio_path(str(infile))
         audio, sr = read_audio(str(infile))
         analyzer = AudioAnalyzer()
-        metrics = analyzer.analyze(audio, sr, include_loudness=lufs, include_edr=edr)
+        metrics = analyzer.analyze(
+            audio,
+            sr,
+            include_loudness=lufs,
+            include_edr=edr,
+            ambi_order=int(ambi_order) if int(ambi_order) > 0 else None,
+            ambi_normalization=str(ambi_normalization).strip().lower(),
+            ambi_channel_order=str(channel_order).strip().lower(),
+        )
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -1982,6 +2121,12 @@ def _print_render_summary(report: dict[str, Any]) -> None:
     else:
         table.add_row("mod_routes", "0")
     table.add_row("streaming_mode", str(report.get("effective", {}).get("streaming_mode", "")))
+    automation_payload = report.get("effective", {}).get("automation")
+    if isinstance(automation_payload, dict):
+        targets = automation_payload.get("targets", [])
+        if isinstance(targets, list):
+            table.add_row("automation_targets", ",".join(str(t) for t in targets))
+        table.add_row("automation_mode", str(automation_payload.get("mode", "")))
     config_report = report.get("config", {})
     if isinstance(config_report, dict):
         for key in (
@@ -2040,6 +2185,7 @@ def _build_lucky_config(
     cfg.progress = False
     cfg.frames_out = None
     cfg.analysis_out = None
+    cfg.automation_trace_out = None
 
     cfg.freeze = bool(input_duration_seconds > 1.5 and rng.random() < 0.33)
     if cfg.freeze:
@@ -2671,6 +2817,132 @@ def _validate_conv_route_settings(
         raise typer.BadParameter(msg)
 
 
+def _validate_ambisonic_settings(infile: Path, config: RenderConfig) -> None:
+    """Validate Ambisonics render options and channel/layout compatibility."""
+    order = int(config.ambi_order)
+    if order < 0:
+        raise typer.BadParameter("--ambi-order must be >= 0.")
+
+    if config.ambi_normalization not in _AMBI_NORMALIZATION_CHOICES:
+        options = ", ".join(sorted(_AMBI_NORMALIZATION_CHOICES))
+        raise typer.BadParameter(f"--ambi-normalization must be one of: {options}.")
+    if config.channel_order not in _AMBI_CHANNEL_ORDER_CHOICES:
+        options = ", ".join(sorted(_AMBI_CHANNEL_ORDER_CHOICES))
+        raise typer.BadParameter(f"--channel-order must be one of: {options}.")
+    if config.ambi_encode_from not in _AMBI_ENCODE_CHOICES:
+        options = ", ".join(sorted(_AMBI_ENCODE_CHOICES))
+        raise typer.BadParameter(f"--ambi-encode-from must be one of: {options}.")
+    if config.ambi_decode_to not in _AMBI_DECODE_CHOICES:
+        options = ", ".join(sorted(_AMBI_DECODE_CHOICES))
+        raise typer.BadParameter(f"--ambi-decode-to must be one of: {options}.")
+
+    if order == 0:
+        if config.ambi_encode_from != "none":
+            raise typer.BadParameter("--ambi-encode-from requires --ambi-order 1.")
+        if config.ambi_decode_to != "none":
+            raise typer.BadParameter("--ambi-decode-to requires --ambi-order >= 1.")
+        if abs(float(config.ambi_rotate_yaw_deg)) > 1e-12:
+            raise typer.BadParameter("--ambi-rotate-yaw-deg requires --ambi-order >= 1.")
+        if config.ambi_normalization != "auto" or config.channel_order != "auto":
+            raise typer.BadParameter(
+                "--ambi-normalization/--channel-order require --ambi-order >= 1."
+            )
+        return
+
+    try:
+        normalize_ambisonic_metadata(
+            order=order,
+            normalization=config.ambi_normalization,
+            channel_order=config.channel_order,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    expected_channels = ambisonic_channel_count(order)
+    if config.input_layout != "auto":
+        msg = "Ambisonics mode requires --input-layout auto."
+        raise typer.BadParameter(msg)
+    if config.ambi_decode_to == "none" and config.output_layout != "auto":
+        msg = "Ambisonics mode requires --output-layout auto unless --ambi-decode-to stereo is used."
+        raise typer.BadParameter(msg)
+
+    try:
+        in_info = sf.info(str(infile))
+    except (RuntimeError, TypeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    input_channels = int(in_info.channels)
+
+    if config.ambi_encode_from == "none":
+        if input_channels != expected_channels:
+            msg = (
+                f"Input channels ({input_channels}) do not match --ambi-order {order} "
+                f"({expected_channels} channels expected). "
+                "Use matching Ambisonic input or set --ambi-encode-from mono|stereo."
+            )
+            raise typer.BadParameter(msg)
+    else:
+        if order != 1:
+            msg = "--ambi-encode-from currently supports FOA only (--ambi-order 1)."
+            raise typer.BadParameter(msg)
+        required_channels = 1 if config.ambi_encode_from == "mono" else 2
+        if input_channels != required_channels:
+            msg = (
+                f"--ambi-encode-from {config.ambi_encode_from} expects "
+                f"{required_channels} input channel(s), got {input_channels}."
+            )
+            raise typer.BadParameter(msg)
+
+    if config.ambi_decode_to == "stereo" and config.output_layout not in {"auto", "stereo"}:
+        msg = "--ambi-decode-to stereo is only valid with --output-layout auto or stereo."
+        raise typer.BadParameter(msg)
+
+
+def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
+    """Validate automation file/options before render dispatch."""
+    if config.automation_mode not in _AUTOMATION_MODE_CHOICES:
+        choices = ", ".join(sorted(_AUTOMATION_MODE_CHOICES))
+        raise typer.BadParameter(f"--automation-mode must be one of: {choices}.")
+
+    if config.automation_block_ms <= 0.0:
+        raise typer.BadParameter("--automation-block-ms must be > 0.")
+    if config.automation_smoothing_ms < 0.0:
+        raise typer.BadParameter("--automation-smoothing-ms must be >= 0.")
+
+    has_automation_args = (
+        config.automation_mode != "auto"
+        or abs(float(config.automation_block_ms) - 20.0) > 1e-12
+        or abs(float(config.automation_smoothing_ms) - 20.0) > 1e-12
+        or len(config.automation_clamp) > 0
+        or config.automation_trace_out is not None
+    )
+    if config.automation_file is None and has_automation_args:
+        msg = (
+            "--automation-mode/--automation-block-ms/--automation-smoothing-ms/"
+            "--automation-clamp/--automation-trace-out require --automation-file."
+        )
+        raise typer.BadParameter(msg)
+
+    if config.automation_file is None:
+        return
+
+    if not Path(config.automation_file).exists():
+        raise typer.BadParameter(f"Automation file not found: {config.automation_file}")
+    if Path(config.automation_file).suffix.lower() not in {".json", ".csv"}:
+        raise typer.BadParameter("--automation-file must be a .json or .csv file.")
+
+    try:
+        parse_automation_clamp_overrides(config.automation_clamp)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if config.automation_trace_out is not None:
+        trace_path = Path(config.automation_trace_out)
+        if trace_path.resolve() == outfile.resolve():
+            raise typer.BadParameter("--automation-trace-out must differ from OUTFILE.")
+        if trace_path.suffix.lower() != ".csv":
+            raise typer.BadParameter("--automation-trace-out must use .csv extension.")
+
+
 def _validate_lucky_call(
     config: RenderConfig,
     lucky: int | None,
@@ -2678,11 +2950,16 @@ def _validate_lucky_call(
 ) -> None:
     """Validate lucky-mode options for randomized batch rendering."""
     _validate_generic_lucky_call(lucky, lucky_out_dir)
+    if lucky is None:
+        return
     if config.analysis_out is not None:
         msg = "Do not use --analysis-out with --lucky (analysis files are per-output by default)."
         raise typer.BadParameter(msg)
     if config.frames_out is not None:
         msg = "Do not use --frames-out with --lucky."
+        raise typer.BadParameter(msg)
+    if config.automation_trace_out is not None:
+        msg = "Do not use --automation-trace-out with --lucky."
         raise typer.BadParameter(msg)
 
 
@@ -2733,6 +3010,8 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
         conv_route_end=config.conv_route_end,
         conv_route_curve=config.conv_route_curve,
     )
+    _validate_ambisonic_settings(infile, config)
+    _validate_automation_settings(config, outfile)
 
     conv_enabled = (
         config.engine == "conv"
@@ -2764,12 +3043,24 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
         except (RuntimeError, TypeError, ValueError) as exc:
             raise typer.BadParameter(str(exc)) from exc
 
+        effective_in_channels = in_channels
+        if config.ambi_order > 0:
+            effective_in_channels = ambisonic_channel_count(int(config.ambi_order))
+            if ir_channels not in {1, effective_in_channels} and (
+                ir_channels % max(1, effective_in_channels)
+            ) != 0:
+                msg = (
+                    f"IR channel layout ({ir_channels}) is incompatible with Ambisonics order "
+                    f"{config.ambi_order} ({effective_in_channels} channels)."
+                )
+                raise typer.BadParameter(msg)
+
         if (
             config.ir_route_map == "auto"
             and config.output_layout == "auto"
-            and in_channels > 0
-            and ir_channels > in_channels
-            and ir_channels % in_channels == 0
+            and effective_in_channels > 0
+            and ir_channels > effective_in_channels
+            and ir_channels % effective_in_channels == 0
         ):
             msg = (
                 "Ambiguous matrix-packed IR layout detected. "

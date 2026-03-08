@@ -26,12 +26,25 @@ from verbx.analysis.framewise import write_framewise_csv
 from verbx.config import NormalizeStage, RenderConfig
 from verbx.core.accel import configure_cpu_threads, resolve_device
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
+from verbx.core.automation import (
+    apply_render_automation,
+    load_automation_bundle,
+    parse_automation_clamp_overrides,
+    write_automation_trace,
+)
 from verbx.core.ambient import apply_ambient_processing
 from verbx.core.convolution_reverb import ConvolutionReverbConfig, ConvolutionReverbEngine
 from verbx.core.engine_base import ReverbEngine
 from verbx.core.freeze import freeze_segment
 from verbx.core.loudness import apply_output_targets
 from verbx.core.modulation import apply_parameter_modulation, parse_mod_route_spec
+from verbx.core.spatial import (
+    ambisonic_channel_count,
+    convert_ambisonic_convention,
+    decode_foa_to_stereo,
+    encode_bus_to_foa,
+    rotate_ambisonic_yaw,
+)
 from verbx.core.repeat import repeat_process
 from verbx.io.audio import (
     peak_normalize,
@@ -145,10 +158,10 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
         progress.mark_read()
         progress.set_passes(max(1, config.repeat))
 
-        input_for_engine = audio
+        input_for_engine = _prepare_spatial_input(audio, runtime_config)
         if runtime_config.freeze:
             input_for_engine = freeze_segment(
-                audio=audio,
+                audio=input_for_engine,
                 sr=sr,
                 start=runtime_config.start,
                 end=runtime_config.end,
@@ -229,6 +242,37 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 route_summary["route_spec"] = route_spec
                 modulation_summaries.append(route_summary)
 
+        automation_summary: dict[str, Any] | None = None
+        if runtime_config.automation_file is not None:
+            clamp_overrides = parse_automation_clamp_overrides(runtime_config.automation_clamp)
+            bundle = load_automation_bundle(
+                path=Path(runtime_config.automation_file),
+                sr=sr,
+                num_samples=int(rendered.shape[0]),
+                mode=runtime_config.automation_mode,
+                block_ms=runtime_config.automation_block_ms,
+                smoothing_ms=runtime_config.automation_smoothing_ms,
+                clamp_overrides=clamp_overrides,
+            )
+            dry_reference = _build_dry_reference_for_automation(
+                engine_name=engine_name,
+                input_for_engine=input_for_engine,
+                rendered=rendered,
+                config=runtime_config,
+            )
+            rendered, automation_summary = apply_render_automation(
+                rendered=rendered,
+                dry_reference=dry_reference,
+                base_wet=float(runtime_config.wet),
+                base_dry=float(runtime_config.dry),
+                bundle=bundle,
+            )
+            if runtime_config.automation_trace_out is not None:
+                trace_path = Path(runtime_config.automation_trace_out)
+                write_automation_trace(trace_path, bundle)
+
+        rendered = _apply_spatial_output_transform(rendered, runtime_config)
+
         modulation_payload: dict[str, Any] | None
         if len(modulation_summaries) == 0:
             modulation_payload = None
@@ -290,6 +334,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 "output_peak_target_dbfs": runtime_config.output_peak_target_dbfs,
                 "streaming_mode": False,
                 "modulation": modulation_payload,
+                "automation": automation_summary,
                 "non_default_settings": _non_default_settings(runtime_config),
             },
         }
@@ -300,7 +345,18 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             include_loudness = _should_include_loudness(runtime_config)
             analyzer = AudioAnalyzer()
             report["input"] = analyzer.analyze(audio, sr, include_loudness=include_loudness)
-            report["output"] = analyzer.analyze(rendered, sr, include_loudness=include_loudness)
+            report["output"] = analyzer.analyze(
+                rendered,
+                sr,
+                include_loudness=include_loudness,
+                ambi_order=(
+                    runtime_config.ambi_order
+                    if runtime_config.ambi_order > 0 and runtime_config.ambi_decode_to == "none"
+                    else None
+                ),
+                ambi_normalization=runtime_config.ambi_normalization,
+                ambi_channel_order=runtime_config.channel_order,
+            )
             analysis_path = _resolve_analysis_path(outfile, runtime_config.analysis_out)
             analysis_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
             report["analysis_path"] = str(analysis_path)
@@ -308,6 +364,8 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 frames_path = Path(runtime_config.frames_out)
                 write_framewise_csv(frames_path, rendered, sr)
                 report["frames_path"] = str(frames_path)
+            if runtime_config.automation_trace_out is not None and automation_summary is not None:
+                report["automation_trace_path"] = str(Path(runtime_config.automation_trace_out))
 
         progress.mark_analyze()
 
@@ -346,6 +404,10 @@ def _can_stream_convolution(config: RenderConfig, engine_name: str, engine: Reve
         return False
     if len(config.mod_routes) > 0:
         return False
+    if config.automation_file is not None:
+        return False
+    if config.ambi_order > 0:
+        return False
     return True
 
 
@@ -362,6 +424,9 @@ def _prepare_runtime_config(
         input_duration_seconds=input_duration_seconds,
     )
     ir_runtime: dict[str, Any] | None = None
+    ir_channels = max(1, int(input_channels))
+    if runtime.ambi_order > 0:
+        ir_channels = ambisonic_channel_count(int(runtime.ambi_order))
 
     if runtime.self_convolve:
         # Use input file as IR source and force convolution semantics.
@@ -381,7 +446,7 @@ def _prepare_runtime_config(
             mode=runtime.ir_gen_mode,
             length=runtime.ir_gen_length,
             sr=sr,
-            channels=max(1, input_channels),
+            channels=ir_channels,
             seed=runtime.ir_gen_seed,
             rt60=runtime.rt60,
             damping=runtime.damping,
@@ -505,6 +570,10 @@ def _resolve_engine(config: RenderConfig, device: str) -> tuple[str, ReverbEngin
                 route_start=config.conv_route_start,
                 route_end=config.conv_route_end,
                 route_curve=config.conv_route_curve,
+                ambi_order=config.ambi_order,
+                ambi_normalization=config.ambi_normalization,
+                channel_order=config.channel_order,
+                ambi_rotate_yaw_deg=config.ambi_rotate_yaw_deg,
             )
         ), device
 
@@ -634,6 +703,97 @@ def _append_tail_padding(audio: AudioArray, sr: int, tail_seconds: float) -> Aud
         return audio
     padding = np.zeros((tail_samples, audio.shape[1]), dtype=np.float32)
     return np.concatenate((audio, padding), axis=0)
+
+
+def _prepare_spatial_input(audio: AudioArray, config: RenderConfig) -> AudioArray:
+    """Prepare input audio for Ambisonics processing when enabled."""
+    if config.ambi_order <= 0:
+        return np.asarray(audio, dtype=np.float32)
+
+    prepared = np.asarray(audio, dtype=np.float32)
+    source_norm = config.ambi_normalization
+    source_order = config.channel_order
+    if config.ambi_encode_from != "none":
+        prepared = encode_bus_to_foa(prepared, source=config.ambi_encode_from)
+        source_norm = "sn3d"
+        source_order = "acn"
+    return convert_ambisonic_convention(
+        prepared,
+        order=config.ambi_order,
+        source_normalization=source_norm,
+        source_channel_order=source_order,
+        target_normalization="sn3d",
+        target_channel_order="acn",
+    )
+
+
+def _apply_spatial_output_transform(audio: AudioArray, config: RenderConfig) -> AudioArray:
+    """Apply Ambisonics output transforms (rotation and optional decode)."""
+    if config.ambi_order <= 0:
+        return np.asarray(audio, dtype=np.float32)
+
+    transformed = np.asarray(audio, dtype=np.float32)
+    if abs(float(config.ambi_rotate_yaw_deg)) > 1e-12:
+        transformed = rotate_ambisonic_yaw(
+            transformed,
+            order=config.ambi_order,
+            yaw_degrees=config.ambi_rotate_yaw_deg,
+            normalization="sn3d",
+            channel_order="acn",
+        )
+
+    if config.ambi_decode_to == "stereo":
+        return decode_foa_to_stereo(
+            transformed,
+            order=config.ambi_order,
+            normalization="sn3d",
+            channel_order="acn",
+        )
+
+    return convert_ambisonic_convention(
+        transformed,
+        order=config.ambi_order,
+        source_normalization="sn3d",
+        source_channel_order="acn",
+        target_normalization=config.ambi_normalization,
+        target_channel_order=config.channel_order,
+    )
+
+
+def _build_dry_reference_for_automation(
+    *,
+    engine_name: str,
+    input_for_engine: AudioArray,
+    rendered: AudioArray,
+    config: RenderConfig,
+) -> AudioArray:
+    """Reconstruct dry-reference signal in rendered channel topology."""
+    out_len = int(rendered.shape[0])
+    out_channels = int(rendered.shape[1])
+    if out_len == 0:
+        return np.zeros((0, out_channels), dtype=np.float32)
+
+    if engine_name == "conv":
+        return ConvolutionReverbEngine._build_dry_for_output(
+            x=input_for_engine,
+            out_channels=out_channels,
+            out_len=out_len,
+            in_layout=config.input_layout,
+            out_layout=config.output_layout,
+        )
+
+    dry = np.zeros((out_len, out_channels), dtype=np.float32)
+    copy_len = min(out_len, int(input_for_engine.shape[0]))
+    in_channels = int(input_for_engine.shape[1])
+    if in_channels == out_channels:
+        dry[:copy_len, :] = input_for_engine[:copy_len, :]
+        return dry
+    if in_channels == 1 and out_channels > 1:
+        dry[:copy_len, :] = np.repeat(input_for_engine[:copy_len, :], out_channels, axis=1)
+        return dry
+    mapped = min(in_channels, out_channels)
+    dry[:copy_len, :mapped] = input_for_engine[:copy_len, :mapped]
+    return dry
 
 
 def _non_default_settings(config: RenderConfig) -> dict[str, Any]:

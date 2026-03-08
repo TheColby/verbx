@@ -23,6 +23,11 @@ from scipy import fft as sp_fft
 from scipy.signal import resample_poly
 
 from verbx.core.engine_base import ReverbEngine
+from verbx.core.spatial import (
+    ambisonic_channel_count,
+    convert_ambisonic_convention,
+    rotate_ambisonic_yaw,
+)
 from verbx.io.audio import ensure_mono_or_stereo
 
 AudioArray = npt.NDArray[np.float32]
@@ -54,10 +59,30 @@ class ConvolutionReverbConfig:
     ir_path: str | None = None
     ir_normalize: str = "peak"
     ir_matrix_layout: str = "output-major"
+    ir_route_map: str = "auto"
     partition_size: int = 16_384
     tail_limit: float | None = None
     threads: int | None = None
     device: str = "cpu"
+    input_layout: str = "auto"
+    output_layout: str = "auto"
+    route_start: str | None = None
+    route_end: str | None = None
+    route_curve: str = "equal-power"
+    ambi_order: int = 0
+    ambi_normalization: str = "auto"
+    channel_order: str = "auto"
+    ambi_rotate_yaw_deg: float = 0.0
+
+LAYOUT_CHANNELS: dict[str, int] = {
+    "mono": 1,
+    "stereo": 2,
+    "lcr": 3,
+    "5.1": 6,
+    "7.1": 8,
+    "7.1.2": 10,
+    "7.1.4": 12,
+}
 
 
 class ConvolutionReverbEngine(ReverbEngine):
@@ -93,6 +118,7 @@ class ConvolutionReverbEngine(ReverbEngine):
             raise ValueError(msg)
 
         ir = self._load_ir(self._config.ir_path, sr)
+        ir = self._prepare_ambisonic_ir(ir)
         if self._config.tail_limit is not None:
             max_tail = max(0, int(self._config.tail_limit * sr))
             ir = ir[: max_tail + 1, :]
@@ -102,11 +128,29 @@ class ConvolutionReverbEngine(ReverbEngine):
             ir=ir,
             input_channels=x.shape[1],
             layout=self._config.ir_matrix_layout,
+            route_map=self._config.ir_route_map,
+            expected_in_layout=self._config.input_layout,
+            expected_out_layout=self._config.output_layout,
         )
 
         part_size = max(256, int(self._config.partition_size))
         wet = self._partitioned_convolve_matrix(x, ir_matrix, part_size)
-        dry = self._build_dry_for_output(x, out_channels, out_len=wet.shape[0])
+        wet = self._apply_route_trajectory(
+            wet=wet,
+            out_layout=self._config.output_layout,
+            route_start=self._config.route_start,
+            route_end=self._config.route_end,
+            route_curve=self._config.route_curve,
+            frame_offset=0,
+            total_frames=int(wet.shape[0]),
+        )
+        dry = self._build_dry_for_output(
+            x, 
+            out_channels, 
+            out_len=wet.shape[0],
+            in_layout=self._config.input_layout,
+            out_layout=self._config.output_layout,
+        )
 
         output = (self._config.dry * dry) + (self._config.wet * wet)
         output = np.nan_to_num(output, nan=0.0, posinf=0.0, neginf=0.0)
@@ -149,6 +193,7 @@ class ConvolutionReverbEngine(ReverbEngine):
             sr = int(src.samplerate)
             input_channels = int(src.channels)
             ir = self._load_ir(self._config.ir_path, sr)
+            ir = self._prepare_ambisonic_ir(ir)
             if self._config.tail_limit is not None:
                 max_tail = max(0, int(self._config.tail_limit * sr))
                 ir = ir[: max_tail + 1, :]
@@ -157,6 +202,9 @@ class ConvolutionReverbEngine(ReverbEngine):
                 ir=ir,
                 input_channels=input_channels,
                 layout=self._config.ir_matrix_layout,
+                route_map=self._config.ir_route_map,
+                expected_in_layout=self._config.input_layout,
+                expected_out_layout=self._config.output_layout,
             )
 
             partition_size = max(256, int(self._config.partition_size))
@@ -177,6 +225,7 @@ class ConvolutionReverbEngine(ReverbEngine):
             output_samples = 0
             input_peak_linear = 0.0
             tail_remaining = max(0, int(ir.shape[0] - 1))
+            total_output_frames = int(src.frames) + tail_remaining
 
             with sf.SoundFile(
                 outfile,
@@ -200,7 +249,22 @@ class ConvolutionReverbEngine(ReverbEngine):
                         input_peak_linear = block_peak
 
                     wet_block = self._stream_accumulate_wet(states, in_block, out_channels)
-                    dry_block = self._build_dry_for_output(in_block, out_channels, out_len=samples)
+                    wet_block = self._apply_route_trajectory(
+                        wet=wet_block,
+                        out_layout=self._config.output_layout,
+                        route_start=self._config.route_start,
+                        route_end=self._config.route_end,
+                        route_curve=self._config.route_curve,
+                        frame_offset=output_samples,
+                        total_frames=total_output_frames,
+                    )
+                    dry_block = self._build_dry_for_output(
+                        in_block, 
+                        out_channels, 
+                        out_len=samples,
+                        in_layout=self._config.input_layout,
+                        out_layout=self._config.output_layout,
+                    )
 
                     out_block = (self._config.dry * dry_block) + (self._config.wet * wet_block)
                     out_block = np.nan_to_num(out_block, nan=0.0, posinf=0.0, neginf=0.0)
@@ -212,6 +276,15 @@ class ConvolutionReverbEngine(ReverbEngine):
                     tail_block_samples = min(partition_size, tail_remaining)
                     zeros_block = np.zeros((tail_block_samples, input_channels), dtype=np.float32)
                     wet_tail = self._stream_accumulate_wet(states, zeros_block, out_channels)
+                    wet_tail = self._apply_route_trajectory(
+                        wet=wet_tail,
+                        out_layout=self._config.output_layout,
+                        route_start=self._config.route_start,
+                        route_end=self._config.route_end,
+                        route_curve=self._config.route_curve,
+                        frame_offset=output_samples,
+                        total_frames=total_output_frames,
+                    )
                     out_tail = np.nan_to_num(
                         np.asarray(self._config.wet * wet_tail, dtype=np.float32),
                         nan=0.0,
@@ -244,6 +317,33 @@ class ConvolutionReverbEngine(ReverbEngine):
 
         return ir_audio
 
+    def _prepare_ambisonic_ir(self, ir: AudioArray) -> AudioArray:
+        """Normalize optional Ambisonic IR conventions to ACN/SN3D canonical form."""
+        order = int(self._config.ambi_order)
+        if order <= 0:
+            return ir
+        expected = ambisonic_channel_count(order)
+        if int(ir.shape[1]) != expected:
+            return ir
+
+        converted = convert_ambisonic_convention(
+            np.asarray(ir, dtype=np.float32),
+            order=order,
+            source_normalization=self._config.ambi_normalization,
+            source_channel_order=self._config.channel_order,
+            target_normalization="sn3d",
+            target_channel_order="acn",
+        )
+        if abs(float(self._config.ambi_rotate_yaw_deg)) > 1e-12:
+            converted = rotate_ambisonic_yaw(
+                converted,
+                order=order,
+                yaw_degrees=self._config.ambi_rotate_yaw_deg,
+                normalization="sn3d",
+                channel_order="acn",
+            )
+        return np.asarray(converted, dtype=np.float32)
+
     @staticmethod
     def _normalize_ir(ir: AudioArray, mode: str) -> AudioArray:
         """Normalize IR according to requested policy (`none|rms|peak`)."""
@@ -266,10 +366,13 @@ class ConvolutionReverbEngine(ReverbEngine):
         x: AudioArray,
         out_channels: int,
         out_len: int,
+        in_layout: str,
+        out_layout: str,
     ) -> AudioArray:
         """Map dry signal to output channel topology.
 
         Rules:
+        - semantic surround-to-stereo folddown if layouts requested,
         - identical channel count -> passthrough,
         - mono output -> average input channels,
         - mono input -> replicate across output channels,
@@ -280,6 +383,40 @@ class ConvolutionReverbEngine(ReverbEngine):
         copy_len = min(int(x.shape[0]), out_len)
         block = x[:copy_len, :]
 
+        in_l = in_layout.lower()
+        out_l = out_layout.lower()
+
+        # Semantic folddown to stereo from surround
+        if (
+            out_l == "stereo"
+            and out_channels == 2
+            and in_l in {"lcr", "5.1", "7.1", "7.1.2", "7.1.4"}
+            and in_channels >= 3
+        ):
+            # Standard SMPTE layout assumption: L(0), R(1), C(2), LFE(3), Ls(4), Rs(5)
+            left = block[:, 0].copy()
+            right = block[:, 1].copy()
+            center_mix = block[:, 2] * 0.7071
+            left += center_mix
+            right += center_mix
+            if in_channels >= 6:  # 5.1+
+                left += block[:, 4] * 0.7071
+                right += block[:, 5] * 0.7071
+            if in_channels >= 8:  # 7.1+
+                left += block[:, 6] * 0.5  # Lrs
+                right += block[:, 7] * 0.5  # Rrs
+            if in_channels >= 10:  # 7.1.2+
+                left += block[:, 8] * 0.5  # Ltf
+                right += block[:, 9] * 0.5  # Rtf
+            if in_channels >= 12:  # 7.1.4
+                left += block[:, 10] * 0.5  # Ltr
+                right += block[:, 11] * 0.5  # Rtr
+
+            dry[:copy_len, 0] = left
+            dry[:copy_len, 1] = right
+            return dry
+
+        # Fallback structural mapping
         if out_channels == in_channels:
             dry[:copy_len, :] = block
             return dry
@@ -301,28 +438,65 @@ class ConvolutionReverbEngine(ReverbEngine):
         ir: AudioArray,
         input_channels: int,
         layout: str,
+        route_map: str,
+        expected_in_layout: str,
+        expected_out_layout: str,
     ) -> tuple[npt.NDArray[np.float32], int]:
         """Resolve IR channel layout into an ``[in, out, taps]`` matrix."""
         ir_len = int(ir.shape[0])
         ir_channels = int(ir.shape[1])
+        route = route_map.strip().lower().replace("-", "_")
+        if route in {"diag", "diagonal"}:
+            route = "diagonal"
+        if route in {"full_matrix", "fullmatrix"}:
+            route = "full"
+        if route not in {"auto", "diagonal", "broadcast", "full"}:
+            msg = f"Unsupported IR route map mode: {route_map}"
+            raise ValueError(msg)
 
         if input_channels < 1:
             msg = "Input must have at least one channel for convolution."
             raise ValueError(msg)
 
+        in_l = expected_in_layout.lower()
+        if in_l != "auto" and in_l in LAYOUT_CHANNELS:
+            if input_channels != LAYOUT_CHANNELS[in_l]:
+                msg = (
+                    f"Input layout '{in_l}' expects {LAYOUT_CHANNELS[in_l]} channels, "
+                    f"got {input_channels}."
+                )
+                raise ValueError(msg)
+
+        expected_out_ch = self._resolve_layout_channels(expected_out_layout)
+
         if ir_channels == 1:
-            # Mono IR is broadcast diagonally across matching in/out channels.
-            out_channels = input_channels
+            out_channels = expected_out_ch if expected_out_ch is not None else input_channels
             matrix = np.zeros((input_channels, out_channels, ir_len), dtype=np.float32)
-            for ch in range(input_channels):
+            if route in {"broadcast", "full"}:
+                matrix[:, :, :] = ir[:, 0]
+                return matrix, out_channels
+
+            mapped = min(input_channels, out_channels)
+            for ch in range(mapped):
                 matrix[ch, ch, :] = ir[:, 0]
             return matrix, out_channels
 
         if ir_channels == input_channels:
-            # Per-channel IR behaves like channel-independent convolution.
-            out_channels = input_channels
+            out_channels = expected_out_ch if expected_out_ch is not None else input_channels
             matrix = np.zeros((input_channels, out_channels, ir_len), dtype=np.float32)
-            for ch in range(input_channels):
+            if route == "broadcast":
+                for in_idx in range(input_channels):
+                    matrix[in_idx, :, :] = ir[:, in_idx]
+                return matrix, out_channels
+            if route == "full":
+                msg = (
+                    "IR route-map 'full' requires matrix-packed IR channels "
+                    "(input_channels * output_channels)."
+                )
+                raise ValueError(msg)
+
+            mapped = min(input_channels, out_channels)
+            for ch in range(mapped):
                 matrix[ch, ch, :] = ir[:, ch]
             return matrix, out_channels
 
@@ -339,6 +513,29 @@ class ConvolutionReverbEngine(ReverbEngine):
         if out_channels < 1:
             msg = "Invalid IR matrix output channels resolved from IR channel layout."
             raise ValueError(msg)
+
+        if route in {"diagonal", "broadcast"}:
+            msg = (
+                f"IR route-map '{route}' is incompatible with matrix-packed IR "
+                f"({ir_channels} channels for {input_channels} input channels). "
+                "Use --ir-route-map full or auto."
+            )
+            raise ValueError(msg)
+
+        out_l = expected_out_layout.lower()
+        if out_l != "auto" and out_l in LAYOUT_CHANNELS:
+            expected_out_ch = LAYOUT_CHANNELS[out_l]
+            if (
+                out_channels != expected_out_ch
+                and ir_channels != 1
+                and ir_channels != input_channels
+            ):
+                msg = (
+                    f"Output layout '{out_l}' expects {expected_out_ch} channels, "
+                    f"but IR resolves to {out_channels}."
+                )
+                raise ValueError(msg)
+            out_channels = expected_out_ch
 
         if layout not in {"output-major", "input-major"}:
             msg = f"Unsupported IR matrix layout: {layout}"
@@ -357,6 +554,166 @@ class ConvolutionReverbEngine(ReverbEngine):
                 matrix[in_idx, out_idx, :] = ir[:, ir_idx]
 
         return matrix, out_channels
+
+    @staticmethod
+    def _resolve_layout_channels(layout: str) -> int | None:
+        """Resolve channel count from symbolic layout name."""
+        normalized = layout.strip().lower()
+        if normalized == "auto":
+            return None
+        return LAYOUT_CHANNELS.get(normalized)
+
+    @staticmethod
+    def _infer_layout_name(layout: str, out_channels: int) -> str:
+        """Resolve usable layout name from user input or channel count."""
+        normalized = layout.strip().lower()
+        if normalized != "auto":
+            return normalized
+        by_channels = {
+            1: "mono",
+            2: "stereo",
+            3: "lcr",
+            6: "5.1",
+            8: "7.1",
+            10: "7.1.2",
+            12: "7.1.4",
+        }
+        return by_channels.get(out_channels, "auto")
+
+    @classmethod
+    def _resolve_route_index(
+        cls,
+        token: str,
+        out_layout: str,
+        out_channels: int,
+    ) -> int:
+        """Resolve route start/end token to output channel index."""
+        cleaned = token.strip().lower().replace("_", "-")
+        if cleaned.isdigit():
+            index = int(cleaned)
+            if index < 0 or index >= out_channels:
+                msg = f"Route index {index} is out of range for {out_channels} output channels."
+                raise ValueError(msg)
+            return index
+
+        layout = cls._infer_layout_name(out_layout, out_channels)
+        aliases: dict[str, int] = {}
+        if layout == "mono":
+            aliases = {"mono": 0, "center": 0, "front": 0}
+        elif layout == "stereo":
+            aliases = {"left": 0, "right": 1, "front-left": 0, "front-right": 1}
+        elif layout == "lcr":
+            aliases = {"left": 0, "right": 1, "center": 2, "front": 2}
+        elif layout == "5.1":
+            aliases = {
+                "left": 0,
+                "right": 1,
+                "center": 2,
+                "lfe": 3,
+                "rear-left": 4,
+                "rear-right": 5,
+                "front-left": 0,
+                "front-right": 1,
+            }
+        elif layout == "7.1":
+            aliases = {
+                "left": 0,
+                "right": 1,
+                "center": 2,
+                "lfe": 3,
+                "side-left": 4,
+                "side-right": 5,
+                "rear-left": 6,
+                "rear-right": 7,
+            }
+        elif layout == "7.1.2":
+            aliases = {
+                "left": 0,
+                "right": 1,
+                "center": 2,
+                "lfe": 3,
+                "side-left": 4,
+                "side-right": 5,
+                "rear-left": 6,
+                "rear-right": 7,
+                "top-left": 8,
+                "top-right": 9,
+            }
+        elif layout == "7.1.4":
+            aliases = {
+                "left": 0,
+                "right": 1,
+                "center": 2,
+                "lfe": 3,
+                "side-left": 4,
+                "side-right": 5,
+                "rear-left": 6,
+                "rear-right": 7,
+                "top-front-left": 8,
+                "top-front-right": 9,
+                "top-rear-left": 10,
+                "top-rear-right": 11,
+                "top-left": 8,
+                "top-right": 9,
+            }
+
+        if cleaned in aliases:
+            return aliases[cleaned]
+
+        msg = (
+            f"Unsupported route token '{token}'. Use channel index or known aliases "
+            "for the selected output layout."
+        )
+        raise ValueError(msg)
+
+    @classmethod
+    def _apply_route_trajectory(
+        cls,
+        wet: AudioArray,
+        out_layout: str,
+        route_start: str | None,
+        route_end: str | None,
+        route_curve: str,
+        frame_offset: int,
+        total_frames: int,
+    ) -> AudioArray:
+        """Apply linear/equal-power source trajectory to wet output channels."""
+        if route_start is None and route_end is None:
+            return wet
+        if route_start is None or route_end is None:
+            msg = "Both route_start and route_end must be provided together."
+            raise ValueError(msg)
+
+        out_channels = int(wet.shape[1])
+        if out_channels <= 1:
+            return wet
+
+        start_idx = cls._resolve_route_index(route_start, out_layout, out_channels)
+        end_idx = cls._resolve_route_index(route_end, out_layout, out_channels)
+        curve = route_curve.strip().lower().replace("_", "-")
+        if curve not in {"linear", "equal-power"}:
+            msg = f"Unsupported trajectory curve: {route_curve}"
+            raise ValueError(msg)
+
+        n = int(wet.shape[0])
+        if n == 0:
+            return wet
+
+        denom = float(max(1, total_frames - 1))
+        idx = np.arange(frame_offset, frame_offset + n, dtype=np.float32)
+        alpha = np.clip(idx / denom, 0.0, 1.0)
+        if curve == "linear":
+            g_start = 1.0 - alpha
+            g_end = alpha
+        else:
+            g_start = np.cos(0.5 * np.pi * alpha)
+            g_end = np.sin(0.5 * np.pi * alpha)
+
+        base = np.mean(wet, axis=1, dtype=np.float32)
+        out = np.zeros_like(wet, dtype=np.float32)
+        out[:, start_idx] = base * g_start
+        out[:, end_idx] += base * g_end
+        return np.asarray(out, dtype=np.float32)
 
     def _partitioned_convolve_matrix(
         self,

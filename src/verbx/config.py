@@ -16,6 +16,11 @@ ChannelLayout = Literal["auto", "mono", "stereo", "LCR", "5.1", "7.1", "7.1.2", 
 OutputPeakNorm = Literal["none", "input", "target", "full-scale"]
 ModTarget = Literal["none", "mix", "wet", "gain-db"]
 ModCombine = Literal["sum", "avg", "max"]
+AmbiNormalization = Literal["auto", "sn3d", "n3d", "fuma"]
+AmbiChannelOrder = Literal["auto", "acn", "fuma"]
+AmbiEncodeFrom = Literal["none", "mono", "stereo"]
+AmbiDecodeTo = Literal["none", "stereo"]
+AutomationMode = Literal["auto", "sample", "block"]
 
 
 @dataclass(slots=True)
@@ -89,6 +94,12 @@ class RenderConfig:
     conv_route_start: str | None = None
     conv_route_end: str | None = None
     conv_route_curve: str = "equal-power"
+    ambi_order: int = 0
+    ambi_normalization: AmbiNormalization = "auto"
+    channel_order: AmbiChannelOrder = "auto"
+    ambi_encode_from: AmbiEncodeFrom = "none"
+    ambi_decode_to: AmbiDecodeTo = "none"
+    ambi_rotate_yaw_deg: float = 0.0
     tail_limit: float | None = None
     threads: int | None = None
     device: DeviceName = "auto"
@@ -125,5 +136,11 @@ class RenderConfig:
     pre_delay_note: str | None = None
     frames_out: str | None = None
     analysis_out: str | None = None
+    automation_file: str | None = None
+    automation_mode: AutomationMode = "auto"
+    automation_block_ms: float = 20.0
+    automation_smoothing_ms: float = 20.0
+    automation_clamp: tuple[str, ...] = ()
+    automation_trace_out: str | None = None
     silent: bool = False
     progress: bool = True

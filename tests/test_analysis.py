@@ -72,6 +72,38 @@ def test_framewise_modulation_metrics_present() -> None:
     row = rows[len(rows) // 2]
     assert "amp_mod_depth" in row
     assert "amp_mod_rate_hz" in row
+    assert "amp_mod_confidence" in row
     assert "centroid_mod_depth" in row
     assert "centroid_mod_rate_hz" in row
+    assert "centroid_mod_confidence" in row
+    assert "channel_coherence" in row
+    assert "coherence_drift" in row
     assert row["amp_mod_depth"] >= 0.0
+    assert 0.0 <= row["amp_mod_confidence"] <= 1.0
+    assert 0.0 <= row["centroid_mod_confidence"] <= 1.0
+
+
+def test_analyzer_ambisonic_metrics_keys() -> None:
+    analyzer = AudioAnalyzer()
+    sr = 48_000
+    n = 4096
+    t = np.arange(n, dtype=np.float32) / np.float32(sr)
+    w = (0.3 * np.sin(2.0 * np.pi * 120.0 * t)).astype(np.float32)
+    y = (0.2 * np.sin(2.0 * np.pi * 200.0 * t)).astype(np.float32)
+    z = (0.1 * np.sin(2.0 * np.pi * 90.0 * t)).astype(np.float32)
+    x = (0.25 * np.sin(2.0 * np.pi * 160.0 * t)).astype(np.float32)
+    foa = np.column_stack((w, y, z, x)).astype(np.float32)
+
+    metrics = analyzer.analyze(
+        foa,
+        sr=sr,
+        ambi_order=1,
+        ambi_normalization="sn3d",
+        ambi_channel_order="acn",
+    )
+
+    assert "ambi_order" in metrics
+    assert "ambi_energy_omni_ratio" in metrics
+    assert "ambi_directionality_stability" in metrics
+    assert "ambi_front_ratio" in metrics
+    assert 0.0 <= metrics["ambi_directionality_stability"] <= 1.0

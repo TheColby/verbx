@@ -768,6 +768,8 @@ Current implementation level: **v0.6.0**
 - v0.4 additions: framewise modulation analysis, advanced IR fitting heuristics, parallel batch scheduler
 - v0.5 additions: surround route maps/trajectories, algorithmic surround decorrelation, and batch checkpoint/resume hardening
 - v0.6 additions: graph-structured FDN topology mode and expanded FDN topology controls
+- v0.6 spatial additions: Ambisonics convention validation (`--ambi-order`, `--ambi-normalization`, `--channel-order`), FOA encode/decode transforms, yaw rotation, and Ambisonics spatial metrics in analysis mode
+- v0.7 Track A starter additions: JSON/CSV automation lanes (`--automation-file`) with block/sample evaluation, smoothing, clamp overrides, and automation trace export
 
 ## 7.0 Quick Start Recipes
 
@@ -1544,7 +1546,7 @@ When incompatible options are requested, `verbx` falls back to full-buffer proce
 
 ## 12.0 CLI Switch Reference
 
-This section lists all CLI switches available in the current `v0.6.0` interface.
+This section lists all CLI switches available in the current `v0.6.0 + v0.7 Track A starter` interface.
 For full descriptions and defaults, run `verbx <command> --help`.
 
 ### 12.1 Top-level commands
@@ -1619,6 +1621,12 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--conv-route-start` | Start position for convolution route trajectory. | Pair with `--conv-route-end` to pan trajectory across output buses during one render. |
 | `--conv-route-end` | End position for convolution route trajectory. | Pair with `--conv-route-start` to define trajectory endpoints. |
 | `--conv-route-curve [linear\|equal-power]` | Interpolation curve for convolution route trajectory. | `equal-power` gives smoother perceived energy during movement; `linear` is more literal gain interpolation. |
+| `--ambi-order [0..7]` | Ambisonics processing order (`0` disables Ambisonics mode). | Use `1` for FOA and higher values for HOA buses; channel count must match `(N+1)^2` unless `--ambi-encode-from` is used. |
+| `--ambi-normalization [auto\|sn3d\|n3d\|fuma]` | Ambisonics normalization convention metadata. | `auto` defaults to SN3D unless FUMA is explicitly selected; FUMA is FOA-only. |
+| `--channel-order [auto\|acn\|fuma]` | Ambisonics channel-order convention metadata. | `auto` defaults to ACN unless FUMA is explicitly selected; FUMA is FOA-only. |
+| `--ambi-encode-from [none\|mono\|stereo]` | Encode mono/stereo bus into FOA before render. | Useful when source is not already Ambisonic; currently FOA-only workflow (`--ambi-order 1`). |
+| `--ambi-decode-to [none\|stereo]` | Decode Ambisonics output after render. | Use `stereo` to monitor/print Ambisonic renders without leaving HOA domain assets in your pipeline. |
+| `--ambi-rotate-yaw-deg` | Listener yaw rotation applied in Ambisonic domain. | Use for orientation-aware rendering; FOA rotation is fully supported and HOA uses FOA subset rotation. |
 | `--ir-normalize [peak\|rms\|none]` | How IR amplitude is normalized before convolution. | `peak` is typical for predictable headroom; `none` preserves original IR level exactly. |
 | `--ir-matrix-layout [output-major\|input-major]` | Mapping for matrix-packed multichannel IRs. | Use this for true cross-channel routing (M-in × N-out IR channel packing). |
 | `--partition-size` | FFT partition size for convolution processing. | Larger partitions reduce FFT overhead but raise latency/memory per block; tune for workload. |
@@ -1681,6 +1689,12 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--mod-combine [sum\|avg\|max]` | Source-combination policy for multi-source modulation. | `sum` is most energetic, `avg` is smoother, `max` follows the strongest source instant-by-instant. |
 | `--mod-smooth-ms` | Smoothing time constant for control-signal de-zippering. | Increase when modulation sounds too stepped or twitchy. |
 | `--mod-route` | Repeatable advanced route for per-parameter modulation with independent source sets. | Use this when one LFO/source group should control one parameter and another group should control a different parameter. |
+| `--automation-file` | JSON/CSV timeline automation source for render-time control. | Current Track A starter targets are `wet`, `dry`, and `gain-db`. |
+| `--automation-mode [auto\|sample\|block]` | Automation evaluation mode. | `sample` is highest precision; `block` is efficient for long renders. |
+| `--automation-block-ms` | Control block size for block-mode automation. | Smaller values increase precision; larger values reduce control-rate overhead. |
+| `--automation-smoothing-ms` | Default lane smoothing time constant. | Increase to reduce zipper artifacts on aggressive ramps/LFOs. |
+| `--automation-clamp` | Per-target clamp override (`target:min:max`, repeatable). | Use to enforce safe control ranges per target for deterministic batch behavior. |
+| `--automation-trace-out` | CSV path for resolved sample-level automation curves. | Use for QA, reproducibility, and perceptual tuning audits. |
 | `--frames-out` | Path for framewise CSV metrics output. | Exports per-frame analysis including modulation metrics. |
 | `--analysis-out` | Path for JSON analysis report. | If omitted, report is written to `<OUTFILE>.analysis.json` unless `--silent`. |
 | `--lucky` | Generates N randomized "wild" render variants from one input. | Best for exploration and sound-design discovery; pair with `--lucky-out-dir`. |
@@ -1712,6 +1726,9 @@ Examples:
 | `--lufs` | Enables loudness-specific metrics (`integrated_lufs`, `true_peak_dbfs`, `lra`). | Turn on when targeting delivery specs or validating loudness normalization behavior. |
 | `--edr` | Enables EDR summary metrics (`edr_rt60_*`, `edr_valid_bins`). | Use for quick frequency-dependent decay analysis from a single source file. |
 | `--frames-out` | Writes framewise CSV metrics for temporal inspection. | Useful for debugging dynamics, modulation, and section-by-section behavior. |
+| `--ambi-order [0..7]` | Enables Ambisonics spatial metrics for the declared HOA order. | Use when analyzing FOA/HOA assets; channel count must match `(N+1)^2`. |
+| `--ambi-normalization [auto\|sn3d\|n3d\|fuma]` | Ambisonics normalization convention metadata for analysis. | Set explicitly when files are not ACN/SN3D-native. |
+| `--channel-order [auto\|acn\|fuma]` | Ambisonics channel-order convention metadata for analysis. | Use `fuma` only for FOA assets; ACN is the default workflow. |
 
 ### 12.4 `verbx suggest` switches
 
@@ -2198,7 +2215,7 @@ pytest
 - `Analysis`: add spherical energy distribution metrics and directionality stability features for HOA validation.
 - `UX`: add explicit CLI switches for spatial conventions (`--ambi-order`, `--ambi-normalization`, `--channel-order`) with strict validation and fail-fast mismatch messages.
 - `Interoperability`: provide practical export guidance for DAW pipelines (Nuendo/Reaper/Pro Tools Atmos bed pre-production via intermediate formats).
-- `Status update`: v0.6 FDN track is implemented (multiband decay, filter-feedback links, nested/cascaded FDN, and graph-structured topology mode). Ambisonics/HOA-specific spatial features remain planned in the broader v0.6 spatial track.
+- `Status update`: v0.6 FDN track is implemented (multiband decay, filter-feedback links, nested/cascaded FDN, and graph-structured topology mode). v0.6 spatial baseline is also implemented: Ambisonics metadata validation, ACN/SN3D canonicalization, FOA encode/decode transforms, yaw rotation, Ambisonics-aware IR handling in convolution paths, and Ambisonics analysis metrics.
 
 ### 20.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)
 
@@ -2238,6 +2255,7 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
 - `CLI workflow`: add automation inputs (`--automation-file`, optional per-parameter overrides) plus validation to catch out-of-range events before rendering.
 - `Performance`: support sparse-event scheduling and cached interpolation so long renders with dense automation remain efficient.
 - `Safety`: enforce stability guards when automating sensitive parameters (feedback/decay/modulation) and provide deterministic behavior in repeat/batch modes.
+- `Status update`: Track A starter is implemented with JSON/CSV timeline support, lane types (breakpoints/ramps, LFO, segments), block/sample evaluation modes, smoothing and clamp guardrails, deterministic application in render pipeline, and CSV trace export. Current automated render targets are `wet`, `dry`, and `gain-db`.
 
 ### 20.5 v0.7 Track B: Feature-vector-driven reverb control (audio-reactive DSP)
 

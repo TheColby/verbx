@@ -35,6 +35,7 @@ from verbx.analysis.features_time import (
     transient_density,
     zero_crossing_rate,
 )
+from verbx.analysis.spatial_metrics import compute_ambisonic_metrics
 from verbx.core.loudness import integrated_lufs, loudness_range_lu, sample_peak_dbfs, true_peak_dbfs
 
 AudioArray = npt.NDArray[np.float32]
@@ -53,6 +54,9 @@ class AudioAnalyzer:
         sr: int,
         include_loudness: bool = False,
         include_edr: bool = False,
+        ambi_order: int | None = None,
+        ambi_normalization: str = "auto",
+        ambi_channel_order: str = "auto",
     ) -> dict[str, float]:
         """Return analysis metrics for CLI consumption.
 
@@ -66,6 +70,8 @@ class AudioAnalyzer:
             Enables slower EBU-R128 style metrics (LUFS, true-peak, LRA).
         include_edr:
             Enables frequency-dependent EDR summary metrics.
+        ambi_order:
+            Optional Ambisonics order for spherical-energy/directionality metrics.
         """
         channel_rms = np.sqrt(np.mean(np.square(audio), axis=0, dtype=np.float64))
 
@@ -106,6 +112,16 @@ class AudioAnalyzer:
 
         if include_edr:
             result.update(edr_summary(audio, sr))
+
+        if ambi_order is not None and int(ambi_order) > 0:
+            result.update(
+                compute_ambisonic_metrics(
+                    audio,
+                    order=int(ambi_order),
+                    normalization=ambi_normalization,
+                    channel_order=ambi_channel_order,
+                )
+            )
 
         for idx, value in enumerate(channel_rms.tolist(), start=1):
             result[f"channel_{idx}_rms"] = float(value)
