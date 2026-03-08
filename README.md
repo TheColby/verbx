@@ -186,18 +186,14 @@ batch workflows.
 - [18.0 Project Layout](#180-project-layout)
 - [19.0 Additional Docs](#190-additional-docs)
 - [20.0 Roadmap](#200-roadmap)
-  - [20.1 v0.5 - Surround-first workflow hardening](#201-v05-surround-first-workflow-hardening)
-  - [20.2 v0.6 - Spatial foundations and advanced FDN controls](#202-v06---spatial-foundations-and-advanced-fdn-controls)
-  - [20.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)](#203-v07-immersive-production-interoperability-atmos-and-large-scale-delivery)
-    - [20.3.1 FDN structures track (v0.5-v0.7 priority order)](#2031-fdn-structures-track-v05-v07-priority-order)
-  - [20.4 v0.7 Track A: Time-varying parameter automation for reverb engines](#204-v07-track-a-time-varying-parameter-automation-for-reverb-engines)
-  - [20.5 v0.7 Track B: Feature-vector-driven reverb control (audio-reactive DSP)](#205-v07-track-b-feature-vector-driven-reverb-control-audio-reactive-dsp)
-  - [20.6 v0.7 Track C: Jot-inspired FDN control and perceptual parameterization](#206-v07-track-c-jot-inspired-fdn-control-and-perceptual-parameterization)
-  - [20.7 v0.7 Track D: IR morphing and blending framework](#207-v07-track-d-ir-morphing-and-blending-framework)
-- [20.8 Literature-Driven Implementation Plan (from Academic References)](#208-literature-driven-implementation-plan-from-academic-references)
-    - [20.8.1 Rollout status (v0.5 FDN track)](#2081-rollout-status-v05-fdn-track)
-    - [20.8.2 Rollout status (v0.6 FDN track)](#2082-rollout-status-v06-fdn-track)
-    - [20.8.3 Sources for rollout steps 1-3](#2083-sources-for-rollout-steps-1-3)
+  - [20.1 Remaining v0.7 Objective: Immersive production interoperability](#201-remaining-v07-objective-immersive-production-interoperability)
+  - [20.2 Remaining v0.7 Track A: Time-varying automation hardening](#202-remaining-v07-track-a-time-varying-automation-hardening)
+  - [20.3 Remaining v0.7 Track B: Feature-vector-driven reverb control](#203-remaining-v07-track-b-feature-vector-driven-reverb-control)
+  - [20.4 Remaining v0.7 Track C: Jot-inspired control completion](#204-remaining-v07-track-c-jot-inspired-control-completion)
+  - [20.5 Remaining v0.7 Track D: IR morphing completion](#205-remaining-v07-track-d-ir-morphing-completion)
+  - [20.6 FDN Structures: Implemented vs Remaining](#206-fdn-structures-implemented-vs-remaining)
+  - [20.7 Completed Milestones (Condensed)](#207-completed-milestones-condensed)
+  - [20.8 Sources for Remaining Roadmap Items](#208-sources-for-remaining-roadmap-items)
 - [21.0 License](#210-license)
 - [22.0 Attribution](#220-attribution)
 
@@ -2256,133 +2252,87 @@ pytest
 
 ## 20.0 Roadmap
 
-### 20.1 v0.5 - Surround-first workflow hardening
+This section tracks only unfinished work. Completed items are summarized in
+`20.7` to keep planning signal high.
 
-- `Render architecture`: add channel-layout-aware routing profiles (`mono`, `stereo`, `LCR`, `5.1`, `7.1`, `7.1.2`, `7.1.4`) so matrix mapping is no longer only index-based and becomes bus-semantic.
-- `Convolution engine`: add optional explicit route-map inputs (named channel maps) and validation that rejects ambiguous multichannel IR packs with clear diagnostics.
-- `Spatial trajectory automation`: add native time-varying route gains for convolution (`mono/stereo -> multichannel`) so users can move a source from position A to B (and beyond) during one render.
-- `Algorithmic reverb`: add multichannel decorrelation presets (front/rear/top variance controls) so surround tails remain enveloping without collapsing or combing.
-- `Framewise analysis`: expand modulation summaries with confidence metrics and per-channel coherence drift over time (not just global frame descriptors).
-- `Batch`: improve parallel scheduler with checkpoint/resume manifests and deterministic recovery after worker interruption.
-- `Testing`: add golden multichannel vectors (5.1/7.1) and routing regression tests for diagonal, broadcast, and full matrix convolution.
-- `Status update`: v0.5 scope is implemented in current code paths (render layout routing, explicit convolution route maps + ambiguity checks, convolution route trajectories, algorithmic surround decorrelation controls, framewise coherence/confidence metrics, and batch checkpoint/resume behavior with regression tests).
+### 20.1 Remaining v0.7 Objective: Immersive production interoperability
 
-### 20.2 v0.6 - Spatial foundations and advanced FDN controls
+- `Atmos handoff`: finalize bed/object preparation workflows and emit
+  machine-readable ADM/BWF sidecar manifests for downstream authoring tools.
+- `Object-aware policy layer`: add bed-safe vs object-safe processing profiles
+  and explicit downmix-risk checks before export.
+- `Scene deliverables`: complete configurable deliverable packs (`stems`,
+  `beds`, object-stem manifests, and QA bundles) for post workflows.
+- `Scale-out execution`: add multi-host batch orchestration (worker heartbeat,
+  retry, idempotent job keying) for large immersive catalogs.
+- `Immersive QC gates`: ship reusable checks for loudness, true-peak, fold-down
+  delta, and channel occupancy.
 
-- `Ambisonics I/O`: support first-order and higher-order Ambisonics (ACN/SN3D as baseline), including metadata checks and channel-order normalization.
-- `Spatial transforms`: add encode/decode transforms between channel buses and Ambisonic domain for reverb-field processing workflows.
-- `IR handling`: support Ambisonic IR generation/processing paths and rotation-aware convolution for listener-orientation-aware rendering.
-- `Analysis`: add spherical energy distribution metrics and directionality stability features for HOA validation.
-- `UX`: add explicit CLI switches for spatial conventions (`--ambi-order`, `--ambi-normalization`, `--channel-order`) with strict validation and fail-fast mismatch messages.
-- `Interoperability`: provide practical export guidance for DAW pipelines (Nuendo/Reaper/Pro Tools Atmos bed pre-production via intermediate formats).
-- `Status update`: v0.6 FDN track is implemented (multiband decay, filter-feedback links, nested/cascaded FDN, and graph-structured topology mode). v0.6 spatial baseline is also implemented: Ambisonics metadata validation, ACN/SN3D canonicalization, FOA encode/decode transforms, yaw rotation, Ambisonics-aware IR handling in convolution paths, and Ambisonics analysis metrics.
+### 20.2 Remaining v0.7 Track A: Time-varying automation hardening
 
-### 20.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)
+- `Target coverage`: expand automation targets in convolution and IR blend/morph
+  paths so Track D features are timeline-addressable.
+- `Control-plane consistency`: complete lane-level validation/error diagnostics
+  and keep render/IR paths aligned through the centralized target registry.
+- `Performance and determinism`: optimize dense-lane scheduling and lock
+  deterministic replay in batch/repeat workflows.
+- `QA`: add regression vectors for mixed lane types (breakpoint/LFO/segment)
+  and edge-case transitions on long renders.
 
-- `Dolby Atmos interoperability`: add structured bed/object prep workflows and ADM BWF metadata-sidecar generation for downstream authoring tools.
-- `Important scope boundary`: keep official Dolby encoding/rendering delegated to licensed external toolchains; `verbx` focuses on pre-processing, validation, and automation around those toolchains.
-- `Object-aware processing`: add bus/object split processing policies (bed-safe reverb, object-safe tail controls, downmix-safe checks).
-- `Scene export pipeline`: add configurable deliverables (`stems`, `beds`, `object-stem manifests`, `analysis QA bundles`) for post-production handoff.
-- `Distributed execution`: introduce multi-host batch orchestration with queue backends, worker heartbeats, and idempotent job retries for large immersive catalogs.
-- `Quality assurance`: implement immersive QC gates (bed/object loudness compliance, true-peak ceilings, fold-down deltas, and channel occupancy checks) as reusable CI steps.
+### 20.3 Remaining v0.7 Track B: Feature-vector-driven reverb control
 
-#### 20.3.1 FDN structures track (v0.5-v0.7 priority order)
+- `Feature bus`: implement frame-aligned feature streams (loudness, transient,
+  spectral, harmonic) as reusable control inputs.
+- `Mapping graph`: add weighted/curved/hysteretic mapping operators and
+  multi-feature fusion into one parameter target.
+- `Offline deterministic reactive mode`: preserve deterministic output while
+  enabling time-varying feature-driven parameter control.
+- `Explainability outputs`: emit feature-plus-parameter trace exports for QA and
+  repeatability.
 
-Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass diffusion, damping/DC loop filters, and orthonormal Hadamard-derived mixing. The next FDN structures to add are:
+### 20.4 Remaining v0.7 Track C: Jot-inspired control completion
 
-1. `v0.5 (highest priority, low risk)`:
-   - `Time-varying unitary matrices` (implemented): smoothly interpolate orthonormal matrices to reduce static coloration and metallic ringing.
-   - `Expanded matrix families` (implemented): stable families beyond Hadamard (Householder, circulant, elliptic, and random orthogonal variants) with stability tests.
-   - `Delay feedback matrix (DFM) mode` (implemented): optional in-loop delay-feedback layer to increase tail density while preserving stability.
-   - `Sparse high-order FDN mode` (implemented): optional sparse pair-mixing topology (`--fdn-sparse`, `--fdn-sparse-degree`) for larger line counts with practical CPU behavior.
-   - `FDN QA harness` (implemented): dedicated decay-density and ringing regression metrics in `src/verbx/analysis/fdn_qa.py` with automated tests.
-2. `v0.6 (medium risk, high control value)`:
-   - `Multiband FDN` (implemented): split low/mid/high decay targets so one scalar RT60 becomes a profile.
-   - `Filter-feedback FDN` (implemented): frequency-shaped feedback links via `--fdn-link-filter`, `--fdn-link-filter-hz`, and `--fdn-link-filter-mix`.
-   - `Nested/cascaded FDN` (implemented): small fast network into larger late network for improved early-to-late evolution.
-   - `Graph-structured FDN (implemented, experimental)`: adjacency/graph-defined mixing topologies via `--fdn-matrix graph`, `--fdn-graph-topology`, `--fdn-graph-degree`, and `--fdn-graph-seed`.
-3. `v0.7 (higher complexity, immersive focus)`:
-   - `Directional/spatial FDN`: channel-group-aware feedback/mixing for surround beds and Ambisonics-adjacent workflows.
-   - `SDN hybrid mode`: scattering-delay-network style node coupling for geometry-inspired behavior.
-   - `Nonlinear in-loop options (experimental)`: controlled saturation/compression in feedback loops for extreme/frozen textures.
-   - `Topology fitting assistant`: analysis-guided candidate selection that proposes FDN structures from source material/target descriptors.
+- `Calibration pass`: tighten macro-to-coefficient mappings against measured
+  decay/spectral outcomes across reference materials.
+- `Perceptual safety`: finalize guardrails for unstable or sub-perceptual
+  control changes in automation workflows.
+- `Validation tooling`: expand decay-target error summaries and spectral drift
+  diagnostics for automated acceptance checks.
 
-### 20.4 v0.7 Track A: Time-varying parameter automation for reverb engines
+### 20.5 Remaining v0.7 Track D: IR morphing completion
 
-- `Automation timeline`: add sample-accurate and block-rate automation lanes so any render parameter can vary over time (for example `wet`, `rt60`, `damping`, shimmer controls, ducking, IR blend controls).
-- `Control data model`: introduce a unified automation format (breakpoints, ramps, curves, LFO envelopes, and segment clips) that can be loaded from JSON/CSV and applied consistently across engines.
-- `Runtime integration`: make both algorithmic and convolution paths automation-aware with smoothing and anti-zipper interpolation to avoid clicks and unstable transitions.
-- `CLI workflow`: add automation inputs (`--automation-file`, `--automation-point`, and optional per-parameter overrides) plus validation to catch out-of-range events before rendering.
-- `Performance`: support sparse-event scheduling and cached interpolation so long renders with dense automation remain efficient.
-- `Safety`: enforce stability guards when automating sensitive parameters (feedback/decay/modulation) and provide deterministic behavior in repeat/batch modes.
-- `Status update`: Track A starter is implemented with JSON/CSV timeline support plus inline CLI control points, lane types (breakpoints/ramps, LFO, segments), block/sample evaluation modes, smoothing and clamp guardrails, deterministic application in render pipeline, and CSV trace export. Current post-render targets are `wet`, `dry`, and `gain-db`; current algorithmic-engine targets are `rt60`, `damping`, `room-size`, `room-size-macro`, `clarity-macro`, `warmth-macro`, `envelopment-macro`, `fdn-rt60-tilt`, and `fdn-tonal-correction-strength`. Control-target aliases/limits are centralized in a shared registry to prevent CLI/engine drift.
+- `Automation integration`: expose morph/blend coefficient timelines directly in
+  render automation lanes.
+- `Batch QA exports`: add richer comparison artifacts (plots/tables) for large
+  morph sweeps and regression baselines.
+- `Operational hardening`: finalize cache/metadata compatibility behavior across
+  channel-count and sample-rate mismatches in batch pipelines.
 
-### 20.5 v0.7 Track B: Feature-vector-driven reverb control (audio-reactive DSP)
+### 20.6 FDN Structures: Implemented vs Remaining
 
-- `Feature control bus`: allow one or more input feature vectors to drive any reverb parameter via a flexible modulation graph.
-- `Feature extraction set`: provide built-in time-domain, spectral, onset/transient, loudness, and harmonic feature streams with configurable frame rates and smoothing.
-- `Mapping engine`: add parameter mapping layers (linear/nonlinear curves, weighted sums, min/max clamps, hysteresis, attack/release followers) so multiple features can co-control a single target parameter.
-- `Cross-feature fusion`: support multi-feature policies (for example, transients driving pre-delay while spectral centroid drives damping and side energy drives width).
-- `Offline and realtime-style modes`: render deterministically offline while preserving architecture compatibility for potential future low-latency/streaming reactive workflows.
-- `Explainability and QA`: emit control-trace reports (feature values + mapped parameter values) for debugging, reproducibility, and perceptual tuning.
+- `Implemented`: Hadamard, Householder, random orthogonal, circulant, elliptic,
+  time-varying unitary (`tv_unitary`), delay-feedback-matrix augmentation,
+  sparse pair-mixing mode, nested/cascaded FDN, multiband decay shaping,
+  filter-feedback links, and graph-structured topologies.
+- `Remaining`: directional/spatial FDN coupling for immersive beds/objects,
+  SDN-hybrid topology mode, optional nonlinear in-loop behavior (experimental),
+  and topology fitting assistance based on analysis targets.
 
-### 20.6 v0.7 Track C: Jot-inspired FDN control and perceptual parameterization
+### 20.7 Completed Milestones (Condensed)
 
-- `Multiband RT control`: add Jot-style decay-shaping filters inside FDN feedback loops so low/mid/high T60 targets can be tuned independently while preserving stability.
-- `Energy-preserving feedback families`: expand matrix options with orthogonal/unitary constructions and expose perceptual controls that map to diffusion, echo density, and coloration.
-- `Tonal correction stage`: add post-FDN tonal balancing inspired by energy-decay equalization practices so long tails stay smooth rather than frequency-skewed.
-- `Perceptual macro controls`: map low-level FDN coefficients to high-level room descriptors (size, clarity, warmth, envelopment) for faster design workflows.
-- `Validation tooling`: add decay-vs-target verification plots and spectral error summaries to verify calibration of FDN behavior against requested perceptual outcomes.
-- `Status update`: Track C starter is implemented with `--fdn-rt60-tilt` plus perceptual macro CLI controls (`--room-size-macro`, `--clarity-macro`, `--warmth-macro`, `--envelopment-macro`) in both `render` and `ir gen` paths, with matching automation targets for algorithmic-engine control. Tonal-correction control is now available via `--fdn-tonal-correction-strength` for decay-color balancing, and both Track C controls are automation-targetable (`fdn-rt60-tilt`, `fdn-tonal-correction-strength`) in the render path. Analysis JSON records resolved macro mapping under `effective.perceptual_macros` for reproducibility.
+- `v0.5 complete`: surround-aware routing profiles, explicit route-map
+  validation, convolution trajectory controls, surround decorrelation controls,
+  framewise coherence/confidence metrics, and batch checkpoint/resume behavior.
+- `v0.6 complete`: Ambisonics baseline (metadata checks, canonicalization, FOA
+  transforms, yaw rotation, Ambisonics-aware convolution/analysis) plus advanced
+  FDN controls (multiband, filter-feedback, nested/cascaded, graph topology).
+- `v0.7 progress complete`: Track A starter (timeline automation framework),
+  Track C starter + tonal correction + automation targets, and Track D IR morph
+  core with blend modes, early/late split controls, and QA metrics.
 
-### 20.7 v0.7 Track D: IR morphing and blending framework
+### 20.8 Sources for Remaining Roadmap Items
 
-- `Status update (implemented)`: Track D now includes cache-backed `verbx ir morph A.wav B.wav OUT.wav` with modes (`linear`, `equal-power`, `spectral`, `envelope-aware`) and `--alpha`, plus render-time weighted IR blending in `verbx render` via `--ir-blend`/`--ir-blend-mix`.
-- `Implemented`: early/late split controls (`--early-ms`, `--early-alpha`, `--late-alpha` for `ir morph`; corresponding render-side blend controls), decay-shape alignment, spectral phase-coherence/smoothing safeguards, multichannel-safe channel/length alignment, deterministic cache sidecars, and QA metrics (`rt60_drift_s`, early/late drift, spectral distance, coherence deltas).
-- `Remaining`: automation-ready morph coefficient timelines for convolution render (`Track A` lane integration), plus expanded QA visualization/report exports for large batch comparison workflows.
-
-### 20.8 Literature-Driven Implementation Plan (from Academic References)
-
-The following items are direct engineering takeaways from papers listed in [docs/REFERENCES.md](docs/REFERENCES.md), prioritized for `verbx` architecture:
-
-1. `Time-varying FDN matrices`: add smoothly-interpolated orthogonal feedback matrix evolution in `src/verbx/core/algo_reverb.py` to reduce metallic ringing while preserving stability.
-2. `Expanded matrix families`: expose matrix choices beyond static Hadamard (`householder`, `random_orthogonal`, circulant/elliptic-inspired variants) with explicit stability validation.
-3. `Multiband decay control`: implement low/mid/high RT targets in the algorithmic engine so `--rt60` can become a full decay profile rather than a single scalar.
-4. `Integrated blind RT/DRR estimation`: add built-in RT60/DRR/ELR estimation in `verbx analyze` and feed it into `verbx suggest` for better default parameter selection.
-5. `Late-field intelligibility mode`: add an optional late-reverberation suppression/post-shaping stage to preserve clarity for speech-heavy material without removing desired ambience.
-6. `Tail quality metrics`: extend analysis JSON and framewise CSV with echo-density growth, late-decay smoothness, and ringing/modality indicators for objective tuning.
-7. `Perceptual RT step safety`: add CLI guardrails that quantize or warn on sub-perceptual RT changes, based on room-dependent perceptual sensitivity findings.
-8. `Non-diffuse decay modeling`: improve IR fitting/analysis to support piecewise or modal-aware decay fits (not only single-slope RT assumptions), especially at low frequencies.
-9. `Canonical Schroeder validation pack`: add a test fixture suite that checks colorless-reverb behavior and decay coloration against classic algorithmic references.
-10. `Algorithm-vs-IR similarity scoring`: add a perceptual/spectral/decay distance metric to rank synthetic/algorithmic outputs against measured IR targets.
-
-Near-term implementation targeting:
-
-- `v0.5-v0.6`: items 1, 2, 4, 6, 9 (engine controls, analysis, and validation harness).
-- `v0.6-v0.7 Track A/B`: items 3, 5, 7 (perceptual control and intelligibility-aware workflows).
-- `v0.7 Track C/D`: items 8, 10 (advanced fitting and perceptual matching pipelines).
-
-#### 20.8.1 Rollout status (v0.5 FDN track)
-
-- `Step 1 complete`: expanded matrix families are available via `--fdn-matrix` (`circulant`, `elliptic` added).
-- `Step 2 complete`: time-varying unitary mode is available via `--fdn-matrix tv_unitary` plus `--fdn-tv-rate-hz` and `--fdn-tv-depth`.
-- `Step 3 complete`: delay-feedback-matrix behavior is available via `--fdn-dfm-delays-ms` (render and `ir gen` paths).
-- `Step 4 complete`: sparse high-order mode is available via `--fdn-sparse` with configurable `--fdn-sparse-degree`.
-- `Step 5 complete`: FDN QA harness metrics are available in `src/verbx/analysis/fdn_qa.py` and validated in `tests/test_fdn_qa.py`.
-
-#### 20.8.2 Rollout status (v0.6 FDN track)
-
-- `Step 6 complete`: multiband FDN decay profile controls are available via `--fdn-rt60-low`, `--fdn-rt60-mid`, and `--fdn-rt60-high` with crossover controls.
-- `Step 7 complete`: filter-feedback FDN controls are available via `--fdn-link-filter`, `--fdn-link-filter-hz`, and `--fdn-link-filter-mix`.
-- `Step 8 complete`: nested/cascaded FDN architecture is available via `--fdn-cascade` with tuning controls `--fdn-cascade-mix`, `--fdn-cascade-delay-scale`, and `--fdn-cascade-rt60-ratio`.
-- `Step 9 complete`: graph-structured FDN (adjacency-defined topology mode) is available via `--fdn-matrix graph` with topology/degree/seed controls.
-- `Step 10 complete (Track C starter)`: Jot-style and perceptual controls are available via `--fdn-rt60-tilt`, `--room-size-macro`, `--clarity-macro`, `--warmth-macro`, and `--envelopment-macro` across `render` and `ir gen`, with corresponding algorithmic automation targets.
-- `Step 11 complete (Track C tonal correction)`: tonal-correction strength control is available via `--fdn-tonal-correction-strength` across `render` and `ir gen`, integrated into the algorithmic multiband feedback path.
-- `Step 12 complete (Track C automation integration)`: automation targets `fdn-rt60-tilt` and `fdn-tonal-correction-strength` are available via `--automation-file` / `--automation-point`, with runtime multiband/tonal updates in the algorithmic engine.
-
-#### 20.8.3 Sources for rollout steps 1-3
-
-Canonical source: [docs/REFERENCES.md](docs/REFERENCES.md)
+Canonical reference index: [docs/REFERENCES.md](docs/REFERENCES.md)
 
 - [Schlecht and Habets (2015) - time-varying FDN matrices](docs/REFERENCES.md#ref-fdn-tv-matrix-2015)
 - [Rocchesso and Smith (1997) - circulant/elliptic FDN families](docs/REFERENCES.md#ref-fdn-circulant-elliptic-1997)
