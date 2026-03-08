@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1840 1040" role="img" aria-labelledby="title desc">
+  <title id="title">Nested/Cascaded FDN Graph (verbx)</title>
+  <desc id="desc">Graph showing fast nested FDN feeding a larger primary FDN, with configurable cascade mix, delay scale, and RT60 ratio.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8fbff"/>
+      <stop offset="100%" stop-color="#edf4fd"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M1,1 L11,6 L1,11 Z" fill="#294266"/>
+    </marker>
+    <style>
+      .panel { fill: #ffffff; stroke: #d4e2f4; stroke-width: 2; }
+      .card { fill: #fbfdff; stroke: #708aae; stroke-width: 2; }
+      .soft { fill: #f2f8ff; stroke: #6b87ad; stroke-width: 2; }
+      .line { fill: none; stroke: #294266; stroke-width: 3; marker-end: url(#arrow); }
+      .line-soft { fill: none; stroke: #5b7ca6; stroke-width: 2.5; marker-end: url(#arrow); }
+      .loop { fill: none; stroke: #4f739f; stroke-width: 2.2; stroke-dasharray: 9 7; marker-end: url(#arrow); }
+      .title { fill: #132842; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 34px; font-weight: 700; }
+      .subtitle { fill: #2d4d79; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 600; }
+      .label { fill: #173153; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 20px; font-weight: 700; }
+      .small { fill: #34547f; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 15px; }
+      .mono { font-family: "Menlo", "Consolas", monospace; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1840" height="1040" fill="url(#bg)"/>
+  <rect class="panel" x="52" y="66" width="1736" height="910" rx="18"/>
+
+  <text class="title" x="90" y="126">Nested/Cascaded FDN Topology</text>
+  <text class="subtitle" x="90" y="158">Enabled with <tspan class="mono">--fdn-cascade</tspan>; tuned by mix/delay-scale/rt60-ratio controls</text>
+
+  <rect class="card" x="114" y="248" width="218" height="96" rx="12"/>
+  <text class="label" x="223" y="304" text-anchor="middle">Diffused Input</text>
+
+  <rect class="soft" x="390" y="206" width="570" height="334" rx="14"/>
+  <text class="label" x="424" y="246">Nested Fast FDN</text>
+  <rect class="card" x="438" y="284" width="212" height="94" rx="12"/>
+  <text class="label" x="544" y="337" text-anchor="middle">Fast Delays</text>
+  <rect class="card" x="702" y="284" width="212" height="94" rx="12"/>
+  <text class="label" x="808" y="337" text-anchor="middle">Cascade M, G</text>
+  <rect class="card" x="560" y="426" width="238" height="88" rx="12"/>
+  <text class="label" x="679" y="476" text-anchor="middle">cascade_feedback[n]</text>
+
+  <rect class="soft" x="1014" y="206" width="678" height="500" rx="14"/>
+  <text class="label" x="1048" y="246">Primary Late FDN</text>
+  <rect class="card" x="1060" y="286" width="218" height="96" rx="12"/>
+  <text class="label" x="1169" y="342" text-anchor="middle">Delay Reads</text>
+  <rect class="card" x="1332" y="286" width="218" height="96" rx="12"/>
+  <text class="label" x="1441" y="342" text-anchor="middle">Filters + Matrix</text>
+  <rect class="card" x="1604" y="286" width="72" height="96" rx="12"/>
+  <text class="label" x="1640" y="342" text-anchor="middle">G</text>
+  <circle cx="1588" cy="478" r="34" fill="#ffffff" stroke="#5f7da6" stroke-width="2.2"/>
+  <text class="label" x="1588" y="486" text-anchor="middle">+</text>
+  <rect class="card" x="1266" y="426" width="250" height="104" rx="12"/>
+  <text class="label" x="1391" y="472" text-anchor="middle">Injection u[n]/sqrt(N)</text>
+  <text class="small" x="1391" y="496" text-anchor="middle">plus cascade contribution</text>
+  <rect class="card" x="1312" y="574" width="220" height="92" rx="12"/>
+  <text class="label" x="1422" y="626" text-anchor="middle">Wet Tap</text>
+
+  <path class="line" d="M332,296 L438,330"/>
+  <path class="line" d="M650,330 L702,330"/>
+  <path class="line" d="M808,378 L808,426"/>
+  <path class="line-soft" d="M798,470 L1038,470 L1038,478 L1230,478"/>
+
+  <path class="line" d="M332,296 L1060,334"/>
+  <path class="line" d="M1278,334 L1332,334"/>
+  <path class="line" d="M1550,334 L1604,334"/>
+  <path class="line" d="M1640,382 L1640,444"/>
+  <path class="line" d="M1516,478 L1554,478"/>
+  <path class="line" d="M1622,478 L1676,478"/>
+  <path class="loop" d="M1676,478 L1676,690 L1090,690 L1090,382"/>
+  <path class="line" d="M1422,530 L1422,574"/>
+
+  <rect class="panel" x="114" y="758" width="1576" height="168" rx="12"/>
+  <text class="small" x="146" y="802"><tspan class="mono">--fdn-cascade-mix</tspan>: scales how strongly nested feedback is injected into primary mixed feedback.</text>
+  <text class="small" x="146" y="832"><tspan class="mono">--fdn-cascade-delay-scale</tspan>: shortens nested delay lines relative to primary delays.</text>
+  <text class="small" x="146" y="862"><tspan class="mono">--fdn-cascade-rt60-ratio</tspan>: shortens nested decay relative to main <tspan class="mono">--rt60</tspan> for fast build-up.</text>
+  <text class="small" x="146" y="892">Design intent: fast density growth from nested network while primary network controls long-tail character.</text>
+</svg>

@@ -92,6 +92,9 @@ For computationally intensive audio sweetening, verbx supports both Apple Silico
       - [9.2.1.2 FDN Matrix Family Graph](#9212-fdn-matrix-family-graph)
       - [9.2.1.3 TV-Unitary + DFM Feedback Graph](#9213-tv-unitary-dfm-feedback-graph)
       - [9.2.1.4 IR FDN Path Parity Graph](#9214-ir-fdn-path-parity-graph)
+      - [9.2.1.5 Sparse High-Order Pair-Mixing Graph](#9215-sparse-high-order-pair-mixing-graph)
+      - [9.2.1.6 Nested/Cascaded FDN Graph](#9216-nestedcascaded-fdn-graph)
+      - [9.2.1.7 Multiband + Filter-Feedback Graph](#9217-multiband--filter-feedback-graph)
   - [9.3 Partitioned FFT Convolution](#93-partitioned-fft-convolution)
   - [9.4 Multichannel Matrix Convolution](#94-multichannel-matrix-convolution)
   - [9.5 Freeze Crossfade (Equal Power)](#95-freeze-crossfade-equal-power)
@@ -1278,6 +1281,36 @@ Implementation notes:
 - `--fdn-lines` is active in IR generation (no longer reserved).
 - Matrix, TV-unitary, and DFM options are portable between render and IR workflows.
 
+##### 9.2.1.5 Sparse High-Order Pair-Mixing Graph
+
+![Sparse high-order FDN graph](docs/assets/fdn_topology_sparse.svg)
+
+Implementation notes:
+
+- Sparse mode is enabled with `--fdn-sparse`; pair-mixing stage count is set by `--fdn-sparse-degree`.
+- Sparse pairing schedules are deterministic per seed/stage to keep renders reproducible.
+- Current implementation treats sparse mode as exclusive with `--fdn-matrix tv_unitary`.
+
+##### 9.2.1.6 Nested/Cascaded FDN Graph
+
+![Nested cascaded FDN graph](docs/assets/fdn_topology_cascade.svg)
+
+Implementation notes:
+
+- Cascade mode is enabled with `--fdn-cascade` and injects nested-network feedback into the primary late FDN path.
+- `--fdn-cascade-mix` controls injection strength into the primary mixed feedback vector.
+- `--fdn-cascade-delay-scale` and `--fdn-cascade-rt60-ratio` shape nested-network timing/decay relative to the primary FDN.
+
+##### 9.2.1.7 Multiband + Filter-Feedback Graph
+
+![Multiband and filter-feedback graph](docs/assets/fdn_topology_multiband_filter.svg)
+
+Implementation notes:
+
+- Multiband decay is enabled by providing all of `--fdn-rt60-low`, `--fdn-rt60-mid`, and `--fdn-rt60-high`.
+- Multiband crossovers are controlled by `--fdn-xover-low-hz` and `--fdn-xover-high-hz`.
+- In-loop feedback-link filtering is enabled with `--fdn-link-filter`, `--fdn-link-filter-hz`, and `--fdn-link-filter-mix`.
+
 ### 9.3 Partitioned FFT Convolution
 
 Convolution in frequency domain:
@@ -2084,6 +2117,7 @@ pytest
 - `Framewise analysis`: expand modulation summaries with confidence metrics and per-channel coherence drift over time (not just global frame descriptors).
 - `Batch`: improve parallel scheduler with checkpoint/resume manifests and deterministic recovery after worker interruption.
 - `Testing`: add golden multichannel vectors (5.1/7.1) and routing regression tests for diagonal, broadcast, and full matrix convolution.
+- `Status update`: v0.5 scope is implemented in current code paths (render layout routing, explicit convolution route maps + ambiguity checks, convolution route trajectories, algorithmic surround decorrelation controls, framewise coherence/confidence metrics, and batch checkpoint/resume behavior with regression tests).
 
 ### 20.2 v0.6 - Spatial foundations and advanced FDN controls
 
@@ -2093,7 +2127,7 @@ pytest
 - `Analysis`: add spherical energy distribution metrics and directionality stability features for HOA validation.
 - `UX`: add explicit CLI switches for spatial conventions (`--ambi-order`, `--ambi-normalization`, `--channel-order`) with strict validation and fail-fast mismatch messages.
 - `Interoperability`: provide practical export guidance for DAW pipelines (Nuendo/Reaper/Pro Tools Atmos bed pre-production via intermediate formats).
-- `Status update`: multiband and filter-feedback FDN controls are implemented; remaining v0.6 FDN work is nested/cascaded and graph-structured topologies.
+- `Status update`: multiband, filter-feedback, and nested/cascaded FDN controls are implemented; remaining v0.6 FDN work is graph-structured topology mode.
 
 ### 20.3 v0.7 - Immersive production interoperability (Atmos and large-scale delivery)
 
@@ -2117,7 +2151,7 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
 2. `v0.6 (medium risk, high control value)`:
    - `Multiband FDN` (implemented): split low/mid/high decay targets so one scalar RT60 becomes a profile.
    - `Filter-feedback FDN` (implemented): frequency-shaped feedback links via `--fdn-link-filter`, `--fdn-link-filter-hz`, and `--fdn-link-filter-mix`.
-   - `Nested/cascaded FDN`: small fast network into larger late network for improved early-to-late evolution.
+   - `Nested/cascaded FDN` (implemented): small fast network into larger late network for improved early-to-late evolution.
    - `Graph-structured FDN (experimental)`: support adjacency/graph-defined mixing topologies for scene-style reverberation design.
 3. `v0.7 (higher complexity, immersive focus)`:
    - `Directional/spatial FDN`: channel-group-aware feedback/mixing for surround beds and Ambisonics-adjacent workflows.
@@ -2196,8 +2230,8 @@ Near-term implementation targeting:
 
 - `Step 6 complete`: multiband FDN decay profile controls are available via `--fdn-rt60-low`, `--fdn-rt60-mid`, and `--fdn-rt60-high` with crossover controls.
 - `Step 7 complete`: filter-feedback FDN controls are available via `--fdn-link-filter`, `--fdn-link-filter-hz`, and `--fdn-link-filter-mix`.
-- `Step 8 in progress`: nested/cascaded FDN architecture for improved early-to-late evolution.
-- `Step 9 pending`: graph-structured FDN (adjacency-defined topology mode).
+- `Step 8 complete`: nested/cascaded FDN architecture is available via `--fdn-cascade` with tuning controls `--fdn-cascade-mix`, `--fdn-cascade-delay-scale`, and `--fdn-cascade-rt60-ratio`.
+- `Step 9 in progress`: graph-structured FDN (adjacency-defined topology mode).
 
 #### 20.8.3 Sources for rollout steps 1-3
 

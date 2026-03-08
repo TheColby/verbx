@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 980" role="img" aria-labelledby="title desc">
+  <title id="title">Sparse High-Order FDN Graph (verbx)</title>
+  <desc id="desc">Signal graph showing sparse pair-mixing stages inside the FDN feedback path, controlled by fdn sparse options.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8fbff"/>
+      <stop offset="100%" stop-color="#edf4fd"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M1,1 L11,6 L1,11 Z" fill="#294266"/>
+    </marker>
+    <style>
+      .panel { fill: #ffffff; stroke: #d4e2f4; stroke-width: 2; }
+      .card { fill: #fbfdff; stroke: #708aae; stroke-width: 2; }
+      .soft { fill: #f2f8ff; stroke: #6b87ad; stroke-width: 2; }
+      .line { fill: none; stroke: #294266; stroke-width: 3; marker-end: url(#arrow); }
+      .loop { fill: none; stroke: #4f739f; stroke-width: 2.3; stroke-dasharray: 9 7; marker-end: url(#arrow); }
+      .title { fill: #132842; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 34px; font-weight: 700; }
+      .subtitle { fill: #2d4d79; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 600; }
+      .label { fill: #173153; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 20px; font-weight: 700; }
+      .small { fill: #34547f; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 15px; }
+      .mono { font-family: "Menlo", "Consolas", monospace; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1800" height="980" fill="url(#bg)"/>
+  <rect class="panel" x="48" y="64" width="1704" height="868" rx="18"/>
+
+  <text class="title" x="86" y="122">Sparse High-Order FDN Feedback Graph</text>
+  <text class="subtitle" x="86" y="154">Mode enabled with <tspan class="mono">--fdn-sparse</tspan> and staged by <tspan class="mono">--fdn-sparse-degree</tspan></text>
+
+  <rect class="card" x="104" y="236" width="212" height="96" rx="12"/>
+  <text class="label" x="210" y="292" text-anchor="middle">Delay Reads</text>
+
+  <rect class="card" x="370" y="236" width="224" height="96" rx="12"/>
+  <text class="label" x="482" y="279" text-anchor="middle">Loop Filters</text>
+  <text class="small" x="482" y="302" text-anchor="middle">damping + DC block</text>
+
+  <rect class="soft" x="648" y="194" width="916" height="350" rx="14"/>
+  <text class="label" x="682" y="236">Sparse Pair-Mixing Core</text>
+
+  <rect class="card" x="698" y="266" width="228" height="96" rx="12"/>
+  <text class="label" x="812" y="309" text-anchor="middle">Stage 1</text>
+  <text class="small" x="812" y="332" text-anchor="middle">pairwise +/- mixes</text>
+
+  <rect class="card" x="972" y="266" width="228" height="96" rx="12"/>
+  <text class="label" x="1086" y="309" text-anchor="middle">Stage 2</text>
+  <text class="small" x="1086" y="332" text-anchor="middle">new random pairing</text>
+
+  <rect class="card" x="1246" y="266" width="268" height="96" rx="12"/>
+  <text class="label" x="1380" y="309" text-anchor="middle">Stage K</text>
+  <text class="small" x="1380" y="332" text-anchor="middle">K = sparse degree</text>
+
+  <rect class="card" x="874" y="424" width="276" height="92" rx="12"/>
+  <text class="label" x="1012" y="475" text-anchor="middle">Mixed Feedback m[n]</text>
+
+  <rect class="card" x="1202" y="602" width="262" height="98" rx="12"/>
+  <text class="label" x="1333" y="648" text-anchor="middle">RT60 Gain G</text>
+  <text class="small" x="1333" y="672" text-anchor="middle">optional multiband applies later</text>
+
+  <circle cx="1540" cy="650" r="34" fill="#ffffff" stroke="#5f7da6" stroke-width="2.2"/>
+  <text class="label" x="1540" y="658" text-anchor="middle">+</text>
+
+  <rect class="card" x="934" y="602" width="224" height="98" rx="12"/>
+  <text class="label" x="1046" y="648" text-anchor="middle">Injection u[n]</text>
+  <text class="small" x="1046" y="672" text-anchor="middle">diffused input / sqrt(N)</text>
+
+  <rect class="card" x="1618" y="602" width="118" height="98" rx="12"/>
+  <text class="label" x="1677" y="648" text-anchor="middle">Write</text>
+  <text class="small" x="1677" y="672" text-anchor="middle">x_fb[n+1]</text>
+
+  <path class="line" d="M316,284 L370,284"/>
+  <path class="line" d="M594,284 L698,314"/>
+  <path class="line" d="M926,314 L972,314"/>
+  <path class="line" d="M1200,314 L1246,314"/>
+  <path class="line" d="M1380,362 L1380,424 L1150,470"/>
+  <path class="line" d="M1012,516 L1012,602"/>
+  <path class="line" d="M1158,650 L1202,650"/>
+  <path class="line" d="M1464,650 L1506,650"/>
+  <path class="line" d="M1574,650 L1618,650"/>
+  <path class="loop" d="M1677,700 L1677,814 L210,814 L210,332"/>
+
+  <rect class="panel" x="104" y="748" width="1628" height="138" rx="12"/>
+  <text class="small" x="136" y="792">Use sparse mode for higher line counts when dense full-matrix mixing is too expensive.</text>
+  <text class="small" x="136" y="820"><tspan class="mono">--fdn-sparse</tspan> is intentionally exclusive with <tspan class="mono">--fdn-matrix tv_unitary</tspan> in current implementation.</text>
+  <text class="small" x="136" y="848">Random pairings are deterministic per seed and stage, preserving reproducibility across renders.</text>
+</svg>
