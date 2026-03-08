@@ -10,71 +10,72 @@
       <path d="M0,0 L10,5 L0,10 Z" fill="#284062"/>
     </marker>
     <style>
-      .panel { fill: #ffffff; stroke: #d4e1f5; stroke-width: 2; }
-      .core { fill: #f4f8ff; stroke: #5d7ca7; stroke-width: 2.4; }
-      .box { fill: #fbfdff; stroke: #6f87ab; stroke-width: 2.1; }
-      .line { stroke: #284062; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
-      .loop { stroke: #5f7ea7; stroke-width: 2.6; stroke-dasharray: 9 7; fill: none; marker-end: url(#arrow); }
-      .title { fill: #13243f; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 30px; font-weight: 700; }
-      .subtitle { fill: #2d456b; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 600; }
-      .label { fill: #1c3153; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 19px; font-weight: 700; }
-      .small { fill: #334f78; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 14px; }
+      .panel { fill: #ffffff; stroke: #d4e1f5; stroke-width: 1.8; }
+      .core { fill: #f4f8ff; stroke: #5d7ca7; stroke-width: 2.1; }
+      .box { fill: #fbfdff; stroke: #6f87ab; stroke-width: 1.9; }
+      .line { stroke: #284062; stroke-width: 2.7; fill: none; marker-end: url(#arrow); }
+      .loop { stroke: #5f7ea7; stroke-width: 2.2; stroke-dasharray: 8 6; fill: none; marker-end: url(#arrow); }
+      .title { fill: #13243f; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 24px; font-weight: 700; }
+      .subtitle { fill: #2d456b; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 600; }
+      .label { fill: #1c3153; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 700; }
+      .small { fill: #334f78; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 11px; }
       .mono { font-family: "Menlo", "Consolas", monospace; }
-      .eq { fill: #1f375c; font-family: "Menlo", "Consolas", monospace; font-size: 14px; }
+      .eq { fill: #1f375c; font-family: "Menlo", "Consolas", monospace; font-size: 11px; }
       .legend { fill: #f6f9ff; stroke: #d8e5f8; stroke-width: 2; }
-      .legend-text { fill: #273f63; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 15px; }
+      .legend-text { fill: #273f63; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 12px; }
     </style>
   </defs>
 
   <rect x="0" y="0" width="1900" height="1120" fill="url(#bg)"/>
   <rect class="panel" x="56" y="84" width="1790" height="970" rx="18"/>
 
-  <text class="title" x="92" y="142">9.2.1.1 Algorithmic Render Topology</text>
-  <text class="subtitle" x="92" y="176">
+  <text class="title" x="92" y="136">9.2.1.1 Algorithmic Render Topology</text>
+  <text class="subtitle" x="92" y="164">
     <tspan x="92" dy="0">verbx path: pre-delay -&gt; allpass diffusion -&gt; FDN late field -&gt; wet post -&gt; wet/dry mix</tspan>
   </text>
 
   <!-- Top-level signal flow -->
   <rect class="box" x="92" y="258" width="170" height="86" rx="12"/>
-  <text class="label" x="177" y="312" text-anchor="middle">Input</text>
+  <text class="label" x="177" y="307" text-anchor="middle">Input</text>
 
   <rect class="box" x="316" y="258" width="208" height="86" rx="12"/>
-  <text class="label" x="420" y="301" text-anchor="middle">Pre-delay</text>
-  <text class="small" x="420" y="324" text-anchor="middle"><tspan class="mono">--pre-delay-ms</tspan></text>
+  <text class="label" x="420" y="298" text-anchor="middle">Pre-delay</text>
+  <text class="small" x="420" y="317" text-anchor="middle"><tspan class="mono">--pre-delay-ms</tspan></text>
 
   <rect class="box" x="578" y="250" width="260" height="102" rx="12"/>
-  <text class="label" x="708" y="295" text-anchor="middle">Allpass Diffusion</text>
-  <text class="small" x="708" y="315" text-anchor="middle"><tspan class="mono">--allpass-stages</tspan></text>
-  <text class="small" x="708" y="334" text-anchor="middle"><tspan class="mono">--allpass-gain</tspan></text>
+  <text class="label" x="708" y="290" text-anchor="middle">Allpass Diffusion</text>
+  <text class="small" x="708" y="309" text-anchor="middle"><tspan class="mono">--allpass-stages</tspan></text>
+  <text class="small" x="708" y="325" text-anchor="middle"><tspan class="mono">--allpass-gain</tspan></text>
 
   <path class="line" d="M262,301 L316,301"/>
   <path class="line" d="M524,301 L578,301"/>
 
   <!-- FDN core -->
   <rect class="core" x="884" y="220" width="924" height="560" rx="16"/>
-  <text class="label" x="918" y="264">FDN Late Core (per channel)</text>
+  <text class="label" x="918" y="258">FDN Late Core (per channel)</text>
 
   <rect class="box" x="930" y="340" width="184" height="106" rx="10"/>
-  <text class="label" x="1022" y="382" text-anchor="middle">Delay Reads</text>
-  <text class="small" x="1022" y="404" text-anchor="middle">q[n], N lines</text>
+  <text class="label" x="1022" y="378" text-anchor="middle">Delay Reads</text>
+  <text class="small" x="1022" y="395" text-anchor="middle">q[n], N lines</text>
 
   <rect class="box" x="1172" y="340" width="208" height="106" rx="10"/>
-  <text class="label" x="1276" y="382" text-anchor="middle">Loop Filters</text>
-  <text class="small" x="1276" y="404" text-anchor="middle">LP + DC block</text>
+  <text class="label" x="1276" y="378" text-anchor="middle">Loop Filters</text>
+  <text class="small" x="1276" y="395" text-anchor="middle">LP + DC block</text>
 
   <rect class="box" x="1436" y="340" width="176" height="106" rx="10"/>
-  <text class="label" x="1524" y="382" text-anchor="middle">Matrix M</text>
-  <text class="small" x="1524" y="404" text-anchor="middle">orthonormal</text>
+  <text class="label" x="1524" y="378" text-anchor="middle">Matrix M</text>
+  <text class="small" x="1524" y="395" text-anchor="middle">orthonormal</text>
 
   <rect class="box" x="1646" y="340" width="132" height="106" rx="10"/>
-  <text class="label" x="1712" y="382" text-anchor="middle">Gains G</text>
-  <text class="small" x="1712" y="403" text-anchor="middle">RT60 line gains</text>
+  <text class="label" x="1712" y="376" text-anchor="middle">Gains G</text>
+  <text class="small" x="1712" y="392" text-anchor="middle">RT60</text>
+  <text class="small" x="1712" y="406" text-anchor="middle">line gains</text>
 
   <circle cx="1786" cy="393" r="28" fill="#ffffff" stroke="#5c79a3" stroke-width="2.2"/>
-  <text class="label" x="1786" y="401" text-anchor="middle">+</text>
+  <text class="label" x="1786" y="399" text-anchor="middle">+</text>
 
   <rect class="box" x="1034" y="266" width="288" height="56" rx="10"/>
-  <text class="small" x="1178" y="300" text-anchor="middle">Injection: u[n] / sqrt(N)</text>
+  <text class="small" x="1178" y="299" text-anchor="middle">Injection: u[n] / sqrt(N)</text>
 
   <path class="line" d="M838,301 L1034,294"/>
   <path class="line" d="M1114,393 L1172,393"/>
@@ -85,34 +86,34 @@
 
   <!-- Feedback write loop -->
   <path class="loop" d="M1818,393 L1818,522 L902,522 L902,393 L930,393"/>
-  <text class="small" x="1436" y="546" text-anchor="middle">x_fb[n+1] written back into delay lines</text>
+  <text class="small" x="1436" y="544" text-anchor="middle">x_fb[n+1] written back into delay lines</text>
 
   <!-- Wet extraction -->
   <rect class="box" x="1172" y="560" width="208" height="94" rx="10"/>
-  <text class="label" x="1276" y="614" text-anchor="middle">Wet Tap</text>
-  <text class="small" x="1276" y="636" text-anchor="middle">mean of filtered lines</text>
+  <text class="label" x="1276" y="610" text-anchor="middle">Wet Tap</text>
+  <text class="small" x="1276" y="626" text-anchor="middle">mean of filtered lines</text>
   <path class="line" d="M1276,446 L1276,560"/>
 
   <rect class="box" x="1436" y="560" width="176" height="94" rx="10"/>
-  <text class="label" x="1524" y="614" text-anchor="middle">Wet Post</text>
-  <text class="small" x="1524" y="636" text-anchor="middle">width + shimmer</text>
+  <text class="label" x="1524" y="610" text-anchor="middle">Wet Post</text>
+  <text class="small" x="1524" y="626" text-anchor="middle">width + shimmer</text>
   <path class="line" d="M1380,607 L1436,607"/>
 
   <!-- Equations -->
-  <text class="eq" x="930" y="708">q[n] = delay_read(x_fb[n])</text>
-  <text class="eq" x="930" y="730">r[n] = D(q[n])</text>
-  <text class="eq" x="930" y="752">x_fb[n+1] = u[n]/sqrt(N) + G*M*r[n]</text>
+  <text class="eq" x="930" y="700">q[n] = delay_read(x_fb[n])</text>
+  <text class="eq" x="930" y="718">r[n] = D(q[n])</text>
+  <text class="eq" x="930" y="736">x_fb[n+1] = u[n]/sqrt(N) + G*M*r[n]</text>
 
   <!-- Dry/wet mix -->
   <rect class="box" x="254" y="822" width="208" height="88" rx="12"/>
-  <text class="label" x="358" y="876" text-anchor="middle">Dry Tap</text>
+  <text class="label" x="358" y="871" text-anchor="middle">Dry Tap</text>
 
   <rect class="box" x="1318" y="810" width="228" height="114" rx="12"/>
-  <text class="label" x="1432" y="858" text-anchor="middle">Wet / Dry Mix</text>
-  <text class="small" x="1432" y="882" text-anchor="middle"><tspan class="mono">--wet --dry</tspan></text>
+  <text class="label" x="1432" y="852" text-anchor="middle">Wet / Dry Mix</text>
+  <text class="small" x="1432" y="868" text-anchor="middle"><tspan class="mono">--wet --dry</tspan></text>
 
   <rect class="box" x="1602" y="830" width="176" height="88" rx="12"/>
-  <text class="label" x="1690" y="884" text-anchor="middle">Output</text>
+  <text class="label" x="1690" y="878" text-anchor="middle">Output</text>
 
   <path class="line" d="M177,344 L177,866 L254,866"/>
   <path class="line" d="M1612,607 L1432,607 L1432,810"/>
@@ -120,8 +121,8 @@
   <path class="line" d="M1546,866 L1602,874"/>
 
   <rect class="legend" x="92" y="944" width="1716" height="92" rx="12"/>
-  <text class="legend-text" x="118" y="975">
-    <tspan x="118" dy="0">Accurate processing order: delay read -&gt; loop filters -&gt; matrix mix -&gt; RT60 gains -&gt; add injection -&gt; write back.</tspan>
-    <tspan x="118" dy="20">Allpass diffusion is pre-FDN. FDN structure is tunable via <tspan class="mono">--fdn-lines</tspan> and <tspan class="mono">--comb-delays-ms</tspan>.</tspan>
+  <text class="legend-text" x="118" y="970">
+    <tspan x="118" dy="0">Order: delay read -&gt; loop filters -&gt; matrix mix -&gt; RT60 gains -&gt; add injection -&gt; write back.</tspan>
+    <tspan x="118" dy="16">Allpass diffusion is pre-FDN. Tune via <tspan class="mono">--fdn-lines</tspan> and <tspan class="mono">--comb-delays-ms</tspan>.</tspan>
   </text>
 </svg>
