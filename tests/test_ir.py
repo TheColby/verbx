@@ -300,6 +300,8 @@ def test_ir_gen_supports_multiband_fdn_controls(tmp_path: Path) -> None:
             "12",
             "--fdn-rt60-high",
             "6",
+            "--fdn-tonal-correction-strength",
+            "0.6",
             "--fdn-xover-low-hz",
             "220",
             "--fdn-xover-high-hz",
@@ -313,6 +315,7 @@ def test_ir_gen_supports_multiband_fdn_controls(tmp_path: Path) -> None:
     assert abs(float(params["fdn_rt60_low"]) - 20.0) < 1e-6
     assert abs(float(params["fdn_rt60_mid"]) - 12.0) < 1e-6
     assert abs(float(params["fdn_rt60_high"]) - 6.0) < 1e-6
+    assert abs(float(params["fdn_tonal_correction_strength"]) - 0.6) < 1e-6
     assert abs(float(params["fdn_xover_low_hz"]) - 220.0) < 1e-6
     assert abs(float(params["fdn_xover_high_hz"]) - 3200.0) < 1e-6
 

@@ -91,6 +91,7 @@ class AlgoReverbConfig:
     fdn_rt60_mid: float | None = None
     fdn_rt60_high: float | None = None
     fdn_rt60_tilt: float = 0.0
+    fdn_tonal_correction_strength: float = 0.0
     fdn_xover_low_hz: float = 250.0
     fdn_xover_high_hz: float = 4_000.0
     fdn_link_filter: str = "none"
@@ -147,6 +148,7 @@ class AlgoReverbEngine(ReverbEngine):
     _AUTOMATION_TARGETS = set(ENGINE_CONTROL_TARGETS)
     _RT60_UPDATE_EPS = 1e-3
     _LP_ALPHA_UPDATE_EPS = 1e-5
+    _TRACK_C_UPDATE_EPS = 1e-5
 
     def __init__(self, config: AlgoReverbConfig) -> None:
         self._config = config
@@ -164,7 +166,7 @@ class AlgoReverbEngine(ReverbEngine):
         self._sparse_enabled = bool(config.fdn_sparse)
         self._sparse_degree = max(1, int(config.fdn_sparse_degree))
         self._rt60_tilt = float(np.clip(config.fdn_rt60_tilt, -1.0, 1.0))
-        self._multiband_enabled = all(
+        self._base_multiband_enabled = all(
             value is not None
             for value in (config.fdn_rt60_low, config.fdn_rt60_mid, config.fdn_rt60_high)
         ) or (
@@ -172,6 +174,7 @@ class AlgoReverbEngine(ReverbEngine):
             or abs(float(config.warmth_macro)) > 1e-6
             or abs(float(config.clarity_macro)) > 1e-6
         )
+        self._multiband_enabled = self._base_multiband_enabled
         self._link_filter_mode = self._resolve_link_filter_mode(config.fdn_link_filter)
         self._link_filter_mix = float(np.clip(config.fdn_link_filter_mix, 0.0, 1.0))
         self._link_filter_enabled = (
@@ -206,14 +209,15 @@ class AlgoReverbEngine(ReverbEngine):
                 size=int(self._base_delay_ms.shape[0]),
                 pairings=self._graph_pairings,
             )
-        self._tv_matrix_enabled = (
+        self._tv_matrix_base_enabled = (
             self._matrix_kind == "tv_unitary"
             and float(config.fdn_tv_rate_hz) > 0.0
             and float(config.fdn_tv_depth) > 0.0
             and not self._sparse_enabled
             and not self._graph_enabled
-            and not self._multiband_enabled
+            and not self._base_multiband_enabled
         )
+        self._tv_matrix_enabled = self._tv_matrix_base_enabled
         self._tv_phase = np.float32(0.0)
         self._tv_target_matrix = self._build_random_orthogonal_matrix(
             size=int(self._base_delay_ms.shape[0]),
@@ -260,6 +264,8 @@ class AlgoReverbEngine(ReverbEngine):
         """Set sample-rate automation curves for internal FDN parameters."""
         if curves is None:
             self._parameter_automation = {}
+            self._multiband_enabled = self._base_multiband_enabled
+            self._tv_matrix_enabled = self._tv_matrix_base_enabled
             return
         parsed: CurveMap = {}
         for raw_target, raw_curve in curves.items():
@@ -271,6 +277,24 @@ class AlgoReverbEngine(ReverbEngine):
                 continue
             parsed[target] = vec
         self._parameter_automation = parsed
+        self._multiband_enabled = (
+            self._base_multiband_enabled
+            or self._automation_requires_multiband(parsed)
+        )
+        self._tv_matrix_enabled = self._tv_matrix_base_enabled and not self._multiband_enabled
+
+    @staticmethod
+    def _automation_requires_multiband(curves: CurveMap) -> bool:
+        """Return True when automation targets imply multiband Track C processing."""
+        return any(
+            target in curves
+            for target in (
+                "fdn-rt60-tilt",
+                "clarity-macro",
+                "warmth-macro",
+                "fdn-tonal-correction-strength",
+            )
+        )
 
     @staticmethod
     def _resample_curve(curve: npt.NDArray[np.float32], n_samples: int) -> npt.NDArray[np.float32]:
@@ -300,8 +324,11 @@ class AlgoReverbEngine(ReverbEngine):
                 "clarity-macro",
                 "warmth-macro",
                 "envelopment-macro",
+                "fdn-rt60-tilt",
             }:
                 vec = np.asarray(np.clip(vec, -1.0, 1.0), dtype=np.float32)
+            elif target == "fdn-tonal-correction-strength":
+                vec = np.asarray(np.clip(vec, 0.0, 1.0), dtype=np.float32)
             resolved[target] = vec
         return resolved
 
@@ -421,6 +448,13 @@ class AlgoReverbEngine(ReverbEngine):
             suffixes.append("cascade")
         if self._multiband_enabled:
             suffixes.append("multiband")
+        tonal_curve = self._parameter_automation.get("fdn-tonal-correction-strength")
+        tonal_curve_enabled = tonal_curve is not None and float(np.max(tonal_curve)) > 1e-9
+        if self._multiband_enabled and (
+            float(self._config.fdn_tonal_correction_strength) > 0.0
+            or tonal_curve_enabled
+        ):
+            suffixes.append("tonalcorr")
         if self._link_filter_enabled:
             suffixes.append("linkfilter")
         if len(suffixes) == 0:
@@ -780,7 +814,13 @@ class AlgoReverbEngine(ReverbEngine):
         return np.asarray(delays, dtype=np.float32)
 
     @staticmethod
-    def _resolve_multiband_rt60(config: AlgoReverbConfig) -> tuple[float, float, float]:
+    def _resolve_multiband_rt60(
+        config: AlgoReverbConfig,
+        *,
+        clarity_macro: float | None = None,
+        warmth_macro: float | None = None,
+        fdn_rt60_tilt: float | None = None,
+    ) -> tuple[float, float, float]:
         """Resolve low/mid/high RT60 values with scalar fallback."""
         base_rt60 = max(0.1, float(config.rt60))
         low = max(
@@ -795,9 +835,18 @@ class AlgoReverbEngine(ReverbEngine):
             0.1,
             float(config.fdn_rt60_high if config.fdn_rt60_high is not None else base_rt60),
         )
+        resolved_clarity = (
+            float(config.clarity_macro) if clarity_macro is None else float(clarity_macro)
+        )
+        resolved_warmth = (
+            float(config.warmth_macro) if warmth_macro is None else float(warmth_macro)
+        )
+        resolved_tilt = (
+            float(config.fdn_rt60_tilt) if fdn_rt60_tilt is None else float(fdn_rt60_tilt)
+        )
         tilt = float(
             np.clip(
-                config.fdn_rt60_tilt + (0.45 * config.warmth_macro) - (0.18 * config.clarity_macro),
+                resolved_tilt + (0.45 * resolved_warmth) - (0.18 * resolved_clarity),
                 -1.0,
                 1.0,
             )
@@ -825,6 +874,35 @@ class AlgoReverbEngine(ReverbEngine):
         """Convert perceptual macro in ``[-1, 1]`` to positive scale factor."""
         scale = float(np.power(2.0, sensitivity * float(np.clip(macro_value, -1.0, 1.0))))
         return float(np.clip(scale, minimum, maximum))
+
+    @staticmethod
+    def _resolve_tonal_correction_scales(
+        *,
+        feedback_gain_low: npt.NDArray[np.float32],
+        feedback_gain_mid: npt.NDArray[np.float32],
+        feedback_gain_high: npt.NDArray[np.float32],
+        strength: float,
+    ) -> tuple[np.float32, np.float32, np.float32]:
+        """Compute bounded low/mid/high correction scales for Track C tonal balancing."""
+        tonal_strength = float(np.clip(strength, 0.0, 1.0))
+        if tonal_strength <= 1e-9:
+            return np.float32(1.0), np.float32(1.0), np.float32(1.0)
+
+        eps = 1e-6
+        low_mean = max(eps, float(np.mean(np.asarray(feedback_gain_low, dtype=np.float64))))
+        mid_mean = max(eps, float(np.mean(np.asarray(feedback_gain_mid, dtype=np.float64))))
+        high_mean = max(eps, float(np.mean(np.asarray(feedback_gain_high, dtype=np.float64))))
+        low_scale = float(np.clip(np.power(mid_mean / low_mean, tonal_strength), 0.5, 2.0))
+        mid_scale = 1.0
+        high_scale = float(np.clip(np.power(mid_mean / high_mean, tonal_strength), 0.5, 2.0))
+
+        # Preserve overall energy tendency while rebalancing decay color.
+        rms = float(np.sqrt(((low_scale * low_scale) + (mid_scale * mid_scale) + (high_scale * high_scale)) / 3.0))
+        if rms > eps:
+            low_scale /= rms
+            mid_scale /= rms
+            high_scale /= rms
+        return np.float32(low_scale), np.float32(mid_scale), np.float32(high_scale)
 
     @classmethod
     def _resolve_diffusion_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float32]:
@@ -901,6 +979,9 @@ class AlgoReverbEngine(ReverbEngine):
         clarity_macro_curve = automation.get("clarity-macro")
         warmth_macro_curve = automation.get("warmth-macro")
         envelopment_macro_curve = automation.get("envelopment-macro")
+        fdn_rt60_tilt_curve = automation.get("fdn-rt60-tilt")
+        tonal_correction_strength_curve = automation.get("fdn-tonal-correction-strength")
+        multiband_active = self._multiband_enabled or self._automation_requires_multiband(automation)
         has_dynamic_params = (
             rt60_curve is not None
             or damping_curve is not None
@@ -909,6 +990,8 @@ class AlgoReverbEngine(ReverbEngine):
             or clarity_macro_curve is not None
             or warmth_macro_curve is not None
             or envelopment_macro_curve is not None
+            or fdn_rt60_tilt_curve is not None
+            or tonal_correction_strength_curve is not None
         )
         if self._use_numba and not has_dynamic_params:
             return _process_channel_kernel(
@@ -973,13 +1056,35 @@ class AlgoReverbEngine(ReverbEngine):
         delays_sec = line_delays.astype(np.float64) / float(sr)
         feedback_gain = np.power(10.0, (-3.0 * delays_sec) / base_rt60).astype(np.float32)
         feedback_gain = np.clip(feedback_gain, 0.0, 0.995)
-        rt60_low, rt60_mid, rt60_high = self._resolve_multiband_rt60(self._config)
+        fdn_rt60_tilt_default = float(np.clip(self._config.fdn_rt60_tilt, -1.0, 1.0))
+        fdn_rt60_tilt = fdn_rt60_tilt_default
+        rt60_low, rt60_mid, rt60_high = self._resolve_multiband_rt60(
+            self._config,
+            clarity_macro=clarity_macro_default,
+            warmth_macro=warmth_macro_default,
+            fdn_rt60_tilt=fdn_rt60_tilt,
+        )
         feedback_gain_low = np.power(10.0, (-3.0 * delays_sec) / rt60_low).astype(np.float32)
         feedback_gain_mid = np.power(10.0, (-3.0 * delays_sec) / rt60_mid).astype(np.float32)
         feedback_gain_high = np.power(10.0, (-3.0 * delays_sec) / rt60_high).astype(np.float32)
         feedback_gain_low = np.clip(feedback_gain_low, 0.0, 0.995)
         feedback_gain_mid = np.clip(feedback_gain_mid, 0.0, 0.995)
         feedback_gain_high = np.clip(feedback_gain_high, 0.0, 0.995)
+        tonal_correction_strength_default = float(
+            np.clip(self._config.fdn_tonal_correction_strength, 0.0, 1.0)
+        )
+        tonal_correction_strength = tonal_correction_strength_default
+        tonal_correction_enabled = multiband_active and tonal_correction_strength > 0.0
+        tonal_low_scale = np.float32(1.0)
+        tonal_mid_scale = np.float32(1.0)
+        tonal_high_scale = np.float32(1.0)
+        if tonal_correction_enabled:
+            tonal_low_scale, tonal_mid_scale, tonal_high_scale = self._resolve_tonal_correction_scales(
+                feedback_gain_low=feedback_gain_low,
+                feedback_gain_mid=feedback_gain_mid,
+                feedback_gain_high=feedback_gain_high,
+                strength=tonal_correction_strength,
+            )
         xover_low = max(20.0, float(self._config.fdn_xover_low_hz))
         xover_high = max(xover_low + 10.0, float(self._config.fdn_xover_high_hz))
         nyquist_guard = max(200.0, (float(sr) * 0.5) - 50.0)
@@ -1066,7 +1171,7 @@ class AlgoReverbEngine(ReverbEngine):
             cascade_base_gain = np.clip(cascade_base_gain, 0.0, 0.995)
             cascade_inv_sqrt_lines = np.float32(1.0 / np.sqrt(np.float32(cascade_num_lines)))
 
-        macro_eps = 1e-5
+        macro_eps = self._TRACK_C_UPDATE_EPS
         room_size_macro = room_size_macro_default
         clarity_macro = clarity_macro_default
         warmth_macro = warmth_macro_default
@@ -1125,6 +1230,8 @@ class AlgoReverbEngine(ReverbEngine):
                 clarity_macro_sample = clarity_macro_default
                 warmth_macro_sample = warmth_macro_default
                 envelopment_macro_sample = envelopment_macro_default
+                fdn_rt60_tilt_sample = fdn_rt60_tilt_default
+                tonal_correction_strength_sample = tonal_correction_strength_default
                 if room_size_macro_curve is not None:
                     room_size_macro_sample = float(np.clip(room_size_macro_curve[n], -1.0, 1.0))
                 if clarity_macro_curve is not None:
@@ -1135,11 +1242,27 @@ class AlgoReverbEngine(ReverbEngine):
                     envelopment_macro_sample = float(
                         np.clip(envelopment_macro_curve[n], -1.0, 1.0)
                     )
+                if fdn_rt60_tilt_curve is not None:
+                    fdn_rt60_tilt_sample = float(np.clip(fdn_rt60_tilt_curve[n], -1.0, 1.0))
+                if tonal_correction_strength_curve is not None:
+                    tonal_correction_strength_sample = float(
+                        np.clip(tonal_correction_strength_curve[n], 0.0, 1.0)
+                    )
+
+                room_size_changed = abs(room_size_macro_sample - room_size_macro) > macro_eps
+                clarity_changed = abs(clarity_macro_sample - clarity_macro) > macro_eps
+                warmth_changed = abs(warmth_macro_sample - warmth_macro) > macro_eps
+                envelopment_changed = abs(envelopment_macro_sample - envelopment_macro) > macro_eps
+                fdn_tilt_changed = abs(fdn_rt60_tilt_sample - fdn_rt60_tilt) > macro_eps
+                tonal_strength_changed = (
+                    abs(tonal_correction_strength_sample - tonal_correction_strength) > macro_eps
+                )
+
                 if (
-                    abs(room_size_macro_sample - room_size_macro) > macro_eps
-                    or abs(clarity_macro_sample - clarity_macro) > macro_eps
-                    or abs(warmth_macro_sample - warmth_macro) > macro_eps
-                    or abs(envelopment_macro_sample - envelopment_macro) > macro_eps
+                    room_size_changed
+                    or clarity_changed
+                    or warmth_changed
+                    or envelopment_changed
                 ):
                     room_size_macro = room_size_macro_sample
                     clarity_macro = clarity_macro_sample
@@ -1175,6 +1298,11 @@ class AlgoReverbEngine(ReverbEngine):
                             0.45,
                         )
                     )
+                if fdn_tilt_changed:
+                    fdn_rt60_tilt = fdn_rt60_tilt_sample
+                if tonal_strength_changed:
+                    tonal_correction_strength = tonal_correction_strength_sample
+                tonal_correction_enabled = multiband_active and tonal_correction_strength > 0.0
 
                 rt60_effective *= macro_rt60_scale
                 damping_effective = float(np.clip(damping_effective + macro_damping_delta, 0.0, 1.0))
@@ -1186,32 +1314,21 @@ class AlgoReverbEngine(ReverbEngine):
                         np.clip(damping_effective - (0.15 * (room_size - 1.0)), 0.0, 1.0)
                     )
 
-                if abs(rt60_effective - last_rt60_effective) > self._RT60_UPDATE_EPS:
+                rt60_changed = abs(rt60_effective - last_rt60_effective) > self._RT60_UPDATE_EPS
+                multiband_profile_changed = (
+                    multiband_active
+                    and (
+                        fdn_tilt_changed
+                        or clarity_changed
+                        or warmth_changed
+                    )
+                )
+                if rt60_changed:
                     feedback_gain[:] = np.clip(
                         np.power(10.0, (-3.0 * delays_sec) / max(rt60_effective, 0.1)),
                         0.0,
                         0.995,
                     ).astype(np.float32)
-                    if self._multiband_enabled:
-                        ratio = max(0.05, rt60_effective / max(base_rt60, 0.1))
-                        rt60_low_eff = max(0.1, float(rt60_low) * ratio)
-                        rt60_mid_eff = max(0.1, float(rt60_mid) * ratio)
-                        rt60_high_eff = max(0.1, float(rt60_high) * ratio)
-                        feedback_gain_low[:] = np.clip(
-                            np.power(10.0, (-3.0 * delays_sec) / rt60_low_eff),
-                            0.0,
-                            0.995,
-                        ).astype(np.float32)
-                        feedback_gain_mid[:] = np.clip(
-                            np.power(10.0, (-3.0 * delays_sec) / rt60_mid_eff),
-                            0.0,
-                            0.995,
-                        ).astype(np.float32)
-                        feedback_gain_high[:] = np.clip(
-                            np.power(10.0, (-3.0 * delays_sec) / rt60_high_eff),
-                            0.0,
-                            0.995,
-                        ).astype(np.float32)
                     if cascade_enabled and cascade_base_gain.size > 0:
                         cascade_rt60_eff = max(0.1, rt60_effective * self._cascade_rt60_ratio)
                         cascade_base_gain[:] = np.clip(
@@ -1220,6 +1337,50 @@ class AlgoReverbEngine(ReverbEngine):
                             0.995,
                         ).astype(np.float32)
                     last_rt60_effective = float(rt60_effective)
+
+                if multiband_active and (rt60_changed or multiband_profile_changed):
+                    rt60_low, rt60_mid, rt60_high = self._resolve_multiband_rt60(
+                        self._config,
+                        clarity_macro=clarity_macro,
+                        warmth_macro=warmth_macro,
+                        fdn_rt60_tilt=fdn_rt60_tilt,
+                    )
+                    ratio = max(0.05, rt60_effective / max(base_rt60, 0.1))
+                    rt60_low_eff = max(0.1, float(rt60_low) * ratio)
+                    rt60_mid_eff = max(0.1, float(rt60_mid) * ratio)
+                    rt60_high_eff = max(0.1, float(rt60_high) * ratio)
+                    feedback_gain_low[:] = np.clip(
+                        np.power(10.0, (-3.0 * delays_sec) / rt60_low_eff),
+                        0.0,
+                        0.995,
+                    ).astype(np.float32)
+                    feedback_gain_mid[:] = np.clip(
+                        np.power(10.0, (-3.0 * delays_sec) / rt60_mid_eff),
+                        0.0,
+                        0.995,
+                    ).astype(np.float32)
+                    feedback_gain_high[:] = np.clip(
+                        np.power(10.0, (-3.0 * delays_sec) / rt60_high_eff),
+                        0.0,
+                        0.995,
+                    ).astype(np.float32)
+
+                if multiband_active and (
+                    rt60_changed or multiband_profile_changed or tonal_strength_changed
+                ):
+                    if tonal_correction_enabled:
+                        tonal_low_scale, tonal_mid_scale, tonal_high_scale = (
+                            self._resolve_tonal_correction_scales(
+                                feedback_gain_low=feedback_gain_low,
+                                feedback_gain_mid=feedback_gain_mid,
+                                feedback_gain_high=feedback_gain_high,
+                                strength=tonal_correction_strength,
+                            )
+                        )
+                    else:
+                        tonal_low_scale = np.float32(1.0)
+                        tonal_mid_scale = np.float32(1.0)
+                        tonal_high_scale = np.float32(1.0)
 
                 lp_alpha_sample = float(0.15 + (0.83 * np.clip(damping_effective, 0.0, 1.0)))
                 if abs(lp_alpha_sample - last_lp_alpha) > self._LP_ALPHA_UPDATE_EPS:
@@ -1334,7 +1495,7 @@ class AlgoReverbEngine(ReverbEngine):
                 injection = np.float32(diffused * inv_sqrt_lines)
 
                 for i in range(num_lines):
-                    if self._multiband_enabled:
+                    if multiband_active:
                         mb_lp_low_state[i] += lp_alpha_low * (
                             mixed_feedback[i] - mb_lp_low_state[i]
                         )
@@ -1344,11 +1505,18 @@ class AlgoReverbEngine(ReverbEngine):
                         band_low = mb_lp_low_state[i]
                         band_mid = mb_lp_high_state[i] - mb_lp_low_state[i]
                         band_high = mixed_feedback[i] - mb_lp_high_state[i]
-                        shaped_feedback = (
-                            (feedback_gain_low[i] * band_low)
-                            + (feedback_gain_mid[i] * band_mid)
-                            + (feedback_gain_high[i] * band_high)
-                        )
+                        if tonal_correction_enabled:
+                            shaped_feedback = (
+                                (feedback_gain_low[i] * tonal_low_scale * band_low)
+                                + (feedback_gain_mid[i] * tonal_mid_scale * band_mid)
+                                + (feedback_gain_high[i] * tonal_high_scale * band_high)
+                            )
+                        else:
+                            shaped_feedback = (
+                                (feedback_gain_low[i] * band_low)
+                                + (feedback_gain_mid[i] * band_mid)
+                                + (feedback_gain_high[i] * band_high)
+                            )
                         value = injection + shaped_feedback
                     else:
                         value = injection + (feedback_gain[i] * mixed_feedback[i])
@@ -1370,7 +1538,7 @@ class AlgoReverbEngine(ReverbEngine):
                         dc_prev_out[i] *= np.float32(0.5)
                         if self._dfm_enabled:
                             dfm_buffers[i] *= np.float32(0.5)
-                        if self._multiband_enabled:
+                        if multiband_active:
                             mb_lp_low_state[i] *= np.float32(0.5)
                             mb_lp_high_state[i] *= np.float32(0.5)
                         if self._link_filter_enabled:

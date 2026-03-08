@@ -70,6 +70,20 @@ _CONTROL_TARGET_SPECS: tuple[ControlTargetSpec, ...] = (
         1.0,
         aliases=("envelopment", "enveloping", "envelope"),
     ),
+    ControlTargetSpec(
+        "fdn-rt60-tilt",
+        "engine",
+        -1.0,
+        1.0,
+        aliases=("rt60-tilt", "fdn-tilt"),
+    ),
+    ControlTargetSpec(
+        "fdn-tonal-correction-strength",
+        "engine",
+        0.0,
+        1.0,
+        aliases=("tonal-correction", "tonal-correction-strength", "fdn-tonal-correction"),
+    ),
 )
 
 _CONTROL_TARGET_BY_NAME = {spec.name: spec for spec in _CONTROL_TARGET_SPECS}
@@ -102,4 +116,3 @@ def get_control_target_spec(value: str) -> ControlTargetSpec | None:
     """Return canonical target spec by name/alias, if known."""
     canonical = normalize_control_target_name(value)
     return _CONTROL_TARGET_BY_NAME.get(canonical)
-

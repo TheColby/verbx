@@ -40,6 +40,9 @@ Deterministic random seed.
 .B --fdn-rt60-tilt FLOAT
 Jot-style low/high RT skew around mid-band decay (\-1..1) for FDN/hybrid modes.
 .TP
+.B --fdn-tonal-correction-strength FLOAT
+Track C tonal-correction strength (0..1) for multiband/tilted FDN decay equalization.
+.TP
 .B --room-size-macro FLOAT
 Perceptual room-size macro (\-1..1) for FDN/hybrid generation.
 .TP
@@ -62,7 +65,7 @@ Analyze fundamentals/harmonics from input to tune generated IR.
 .B verbx ir gen out_ir.wav --mode hybrid --length 120 --seed 7
 Generate long hybrid IR.
 .TP
-.B verbx ir gen out_ir.wav --mode fdn --fdn-rt60-tilt 0.35 --room-size-macro 0.4 --warmth-macro 0.5
+.B verbx ir gen out_ir.wav --mode fdn --fdn-rt60-tilt 0.35 --fdn-tonal-correction-strength 0.45 --room-size-macro 0.4 --warmth-macro 0.5
 Generate IR with Track C perceptual FDN controls.
 .TP
 .B verbx ir analyze out_ir.wav --json-out out_ir.analysis.json

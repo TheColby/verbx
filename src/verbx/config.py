@@ -67,6 +67,7 @@ class RenderConfig:
     fdn_rt60_mid: float | None = None
     fdn_rt60_high: float | None = None
     fdn_rt60_tilt: float = 0.0
+    fdn_tonal_correction_strength: float = 0.0
     fdn_xover_low_hz: float = 250.0
     fdn_xover_high_hz: float = 4_000.0
     fdn_link_filter: str = "none"

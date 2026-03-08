@@ -355,6 +355,16 @@ def render(
             "Positive extends low-band decay and shortens highs."
         ),
     ),
+    fdn_tonal_correction_strength: float = typer.Option(
+        0.0,
+        "--fdn-tonal-correction-strength",
+        min=0.0,
+        max=1.0,
+        help=(
+            "Track C tonal correction strength for multiband/tilted FDN response (0..1). "
+            "Higher values apply stronger decay-color equalization."
+        ),
+    ),
     fdn_xover_low_hz: float = typer.Option(
         250.0,
         "--fdn-xover-low-hz",
@@ -720,6 +730,7 @@ def render(
         fdn_rt60_mid=fdn_rt60_mid,
         fdn_rt60_high=fdn_rt60_high,
         fdn_rt60_tilt=fdn_rt60_tilt,
+        fdn_tonal_correction_strength=fdn_tonal_correction_strength,
         fdn_xover_low_hz=fdn_xover_low_hz,
         fdn_xover_high_hz=fdn_xover_high_hz,
         fdn_link_filter=_normalize_fdn_link_filter_name(fdn_link_filter),
@@ -1122,6 +1133,16 @@ def ir_gen(
             "Positive extends low-band decay and shortens highs."
         ),
     ),
+    fdn_tonal_correction_strength: float = typer.Option(
+        0.0,
+        "--fdn-tonal-correction-strength",
+        min=0.0,
+        max=1.0,
+        help=(
+            "Track C tonal correction strength for multiband/tilted FDN response (0..1). "
+            "Higher values apply stronger decay-color equalization."
+        ),
+    ),
     fdn_xover_low_hz: float = typer.Option(
         250.0,
         "--fdn-xover-low-hz",
@@ -1278,6 +1299,7 @@ def ir_gen(
         fdn_rt60_mid=fdn_rt60_mid,
         fdn_rt60_high=fdn_rt60_high,
         fdn_rt60_tilt=fdn_rt60_tilt,
+        fdn_tonal_correction_strength=fdn_tonal_correction_strength,
         fdn_xover_low_hz=fdn_xover_low_hz,
         fdn_xover_high_hz=fdn_xover_high_hz,
         fdn_link_filter=fdn_link_filter,
@@ -1367,6 +1389,7 @@ def ir_gen(
         fdn_rt60_mid=fdn_rt60_mid,
         fdn_rt60_high=fdn_rt60_high,
         fdn_rt60_tilt=fdn_rt60_tilt,
+        fdn_tonal_correction_strength=fdn_tonal_correction_strength,
         fdn_xover_low_hz=fdn_xover_low_hz,
         fdn_xover_high_hz=fdn_xover_high_hz,
         fdn_link_filter=_normalize_fdn_link_filter_name(fdn_link_filter),
@@ -2342,6 +2365,7 @@ def _build_lucky_config(
         cfg.fdn_rt60_low = float(rng.uniform(6.0, 70.0))
         cfg.fdn_rt60_mid = float(rng.uniform(3.0, 40.0))
         cfg.fdn_rt60_high = float(rng.uniform(0.8, 20.0))
+        cfg.fdn_tonal_correction_strength = float(rng.uniform(0.05, 0.9))
         cfg.fdn_xover_low_hz = float(rng.uniform(100.0, 700.0))
         cfg.fdn_xover_high_hz = float(
             rng.uniform(max(cfg.fdn_xover_low_hz + 250.0, 1_000.0), 8_000.0)
@@ -2350,6 +2374,7 @@ def _build_lucky_config(
         cfg.fdn_rt60_low = None
         cfg.fdn_rt60_mid = None
         cfg.fdn_rt60_high = None
+        cfg.fdn_tonal_correction_strength = 0.0
         cfg.fdn_xover_low_hz = 250.0
         cfg.fdn_xover_high_hz = 4_000.0
     cfg.fdn_cascade = bool(rng.random() < 0.4)
@@ -2532,6 +2557,7 @@ def _build_lucky_ir_gen_config(
         cfg.fdn_rt60_low = float(rng.uniform(8.0, 90.0))
         cfg.fdn_rt60_mid = float(rng.uniform(4.0, 50.0))
         cfg.fdn_rt60_high = float(rng.uniform(1.0, 30.0))
+        cfg.fdn_tonal_correction_strength = float(rng.uniform(0.05, 0.95))
         cfg.fdn_xover_low_hz = float(rng.uniform(80.0, 800.0))
         cfg.fdn_xover_high_hz = float(
             rng.uniform(
@@ -2543,6 +2569,7 @@ def _build_lucky_ir_gen_config(
         cfg.fdn_rt60_low = None
         cfg.fdn_rt60_mid = None
         cfg.fdn_rt60_high = None
+        cfg.fdn_tonal_correction_strength = 0.0
         cfg.fdn_xover_low_hz = 250.0
         cfg.fdn_xover_high_hz = 4_000.0
     if rng.random() < 0.5:
@@ -2874,6 +2901,14 @@ def _validate_perceptual_macro_settings(
         if value < -1.0 or value > 1.0:
             msg = f"{option_name} must be in [-1.0, 1.0]."
             raise typer.BadParameter(msg)
+
+
+def _validate_fdn_tonal_correction_settings(*, fdn_tonal_correction_strength: float) -> None:
+    """Validate Track C tonal-correction controls."""
+    strength = float(fdn_tonal_correction_strength)
+    if strength < 0.0 or strength > 1.0:
+        msg = "--fdn-tonal-correction-strength must be in [0.0, 1.0]."
+        raise typer.BadParameter(msg)
 
 
 def _normalize_fdn_matrix_name(value: str) -> str:
@@ -3270,6 +3305,9 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
         warmth_macro=config.warmth_macro,
         envelopment_macro=config.envelopment_macro,
     )
+    _validate_fdn_tonal_correction_settings(
+        fdn_tonal_correction_strength=config.fdn_tonal_correction_strength,
+    )
     resolved_fdn_lines = (
         len(config.comb_delays_ms) if len(config.comb_delays_ms) > 0 else int(config.fdn_lines)
     )
@@ -3375,6 +3413,7 @@ def _validate_ir_gen_call(
     fdn_rt60_mid: float | None,
     fdn_rt60_high: float | None,
     fdn_rt60_tilt: float,
+    fdn_tonal_correction_strength: float,
     fdn_xover_low_hz: float,
     fdn_xover_high_hz: float,
     fdn_link_filter: str,
@@ -3454,6 +3493,9 @@ def _validate_ir_gen_call(
         clarity_macro=clarity_macro,
         warmth_macro=warmth_macro,
         envelopment_macro=envelopment_macro,
+    )
+    _validate_fdn_tonal_correction_settings(
+        fdn_tonal_correction_strength=fdn_tonal_correction_strength,
     )
 
 

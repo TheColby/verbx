@@ -769,7 +769,7 @@ Current implementation level: **v0.6.0**
 - v0.5 additions: surround route maps/trajectories, algorithmic surround decorrelation, and batch checkpoint/resume hardening
 - v0.6 additions: graph-structured FDN topology mode and expanded FDN topology controls
 - v0.6 spatial additions: Ambisonics convention validation (`--ambi-order`, `--ambi-normalization`, `--channel-order`), FOA encode/decode transforms, yaw rotation, and Ambisonics spatial metrics in analysis mode
-- v0.7 Track A starter additions: JSON/CSV automation lanes (`--automation-file`), inline CLI points (`--automation-point`), block/sample evaluation, smoothing, clamp overrides, and automation trace export
+- v0.7 Track A/C additions: JSON/CSV automation lanes (`--automation-file`), inline CLI points (`--automation-point`), block/sample evaluation, smoothing, clamp overrides, automation trace export, and Track C automation targets for `fdn-rt60-tilt` and `fdn-tonal-correction-strength`
 
 ## 7.0 Quick Start Recipes
 
@@ -1593,6 +1593,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--fdn-link-filter-hz` | Cutoff frequency for `--fdn-link-filter`. | Start around `1200-4000 Hz` and tune for desired tail color. |
 | `--fdn-link-filter-mix` | Wet mix of feedback-link filtering (`0..1`). | Lower values blend filtered and unfiltered feedback for subtler coloration. |
 | `--fdn-rt60-tilt` | Jot-style low/high RT skew around mid-band decay (`-1..1`). | Positive values extend low-band decay and shorten highs; negative values do the opposite. |
+| `--fdn-tonal-correction-strength` | Track C tonal-correction strength (`0..1`) for multiband/tilted FDN decay equalization. | Start in `0.2-0.6`; higher values more strongly rebalance low/high decay coloration. |
 | `--fdn-graph-topology` | Graph topology used by `--fdn-matrix graph` (`ring`, `path`, `star`, `random`). | `ring` is a balanced default; `star` produces hub-heavy energy routing; `random` increases variation. |
 | `--fdn-graph-degree` | Graph connectivity/stage degree for graph mode. | Increase gradually (`2-6`) to raise feedback mixing density. |
 | `--fdn-graph-seed` | Deterministic seed for graph pairing schedule generation. | Use fixed values for reproducible renders and A/B comparisons. |
@@ -1694,7 +1695,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--mod-combine [sum\|avg\|max]` | Source-combination policy for multi-source modulation. | `sum` is most energetic, `avg` is smoother, `max` follows the strongest source instant-by-instant. |
 | `--mod-smooth-ms` | Smoothing time constant for control-signal de-zippering. | Increase when modulation sounds too stepped or twitchy. |
 | `--mod-route` | Repeatable advanced route for per-parameter modulation with independent source sets. | Use this when one LFO/source group should control one parameter and another group should control a different parameter. |
-| `--automation-file` | JSON/CSV timeline automation source for render-time control. | Supports post-render targets (`wet`, `dry`, `gain-db`) and algorithmic engine targets (`rt60`, `damping`, `room-size`, `room-size-macro`, `clarity-macro`, `warmth-macro`, `envelopment-macro`). |
+| `--automation-file` | JSON/CSV timeline automation source for render-time control. | Supports post-render targets (`wet`, `dry`, `gain-db`) and algorithmic engine targets (`rt60`, `damping`, `room-size`, `room-size-macro`, `clarity-macro`, `warmth-macro`, `envelopment-macro`, `fdn-rt60-tilt`, `fdn-tonal-correction-strength`). |
 | `--automation-point` | Repeatable inline control point (`target:time_s:value[:interp]`). | Useful for quick breakpoint authoring directly from CLI without creating a file first. |
 | `--automation-mode [auto\|sample\|block]` | Automation evaluation mode. | `sample` is highest precision; `block` is efficient for long renders. |
 | `--automation-block-ms` | Control block size for block-mode automation. | Smaller values increase precision; larger values reduce control-rate overhead. |
@@ -1726,6 +1727,7 @@ Examples:
 - `--mod-route "wet:0.1:0.95:avg:20:lfo:sine:0.12:1.0*1.0"`
 - `--automation-point "rt60:0.0:0.6:linear" --automation-point "rt60:12.0:8.0:linear"`
 - `--automation-point "room-size:0.0:0.8" --automation-point "room-size:12.0:1.8"`
+- `--automation-point "rt60-tilt:0.0:0.0" --automation-point "rt60-tilt:12.0:0.6" --automation-point "tonal-correction:0.0:0.2" --automation-point "tonal-correction:12.0:0.8"`
 
 ### 12.3 `verbx analyze` switches
 
@@ -1817,6 +1819,7 @@ No command-specific switches (other than `--help`).
 | `--fdn-link-filter-hz` | Cutoff frequency for feedback-link filtering. | Practical starting range is `1200-4000 Hz` depending on source brightness. |
 | `--fdn-link-filter-mix` | Wet mix of feedback-link filtering (`0..1`). | Lower values keep more unfiltered energy for less coloration. |
 | `--fdn-rt60-tilt` | Jot-style low/high RT skew around mid-band decay (`-1..1`). | Positive values bias to longer low-band decay and shorter highs. |
+| `--fdn-tonal-correction-strength` | Track C tonal-correction strength (`0..1`) for multiband/tilted FDN decay equalization. | Use moderate values to reduce decay-color skew without over-flattening the tail. |
 | `--fdn-graph-topology` | Graph topology used by `--fdn-matrix graph` (`ring`, `path`, `star`, `random`). | Choose based on desired coupling shape and tail texture. |
 | `--fdn-graph-degree` | Graph connectivity/stage degree for graph mode. | Increase to thicken graph-mixed tail diffusion. |
 | `--fdn-graph-seed` | Deterministic seed for graph pairing schedule generation. | Keep fixed for reproducible IR generation workflows. |
@@ -2277,7 +2280,7 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
 - `CLI workflow`: add automation inputs (`--automation-file`, `--automation-point`, and optional per-parameter overrides) plus validation to catch out-of-range events before rendering.
 - `Performance`: support sparse-event scheduling and cached interpolation so long renders with dense automation remain efficient.
 - `Safety`: enforce stability guards when automating sensitive parameters (feedback/decay/modulation) and provide deterministic behavior in repeat/batch modes.
-- `Status update`: Track A starter is implemented with JSON/CSV timeline support plus inline CLI control points, lane types (breakpoints/ramps, LFO, segments), block/sample evaluation modes, smoothing and clamp guardrails, deterministic application in render pipeline, and CSV trace export. Current post-render targets are `wet`, `dry`, and `gain-db`; current algorithmic-engine targets are `rt60`, `damping`, `room-size`, `room-size-macro`, `clarity-macro`, `warmth-macro`, and `envelopment-macro`. Control-target aliases/limits are centralized in a shared registry to prevent CLI/engine drift.
+- `Status update`: Track A starter is implemented with JSON/CSV timeline support plus inline CLI control points, lane types (breakpoints/ramps, LFO, segments), block/sample evaluation modes, smoothing and clamp guardrails, deterministic application in render pipeline, and CSV trace export. Current post-render targets are `wet`, `dry`, and `gain-db`; current algorithmic-engine targets are `rt60`, `damping`, `room-size`, `room-size-macro`, `clarity-macro`, `warmth-macro`, `envelopment-macro`, `fdn-rt60-tilt`, and `fdn-tonal-correction-strength`. Control-target aliases/limits are centralized in a shared registry to prevent CLI/engine drift.
 
 ### 20.5 v0.7 Track B: Feature-vector-driven reverb control (audio-reactive DSP)
 
@@ -2295,7 +2298,7 @@ Current baseline in `verbx` is a configurable-line algorithmic FDN with allpass 
 - `Tonal correction stage`: add post-FDN tonal balancing inspired by energy-decay equalization practices so long tails stay smooth rather than frequency-skewed.
 - `Perceptual macro controls`: map low-level FDN coefficients to high-level room descriptors (size, clarity, warmth, envelopment) for faster design workflows.
 - `Validation tooling`: add decay-vs-target verification plots and spectral error summaries to verify calibration of FDN behavior against requested perceptual outcomes.
-- `Status update`: Track C starter is implemented with `--fdn-rt60-tilt` plus perceptual macro CLI controls (`--room-size-macro`, `--clarity-macro`, `--warmth-macro`, `--envelopment-macro`) in both `render` and `ir gen` paths, with matching automation targets for algorithmic-engine control. Analysis JSON now records resolved macro mapping under `effective.perceptual_macros` for reproducibility.
+- `Status update`: Track C starter is implemented with `--fdn-rt60-tilt` plus perceptual macro CLI controls (`--room-size-macro`, `--clarity-macro`, `--warmth-macro`, `--envelopment-macro`) in both `render` and `ir gen` paths, with matching automation targets for algorithmic-engine control. Tonal-correction control is now available via `--fdn-tonal-correction-strength` for decay-color balancing, and both Track C controls are automation-targetable (`fdn-rt60-tilt`, `fdn-tonal-correction-strength`) in the render path. Analysis JSON records resolved macro mapping under `effective.perceptual_macros` for reproducibility.
 
 ### 20.7 v0.7 Track D: IR morphing and blending framework
 
@@ -2345,6 +2348,8 @@ Near-term implementation targeting:
 - `Step 8 complete`: nested/cascaded FDN architecture is available via `--fdn-cascade` with tuning controls `--fdn-cascade-mix`, `--fdn-cascade-delay-scale`, and `--fdn-cascade-rt60-ratio`.
 - `Step 9 complete`: graph-structured FDN (adjacency-defined topology mode) is available via `--fdn-matrix graph` with topology/degree/seed controls.
 - `Step 10 complete (Track C starter)`: Jot-style and perceptual controls are available via `--fdn-rt60-tilt`, `--room-size-macro`, `--clarity-macro`, `--warmth-macro`, and `--envelopment-macro` across `render` and `ir gen`, with corresponding algorithmic automation targets.
+- `Step 11 complete (Track C tonal correction)`: tonal-correction strength control is available via `--fdn-tonal-correction-strength` across `render` and `ir gen`, integrated into the algorithmic multiband feedback path.
+- `Step 12 complete (Track C automation integration)`: automation targets `fdn-rt60-tilt` and `fdn-tonal-correction-strength` are available via `--automation-file` / `--automation-point`, with runtime multiband/tonal updates in the algorithmic engine.
 
 #### 20.8.3 Sources for rollout steps 1-3
 

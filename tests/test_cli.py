@@ -407,6 +407,8 @@ def test_render_multiband_fdn_switches_are_applied(tmp_path: Path) -> None:
             "14",
             "--fdn-rt60-high",
             "7",
+            "--fdn-tonal-correction-strength",
+            "0.7",
             "--fdn-xover-low-hz",
             "240",
             "--fdn-xover-high-hz",
@@ -421,8 +423,10 @@ def test_render_multiband_fdn_switches_are_applied(tmp_path: Path) -> None:
     assert abs(float(config["fdn_rt60_low"]) - 22.0) < 1e-6
     assert abs(float(config["fdn_rt60_mid"]) - 14.0) < 1e-6
     assert abs(float(config["fdn_rt60_high"]) - 7.0) < 1e-6
+    assert abs(float(config["fdn_tonal_correction_strength"]) - 0.7) < 1e-6
     assert abs(float(config["fdn_xover_low_hz"]) - 240.0) < 1e-6
     assert abs(float(config["fdn_xover_high_hz"]) - 3600.0) < 1e-6
+    assert "tonalcorr" in str(payload["effective"]["compute_backend"])
 
 
 def test_render_rejects_partial_multiband_rt60_set(tmp_path: Path) -> None:
@@ -1855,6 +1859,48 @@ def test_render_automation_points_drive_perceptual_macro_targets(tmp_path: Path)
     assert "room-size-macro" in automation["targets"]
     assert "envelopment-macro" in automation["targets"]
     assert "warmth-macro" in automation.get("engine_targets", [])
+
+
+def test_render_automation_points_drive_track_c_targets(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.zeros((sr // 4, 1), dtype=np.float32)
+    x[0, 0] = 1.0
+    infile = tmp_path / "trackc_auto_in.wav"
+    outfile = tmp_path / "trackc_auto_out.wav"
+    sf.write(str(infile), x, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--normalize-stage",
+            "none",
+            "--automation-point",
+            "rt60-tilt:0.0:0.0:linear",
+            "--automation-point",
+            "rt60-tilt:0.25:0.55:linear",
+            "--automation-point",
+            "tonal-correction:0.0:0.15:linear",
+            "--automation-point",
+            "tonal-correction:0.25:0.75:linear",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    automation = payload["effective"]["automation"]
+    assert isinstance(automation, dict)
+    assert "fdn-rt60-tilt" in automation["targets"]
+    assert "fdn-tonal-correction-strength" in automation["targets"]
+    assert "fdn-rt60-tilt" in automation.get("engine_targets", [])
+    assert "fdn-tonal-correction-strength" in automation.get("engine_targets", [])
+    assert "multiband" in str(payload["effective"]["compute_backend"])
+    assert "tonalcorr" in str(payload["effective"]["compute_backend"])
 
 
 def test_render_rejects_engine_automation_targets_for_convolution(tmp_path: Path) -> None:

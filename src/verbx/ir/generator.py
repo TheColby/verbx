@@ -91,6 +91,7 @@ class IRGenConfig:
     fdn_rt60_mid: float | None = None
     fdn_rt60_high: float | None = None
     fdn_rt60_tilt: float = 0.0
+    fdn_tonal_correction_strength: float = 0.0
     fdn_xover_low_hz: float = 250.0
     fdn_xover_high_hz: float = 4_000.0
     fdn_link_filter: str = "none"
@@ -155,6 +156,7 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             fdn_rt60_mid=config.fdn_rt60_mid,
             fdn_rt60_high=config.fdn_rt60_high,
             fdn_rt60_tilt=config.fdn_rt60_tilt,
+            fdn_tonal_correction_strength=config.fdn_tonal_correction_strength,
             fdn_xover_low_hz=config.fdn_xover_low_hz,
             fdn_xover_high_hz=config.fdn_xover_high_hz,
             fdn_link_filter=config.fdn_link_filter,
@@ -266,6 +268,7 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             fdn_rt60_mid=config.fdn_rt60_mid,
             fdn_rt60_high=config.fdn_rt60_high,
             fdn_rt60_tilt=config.fdn_rt60_tilt,
+            fdn_tonal_correction_strength=config.fdn_tonal_correction_strength,
             fdn_xover_low_hz=config.fdn_xover_low_hz,
             fdn_xover_high_hz=config.fdn_xover_high_hz,
             fdn_link_filter=config.fdn_link_filter,

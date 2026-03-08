@@ -10,6 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
+from verbx.core.fdn_capabilities import normalize_fdn_link_filter_name
 
 AudioArray = npt.NDArray[np.float32]
 
@@ -38,6 +39,7 @@ def generate_fdn_ir(
     fdn_rt60_mid: float | None,
     fdn_rt60_high: float | None,
     fdn_rt60_tilt: float,
+    fdn_tonal_correction_strength: float,
     fdn_xover_low_hz: float,
     fdn_xover_high_hz: float,
     fdn_link_filter: str,
@@ -91,9 +93,10 @@ def generate_fdn_ir(
             fdn_rt60_mid=fdn_rt60_mid,
             fdn_rt60_high=fdn_rt60_high,
             fdn_rt60_tilt=float(np.clip(fdn_rt60_tilt, -1.0, 1.0)),
+            fdn_tonal_correction_strength=float(np.clip(fdn_tonal_correction_strength, 0.0, 1.0)),
             fdn_xover_low_hz=max(20.0, float(fdn_xover_low_hz)),
             fdn_xover_high_hz=max(100.0, float(fdn_xover_high_hz)),
-            fdn_link_filter=fdn_link_filter.strip().lower().replace("-", "_"),
+            fdn_link_filter=normalize_fdn_link_filter_name(fdn_link_filter),
             fdn_link_filter_hz=max(20.0, float(fdn_link_filter_hz)),
             fdn_link_filter_mix=float(np.clip(fdn_link_filter_mix, 0.0, 1.0)),
             fdn_graph_topology=fdn_graph_topology.strip().lower().replace("-", "_"),
