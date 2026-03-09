@@ -192,11 +192,25 @@ batch workflows.
 - [18.0 Project Layout](#180-project-layout)
 - [19.0 Additional Docs](#190-additional-docs)
 - [20.0 Roadmap](#200-roadmap)
-  - [20.1 Remaining v0.7 Track B: Feature-vector-driven reverb control](#201-remaining-v07-track-b-feature-vector-driven-reverb-control)
-  - [20.2 Remaining v0.7 Track C: Jot-inspired control completion](#202-remaining-v07-track-c-jot-inspired-control-completion)
-  - [20.3 Remaining v0.7 Track D: IR morphing completion](#203-remaining-v07-track-d-ir-morphing-completion)
-  - [20.4 Remaining FDN Structures](#204-remaining-fdn-structures)
-  - [20.5 Sources for Open Roadmap Items](#205-sources-for-open-roadmap-items)
+  - [20.1 Development History](#201-development-history)
+    - [20.1.1 v0.1.0 Foundation](#2011-v010-foundation)
+    - [20.1.2 v0.2.0 IR workflow expansion](#2012-v020-ir-workflow-expansion)
+    - [20.1.3 v0.3.0 Creative and production controls](#2013-v030-creative-and-production-controls)
+    - [20.1.4 v0.4.0 Analysis and batch scale-up](#2014-v040-analysis-and-batch-scale-up)
+    - [20.1.5 v0.5.0 Surround and operational hardening](#2015-v050-surround-and-operational-hardening)
+    - [20.1.6 v0.6.0 Advanced FDN and Ambisonics](#2016-v060-advanced-fdn-and-ambisonics)
+    - [20.1.7 v0.7.0 Reactive control and immersive interoperability](#2017-v070-reactive-control-and-immersive-interoperability)
+  - [20.2 Open Roadmap (v0.7 Completion Program)](#202-open-roadmap-v07-completion-program)
+    - [20.2.1 Architecture objective function](#2021-architecture-objective-function)
+    - [20.2.2 Release streams and milestones](#2022-release-streams-and-milestones)
+    - [20.2.3 Stream R1: Control-plane reliability and reactive hardening (Track B/A)](#2023-stream-r1-control-plane-reliability-and-reactive-hardening-track-ba)
+    - [20.2.4 Stream R2: Perceptual parameter integrity (Track C)](#2024-stream-r2-perceptual-parameter-integrity-track-c)
+    - [20.2.5 Stream R3: IR morph productionization (Track D)](#2025-stream-r3-ir-morph-productionization-track-d)
+    - [20.2.6 Stream R4: Next-generation FDN topology expansion](#2026-stream-r4-next-generation-fdn-topology-expansion)
+    - [20.2.7 Verification matrix and release SLOs](#2027-verification-matrix-and-release-slos)
+    - [20.2.8 Risk register and mitigations](#2028-risk-register-and-mitigations)
+    - [20.2.9 Execution cadence and ownership model](#2029-execution-cadence-and-ownership-model)
+  - [20.3 Sources for Open Roadmap Items](#203-sources-for-open-roadmap-items)
 - [21.0 License](#210-license)
 - [22.0 Attribution](#220-attribution)
 
@@ -2505,44 +2519,213 @@ pytest
 
 ## 20.0 Roadmap
 
-This section tracks only open roadmap work. Completed items are moved to
-Section 6.0 Status.
+Section 20 includes both development history (completed version milestones) and
+the remaining open roadmap items.
 
-### 20.1 Remaining v0.7 Track B: Feature-vector-driven reverb control
+### 20.1 Development History
 
-- `External guide source`: optional sidechain feature source file with robust
-  duration/sample-rate alignment policy.
-- `Expanded descriptors`: add richer descriptor families (for example MFCC/formant/rhythm)
-  with predictable normalization domains.
-- `Operator depth`: extend feature mapping beyond lane-level operators to
-  chained/nested graph expressions while preserving deterministic replay.
-- `Acceptance harness`: add golden-reference feature-trace regression fixtures
-  for cross-version mapping stability.
+#### 20.1.1 v0.1.0 Foundation
 
-### 20.2 Remaining v0.7 Track C: Jot-inspired control completion
+`verbx` started as a practical command-line reverberation engine with clear DSP
+defaults, stable file I/O, and reproducible analysis/reporting artifacts.
 
-- `Calibration pass`: tighten macro-to-coefficient mappings against measured
-  decay/spectral outcomes across reference materials.
-- `Perceptual safety`: finalize guardrails for unstable or sub-perceptual
-  control changes in automation workflows.
-- `Validation tooling`: expand decay-target error summaries and spectral drift
-  diagnostics for automated acceptance checks.
+- Introduced core CLI command surface (`render`, `analyze`, `suggest`, `presets`).
+- Added dual render engines: algorithmic and convolution.
+- Established typed config + validation flow for safe command execution.
+- Added analysis JSON outputs for render introspection.
 
-### 20.3 Remaining v0.7 Track D: IR morphing completion
+#### 20.1.2 v0.2.0 IR workflow expansion
 
-- `Batch QA exports`: add richer comparison artifacts (plots/tables) for large
-  morph sweeps and regression baselines.
-- `Operational hardening`: finalize cache/metadata compatibility behavior across
-  channel-count and sample-rate mismatches in batch pipelines.
+The project expanded from render-only workflows into a full IR lifecycle so
+users could generate, inspect, and shape IRs directly in one toolchain.
 
-### 20.4 Remaining FDN Structures
+- Added `ir gen`, `ir analyze`, and `ir process` command workflows.
+- Added synthetic IR modes (`fdn`, `stochastic`, `modal`, `hybrid`).
+- Added IR shaping controls (damping, lowcut/highcut, tilt, normalization).
+- Added deterministic IR cache tooling (`cache info`, `cache clear`).
 
-- `Directional/spatial coupling`: directional/spatial FDN coupling for immersive beds/objects.
-- `SDN hybrid`: SDN-hybrid topology mode.
-- `Nonlinear loop options`: optional nonlinear in-loop behavior (experimental).
-- `Topology fitting`: topology fitting assistance based on analysis targets.
+#### 20.1.3 v0.3.0 Creative and production controls
 
-### 20.5 Sources for Open Roadmap Items
+The focus shifted to practical creative workflows and delivery-safe output
+controls for both exploratory and production renders.
+
+- Added freeze/repeat chaining for long evolving textures.
+- Added shimmer, duck, bloom, and tonal ambient post controls.
+- Added loudness/peak control path with limiter + true-peak options.
+- Added tempo-synced pre-delay parsing.
+- Added output subtype/peak-normalization options and lucky-mode batch variants.
+
+#### 20.1.4 v0.4.0 Analysis and batch scale-up
+
+This version improved observability and throughput so larger rendering programs
+could be diagnosed and executed more reliably.
+
+- Added framewise modulation analysis and CSV export workflows.
+- Added advanced IR fitting heuristics and candidate scoring support.
+- Added parallel batch scheduler behavior for higher throughput execution.
+
+#### 20.1.5 v0.5.0 Surround and operational hardening
+
+The codebase advanced from stereo-centric assumptions to more robust surround
+operations with stronger batch recovery semantics.
+
+- Added convolution route maps and trajectory interpolation controls.
+- Added algorithmic surround decorrelation controls (front/rear/top variance).
+- Added batch checkpoint/resume hardening for long runs.
+
+#### 20.1.6 v0.6.0 Advanced FDN and Ambisonics
+
+This milestone deepened algorithmic reverb topology control while expanding
+spatial interoperability into Ambisonics-aware workflows.
+
+- Added graph-structured FDN topology mode and expanded topology controls.
+- Expanded FDN structures (TV-unitary, DFM delays, sparse/cascade options).
+- Added Ambisonics convention validation and FOA encode/decode transforms.
+- Added Ambisonics yaw rotation and spatial analysis metrics.
+
+#### 20.1.7 v0.7.0 Reactive control and immersive interoperability
+
+v0.7 turned `verbx` into a deterministic time-varying control system with
+immersive production interoperability and traceable automation behavior.
+
+- Track A/C: added JSON/CSV automation lanes, inline control points, block/sample
+  evaluation, smoothing/clamping controls, deterministic automation signatures,
+  and Track C targets (`fdn-rt60-tilt`, `fdn-tonal-correction-strength`).
+- Track B: added frame-aligned feature-vector control lanes with weighted/curved/
+  hysteretic mapping, multi-feature fusion, deterministic feature signatures, and
+  feature-plus-target trace export.
+- Track D: added cache-backed IR morph workflows and render-time IR blending with
+  morph quality metadata.
+- Added immersive interoperability workflows (`immersive handoff`, `immersive qc`,
+  queue worker/heartbeat/retry semantics) with stricter policy/QC gating.
+
+### 20.2 Open Roadmap (v0.7 Completion Program)
+
+This roadmap is a v0.7 completion program optimized for reliability, perceptual
+trust, and creative headroom. It is intentionally constrained to shipping-grade
+outcomes rather than broad command-surface expansion.
+
+### 20.2.1 Architecture objective function
+
+The remaining roadmap is evaluated against five architecture objectives:
+
+- `Deterministic control`: identical inputs, seeds, and options produce repeatable
+  automation traces, signatures, and render outputs within defined tolerance.
+- `Numerical resilience`: long-tail and high-feedback runs remain stable (no
+  NaN/Inf/unchecked gain growth).
+- `Perceptual monotonicity`: macro controls (size, clarity, warmth, envelopment)
+  move in predictable audible/measurable directions.
+- `Operational interoperability`: immersive handoff/QC, IR cache behavior, and
+  mixed-format workflows remain explicit and failure-safe.
+- `Explainability`: analysis outputs expose enough metrics to diagnose why an
+  automation, topology, or morph result behaved the way it did.
+
+### 20.2.2 Release streams and milestones
+
+The program is split into four execution streams, each with a release milestone.
+
+- `M1 (foundation gates)`: finalize deterministic, numerical, and interoperability
+  gates with fixtures and CI coverage.
+- `M2 (reactive hardening)`: close Stream R1.
+- `M3 (perceptual integrity)`: close Stream R2.
+- `M4 (IR morph productionization)`: close Stream R3.
+- `M5 (topology expansion + release candidate)`: close Stream R4 and pass full
+  release SLO matrix.
+
+### 20.2.3 Stream R1: Control-plane reliability and reactive hardening (Track B/A)
+
+Goal: make time-varying and feature-driven control deterministic and production-safe.
+
+- Add external feature-guide ingest with deterministic alignment policy for
+  sample-rate, duration, and channel-layout mismatch.
+- Expand descriptor families (for example MFCC/formant/rhythm) with locked
+  normalization domains and versioned schema metadata.
+- Promote lane mappings to composable, acyclic mapping graphs with explicit
+  evaluation order and deterministic signatures.
+- Add golden fixtures covering feature extraction, lane fusion, and mapped target
+  trajectories across speech/music/percussive content classes.
+- Exit criteria: replay parity, schema-validated traces, and stable regression
+  fixtures for every supported descriptor family.
+
+### 20.2.4 Stream R2: Perceptual parameter integrity (Track C)
+
+Goal: keep Jot-inspired and perceptual controls musically useful, measurable,
+and safe under automation.
+
+- Calibrate macro-to-parameter transforms against measured outcomes (banded RT,
+  spectral tilt drift, clarity proxies, and decay-shape error).
+- Add safety guards for abrupt, unstable, or inaudibly granular automation
+  movement (slew limits, floor/ceiling clamps, perceptual deadbands).
+- Emit calibration diagnostics in analysis/report outputs for acceptance testing.
+- Add corpus-based perceptual regression presets spanning small room to extreme
+  long-tail scenarios.
+- Exit criteria: calibration error envelopes documented and enforced; safety
+  guards active in runtime and covered by tests.
+
+### 20.2.5 Stream R3: IR morph productionization (Track D)
+
+Goal: make IR morphing and render-time blending reliable at scale.
+
+- Harden cache-key canonicalization for channel/layout/sample-rate variants and
+  ensure reproducible cache hits.
+- Add batch QA artifact bundles (summary tables + diagnostic CSV/JSON) for morph
+  sweeps and blend timelines.
+- Strengthen failure/retry/resume semantics for long batch pipelines.
+- Define and enforce explicit mismatch policy behavior for unsupported format
+  combinations before render execution.
+- Exit criteria: reproducible cache behavior, deterministic QA artifacts, and
+  robust batch recovery under mixed-format stress tests.
+
+### 20.2.6 Stream R4: Next-generation FDN topology expansion
+
+Goal: increase topology expressiveness without sacrificing stability.
+
+- Add directional/spatial coupling modes for immersive bed/object workflows.
+- Implement SDN-hybrid topology path for geometry-inspired late-field behavior.
+- Add safety-bounded optional nonlinear in-loop behavior for controlled density
+  and color enhancement experiments.
+- Add topology fitting assistance from analysis targets (for example decay/EDR
+  curves and spectral constraints).
+- Exit criteria: per-topology validation reports, deterministic render signatures,
+  and stable long-tail stress behavior.
+
+### 20.2.7 Verification matrix and release SLOs
+
+Every stream must pass the same release SLO matrix:
+
+- `SLO-D1 deterministic replay`: fixed-seed/fixed-input reruns produce matching
+  control signatures and bounded sample-delta output.
+- `SLO-N1 numerical stability`: stress runs complete without NaN/Inf and without
+  runaway envelopes.
+- `SLO-I1 interoperability`: channel/sample-rate/layout mismatches fail early or
+  auto-resolve according to documented policy.
+- `SLO-Q1 quality evidence`: feature/automation traces and analysis artifacts are
+  sufficient to reproduce and audit results.
+- `SLO-T1 test gate`: stream-targeted regression tests and full-suite tests pass.
+
+### 20.2.8 Risk register and mitigations
+
+- `Risk`: feature-space overfitting can make mappings brittle across material.
+  `Mitigation`: enforce corpus diversity in fixture sets and track per-class error.
+- `Risk`: topology growth can introduce subtle instability at high feedback.
+  `Mitigation`: mandatory long-tail soak tests and stability certificates per mode.
+- `Risk`: cache semantics drift can silently corrupt IR morph reproducibility.
+  `Mitigation`: versioned cache metadata and strict compatibility checks.
+- `Risk`: perceptual macros can become non-monotonic after tuning changes.
+  `Mitigation`: lock calibration curves with regression thresholds and fallback
+  safe-mode clamping.
+
+### 20.2.9 Execution cadence and ownership model
+
+Execution order remains reliability-first, with explicit ownership boundaries.
+
+1. Complete M1 reliability gates and fixture infrastructure.
+2. Ship Stream R1 (reactive/control-plane hardening).
+3. Ship Stream R2 (perceptual integrity and safety).
+4. Ship Stream R3 (IR morph productionization).
+5. Ship Stream R4 (topology expansion) and cut v0.7 release candidate.
+
+### 20.3 Sources for Open Roadmap Items
 
 Canonical reference index: [docs/REFERENCES.md](docs/REFERENCES.md)
 

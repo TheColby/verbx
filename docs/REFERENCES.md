@@ -6,7 +6,23 @@ Pruned from the broader bibliography on 2026-03-01 to keep only reverb-centric p
 
 Total entries: 100
 
-## Rollout Citation Index (FDN Steps 1-3)
+## Roadmap Citation Index (v0.7 Completion Program)
+
+### By stream
+
+- `Stream R1 (reactive control hardening)`:
+  [Schlecht and Habets (2015) - time-varying FDN matrices](#ref-fdn-tv-matrix-2015),
+  [Valimaki et al. (2012) - fifty years of artificial reverberation](#ref-reverb-survey-2012)
+- `Stream R2 (perceptual/Jot-inspired calibration)`:
+  [Jot and Chaigne (1997) - maximally diffusive FDN](#ref-jot-chaigne-1997),
+  [Valimaki et al. (2012) - fifty years of artificial reverberation](#ref-reverb-survey-2012)
+- `Stream R3 (IR morph productionization)`:
+  [Valimaki et al. (2012) - fifty years of artificial reverberation](#ref-reverb-survey-2012)
+- `Stream R4 (next-generation topology expansion)`:
+  [Rocchesso and Smith (1997) - circulant/elliptic FDN families](#ref-fdn-circulant-elliptic-1997),
+  [Schlecht and Habets (2019) - delay feedback matrices](#ref-fdn-delay-feedback-2019)
+
+### Core canonical links
 
 - [Schlecht and Habets (2015) - time-varying FDN matrices](#ref-fdn-tv-matrix-2015)
 - [Rocchesso and Smith (1997) - circulant/elliptic FDN families](#ref-fdn-circulant-elliptic-1997)
@@ -206,6 +222,7 @@ Total entries: 100
 
 95. Unknown authors (2002). Reverberation and steady state energy density. *Room Acoustics*. DOI: [10.1201/9781482286632-9](https://doi.org/10.1201/9781482286632-9)
 
+<a id="ref-jot-chaigne-1997"></a>
 96. Jot, J.-M.; Chaigne, A. (1997). Maximally diffusive yet efficient feedback delay networks for artificial reverberation. *IEEE Signal Processing Letters*. DOI: [10.1109/97.623041](https://doi.org/10.1109/97.623041)
 
 <a id="ref-fdn-circulant-elliptic-1997"></a>

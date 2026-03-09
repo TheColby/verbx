@@ -13,6 +13,21 @@ Related v0.7 IR features:
 - render-time IR blend/morph (`verbx render --ir-blend ...`)
 - morph quality metadata (RT drift and spectral-distance diagnostics)
 
+## Roadmap Alignment (v0.7 Completion Program)
+
+IR workflows map directly to `README.md` Stream R3 milestones:
+
+- `R3.1 cache determinism`: canonical cache keys and metadata compatibility checks
+  across sample-rate/channel-layout variants.
+- `R3.2 operational QA`: deterministic morph/blend diagnostic artifacts for batch
+  acceptance and regression checks.
+- `R3.3 failure safety`: explicit mismatch policy plus retry/resume hardening for
+  long morph batches.
+
+When updating `ir morph` or render-time `--ir-blend` behavior, keep this guide,
+the CLI switch tables in `README.md`, and `docs/REFERENCES.md` source links in
+lock-step.
+
 ## Quick Start
 
 ```bash
