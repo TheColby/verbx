@@ -944,6 +944,10 @@ verbx render input.wav output.wav --output-peak-norm full-scale
 verbx render input.wav output.wav --output-peak-norm target --output-peak-target-dbfs -3
 ```
 
+By default, `verbx render` prints a completion summary plus output-audio
+features/statistics in the console. Use `--quiet` (or `--verbosity 0`) to
+reduce that reporting detail.
+
 ### 7.11 Acceleration (CUDA / Apple Silicon)
 
 Use this to select compute backends and improve throughput on supported hardware.
@@ -2055,7 +2059,9 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--lucky` | Generates N randomized "wild" render variants from one input. | Best for exploration and sound-design discovery; pair with `--lucky-out-dir`. |
 | `--lucky-out-dir` | Output directory used by lucky mode. | Use a dedicated folder so variant sets are easy to browse and compare. |
 | `--lucky-seed` | Deterministic seed for lucky mode randomization. | Keep fixed when you want reproducible variant batches. |
-| `--silent` | Suppresses analysis/report output and console summaries. | Use for minimal-output automation contexts. |
+| `--quiet` | Suppresses console summary tables after render completion. | Keeps render + analysis artifacts on disk while reducing console output. |
+| `--verbosity [0\|1\|2]` | Console detail level for render completion reporting. | `1` (default) prints render summary plus output audio features/statistics; `0` prints only minimal summary; `2` also prints input features/statistics. |
+| `--silent` | Suppresses analysis/report output and all console summaries. | Use for minimal-output automation contexts where no analysis JSON should be written. |
 | `--progress / --no-progress` | Enables or disables progress UI. | Disable for non-interactive logs or CI environments. |
 
 `--mod-source` syntax reference:

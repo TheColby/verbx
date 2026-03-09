@@ -78,6 +78,72 @@ def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
     assert payload["output_samples"] > payload["input_samples"]
 
 
+def test_render_prints_output_feature_table_by_default(tmp_path: Path) -> None:
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[10:30, 0] = 0.4
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--repeat",
+            "1",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert "Render Summary" in result.stdout
+    assert "Output Audio Features and Statistics" in result.stdout
+
+
+def test_render_quiet_or_low_verbosity_suppresses_output_feature_table(tmp_path: Path) -> None:
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[20:40, 0] = 0.5
+    infile = tmp_path / "in.wav"
+    out_quiet = tmp_path / "out_quiet.wav"
+    out_low = tmp_path / "out_low.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    quiet_result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(out_quiet),
+            "--engine",
+            "algo",
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert quiet_result.exit_code == 0, quiet_result.stdout
+    assert "Output Audio Features and Statistics" not in quiet_result.stdout
+
+    low_result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(out_low),
+            "--engine",
+            "algo",
+            "--verbosity",
+            "0",
+            "--no-progress",
+        ],
+    )
+    assert low_result.exit_code == 0, low_result.stdout
+    assert "Render Summary" in low_result.stdout
+    assert "Output Audio Features and Statistics" not in low_result.stdout
+
+
 def test_render_algo_auto_reports_engine_specific_device(
     tmp_path: Path,
     monkeypatch,

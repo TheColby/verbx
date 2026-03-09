@@ -674,7 +674,10 @@ def render(
     out_subtype: OutputSubtype = typer.Option(
         "auto",
         "--out-subtype",
-        help="Output file subtype. Use float32 for 32-bit float WAV/AIFF where supported.",
+        help=(
+            "Output file subtype. Internal DSP runs in float64 regardless of container subtype; "
+            "use float64/float32/PCM per delivery needs."
+        ),
     ),
     output_peak_norm: OutputPeakNorm = typer.Option(
         "none",
@@ -794,7 +797,26 @@ def render(
         "--lucky-seed",
         help="Optional deterministic seed for --lucky render generation.",
     ),
-    silent: bool = typer.Option(False, "--silent", help="Disable analysis JSON + console output."),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        help="Suppress console summary tables while still writing output and analysis artifacts.",
+    ),
+    verbosity: int = typer.Option(
+        1,
+        "--verbosity",
+        min=0,
+        max=2,
+        help=(
+            "Console detail level: 0=minimal summary, 1=summary + output features (default), "
+            "2=also include input feature table."
+        ),
+    ),
+    silent: bool = typer.Option(
+        False,
+        "--silent",
+        help="Disable analysis JSON generation and console output.",
+    ),
     progress: bool = typer.Option(True, "--progress/--no-progress"),
 ) -> None:
     """Render input audio with algorithmic or convolution reverb."""
@@ -1005,7 +1027,7 @@ def render(
                 }
             )
 
-        if not config.silent:
+        if not config.silent and not quiet and verbosity > 0:
             summary = Table(title=f"Lucky Render Batch ({lucky} outputs)")
             summary.add_column("#", style="cyan", justify="right")
             summary.add_column("outfile", style="white")
@@ -1030,10 +1052,10 @@ def render(
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
-    if config.silent:
+    if config.silent or quiet:
         return
 
-    _print_render_summary(report)
+    _print_render_summary(report, verbosity=verbosity)
 
 
 @app.command()
@@ -2770,8 +2792,70 @@ def _score_fit_candidates(
     return scored
 
 
-def _print_render_summary(report: dict[str, Any]) -> None:
-    """Print the standard single-render summary table."""
+def _format_metric_value(value: Any) -> str:
+    """Format scalar metric values for console tables."""
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, (int, np.integer)):
+        return str(int(value))
+    if isinstance(value, (float, np.floating)):
+        return f"{float(value):.6f}"
+    return str(value)
+
+
+def _print_feature_table(title: str, metrics: dict[str, Any]) -> None:
+    """Print a compact feature/statistics table."""
+    table = Table(title=title)
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="white", justify="right")
+
+    preferred_keys = (
+        "duration",
+        "samples",
+        "channels",
+        "rms",
+        "rms_dbfs",
+        "peak",
+        "peak_dbfs",
+        "sample_peak_dbfs",
+        "true_peak_dbfs",
+        "integrated_lufs",
+        "lra",
+        "dynamic_range",
+        "crest_factor",
+        "dc_offset",
+        "sample_min",
+        "sample_max",
+        "silence_ratio",
+        "transient_density",
+        "zero_crossing_rate",
+        "spectral_centroid",
+        "spectral_bandwidth",
+        "spectral_rolloff",
+        "spectral_flatness",
+        "spectral_flux",
+        "spectral_slope",
+        "stereo_correlation",
+        "stereo_width",
+    )
+    printed: set[str] = set()
+    for key in preferred_keys:
+        if key in metrics:
+            table.add_row(key, _format_metric_value(metrics[key]))
+            printed.add(key)
+
+    for key in sorted(k for k in metrics.keys() if k.startswith("channel_") and k.endswith("_rms")):
+        table.add_row(key, _format_metric_value(metrics[key]))
+        printed.add(key)
+
+    for key in sorted(k for k in metrics.keys() if k not in printed):
+        table.add_row(key, _format_metric_value(metrics[key]))
+
+    console.print(table)
+
+
+def _print_render_summary(report: dict[str, Any], *, verbosity: int = 1) -> None:
+    """Print render summary and output feature/statistics tables."""
     table = Table(title="Render Summary")
     table.add_column("Key", style="cyan")
     table.add_column("Value", style="white")
@@ -2866,6 +2950,18 @@ def _print_render_summary(report: dict[str, Any]) -> None:
             table.add_row("ir_runtime_path", str(runtime.get("ir_path", "")))
             table.add_row("ir_cache_hit", str(runtime.get("cache_hit", False)))
     console.print(table)
+
+    if verbosity <= 0:
+        return
+
+    output_metrics = report.get("output")
+    if isinstance(output_metrics, dict):
+        _print_feature_table("Output Audio Features and Statistics", output_metrics)
+
+    if verbosity >= 2:
+        input_metrics = report.get("input")
+        if isinstance(input_metrics, dict):
+            _print_feature_table("Input Audio Features and Statistics", input_metrics)
 
 
 def _build_lucky_config(
