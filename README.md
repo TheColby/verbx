@@ -1308,6 +1308,11 @@ flowchart TD
 
 ## 9.0 DSP Math Notes
 
+This section maps the major `verbx` controls to the DSP they drive.  
+The intent is practical: when you change a switch, you should be able to
+predict which part of the signal path changes and why the result sounds
+different.
+
 ### 9.1 RT60 to Feedback Gain (FDN)
 
 For each delay line with delay $d$ seconds and target RT60 $T_{60}$:
@@ -1316,8 +1321,21 @@ $$
 g \approx 10^{-3d/T_{60}}
 $$
 
-This maps exponential energy decay to delay-line feedback gain.  
-`verbx` applies this per-line, then applies damping filters for faster HF decay.
+Why this form is used:
+
+- A 60 dB decay in amplitude corresponds to a factor of $10^{-3}$.
+- Each delay line feeds back once per delay period $d$, so the per-trip gain
+  must produce that total drop over $T_{60}$ seconds.
+- Shorter delays require gains closer to 1.0 than longer delays for the same
+  perceived RT60.
+
+Practical interpretation in `verbx`:
+
+- RT60 is converted per line, not globally, so multi-delay networks remain
+  consistent even when line lengths vary.
+- This gain calibration sets the broadband decay envelope.
+- Damping and optional in-loop filtering then shape how different frequencies
+  decay around that envelope (typically faster HF decay).
 
 ### 9.2 FDN State Update
 
@@ -1328,10 +1346,22 @@ $$
 \mathbf{x}_{fb}[n+1] = \mathbf{G}\mathbf{M}\mathbf{y}[n] + \mathbf{u}[n]
 $$
 
-- $\mathbf{M}$: mixing matrix (selected orthonormal family, optionally time-varying)
-- $\mathbf{G}$: diagonal feedback gains (RT60-calibrated)
-- $\mathbf{D}$: damping / DC filtering
-- $\mathbf{u}[n]$: injected input (after pre-delay and diffusion)
+- $\mathbf{M}$: feedback mixing matrix (orthonormal family; optionally time-varying)
+- $\mathbf{G}$: diagonal RT60-calibrated gains
+- $\mathbf{D}$: damping/DC conditioning in each loop path
+- $\mathbf{u}[n]$: injected excitation after pre-delay and diffusion
+
+How to read this in signal-flow terms:
+
+- `delay read -> loop conditioning -> matrix mix -> gain scale -> injection sum -> delay write`
+- The matrix handles energy redistribution across lines (texture/density).
+- The gain term controls decay duration.
+- The damping term controls spectral decay profile and loop stability behavior.
+
+Implementation note:
+
+- `verbx` processes this topology in blocks for throughput, but the state update
+  semantics are equivalent to the sample-domain equations above.
 
 #### 9.2.1 Supported FDN Topologies (Graphs)
 
@@ -1343,6 +1373,10 @@ These graphs reflect the current implementation in:
 ##### 9.2.1.1 Algorithmic Render Topology
 
 ![Algorithmic FDN topology graph](docs/assets/fdn_topology_algorithmic.svg)
+
+This is the canonical per-channel algorithmic render path.
+It shows where early diffusion ends and late-field feedback begins, and where
+post-wet coloration and wet/dry summation occur.
 
 Implementation notes:
 
@@ -1358,6 +1392,10 @@ Implementation notes:
 
 ![FDN matrix family graph](docs/assets/fdn_topology_variants.svg)
 
+Matrix selection changes feedback coupling character more than decay time.
+In practice, this is a texture/diffusion control: same RT60 can sound denser,
+grainier, or more uniform depending on matrix family.
+
 Implementation notes:
 
 - Supported matrix families:
@@ -1369,19 +1407,26 @@ Implementation notes:
 
 ![TV-unitary and DFM feedback graph](docs/assets/fdn_topology_tvu_dfm.svg)
 
+This graph isolates two advanced feedback enrichments:
+
+- time-varying unitary mixing (decorrelation over time), and
+- DFM delay taps inside feedback (micro-structure smoothing/densification).
+
 Implementation notes:
 
-- `tv_unitary` requires:
-  - `--fdn-tv-rate-hz > 0`
-  - `--fdn-tv-depth > 0`
+- `tv_unitary` requires `--fdn-tv-rate-hz > 0`.
+- `tv_unitary` requires `--fdn-tv-depth > 0`.
 - DFM is enabled with `--fdn-dfm-delays-ms`:
-  - one value broadcasts to all lines
-  - or provide one value per resolved FDN line.
+  one value broadcasts to all lines, or provide one value per resolved FDN line.
 - Sparse high-order mode is enabled with `--fdn-sparse` and `--fdn-sparse-degree` (mutually exclusive with `tv_unitary`).
 
 ##### 9.2.1.4 IR FDN Path Parity Graph
 
 ![IR and render FDN parity graph](docs/assets/fdn_topology_ir_path.svg)
+
+Parity matters for workflow transfer:
+you can tune FDN behavior in render mode and carry the same structure into IR
+generation with comparable late-field behavior.
 
 Implementation notes:
 
@@ -1393,6 +1438,10 @@ Implementation notes:
 
 ![Sparse high-order FDN graph](docs/assets/fdn_topology_sparse.svg)
 
+Sparse mode targets higher apparent order without the full cost of dense
+all-to-all mixing. Pair-mixing stages gradually spread energy while controlling
+compute growth.
+
 Implementation notes:
 
 - Sparse mode is enabled with `--fdn-sparse`; pair-mixing stage count is set by `--fdn-sparse-degree`.
@@ -1403,6 +1452,10 @@ Implementation notes:
 
 ![Nested cascaded FDN graph](docs/assets/fdn_topology_cascade.svg)
 
+Cascaded mode uses a fast nested network to inject additional structure into a
+larger primary network. This helps early density build faster while preserving
+long-tail control in the primary loop.
+
 Implementation notes:
 
 - Cascade mode is enabled with `--fdn-cascade` and injects nested-network feedback into the primary late FDN path.
@@ -1412,6 +1465,14 @@ Implementation notes:
 ##### 9.2.1.7 Multiband + Filter-Feedback Graph
 
 ![Multiband and filter-feedback graph](docs/assets/fdn_topology_multiband_filter.svg)
+
+This stage separates two orthogonal controls:
+
+- multiband decay targeting (low/mid/high RT behavior), and
+- in-loop link filtering (spectral flow through feedback edges).
+
+Together they allow precise tail-color control without changing only one global
+damping knob.
 
 Implementation notes:
 
@@ -1439,6 +1500,9 @@ flowchart LR
   FB --> Out["wet output (mean/sum projection)"]
 ```
 
+Graph mode treats mixing as staged edge interactions over an explicit graph
+instead of a fixed dense matrix. That makes topology itself a design parameter.
+
 Implementation notes:
 
 - Graph mode is enabled with `--fdn-matrix graph`.
@@ -1459,7 +1523,18 @@ $$
 - $X_{k-p}$: FFT history of recent input partitions
 - $P$: number of IR partitions
 
-This reduces long-IR convolution cost and supports streaming block processing.
+Why this is used:
+
+- Direct long-IR time-domain convolution is expensive.
+- Partitioning converts one very large convolution into repeated smaller FFT
+  multiplies and overlap-add/overlap-save accumulation.
+- Work scales better for long IRs and supports chunked streaming.
+
+Practical tradeoff:
+
+- Larger partition sizes can improve throughput.
+- Larger partition sizes can increase latency and block-memory pressure.
+- `--partition-size` is therefore a latency/throughput tuning knob.
 
 ### 9.4 Multichannel Matrix Convolution
 
@@ -1472,8 +1547,14 @@ $$
 - $h_{i,o}$ is the IR from input channel $i$ to output channel $o$
 - `verbx` supports matrix-packed IR files where channel count is `M * N`
 - packing order is controlled by `--ir-matrix-layout`:
-  - `output-major`: channel index = `o*M + i`
-  - `input-major`: channel index = `i*N + o`
+  `output-major`: channel index = `o*M + i`; `input-major`: channel index = `i*N + o`.
+
+Operationally:
+
+- This is a true bus-matrix model, not just per-channel convolution.
+- It supports diagonal, broadcast, and full cross-feed style routing patterns.
+- Correct layout interpretation is critical; wrong packing order yields valid
+  but semantically incorrect spatial routing.
 
 ### 9.5 Freeze Crossfade (Equal Power)
 
@@ -1487,17 +1568,28 @@ $$
 y = w_{out}\,x_{tail} + w_{in}\,x_{head}
 $$
 
-This reduces clicks at loop boundaries.
+Why equal-power is used:
+
+- Linear crossfades often produce audible dip/boost around loop points.
+- Cosine/sine pairing keeps total perceived energy more uniform through the
+  transition region.
+- In freeze workflows, this is key to avoiding loop seam clicks and pumping.
 
 ### 9.6 Loudness / Peak Stages
 
-- Integrated LUFS normalization (EBU R128 via `pyloudnorm`)
-- True-peak approximation via oversampling
-- Optional limiter + sample-peak ceiling
-- Optional final peak norm:
-  - `input` (match input peak)
-  - `target` (specified dBFS)
-  - `full-scale` (0 dBFS)
+These stages are intentionally separate because they serve different goals:
+
+- Integrated LUFS normalization for program loudness targeting.
+- True-peak approximation (oversampled) for inter-sample safety checks.
+- Optional limiter/sample-peak ceiling for hard safety bounds.
+- Optional final peak-normalization modes:
+  `input` (match source peak), `target` (explicit dBFS), `full-scale` (0 dBFS).
+
+Practical guidance:
+
+- Loudness targeting is about average program level.
+- Peak targeting/limiting is about short-term safety/headroom.
+- Final peak normalization is a post-policy output fit stage.
 
 ### 9.7 Reference Room-Acoustics Equations (Beginner-Friendly)
 
@@ -1525,7 +1617,12 @@ Where:
 - $V$ is room volume in cubic meters.
 - $A$ is total equivalent absorption area in sabins.
 
-Beginner takeaway: if absorption $A$ increases, RT60 goes down.
+Use-case note:
+
+- Sabine is most reliable for diffuse fields and moderate absorption.
+- It is commonly used for first-pass sizing and sanity checks.
+
+Beginner takeaway: if absorption $A$ increases, RT60 decreases.
 
 #### 9.7.2 Norris-Eyring RT60 (better at higher absorption)
 
@@ -1555,6 +1652,11 @@ $$
 L(t)=10\log_{10}\left(\frac{E(t)}{E(0)}\right)
 $$
 
+Implementation perspective:
+
+- Real IR data are noisy, so practical pipelines smooth and choose fit windows.
+- The integrated tail form is robust because it averages local fluctuations.
+
 Beginner takeaway: this turns a raw IR into a smooth decay curve you can fit
 for RT estimates.
 
@@ -1571,6 +1673,13 @@ Common fit ranges:
 - EDT: around 0 dB to -10 dB (early impression of decay).
 - T20: around -5 dB to -25 dB (scaled to RT60).
 - T30: around -5 dB to -35 dB (scaled to RT60).
+
+Interpretation note:
+
+- EDT reflects perceived early decay impression.
+- T20/T30 are typically more stable for late-tail estimation.
+- Different windows disagree on real material; that spread is useful diagnostic
+  information, not automatically an error.
 
 Beginner takeaway: different fit windows can produce different RT numbers;
 that is normal and expected.
