@@ -198,12 +198,11 @@ batch workflows.
 - [18.0 Project Layout](#180-project-layout)
 - [19.0 Additional Docs](#190-additional-docs)
 - [20.0 Roadmap](#200-roadmap)
-  - [20.1 Remaining v0.7 Track A: Time-varying automation hardening](#201-remaining-v07-track-a-time-varying-automation-hardening)
-  - [20.2 Remaining v0.7 Track B: Feature-vector-driven reverb control](#202-remaining-v07-track-b-feature-vector-driven-reverb-control)
-  - [20.3 Remaining v0.7 Track C: Jot-inspired control completion](#203-remaining-v07-track-c-jot-inspired-control-completion)
-  - [20.4 Remaining v0.7 Track D: IR morphing completion](#204-remaining-v07-track-d-ir-morphing-completion)
-  - [20.5 Remaining FDN Structures](#205-remaining-fdn-structures)
-  - [20.6 Sources for Open Roadmap Items](#206-sources-for-open-roadmap-items)
+  - [20.1 Remaining v0.7 Track B: Feature-vector-driven reverb control](#201-remaining-v07-track-b-feature-vector-driven-reverb-control)
+  - [20.2 Remaining v0.7 Track C: Jot-inspired control completion](#202-remaining-v07-track-c-jot-inspired-control-completion)
+  - [20.3 Remaining v0.7 Track D: IR morphing completion](#203-remaining-v07-track-d-ir-morphing-completion)
+  - [20.4 Remaining FDN Structures](#204-remaining-fdn-structures)
+  - [20.5 Sources for Open Roadmap Items](#205-sources-for-open-roadmap-items)
 - [21.0 License](#210-license)
 - [22.0 Attribution](#220-attribution)
 
@@ -844,7 +843,7 @@ Current implementation level: **v0.6.0**
 - v0.5 additions: surround route maps/trajectories, algorithmic surround decorrelation, and batch checkpoint/resume hardening
 - v0.6 additions: graph-structured FDN topology mode and expanded FDN topology controls
 - v0.6 spatial additions: Ambisonics convention validation (`--ambi-order`, `--ambi-normalization`, `--channel-order`), FOA encode/decode transforms, yaw rotation, and Ambisonics spatial metrics in analysis mode
-- v0.7 Track A/C additions: JSON/CSV automation lanes (`--automation-file`), inline CLI points (`--automation-point`), block/sample evaluation, smoothing, clamp overrides, automation trace export, and Track C automation targets for `fdn-rt60-tilt` and `fdn-tonal-correction-strength`
+- v0.7 Track A/C additions: JSON/CSV automation lanes (`--automation-file`), inline CLI points (`--automation-point`), block/sample evaluation, smoothing, clamp overrides, automation trace export, deterministic automation signatures, lane-level validation diagnostics, convolution-path automation target `ir-blend-alpha` for IR blend timeline control, and Track C automation targets for `fdn-rt60-tilt` and `fdn-tonal-correction-strength`
 - v0.7 Track D additions: cache-backed `ir morph` command (`linear`, `equal-power`, `spectral`, `envelope-aware`), render-time IR blending via `--ir-blend`/`--ir-blend-mix`, and morph quality metadata (RT drift, spectral distance, coherence deltas)
 - v0.7 immersive interoperability additions: `immersive handoff` sidecar/deliverable packaging, object/bed policy checks, `immersive qc` gates, and distributed `immersive queue` worker heartbeats/retry semantics
 - v0.7 immersive hardening additions: strict handoff now fails on policy violations, scene validation errors, or any QC gate failure; scene sample-rate mismatches are surfaced in validation payloads; queue manifests now require unique job IDs
@@ -1900,7 +1899,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--mod-combine [sum\|avg\|max]` | Source-combination policy for multi-source modulation. | `sum` is most energetic, `avg` is smoother, `max` follows the strongest source instant-by-instant. |
 | `--mod-smooth-ms` | Smoothing time constant for control-signal de-zippering. | Increase when modulation sounds too stepped or twitchy. |
 | `--mod-route` | Repeatable advanced route for per-parameter modulation with independent source sets. | Use this when one LFO/source group should control one parameter and another group should control a different parameter. |
-| `--automation-file` | JSON/CSV timeline automation source for render-time control. | Supports post-render targets (`wet`, `dry`, `gain-db`) and algorithmic engine targets (`rt60`, `damping`, `room-size`, `room-size-macro`, `clarity-macro`, `warmth-macro`, `envelopment-macro`, `fdn-rt60-tilt`, `fdn-tonal-correction-strength`). |
+| `--automation-file` | JSON/CSV timeline automation source for render-time control. | Supports post-render targets (`wet`, `dry`, `gain-db`), algorithmic engine targets (`rt60`, `damping`, `room-size`, `room-size-macro`, `clarity-macro`, `warmth-macro`, `envelopment-macro`, `fdn-rt60-tilt`, `fdn-tonal-correction-strength`), and convolution IR-blend control target (`ir-blend-alpha`, requires `--ir-blend`). |
 | `--automation-point` | Repeatable inline control point (`target:time_s:value[:interp]`). | Useful for quick breakpoint authoring directly from CLI without creating a file first. |
 | `--automation-mode [auto\|sample\|block]` | Automation evaluation mode. | `sample` is highest precision; `block` is efficient for long renders. |
 | `--automation-block-ms` | Control block size for block-mode automation. | Smaller values increase precision; larger values reduce control-rate overhead. |
@@ -1933,6 +1932,11 @@ Examples:
 - `--automation-point "rt60:0.0:0.6:linear" --automation-point "rt60:12.0:8.0:linear"`
 - `--automation-point "room-size:0.0:0.8" --automation-point "room-size:12.0:1.8"`
 - `--automation-point "rt60-tilt:0.0:0.0" --automation-point "rt60-tilt:12.0:0.6" --automation-point "tonal-correction:0.0:0.2" --automation-point "tonal-correction:12.0:0.8"`
+- `--automation-point "ir-blend-alpha:0.0:0.0" --automation-point "ir-blend-alpha:18.0:1.0"` (with `--engine conv --ir ... --ir-blend ...`)
+
+Automation reproducibility note:
+
+- Analysis JSON includes `effective.automation.signature`, a stable digest of resolved automation curves for deterministic replay checks in batch/repeat workflows.
 
 ### 12.3 `verbx analyze` switches
 
@@ -2506,18 +2510,7 @@ pytest
 This section tracks only open roadmap work. Completed items are moved to
 Section 6.0 Status.
 
-### 20.1 Remaining v0.7 Track A: Time-varying automation hardening
-
-- `Target coverage`: expand automation targets in convolution and IR blend/morph
-  paths so Track D features are timeline-addressable.
-- `Control-plane consistency`: complete lane-level validation/error diagnostics
-  and keep render/IR paths aligned through the centralized target registry.
-- `Performance and determinism`: optimize dense-lane scheduling and lock
-  deterministic replay in batch/repeat workflows.
-- `QA`: add regression vectors for mixed lane types (breakpoint/LFO/segment)
-  and edge-case transitions on long renders.
-
-### 20.2 Remaining v0.7 Track B: Feature-vector-driven reverb control
+### 20.1 Remaining v0.7 Track B: Feature-vector-driven reverb control
 
 - `Feature bus`: implement frame-aligned feature streams (loudness, transient,
   spectral, harmonic) as reusable control inputs.
@@ -2528,7 +2521,7 @@ Section 6.0 Status.
 - `Explainability outputs`: emit feature-plus-parameter trace exports for QA and
   repeatability.
 
-### 20.3 Remaining v0.7 Track C: Jot-inspired control completion
+### 20.2 Remaining v0.7 Track C: Jot-inspired control completion
 
 - `Calibration pass`: tighten macro-to-coefficient mappings against measured
   decay/spectral outcomes across reference materials.
@@ -2537,23 +2530,21 @@ Section 6.0 Status.
 - `Validation tooling`: expand decay-target error summaries and spectral drift
   diagnostics for automated acceptance checks.
 
-### 20.4 Remaining v0.7 Track D: IR morphing completion
+### 20.3 Remaining v0.7 Track D: IR morphing completion
 
-- `Automation integration`: expose morph/blend coefficient timelines directly in
-  render automation lanes.
 - `Batch QA exports`: add richer comparison artifacts (plots/tables) for large
   morph sweeps and regression baselines.
 - `Operational hardening`: finalize cache/metadata compatibility behavior across
   channel-count and sample-rate mismatches in batch pipelines.
 
-### 20.5 Remaining FDN Structures
+### 20.4 Remaining FDN Structures
 
 - `Directional/spatial coupling`: directional/spatial FDN coupling for immersive beds/objects.
 - `SDN hybrid`: SDN-hybrid topology mode.
 - `Nonlinear loop options`: optional nonlinear in-loop behavior (experimental).
 - `Topology fitting`: topology fitting assistance based on analysis targets.
 
-### 20.6 Sources for Open Roadmap Items
+### 20.5 Sources for Open Roadmap Items
 
 Canonical reference index: [docs/REFERENCES.md](docs/REFERENCES.md)
 

@@ -45,6 +45,7 @@ from verbx.config import (
     RenderConfig,
 )
 from verbx.core.automation import (
+    CONV_AUTOMATION_TARGETS,
     ENGINE_AUTOMATION_TARGETS,
     collect_automation_targets,
     parse_automation_clamp_overrides,
@@ -3694,6 +3695,19 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
             msg = (
                 "Automation targets require algorithmic render path; "
                 f"use --engine algo (targets: {joined})."
+            )
+            raise typer.BadParameter(msg)
+        conv_targets = sorted(target for target in targets if target in CONV_AUTOMATION_TARGETS)
+        if "ir-blend-alpha" in conv_targets and len(config.ir_blend) == 0:
+            msg = "Automation target 'ir-blend-alpha' requires --ir-blend."
+            raise typer.BadParameter(msg)
+    else:
+        conv_targets = sorted(target for target in targets if target in CONV_AUTOMATION_TARGETS)
+        if len(conv_targets) > 0:
+            joined = ", ".join(conv_targets)
+            msg = (
+                "Automation targets require convolution render path; "
+                f"use --engine conv (targets: {joined})."
             )
             raise typer.BadParameter(msg)
 

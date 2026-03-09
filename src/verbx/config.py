@@ -101,6 +101,8 @@ class RenderConfig:
     ir_blend_phase_coherence: float = 0.75
     ir_blend_spectral_smooth_bins: int = 3
     ir_blend_cache_dir: str = ".verbx_cache/ir_morph"
+    ir_blend_base_ir: str | None = None
+    ir_blend_composite_ir: str | None = None
     input_layout: ChannelLayout = "auto"
     output_layout: ChannelLayout = "auto"
     self_convolve: bool = False

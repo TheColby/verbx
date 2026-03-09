@@ -1880,7 +1880,7 @@ def test_render_rejects_invalid_automation_point_interp(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "Unsupported automation interpolation" in result.output
+    assert "automation interpolation" in result.output
 
 
 def test_render_rejects_invalid_automation_file_interp(tmp_path: Path) -> None:
@@ -1929,7 +1929,7 @@ def test_render_rejects_invalid_automation_file_interp(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "Unsupported automation interpolation" in result.output
+    assert "automation interpolation" in result.output
 
 
 def test_render_automation_points_drive_algo_engine_targets(tmp_path: Path) -> None:
@@ -2091,3 +2091,246 @@ def test_render_rejects_engine_automation_targets_for_convolution(tmp_path: Path
     )
     assert result.exit_code != 0
     assert "require algorithmic render path" in result.output
+
+
+def test_render_rejects_conv_automation_targets_for_algo(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.zeros((sr // 4, 1), dtype=np.float32)
+    x[0, 0] = 1.0
+    infile = tmp_path / "algo_auto_in.wav"
+    outfile = tmp_path / "algo_auto_out.wav"
+    sf.write(str(infile), x, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--automation-point",
+            "ir-blend-alpha:0.0:0.5",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "require convolution render path" in result.output
+
+
+def test_render_rejects_ir_blend_alpha_without_ir_blend(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.zeros((sr // 4, 1), dtype=np.float32)
+    x[0, 0] = 1.0
+    ir = np.zeros((64, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+    infile = tmp_path / "conv_no_blend_in.wav"
+    irfile = tmp_path / "conv_no_blend_ir.wav"
+    outfile = tmp_path / "conv_no_blend_out.wav"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--automation-point",
+            "ir-blend-alpha:0.0:0.0",
+            "--automation-point",
+            "ir-blend-alpha:0.1:1.0",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "requires --ir-blend" in result.output
+
+
+def test_render_conv_ir_blend_alpha_automation_applies(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.zeros((2 * sr, 1), dtype=np.float32)
+    x[0, 0] = 1.0
+    ir_base = np.zeros((128, 1), dtype=np.float32)
+    ir_base[0, 0] = 1.0
+    ir_blend = np.zeros((128, 1), dtype=np.float32)
+    ir_blend[16, 0] = 0.75
+    infile = tmp_path / "conv_blend_in.wav"
+    base_ir = tmp_path / "conv_blend_base.wav"
+    blend_ir = tmp_path / "conv_blend_b.wav"
+    outfile = tmp_path / "conv_blend_out.wav"
+    sf.write(str(infile), x, sr)
+    sf.write(str(base_ir), ir_base, sr)
+    sf.write(str(blend_ir), ir_blend, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(base_ir),
+            "--ir-blend",
+            str(blend_ir),
+            "--normalize-stage",
+            "none",
+            "--automation-point",
+            "ir-blend-alpha:0.0:0.0:linear",
+            "--automation-point",
+            "ir-blend-alpha:1.5:1.0:linear",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    automation = payload["effective"]["automation"]
+    assert isinstance(automation, dict)
+    assert "ir-blend-alpha" in automation["targets"]
+    assert "ir-blend-alpha" in automation.get("conv_targets", [])
+    assert isinstance(automation.get("conv_summary"), dict)
+    conv_summary = automation["conv_summary"]
+    assert conv_summary.get("ir_blend_alpha_applied") is True
+    assert float(conv_summary.get("alpha_max", 0.0)) >= float(conv_summary.get("alpha_min", 0.0))
+
+
+def test_render_automation_mixed_lanes_deterministic_replay(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.zeros((3 * sr, 1), dtype=np.float32)
+    x[100:300, 0] = 0.5
+    ir = np.zeros((64, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+    infile = tmp_path / "determin_in.wav"
+    irfile = tmp_path / "determin_ir.wav"
+    out_a = tmp_path / "determin_a.wav"
+    out_b = tmp_path / "determin_b.wav"
+    auto_file = tmp_path / "determin_automation.json"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    auto_file.write_text(
+        json.dumps(
+            {
+                "mode": "sample",
+                "lanes": [
+                    {
+                        "target": "wet",
+                        "type": "breakpoints",
+                        "interp": "smooth",
+                        "points": [
+                            {"time": 0.0, "value": 0.7},
+                            {"time": 1.2, "value": 0.3},
+                            {"time": 2.4, "value": 0.8},
+                        ],
+                    },
+                    {
+                        "target": "gain-db",
+                        "type": "lfo",
+                        "shape": "triangle",
+                        "rate_hz": 0.4,
+                        "depth": 4.0,
+                        "center": -2.0,
+                        "start_s": 0.0,
+                        "end_s": 3.0,
+                    },
+                    {
+                        "target": "dry",
+                        "type": "segment",
+                        "start_s": 1.5,
+                        "end_s": 2.5,
+                        "value": 0.25,
+                        "ramp_ms": 120.0,
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    args = [
+        "render",
+        str(infile),
+        str(out_a),
+        "--engine",
+        "conv",
+        "--ir",
+        str(irfile),
+        "--normalize-stage",
+        "none",
+        "--automation-file",
+        str(auto_file),
+        "--no-progress",
+    ]
+    result_a = runner.invoke(app, args)
+    assert result_a.exit_code == 0, result_a.stdout
+
+    args[2] = str(out_b)
+    result_b = runner.invoke(app, args)
+    assert result_b.exit_code == 0, result_b.stdout
+
+    payload_a = json.loads(Path(f"{out_a}.analysis.json").read_text(encoding="utf-8"))
+    payload_b = json.loads(Path(f"{out_b}.analysis.json").read_text(encoding="utf-8"))
+    auto_a = payload_a["effective"]["automation"]
+    auto_b = payload_b["effective"]["automation"]
+    assert isinstance(auto_a, dict)
+    assert isinstance(auto_b, dict)
+    assert auto_a.get("signature") == auto_b.get("signature")
+    assert "wet" in auto_a.get("post_targets", [])
+    assert "dry" in auto_a.get("post_targets", [])
+    assert "gain-db" in auto_a.get("post_targets", [])
+
+    y_a, _ = sf.read(str(out_a), always_2d=True, dtype="float32")
+    y_b, _ = sf.read(str(out_b), always_2d=True, dtype="float32")
+    assert y_a.shape == y_b.shape
+    assert np.allclose(y_a, y_b, atol=1e-7)
+
+
+def test_render_automation_invalid_lane_context_is_reported(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.zeros((sr // 2, 1), dtype=np.float32)
+    x[0, 0] = 1.0
+    infile = tmp_path / "bad_lane_in.wav"
+    outfile = tmp_path / "bad_lane_out.wav"
+    auto_file = tmp_path / "bad_lane_automation.json"
+    sf.write(str(infile), x, sr)
+
+    auto_file.write_text(
+        json.dumps(
+            {
+                "mode": "block",
+                "lanes": [
+                    {
+                        "target": "wet",
+                        "type": "segment",
+                        "start_s": 0.4,
+                        "end_s": 0.2,
+                        "value": 0.8,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--automation-file",
+            str(auto_file),
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "lane #1" in result.output

@@ -28,8 +28,10 @@ from verbx.core.accel import configure_cpu_threads, resolve_device_for_engine
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
 from verbx.core.ambient import apply_ambient_processing
 from verbx.core.automation import (
+    CONV_AUTOMATION_TARGETS,
     ENGINE_AUTOMATION_TARGETS,
     POST_RENDER_AUTOMATION_TARGETS,
+    AutomationBundle,
     apply_render_automation,
     load_automation_bundle,
     parse_automation_clamp_overrides,
@@ -201,19 +203,17 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
         has_automation_source = (
             runtime_config.automation_file is not None or len(runtime_config.automation_points) > 0
         )
-        preloaded_automation_bundle = None
+        clamp_overrides = (
+            parse_automation_clamp_overrides(runtime_config.automation_clamp)
+            if has_automation_source
+            else None
+        )
+        preloaded_automation_bundle: AutomationBundle | None = None
         if has_automation_source and engine_name == "algo":
-            clamp_overrides = parse_automation_clamp_overrides(runtime_config.automation_clamp)
-            preloaded_automation_bundle = load_automation_bundle(
-                path=None
-                if runtime_config.automation_file is None
-                else Path(runtime_config.automation_file),
-                point_specs=runtime_config.automation_points,
+            preloaded_automation_bundle = _load_runtime_automation_bundle(
+                config=runtime_config,
                 sr=sr,
                 num_samples=int(input_for_engine.shape[0]),
-                mode=runtime_config.automation_mode,
-                block_ms=runtime_config.automation_block_ms,
-                smoothing_ms=runtime_config.automation_smoothing_ms,
                 clamp_overrides=clamp_overrides,
             )
             if isinstance(engine, AlgoReverbEngine):
@@ -229,6 +229,34 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             post_pass_processor=repeat_post_processor,
             progress_callback=lambda idx, total: progress.mark_process_pass(idx),
         )
+
+        conv_target_summary: dict[str, Any] | None = None
+        if has_automation_source:
+            if (
+                preloaded_automation_bundle is None
+                or int(preloaded_automation_bundle.num_samples) != int(rendered.shape[0])
+            ):
+                preloaded_automation_bundle = _load_runtime_automation_bundle(
+                    config=runtime_config,
+                    sr=sr,
+                    num_samples=int(rendered.shape[0]),
+                    clamp_overrides=clamp_overrides,
+                )
+            assert preloaded_automation_bundle is not None
+            _validate_automation_target_domains_for_engine(
+                engine_name=engine_name,
+                bundle=preloaded_automation_bundle,
+            )
+            if engine_name == "conv":
+                rendered, conv_target_summary = _apply_convolution_automation_targets(
+                    rendered=rendered,
+                    input_for_engine=input_for_engine,
+                    sr=sr,
+                    config=runtime_config,
+                    bundle=preloaded_automation_bundle,
+                    engine_device=engine_device,
+                    repeat_post_processor=repeat_post_processor,
+                )
 
         # Ambient post stage is applied after repeat-chain rendering to shape
         # the final wet field.
@@ -283,29 +311,19 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
 
         automation_summary: dict[str, Any] | None = None
         if has_automation_source:
-            clamp_overrides = parse_automation_clamp_overrides(runtime_config.automation_clamp)
             bundle = preloaded_automation_bundle
             if bundle is None or int(bundle.num_samples) != int(rendered.shape[0]):
-                bundle = load_automation_bundle(
-                    path=None
-                    if runtime_config.automation_file is None
-                    else Path(runtime_config.automation_file),
-                    point_specs=runtime_config.automation_points,
+                bundle = _load_runtime_automation_bundle(
+                    config=runtime_config,
                     sr=sr,
                     num_samples=int(rendered.shape[0]),
-                    mode=runtime_config.automation_mode,
-                    block_ms=runtime_config.automation_block_ms,
-                    smoothing_ms=runtime_config.automation_smoothing_ms,
                     clamp_overrides=clamp_overrides,
                 )
-            if engine_name != "algo":
-                unsupported = sorted(
-                    target for target in bundle.curves.keys() if target in ENGINE_AUTOMATION_TARGETS
-                )
-                if len(unsupported) > 0:
-                    raise ValueError(
-                        "Automation targets require algorithmic engine: " + ", ".join(unsupported)
-                    )
+            assert bundle is not None
+            _validate_automation_target_domains_for_engine(
+                engine_name=engine_name,
+                bundle=bundle,
+            )
             dry_reference = _build_dry_reference_for_automation(
                 engine_name=engine_name,
                 input_for_engine=input_for_engine,
@@ -326,6 +344,11 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             automation_summary["post_targets"] = sorted(
                 target for target in targets if target in POST_RENDER_AUTOMATION_TARGETS
             )
+            automation_summary["conv_targets"] = sorted(
+                target for target in targets if target in CONV_AUTOMATION_TARGETS
+            )
+            if conv_target_summary is not None:
+                automation_summary["conv_summary"] = conv_target_summary
             if runtime_config.automation_trace_out is not None:
                 trace_path = Path(runtime_config.automation_trace_out)
                 write_automation_trace(trace_path, bundle)
@@ -484,6 +507,8 @@ def _prepare_runtime_config(
         input_duration_seconds=input_duration_seconds,
     )
     runtime = _apply_perceptual_fdn_macros(runtime)
+    runtime.ir_blend_base_ir = None
+    runtime.ir_blend_composite_ir = None
     ir_runtime_steps: list[dict[str, Any]] = []
     ir_channels = max(1, int(input_channels))
     if runtime.ambi_order > 0:
@@ -585,6 +610,8 @@ def _prepare_runtime_config(
             target_sr=sr,
         )
         runtime.ir = str(blended_path)
+        runtime.ir_blend_base_ir = str(base_path)
+        runtime.ir_blend_composite_ir = str(blended_path)
         if runtime.engine == "auto":
             runtime.engine = "conv"
         ir_runtime_steps.append(
@@ -797,26 +824,10 @@ def _resolve_engine(
         return (
             "conv",
             ConvolutionReverbEngine(
-                ConvolutionReverbConfig(
-                    wet=config.wet,
-                    dry=config.dry,
+                _build_convolution_config(
+                    config,
                     ir_path=config.ir,
-                    ir_normalize=config.ir_normalize,
-                    ir_matrix_layout=config.ir_matrix_layout,
-                    ir_route_map=config.ir_route_map,
-                    partition_size=config.partition_size,
-                    tail_limit=config.tail_limit,
-                    threads=config.threads,
                     device=device,
-                    input_layout=config.input_layout,
-                    output_layout=config.output_layout,
-                    route_start=config.conv_route_start,
-                    route_end=config.conv_route_end,
-                    route_curve=config.conv_route_curve,
-                    ambi_order=config.ambi_order,
-                    ambi_normalization=config.ambi_normalization,
-                    channel_order=config.channel_order,
-                    ambi_rotate_yaw_deg=config.ambi_rotate_yaw_deg,
                 )
             ),
             device,
@@ -1049,6 +1060,221 @@ def _build_dry_reference_for_automation(
     mapped = min(in_channels, out_channels)
     dry[:copy_len, :mapped] = input_for_engine[:copy_len, :mapped]
     return dry
+
+
+def _load_runtime_automation_bundle(
+    *,
+    config: RenderConfig,
+    sr: int,
+    num_samples: int,
+    clamp_overrides: dict[str, tuple[float, float]] | None,
+) -> AutomationBundle:
+    return load_automation_bundle(
+        path=None if config.automation_file is None else Path(config.automation_file),
+        point_specs=config.automation_points,
+        sr=sr,
+        num_samples=int(num_samples),
+        mode=config.automation_mode,
+        block_ms=config.automation_block_ms,
+        smoothing_ms=config.automation_smoothing_ms,
+        clamp_overrides=clamp_overrides,
+    )
+
+
+def _validate_automation_target_domains_for_engine(
+    *,
+    engine_name: str,
+    bundle: AutomationBundle,
+) -> None:
+    targets = set(bundle.curves.keys())
+    if engine_name != "algo":
+        unsupported_engine = sorted(target for target in targets if target in ENGINE_AUTOMATION_TARGETS)
+        if len(unsupported_engine) > 0:
+            raise ValueError(
+                "Automation targets require algorithmic engine: " + ", ".join(unsupported_engine)
+            )
+    if engine_name != "conv":
+        unsupported_conv = sorted(target for target in targets if target in CONV_AUTOMATION_TARGETS)
+        if len(unsupported_conv) > 0:
+            raise ValueError(
+                "Automation targets require convolution engine: " + ", ".join(unsupported_conv)
+            )
+
+
+def _build_convolution_config(config: RenderConfig, *, ir_path: str, device: str) -> ConvolutionReverbConfig:
+    return ConvolutionReverbConfig(
+        wet=config.wet,
+        dry=config.dry,
+        ir_path=ir_path,
+        ir_normalize=config.ir_normalize,
+        ir_matrix_layout=config.ir_matrix_layout,
+        ir_route_map=config.ir_route_map,
+        partition_size=config.partition_size,
+        tail_limit=config.tail_limit,
+        threads=config.threads,
+        device=device,
+        input_layout=config.input_layout,
+        output_layout=config.output_layout,
+        route_start=config.conv_route_start,
+        route_end=config.conv_route_end,
+        route_curve=config.conv_route_curve,
+        ambi_order=config.ambi_order,
+        ambi_normalization=config.ambi_normalization,
+        channel_order=config.channel_order,
+        ambi_rotate_yaw_deg=config.ambi_rotate_yaw_deg,
+    )
+
+
+def _render_convolution_variant(
+    *,
+    input_for_engine: AudioArray,
+    sr: int,
+    config: RenderConfig,
+    ir_path: str,
+    device: str,
+    repeat_post_processor: PassProcessor,
+) -> AudioArray:
+    engine = ConvolutionReverbEngine(
+        _build_convolution_config(
+            config,
+            ir_path=ir_path,
+            device=device,
+        )
+    )
+    rendered = repeat_process(
+        engine=engine,
+        audio=input_for_engine,
+        sr=sr,
+        n=config.repeat,
+        post_pass_processor=repeat_post_processor,
+    )
+    return np.asarray(rendered, dtype=np.float32)
+
+
+def _estimate_wet_component(
+    *,
+    rendered: AudioArray,
+    dry_reference: AudioArray,
+    base_wet: float,
+    base_dry: float,
+) -> AudioArray:
+    if abs(base_wet) <= 1e-9:
+        return np.asarray(rendered, dtype=np.float32)
+    wet = (np.asarray(rendered, dtype=np.float32) - (float(base_dry) * dry_reference)) / float(base_wet)
+    return np.asarray(np.nan_to_num(wet, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float32)
+
+
+def _apply_convolution_automation_targets(
+    *,
+    rendered: AudioArray,
+    input_for_engine: AudioArray,
+    sr: int,
+    config: RenderConfig,
+    bundle: AutomationBundle,
+    engine_device: str,
+    repeat_post_processor: PassProcessor,
+) -> tuple[AudioArray, dict[str, Any] | None]:
+    alpha_curve = bundle.curves.get("ir-blend-alpha")
+    if alpha_curve is None:
+        return np.asarray(rendered, dtype=np.float32), None
+
+    base_ir = config.ir_blend_base_ir
+    composite_ir = config.ir_blend_composite_ir
+    if base_ir is None or composite_ir is None:
+        msg = "Automation target 'ir-blend-alpha' requires --ir-blend with at least one blend IR."
+        raise ValueError(msg)
+
+    current_ir = str(config.ir) if config.ir is not None else str(composite_ir)
+    base_path = str(base_ir)
+    blend_path = str(composite_ir)
+
+    base_render: AudioArray
+    blend_render: AudioArray
+    if Path(current_ir) == Path(blend_path):
+        blend_render = np.asarray(rendered, dtype=np.float32)
+        base_render = _render_convolution_variant(
+            input_for_engine=input_for_engine,
+            sr=sr,
+            config=config,
+            ir_path=base_path,
+            device=engine_device,
+            repeat_post_processor=repeat_post_processor,
+        )
+    elif Path(current_ir) == Path(base_path):
+        base_render = np.asarray(rendered, dtype=np.float32)
+        blend_render = _render_convolution_variant(
+            input_for_engine=input_for_engine,
+            sr=sr,
+            config=config,
+            ir_path=blend_path,
+            device=engine_device,
+            repeat_post_processor=repeat_post_processor,
+        )
+    else:
+        base_render = _render_convolution_variant(
+            input_for_engine=input_for_engine,
+            sr=sr,
+            config=config,
+            ir_path=base_path,
+            device=engine_device,
+            repeat_post_processor=repeat_post_processor,
+        )
+        blend_render = _render_convolution_variant(
+            input_for_engine=input_for_engine,
+            sr=sr,
+            config=config,
+            ir_path=blend_path,
+            device=engine_device,
+            repeat_post_processor=repeat_post_processor,
+        )
+
+    n = int(rendered.shape[0])
+    alpha = np.asarray(alpha_curve, dtype=np.float32).reshape(-1)
+    if alpha.shape[0] != n:
+        if alpha.shape[0] <= 1:
+            fill = float(alpha[0]) if alpha.shape[0] == 1 else 0.0
+            alpha = np.full((n,), fill, dtype=np.float32)
+        else:
+            src = np.linspace(0.0, 1.0, alpha.shape[0], dtype=np.float64)
+            dst = np.linspace(0.0, 1.0, n, dtype=np.float64)
+            alpha = np.asarray(np.interp(dst, src, alpha.astype(np.float64)), dtype=np.float32)
+    alpha = np.asarray(np.clip(alpha, 0.0, 1.0), dtype=np.float32)
+
+    if abs(float(config.wet)) <= 1e-9:
+        mixed = ((1.0 - alpha)[:, np.newaxis] * base_render) + (alpha[:, np.newaxis] * blend_render)
+        mixed = np.asarray(np.nan_to_num(mixed, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float32)
+    else:
+        dry_reference = _build_dry_reference_for_automation(
+            engine_name="conv",
+            input_for_engine=input_for_engine,
+            rendered=rendered,
+            config=config,
+        )
+        wet_base = _estimate_wet_component(
+            rendered=base_render,
+            dry_reference=dry_reference,
+            base_wet=float(config.wet),
+            base_dry=float(config.dry),
+        )
+        wet_blend = _estimate_wet_component(
+            rendered=blend_render,
+            dry_reference=dry_reference,
+            base_wet=float(config.wet),
+            base_dry=float(config.dry),
+        )
+        wet_mix = ((1.0 - alpha)[:, np.newaxis] * wet_base) + (alpha[:, np.newaxis] * wet_blend)
+        mixed = (float(config.dry) * dry_reference) + (float(config.wet) * wet_mix)
+        mixed = np.asarray(np.nan_to_num(mixed, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float32)
+
+    summary = {
+        "ir_blend_alpha_applied": True,
+        "base_ir": base_path,
+        "blended_ir": blend_path,
+        "alpha_min": float(np.min(alpha)) if alpha.size > 0 else 0.0,
+        "alpha_max": float(np.max(alpha)) if alpha.size > 0 else 0.0,
+        "alpha_mean": float(np.mean(alpha)) if alpha.size > 0 else 0.0,
+    }
+    return mixed, summary
 
 
 def _non_default_settings(config: RenderConfig) -> dict[str, Any]:

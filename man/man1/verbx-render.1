@@ -123,6 +123,7 @@ Use this for independent source sets per parameter target.
 JSON/CSV automation lane file for render-time control.
 Engine targets include rt60, damping, room-size, perceptual macros,
 fdn-rt60-tilt, and fdn-tonal-correction-strength.
+Convolution-target coverage includes ir-blend-alpha (requires --ir-blend).
 .TP
 .B --automation-point SPEC
 Inline control point:
@@ -196,6 +197,9 @@ Drive internal algorithmic room behavior over time from inline CLI points.
 .TP
 .B verbx render in.wav out_trackc.wav --engine algo --fdn-rt60-tilt 0.4 --fdn-tonal-correction-strength 0.5 --room-size-macro 0.5 --warmth-macro 0.35 --envelopment-macro 0.45
 Use Track C perceptual controls for Jot-inspired FDN shaping.
+.TP
+.B verbx render in.wav out_blend_sweep.wav --engine conv --ir hall_a.wav --ir-blend hall_b.wav --automation-point ir-blend-alpha:0.0:0.0 --automation-point ir-blend-alpha:15.0:1.0
+Sweep IR blend coefficient over time during convolution rendering.
 .SH SEE ALSO
 .BR verbx (1),
 .BR verbx-analyze (1),

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-ControlTargetDomain = Literal["post", "engine"]
+ControlTargetDomain = Literal["post", "engine", "conv"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +84,13 @@ _CONTROL_TARGET_SPECS: tuple[ControlTargetSpec, ...] = (
         1.0,
         aliases=("tonal-correction", "tonal-correction-strength", "fdn-tonal-correction"),
     ),
+    ControlTargetSpec(
+        "ir-blend-alpha",
+        "conv",
+        0.0,
+        1.0,
+        aliases=("blend-alpha", "ir-alpha", "morph-alpha", "ir-morph-alpha"),
+    ),
 )
 
 _CONTROL_TARGET_BY_NAME = {spec.name: spec for spec in _CONTROL_TARGET_SPECS}
@@ -98,6 +105,9 @@ POST_RENDER_CONTROL_TARGETS = frozenset(
 )
 ENGINE_CONTROL_TARGETS = frozenset(
     spec.name for spec in _CONTROL_TARGET_SPECS if spec.domain == "engine"
+)
+CONV_CONTROL_TARGETS = frozenset(
+    spec.name for spec in _CONTROL_TARGET_SPECS if spec.domain == "conv"
 )
 SUPPORTED_CONTROL_TARGETS = frozenset(spec.name for spec in _CONTROL_TARGET_SPECS)
 CONTROL_TARGET_LIMITS: dict[str, tuple[float, float]] = {

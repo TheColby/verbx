@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import math
 from dataclasses import dataclass
@@ -13,6 +14,7 @@ import numpy as np
 import numpy.typing as npt
 
 from verbx.core.control_targets import (
+    CONV_CONTROL_TARGETS,
     CONTROL_TARGET_LIMITS,
     ENGINE_CONTROL_TARGETS,
     POST_RENDER_CONTROL_TARGETS,
@@ -23,7 +25,10 @@ AudioArray = npt.NDArray[np.float32]
 
 POST_RENDER_AUTOMATION_TARGETS = set(POST_RENDER_CONTROL_TARGETS)
 ENGINE_AUTOMATION_TARGETS = set(ENGINE_CONTROL_TARGETS)
-SUPPORTED_AUTOMATION_TARGETS = POST_RENDER_AUTOMATION_TARGETS | ENGINE_AUTOMATION_TARGETS
+CONV_AUTOMATION_TARGETS = set(CONV_CONTROL_TARGETS)
+SUPPORTED_AUTOMATION_TARGETS = (
+    POST_RENDER_AUTOMATION_TARGETS | ENGINE_AUTOMATION_TARGETS | CONV_AUTOMATION_TARGETS
+)
 TARGET_LIMITS: dict[str, tuple[float, float]] = dict(CONTROL_TARGET_LIMITS)
 BREAKPOINT_INTERP_CHOICES = {
     "linear",
@@ -34,6 +39,7 @@ BREAKPOINT_INTERP_CHOICES = {
     "exp",
     "exponential",
 }
+LANE_COMBINE_CHOICES = {"replace", "add", "multiply"}
 
 
 @dataclass(slots=True)
@@ -47,6 +53,7 @@ class AutomationBundle:
     num_samples: int
     curves: dict[str, AudioArray]
     lanes_per_target: dict[str, int]
+    signature: str
 
 
 def parse_automation_clamp_overrides(
@@ -223,22 +230,37 @@ def load_automation_bundle(
 
     controls: dict[str, npt.NDArray[np.float64]] = {}
     lanes_per_target: dict[str, int] = {}
-    for lane in lanes:
+    for lane_idx, lane_obj in enumerate(lanes, start=1):
+        if not isinstance(lane_obj, dict):
+            raise ValueError(f"Automation lane #{lane_idx} must be an object.")
+        lane = dict(lane_obj)
         target = _normalize_target_name(lane.get("target", ""))
         if target not in SUPPORTED_AUTOMATION_TARGETS:
             options = ", ".join(sorted(SUPPORTED_AUTOMATION_TARGETS))
-            msg = f"Unsupported automation target '{target}'. Supported: {options}."
+            msg = (
+                f"Unsupported automation target '{target}' in lane #{lane_idx}. "
+                f"Supported: {options}."
+            )
             raise ValueError(msg)
-        lane_values = _render_lane_values(
-            lane=lane,
-            ctrl_times=ctrl_times,
+
+        lane_context = f"lane #{lane_idx} (target '{target}')"
+        combine = _normalize_lane_combine(lane.get("combine", "replace"), lane_context=lane_context)
+        lane_smoothing_ms = _parse_lane_smoothing_ms(
+            lane.get("smoothing_ms", smoothing_ms),
+            lane_context=lane_context,
         )
-        lane_smoothing_ms = float(lane.get("smoothing_ms", smoothing_ms))
+        try:
+            lane_values = _render_lane_values(
+                lane=lane,
+                ctrl_times=ctrl_times,
+            )
+        except ValueError as exc:
+            raise ValueError(f"Invalid automation {lane_context}: {exc}") from exc
+
         lane_values = _apply_smoothing(lane_values, lane_smoothing_ms, sr=sr, step=control_step)
         min_v, max_v = limit_map[target]
         lane_values = np.clip(lane_values, min_v, max_v)
 
-        combine = str(lane.get("combine", "replace")).strip().lower()
         existing = controls.get(target, np.full(ctrl_count, np.nan, dtype=np.float64))
         if combine == "add":
             existing = np.nan_to_num(existing, nan=0.0) + lane_values
@@ -251,10 +273,18 @@ def load_automation_bundle(
         lanes_per_target[target] = int(lanes_per_target.get(target, 0) + 1)
 
     curves: dict[str, AudioArray] = {}
-    for target, control in controls.items():
+    for target in sorted(controls.keys()):
+        control = controls[target]
         expanded = _expand_control_to_samples(control, step=control_step, num_samples=num_samples)
         curves[target] = np.asarray(expanded, dtype=np.float32)
     source_path = "+".join(source_tokens) if len(source_tokens) > 0 else "inline-empty"
+    signature = _bundle_signature(
+        curves=curves,
+        mode=resolved_mode,
+        control_step=control_step,
+        sample_rate=int(sr),
+        num_samples=int(num_samples),
+    )
 
     return AutomationBundle(
         source_path=source_path,
@@ -264,6 +294,7 @@ def load_automation_bundle(
         num_samples=int(num_samples),
         curves=curves,
         lanes_per_target=lanes_per_target,
+        signature=signature,
     )
 
 
@@ -284,6 +315,7 @@ def apply_render_automation(
             "control_step": int(bundle.control_step),
             "targets": [],
             "lanes_per_target": bundle.lanes_per_target,
+            "signature": bundle.signature,
         }
         return np.asarray(rendered, dtype=np.float32), summary
 
@@ -322,6 +354,7 @@ def apply_render_automation(
         "targets": active_targets,
         "lanes_per_target": bundle.lanes_per_target,
         "target_stats": _target_stats(bundle.curves),
+        "signature": bundle.signature,
     }
     sanitized = np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float32)
     return sanitized, summary
@@ -476,6 +509,11 @@ def _render_lfo(
 ) -> npt.NDArray[np.float64]:
     """Render LFO lane."""
     shape = str(lane.get("shape", "sine")).strip().lower()
+    allowed_shapes = {"sine", "triangle", "tri", "square", "pulse", "saw", "sawtooth"}
+    if shape not in allowed_shapes:
+        choices = ", ".join(sorted(allowed_shapes))
+        raise ValueError(f"LFO lane shape must be one of: {choices}.")
+
     rate_hz = float(lane.get("rate_hz", 0.0))
     depth = float(lane.get("depth", 0.0))
     center = float(lane.get("center", 0.0))
@@ -483,8 +521,24 @@ def _render_lfo(
     start_s = float(lane.get("start_s", 0.0))
     end_raw = lane.get("end_s")
     end_s = float(end_raw) if end_raw is not None else float(ctrl_times[-1]) + 1e9
+    if not np.isfinite(rate_hz):
+        raise ValueError("LFO lane rate_hz must be finite.")
     if rate_hz < 0.0:
         raise ValueError("LFO lane rate_hz must be >= 0.")
+    if not np.isfinite(depth):
+        raise ValueError("LFO lane depth must be finite.")
+    if depth < 0.0:
+        raise ValueError("LFO lane depth must be >= 0.")
+    if not np.isfinite(center):
+        raise ValueError("LFO lane center must be finite.")
+    if not np.isfinite(phase_deg):
+        raise ValueError("LFO lane phase_deg must be finite.")
+    if not np.isfinite(start_s):
+        raise ValueError("LFO lane start_s must be finite.")
+    if not np.isfinite(end_s):
+        raise ValueError("LFO lane end_s must be finite.")
+    if end_s < start_s:
+        raise ValueError("LFO lane end_s must be >= start_s.")
 
     out = np.full(ctrl_times.shape[0], np.nan, dtype=np.float64)
     mask = (ctrl_times >= start_s) & (ctrl_times <= end_s)
@@ -513,6 +567,16 @@ def _render_segment(
     end_s = float(lane.get("end_s", start_s))
     value = float(lane.get("value", 0.0))
     ramp_ms = float(lane.get("ramp_ms", 0.0))
+    if not np.isfinite(start_s):
+        raise ValueError("Segment lane start_s must be finite.")
+    if not np.isfinite(end_s):
+        raise ValueError("Segment lane end_s must be finite.")
+    if not np.isfinite(value):
+        raise ValueError("Segment lane value must be finite.")
+    if not np.isfinite(ramp_ms):
+        raise ValueError("Segment lane ramp_ms must be finite.")
+    if ramp_ms < 0.0:
+        raise ValueError("Segment lane ramp_ms must be >= 0.")
     if end_s < start_s:
         raise ValueError("Segment lane end_s must be >= start_s.")
 
@@ -548,6 +612,10 @@ def _parse_points(raw: Any) -> list[tuple[float, float]]:
                 raise ValueError(
                     "Automation breakpoint dict requires numeric time and value."
                 ) from exc
+            if not np.isfinite(t) or t < 0.0:
+                raise ValueError("Automation breakpoint time must be finite and >= 0.")
+            if not np.isfinite(v):
+                raise ValueError("Automation breakpoint value must be finite.")
             points.append((t, v))
             continue
         if isinstance(item, (list, tuple)) and len(item) >= 2:
@@ -556,6 +624,10 @@ def _parse_points(raw: Any) -> list[tuple[float, float]]:
                 v = float(item[1])
             except (TypeError, ValueError) as exc:
                 raise ValueError("Automation breakpoint list items must be [time, value].") from exc
+            if not np.isfinite(t) or t < 0.0:
+                raise ValueError("Automation breakpoint time must be finite and >= 0.")
+            if not np.isfinite(v):
+                raise ValueError("Automation breakpoint value must be finite.")
             points.append((t, v))
             continue
         raise ValueError("Unsupported breakpoint point format.")
@@ -568,24 +640,30 @@ def _smoothstep_interpolate(
     fp: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     """Piecewise smoothstep interpolation across keyframes."""
-    out = np.empty_like(x)
+    out = np.empty_like(x, dtype=np.float64)
     out.fill(np.nan)
-    for idx, xv in enumerate(x):
-        if xv <= xp[0]:
-            out[idx] = fp[0]
-            continue
-        if xv >= xp[-1]:
-            out[idx] = fp[-1]
-            continue
-        hi = int(np.searchsorted(xp, xv, side="right"))
-        lo = max(0, hi - 1)
-        x0 = xp[lo]
-        x1 = xp[hi]
-        y0 = fp[lo]
-        y1 = fp[hi]
-        t = float(np.clip((xv - x0) / max(1e-9, x1 - x0), 0.0, 1.0))
-        s = (t * t) * (3.0 - (2.0 * t))
-        out[idx] = y0 + ((y1 - y0) * s)
+    if x.size == 0:
+        return out
+
+    lo_mask = x <= xp[0]
+    hi_mask = x >= xp[-1]
+    mid_mask = ~(lo_mask | hi_mask)
+    out[lo_mask] = fp[0]
+    out[hi_mask] = fp[-1]
+    if not np.any(mid_mask):
+        return out
+
+    mid_x = x[mid_mask]
+    hi_idx = np.searchsorted(xp, mid_x, side="right")
+    hi_idx = np.clip(hi_idx, 1, xp.shape[0] - 1)
+    lo_idx = hi_idx - 1
+    x0 = xp[lo_idx]
+    x1 = xp[hi_idx]
+    y0 = fp[lo_idx]
+    y1 = fp[hi_idx]
+    t = np.clip((mid_x - x0) / np.maximum(1e-9, x1 - x0), 0.0, 1.0)
+    s = (t * t) * (3.0 - (2.0 * t))
+    out[mid_mask] = y0 + ((y1 - y0) * s)
     return out
 
 
@@ -595,27 +673,32 @@ def _exp_interpolate(
     fp: npt.NDArray[np.float64],
 ) -> npt.NDArray[np.float64]:
     """Piecewise exponential-ish interpolation for smoother ramps."""
-    out = np.empty_like(x)
+    out = np.empty_like(x, dtype=np.float64)
     out.fill(np.nan)
-    for idx, xv in enumerate(x):
-        if xv <= xp[0]:
-            out[idx] = fp[0]
-            continue
-        if xv >= xp[-1]:
-            out[idx] = fp[-1]
-            continue
-        hi = int(np.searchsorted(xp, xv, side="right"))
-        lo = max(0, hi - 1)
-        x0 = xp[lo]
-        x1 = xp[hi]
-        y0 = fp[lo]
-        y1 = fp[hi]
-        t = float(np.clip((xv - x0) / max(1e-9, x1 - x0), 0.0, 1.0))
-        if y1 >= y0:
-            s = t * t
-        else:
-            s = 1.0 - ((1.0 - t) * (1.0 - t))
-        out[idx] = y0 + ((y1 - y0) * s)
+    if x.size == 0:
+        return out
+
+    lo_mask = x <= xp[0]
+    hi_mask = x >= xp[-1]
+    mid_mask = ~(lo_mask | hi_mask)
+    out[lo_mask] = fp[0]
+    out[hi_mask] = fp[-1]
+    if not np.any(mid_mask):
+        return out
+
+    mid_x = x[mid_mask]
+    hi_idx = np.searchsorted(xp, mid_x, side="right")
+    hi_idx = np.clip(hi_idx, 1, xp.shape[0] - 1)
+    lo_idx = hi_idx - 1
+    x0 = xp[lo_idx]
+    x1 = xp[hi_idx]
+    y0 = fp[lo_idx]
+    y1 = fp[hi_idx]
+    t = np.clip((mid_x - x0) / np.maximum(1e-9, x1 - x0), 0.0, 1.0)
+    s_up = t * t
+    s_down = 1.0 - ((1.0 - t) * (1.0 - t))
+    s = np.where(y1 >= y0, s_up, s_down)
+    out[mid_mask] = y0 + ((y1 - y0) * s)
     return out
 
 
@@ -679,6 +762,57 @@ def _target_stats(curves: dict[str, AudioArray]) -> dict[str, dict[str, float]]:
             "mean": float(np.mean(vec)),
         }
     return stats
+
+
+def _normalize_lane_combine(raw: Any, *, lane_context: str) -> str:
+    combine = str(raw).strip().lower()
+    if combine == "":
+        return "replace"
+    if combine not in LANE_COMBINE_CHOICES:
+        choices = ", ".join(sorted(LANE_COMBINE_CHOICES))
+        raise ValueError(
+            f"Invalid combine mode '{combine}' for {lane_context}. Supported: {choices}."
+        )
+    return combine
+
+
+def _parse_lane_smoothing_ms(raw: Any, *, lane_context: str) -> float:
+    try:
+        smoothing_ms = float(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"Invalid smoothing_ms for {lane_context}; expected numeric value."
+        ) from exc
+    if not np.isfinite(smoothing_ms):
+        raise ValueError(f"smoothing_ms for {lane_context} must be finite.")
+    if smoothing_ms < 0.0:
+        raise ValueError(f"smoothing_ms for {lane_context} must be >= 0.")
+    return float(smoothing_ms)
+
+
+def _bundle_signature(
+    *,
+    curves: dict[str, AudioArray],
+    mode: str,
+    control_step: int,
+    sample_rate: int,
+    num_samples: int,
+) -> str:
+    """Build stable digest for deterministic automation replay QA."""
+    h = hashlib.sha256()
+    h.update(str(mode).encode("utf-8"))
+    h.update(b"|")
+    h.update(str(int(control_step)).encode("utf-8"))
+    h.update(b"|")
+    h.update(str(int(sample_rate)).encode("utf-8"))
+    h.update(b"|")
+    h.update(str(int(num_samples)).encode("utf-8"))
+    for target in sorted(curves.keys()):
+        h.update(b"|")
+        h.update(target.encode("utf-8"))
+        vec = np.asarray(curves[target], dtype=np.float32)
+        h.update(vec.tobytes(order="C"))
+    return h.hexdigest()[:16]
 
 
 def _normalize_target_name(value: str) -> str:
