@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 def duration_seconds(audio: AudioArray, sr: int) -> float:
@@ -19,7 +19,7 @@ def duration_seconds(audio: AudioArray, sr: int) -> float:
 
 def rms(audio: AudioArray) -> float:
     """Compute global RMS across all channels."""
-    squared = np.square(audio, dtype=np.float32)
+    squared = np.square(audio, dtype=np.float64)
     return float(np.sqrt(np.mean(squared, dtype=np.float64)))
 
 

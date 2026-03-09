@@ -13,7 +13,7 @@ import numpy.typing as npt
 
 from verbx.ir.tuning import tune_frequency_to_targets
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 _TUNING_RE = re.compile(r"^\s*A4\s*=\s*([0-9]+(?:\.[0-9]+)?)\s*$", re.IGNORECASE)
 
@@ -107,4 +107,4 @@ def generate_modal_ir(
     out += 0.02 * bed
 
     out[0, :] += 1.0
-    return np.asarray(out, dtype=np.float32)
+    return np.asarray(out, dtype=np.float64)

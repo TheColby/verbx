@@ -25,7 +25,7 @@ from verbx.ir.resonator import apply_modalys_resonator_layer
 from verbx.ir.shaping import apply_ir_shaping
 from verbx.ir.tuning import apply_harmonic_alignment
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 IRMode = Literal["fdn", "stochastic", "modal", "hybrid"]
 IRNormalize = Literal["none", "peak", "rms"]
 
@@ -289,7 +289,7 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
         ir = (0.55 * stoch) + (0.25 * modal) + (0.20 * fdn)
         early_len = min(early.shape[0], ir.shape[0])
         ir[:early_len, :] += early[:early_len, :]
-        ir = np.asarray(ir, dtype=np.float32)
+        ir = np.asarray(ir, dtype=np.float64)
 
     ir = apply_harmonic_alignment(
         ir=ir,
@@ -354,12 +354,12 @@ def generate_or_load_cached_ir(
     meta_path = cache_dir / f"{key}.meta.json"
 
     if wav_path.exists() and meta_path.exists():
-        audio, sr = sf.read(str(wav_path), always_2d=True, dtype="float32")
+        audio, sr = sf.read(str(wav_path), always_2d=True, dtype="float64")
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        return np.asarray(audio, dtype=np.float32), int(sr), meta, wav_path, True
+        return np.asarray(audio, dtype=np.float64), int(sr), meta, wav_path, True
 
     audio, sr, meta = generate_ir(config)
-    sf.write(str(wav_path), np.asarray(audio, dtype=np.float32), sr)
+    sf.write(str(wav_path), np.asarray(audio, dtype=np.float64), sr)
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
     return audio, sr, meta, wav_path, False
 
@@ -373,7 +373,7 @@ def write_ir_artifacts(
 ) -> None:
     """Write IR audio and optional metadata sidecar."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    sf.write(str(out_path), np.asarray(audio, dtype=np.float32), sr)
+    sf.write(str(out_path), np.asarray(audio, dtype=np.float64), sr)
 
     if not silent:
         meta_path = out_path.with_suffix(f"{out_path.suffix}.ir.meta.json")

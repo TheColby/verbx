@@ -12,7 +12,7 @@ from scipy.signal import butter, fftconvolve, sosfilt
 
 from verbx.io.audio import ensure_mono_or_stereo
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 def apply_ducking(
@@ -32,12 +32,12 @@ def apply_ducking(
     x = ensure_mono_or_stereo(wet)
     sc = ensure_mono_or_stereo(sidechain)
     if sc.shape[0] < x.shape[0]:
-        pad = np.zeros((x.shape[0] - sc.shape[0], sc.shape[1]), dtype=np.float32)
+        pad = np.zeros((x.shape[0] - sc.shape[0], sc.shape[1]), dtype=np.float64)
         sc = np.vstack((sc, pad))
     elif sc.shape[0] > x.shape[0]:
         sc = sc[: x.shape[0], :]
 
-    env_in = np.abs(np.mean(sc, axis=1)).astype(np.float32)
+    env_in = np.abs(np.mean(sc, axis=1)).astype(np.float64)
     env = np.zeros_like(env_in)
 
     attack = max(attack_ms, 0.1) / 1000.0
@@ -45,7 +45,7 @@ def apply_ducking(
     attack_alpha = np.exp(-1.0 / (attack * sr))
     release_alpha = np.exp(-1.0 / (release * sr))
 
-    last = np.float32(0.0)
+    last = np.float64(0.0)
     for i, sample in enumerate(env_in):
         if sample > last:
             last = (attack_alpha * last) + ((1.0 - attack_alpha) * sample)
@@ -57,7 +57,7 @@ def apply_ducking(
     reduction = np.clip(normalized, 0.0, 1.0) * float(np.clip(strength, 0.0, 1.0))
     gain = 1.0 - reduction
 
-    return np.asarray(x * gain[:, np.newaxis], dtype=np.float32)
+    return np.asarray(x * gain[:, np.newaxis], dtype=np.float64)
 
 
 def apply_bloom(audio: AudioArray, sr: int, bloom_seconds: float) -> AudioArray:
@@ -81,9 +81,9 @@ def apply_bloom(audio: AudioArray, sr: int, bloom_seconds: float) -> AudioArray:
     out = x.copy()
     for ch in range(x.shape[1]):
         tail = fftconvolve(x[:, ch], kernel, mode="full")[: x.shape[0]]
-        out[:, ch] = ((1.0 - mix) * x[:, ch]) + (mix * tail.astype(np.float32))
+        out[:, ch] = ((1.0 - mix) * x[:, ch]) + (mix * tail.astype(np.float64))
 
-    return np.asarray(out, dtype=np.float32)
+    return np.asarray(out, dtype=np.float64)
 
 
 def apply_tilt_eq(
@@ -108,7 +108,7 @@ def apply_tilt_eq(
             filtered = sosfilt(sos, out[:, ch])
             if isinstance(filtered, tuple):
                 filtered = filtered[0]
-            out[:, ch] = np.asarray(filtered, dtype=np.float32)
+            out[:, ch] = np.asarray(filtered, dtype=np.float64)
 
     if highcut is not None and 10.0 < highcut < (sr * 0.49):
         sos = butter(2, highcut / (0.5 * sr), btype="lowpass", output="sos")
@@ -116,27 +116,27 @@ def apply_tilt_eq(
             filtered = sosfilt(sos, out[:, ch])
             if isinstance(filtered, tuple):
                 filtered = filtered[0]
-            out[:, ch] = np.asarray(filtered, dtype=np.float32)
+            out[:, ch] = np.asarray(filtered, dtype=np.float64)
 
     if abs(tilt_db) < 1e-4:
-        return np.asarray(out, dtype=np.float32)
+        return np.asarray(out, dtype=np.float64)
 
     n = out.shape[0]
     if n < 4:
-        return np.asarray(out, dtype=np.float32)
+        return np.asarray(out, dtype=np.float64)
 
     freqs = np.fft.rfftfreq(n, d=1.0 / sr)
     safe_freqs = np.maximum(freqs, 20.0)
     tilt_curve_db = tilt_db * np.log2(safe_freqs / 1000.0)
     tilt_curve_db = np.clip(tilt_curve_db, -18.0, 18.0)
-    gain = np.power(10.0, tilt_curve_db / 20.0).astype(np.float32)
+    gain = np.power(10.0, tilt_curve_db / 20.0).astype(np.float64)
 
     for ch in range(out.shape[1]):
-        spectrum = np.fft.rfft(out[:, ch]).astype(np.complex64)
+        spectrum = np.fft.rfft(out[:, ch]).astype(np.complex128)
         shaped = spectrum * gain
-        out[:, ch] = np.fft.irfft(shaped, n=n).astype(np.float32)
+        out[:, ch] = np.fft.irfft(shaped, n=n).astype(np.float64)
 
-    return np.asarray(out, dtype=np.float32)
+    return np.asarray(out, dtype=np.float64)
 
 
 def apply_ambient_processing(
@@ -162,4 +162,4 @@ def apply_ambient_processing(
         out = apply_bloom(out, sr, bloom_seconds=bloom)
     if lowcut is not None or highcut is not None or abs(tilt) > 1e-4:
         out = apply_tilt_eq(out, sr, tilt_db=tilt, lowcut=lowcut, highcut=highcut)
-    return np.asarray(out, dtype=np.float32)
+    return np.asarray(out, dtype=np.float64)

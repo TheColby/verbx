@@ -12,7 +12,7 @@ from verbx.core.loudness import (
 
 def test_lufs_normalization_moves_toward_target() -> None:
     rng = np.random.default_rng(42)
-    audio = (0.03 * rng.standard_normal((48_000 * 2, 2))).astype(np.float32)
+    audio = (0.03 * rng.standard_normal((48_000 * 2, 2))).astype(np.float64)
     target_lufs = -20.0
 
     before = integrated_lufs(audio, sr=48_000)
@@ -30,10 +30,10 @@ def test_lufs_normalization_moves_toward_target() -> None:
 
 
 def test_peak_ceiling_enforced() -> None:
-    t = np.linspace(0.0, 1.0, 48_000, endpoint=False, dtype=np.float32)
+    t = np.linspace(0.0, 1.0, 48_000, endpoint=False, dtype=np.float64)
     audio = np.stack(
         [1.8 * np.sin(2.0 * np.pi * 440.0 * t), 1.8 * np.sin(2.0 * np.pi * 880.0 * t)], axis=1
-    ).astype(np.float32)
+    ).astype(np.float64)
 
     target_peak = -3.0
     out = apply_output_targets(

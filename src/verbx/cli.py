@@ -1666,8 +1666,8 @@ def ir_analyze(
     """Analyze an impulse response."""
     _validate_ir_analyze_call(ir_file, json_out)
     try:
-        audio, sr = sf.read(str(ir_file), always_2d=True, dtype="float32")
-        metrics = analyze_ir(np.asarray(audio, dtype=np.float32), int(sr))
+        audio, sr = sf.read(str(ir_file), always_2d=True, dtype="float64")
+        metrics = analyze_ir(np.asarray(audio, dtype=np.float64), int(sr))
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -1734,8 +1734,8 @@ def ir_process(
     _validate_ir_process_call(in_ir, out_ir)
     _validate_generic_lucky_call(lucky, lucky_out_dir)
     try:
-        audio, sr = sf.read(str(in_ir), always_2d=True, dtype="float32")
-        base_audio = np.asarray(audio, dtype=np.float32)
+        audio, sr = sf.read(str(in_ir), always_2d=True, dtype="float64")
+        base_audio = np.asarray(audio, dtype=np.float64)
         sr_i = int(sr)
         if lucky is None:
             processed = apply_ir_shaping(
@@ -2029,10 +2029,10 @@ def ir_fit(
             "errors": asdict(item.score),
             "detail_metrics": item.detail_metrics,
         }
-        cached_audio, _ = sf.read(str(item.cache_path), always_2d=True, dtype="float32")
+        cached_audio, _ = sf.read(str(item.cache_path), always_2d=True, dtype="float64")
         write_ir_artifacts(
             target_path,
-            np.asarray(cached_audio, dtype=np.float32),
+            np.asarray(cached_audio, dtype=np.float64),
             item.sr,
             meta,
             silent=False,
@@ -2928,7 +2928,7 @@ def _build_lucky_config(
         cfg.repeat_target_peak_dbfs = None
 
     cfg.shimmer = bool(rng.random() < 0.42)
-    cfg.shimmer_semitones = float(rng.choice(np.array([7.0, 12.0, 19.0, 24.0], dtype=np.float32)))
+    cfg.shimmer_semitones = float(rng.choice(np.array([7.0, 12.0, 19.0, 24.0], dtype=np.float64)))
     cfg.shimmer_mix = float(rng.uniform(0.05, 0.85))
     cfg.shimmer_feedback = float(rng.uniform(0.05, 0.95))
     cfg.shimmer_lowcut = float(rng.uniform(80.0, 600.0))

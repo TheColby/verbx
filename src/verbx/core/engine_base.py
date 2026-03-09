@@ -16,6 +16,6 @@ class ReverbEngine(ABC):
         return "cpu"
 
     @abstractmethod
-    def process(self, audio: npt.NDArray[np.float32], sr: int) -> npt.NDArray[np.float32]:
+    def process(self, audio: npt.NDArray[np.float64], sr: int) -> npt.NDArray[np.float64]:
         """Process audio and return an array with the same shape."""
         raise NotImplementedError

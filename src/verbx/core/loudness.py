@@ -22,7 +22,7 @@ try:
 except Exception:  # pragma: no cover
     pyln = None
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 def sample_peak_dbfs(audio: AudioArray) -> float:
@@ -93,14 +93,14 @@ def loudness_normalize(audio: AudioArray, sr: int, target_lufs: float) -> AudioA
         try:
             loudness = float(meter.integrated_loudness(x.astype(np.float64)))
             normalized = pyln.normalize.loudness(x.astype(np.float64), loudness, target_lufs)
-            return np.asarray(normalized, dtype=np.float32)
+            return np.asarray(normalized, dtype=np.float64)
         except ValueError:
             pass
 
     current = integrated_lufs(x, sr)
     gain_db = target_lufs - current
     gain = float(10.0 ** (gain_db / 20.0))
-    return np.asarray(x * gain, dtype=np.float32)
+    return np.asarray(x * gain, dtype=np.float64)
 
 
 def true_peak_dbfs(audio: AudioArray, sr: int, oversample: int = 4) -> float:
@@ -127,7 +127,7 @@ def peak_limit(audio: AudioArray, target_peak_dbfs: float) -> AudioArray:
     x = ensure_mono_or_stereo(audio)
     ceiling = float(10.0 ** (target_peak_dbfs / 20.0))
     limited = np.clip(x, -ceiling, ceiling)
-    return np.asarray(limited, dtype=np.float32)
+    return np.asarray(limited, dtype=np.float64)
 
 
 def apply_output_targets(
@@ -165,7 +165,7 @@ def apply_output_targets(
         if measured > target_peak_dbfs:
             gain_db = target_peak_dbfs - measured
             gain = float(10.0 ** (gain_db / 20.0))
-            out = np.asarray(out * gain, dtype=np.float32)
+            out = np.asarray(out * gain, dtype=np.float64)
 
         if limiter:
             out = soft_limiter(out, threshold_dbfs=target_peak_dbfs, knee_db=6.0)
@@ -178,7 +178,7 @@ def apply_output_targets(
             if post_tp > target_peak_dbfs:
                 gain_db = target_peak_dbfs - post_tp
                 gain = float(10.0 ** (gain_db / 20.0))
-                out = np.asarray(out * gain, dtype=np.float32)
+                out = np.asarray(out * gain, dtype=np.float64)
                 out = peak_limit(out, target_peak_dbfs)
 
-    return np.asarray(out, dtype=np.float32)
+    return np.asarray(out, dtype=np.float64)

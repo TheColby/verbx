@@ -22,7 +22,7 @@ import numpy.typing as npt
 
 from verbx.core.control_targets import normalize_control_target_name
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 FloatArray = npt.NDArray[np.float64]
 
 FEATURE_CURVE_CHOICES = {
@@ -530,7 +530,7 @@ def _feature_bus_signature(
     for name in sorted(control_features.keys()):
         h.update(b"|")
         h.update(name.encode("utf-8"))
-        h.update(np.asarray(control_features[name], dtype=np.float32).tobytes(order="C"))
+        h.update(np.asarray(control_features[name], dtype=np.float64).tobytes(order="C"))
     return h.hexdigest()[:16]
 
 

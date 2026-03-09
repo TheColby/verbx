@@ -24,7 +24,7 @@ try:
 except Exception:  # pragma: no cover
     librosa = None
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 @dataclass(slots=True)
@@ -66,11 +66,11 @@ class ShimmerProcessor:
             self._feedback_state = np.zeros_like(shifted)
 
         shimmer_wet = shifted + (feedback * self._feedback_state)
-        self._feedback_state = shimmer_wet.astype(np.float32)
+        self._feedback_state = shimmer_wet.astype(np.float64)
 
         out = ((1.0 - mix) * x) + (mix * shimmer_wet)
-        out = soft_limiter(np.asarray(out, dtype=np.float32), threshold_dbfs=-1.0, knee_db=5.0)
-        return np.asarray(out, dtype=np.float32)
+        out = soft_limiter(np.asarray(out, dtype=np.float64), threshold_dbfs=-1.0, knee_db=5.0)
+        return np.asarray(out, dtype=np.float64)
 
 
 def _pitch_shift_audio(audio: AudioArray, sr: int, semitones: float) -> AudioArray:
@@ -83,14 +83,14 @@ def _pitch_shift_audio(audio: AudioArray, sr: int, semitones: float) -> AudioArr
     if abs(semitones) < 1e-6:
         return x.copy()
 
-    out = np.zeros_like(x, dtype=np.float32)
+    out = np.zeros_like(x, dtype=np.float64)
     for ch in range(x.shape[1]):
-        signal = x[:, ch].astype(np.float32)
+        signal = x[:, ch].astype(np.float64)
         if librosa is not None:
             shifted = librosa.effects.pitch_shift(signal, sr=sr, n_steps=semitones)
             if shifted.shape[0] != signal.shape[0]:
                 shifted = librosa.util.fix_length(shifted, size=signal.shape[0])
-            out[:, ch] = shifted.astype(np.float32)
+            out[:, ch] = shifted.astype(np.float64)
             continue
 
         ratio = float(2.0 ** (semitones / 12.0))
@@ -102,7 +102,7 @@ def _pitch_shift_audio(audio: AudioArray, sr: int, semitones: float) -> AudioArr
                 np.arange(signal.shape[0]),
                 signal,
             ),
-            dtype=np.float32,
+            dtype=np.float64,
         )
         restored = np.asarray(
             np.interp(
@@ -110,10 +110,10 @@ def _pitch_shift_audio(audio: AudioArray, sr: int, semitones: float) -> AudioArr
                 np.arange(tmp.shape[0]),
                 tmp,
             ),
-            dtype=np.float32,
+            dtype=np.float64,
         )
         scale = np.sqrt(max(frac.numerator, 1) / max(frac.denominator, 1))
-        out[:, ch] = restored * np.float32(scale)
+        out[:, ch] = restored * np.float64(scale)
 
     return out
 
@@ -130,18 +130,18 @@ def _bandlimit(
         zi = sosfilt_zi(sos)
         for ch in range(out.shape[1]):
             y, _ = sosfilt(sos, out[:, ch], zi=zi * out[0, ch])
-            out[:, ch] = y.astype(np.float32)
+            out[:, ch] = y.astype(np.float64)
 
     if highcut is not None and highcut > 10.0 and highcut < (0.5 * sr):
         sos = butter(2, highcut / (0.5 * sr), btype="lowpass", output="sos")
         for ch in range(out.shape[1]):
             try:
-                filtered = sosfiltfilt(sos, out[:, ch]).astype(np.float32)
+                filtered = sosfiltfilt(sos, out[:, ch]).astype(np.float64)
             except ValueError:
                 fallback = sosfilt(sos, out[:, ch])
                 if isinstance(fallback, tuple):
                     fallback = fallback[0]
-                filtered = np.asarray(fallback, dtype=np.float32)
+                filtered = np.asarray(fallback, dtype=np.float64)
             out[:, ch] = filtered
 
-    return np.asarray(out, dtype=np.float32)
+    return np.asarray(out, dtype=np.float64)

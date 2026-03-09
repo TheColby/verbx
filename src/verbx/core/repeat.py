@@ -14,7 +14,7 @@ import numpy.typing as npt
 
 from verbx.core.engine_base import ReverbEngine
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 ProgressCallback = Callable[[int, int], None]
 PassPostProcessor = Callable[[AudioArray, int, int], AudioArray]
 
@@ -34,7 +34,7 @@ def repeat_process(
     engine:
         Reverb engine used for each pass.
     audio:
-        Input audio array. Converted to float32 internally.
+        Input audio array. Converted to float64 internally.
     sr:
         Sample rate in Hz.
     n:
@@ -46,7 +46,7 @@ def repeat_process(
         Optional callback receiving ``(current_pass, total_passes)``.
     """
     passes = max(1, int(n))
-    current = np.asarray(audio, dtype=np.float32)
+    current = np.asarray(audio, dtype=np.float64)
 
     for idx in range(passes):
         current = engine.process(current, sr)
@@ -57,4 +57,4 @@ def repeat_process(
         if progress_callback is not None:
             progress_callback(idx + 1, passes)
 
-    return np.asarray(current, dtype=np.float32)
+    return np.asarray(current, dtype=np.float64)

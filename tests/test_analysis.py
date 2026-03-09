@@ -21,7 +21,7 @@ EXPECTED_KEYS = {
 
 def test_analyzer_returns_expected_keys() -> None:
     analyzer = AudioAnalyzer()
-    audio = np.zeros((1024, 2), dtype=np.float32)
+    audio = np.zeros((1024, 2), dtype=np.float64)
 
     metrics = analyzer.analyze(audio, sr=48_000)
 
@@ -31,7 +31,7 @@ def test_analyzer_returns_expected_keys() -> None:
 
 def test_analyzer_loudness_keys() -> None:
     analyzer = AudioAnalyzer()
-    audio = np.random.default_rng(0).standard_normal((8192, 2)).astype(np.float32) * 0.01
+    audio = np.random.default_rng(0).standard_normal((8192, 2)).astype(np.float64) * 0.01
 
     metrics = analyzer.analyze(audio, sr=48_000, include_loudness=True)
 
@@ -44,9 +44,9 @@ def test_analyzer_edr_keys() -> None:
     analyzer = AudioAnalyzer()
     sr = 48_000
     n = sr * 2
-    t = np.arange(n, dtype=np.float32) / sr
-    env = np.exp(-t / 0.8).astype(np.float32)
-    tone = np.sin(2.0 * np.pi * 330.0 * t).astype(np.float32)
+    t = np.arange(n, dtype=np.float64) / sr
+    env = np.exp(-t / 0.8).astype(np.float64)
+    tone = np.sin(2.0 * np.pi * 330.0 * t).astype(np.float64)
     audio = (env * tone)[:, np.newaxis]
 
     metrics = analyzer.analyze(audio, sr=sr, include_edr=True)
@@ -61,10 +61,10 @@ def test_analyzer_edr_keys() -> None:
 
 def test_framewise_modulation_metrics_present() -> None:
     sr = 8_000
-    t = np.arange(sr, dtype=np.float32) / sr
+    t = np.arange(sr, dtype=np.float64) / sr
     carrier = np.sin(2.0 * np.pi * 220.0 * t)
     mod = 0.5 * (1.0 + np.sin(2.0 * np.pi * 2.0 * t))
-    audio = (carrier * mod).astype(np.float32)[:, np.newaxis]
+    audio = (carrier * mod).astype(np.float64)[:, np.newaxis]
 
     rows = framewise_metrics(audio, sr=sr, frame_size=512, hop_size=128)
     assert len(rows) > 0
@@ -87,12 +87,12 @@ def test_analyzer_ambisonic_metrics_keys() -> None:
     analyzer = AudioAnalyzer()
     sr = 48_000
     n = 4096
-    t = np.arange(n, dtype=np.float32) / np.float32(sr)
-    w = (0.3 * np.sin(2.0 * np.pi * 120.0 * t)).astype(np.float32)
-    y = (0.2 * np.sin(2.0 * np.pi * 200.0 * t)).astype(np.float32)
-    z = (0.1 * np.sin(2.0 * np.pi * 90.0 * t)).astype(np.float32)
-    x = (0.25 * np.sin(2.0 * np.pi * 160.0 * t)).astype(np.float32)
-    foa = np.column_stack((w, y, z, x)).astype(np.float32)
+    t = np.arange(n, dtype=np.float64) / np.float64(sr)
+    w = (0.3 * np.sin(2.0 * np.pi * 120.0 * t)).astype(np.float64)
+    y = (0.2 * np.sin(2.0 * np.pi * 200.0 * t)).astype(np.float64)
+    z = (0.1 * np.sin(2.0 * np.pi * 90.0 * t)).astype(np.float64)
+    x = (0.25 * np.sin(2.0 * np.pi * 160.0 * t)).astype(np.float64)
+    foa = np.column_stack((w, y, z, x)).astype(np.float64)
 
     metrics = analyzer.analyze(
         foa,

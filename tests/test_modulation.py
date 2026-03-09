@@ -25,8 +25,8 @@ def test_parse_mod_sources_multiple_kinds() -> None:
 
 def test_apply_parameter_modulation_gain_db_target() -> None:
     sr = 16_000
-    audio = np.full((1024, 1), 0.2, dtype=np.float32)
-    dry = np.zeros((1024, 1), dtype=np.float32)
+    audio = np.full((1024, 1), 0.2, dtype=np.float64)
+    dry = np.zeros((1024, 1), dtype=np.float64)
 
     modulated, summary = apply_parameter_modulation(
         audio=audio,

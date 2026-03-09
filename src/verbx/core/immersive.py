@@ -28,7 +28,7 @@ import soundfile as sf
 from verbx.core.loudness import integrated_lufs, true_peak_dbfs
 from verbx.io.audio import read_audio
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 LAYOUT_CHANNELS: dict[str, int] = {
     "mono": 1,
@@ -129,7 +129,7 @@ def channel_labels_for_layout(layout: str, channels: int) -> list[str]:
 
 def fold_down_to_stereo(audio: AudioArray, layout: str = "auto") -> AudioArray:
     """Fold a multichannel signal to stereo using practical bed mappings."""
-    x = np.asarray(audio, dtype=np.float32)
+    x = np.asarray(audio, dtype=np.float64)
     if x.ndim != 2:
         msg = f"audio must be 2D (samples, channels), got shape {x.shape!r}"
         raise ValueError(msg)
@@ -140,7 +140,7 @@ def fold_down_to_stereo(audio: AudioArray, layout: str = "auto") -> AudioArray:
     if channels == 1:
         return np.repeat(x, 2, axis=1)
     if channels == 2:
-        return np.asarray(x.copy(), dtype=np.float32)
+        return np.asarray(x.copy(), dtype=np.float64)
 
     inferred = infer_layout_from_channels(channels)
     normalized_layout = normalize_layout_name(layout)
@@ -148,31 +148,31 @@ def fold_down_to_stereo(audio: AudioArray, layout: str = "auto") -> AudioArray:
         normalized_layout = inferred
 
     if normalized_layout in {"lcr", "5.1", "7.1", "7.1.2", "7.1.4"} and channels >= 3:
-        left = np.asarray(x[:, 0], dtype=np.float32).copy()
-        right = np.asarray(x[:, 1], dtype=np.float32).copy()
-        center = np.asarray(x[:, 2], dtype=np.float32) * np.float32(0.7071)
+        left = np.asarray(x[:, 0], dtype=np.float64).copy()
+        right = np.asarray(x[:, 1], dtype=np.float64).copy()
+        center = np.asarray(x[:, 2], dtype=np.float64) * np.float64(0.7071)
         left += center
         right += center
         if channels >= 6:
-            left += np.asarray(x[:, 4], dtype=np.float32) * np.float32(0.7071)
-            right += np.asarray(x[:, 5], dtype=np.float32) * np.float32(0.7071)
+            left += np.asarray(x[:, 4], dtype=np.float64) * np.float64(0.7071)
+            right += np.asarray(x[:, 5], dtype=np.float64) * np.float64(0.7071)
         if channels >= 8:
-            left += np.asarray(x[:, 6], dtype=np.float32) * np.float32(0.5)
-            right += np.asarray(x[:, 7], dtype=np.float32) * np.float32(0.5)
+            left += np.asarray(x[:, 6], dtype=np.float64) * np.float64(0.5)
+            right += np.asarray(x[:, 7], dtype=np.float64) * np.float64(0.5)
         if channels >= 10:
-            left += np.asarray(x[:, 8], dtype=np.float32) * np.float32(0.5)
-            right += np.asarray(x[:, 9], dtype=np.float32) * np.float32(0.5)
+            left += np.asarray(x[:, 8], dtype=np.float64) * np.float64(0.5)
+            right += np.asarray(x[:, 9], dtype=np.float64) * np.float64(0.5)
         if channels >= 12:
-            left += np.asarray(x[:, 10], dtype=np.float32) * np.float32(0.5)
-            right += np.asarray(x[:, 11], dtype=np.float32) * np.float32(0.5)
-        return np.asarray(np.column_stack((left, right)), dtype=np.float32)
+            left += np.asarray(x[:, 10], dtype=np.float64) * np.float64(0.5)
+            right += np.asarray(x[:, 11], dtype=np.float64) * np.float64(0.5)
+        return np.asarray(np.column_stack((left, right)), dtype=np.float64)
 
-    left = np.mean(x[:, 0::2], axis=1, dtype=np.float32)
+    left = np.mean(x[:, 0::2], axis=1, dtype=np.float64)
     if channels >= 2:
-        right = np.mean(x[:, 1::2], axis=1, dtype=np.float32)
+        right = np.mean(x[:, 1::2], axis=1, dtype=np.float64)
     else:
         right = left.copy()
-    return np.asarray(np.column_stack((left, right)), dtype=np.float32)
+    return np.asarray(np.column_stack((left, right)), dtype=np.float64)
 
 
 def build_qc_gates(payload: dict[str, Any] | None) -> ImmersiveQCGates:
@@ -206,7 +206,7 @@ def evaluate_immersive_qc(
 ) -> dict[str, Any]:
     """Evaluate immersive production QC gates and return structured metrics."""
     qc_gates = ImmersiveQCGates() if gates is None else gates
-    x = np.asarray(audio, dtype=np.float32)
+    x = np.asarray(audio, dtype=np.float64)
     if x.ndim != 2:
         msg = f"audio must be 2D (samples, channels), got {x.shape!r}"
         raise ValueError(msg)

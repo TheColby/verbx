@@ -1,7 +1,7 @@
 """Audio I/O and gain-utility helpers.
 
 All public read/write utilities normalize to a predictable in-memory layout:
-``float32`` arrays with shape ``(samples, channels)``.
+``float64`` arrays with shape ``(samples, channels)``.
 """
 
 from __future__ import annotations
@@ -13,26 +13,26 @@ import numpy as np
 import numpy.typing as npt
 import soundfile as sf
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 def read_audio(path: str) -> tuple[AudioArray, int]:
-    """Read audio as float32 with shape ``(samples, channels)``.
+    """Read audio as float64 with shape ``(samples, channels)``.
 
     ``soundfile`` handles WAV/FLAC/AIFF and other libsndfile-backed formats.
     """
-    audio, sr = sf.read(path, always_2d=True, dtype="float32")
-    array = np.asarray(audio, dtype=np.float32)
+    audio, sr = sf.read(path, always_2d=True, dtype="float64")
+    array = np.asarray(audio, dtype=np.float64)
     return array, int(sr)
 
 
 def write_audio(path: str, audio: AudioArray, sr: int, subtype: str | None = None) -> None:
     """Write audio with optional subtype override.
 
-    The signal is always converted to float32 before writing to keep engine
+    The signal is always converted to float64 before writing to keep engine
     behavior deterministic across containers.
     """
-    output = ensure_mono_or_stereo(audio).astype(np.float32, copy=False)
+    output = ensure_mono_or_stereo(audio).astype(np.float64, copy=False)
     sf.write(file=path, data=output, samplerate=sr, subtype=subtype)
 
 
@@ -44,19 +44,19 @@ def validate_audio_path(path: str) -> None:
 
 
 def iter_audio_blocks(path: str, block_size: int) -> Iterator[AudioArray]:
-    """Stream file blocks as float32 ``(samples, channels)`` arrays."""
+    """Stream file blocks as float64 ``(samples, channels)`` arrays."""
     with sf.SoundFile(path, mode="r") as snd:
-        for block in snd.blocks(blocksize=block_size, dtype="float32", always_2d=True):
-            yield np.asarray(block, dtype=np.float32)
+        for block in snd.blocks(blocksize=block_size, dtype="float64", always_2d=True):
+            yield np.asarray(block, dtype=np.float64)
 
 
 def ensure_mono_or_stereo(audio: npt.ArrayLike) -> AudioArray:
-    """Ensure audio has shape (samples, channels) and float32 dtype.
+    """Ensure audio has shape (samples, channels) and float64 dtype.
 
     The function keeps arbitrary channel counts and does not force mono/stereo
     downmixing despite the historical name.
     """
-    array = np.asarray(audio, dtype=np.float32)
+    array = np.asarray(audio, dtype=np.float64)
     if array.ndim == 1:
         return array[:, np.newaxis]
     if array.ndim != 2:
@@ -72,7 +72,7 @@ def peak_normalize(audio: AudioArray, target_dbfs: float = -1.0) -> AudioArray:
         return audio.copy()
     target = float(10.0 ** (target_dbfs / 20.0))
     gain = target / peak
-    return np.asarray(audio * gain, dtype=np.float32)
+    return np.asarray(audio * gain, dtype=np.float64)
 
 
 def soft_limiter(
@@ -87,7 +87,7 @@ def soft_limiter(
     knee = max(knee_db, 0.1)
     drive = 1.0 + (knee / 6.0)
 
-    x = np.asarray(audio, dtype=np.float32)
+    x = np.asarray(audio, dtype=np.float64)
     abs_x = np.abs(x)
     out = x.copy()
 
@@ -99,4 +99,4 @@ def soft_limiter(
         shaped = threshold + threshold * np.tanh(scaled * drive) / np.tanh(drive)
         out[mask] = sign * shaped
 
-    return np.asarray(out, dtype=np.float32)
+    return np.asarray(out, dtype=np.float64)

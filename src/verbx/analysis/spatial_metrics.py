@@ -9,7 +9,7 @@ from verbx.core.spatial import (
     convert_ambisonic_convention,
 )
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 def compute_ambisonic_metrics(
@@ -40,7 +40,7 @@ def compute_ambisonic_metrics(
         }
 
     canonical = convert_ambisonic_convention(
-        np.asarray(audio, dtype=np.float32),
+        np.asarray(audio, dtype=np.float64),
         order=order,
         source_normalization=normalization,
         source_channel_order=channel_order,

@@ -17,7 +17,7 @@ from typing import Literal
 import numpy as np
 import numpy.typing as npt
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 AmbiNorm = Literal["auto", "sn3d", "n3d", "fuma"]
 AmbiOrderConvention = Literal["auto", "acn", "fuma"]
 
@@ -107,7 +107,7 @@ def convert_ambisonic_convention(
         msg = "order must be >= 0."
         raise ValueError(msg)
     if int(order) == 0:
-        return np.asarray(audio, dtype=np.float32)
+        return np.asarray(audio, dtype=np.float64)
 
     _, src_norm, src_order = normalize_ambisonic_metadata(
         order=order,
@@ -129,7 +129,7 @@ def convert_ambisonic_convention(
         raise ValueError(msg)
 
     canonical = _to_acn_sn3d(
-        np.asarray(audio, dtype=np.float32),
+        np.asarray(audio, dtype=np.float64),
         order=order,
         source_normalization=src_norm,
         source_channel_order=src_order,
@@ -157,9 +157,9 @@ def rotate_ambisonic_yaw(
     orientation-aware behavior with existing content.
     """
     if abs(float(yaw_degrees)) <= 1e-12:
-        return np.asarray(audio, dtype=np.float32)
+        return np.asarray(audio, dtype=np.float64)
     if int(order) < 1:
-        return np.asarray(audio, dtype=np.float32)
+        return np.asarray(audio, dtype=np.float64)
 
     canonical = convert_ambisonic_convention(
         audio,
@@ -175,16 +175,16 @@ def rotate_ambisonic_yaw(
     s = float(math.sin(theta))
 
     # ACN/SN3D FOA channel order: W, Y, Z, X.
-    y = np.asarray(canonical[:, 1], dtype=np.float32)
-    z = np.asarray(canonical[:, 2], dtype=np.float32)
-    x = np.asarray(canonical[:, 3], dtype=np.float32)
+    y = np.asarray(canonical[:, 1], dtype=np.float64)
+    z = np.asarray(canonical[:, 2], dtype=np.float64)
+    x = np.asarray(canonical[:, 3], dtype=np.float64)
     x_rot = (c * x) - (s * y)
     y_rot = (s * x) + (c * y)
 
-    rotated = np.asarray(canonical.copy(), dtype=np.float32)
-    rotated[:, 1] = np.asarray(y_rot, dtype=np.float32)
+    rotated = np.asarray(canonical.copy(), dtype=np.float64)
+    rotated[:, 1] = np.asarray(y_rot, dtype=np.float64)
     rotated[:, 2] = z
-    rotated[:, 3] = np.asarray(x_rot, dtype=np.float32)
+    rotated[:, 3] = np.asarray(x_rot, dtype=np.float64)
 
     return convert_ambisonic_convention(
         rotated,
@@ -206,31 +206,31 @@ def encode_bus_to_foa(audio: AudioArray, *, source: str) -> AudioArray:
         msg = "source must be mono or stereo."
         raise ValueError(msg)
 
-    x = np.asarray(audio, dtype=np.float32)
+    x = np.asarray(audio, dtype=np.float64)
     if mode == "mono":
         if int(x.shape[1]) != 1:
             msg = "FOA mono encode expects 1 input channel."
             raise ValueError(msg)
-        m = np.asarray(x[:, 0], dtype=np.float32)
-        foa = np.zeros((x.shape[0], 4), dtype=np.float32)
-        foa[:, 0] = m * np.float32(0.70710678)
-        foa[:, 1] = m * np.float32(0.5)
-        foa[:, 2] = np.float32(0.0)
-        foa[:, 3] = np.float32(0.0)
+        m = np.asarray(x[:, 0], dtype=np.float64)
+        foa = np.zeros((x.shape[0], 4), dtype=np.float64)
+        foa[:, 0] = m * np.float64(0.70710678)
+        foa[:, 1] = m * np.float64(0.5)
+        foa[:, 2] = np.float64(0.0)
+        foa[:, 3] = np.float64(0.0)
         return foa
 
     if int(x.shape[1]) != 2:
         msg = "FOA stereo encode expects 2 input channels."
         raise ValueError(msg)
-    left = np.asarray(x[:, 0], dtype=np.float32)
-    right = np.asarray(x[:, 1], dtype=np.float32)
-    mid = np.asarray(0.5 * (left + right), dtype=np.float32)
-    side = np.asarray(0.5 * (left - right), dtype=np.float32)
+    left = np.asarray(x[:, 0], dtype=np.float64)
+    right = np.asarray(x[:, 1], dtype=np.float64)
+    mid = np.asarray(0.5 * (left + right), dtype=np.float64)
+    side = np.asarray(0.5 * (left - right), dtype=np.float64)
 
-    foa = np.zeros((x.shape[0], 4), dtype=np.float32)
-    foa[:, 0] = mid * np.float32(0.70710678)
-    foa[:, 1] = mid * np.float32(0.5)
-    foa[:, 2] = np.float32(0.0)
+    foa = np.zeros((x.shape[0], 4), dtype=np.float64)
+    foa[:, 0] = mid * np.float64(0.70710678)
+    foa[:, 1] = mid * np.float64(0.5)
+    foa[:, 2] = np.float64(0.0)
     foa[:, 3] = side
     return foa
 
@@ -251,20 +251,20 @@ def decode_foa_to_stereo(
         raise ValueError(msg)
 
     canonical = convert_ambisonic_convention(
-        np.asarray(audio, dtype=np.float32),
+        np.asarray(audio, dtype=np.float64),
         order=order,
         source_normalization=normalization,
         source_channel_order=channel_order,
         target_normalization="sn3d",
         target_channel_order="acn",
     )
-    w = np.asarray(canonical[:, 0], dtype=np.float32)
-    y = np.asarray(canonical[:, 1], dtype=np.float32)
-    x = np.asarray(canonical[:, 3], dtype=np.float32)
+    w = np.asarray(canonical[:, 0], dtype=np.float64)
+    y = np.asarray(canonical[:, 1], dtype=np.float64)
+    x = np.asarray(canonical[:, 3], dtype=np.float64)
 
-    left = (np.float32(0.70710678) * w) + (np.float32(0.5) * y) + (np.float32(0.5) * x)
-    right = (np.float32(0.70710678) * w) + (np.float32(0.5) * y) - (np.float32(0.5) * x)
-    return np.asarray(np.column_stack((left, right)), dtype=np.float32)
+    left = (np.float64(0.70710678) * w) + (np.float64(0.5) * y) + (np.float64(0.5) * x)
+    right = (np.float64(0.70710678) * w) + (np.float64(0.5) * y) - (np.float64(0.5) * x)
+    return np.asarray(np.column_stack((left, right)), dtype=np.float64)
 
 
 def _to_acn_sn3d(
@@ -275,28 +275,28 @@ def _to_acn_sn3d(
     source_channel_order: str,
 ) -> AudioArray:
     """Convert signal to ACN/SN3D internal representation."""
-    converted = np.asarray(audio.copy(), dtype=np.float32)
+    converted = np.asarray(audio.copy(), dtype=np.float64)
 
     if source_channel_order == "fuma":
         # FUMA FOA: [W, X, Y, Z] -> ACN FOA: [W, Y, Z, X]
-        w = np.asarray(converted[:, 0], dtype=np.float32)
-        x = np.asarray(converted[:, 1], dtype=np.float32)
-        y = np.asarray(converted[:, 2], dtype=np.float32)
-        z = np.asarray(converted[:, 3], dtype=np.float32)
+        w = np.asarray(converted[:, 0], dtype=np.float64)
+        x = np.asarray(converted[:, 1], dtype=np.float64)
+        y = np.asarray(converted[:, 2], dtype=np.float64)
+        z = np.asarray(converted[:, 3], dtype=np.float64)
         converted[:, 0] = w
         converted[:, 1] = y
         converted[:, 2] = z
         converted[:, 3] = x
 
     if source_normalization == "fuma":
-        converted[:, 0] *= np.float32(math.sqrt(2.0))
+        converted[:, 0] *= np.float64(math.sqrt(2.0))
         return converted
 
     if source_normalization == "n3d":
         for n in range(order + 1):
             lo = n * n
             hi = lo + (2 * n) + 1
-            factor = np.float32(1.0 / math.sqrt((2 * n) + 1.0))
+            factor = np.float64(1.0 / math.sqrt((2 * n) + 1.0))
             converted[:, lo:hi] *= factor
 
     return converted
@@ -310,23 +310,23 @@ def _from_acn_sn3d(
     target_channel_order: str,
 ) -> AudioArray:
     """Convert ACN/SN3D internal representation to requested convention."""
-    converted = np.asarray(audio.copy(), dtype=np.float32)
+    converted = np.asarray(audio.copy(), dtype=np.float64)
 
     if target_normalization == "n3d":
         for n in range(order + 1):
             lo = n * n
             hi = lo + (2 * n) + 1
-            factor = np.float32(math.sqrt((2 * n) + 1.0))
+            factor = np.float64(math.sqrt((2 * n) + 1.0))
             converted[:, lo:hi] *= factor
     elif target_normalization == "fuma":
-        converted[:, 0] *= np.float32(1.0 / math.sqrt(2.0))
+        converted[:, 0] *= np.float64(1.0 / math.sqrt(2.0))
 
     if target_channel_order == "fuma":
         # ACN FOA: [W, Y, Z, X] -> FUMA FOA: [W, X, Y, Z]
-        w = np.asarray(converted[:, 0], dtype=np.float32)
-        y = np.asarray(converted[:, 1], dtype=np.float32)
-        z = np.asarray(converted[:, 2], dtype=np.float32)
-        x = np.asarray(converted[:, 3], dtype=np.float32)
+        w = np.asarray(converted[:, 0], dtype=np.float64)
+        y = np.asarray(converted[:, 1], dtype=np.float64)
+        z = np.asarray(converted[:, 2], dtype=np.float64)
+        x = np.asarray(converted[:, 3], dtype=np.float64)
         converted[:, 0] = w
         converted[:, 1] = x
         converted[:, 2] = y

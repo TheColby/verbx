@@ -16,7 +16,7 @@ from verbx.analysis.features_spectral import spectral_centroid, spectral_flatnes
 from verbx.ir.generator import IRGenConfig, IRMode
 from verbx.ir.metrics import analyze_ir
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 BatchPolicy = Literal["fifo", "shortest-first", "longest-first"]
 
 

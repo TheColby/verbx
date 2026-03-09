@@ -15,8 +15,8 @@ import numpy.typing as npt
 
 from verbx.io.audio import ensure_mono_or_stereo, read_audio
 
-AudioArray = npt.NDArray[np.float32]
-ControlArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
+ControlArray = npt.NDArray[np.float64]
 CombineMode = Literal["sum", "avg", "max"]
 LFOWave = Literal["sine", "triangle", "square", "saw"]
 TargetName = Literal["mix", "wet", "gain-db"]
@@ -243,13 +243,13 @@ def apply_parameter_modulation(
         combine=combine,
         smooth_ms=smooth_ms,
     )
-    values = (value_min + ((value_max - value_min) * control)).astype(np.float32)
+    values = (value_min + ((value_max - value_min) * control)).astype(np.float64)
 
     if target in {"mix", "wet"}:
         dry = _fit_audio_to_shape(dry_reference, audio.shape[0], audio.shape[1])
         out = ((1.0 - values[:, np.newaxis]) * dry) + (values[:, np.newaxis] * audio)
     elif target == "gain-db":
-        gains = np.power(10.0, values / 20.0).astype(np.float32)
+        gains = np.power(10.0, values / 20.0).astype(np.float64)
         out = audio * gains[:, np.newaxis]
     else:
         msg = f"Unsupported modulation target: {target}"
@@ -269,7 +269,7 @@ def apply_parameter_modulation(
         "value_min_observed": float(np.min(values)),
         "value_max_observed": float(np.max(values)),
     }
-    return np.asarray(out, dtype=np.float32), summary
+    return np.asarray(out, dtype=np.float64), summary
 
 
 def build_control_signal(
@@ -283,26 +283,26 @@ def build_control_signal(
 ) -> ControlArray:
     """Render and combine modulation sources into one 0..1 control stream."""
     if n_samples <= 0:
-        return np.zeros((0,), dtype=np.float32)
+        return np.zeros((0,), dtype=np.float64)
 
     bipolar_components: list[ControlArray] = []
     abs_weights: list[float] = []
     for source in sources:
         unit = _source_to_unit(source, n_samples=n_samples, sr=sr, dry_reference=dry_reference)
-        bipolar = ((2.0 * unit) - 1.0) * np.float32(source.weight)
-        bipolar_components.append(np.asarray(bipolar, dtype=np.float32))
+        bipolar = ((2.0 * unit) - 1.0) * np.float64(source.weight)
+        bipolar_components.append(np.asarray(bipolar, dtype=np.float64))
         abs_weights.append(abs(float(source.weight)))
 
     stack = np.stack(bipolar_components, axis=0)
 
     if combine == "sum":
-        combined = np.sum(stack, axis=0, dtype=np.float32)
+        combined = np.sum(stack, axis=0, dtype=np.float64)
     elif combine == "avg":
-        denom = float(np.sum(np.asarray(abs_weights, dtype=np.float32)))
+        denom = float(np.sum(np.asarray(abs_weights, dtype=np.float64)))
         if denom <= 1e-12:
-            combined = np.zeros((n_samples,), dtype=np.float32)
+            combined = np.zeros((n_samples,), dtype=np.float64)
         else:
-            combined = np.sum(stack, axis=0, dtype=np.float32) / np.float32(denom)
+            combined = np.sum(stack, axis=0, dtype=np.float64) / np.float64(denom)
     elif combine == "max":
         index = np.argmax(np.abs(stack), axis=0)
         combined = stack[index, np.arange(n_samples)]
@@ -311,7 +311,7 @@ def build_control_signal(
         raise ValueError(msg)
 
     combined = np.clip(combined, -1.0, 1.0)
-    unit = np.asarray((combined + 1.0) * 0.5, dtype=np.float32)
+    unit = np.asarray((combined + 1.0) * 0.5, dtype=np.float64)
     return _smooth_unit_signal(unit, sr=sr, smooth_ms=smooth_ms)
 
 
@@ -332,7 +332,7 @@ def _source_to_unit(
             phase_deg=source.phase_deg,
         )
         depth = float(np.clip(source.depth, 0.0, 2.0))
-        return np.clip(0.5 + (0.5 * depth * wave), 0.0, 1.0).astype(np.float32)
+        return np.clip(0.5 + (0.5 * depth * wave), 0.0, 1.0).astype(np.float64)
 
     if source.kind == "env":
         env = _extract_envelope(
@@ -357,7 +357,7 @@ def _source_to_unit(
 
     if source.kind == "const":
         value = float(np.clip(source.value, 0.0, 1.0))
-        return np.full((n_samples,), np.float32(value), dtype=np.float32)
+        return np.full((n_samples,), np.float64(value), dtype=np.float64)
 
     msg = f"Unsupported modulation source kind: {source.kind}"
     raise ValueError(msg)
@@ -373,9 +373,9 @@ def _extract_envelope(
     """Compute normalized 0..1 envelope follower signal."""
     x = ensure_mono_or_stereo(audio)
     if x.shape[0] == 0:
-        return np.zeros((0,), dtype=np.float32)
+        return np.zeros((0,), dtype=np.float64)
 
-    env_in = np.abs(np.mean(x, axis=1)).astype(np.float32)
+    env_in = np.abs(np.mean(x, axis=1)).astype(np.float64)
     env = np.zeros_like(env_in)
 
     attack_seconds = max(0.0001, float(attack_ms) / 1000.0)
@@ -383,18 +383,18 @@ def _extract_envelope(
     attack_alpha = float(np.exp(-1.0 / (attack_seconds * float(sr))))
     release_alpha = float(np.exp(-1.0 / (release_seconds * float(sr))))
 
-    last = np.float32(0.0)
+    last = np.float64(0.0)
     for idx, sample in enumerate(env_in):
         if sample > last:
-            last = np.float32((attack_alpha * last) + ((1.0 - attack_alpha) * sample))
+            last = np.float64((attack_alpha * last) + ((1.0 - attack_alpha) * sample))
         else:
-            last = np.float32((release_alpha * last) + ((1.0 - release_alpha) * sample))
+            last = np.float64((release_alpha * last) + ((1.0 - release_alpha) * sample))
         env[idx] = last
 
     normalizer = float(np.percentile(env, 95.0))
     if normalizer <= 1e-12:
         return np.zeros_like(env)
-    return np.clip(env / np.float32(normalizer), 0.0, 1.0)
+    return np.clip(env / np.float64(normalizer), 0.0, 1.0)
 
 
 def _lfo_wave(
@@ -421,24 +421,24 @@ def _lfo_wave(
     else:
         msg = f"Unsupported lfo shape: {shape}"
         raise ValueError(msg)
-    return np.asarray(wave, dtype=np.float32)
+    return np.asarray(wave, dtype=np.float64)
 
 
 def _fit_control_length(signal: ControlArray, n_samples: int) -> ControlArray:
     """Resize 1-D control signal to target sample length with linear interpolation."""
     if n_samples <= 0:
-        return np.zeros((0,), dtype=np.float32)
+        return np.zeros((0,), dtype=np.float64)
     if signal.shape[0] == n_samples:
-        return signal.astype(np.float32, copy=False)
+        return signal.astype(np.float64, copy=False)
     if signal.shape[0] == 0:
-        return np.zeros((n_samples,), dtype=np.float32)
+        return np.zeros((n_samples,), dtype=np.float64)
     if signal.shape[0] == 1:
-        return np.full((n_samples,), signal[0], dtype=np.float32)
+        return np.full((n_samples,), signal[0], dtype=np.float64)
 
     x_old = np.arange(signal.shape[0], dtype=np.float64)
     x_new = np.linspace(0.0, float(signal.shape[0] - 1), num=n_samples, dtype=np.float64)
     resized = np.interp(x_new, x_old, signal.astype(np.float64))
-    return np.asarray(np.clip(resized, 0.0, 1.0), dtype=np.float32)
+    return np.asarray(np.clip(resized, 0.0, 1.0), dtype=np.float64)
 
 
 def _fit_audio_to_shape(audio: AudioArray, n_samples: int, n_channels: int) -> AudioArray:
@@ -446,7 +446,7 @@ def _fit_audio_to_shape(audio: AudioArray, n_samples: int, n_channels: int) -> A
     x = ensure_mono_or_stereo(audio)
 
     if x.shape[0] < n_samples:
-        pad = np.zeros((n_samples - x.shape[0], x.shape[1]), dtype=np.float32)
+        pad = np.zeros((n_samples - x.shape[0], x.shape[1]), dtype=np.float64)
         x = np.concatenate((x, pad), axis=0)
     elif x.shape[0] > n_samples:
         x = x[:n_samples, :]
@@ -454,30 +454,30 @@ def _fit_audio_to_shape(audio: AudioArray, n_samples: int, n_channels: int) -> A
     if x.shape[1] == n_channels:
         return x
     if x.shape[1] == 1:
-        return np.repeat(x, n_channels, axis=1).astype(np.float32, copy=False)
+        return np.repeat(x, n_channels, axis=1).astype(np.float64, copy=False)
     if x.shape[1] > n_channels:
-        return x[:, :n_channels].astype(np.float32, copy=False)
+        return x[:, :n_channels].astype(np.float64, copy=False)
 
     reps = int(np.ceil(float(n_channels) / float(max(1, x.shape[1]))))
     tiled = np.tile(x, (1, reps))
-    return tiled[:, :n_channels].astype(np.float32, copy=False)
+    return tiled[:, :n_channels].astype(np.float64, copy=False)
 
 
 def _smooth_unit_signal(signal: ControlArray, *, sr: int, smooth_ms: float) -> ControlArray:
     """Apply one-pole smoothing to a 0..1 control signal."""
     if signal.shape[0] == 0 or smooth_ms <= 0.0:
-        return signal.astype(np.float32, copy=False)
+        return signal.astype(np.float64, copy=False)
 
     tau = max(0.0001, float(smooth_ms) / 1000.0)
     alpha = float(np.exp(-1.0 / (tau * float(max(1, sr)))))
     out = np.empty_like(signal)
-    last = np.float32(signal[0])
+    last = np.float64(signal[0])
     out[0] = last
     for idx in range(1, signal.shape[0]):
-        current = np.float32(signal[idx])
-        last = np.float32((alpha * last) + ((1.0 - alpha) * current))
+        current = np.float64(signal[idx])
+        last = np.float64((alpha * last) + ((1.0 - alpha) * current))
         out[idx] = last
-    return np.clip(out, 0.0, 1.0).astype(np.float32, copy=False)
+    return np.clip(out, 0.0, 1.0).astype(np.float64, copy=False)
 
 
 def _split_weight(spec: str) -> tuple[str, float]:

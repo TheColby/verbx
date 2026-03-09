@@ -12,7 +12,7 @@ import numpy.typing as npt
 
 from verbx.io.audio import ensure_mono_or_stereo
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 def freeze_segment(
@@ -61,7 +61,7 @@ def freeze_segment(
 
     if xfade > 0:
         # Equal-power crossfade keeps perceived level steady at loop boundary.
-        theta = np.linspace(0.0, np.pi / 2.0, xfade, dtype=np.float32)
+        theta = np.linspace(0.0, np.pi / 2.0, xfade, dtype=np.float64)
         fade_out = np.cos(theta)
         fade_in = np.sin(theta)
         blended = (segment[-xfade:, :] * fade_out[:, np.newaxis]) + (
@@ -72,4 +72,4 @@ def freeze_segment(
     # Tile the frozen buffer to preserve input render duration for v0.4.
     repeats = int(np.ceil(x.shape[0] / loop_len))
     frozen = np.tile(segment, (repeats, 1))[: x.shape[0], :]
-    return np.asarray(frozen, dtype=np.float32)
+    return np.asarray(frozen, dtype=np.float64)

@@ -7,6 +7,12 @@
 - `modal`: Decaying modal resonator bank
 - `hybrid`: Early reflections + blended stochastic/modal/fdn tail
 
+Precision note:
+
+- Internal render/IR DSP in `verbx` runs in `float64` (`f64`) precision.
+- Output container subtype (`float32`, `float64`, PCM) remains user-selectable
+  at export time.
+
 Related v0.7 IR features:
 
 - cache-backed IR morphing (`verbx ir morph`)

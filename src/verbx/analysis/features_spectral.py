@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 try:
     import librosa  # type: ignore[import-untyped]
@@ -18,9 +18,9 @@ except Exception:  # pragma: no cover - import fallback branch
     librosa = None
 
 
-def _mono(audio: AudioArray) -> npt.NDArray[np.float32]:
+def _mono(audio: AudioArray) -> npt.NDArray[np.float64]:
     """Return mono fold-down used by scalar spectral features."""
-    return np.mean(audio, axis=1).astype(np.float32)
+    return np.mean(audio, axis=1).astype(np.float64)
 
 
 def _magnitude_spectrum(
@@ -121,12 +121,12 @@ def spectral_flux(audio: AudioArray, sr: int) -> float:
     # Choose a stable power-of-two FFT size bounded for CLI speed.
     n_fft = min(1024, max(32, 2 ** int(np.floor(np.log2(mono.shape[0])) - 1)))
     hop = max(16, n_fft // 4)
-    window = np.hanning(n_fft).astype(np.float32)
+    window = np.hanning(n_fft).astype(np.float64)
 
-    frames: list[npt.NDArray[np.float32]] = []
+    frames: list[npt.NDArray[np.float64]] = []
     for start in range(0, mono.shape[0] - n_fft + 1, hop):
         frame = mono[start : start + n_fft] * window
-        frames.append(np.abs(np.fft.rfft(frame)).astype(np.float32))
+        frames.append(np.abs(np.fft.rfft(frame)).astype(np.float64))
 
     if len(frames) < 2:
         return 0.0

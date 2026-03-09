@@ -18,7 +18,7 @@ try:
 except Exception:  # pragma: no cover
     librosa = None
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 _FREQ_RE = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*(?:hz)?\s*$", re.IGNORECASE)
 
@@ -47,9 +47,9 @@ def analyze_audio_for_tuning(
     Analysis is intentionally bounded to a short prefix for deterministic
     runtime on long files.
     """
-    audio, sr = sf.read(str(path), always_2d=True, dtype="float32")
-    x = np.asarray(audio, dtype=np.float32)
-    mono = np.asarray(np.mean(x, axis=1), dtype=np.float32)
+    audio, sr = sf.read(str(path), always_2d=True, dtype="float64")
+    x = np.asarray(audio, dtype=np.float64)
+    mono = np.asarray(np.mean(x, axis=1), dtype=np.float64)
 
     # Keep analysis bounded and deterministic.
     max_samples = min(mono.shape[0], int(sr * 12))
@@ -101,13 +101,13 @@ def apply_harmonic_alignment(
     """
     amount = float(np.clip(strength, 0.0, 1.0))
     if amount <= 0.0:
-        return np.asarray(ir, dtype=np.float32)
+        return np.asarray(ir, dtype=np.float64)
 
     targets = list(harmonic_targets_hz)
     if not targets and f0_hz is not None:
         targets = _harmonic_series(f0_hz, 10, max_hz=sr * 0.45)
     if not targets:
-        return np.asarray(ir, dtype=np.float32)
+        return np.asarray(ir, dtype=np.float64)
 
     n, channels = ir.shape
     t = np.arange(n, dtype=np.float64) / float(sr)
@@ -122,13 +122,13 @@ def apply_harmonic_alignment(
             spread_phase = phase + (0.17 * ch)
             bed[:, ch] += harmonic * np.cos(spread_phase)
 
-    bed = bed.astype(np.float32)
+    bed = bed.astype(np.float64)
     blend = 0.22 * amount
-    out = np.asarray(ir + (blend * bed), dtype=np.float32)
+    out = np.asarray(ir + (blend * bed), dtype=np.float64)
     return out
 
 
-def _estimate_f0(mono: npt.NDArray[np.float32], sr: int, min_hz: float, max_hz: float) -> float:
+def _estimate_f0(mono: npt.NDArray[np.float64], sr: int, min_hz: float, max_hz: float) -> float:
     """Estimate f0 via librosa YIN when available, else autocorrelation."""
     if librosa is not None:
         try:
@@ -140,7 +140,7 @@ def _estimate_f0(mono: npt.NDArray[np.float32], sr: int, min_hz: float, max_hz: 
             pass
 
     # Autocorrelation fallback.
-    x = mono - np.mean(mono, dtype=np.float32)
+    x = mono - np.mean(mono, dtype=np.float64)
     corr = np.correlate(x, x, mode="full")[x.shape[0] - 1 :]
     corr[0] = 0.0
 
@@ -156,7 +156,7 @@ def _estimate_f0(mono: npt.NDArray[np.float32], sr: int, min_hz: float, max_hz: 
 
 
 def _find_harmonics_from_spectrum(
-    mono: npt.NDArray[np.float32],
+    mono: npt.NDArray[np.float64],
     sr: int,
     f0_hz: float,
     max_harmonics: int,
@@ -166,7 +166,7 @@ def _find_harmonics_from_spectrum(
     if mono.shape[0] < 256:
         return _harmonic_series(f0_hz, max_harmonics, max_hz=max_hz)
 
-    win = np.hanning(mono.shape[0]).astype(np.float32)
+    win = np.hanning(mono.shape[0]).astype(np.float64)
     spectrum = np.abs(np.fft.rfft(mono * win)).astype(np.float64)
     freqs = np.fft.rfftfreq(mono.shape[0], d=1.0 / sr)
 

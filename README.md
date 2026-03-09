@@ -18,6 +18,10 @@ freeze/repeat processing, loudness and peak targeting, multichannel/surround
 routing, and synthetic IR generation with deterministic caching for reproducible
 results.
 
+All internal DSP and control processing runs in **64-bit floating point (`f64`)**
+precision. You can still choose output container subtype/bit depth (`float32`,
+`float64`, PCM variants) at export time without changing internal precision.
+
 For computationally intensive processing, `verbx` supports both Apple Silicon and
 CUDA acceleration when available and selected, and is well suited for unattended
 batch workflows.
@@ -291,6 +295,7 @@ batch workflows.
 
 ### 2.7 Performance and Determinism
 
+- Internal render/control math runs in `f64` precision end-to-end.
 - Device targeting (`cpu`, `mps`, `cuda`, `auto`).
 - Optional acceleration backends (`numba`, `cupy`).
 - Threading, block-size, partition-size, and streaming-convolution controls.
@@ -917,13 +922,17 @@ verbx render input.wav output.wav \
   --ir-gen --ir-gen-mode hybrid --ir-gen-length 120 --ir-gen-seed 7
 ```
 
-### 7.10 Force 32-bit float output + final peak normalization
+### 7.10 Output subtype selection + final peak normalization
 
-Use this to control output file precision and choose a final peak-matching strategy.
+Use this to control output file subtype/bit depth while keeping internal
+processing in `f64`.
 
 ```bash
 # write WAV as 32-bit float
 verbx render input.wav output.wav --out-subtype float32
+
+# write WAV as 64-bit float
+verbx render input.wav output.wav --out-subtype float64
 
 # match final output peak to input peak
 verbx render input.wav output.wav --output-peak-norm input
@@ -1212,7 +1221,7 @@ Performance notes:
 - Use `--device mps` on Apple Silicon for optimized local execution.
 - Leave `--tail-limit` unset to keep full convolution length.
 - Set `--tail-limit <seconds>` only when you intentionally want to cap the tail.
-- Add `--out-subtype float32` if you want 32-bit float output explicitly.
+- Add `--out-subtype float64` for archival/high-headroom interchange, or `float32` for smaller files.
 
 ### 7.25 Lucky mode (`--lucky N`) for wild random batches
 
@@ -1997,7 +2006,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--repeat-target-peak-dbfs` | Peak target specifically for each repeat pass. | Only meaningful with `--normalize-stage per-pass`. |
 | `--output-peak-norm [none\|input\|target\|full-scale]` | Final peak normalization strategy after processing. | `input` matches input peak, `target` uses explicit dBFS value, `full-scale` normalizes near 0 dBFS. |
 | `--output-peak-target-dbfs` | Target value for `--output-peak-norm target`. | Required when using target mode. |
-| `--out-subtype [auto\|float32\|float64\|pcm16\|pcm24\|pcm32]` | Output file subtype/bit depth. | Use `float32` for headroom-friendly exports and DSP interchange. |
+| `--out-subtype [auto\|float32\|float64\|pcm16\|pcm24\|pcm32]` | Output file subtype/bit depth. Internal DSP remains `f64` regardless. | Use `float64` for highest-precision interchange/archival, `float32` for smaller high-headroom files, PCM for delivery targets. |
 
 #### 12.2.6 Ambient enhancement controls
 
@@ -2392,8 +2401,8 @@ verbx render in.wav out.wav --repeat 4 --normalize-stage per-pass --repeat-targe
 # output sample-peak strategy
 verbx render in.wav out.wav --target-peak-dbfs -2 --sample-peak
 
-# force float32 output container subtype
-verbx render in.wav out.wav --out-subtype float32
+# force float64 output container subtype (internal DSP is already f64)
+verbx render in.wav out.wav --out-subtype float64
 
 # multi-source modulation: LFO + input-envelope + external sidechain envelope
 verbx render in.wav out_mod.wav \

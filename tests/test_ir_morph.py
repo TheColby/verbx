@@ -21,10 +21,10 @@ def _impulse_with_echo(
     echo_index: int,
     echo_gain: float,
 ) -> np.ndarray:
-    x = np.zeros((length, channels), dtype=np.float32)
+    x = np.zeros((length, channels), dtype=np.float64)
     x[0, :] = 1.0
     if 0 <= echo_index < length:
-        x[echo_index, :] = np.float32(echo_gain)
+        x[echo_index, :] = np.float64(echo_gain)
     return x
 
 
@@ -35,7 +35,7 @@ def test_morph_ir_arrays_spectral_is_finite() -> None:
     cfg = IRMorphConfig(mode="spectral", alpha=0.4, phase_coherence=0.8, spectral_smooth_bins=4)
     out, quality = morph_ir_arrays(a, b, sr=sr, config=cfg)
     assert out.shape == a.shape
-    assert out.dtype == np.float32
+    assert out.dtype == np.float64
     assert np.all(np.isfinite(out))
     assert isinstance(quality, dict)
     assert float(quality["spectral_distance_db"]) >= 0.0

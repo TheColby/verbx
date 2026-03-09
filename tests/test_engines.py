@@ -29,13 +29,13 @@ def test_algo_engine_stable_and_typed() -> None:
             shimmer_highcut=8000.0,
         )
     )
-    audio = np.random.default_rng(0).standard_normal((4096, 2)).astype(np.float32) * 0.1
+    audio = np.random.default_rng(0).standard_normal((4096, 2)).astype(np.float64) * 0.1
 
     output = engine.process(audio, sr=48_000)
 
     assert isinstance(output, np.ndarray)
     assert output.shape == audio.shape
-    assert output.dtype == np.float32
+    assert output.dtype == np.float64
     assert np.all(np.isfinite(output))
 
 
@@ -58,10 +58,10 @@ def test_algo_engine_custom_allpass_and_comb_delay_controls() -> None:
             block_size=256,
         )
     )
-    audio = np.random.default_rng(7).standard_normal((2048, 1)).astype(np.float32) * 0.05
+    audio = np.random.default_rng(7).standard_normal((2048, 1)).astype(np.float64) * 0.05
     output = engine.process(audio, sr=48_000)
     assert output.shape == audio.shape
-    assert output.dtype == np.float32
+    assert output.dtype == np.float64
     assert np.all(np.isfinite(output))
 
 
@@ -81,9 +81,9 @@ def test_algo_engine_rejects_allpass_gain_count_mismatch() -> None:
 
 def test_convolution_engine_partitioned_fft(tmp_path: Path) -> None:
     rng = np.random.default_rng(1)
-    audio = (rng.standard_normal((2048, 2)).astype(np.float32)) * 0.05
+    audio = (rng.standard_normal((2048, 2)).astype(np.float64)) * 0.05
 
-    ir = np.zeros((1024, 1), dtype=np.float32)
+    ir = np.zeros((1024, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     ir[200, 0] = 0.45
     ir[700, 0] = 0.2
@@ -106,7 +106,7 @@ def test_convolution_engine_partitioned_fft(tmp_path: Path) -> None:
     output = engine.process(audio, sr=48_000)
 
     assert isinstance(output, np.ndarray)
-    assert output.dtype == np.float32
+    assert output.dtype == np.float64
     assert output.shape[1] == audio.shape[1]
     assert output.shape[0] >= audio.shape[0]
     assert np.all(np.isfinite(output))
@@ -114,13 +114,13 @@ def test_convolution_engine_partitioned_fft(tmp_path: Path) -> None:
 
 def test_convolution_engine_cross_channel_ir_matrix(tmp_path: Path) -> None:
     sr = 48_000
-    audio = np.zeros((256, 2), dtype=np.float32)
+    audio = np.zeros((256, 2), dtype=np.float64)
     audio[0, 0] = 1.0
     audio[0, 1] = 1.0
 
     # output-major packed matrix for 2-in x 2-out:
     # ch0 = h(out0,in0), ch1 = h(out0,in1), ch2 = h(out1,in0), ch3 = h(out1,in1)
-    ir = np.zeros((16, 4), dtype=np.float32)
+    ir = np.zeros((16, 4), dtype=np.float64)
     ir[0, 0] = 1.0
     ir[0, 1] = 0.5
     ir[0, 2] = 0.25
@@ -165,10 +165,10 @@ def test_algo_engine_matrix_families() -> None:
                 block_size=256,
             )
         )
-        audio = np.random.default_rng(42).standard_normal((1024, 2)).astype(np.float32) * 0.1
+        audio = np.random.default_rng(42).standard_normal((1024, 2)).astype(np.float64) * 0.1
         output = engine.process(audio, sr=48_000)
         assert output.shape == audio.shape
-        assert output.dtype == np.float32
+        assert output.dtype == np.float64
         assert np.all(np.isfinite(output))
 
 
@@ -185,10 +185,10 @@ def test_algo_engine_graph_matrix_mode() -> None:
                 block_size=256,
             )
         )
-        audio = np.random.default_rng(11).standard_normal((1536, 1)).astype(np.float32) * 0.05
+        audio = np.random.default_rng(11).standard_normal((1536, 1)).astype(np.float64) * 0.05
         output = engine.process(audio, sr=48_000)
         assert output.shape == audio.shape
-        assert output.dtype == np.float32
+        assert output.dtype == np.float64
         assert np.all(np.isfinite(output))
         assert "graph" in engine.backend_name()
 
@@ -205,10 +205,10 @@ def test_algo_engine_tv_unitary_and_dfm() -> None:
             block_size=256,
         )
     )
-    audio = np.random.default_rng(123).standard_normal((1536, 1)).astype(np.float32) * 0.05
+    audio = np.random.default_rng(123).standard_normal((1536, 1)).astype(np.float64) * 0.05
     output = engine.process(audio, sr=48_000)
     assert output.shape == audio.shape
-    assert output.dtype == np.float32
+    assert output.dtype == np.float64
     assert np.all(np.isfinite(output))
 
 
@@ -223,16 +223,16 @@ def test_algo_engine_sparse_high_order_mode() -> None:
             block_size=256,
         )
     )
-    audio = np.random.default_rng(321).standard_normal((2048, 1)).astype(np.float32) * 0.05
+    audio = np.random.default_rng(321).standard_normal((2048, 1)).astype(np.float64) * 0.05
     output = engine.process(audio, sr=48_000)
     assert output.shape == audio.shape
-    assert output.dtype == np.float32
+    assert output.dtype == np.float64
     assert np.all(np.isfinite(output))
     assert engine.backend_name() in {"cpu-python-fdn-sparse", "cpu-numba-fdn-sparse"}
 
 
 def test_algo_engine_cascaded_fdn_mode() -> None:
-    audio = np.random.default_rng(456).standard_normal((4096, 1)).astype(np.float32) * 0.05
+    audio = np.random.default_rng(456).standard_normal((4096, 1)).astype(np.float64) * 0.05
     base_engine = AlgoReverbEngine(
         AlgoReverbConfig(
             rt60=20.0,
@@ -262,7 +262,7 @@ def test_algo_engine_cascaded_fdn_mode() -> None:
     out_cascade = cascade_engine.process(audio, sr=48_000)
 
     assert out_cascade.shape == audio.shape
-    assert out_cascade.dtype == np.float32
+    assert out_cascade.dtype == np.float64
     assert np.all(np.isfinite(out_cascade))
     assert "cascade" in cascade_engine.backend_name()
     delta = float(np.mean(np.abs(out_base - out_cascade)))
@@ -283,10 +283,10 @@ def test_algo_engine_multiband_decay_mode() -> None:
             block_size=256,
         )
     )
-    audio = np.random.default_rng(999).standard_normal((2048, 1)).astype(np.float32) * 0.04
+    audio = np.random.default_rng(999).standard_normal((2048, 1)).astype(np.float64) * 0.04
     output = engine.process(audio, sr=48_000)
     assert output.shape == audio.shape
-    assert output.dtype == np.float32
+    assert output.dtype == np.float64
     assert np.all(np.isfinite(output))
     assert engine.backend_name() == "cpu-python-fdn-multiband"
 
@@ -303,16 +303,16 @@ def test_algo_engine_filter_feedback_mode() -> None:
             block_size=256,
         )
     )
-    audio = np.random.default_rng(212).standard_normal((2048, 1)).astype(np.float32) * 0.05
+    audio = np.random.default_rng(212).standard_normal((2048, 1)).astype(np.float64) * 0.05
     output = engine.process(audio, sr=48_000)
     assert output.shape == audio.shape
-    assert output.dtype == np.float32
+    assert output.dtype == np.float64
     assert np.all(np.isfinite(output))
     assert engine.backend_name() == "cpu-python-fdn-linkfilter"
 
 
 def test_algo_engine_surround_decorrelation_controls() -> None:
-    signal = np.random.default_rng(77).standard_normal((4096, 1)).astype(np.float32) * 0.05
+    signal = np.random.default_rng(77).standard_normal((4096, 1)).astype(np.float64) * 0.05
     audio = np.repeat(signal, 6, axis=1)
 
     base_engine = AlgoReverbEngine(

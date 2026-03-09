@@ -17,7 +17,7 @@ from scipy.signal import resample_poly
 
 from verbx.ir.metrics import analyze_ir
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 IRMorphMode = Literal["linear", "equal-power", "spectral", "envelope-aware"]
 
 _MORPH_MODE_CHOICES = {
@@ -87,7 +87,7 @@ def morph_ir_arrays(
     config: IRMorphConfig,
 ) -> tuple[AudioArray, dict[str, Any]]:
     """Morph two in-memory IR arrays and return output + quality summary."""
-    a, b = _align_ir_pair(np.asarray(ir_a, dtype=np.float32), np.asarray(ir_b, dtype=np.float32))
+    a, b = _align_ir_pair(np.asarray(ir_a, dtype=np.float64), np.asarray(ir_b, dtype=np.float64))
     mode = validate_ir_morph_mode_name(config.mode)
     alpha = float(np.clip(config.alpha, 0.0, 1.0))
     early_alpha = float(
@@ -165,7 +165,7 @@ def morph_ir_arrays(
             out[early_samples:, :] = tail
 
     out = _normalize_channel_energy(a, b, out, alpha=alpha)
-    out = np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float32)
+    out = np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
     quality = compute_morph_quality_metrics(a, b, out, sr=sr, alpha=alpha)
     quality["mode"] = mode
     quality["alpha"] = alpha
@@ -197,9 +197,9 @@ def generate_or_load_cached_morphed_ir(
     meta_path = cache_dir / f"{key}.meta.json"
 
     if wav_path.exists() and meta_path.exists():
-        audio, sr = sf.read(str(wav_path), always_2d=True, dtype="float32")
+        audio, sr = sf.read(str(wav_path), always_2d=True, dtype="float64")
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        return np.asarray(audio, dtype=np.float32), int(sr), meta, wav_path, True
+        return np.asarray(audio, dtype=np.float64), int(sr), meta, wav_path, True
 
     chosen_sr = _resolve_target_sample_rate((ir_a_path, ir_b_path), target_sr=target_sr)
     a = _load_ir_resampled(ir_a_path, target_sr=chosen_sr)
@@ -248,9 +248,9 @@ def generate_or_load_cached_blended_ir(
     meta_path = cache_dir / f"{key}.meta.json"
 
     if wav_path.exists() and meta_path.exists():
-        audio, sr = sf.read(str(wav_path), always_2d=True, dtype="float32")
+        audio, sr = sf.read(str(wav_path), always_2d=True, dtype="float64")
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        return np.asarray(audio, dtype=np.float32), int(sr), meta, wav_path, True
+        return np.asarray(audio, dtype=np.float64), int(sr), meta, wav_path, True
 
     sources: list[Path] = [base_ir_path, *blend_ir_paths]
     chosen_sr = _resolve_target_sample_rate(sources, target_sr=target_sr)
@@ -263,7 +263,7 @@ def generate_or_load_cached_blended_ir(
         weight_sum = float(np.sum(weights))
     weights /= weight_sum
 
-    current = np.asarray(arrays[0], dtype=np.float32)
+    current = np.asarray(arrays[0], dtype=np.float64)
     cumulative = float(weights[0])
     last_quality: dict[str, Any] | None = None
     for idx, nxt in enumerate(arrays[1:], start=1):
@@ -309,9 +309,9 @@ def compute_morph_quality_metrics(
 ) -> dict[str, Any]:
     """Compute compact objective quality metrics for one morph result."""
     alpha_clamped = float(np.clip(alpha, 0.0, 1.0))
-    a_metrics = analyze_ir(np.asarray(ir_a, dtype=np.float32), sr)
-    b_metrics = analyze_ir(np.asarray(ir_b, dtype=np.float32), sr)
-    out_metrics = analyze_ir(np.asarray(out, dtype=np.float32), sr)
+    a_metrics = analyze_ir(np.asarray(ir_a, dtype=np.float64), sr)
+    b_metrics = analyze_ir(np.asarray(ir_b, dtype=np.float64), sr)
+    out_metrics = analyze_ir(np.asarray(out, dtype=np.float64), sr)
 
     rt_a = _metric_float(a_metrics, "rt60_estimate_seconds")
     rt_b = _metric_float(b_metrics, "rt60_estimate_seconds")
@@ -356,20 +356,20 @@ def _resolve_target_sample_rate(paths: Sequence[Path], *, target_sr: int | None)
 
 
 def _load_ir_resampled(path: Path, *, target_sr: int) -> AudioArray:
-    audio, sr = sf.read(str(path), always_2d=True, dtype="float32")
-    x = np.asarray(audio, dtype=np.float32)
+    audio, sr = sf.read(str(path), always_2d=True, dtype="float64")
+    x = np.asarray(audio, dtype=np.float64)
     src_sr = int(sr)
     if src_sr == int(target_sr):
         return x
     gcd = math.gcd(src_sr, int(target_sr))
     up = int(target_sr // gcd)
     down = int(src_sr // gcd)
-    return np.asarray(resample_poly(x, up=up, down=down, axis=0), dtype=np.float32)
+    return np.asarray(resample_poly(x, up=up, down=down, axis=0), dtype=np.float64)
 
 
 def _align_ir_pair(ir_a: AudioArray, ir_b: AudioArray) -> tuple[AudioArray, AudioArray]:
-    a = np.asarray(ir_a, dtype=np.float32)
-    b = np.asarray(ir_b, dtype=np.float32)
+    a = np.asarray(ir_a, dtype=np.float64)
+    b = np.asarray(ir_b, dtype=np.float64)
     if a.ndim != 2 or b.ndim != 2:
         raise ValueError("IR arrays must be 2D with shape [samples, channels].")
 
@@ -387,20 +387,20 @@ def _match_channels(x: AudioArray, channels: int) -> AudioArray:
     if current == channels:
         return x
     if current == 1 and channels > 1:
-        return np.repeat(x, channels, axis=1).astype(np.float32)
+        return np.repeat(x, channels, axis=1).astype(np.float64)
     if channels == 1:
-        return np.asarray(np.mean(x, axis=1, keepdims=True, dtype=np.float32), dtype=np.float32)
+        return np.asarray(np.mean(x, axis=1, keepdims=True, dtype=np.float64), dtype=np.float64)
     idx = np.linspace(0, max(0, current - 1), channels, dtype=np.float64)
     mapped = np.rint(idx).astype(np.int32)
     mapped = np.clip(mapped, 0, max(0, current - 1))
-    return np.asarray(x[:, mapped], dtype=np.float32)
+    return np.asarray(x[:, mapped], dtype=np.float64)
 
 
 def _pad_to_len(x: AudioArray, length: int) -> AudioArray:
     n = int(x.shape[0])
     if n >= length:
-        return np.asarray(x[:length, :], dtype=np.float32)
-    out = np.zeros((length, int(x.shape[1])), dtype=np.float32)
+        return np.asarray(x[:length, :], dtype=np.float64)
+    out = np.zeros((length, int(x.shape[1])), dtype=np.float64)
     out[:n, :] = x
     return out
 
@@ -437,9 +437,9 @@ def _align_decay_shape(
     t0 = float(max(0, min(n - 1, early_samples))) / float(max(1, sr))
     late_t = np.maximum(0.0, t - t0)
     gain = np.exp((k_current - k_target) * late_t)
-    gain = np.clip(gain, 0.05, 20.0).astype(np.float32)
-    gain[: min(n, max(0, early_samples))] = np.float32(1.0)
-    return np.asarray(ir * gain[:, np.newaxis], dtype=np.float32)
+    gain = np.clip(gain, 0.05, 20.0).astype(np.float64)
+    gain[: min(n, max(0, early_samples))] = np.float64(1.0)
+    return np.asarray(ir * gain[:, np.newaxis], dtype=np.float64)
 
 
 def _blend_early_late(
@@ -451,7 +451,7 @@ def _blend_early_late(
     late_alpha: float,
     equal_power: bool = False,
 ) -> AudioArray:
-    out = np.zeros_like(a, dtype=np.float32)
+    out = np.zeros_like(a, dtype=np.float64)
     split = int(np.clip(early_samples, 0, int(a.shape[0])))
     if split > 0:
         out[:split, :] = _blend_weighted(
@@ -472,7 +472,7 @@ def _blend_weighted(a: AudioArray, b: AudioArray, *, alpha: float, equal_power: 
     else:
         g_a = 1.0 - alpha_clamped
         g_b = alpha_clamped
-    return np.asarray((g_a * a) + (g_b * b), dtype=np.float32)
+    return np.asarray((g_a * a) + (g_b * b), dtype=np.float64)
 
 
 def _blend_spectral(
@@ -485,9 +485,9 @@ def _blend_spectral(
 ) -> AudioArray:
     n = int(max(a.shape[0], b.shape[0]))
     if n <= 0:
-        return np.zeros((0, max(int(a.shape[1]), int(b.shape[1]))), dtype=np.float32)
+        return np.zeros((0, max(int(a.shape[1]), int(b.shape[1]))), dtype=np.float64)
     a2, b2 = _align_ir_pair(a, b)
-    out = np.zeros_like(a2, dtype=np.float32)
+    out = np.zeros_like(a2, dtype=np.float64)
     alpha_clamped = float(np.clip(alpha, 0.0, 1.0))
     coherence = float(np.clip(phase_coherence, 0.0, 1.0))
     eps = 1e-9
@@ -511,7 +511,7 @@ def _blend_spectral(
         phase_safe = ((1.0 - coherence) * unit_a) + (coherence * unit_mix)
         phase_safe /= np.abs(phase_safe) + eps
         merged = mag * phase_safe
-        out[:, ch] = np.asarray(np.fft.irfft(merged, n=n), dtype=np.float32)
+        out[:, ch] = np.asarray(np.fft.irfft(merged, n=n), dtype=np.float64)
 
     return out
 
@@ -539,14 +539,14 @@ def _blend_envelope(a_env: AudioArray, b_env: AudioArray, *, alpha: float) -> Au
     for ch in range(int(target.shape[1])):
         padded = np.pad(target[:, ch], (win // 2, win // 2), mode="edge")
         out[:, ch] = np.convolve(padded, kernel, mode="valid")
-    return np.asarray(out, dtype=np.float32)
+    return np.asarray(out, dtype=np.float64)
 
 
 def _impose_envelope(x: AudioArray, target_env: AudioArray) -> AudioArray:
-    current = np.abs(np.asarray(x, dtype=np.float32))
+    current = np.abs(np.asarray(x, dtype=np.float64))
     scale = target_env / (current + 1e-6)
-    scale = np.clip(scale, 0.2, 5.0).astype(np.float32)
-    return np.asarray(x * scale, dtype=np.float32)
+    scale = np.clip(scale, 0.2, 5.0).astype(np.float64)
+    return np.asarray(x * scale, dtype=np.float64)
 
 
 def _normalize_channel_energy(
@@ -557,14 +557,14 @@ def _normalize_channel_energy(
     alpha: float,
 ) -> AudioArray:
     alpha_clamped = float(np.clip(alpha, 0.0, 1.0))
-    y = np.asarray(out, dtype=np.float32).copy()
+    y = np.asarray(out, dtype=np.float64).copy()
     for ch in range(int(y.shape[1])):
         rms_a = float(np.sqrt(np.mean(np.square(a[:, ch], dtype=np.float64)) + 1e-12))
         rms_b = float(np.sqrt(np.mean(np.square(b[:, ch], dtype=np.float64)) + 1e-12))
         rms_t = ((1.0 - alpha_clamped) * rms_a) + (alpha_clamped * rms_b)
         rms_y = float(np.sqrt(np.mean(np.square(y[:, ch], dtype=np.float64)) + 1e-12))
         gain = float(np.clip(rms_t / max(1e-9, rms_y), 0.25, 4.0))
-        y[:, ch] = np.asarray(y[:, ch] * gain, dtype=np.float32)
+        y[:, ch] = np.asarray(y[:, ch] * gain, dtype=np.float64)
     return y
 
 

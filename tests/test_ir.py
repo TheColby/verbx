@@ -40,7 +40,7 @@ def test_ir_gen_writes_wav_and_meta(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
     assert out_ir.exists()
 
-    audio, sr = sf.read(str(out_ir), always_2d=True, dtype="float32")
+    audio, sr = sf.read(str(out_ir), always_2d=True, dtype="float64")
     assert sr == 16000
     assert audio.shape[1] == 2
     assert audio.shape[0] == 16000
@@ -78,15 +78,15 @@ def test_ir_gen_format_switch_overrides_extension(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.stdout
     assert expected.exists()
-    audio, sr = sf.read(str(expected), always_2d=True, dtype="float32")
+    audio, sr = sf.read(str(expected), always_2d=True, dtype="float64")
     assert sr == 8000
     assert audio.shape[1] == 1
 
 
 def test_ir_morph_command_writes_output_and_meta(tmp_path: Path) -> None:
     sr = 16_000
-    a = np.zeros((2400, 1), dtype=np.float32)
-    b = np.zeros((2400, 1), dtype=np.float32)
+    a = np.zeros((2400, 1), dtype=np.float64)
+    b = np.zeros((2400, 1), dtype=np.float64)
     a[0, 0] = 1.0
     a[220, 0] = 0.42
     b[0, 0] = 1.0
@@ -117,7 +117,7 @@ def test_ir_morph_command_writes_output_and_meta(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.stdout
     assert out_path.exists()
-    out, out_sr = sf.read(str(out_path), always_2d=True, dtype="float32")
+    out, out_sr = sf.read(str(out_path), always_2d=True, dtype="float64")
     assert out_sr == sr
     assert out.shape[1] == 1
     assert np.all(np.isfinite(out))
@@ -543,8 +543,8 @@ def test_ir_gen_with_explicit_f0(tmp_path: Path) -> None:
 
 def test_ir_gen_analyze_input_tuning(tmp_path: Path) -> None:
     sr = 16000
-    t = np.arange(sr, dtype=np.float32) / sr
-    src = (0.4 * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float32)[:, np.newaxis]
+    t = np.arange(sr, dtype=np.float64) / sr
+    src = (0.4 * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float64)[:, np.newaxis]
     in_wav = tmp_path / "source.wav"
     sf.write(str(in_wav), src, sr)
 
@@ -608,7 +608,7 @@ def test_ir_gen_resonator_layer(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 0, result.stdout
-    audio, sr = sf.read(str(out_ir), always_2d=True, dtype="float32")
+    audio, sr = sf.read(str(out_ir), always_2d=True, dtype="float64")
     assert sr == 12000
     assert np.all(np.isfinite(audio))
     assert float(np.max(np.abs(audio))) > 1e-6
@@ -632,8 +632,8 @@ def test_ir_cache_hit(tmp_path: Path) -> None:
 
 def test_ir_fit_heuristic_scoring_outputs_top_k(tmp_path: Path) -> None:
     sr = 16_000
-    t = np.arange(sr, dtype=np.float32) / sr
-    audio = (0.25 * np.sin(2.0 * np.pi * 196.0 * t)).astype(np.float32)[:, np.newaxis]
+    t = np.arange(sr, dtype=np.float64) / sr
+    audio = (0.25 * np.sin(2.0 * np.pi * 196.0 * t)).astype(np.float64)[:, np.newaxis]
     infile = tmp_path / "fit_input.wav"
     out_ir = tmp_path / "fit_ir.wav"
     sf.write(str(infile), audio, sr)
@@ -689,7 +689,7 @@ def test_convolution_with_generated_ir_is_nonzero(tmp_path: Path) -> None:
         )
     )
 
-    impulse = np.zeros((1024, 1), dtype=np.float32)
+    impulse = np.zeros((1024, 1), dtype=np.float64)
     impulse[0, 0] = 1.0
     out = engine.process(impulse, sr=ir_sr)
 

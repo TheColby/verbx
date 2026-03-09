@@ -11,7 +11,7 @@ import numpy.typing as npt
 
 from verbx.analysis.features_time import peak_dbfs, rms_dbfs
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 def schroeder_decay_db(ir: AudioArray) -> npt.NDArray[np.float64]:

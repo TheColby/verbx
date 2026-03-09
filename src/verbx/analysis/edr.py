@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 def edr_summary(
@@ -24,7 +24,7 @@ def edr_summary(
     The algorithm computes a bandwise reverse cumulative STFT-energy decay and
     performs slope-based RT60 fits per frequency bin, then aggregates by band.
     """
-    mono = np.mean(audio, axis=1).astype(np.float32)
+    mono = np.mean(audio, axis=1).astype(np.float64)
     if mono.size < 32:
         return _empty_summary()
 
@@ -62,23 +62,23 @@ def edr_summary(
 
 
 def _stft_power(
-    mono: npt.NDArray[np.float32],
+    mono: npt.NDArray[np.float64],
     n_fft: int,
     hop: int,
 ) -> npt.NDArray[np.float64]:
     """Return STFT power matrix with shape ``(freq_bins, frames)``."""
     if mono.size < n_fft:
-        padded = np.zeros(n_fft, dtype=np.float32)
+        padded = np.zeros(n_fft, dtype=np.float64)
         padded[: mono.size] = mono
         mono = padded
 
     starts = range(0, max(1, mono.size - n_fft + 1), hop)
-    window = np.hanning(n_fft).astype(np.float32)
+    window = np.hanning(n_fft).astype(np.float64)
     frames: list[npt.NDArray[np.float64]] = []
     for start in starts:
         frame = mono[start : start + n_fft]
         if frame.size < n_fft:
-            padded = np.zeros(n_fft, dtype=np.float32)
+            padded = np.zeros(n_fft, dtype=np.float64)
             padded[: frame.size] = frame
             frame = padded
         spec = np.fft.rfft(frame * window)

@@ -38,7 +38,7 @@ from verbx.analysis.features_time import (
 from verbx.analysis.spatial_metrics import compute_ambisonic_metrics
 from verbx.core.loudness import integrated_lufs, loudness_range_lu, sample_peak_dbfs, true_peak_dbfs
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 class AudioAnalyzer:

@@ -12,7 +12,7 @@ from verbx.core.ambient import apply_tilt_eq
 from verbx.core.loudness import apply_output_targets
 from verbx.io.audio import ensure_mono_or_stereo
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 def normalize_ir(audio: AudioArray, mode: str, peak_dbfs: float) -> AudioArray:
@@ -31,13 +31,13 @@ def normalize_ir(audio: AudioArray, mode: str, peak_dbfs: float) -> AudioArray:
         if rms <= 1e-12:
             return x
         target = float(10.0 ** (peak_dbfs / 20.0))
-        return np.asarray(x * (target / rms), dtype=np.float32)
+        return np.asarray(x * (target / rms), dtype=np.float64)
 
     peak = float(np.max(np.abs(x)))
     if peak <= 1e-12:
         return x
     target = float(10.0 ** (peak_dbfs / 20.0))
-    return np.asarray(x * (target / peak), dtype=np.float32)
+    return np.asarray(x * (target / peak), dtype=np.float64)
 
 
 def apply_ir_shaping(
@@ -64,8 +64,8 @@ def apply_ir_shaping(
     damp = float(np.clip(damping, 0.0, 1.0))
     if damp > 0.0:
         # One-pole smoothing darkens high-frequency tail content.
-        alpha = np.float32(0.1 + (0.85 * damp))
-        state = np.zeros(out.shape[1], dtype=np.float32)
+        alpha = np.float64(0.1 + (0.85 * damp))
+        state = np.zeros(out.shape[1], dtype=np.float64)
         for i in range(out.shape[0]):
             state = ((1.0 - alpha) * out[i, :]) + (alpha * state)
             out[i, :] = state
@@ -82,4 +82,4 @@ def apply_ir_shaping(
             use_true_peak=use_true_peak,
         )
 
-    return np.asarray(out, dtype=np.float32)
+    return np.asarray(out, dtype=np.float64)

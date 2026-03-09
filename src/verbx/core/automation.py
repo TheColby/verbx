@@ -30,7 +30,7 @@ from verbx.core.feature_vector import (
     render_feature_vector_lane,
 )
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 POST_RENDER_AUTOMATION_TARGETS = set(POST_RENDER_CONTROL_TARGETS)
 ENGINE_AUTOMATION_TARGETS = set(ENGINE_CONTROL_TARGETS)
@@ -258,7 +258,7 @@ def load_automation_bundle(
                 "Provide --feature-vector-lane or feature-vector automation only in render context."
             )
         feature_bus = build_feature_vector_bus(
-            audio=np.asarray(feature_audio, dtype=np.float32),
+            audio=np.asarray(feature_audio, dtype=np.float64),
             sr=int(sr),
             ctrl_times=ctrl_times,
             frame_ms=float(feature_frame_ms),
@@ -322,7 +322,7 @@ def load_automation_bundle(
     for target in sorted(controls.keys()):
         control = controls[target]
         expanded = _expand_control_to_samples(control, step=control_step, num_samples=num_samples)
-        curves[target] = np.asarray(expanded, dtype=np.float32)
+        curves[target] = np.asarray(expanded, dtype=np.float64)
     feature_curves: dict[str, AudioArray] = {}
     feature_signature: str | None = None
     feature_sources: tuple[str, ...] = ()
@@ -336,7 +336,7 @@ def load_automation_bundle(
                 step=control_step,
                 num_samples=num_samples,
             )
-            feature_curves[source] = np.asarray(expanded_feature, dtype=np.float32)
+            feature_curves[source] = np.asarray(expanded_feature, dtype=np.float64)
 
     source_path = "+".join(source_tokens) if len(source_tokens) > 0 else "inline-empty"
     signature = _bundle_signature(
@@ -387,9 +387,9 @@ def apply_render_automation(
                 "source_stats": _target_stats(bundle.feature_curves),
                 "signature": bundle.feature_signature,
             }
-        return np.asarray(rendered, dtype=np.float32), summary
+        return np.asarray(rendered, dtype=np.float64), summary
 
-    out = np.asarray(rendered, dtype=np.float32)
+    out = np.asarray(rendered, dtype=np.float64)
     active_targets = sorted(bundle.curves.keys())
 
     wet_curve = bundle.curves.get("wet")
@@ -398,24 +398,24 @@ def apply_render_automation(
         wet_base = float(base_wet)
         dry_base = float(base_dry)
         if abs(wet_base) <= 1e-9:
-            wet_estimate = np.zeros_like(out, dtype=np.float32)
+            wet_estimate = np.zeros_like(out, dtype=np.float64)
         else:
             wet_estimate = np.asarray(
                 (out - (dry_base * dry_reference)) / wet_base,
-                dtype=np.float32,
+                dtype=np.float64,
             )
 
-        wet_gain = wet_curve if wet_curve is not None else np.full(n, wet_base, dtype=np.float32)
-        dry_gain = dry_curve if dry_curve is not None else np.full(n, dry_base, dtype=np.float32)
+        wet_gain = wet_curve if wet_curve is not None else np.full(n, wet_base, dtype=np.float64)
+        dry_gain = dry_curve if dry_curve is not None else np.full(n, dry_base, dtype=np.float64)
         out = np.asarray(
             (dry_gain[:, np.newaxis] * dry_reference) + (wet_gain[:, np.newaxis] * wet_estimate),
-            dtype=np.float32,
+            dtype=np.float64,
         )
 
     gain_curve = bundle.curves.get("gain-db")
     if gain_curve is not None:
-        linear = np.asarray(np.power(10.0, gain_curve / 20.0), dtype=np.float32)
-        out = np.asarray(out * linear[:, np.newaxis], dtype=np.float32)
+        linear = np.asarray(np.power(10.0, gain_curve / 20.0), dtype=np.float64)
+        out = np.asarray(out * linear[:, np.newaxis], dtype=np.float64)
 
     summary = {
         "source": bundle.source_path,
@@ -432,7 +432,7 @@ def apply_render_automation(
             "source_stats": _target_stats(bundle.feature_curves),
             "signature": bundle.feature_signature,
         }
-    sanitized = np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float32)
+    sanitized = np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
     return sanitized, summary
 
 
@@ -937,7 +937,7 @@ def _bundle_signature(
     for target in sorted(curves.keys()):
         h.update(b"|")
         h.update(target.encode("utf-8"))
-        vec = np.asarray(curves[target], dtype=np.float32)
+        vec = np.asarray(curves[target], dtype=np.float64)
         h.update(vec.tobytes(order="C"))
     return h.hexdigest()[:16]
 

@@ -13,7 +13,7 @@ from scipy.signal import lfilter
 from verbx.io.audio import ensure_mono_or_stereo
 from verbx.ir.tuning import tune_frequency_to_targets
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 def apply_modalys_resonator_layer(
@@ -40,16 +40,16 @@ def apply_modalys_resonator_layer(
     """
     x = ensure_mono_or_stereo(ir).astype(np.float64, copy=True)
     if not enabled:
-        return np.asarray(x, dtype=np.float32)
+        return np.asarray(x, dtype=np.float64)
 
     n, channels = x.shape
     if n < 8 or sr <= 0:
-        return np.asarray(x, dtype=np.float32)
+        return np.asarray(x, dtype=np.float64)
 
     blend = float(np.clip(mix, 0.0, 1.0))
     mode_count = max(0, int(modes))
     if blend <= 0.0 or mode_count == 0:
-        return np.asarray(x, dtype=np.float32)
+        return np.asarray(x, dtype=np.float64)
 
     q_lo = max(0.5, float(q_min))
     q_hi = max(q_lo, float(q_max))
@@ -65,7 +65,7 @@ def apply_modalys_resonator_layer(
         excitation[:start] = 0.0
 
     if float(np.max(np.abs(excitation))) <= 1e-12:
-        return np.asarray(x, dtype=np.float32)
+        return np.asarray(x, dtype=np.float64)
 
     rng = np.random.default_rng(seed + 9_973)
     reson = np.zeros((n, channels), dtype=np.float64)
@@ -100,7 +100,7 @@ def apply_modalys_resonator_layer(
     if peak > 10.0:
         out *= 10.0 / peak
 
-    return np.asarray(out, dtype=np.float32)
+    return np.asarray(out, dtype=np.float64)
 
 
 def _sample_mode_frequency(

@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 def generate_early_reflections(
@@ -28,7 +28,7 @@ def generate_early_reflections(
     requested decay law (linear/sqrt/exp).
     """
     max_delay_samples = max(1, int((er_max_delay_ms / 1000.0) * sr))
-    out = np.zeros((max_delay_samples + 1, channels), dtype=np.float32)
+    out = np.zeros((max_delay_samples + 1, channels), dtype=np.float64)
 
     # Direct path anchor for convolution compatibility.
     out[0, :] = 1.0
@@ -52,7 +52,7 @@ def generate_early_reflections(
         amp = float(np.clip(amp, 0.0, 1.2))
 
         if channels == 1:
-            out[delay, 0] += np.float32(amp)
+            out[delay, 0] += np.float64(amp)
             continue
 
         # Width is applied as deterministic pan spread for L/R channels.
@@ -60,9 +60,9 @@ def generate_early_reflections(
         left = amp * (0.5 * (2.0 - max(0.0, pan)))
         right = amp * (0.5 * (2.0 + min(0.0, pan)))
 
-        out[delay, 0] += np.float32(left)
-        out[delay, 1] += np.float32(right)
+        out[delay, 0] += np.float64(left)
+        out[delay, 1] += np.float64(right)
         for ch in range(2, channels):
-            out[delay, ch] += np.float32(amp / channels)
+            out[delay, ch] += np.float64(amp / channels)
 
     return out

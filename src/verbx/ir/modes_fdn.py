@@ -12,7 +12,7 @@ import numpy.typing as npt
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
 from verbx.core.fdn_capabilities import normalize_fdn_link_filter_name
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 
 
 def generate_fdn_ir(
@@ -63,11 +63,11 @@ def generate_fdn_ir(
     n = max(1, length_samples)
     ch = max(1, channels)
 
-    impulse = np.zeros((n, ch), dtype=np.float32)
+    impulse = np.zeros((n, ch), dtype=np.float64)
     impulse[0, 0] = 1.0
     if ch > 1:
         inject = float(np.clip(fdn_stereo_inject, 0.0, 1.0))
-        impulse[0, 1] = np.float32(inject)
+        impulse[0, 1] = np.float64(inject)
 
     engine = AlgoReverbEngine(
         AlgoReverbConfig(
@@ -114,4 +114,4 @@ def generate_fdn_ir(
 
     out = engine.process(impulse, sr)
 
-    return np.asarray(out, dtype=np.float32)
+    return np.asarray(out, dtype=np.float64)

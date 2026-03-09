@@ -6,22 +6,22 @@ from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
 
 
 def test_tonal_correction_scales_default_to_unity_when_disabled() -> None:
-    low = np.asarray([0.92, 0.91, 0.90], dtype=np.float32)
-    mid = np.asarray([0.84, 0.83, 0.82], dtype=np.float32)
-    high = np.asarray([0.71, 0.70, 0.69], dtype=np.float32)
+    low = np.asarray([0.92, 0.91, 0.90], dtype=np.float64)
+    mid = np.asarray([0.84, 0.83, 0.82], dtype=np.float64)
+    high = np.asarray([0.71, 0.70, 0.69], dtype=np.float64)
     scales = AlgoReverbEngine.resolve_tonal_correction_scales(
         feedback_gain_low=low,
         feedback_gain_mid=mid,
         feedback_gain_high=high,
         strength=0.0,
     )
-    assert scales == (np.float32(1.0), np.float32(1.0), np.float32(1.0))
+    assert scales == (np.float64(1.0), np.float64(1.0), np.float64(1.0))
 
 
 def test_tonal_correction_scales_rebalance_low_and_high_decay_color() -> None:
-    low = np.asarray([0.95, 0.94, 0.93], dtype=np.float32)
-    mid = np.asarray([0.85, 0.84, 0.83], dtype=np.float32)
-    high = np.asarray([0.66, 0.65, 0.64], dtype=np.float32)
+    low = np.asarray([0.95, 0.94, 0.93], dtype=np.float64)
+    mid = np.asarray([0.85, 0.84, 0.83], dtype=np.float64)
+    high = np.asarray([0.66, 0.65, 0.64], dtype=np.float64)
     low_scale, mid_scale, high_scale = AlgoReverbEngine.resolve_tonal_correction_scales(
         feedback_gain_low=low,
         feedback_gain_mid=mid,

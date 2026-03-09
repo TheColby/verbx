@@ -27,7 +27,7 @@ def test_cli_boots() -> None:
 
 
 def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
-    audio = np.zeros((2048, 2), dtype=np.float32)
+    audio = np.zeros((2048, 2), dtype=np.float64)
     audio[100:130, 0] = 0.6
     audio[100:130, 1] = -0.6
 
@@ -53,7 +53,7 @@ def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.stdout
 
-    out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float32")
+    out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
     assert out_sr == 48_000
     assert out_audio.shape[0] > audio.shape[0]
     assert out_audio.shape[1] == audio.shape[1]
@@ -85,7 +85,7 @@ def test_render_algo_auto_reports_engine_specific_device(
     monkeypatch.setattr(accel, "cuda_available", lambda: True)
     monkeypatch.setattr(accel, "is_apple_silicon", lambda: False)
 
-    audio = np.zeros((1024, 1), dtype=np.float32)
+    audio = np.zeros((1024, 1), dtype=np.float64)
     audio[80:120, 0] = 0.5
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -117,12 +117,12 @@ def test_render_conv_auto_prefers_cuda_when_available(tmp_path: Path, monkeypatc
     monkeypatch.setattr(accel, "cuda_available", lambda: True)
     monkeypatch.setattr(accel, "is_apple_silicon", lambda: True)
 
-    audio = np.zeros((1024, 1), dtype=np.float32)
+    audio = np.zeros((1024, 1), dtype=np.float64)
     audio[80:120, 0] = 0.5
     infile = tmp_path / "in.wav"
     irfile = tmp_path / "ir.wav"
     outfile = tmp_path / "out.wav"
-    ir = np.zeros((256, 1), dtype=np.float32)
+    ir = np.zeros((256, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     sf.write(str(infile), audio, 48_000)
     sf.write(str(irfile), ir, 48_000)
@@ -152,7 +152,7 @@ def test_render_conv_auto_prefers_cuda_when_available(tmp_path: Path, monkeypatc
 
 
 def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path) -> None:
-    audio = np.zeros((2048, 2), dtype=np.float32)
+    audio = np.zeros((2048, 2), dtype=np.float64)
     audio[200:280, :] = 0.3
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -192,7 +192,7 @@ def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path) -> None:
 
 
 def test_render_tvu_and_dfm_switches_are_applied(tmp_path: Path) -> None:
-    audio = np.zeros((1536, 1), dtype=np.float32)
+    audio = np.zeros((1536, 1), dtype=np.float64)
     audio[120:220, 0] = 0.4
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -230,7 +230,7 @@ def test_render_tvu_and_dfm_switches_are_applied(tmp_path: Path) -> None:
 
 
 def test_render_rejects_invalid_tvu_combo(tmp_path: Path) -> None:
-    audio = np.zeros((512, 1), dtype=np.float32)
+    audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
     sf.write(str(infile), audio, 48_000)
@@ -254,7 +254,7 @@ def test_render_rejects_invalid_tvu_combo(tmp_path: Path) -> None:
 
 
 def test_render_sparse_high_order_switches_are_applied(tmp_path: Path) -> None:
-    audio = np.zeros((1024, 1), dtype=np.float32)
+    audio = np.zeros((1024, 1), dtype=np.float64)
     audio[20:120, 0] = 0.35
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -287,7 +287,7 @@ def test_render_sparse_high_order_switches_are_applied(tmp_path: Path) -> None:
 
 
 def test_render_rejects_sparse_with_tv_unitary(tmp_path: Path) -> None:
-    audio = np.zeros((1024, 1), dtype=np.float32)
+    audio = np.zeros((1024, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
     sf.write(str(infile), audio, 48_000)
@@ -315,7 +315,7 @@ def test_render_rejects_sparse_with_tv_unitary(tmp_path: Path) -> None:
 
 
 def test_render_graph_fdn_switches_are_applied(tmp_path: Path) -> None:
-    audio = np.zeros((1200, 1), dtype=np.float32)
+    audio = np.zeros((1200, 1), dtype=np.float64)
     audio[80:180, 0] = 0.3
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -352,7 +352,7 @@ def test_render_graph_fdn_switches_are_applied(tmp_path: Path) -> None:
 
 
 def test_render_rejects_graph_options_without_graph_matrix(tmp_path: Path) -> None:
-    audio = np.zeros((512, 1), dtype=np.float32)
+    audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
     sf.write(str(infile), audio, 48_000)
@@ -376,7 +376,7 @@ def test_render_rejects_graph_options_without_graph_matrix(tmp_path: Path) -> No
 
 
 def test_render_rejects_sparse_with_graph_matrix(tmp_path: Path) -> None:
-    audio = np.zeros((512, 1), dtype=np.float32)
+    audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
     sf.write(str(infile), audio, 48_000)
@@ -400,7 +400,7 @@ def test_render_rejects_sparse_with_graph_matrix(tmp_path: Path) -> None:
 
 
 def test_render_cascaded_fdn_switches_are_applied(tmp_path: Path) -> None:
-    audio = np.zeros((1400, 1), dtype=np.float32)
+    audio = np.zeros((1400, 1), dtype=np.float64)
     audio[40:170, 0] = 0.3
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -438,7 +438,7 @@ def test_render_cascaded_fdn_switches_are_applied(tmp_path: Path) -> None:
 
 
 def test_render_rejects_cascade_with_single_line_fdn(tmp_path: Path) -> None:
-    audio = np.zeros((1024, 1), dtype=np.float32)
+    audio = np.zeros((1024, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
     sf.write(str(infile), audio, 48_000)
@@ -462,7 +462,7 @@ def test_render_rejects_cascade_with_single_line_fdn(tmp_path: Path) -> None:
 
 
 def test_render_multiband_fdn_switches_are_applied(tmp_path: Path) -> None:
-    audio = np.zeros((1400, 1), dtype=np.float32)
+    audio = np.zeros((1400, 1), dtype=np.float64)
     audio[40:170, 0] = 0.3
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -507,7 +507,7 @@ def test_render_multiband_fdn_switches_are_applied(tmp_path: Path) -> None:
 
 
 def test_render_rejects_partial_multiband_rt60_set(tmp_path: Path) -> None:
-    audio = np.zeros((1024, 1), dtype=np.float32)
+    audio = np.zeros((1024, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
     sf.write(str(infile), audio, 48_000)
@@ -532,7 +532,7 @@ def test_render_rejects_partial_multiband_rt60_set(tmp_path: Path) -> None:
 
 
 def test_render_filter_feedback_switches_are_applied(tmp_path: Path) -> None:
-    audio = np.zeros((1200, 1), dtype=np.float32)
+    audio = np.zeros((1200, 1), dtype=np.float64)
     audio[60:180, 0] = 0.32
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -567,7 +567,7 @@ def test_render_filter_feedback_switches_are_applied(tmp_path: Path) -> None:
 
 
 def test_render_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
-    audio = np.zeros((640, 1), dtype=np.float32)
+    audio = np.zeros((640, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
     sf.write(str(infile), audio, 48_000)
@@ -590,7 +590,7 @@ def test_render_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
 
 
 def test_render_accepts_hyphenated_filter_feedback_alias(tmp_path: Path) -> None:
-    audio = np.zeros((1200, 1), dtype=np.float32)
+    audio = np.zeros((1200, 1), dtype=np.float64)
     audio[60:180, 0] = 0.32
     infile = tmp_path / "alias_filter_in.wav"
     outfile = tmp_path / "alias_filter_out.wav"
@@ -616,7 +616,7 @@ def test_render_accepts_hyphenated_filter_feedback_alias(tmp_path: Path) -> None
 
 
 def test_render_track_c_perceptual_fdn_controls_are_applied(tmp_path: Path) -> None:
-    audio = np.zeros((1400, 1), dtype=np.float32)
+    audio = np.zeros((1400, 1), dtype=np.float64)
     audio[45:180, 0] = 0.28
     infile = tmp_path / "track_c_in.wav"
     outfile = tmp_path / "track_c_out.wav"
@@ -667,8 +667,8 @@ def test_render_convolution_route_map_and_trajectory(tmp_path: Path) -> None:
 
     # Keep energy present across the full render so start/end trajectory checks
     # are meaningful.
-    x = np.ones((sr // 2, 1), dtype=np.float32)
-    ir = np.zeros((256, 1), dtype=np.float32)
+    x = np.ones((sr // 2, 1), dtype=np.float64)
+    ir = np.zeros((256, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     sf.write(str(infile), x, sr)
     sf.write(str(irfile), ir, sr)
@@ -702,7 +702,7 @@ def test_render_convolution_route_map_and_trajectory(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.stdout
 
-    out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float32")
+    out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
     assert out_sr == sr
     assert out.shape[1] == 2
     q = max(8, out.shape[0] // 4)
@@ -721,10 +721,10 @@ def test_render_convolution_ir_blend_generates_composite_ir_runtime(tmp_path: Pa
     base_ir = tmp_path / "base_ir.wav"
     blend_ir = tmp_path / "blend_ir.wav"
 
-    x = np.zeros((sr // 3, 1), dtype=np.float32)
+    x = np.zeros((sr // 3, 1), dtype=np.float64)
     x[0, 0] = 1.0
-    ir_a = np.zeros((1024, 1), dtype=np.float32)
-    ir_b = np.zeros((1024, 1), dtype=np.float32)
+    ir_a = np.zeros((1024, 1), dtype=np.float64)
+    ir_b = np.zeros((1024, 1), dtype=np.float64)
     ir_a[0, 0] = 1.0
     ir_a[120, 0] = 0.4
     ir_b[0, 0] = 1.0
@@ -774,9 +774,9 @@ def test_render_rejects_ir_blend_without_base_ir_source(tmp_path: Path) -> None:
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
     blend_ir = tmp_path / "blend_ir.wav"
-    x = np.zeros((512, 1), dtype=np.float32)
+    x = np.zeros((512, 1), dtype=np.float64)
     x[0, 0] = 1.0
-    ir = np.zeros((64, 1), dtype=np.float32)
+    ir = np.zeros((64, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     sf.write(str(infile), x, sr)
     sf.write(str(blend_ir), ir, sr)
@@ -804,9 +804,9 @@ def test_render_rejects_ambiguous_matrix_ir_without_route_hint(tmp_path: Path) -
     outfile = tmp_path / "st_out.wav"
     irfile = tmp_path / "matrix_ir.wav"
 
-    x = np.zeros((1024, 2), dtype=np.float32)
+    x = np.zeros((1024, 2), dtype=np.float64)
     x[0, :] = 1.0
-    ir = np.zeros((128, 4), dtype=np.float32)
+    ir = np.zeros((128, 4), dtype=np.float64)
     ir[0, 0] = 1.0
     ir[0, 3] = 1.0
     sf.write(str(infile), x, sr)
@@ -847,7 +847,7 @@ def test_render_rejects_ambiguous_matrix_ir_without_route_hint(tmp_path: Path) -
 
 
 def test_render_allpass_gain_count_mismatch_rejected(tmp_path: Path) -> None:
-    audio = np.zeros((512, 1), dtype=np.float32)
+    audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
     sf.write(str(infile), audio, 48_000)
@@ -872,7 +872,7 @@ def test_render_allpass_gain_count_mismatch_rejected(tmp_path: Path) -> None:
 
 
 def test_analyze_lufs_mode(tmp_path: Path) -> None:
-    audio = np.zeros((4096, 2), dtype=np.float32)
+    audio = np.zeros((4096, 2), dtype=np.float64)
     audio[64:512, :] = 0.2
     infile = tmp_path / "analyze.wav"
     sf.write(str(infile), audio, 48_000)
@@ -885,9 +885,9 @@ def test_analyze_lufs_mode(tmp_path: Path) -> None:
 def test_analyze_edr_mode(tmp_path: Path) -> None:
     sr = 48_000
     n = sr * 2
-    t = np.arange(n, dtype=np.float32) / sr
-    signal = (np.exp(-t / 0.9).astype(np.float32) * np.sin(2.0 * np.pi * 200.0 * t)).astype(
-        np.float32
+    t = np.arange(n, dtype=np.float64) / sr
+    signal = (np.exp(-t / 0.9).astype(np.float64) * np.sin(2.0 * np.pi * 200.0 * t)).astype(
+        np.float64
     )
     infile = tmp_path / "edr.wav"
     sf.write(str(infile), signal[:, np.newaxis], sr)
@@ -899,13 +899,13 @@ def test_analyze_edr_mode(tmp_path: Path) -> None:
 
 def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> None:
     sr = 48_000
-    audio = np.zeros((1024, 2), dtype=np.float32)
+    audio = np.zeros((1024, 2), dtype=np.float64)
     audio[100:140, :] = 0.25
 
     infile = tmp_path / "in.wav"
     irfile = tmp_path / "ir.wav"
     sf.write(str(infile), audio, sr)
-    sf.write(str(irfile), np.array([[1.0]], dtype=np.float32), sr)
+    sf.write(str(irfile), np.array([[1.0]], dtype=np.float64), sr)
 
     full_scale_out = tmp_path / "out_fullscale.wav"
     result_full = runner.invoke(
@@ -929,7 +929,7 @@ def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> N
 
     info = sf.info(str(full_scale_out))
     assert info.subtype == "FLOAT"
-    full_audio, _ = sf.read(str(full_scale_out), always_2d=True, dtype="float32")
+    full_audio, _ = sf.read(str(full_scale_out), always_2d=True, dtype="float64")
     full_peak = float(np.max(np.abs(full_audio)))
     assert 0.95 <= full_peak <= 1.001
 
@@ -951,7 +951,7 @@ def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> N
     )
     assert result_input.exit_code == 0, result_input.stdout
 
-    input_peak_audio, _ = sf.read(str(input_peak_out), always_2d=True, dtype="float32")
+    input_peak_audio, _ = sf.read(str(input_peak_out), always_2d=True, dtype="float64")
     input_peak = float(np.max(np.abs(audio)))
     output_peak = float(np.max(np.abs(input_peak_audio)))
     assert abs(output_peak - input_peak) <= 0.01
@@ -976,7 +976,7 @@ def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> N
     )
     assert result_target.exit_code == 0, result_target.stdout
 
-    target_audio, _ = sf.read(str(target_peak_out), always_2d=True, dtype="float32")
+    target_audio, _ = sf.read(str(target_peak_out), always_2d=True, dtype="float64")
     target_peak = float(np.max(np.abs(target_audio)))
     expected_target = float(10.0 ** (-6.0 / 20.0))
     assert abs(target_peak - expected_target) <= 0.01
@@ -984,14 +984,14 @@ def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> N
 
 def test_render_conv_streaming_mode(tmp_path: Path) -> None:
     sr = 48_000
-    audio = np.zeros((8192, 2), dtype=np.float32)
+    audio = np.zeros((8192, 2), dtype=np.float64)
     audio[0:64, :] = 0.5
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
     irfile = tmp_path / "ir.wav"
     sf.write(str(infile), audio, sr)
 
-    ir = np.zeros((1024, 1), dtype=np.float32)
+    ir = np.zeros((1024, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     ir[100, 0] = 0.2
     sf.write(str(irfile), ir, sr)
@@ -1019,7 +1019,7 @@ def test_render_conv_streaming_mode(tmp_path: Path) -> None:
     payload = json.loads(analysis_path.read_text(encoding="utf-8"))
     assert payload["effective"]["streaming_mode"] is True
     assert payload["output_samples"] >= payload["input_samples"]
-    out_audio, _ = sf.read(str(outfile), always_2d=True, dtype="float32")
+    out_audio, _ = sf.read(str(outfile), always_2d=True, dtype="float64")
     tail_zero_window = min(64, out_audio.shape[0])
     assert np.all(out_audio[-tail_zero_window:, :] == 0.0)
 
@@ -1027,8 +1027,8 @@ def test_render_conv_streaming_mode(tmp_path: Path) -> None:
 def test_render_self_convolve(tmp_path: Path) -> None:
     sr = 24_000
     n = 2048
-    t = np.arange(n, dtype=np.float32) / sr
-    audio = (0.35 * np.sin(2.0 * np.pi * 330.0 * t)).astype(np.float32)[:, np.newaxis]
+    t = np.arange(n, dtype=np.float64) / sr
+    audio = (0.35 * np.sin(2.0 * np.pi * 330.0 * t)).astype(np.float64)[:, np.newaxis]
 
     infile = tmp_path / "self_in.wav"
     outfile = tmp_path / "self_out.wav"
@@ -1050,7 +1050,7 @@ def test_render_self_convolve(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.stdout
 
-    out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float32")
+    out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
     assert out_sr == sr
     assert out_audio.shape[0] > audio.shape[0]
     assert out_audio.shape[1] == 1
@@ -1065,9 +1065,9 @@ def test_render_self_convolve(tmp_path: Path) -> None:
 def test_render_modulation_multi_source(tmp_path: Path) -> None:
     sr = 24_000
     n = 4096
-    t = np.arange(n, dtype=np.float32) / np.float32(sr)
-    audio = (0.35 * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float32)[:, np.newaxis]
-    side = np.zeros((n, 1), dtype=np.float32)
+    t = np.arange(n, dtype=np.float64) / np.float64(sr)
+    audio = (0.35 * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float64)[:, np.newaxis]
+    side = np.zeros((n, 1), dtype=np.float64)
     side[500:1200, 0] = 0.8
 
     infile = tmp_path / "mod_in.wav"
@@ -1117,8 +1117,8 @@ def test_render_modulation_multi_source(tmp_path: Path) -> None:
 def test_render_modulation_multiple_routes(tmp_path: Path) -> None:
     sr = 24_000
     n = 4096
-    t = np.arange(n, dtype=np.float32) / np.float32(sr)
-    audio = (0.25 * np.sin(2.0 * np.pi * 180.0 * t)).astype(np.float32)[:, np.newaxis]
+    t = np.arange(n, dtype=np.float64) / np.float64(sr)
+    audio = (0.25 * np.sin(2.0 * np.pi * 180.0 * t)).astype(np.float64)[:, np.newaxis]
 
     infile = tmp_path / "routes_in.wav"
     outfile = tmp_path / "routes_out.wav"
@@ -1155,7 +1155,7 @@ def test_render_modulation_multiple_routes(tmp_path: Path) -> None:
 
 def test_render_beast_mode_scales_algo_tail(tmp_path: Path) -> None:
     sr = 16_000
-    audio = np.zeros((1024, 1), dtype=np.float32)
+    audio = np.zeros((1024, 1), dtype=np.float64)
     audio[0, 0] = 0.7
 
     infile = tmp_path / "beast_in.wav"
@@ -1199,8 +1199,8 @@ def test_render_beast_mode_scales_algo_tail(tmp_path: Path) -> None:
     )
     assert beast_result.exit_code == 0, beast_result.stdout
 
-    base_audio, _ = sf.read(str(base_out), always_2d=True, dtype="float32")
-    beast_audio, _ = sf.read(str(beast_out), always_2d=True, dtype="float32")
+    base_audio, _ = sf.read(str(base_out), always_2d=True, dtype="float64")
+    beast_audio, _ = sf.read(str(beast_out), always_2d=True, dtype="float64")
     assert beast_audio.shape[0] > base_audio.shape[0]
 
     payload = json.loads(Path(f"{beast_out}.analysis.json").read_text(encoding="utf-8"))
@@ -1210,7 +1210,7 @@ def test_render_beast_mode_scales_algo_tail(tmp_path: Path) -> None:
 
 def test_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
     sr = 24_000
-    audio = np.zeros((2048, 1), dtype=np.float32)
+    audio = np.zeros((2048, 1), dtype=np.float64)
     audio[100:220, 0] = 0.5
 
     infile = tmp_path / "lucky_in.wav"
@@ -1282,7 +1282,7 @@ def test_ir_process_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
     in_ir = tmp_path / "in_ir.wav"
     out_ir = tmp_path / "proc_base.wav"
     out_dir = tmp_path / "proc_lucky"
-    ir_audio = np.zeros((2048, 1), dtype=np.float32)
+    ir_audio = np.zeros((2048, 1), dtype=np.float64)
     ir_audio[0, 0] = 1.0
     ir_audio[100, 0] = 0.25
     sf.write(str(in_ir), ir_audio, sr)
@@ -1314,7 +1314,7 @@ def test_ir_process_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
 def test_batch_render_parallel_jobs(tmp_path: Path) -> None:
     sr = 16_000
     irfile = tmp_path / "ir.wav"
-    ir = np.zeros((256, 1), dtype=np.float32)
+    ir = np.zeros((256, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     sf.write(str(irfile), ir, sr)
 
@@ -1322,8 +1322,8 @@ def test_batch_render_parallel_jobs(tmp_path: Path) -> None:
     in2 = tmp_path / "in2.wav"
     out1 = tmp_path / "out1.wav"
     out2 = tmp_path / "out2.wav"
-    sf.write(str(in1), np.zeros((2048, 1), dtype=np.float32), sr)
-    sf.write(str(in2), np.zeros((2048, 1), dtype=np.float32), sr)
+    sf.write(str(in1), np.zeros((2048, 1), dtype=np.float64), sr)
+    sf.write(str(in2), np.zeros((2048, 1), dtype=np.float64), sr)
 
     manifest = tmp_path / "manifest.json"
     payload = {
@@ -1364,7 +1364,7 @@ def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> Non
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
     out_dir = tmp_path / "batch_lucky"
-    source = np.zeros((2048, 1), dtype=np.float32)
+    source = np.zeros((2048, 1), dtype=np.float64)
     source[0, 0] = 0.5
     sf.write(str(infile), source, sr)
 
@@ -1409,7 +1409,7 @@ def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> Non
 def test_batch_render_checkpoint_resume_skips_completed(tmp_path: Path) -> None:
     sr = 16_000
     irfile = tmp_path / "ir.wav"
-    ir = np.zeros((128, 1), dtype=np.float32)
+    ir = np.zeros((128, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     sf.write(str(irfile), ir, sr)
 
@@ -1417,8 +1417,8 @@ def test_batch_render_checkpoint_resume_skips_completed(tmp_path: Path) -> None:
     in2 = tmp_path / "in2.wav"
     out1 = tmp_path / "out1.wav"
     out2 = tmp_path / "out2.wav"
-    sf.write(str(in1), np.zeros((1024, 1), dtype=np.float32), sr)
-    sf.write(str(in2), np.zeros((1024, 1), dtype=np.float32), sr)
+    sf.write(str(in1), np.zeros((1024, 1), dtype=np.float64), sr)
+    sf.write(str(in2), np.zeros((1024, 1), dtype=np.float64), sr)
 
     manifest = tmp_path / "manifest_resume.json"
     checkpoint = tmp_path / "batch.checkpoint.json"
@@ -1473,7 +1473,7 @@ def test_batch_render_checkpoint_resume_skips_completed(tmp_path: Path) -> None:
 
 def test_render_validation_errors(tmp_path: Path) -> None:
     sr = 48_000
-    audio = np.zeros((512, 1), dtype=np.float32)
+    audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     sf.write(str(infile), audio, sr)
 
@@ -1507,7 +1507,7 @@ def test_render_validation_errors(tmp_path: Path) -> None:
     assert missing_peak_target.exit_code != 0
 
     ir_file = tmp_path / "ir.wav"
-    sf.write(str(ir_file), np.array([[1.0]], dtype=np.float32), sr)
+    sf.write(str(ir_file), np.array([[1.0]], dtype=np.float64), sr)
 
     conflict_ir = runner.invoke(
         app,
@@ -1625,10 +1625,10 @@ def test_ir_gen_validation_errors(tmp_path: Path) -> None:
 def test_render_ambisonics_encode_rotate_decode(tmp_path: Path) -> None:
     sr = 24_000
     n = 4096
-    t = np.arange(n, dtype=np.float32) / np.float32(sr)
-    left = (0.2 * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float32)
-    right = (0.2 * np.sin(2.0 * np.pi * 330.0 * t)).astype(np.float32)
-    stereo = np.column_stack((left, right)).astype(np.float32)
+    t = np.arange(n, dtype=np.float64) / np.float64(sr)
+    left = (0.2 * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float64)
+    right = (0.2 * np.sin(2.0 * np.pi * 330.0 * t)).astype(np.float64)
+    stereo = np.column_stack((left, right)).astype(np.float64)
 
     infile = tmp_path / "ambi_in.wav"
     outfile = tmp_path / "ambi_out.wav"
@@ -1657,7 +1657,7 @@ def test_render_ambisonics_encode_rotate_decode(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.stdout
 
-    out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float32")
+    out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
     assert out_sr == sr
     assert out.shape[1] == 2
     payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
@@ -1667,7 +1667,7 @@ def test_render_ambisonics_encode_rotate_decode(tmp_path: Path) -> None:
 
 def test_render_rejects_ambi_channel_mismatch_without_encode(tmp_path: Path) -> None:
     sr = 24_000
-    stereo = np.zeros((2048, 2), dtype=np.float32)
+    stereo = np.zeros((2048, 2), dtype=np.float64)
     infile = tmp_path / "bad_ambi_in.wav"
     outfile = tmp_path / "bad_ambi_out.wav"
     sf.write(str(infile), stereo, sr)
@@ -1693,7 +1693,7 @@ def test_render_rejects_ambi_channel_mismatch_without_encode(tmp_path: Path) -> 
 def test_analyze_ambisonic_metrics_mode(tmp_path: Path) -> None:
     sr = 48_000
     n = 4096
-    t = np.arange(n, dtype=np.float32) / np.float32(sr)
+    t = np.arange(n, dtype=np.float64) / np.float64(sr)
     foa = np.column_stack(
         (
             0.2 * np.sin(2.0 * np.pi * 120.0 * t),
@@ -1701,7 +1701,7 @@ def test_analyze_ambisonic_metrics_mode(tmp_path: Path) -> None:
             0.1 * np.sin(2.0 * np.pi * 80.0 * t),
             0.15 * np.sin(2.0 * np.pi * 200.0 * t),
         )
-    ).astype(np.float32)
+    ).astype(np.float64)
     infile = tmp_path / "foa.wav"
     sf.write(str(infile), foa, sr)
 
@@ -1725,8 +1725,8 @@ def test_analyze_ambisonic_metrics_mode(tmp_path: Path) -> None:
 def test_render_automation_file_wet_ramp_and_trace(tmp_path: Path) -> None:
     sr = 16_000
     n = sr // 2
-    x = np.ones((n, 1), dtype=np.float32)
-    ir = np.zeros((64, 1), dtype=np.float32)
+    x = np.ones((n, 1), dtype=np.float64)
+    ir = np.zeros((64, 1), dtype=np.float64)
     ir[0, 0] = 1.0
 
     infile = tmp_path / "auto_in.wav"
@@ -1775,7 +1775,7 @@ def test_render_automation_file_wet_ramp_and_trace(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code == 0, result.stdout
-    out, _ = sf.read(str(outfile), always_2d=True, dtype="float32")
+    out, _ = sf.read(str(outfile), always_2d=True, dtype="float64")
     q = max(8, out.shape[0] // 4)
     early = float(np.mean(np.abs(out[:q, 0])))
     late = float(np.mean(np.abs(out[-q:, 0])))
@@ -1790,7 +1790,7 @@ def test_render_automation_file_wet_ramp_and_trace(tmp_path: Path) -> None:
 
 def test_render_rejects_automation_options_without_file(tmp_path: Path) -> None:
     sr = 16_000
-    x = np.zeros((512, 1), dtype=np.float32)
+    x = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "no_auto_in.wav"
     outfile = tmp_path / "no_auto_out.wav"
     sf.write(str(infile), x, sr)
@@ -1815,8 +1815,8 @@ def test_render_rejects_automation_options_without_file(tmp_path: Path) -> None:
 def test_render_automation_points_wet_ramp_without_file(tmp_path: Path) -> None:
     sr = 16_000
     n = sr // 2
-    x = np.ones((n, 1), dtype=np.float32)
-    ir = np.zeros((64, 1), dtype=np.float32)
+    x = np.ones((n, 1), dtype=np.float64)
+    ir = np.zeros((64, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     infile = tmp_path / "auto_points_in.wav"
     irfile = tmp_path / "auto_points_ir.wav"
@@ -1862,8 +1862,8 @@ def test_render_automation_points_wet_ramp_without_file(tmp_path: Path) -> None:
 def test_render_rejects_invalid_automation_point_interp(tmp_path: Path) -> None:
     sr = 16_000
     n = sr // 4
-    x = np.ones((n, 1), dtype=np.float32)
-    ir = np.zeros((64, 1), dtype=np.float32)
+    x = np.ones((n, 1), dtype=np.float64)
+    ir = np.zeros((64, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     infile = tmp_path / "bad_interp_in.wav"
     irfile = tmp_path / "bad_interp_ir.wav"
@@ -1893,8 +1893,8 @@ def test_render_rejects_invalid_automation_point_interp(tmp_path: Path) -> None:
 def test_render_rejects_invalid_automation_file_interp(tmp_path: Path) -> None:
     sr = 16_000
     n = sr // 4
-    x = np.ones((n, 1), dtype=np.float32)
-    ir = np.zeros((64, 1), dtype=np.float32)
+    x = np.ones((n, 1), dtype=np.float64)
+    ir = np.zeros((64, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     infile = tmp_path / "bad_file_interp_in.wav"
     irfile = tmp_path / "bad_file_interp_ir.wav"
@@ -1941,7 +1941,7 @@ def test_render_rejects_invalid_automation_file_interp(tmp_path: Path) -> None:
 
 def test_render_automation_points_drive_algo_engine_targets(tmp_path: Path) -> None:
     sr = 16_000
-    x = np.zeros((sr // 4, 1), dtype=np.float32)
+    x = np.zeros((sr // 4, 1), dtype=np.float64)
     x[0, 0] = 1.0
     infile = tmp_path / "algo_auto_in.wav"
     outfile = tmp_path / "algo_auto_out.wav"
@@ -1971,7 +1971,7 @@ def test_render_automation_points_drive_algo_engine_targets(tmp_path: Path) -> N
         ],
     )
     assert result.exit_code == 0, result.stdout
-    out, _ = sf.read(str(outfile), always_2d=True, dtype="float32")
+    out, _ = sf.read(str(outfile), always_2d=True, dtype="float64")
     assert float(np.max(np.abs(out))) > 1e-6
 
     payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
@@ -1986,7 +1986,7 @@ def test_render_automation_points_drive_algo_engine_targets(tmp_path: Path) -> N
 
 def test_render_automation_points_drive_perceptual_macro_targets(tmp_path: Path) -> None:
     sr = 16_000
-    x = np.zeros((sr // 4, 1), dtype=np.float32)
+    x = np.zeros((sr // 4, 1), dtype=np.float64)
     x[0, 0] = 1.0
     infile = tmp_path / "macro_auto_in.wav"
     outfile = tmp_path / "macro_auto_out.wav"
@@ -2029,7 +2029,7 @@ def test_render_automation_points_drive_perceptual_macro_targets(tmp_path: Path)
 
 def test_render_automation_points_drive_track_c_targets(tmp_path: Path) -> None:
     sr = 16_000
-    x = np.zeros((sr // 4, 1), dtype=np.float32)
+    x = np.zeros((sr // 4, 1), dtype=np.float64)
     x[0, 0] = 1.0
     infile = tmp_path / "trackc_auto_in.wav"
     outfile = tmp_path / "trackc_auto_out.wav"
@@ -2071,9 +2071,9 @@ def test_render_automation_points_drive_track_c_targets(tmp_path: Path) -> None:
 
 def test_render_rejects_engine_automation_targets_for_convolution(tmp_path: Path) -> None:
     sr = 16_000
-    x = np.zeros((sr // 4, 1), dtype=np.float32)
+    x = np.zeros((sr // 4, 1), dtype=np.float64)
     x[0, 0] = 1.0
-    ir = np.zeros((64, 1), dtype=np.float32)
+    ir = np.zeros((64, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     infile = tmp_path / "conv_auto_in.wav"
     irfile = tmp_path / "conv_auto_ir.wav"
@@ -2102,7 +2102,7 @@ def test_render_rejects_engine_automation_targets_for_convolution(tmp_path: Path
 
 def test_render_rejects_conv_automation_targets_for_algo(tmp_path: Path) -> None:
     sr = 16_000
-    x = np.zeros((sr // 4, 1), dtype=np.float32)
+    x = np.zeros((sr // 4, 1), dtype=np.float64)
     x[0, 0] = 1.0
     infile = tmp_path / "algo_auto_in.wav"
     outfile = tmp_path / "algo_auto_out.wav"
@@ -2127,9 +2127,9 @@ def test_render_rejects_conv_automation_targets_for_algo(tmp_path: Path) -> None
 
 def test_render_rejects_ir_blend_alpha_without_ir_blend(tmp_path: Path) -> None:
     sr = 16_000
-    x = np.zeros((sr // 4, 1), dtype=np.float32)
+    x = np.zeros((sr // 4, 1), dtype=np.float64)
     x[0, 0] = 1.0
-    ir = np.zeros((64, 1), dtype=np.float32)
+    ir = np.zeros((64, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     infile = tmp_path / "conv_no_blend_in.wav"
     irfile = tmp_path / "conv_no_blend_ir.wav"
@@ -2160,11 +2160,11 @@ def test_render_rejects_ir_blend_alpha_without_ir_blend(tmp_path: Path) -> None:
 
 def test_render_conv_ir_blend_alpha_automation_applies(tmp_path: Path) -> None:
     sr = 16_000
-    x = np.zeros((2 * sr, 1), dtype=np.float32)
+    x = np.zeros((2 * sr, 1), dtype=np.float64)
     x[0, 0] = 1.0
-    ir_base = np.zeros((128, 1), dtype=np.float32)
+    ir_base = np.zeros((128, 1), dtype=np.float64)
     ir_base[0, 0] = 1.0
-    ir_blend = np.zeros((128, 1), dtype=np.float32)
+    ir_blend = np.zeros((128, 1), dtype=np.float64)
     ir_blend[16, 0] = 0.75
     infile = tmp_path / "conv_blend_in.wav"
     base_ir = tmp_path / "conv_blend_base.wav"
@@ -2210,9 +2210,9 @@ def test_render_conv_ir_blend_alpha_automation_applies(tmp_path: Path) -> None:
 
 def test_render_automation_mixed_lanes_deterministic_replay(tmp_path: Path) -> None:
     sr = 16_000
-    x = np.zeros((3 * sr, 1), dtype=np.float32)
+    x = np.zeros((3 * sr, 1), dtype=np.float64)
     x[100:300, 0] = 0.5
-    ir = np.zeros((64, 1), dtype=np.float32)
+    ir = np.zeros((64, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     infile = tmp_path / "determin_in.wav"
     irfile = tmp_path / "determin_ir.wav"
@@ -2293,15 +2293,15 @@ def test_render_automation_mixed_lanes_deterministic_replay(tmp_path: Path) -> N
     assert "dry" in auto_a.get("post_targets", [])
     assert "gain-db" in auto_a.get("post_targets", [])
 
-    y_a, _ = sf.read(str(out_a), always_2d=True, dtype="float32")
-    y_b, _ = sf.read(str(out_b), always_2d=True, dtype="float32")
+    y_a, _ = sf.read(str(out_a), always_2d=True, dtype="float64")
+    y_b, _ = sf.read(str(out_b), always_2d=True, dtype="float64")
     assert y_a.shape == y_b.shape
     assert np.allclose(y_a, y_b, atol=1e-7)
 
 
 def test_render_automation_invalid_lane_context_is_reported(tmp_path: Path) -> None:
     sr = 16_000
-    x = np.zeros((sr // 2, 1), dtype=np.float32)
+    x = np.zeros((sr // 2, 1), dtype=np.float64)
     x[0, 0] = 1.0
     infile = tmp_path / "bad_lane_in.wav"
     outfile = tmp_path / "bad_lane_out.wav"
@@ -2346,11 +2346,11 @@ def test_render_automation_invalid_lane_context_is_reported(tmp_path: Path) -> N
 def test_render_feature_vector_lanes_drive_wet_and_emit_trace(tmp_path: Path) -> None:
     sr = 16_000
     n = 2 * sr
-    x = np.zeros((n, 1), dtype=np.float32)
+    x = np.zeros((n, 1), dtype=np.float64)
     x[200:1200, 0] = 0.2
     x[4000:5200, 0] = 0.8
     x[12000:12500, 0] = 0.45
-    ir = np.zeros((64, 1), dtype=np.float32)
+    ir = np.zeros((64, 1), dtype=np.float64)
     ir[0, 0] = 1.0
 
     infile = tmp_path / "feature_lane_in.wav"
@@ -2408,10 +2408,10 @@ def test_render_feature_vector_lanes_drive_wet_and_emit_trace(tmp_path: Path) ->
 def test_render_feature_vector_lanes_are_deterministic(tmp_path: Path) -> None:
     sr = 16_000
     n = 2 * sr
-    t = np.arange(n, dtype=np.float32) / np.float32(sr)
-    env = np.linspace(0.2, 1.0, n, dtype=np.float32)
-    x = (env * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float32)[:, np.newaxis]
-    ir = np.zeros((96, 1), dtype=np.float32)
+    t = np.arange(n, dtype=np.float64) / np.float64(sr)
+    env = np.linspace(0.2, 1.0, n, dtype=np.float64)
+    x = (env * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float64)[:, np.newaxis]
+    ir = np.zeros((96, 1), dtype=np.float64)
     ir[0, 0] = 1.0
 
     infile = tmp_path / "feature_determin_in.wav"
@@ -2457,16 +2457,16 @@ def test_render_feature_vector_lanes_are_deterministic(tmp_path: Path) -> None:
     assert isinstance(feature_b, dict)
     assert feature_a.get("signature") == feature_b.get("signature")
 
-    y_a, _ = sf.read(str(out_a), always_2d=True, dtype="float32")
-    y_b, _ = sf.read(str(out_b), always_2d=True, dtype="float32")
+    y_a, _ = sf.read(str(out_a), always_2d=True, dtype="float64")
+    y_b, _ = sf.read(str(out_b), always_2d=True, dtype="float64")
     assert y_a.shape == y_b.shape
     assert np.allclose(y_a, y_b, atol=1e-7)
 
 
 def test_render_rejects_invalid_feature_vector_lane(tmp_path: Path) -> None:
     sr = 16_000
-    x = np.zeros((sr // 2, 1), dtype=np.float32)
-    ir = np.zeros((64, 1), dtype=np.float32)
+    x = np.zeros((sr // 2, 1), dtype=np.float64)
+    ir = np.zeros((64, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     infile = tmp_path / "feature_bad_in.wav"
     irfile = tmp_path / "feature_bad_ir.wav"
@@ -2496,9 +2496,9 @@ def test_render_rejects_invalid_feature_vector_lane(tmp_path: Path) -> None:
 def test_render_automation_file_feature_vector_lane(tmp_path: Path) -> None:
     sr = 16_000
     n = sr
-    x = np.zeros((n, 1), dtype=np.float32)
+    x = np.zeros((n, 1), dtype=np.float64)
     x[200:1200, 0] = 0.4
-    ir = np.zeros((64, 1), dtype=np.float32)
+    ir = np.zeros((64, 1), dtype=np.float64)
     ir[0, 0] = 1.0
 
     infile = tmp_path / "feature_file_in.wav"

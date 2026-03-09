@@ -67,7 +67,7 @@ from verbx.ir.morph import (
     resolve_blend_mix_values,
 )
 
-AudioArray = npt.NDArray[np.float32]
+AudioArray = npt.NDArray[np.float64]
 PassProcessor = Callable[[AudioArray, int, int], AudioArray]
 
 
@@ -986,7 +986,7 @@ def _append_tail_padding(audio: AudioArray, sr: int, tail_seconds: float) -> Aud
     tail_samples = int(np.ceil(max(0.0, tail_seconds) * float(sr)))
     if tail_samples <= 0:
         return audio
-    padding = np.zeros((tail_samples, audio.shape[1]), dtype=np.float32)
+    padding = np.zeros((tail_samples, audio.shape[1]), dtype=np.float64)
     return np.concatenate((audio, padding), axis=0)
 
 
@@ -1015,7 +1015,7 @@ def _complete_stream_file_tail_to_zero(
         if total_frames <= 0:
             if hold_samples > 0:
                 stream_file.seek(0, whence=sf.SEEK_END)
-                stream_file.write(np.zeros((hold_samples, channels), dtype=np.float32))
+                stream_file.write(np.zeros((hold_samples, channels), dtype=np.float64))
             return hold_samples
 
         last_active = -1
@@ -1025,8 +1025,8 @@ def _complete_stream_file_tail_to_zero(
             frames = cursor - start
             stream_file.seek(start, whence=sf.SEEK_SET)
             block = np.asarray(
-                stream_file.read(frames, dtype="float32", always_2d=True),
-                dtype=np.float32,
+                stream_file.read(frames, dtype="float64", always_2d=True),
+                dtype=np.float64,
             )
             if block.shape[0] > 0:
                 envelope = np.max(np.abs(block), axis=1)
@@ -1041,7 +1041,7 @@ def _complete_stream_file_tail_to_zero(
 
         tail_existing = max(0, total_frames - first_zero_frame)
         if tail_existing > 0:
-            zero_block = np.zeros((write_frames, channels), dtype=np.float32)
+            zero_block = np.zeros((write_frames, channels), dtype=np.float64)
             write_cursor = first_zero_frame
             remaining = tail_existing
             while remaining > 0:
@@ -1053,7 +1053,7 @@ def _complete_stream_file_tail_to_zero(
 
         append_frames = target_frames - total_frames
         if append_frames > 0:
-            zero_block = np.zeros((write_frames, channels), dtype=np.float32)
+            zero_block = np.zeros((write_frames, channels), dtype=np.float64)
             stream_file.seek(0, whence=sf.SEEK_END)
             remaining = append_frames
             while remaining > 0:
@@ -1071,7 +1071,7 @@ def _complete_tail_to_zero(
     threshold: float = 1e-6,
 ) -> AudioArray:
     """Ensure rendered output ends with exact zeros after tail decay."""
-    x = np.asarray(audio, dtype=np.float32)
+    x = np.asarray(audio, dtype=np.float64)
     if x.shape[0] == 0:
         return x.copy()
 
@@ -1080,24 +1080,24 @@ def _complete_tail_to_zero(
     active = np.flatnonzero(envelope > float(max(0.0, threshold)))
     if active.size == 0:
         target_len = max(int(x.shape[0]), hold_samples)
-        out = np.zeros((target_len, x.shape[1]), dtype=np.float32)
+        out = np.zeros((target_len, x.shape[1]), dtype=np.float64)
         return out
 
     last_active = int(active[-1])
     target_len = max(int(x.shape[0]), last_active + 1 + hold_samples)
-    out = np.zeros((target_len, x.shape[1]), dtype=np.float32)
+    out = np.zeros((target_len, x.shape[1]), dtype=np.float64)
     out[: x.shape[0], :] = x
     if last_active + 1 < target_len:
         out[last_active + 1 :, :] = 0.0
-    return np.asarray(out, dtype=np.float32)
+    return np.asarray(out, dtype=np.float64)
 
 
 def _prepare_spatial_input(audio: AudioArray, config: RenderConfig) -> AudioArray:
     """Prepare input audio for Ambisonics processing when enabled."""
     if config.ambi_order <= 0:
-        return np.asarray(audio, dtype=np.float32)
+        return np.asarray(audio, dtype=np.float64)
 
-    prepared = np.asarray(audio, dtype=np.float32)
+    prepared = np.asarray(audio, dtype=np.float64)
     source_norm = config.ambi_normalization
     source_order = config.channel_order
     if config.ambi_encode_from != "none":
@@ -1117,9 +1117,9 @@ def _prepare_spatial_input(audio: AudioArray, config: RenderConfig) -> AudioArra
 def _apply_spatial_output_transform(audio: AudioArray, config: RenderConfig) -> AudioArray:
     """Apply Ambisonics output transforms (rotation and optional decode)."""
     if config.ambi_order <= 0:
-        return np.asarray(audio, dtype=np.float32)
+        return np.asarray(audio, dtype=np.float64)
 
-    transformed = np.asarray(audio, dtype=np.float32)
+    transformed = np.asarray(audio, dtype=np.float64)
     if abs(float(config.ambi_rotate_yaw_deg)) > 1e-12:
         transformed = rotate_ambisonic_yaw(
             transformed,
@@ -1158,7 +1158,7 @@ def _build_dry_reference_for_automation(
     out_len = int(rendered.shape[0])
     out_channels = int(rendered.shape[1])
     if out_len == 0:
-        return np.zeros((0, out_channels), dtype=np.float32)
+        return np.zeros((0, out_channels), dtype=np.float64)
 
     if engine_name == "conv":
         return ConvolutionReverbEngine.build_dry_for_output(
@@ -1169,7 +1169,7 @@ def _build_dry_reference_for_automation(
             out_layout=config.output_layout,
         )
 
-    dry = np.zeros((out_len, out_channels), dtype=np.float32)
+    dry = np.zeros((out_len, out_channels), dtype=np.float64)
     copy_len = min(out_len, int(input_for_engine.shape[0]))
     in_channels = int(input_for_engine.shape[1])
     if in_channels == out_channels:
@@ -1274,7 +1274,7 @@ def _render_convolution_variant(
         n=config.repeat,
         post_pass_processor=repeat_post_processor,
     )
-    return np.asarray(rendered, dtype=np.float32)
+    return np.asarray(rendered, dtype=np.float64)
 
 
 def _estimate_wet_component(
@@ -1285,9 +1285,9 @@ def _estimate_wet_component(
     base_dry: float,
 ) -> AudioArray:
     if abs(base_wet) <= 1e-9:
-        return np.asarray(rendered, dtype=np.float32)
-    wet = (np.asarray(rendered, dtype=np.float32) - (float(base_dry) * dry_reference)) / float(base_wet)
-    return np.asarray(np.nan_to_num(wet, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float32)
+        return np.asarray(rendered, dtype=np.float64)
+    wet = (np.asarray(rendered, dtype=np.float64) - (float(base_dry) * dry_reference)) / float(base_wet)
+    return np.asarray(np.nan_to_num(wet, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
 
 
 def _apply_convolution_automation_targets(
@@ -1302,7 +1302,7 @@ def _apply_convolution_automation_targets(
 ) -> tuple[AudioArray, dict[str, Any] | None]:
     alpha_curve = bundle.curves.get("ir-blend-alpha")
     if alpha_curve is None:
-        return np.asarray(rendered, dtype=np.float32), None
+        return np.asarray(rendered, dtype=np.float64), None
 
     base_ir = config.ir_blend_base_ir
     composite_ir = config.ir_blend_composite_ir
@@ -1317,7 +1317,7 @@ def _apply_convolution_automation_targets(
     base_render: AudioArray
     blend_render: AudioArray
     if Path(current_ir) == Path(blend_path):
-        blend_render = np.asarray(rendered, dtype=np.float32)
+        blend_render = np.asarray(rendered, dtype=np.float64)
         base_render = _render_convolution_variant(
             input_for_engine=input_for_engine,
             sr=sr,
@@ -1327,7 +1327,7 @@ def _apply_convolution_automation_targets(
             repeat_post_processor=repeat_post_processor,
         )
     elif Path(current_ir) == Path(base_path):
-        base_render = np.asarray(rendered, dtype=np.float32)
+        base_render = np.asarray(rendered, dtype=np.float64)
         blend_render = _render_convolution_variant(
             input_for_engine=input_for_engine,
             sr=sr,
@@ -1355,20 +1355,20 @@ def _apply_convolution_automation_targets(
         )
 
     n = int(rendered.shape[0])
-    alpha = np.asarray(alpha_curve, dtype=np.float32).reshape(-1)
+    alpha = np.asarray(alpha_curve, dtype=np.float64).reshape(-1)
     if alpha.shape[0] != n:
         if alpha.shape[0] <= 1:
             fill = float(alpha[0]) if alpha.shape[0] == 1 else 0.0
-            alpha = np.full((n,), fill, dtype=np.float32)
+            alpha = np.full((n,), fill, dtype=np.float64)
         else:
             src = np.linspace(0.0, 1.0, alpha.shape[0], dtype=np.float64)
             dst = np.linspace(0.0, 1.0, n, dtype=np.float64)
-            alpha = np.asarray(np.interp(dst, src, alpha.astype(np.float64)), dtype=np.float32)
-    alpha = np.asarray(np.clip(alpha, 0.0, 1.0), dtype=np.float32)
+            alpha = np.asarray(np.interp(dst, src, alpha.astype(np.float64)), dtype=np.float64)
+    alpha = np.asarray(np.clip(alpha, 0.0, 1.0), dtype=np.float64)
 
     if abs(float(config.wet)) <= 1e-9:
         mixed = ((1.0 - alpha)[:, np.newaxis] * base_render) + (alpha[:, np.newaxis] * blend_render)
-        mixed = np.asarray(np.nan_to_num(mixed, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float32)
+        mixed = np.asarray(np.nan_to_num(mixed, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
     else:
         dry_reference = _build_dry_reference_for_automation(
             engine_name="conv",
@@ -1390,7 +1390,7 @@ def _apply_convolution_automation_targets(
         )
         wet_mix = ((1.0 - alpha)[:, np.newaxis] * wet_base) + (alpha[:, np.newaxis] * wet_blend)
         mixed = (float(config.dry) * dry_reference) + (float(config.wet) * wet_mix)
-        mixed = np.asarray(np.nan_to_num(mixed, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float32)
+        mixed = np.asarray(np.nan_to_num(mixed, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
 
     summary = {
         "ir_blend_alpha_applied": True,
@@ -1453,7 +1453,7 @@ def _apply_final_peak_normalization(
         if current_peak <= 0.0 or input_peak_linear <= 0.0:
             return audio.copy()
         gain = float(input_peak_linear / current_peak)
-        return np.asarray(audio * gain, dtype=np.float32)
+        return np.asarray(audio * gain, dtype=np.float64)
 
     msg = f"Unsupported output_peak_norm mode: {mode}"
     raise ValueError(msg)

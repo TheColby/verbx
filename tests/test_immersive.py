@@ -24,7 +24,7 @@ runner = CliRunner()
 
 
 def test_fold_down_to_stereo_for_5p1_shape() -> None:
-    audio = np.zeros((256, 6), dtype=np.float32)
+    audio = np.zeros((256, 6), dtype=np.float64)
     audio[:, 0] = 0.8
     audio[:, 1] = -0.5
     folded = fold_down_to_stereo(audio, layout="5.1")
@@ -32,7 +32,7 @@ def test_fold_down_to_stereo_for_5p1_shape() -> None:
 
 
 def test_evaluate_immersive_qc_returns_gate_payload() -> None:
-    audio = np.zeros((1024, 2), dtype=np.float32)
+    audio = np.zeros((1024, 2), dtype=np.float64)
     audio[20:200, 0] = 0.5
     audio[20:200, 1] = -0.4
     gates = ImmersiveQCGates(
@@ -49,13 +49,13 @@ def test_evaluate_immersive_qc_returns_gate_payload() -> None:
 
 
 def test_generate_immersive_handoff_package_writes_outputs(tmp_path: Path) -> None:
-    bed = np.zeros((4096, 6), dtype=np.float32)
+    bed = np.zeros((4096, 6), dtype=np.float64)
     for ch in range(6):
         bed[120 : 120 + (100 + (ch * 10)), ch] = 0.25 + (0.05 * ch)
     bed_path = tmp_path / "bed.wav"
     sf.write(str(bed_path), bed, 48_000)
 
-    obj = np.zeros((2048, 1), dtype=np.float32)
+    obj = np.zeros((2048, 1), dtype=np.float64)
     obj[60:260, 0] = 0.35
     obj_path = tmp_path / "obj.wav"
     sf.write(str(obj_path), obj, 48_000)
@@ -91,7 +91,7 @@ def test_generate_immersive_handoff_package_writes_outputs(tmp_path: Path) -> No
 def test_run_file_queue_worker_processes_job(tmp_path: Path) -> None:
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
-    audio = np.zeros((1024, 1), dtype=np.float32)
+    audio = np.zeros((1024, 1), dtype=np.float64)
     audio[0, 0] = 0.5
     sf.write(str(infile), audio, 16_000)
 
@@ -114,7 +114,7 @@ def test_run_file_queue_worker_processes_job(tmp_path: Path) -> None:
     def runner_fn(job: QueueJobClaim) -> None:
         in_path = Path(str(job["infile"]))
         out_path = Path(str(job["outfile"]))
-        x, sr = sf.read(str(in_path), always_2d=True, dtype="float32")
+        x, sr = sf.read(str(in_path), always_2d=True, dtype="float64")
         sf.write(str(out_path), x, sr)
 
     config = QueueWorkerConfig(
@@ -133,13 +133,13 @@ def test_run_file_queue_worker_processes_job(tmp_path: Path) -> None:
 
 def test_cli_immersive_qc_and_handoff_and_worker(tmp_path: Path) -> None:
     sr = 16_000
-    bed = np.zeros((2048, 6), dtype=np.float32)
+    bed = np.zeros((2048, 6), dtype=np.float64)
     for ch in range(6):
         bed[100 : 300 + (ch * 5), ch] = 0.2 + (0.03 * ch)
     bed_path = tmp_path / "bed.wav"
     sf.write(str(bed_path), bed, sr)
 
-    obj = np.zeros((1536, 1), dtype=np.float32)
+    obj = np.zeros((1536, 1), dtype=np.float64)
     obj[80:280, 0] = 0.4
     obj_path = tmp_path / "obj.wav"
     sf.write(str(obj_path), obj, sr)
@@ -191,7 +191,7 @@ def test_cli_immersive_qc_and_handoff_and_worker(tmp_path: Path) -> None:
 
     in_render = tmp_path / "render_in.wav"
     out_render = tmp_path / "render_out.wav"
-    tone = np.zeros((1024, 1), dtype=np.float32)
+    tone = np.zeros((1024, 1), dtype=np.float64)
     tone[40:160, 0] = 0.6
     sf.write(str(in_render), tone, sr)
     queue_payload = {
@@ -233,7 +233,7 @@ def test_cli_immersive_qc_and_handoff_and_worker(tmp_path: Path) -> None:
 
 
 def test_immersive_handoff_strict_fails_on_any_qc_violation(tmp_path: Path) -> None:
-    bed = np.zeros((2048, 2), dtype=np.float32)
+    bed = np.zeros((2048, 2), dtype=np.float64)
     bed[32:640, 0] = 0.5
     bed[32:640, 1] = -0.45
     bed_path = tmp_path / "bed_qc_fail.wav"
@@ -267,13 +267,13 @@ def test_immersive_handoff_strict_fails_on_any_qc_violation(tmp_path: Path) -> N
 
 
 def test_immersive_handoff_validates_sample_rate_consistency(tmp_path: Path) -> None:
-    bed = np.zeros((2048, 2), dtype=np.float32)
+    bed = np.zeros((2048, 2), dtype=np.float64)
     bed[48:300, 0] = 0.2
     bed[48:300, 1] = -0.2
     bed_path = tmp_path / "bed_sr.wav"
     sf.write(str(bed_path), bed, 48_000)
 
-    obj = np.zeros((1024, 1), dtype=np.float32)
+    obj = np.zeros((1024, 1), dtype=np.float64)
     obj[20:220, 0] = 0.25
     obj_path = tmp_path / "obj_sr.wav"
     sf.write(str(obj_path), obj, 44_100)
@@ -319,7 +319,7 @@ def test_immersive_handoff_validates_sample_rate_consistency(tmp_path: Path) -> 
 
 
 def test_queue_summary_rejects_duplicate_job_ids(tmp_path: Path) -> None:
-    audio = np.zeros((512, 1), dtype=np.float32)
+    audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in_dup.wav"
     sf.write(str(infile), audio, 16_000)
 
