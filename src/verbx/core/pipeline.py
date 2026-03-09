@@ -15,7 +15,7 @@ import json
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -59,6 +59,7 @@ from verbx.io.progress import RenderProgress
 from verbx.ir.generator import IRGenConfig, generate_or_load_cached_ir
 from verbx.ir.morph import (
     IRMorphConfig,
+    IRMorphMode,
     generate_or_load_cached_blended_ir,
     resolve_blend_mix_values,
 )
@@ -310,14 +311,13 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 base_dry=float(runtime_config.dry),
                 bundle=bundle,
             )
-            if automation_summary is not None:
-                targets = set(bundle.curves.keys())
-                automation_summary["engine_targets"] = sorted(
-                    target for target in targets if target in ENGINE_AUTOMATION_TARGETS
-                )
-                automation_summary["post_targets"] = sorted(
-                    target for target in targets if target in POST_RENDER_AUTOMATION_TARGETS
-                )
+            targets = set(bundle.curves.keys())
+            automation_summary["engine_targets"] = sorted(
+                target for target in targets if target in ENGINE_AUTOMATION_TARGETS
+            )
+            automation_summary["post_targets"] = sorted(
+                target for target in targets if target in POST_RENDER_AUTOMATION_TARGETS
+            )
             if runtime_config.automation_trace_out is not None:
                 trace_path = Path(runtime_config.automation_trace_out)
                 write_automation_trace(trace_path, bundle)
@@ -559,7 +559,7 @@ def _prepare_runtime_config(
         blend_paths = tuple(Path(path) for path in runtime.ir_blend)
         blend_mix = resolve_blend_mix_values(runtime.ir_blend_mix, len(blend_paths))
         blend_cfg = IRMorphConfig(
-            mode=runtime.ir_blend_mode,
+            mode=cast(IRMorphMode, runtime.ir_blend_mode),
             alpha=0.5,
             early_ms=float(runtime.ir_blend_early_ms),
             early_alpha=runtime.ir_blend_early_alpha,
@@ -1010,7 +1010,7 @@ def _build_dry_reference_for_automation(
         return np.zeros((0, out_channels), dtype=np.float32)
 
     if engine_name == "conv":
-        return ConvolutionReverbEngine._build_dry_for_output(
+        return ConvolutionReverbEngine.build_dry_for_output(
             x=input_for_engine,
             out_channels=out_channels,
             out_len=out_len,

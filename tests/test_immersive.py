@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pytest
 import soundfile as sf
 from typer.testing import CliRunner
 
@@ -229,3 +230,123 @@ def test_cli_immersive_qc_and_handoff_and_worker(tmp_path: Path) -> None:
     assert worker_result.exit_code == 0, worker_result.stdout
     assert out_render.exists()
     assert (tmp_path / "hb" / "cli_worker.heartbeat.json").exists()
+
+
+def test_immersive_handoff_strict_fails_on_any_qc_violation(tmp_path: Path) -> None:
+    bed = np.zeros((2048, 2), dtype=np.float32)
+    bed[32:640, 0] = 0.5
+    bed[32:640, 1] = -0.45
+    bed_path = tmp_path / "bed_qc_fail.wav"
+    sf.write(str(bed_path), bed, 48_000)
+
+    scene = {
+        "scene_name": "scene_qc_fail",
+        "bed": {
+            "name": "bed_main",
+            "path": str(bed_path),
+            "layout": "stereo",
+            "render_options": {"wet": 0.6, "rt60": 2.5},
+        },
+        "policy": {"mode": "balanced"},
+        "qc_gates": {
+            "target_lufs": -18.0,
+            "lufs_tolerance": 30.0,
+            "max_true_peak_dbfs": -80.0,
+            "max_fold_down_delta_db": 20.0,
+            "min_channel_occupancy": 0.0,
+            "occupancy_threshold_dbfs": -90.0,
+        },
+    }
+
+    with pytest.raises(ValueError, match="one or more QC gates failed"):
+        generate_immersive_handoff_package(
+            scene=scene,
+            out_dir=tmp_path / "handoff_strict_qc",
+            strict=True,
+        )
+
+
+def test_immersive_handoff_validates_sample_rate_consistency(tmp_path: Path) -> None:
+    bed = np.zeros((2048, 2), dtype=np.float32)
+    bed[48:300, 0] = 0.2
+    bed[48:300, 1] = -0.2
+    bed_path = tmp_path / "bed_sr.wav"
+    sf.write(str(bed_path), bed, 48_000)
+
+    obj = np.zeros((1024, 1), dtype=np.float32)
+    obj[20:220, 0] = 0.25
+    obj_path = tmp_path / "obj_sr.wav"
+    sf.write(str(obj_path), obj, 44_100)
+
+    scene = {
+        "scene_name": "scene_sr_mismatch",
+        "sample_rate": 48_000,
+        "bed": {
+            "name": "bed_main",
+            "path": str(bed_path),
+            "layout": "stereo",
+            "render_options": {"wet": 0.6, "rt60": 2.5},
+        },
+        "objects": [
+            {
+                "id": "obj_1",
+                "name": "obj_sr",
+                "path": str(obj_path),
+                "layout": "mono",
+                "render_options": {"wet": 0.4, "rt60": 1.5},
+            }
+        ],
+        "policy": {"mode": "balanced"},
+    }
+
+    warn_summary = generate_immersive_handoff_package(
+        scene=scene,
+        out_dir=tmp_path / "handoff_warn_sr",
+        strict=False,
+    )
+    validation = warn_summary.get("validation", {})
+    assert isinstance(validation, dict)
+    errors = validation.get("errors", [])
+    assert isinstance(errors, list)
+    assert any("obj_sr: sample rate 44100" in str(item) for item in errors)
+
+    with pytest.raises(ValueError, match="sample rate 44100"):
+        generate_immersive_handoff_package(
+            scene=scene,
+            out_dir=tmp_path / "handoff_strict_sr",
+            strict=True,
+        )
+
+
+def test_queue_summary_rejects_duplicate_job_ids(tmp_path: Path) -> None:
+    audio = np.zeros((512, 1), dtype=np.float32)
+    infile = tmp_path / "in_dup.wav"
+    sf.write(str(infile), audio, 16_000)
+
+    queue_file = tmp_path / "queue_duplicate_ids.json"
+    queue_file.write_text(
+        json.dumps(
+            {
+                "version": "0.7",
+                "backend": "file",
+                "jobs": [
+                    {
+                        "id": "job_dup",
+                        "infile": str(infile),
+                        "outfile": str(tmp_path / "out1.wav"),
+                        "options": {},
+                    },
+                    {
+                        "id": "job_dup",
+                        "infile": str(infile),
+                        "outfile": str(tmp_path / "out2.wav"),
+                        "options": {},
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Duplicate queue job id"):
+        summarize_file_queue(queue_file)

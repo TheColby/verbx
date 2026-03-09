@@ -389,7 +389,7 @@ def _match_channels(x: AudioArray, channels: int) -> AudioArray:
     if current == 1 and channels > 1:
         return np.repeat(x, channels, axis=1).astype(np.float32)
     if channels == 1:
-        return np.mean(x, axis=1, keepdims=True, dtype=np.float32)
+        return np.asarray(np.mean(x, axis=1, keepdims=True, dtype=np.float32), dtype=np.float32)
     idx = np.linspace(0, max(0, current - 1), channels, dtype=np.float64)
     mapped = np.rint(idx).astype(np.int32)
     mapped = np.clip(mapped, 0, max(0, current - 1))

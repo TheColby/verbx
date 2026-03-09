@@ -51,6 +51,7 @@ LAYOUT_CHANNEL_LABELS: dict[str, tuple[str, ...]] = {
 }
 
 POLICY_MODES = {"bed-safe", "object-safe", "balanced"}
+LAYOUT_HINT_CHOICES = frozenset({"auto", *LAYOUT_CHANNELS.keys()})
 
 
 @dataclass(slots=True)
@@ -98,6 +99,15 @@ def normalize_layout_name(layout: str) -> str:
     if value in {"l.c.r", "l-c-r"}:
         return "lcr"
     return value
+
+
+def validate_layout_hint(layout: str) -> str:
+    """Validate user-facing layout hint and return canonical identifier."""
+    normalized = normalize_layout_name(layout)
+    if normalized in LAYOUT_HINT_CHOICES:
+        return normalized
+    options = ", ".join(sorted(LAYOUT_HINT_CHOICES))
+    raise ValueError(f"layout must be one of: {options}")
 
 
 def infer_layout_from_channels(channels: int) -> str:
@@ -383,7 +393,7 @@ def generate_immersive_handoff_package(
     if not bed_path.exists():
         raise ValueError(f"bed file not found: {bed_path}")
 
-    bed_layout = normalize_layout_name(str(bed_raw.get("layout", "auto")))
+    bed_layout = validate_layout_hint(str(bed_raw.get("layout", "auto")))
     bed_audio, bed_sr = read_audio(str(bed_path))
     if bed_layout not in {"auto", ""} and bed_layout in LAYOUT_CHANNELS:
         expected = int(LAYOUT_CHANNELS[bed_layout])
@@ -392,6 +402,23 @@ def generate_immersive_handoff_package(
                 f"bed layout '{bed_layout}' expects {expected} channels, "
                 f"got {int(bed_audio.shape[1])}."
             )
+    declared_sample_rate_raw = scene.get("sample_rate")
+    if declared_sample_rate_raw is None:
+        declared_sample_rate = int(bed_sr)
+    elif isinstance(declared_sample_rate_raw, (int, float)):
+        declared_sample_rate = int(declared_sample_rate_raw)
+        if declared_sample_rate <= 0:
+            raise ValueError("scene.sample_rate must be > 0 when provided.")
+    else:
+        raise ValueError("scene.sample_rate must be numeric when provided.")
+
+    validation_errors: list[str] = []
+    validation_warnings: list[str] = []
+    if int(bed_sr) != int(declared_sample_rate):
+        validation_errors.append(
+            "bed sample rate does not match declared scene.sample_rate "
+            f"({bed_sr} != {declared_sample_rate})."
+        )
 
     gates_raw = scene.get("qc_gates")
     gates = build_qc_gates(gates_raw if isinstance(gates_raw, dict) else None)
@@ -429,10 +456,15 @@ def generate_immersive_handoff_package(
             audio=obj_audio,
             sr=obj_sr,
             label=obj_label,
-            layout=normalize_layout_name(str(obj.get("layout", "auto"))),
+            layout=validate_layout_hint(str(obj.get("layout", "auto"))),
             gates=gates,
         )
         object_qc.append(qc)
+        if int(obj_sr) != int(declared_sample_rate):
+            validation_errors.append(
+                f"{obj_label}: sample rate {obj_sr} does not match declared scene.sample_rate "
+                f"{declared_sample_rate}."
+            )
 
         info = sf.info(str(obj_path))
         object_entries.append(
@@ -457,9 +489,16 @@ def generate_immersive_handoff_package(
         )
 
     policy_summary = evaluate_object_bed_policy(scene=scene, bed_qc=bed_qc, object_qc=object_qc)
-    if strict and len(policy_summary["errors"]) > 0:
-        joined = "; ".join(str(item) for item in policy_summary["errors"])
-        raise ValueError(f"immersive policy checks failed: {joined}")
+    qa_all_pass = bool(bed_qc["pass"]) and all(bool(item["pass"]) for item in object_qc)
+    if strict:
+        strict_errors: list[str] = []
+        strict_errors.extend(str(item) for item in policy_summary["errors"])
+        strict_errors.extend(validation_errors)
+        if not qa_all_pass:
+            strict_errors.append("one or more QC gates failed.")
+        if len(strict_errors) > 0:
+            joined = "; ".join(strict_errors)
+            raise ValueError(f"immersive strict checks failed: {joined}")
 
     out_dir.mkdir(parents=True, exist_ok=True)
     object_manifest = {
@@ -481,8 +520,12 @@ def generate_immersive_handoff_package(
         "bed": bed_qc,
         "objects": object_qc,
         "policy": policy_summary,
+        "validation": {
+            "errors": validation_errors,
+            "warnings": validation_warnings,
+        },
         "summary": {
-            "all_pass": bool(bed_qc["pass"]) and all(bool(item["pass"]) for item in object_qc),
+            "all_pass": qa_all_pass,
             "failed_tracks": [
                 str(item.get("label", "unknown"))
                 for item in [bed_qc, *object_qc]
@@ -494,7 +537,7 @@ def generate_immersive_handoff_package(
         "schema": "verbx.adm-bwf.sidecar.v0.7",
         "generated_utc": _iso_utc_now(),
         "scene_name": str(scene.get("scene_name", scene_name)),
-        "sample_rate": int(scene.get("sample_rate", bed_sr)),
+        "sample_rate": int(declared_sample_rate),
         "bed": {
             "name": str(bed_raw.get("name", "bed")),
             "path": str(bed_path),
@@ -514,6 +557,7 @@ def generate_immersive_handoff_package(
             for entry in object_entries
         ],
         "policy": policy_summary,
+        "validation": qa_bundle["validation"],
         "qa_summary": qa_bundle["summary"],
     }
 
@@ -548,6 +592,7 @@ def generate_immersive_handoff_package(
         "object_stems": [{"id": entry["id"], "path": entry["path"]} for entry in object_entries],
         "outputs": outputs,
         "policy": policy_summary,
+        "validation": qa_bundle["validation"],
     }
     manifest_path = out_dir / f"{scene_name}.deliverables.manifest.json"
     _write_json(manifest_path, deliverable_manifest)
@@ -558,6 +603,7 @@ def generate_immersive_handoff_package(
         "strict": bool(strict),
         "outputs": outputs,
         "policy": policy_summary,
+        "validation": qa_bundle["validation"],
         "qa_summary": qa_bundle["summary"],
     }
 
@@ -733,6 +779,7 @@ def _normalize_queue_jobs(raw: Any) -> list[dict[str, Any]]:
     if not isinstance(raw, list):
         return []
     jobs: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
     for idx, item in enumerate(raw):
         if not isinstance(item, dict):
             continue
@@ -745,6 +792,9 @@ def _normalize_queue_jobs(raw: Any) -> list[dict[str, Any]]:
         job_id = str(item.get("id", f"job_{idx + 1:04d}")).strip()
         if job_id == "":
             job_id = f"job_{idx + 1:04d}"
+        if job_id in seen_ids:
+            raise ValueError(f"Duplicate queue job id: {job_id}")
+        seen_ids.add(job_id)
         max_retries_raw = item.get("max_retries", item.get("retries", 0))
         max_retries = int(max_retries_raw) if isinstance(max_retries_raw, (int, float)) else 0
         jobs.append(

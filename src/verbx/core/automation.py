@@ -16,7 +16,6 @@ from verbx.core.control_targets import (
     CONTROL_TARGET_LIMITS,
     ENGINE_CONTROL_TARGETS,
     POST_RENDER_CONTROL_TARGETS,
-    SUPPORTED_CONTROL_TARGETS,
     normalize_control_target_name,
 )
 
@@ -210,8 +209,12 @@ def load_automation_bundle(
     if resolved_block_ms <= 0.0:
         msg = "--automation-block-ms must be > 0."
         raise ValueError(msg)
-    control_step = 1 if resolved_mode == "sample" else max(1, int(round(sr * resolved_block_ms / 1000.0)))
-    ctrl_count = int(math.ceil(max(1, num_samples) / float(control_step)))
+    control_step = (
+        1
+        if resolved_mode == "sample"
+        else max(1, round(sr * resolved_block_ms / 1000.0))
+    )
+    ctrl_count = math.ceil(max(1, num_samples) / float(control_step))
     ctrl_times = np.arange(ctrl_count, dtype=np.float64) * (float(control_step) / float(sr))
 
     limit_map = dict(TARGET_LIMITS)
@@ -295,7 +298,10 @@ def apply_render_automation(
         if abs(wet_base) <= 1e-9:
             wet_estimate = np.zeros_like(out, dtype=np.float32)
         else:
-            wet_estimate = np.asarray((out - (dry_base * dry_reference)) / wet_base, dtype=np.float32)
+            wet_estimate = np.asarray(
+                (out - (dry_base * dry_reference)) / wet_base,
+                dtype=np.float32,
+            )
 
         wet_gain = wet_curve if wet_curve is not None else np.full(n, wet_base, dtype=np.float32)
         dry_gain = dry_curve if dry_curve is not None else np.full(n, dry_base, dtype=np.float32)
@@ -317,7 +323,8 @@ def apply_render_automation(
         "lanes_per_target": bundle.lanes_per_target,
         "target_stats": _target_stats(bundle.curves),
     }
-    return np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float32), summary
+    sanitized = np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float32)
+    return sanitized, summary
 
 
 def write_automation_trace(path: Path, bundle: AutomationBundle) -> None:
@@ -356,9 +363,13 @@ def _read_automation_spec(path: Path) -> dict[str, Any]:
         with path.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
             for row in reader:
-                if not isinstance(row, dict):
-                    continue
-                rows.append({str(k): str(v) for k, v in row.items() if k is not None and v is not None})
+                rows.append(
+                    {
+                        str(k): str(v)
+                        for k, v in row.items()
+                        if k is not None and v is not None
+                    }
+                )
         lanes = _lanes_from_csv_rows(rows)
         return {"mode": "block", "block_ms": 20.0, "lanes": lanes}
 
@@ -445,7 +456,13 @@ def _render_breakpoints(
         return _exp_interpolate(ctrl_times, times, values)
 
     if interp == "linear":
-        return np.interp(ctrl_times, times, values, left=values[0], right=values[-1]).astype(np.float64)
+        return np.interp(
+            ctrl_times,
+            times,
+            values,
+            left=values[0],
+            right=values[-1],
+        ).astype(np.float64)
 
     choices = ", ".join(sorted(BREAKPOINT_INTERP_CHOICES))
     raise ValueError(
@@ -528,7 +545,9 @@ def _parse_points(raw: Any) -> list[tuple[float, float]]:
                 t = float(item["time"])
                 v = float(item["value"])
             except (KeyError, TypeError, ValueError) as exc:
-                raise ValueError("Automation breakpoint dict requires numeric time and value.") from exc
+                raise ValueError(
+                    "Automation breakpoint dict requires numeric time and value."
+                ) from exc
             points.append((t, v))
             continue
         if isinstance(item, (list, tuple)) and len(item) >= 2:

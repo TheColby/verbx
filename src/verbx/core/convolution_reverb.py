@@ -433,6 +433,25 @@ class ConvolutionReverbEngine(ReverbEngine):
         dry[:copy_len, :mapped] = block[:, :mapped]
         return dry
 
+    @classmethod
+    def build_dry_for_output(
+        cls,
+        *,
+        x: AudioArray,
+        out_channels: int,
+        out_len: int,
+        in_layout: str,
+        out_layout: str,
+    ) -> AudioArray:
+        """Public wrapper for dry topology mapping used outside this module."""
+        return cls._build_dry_for_output(
+            x=x,
+            out_channels=out_channels,
+            out_len=out_len,
+            in_layout=in_layout,
+            out_layout=out_layout,
+        )
+
     def _build_ir_matrix(
         self,
         ir: AudioArray,

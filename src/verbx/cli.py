@@ -79,6 +79,7 @@ from verbx.core.immersive import (
     generate_immersive_handoff_package,
     run_file_queue_worker,
     summarize_file_queue,
+    validate_layout_hint,
 )
 from verbx.core.modulation import parse_mod_route_spec, parse_mod_sources
 from verbx.core.pipeline import run_render_pipeline
@@ -2377,6 +2378,11 @@ def immersive_handoff(
     policy = policy_raw if isinstance(policy_raw, dict) else {}
     qa_raw = summary.get("qa_summary", {})
     qa = qa_raw if isinstance(qa_raw, dict) else {}
+    validation_raw = summary.get("validation", {})
+    validation = validation_raw if isinstance(validation_raw, dict) else {}
+    validation_errors = validation.get("errors", [])
+    validation_warnings = validation.get("warnings", [])
+    failed_tracks = qa.get("failed_tracks", [])
 
     table = Table(title="Immersive Handoff")
     table.add_column("Field", style="cyan")
@@ -2387,6 +2393,9 @@ def immersive_handoff(
     table.add_row("policy_mode", str(policy.get("mode", "")))
     table.add_row("policy_errors", str(len(policy.get("errors", []))))
     table.add_row("policy_warnings", str(len(policy.get("warnings", []))))
+    table.add_row("validation_errors", str(len(validation_errors)))
+    table.add_row("validation_warnings", str(len(validation_warnings)))
+    table.add_row("failed_tracks", str(len(failed_tracks)))
     table.add_row(
         "outputs",
         "\n".join(str(path) for path in outputs.values()) if len(outputs) > 0 else "(none)",
@@ -2430,6 +2439,10 @@ def immersive_qc(
 ) -> None:
     """Run immersive QC gates for loudness/true-peak/fold-down/occupancy."""
     audio, sr = read_audio(str(infile))
+    try:
+        resolved_layout = validate_layout_hint(layout)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     gates = build_qc_gates(
         {
             "target_lufs": target_lufs,
@@ -2444,7 +2457,7 @@ def immersive_qc(
         audio=audio,
         sr=sr,
         label=infile.stem,
-        layout=layout,
+        layout=resolved_layout,
         gates=gates,
     )
     metrics_raw = report.get("metrics", {})

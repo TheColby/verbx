@@ -23,19 +23,19 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import ClassVar, TypeVar
 
 import numpy as np
 import numpy.typing as npt
 
 from verbx.core.control_targets import ENGINE_CONTROL_TARGETS, normalize_control_target_name
+from verbx.core.engine_base import ReverbEngine
 from verbx.core.fdn_capabilities import (
     FDN_LINK_FILTER_CHOICES,
     normalize_fdn_graph_topology_name,
     normalize_fdn_link_filter_name,
     normalize_fdn_matrix_name,
 )
-from verbx.core.engine_base import ReverbEngine
 from verbx.core.shimmer import ShimmerConfig, ShimmerProcessor
 from verbx.io.audio import ensure_mono_or_stereo
 
@@ -145,7 +145,7 @@ class AlgoReverbEngine(ReverbEngine):
         [5.0, 7.0, 11.0, 17.0, 23.0, 29.0],
         dtype=np.float32,
     )
-    _AUTOMATION_TARGETS = set(ENGINE_CONTROL_TARGETS)
+    _AUTOMATION_TARGETS: ClassVar[frozenset[str]] = frozenset(ENGINE_CONTROL_TARGETS)
     _RT60_UPDATE_EPS = 1e-3
     _LP_ALPHA_UPDATE_EPS = 1e-5
     _TRACK_C_UPDATE_EPS = 1e-5
@@ -857,6 +857,23 @@ class AlgoReverbEngine(ReverbEngine):
             high = float(np.clip(high / ratio, 0.1, 300.0))
         return low, mid, high
 
+    @classmethod
+    def resolve_multiband_rt60(
+        cls,
+        config: AlgoReverbConfig,
+        *,
+        clarity_macro: float | None = None,
+        warmth_macro: float | None = None,
+        fdn_rt60_tilt: float | None = None,
+    ) -> tuple[float, float, float]:
+        """Public wrapper for multiband RT60 resolution logic."""
+        return cls._resolve_multiband_rt60(
+            config,
+            clarity_macro=clarity_macro,
+            warmth_macro=warmth_macro,
+            fdn_rt60_tilt=fdn_rt60_tilt,
+        )
+
     @staticmethod
     def _one_pole_alpha(cutoff_hz: float, sr: int) -> np.float32:
         """Compute stable one-pole lowpass alpha from cutoff frequency."""
@@ -897,12 +914,37 @@ class AlgoReverbEngine(ReverbEngine):
         high_scale = float(np.clip(np.power(mid_mean / high_mean, tonal_strength), 0.5, 2.0))
 
         # Preserve overall energy tendency while rebalancing decay color.
-        rms = float(np.sqrt(((low_scale * low_scale) + (mid_scale * mid_scale) + (high_scale * high_scale)) / 3.0))
+        rms = float(
+            np.sqrt(
+                (
+                    (low_scale * low_scale)
+                    + (mid_scale * mid_scale)
+                    + (high_scale * high_scale)
+                )
+                / 3.0
+            )
+        )
         if rms > eps:
             low_scale /= rms
             mid_scale /= rms
             high_scale /= rms
         return np.float32(low_scale), np.float32(mid_scale), np.float32(high_scale)
+
+    @staticmethod
+    def resolve_tonal_correction_scales(
+        *,
+        feedback_gain_low: npt.NDArray[np.float32],
+        feedback_gain_mid: npt.NDArray[np.float32],
+        feedback_gain_high: npt.NDArray[np.float32],
+        strength: float,
+    ) -> tuple[np.float32, np.float32, np.float32]:
+        """Public wrapper for tonal-correction scale calculation."""
+        return AlgoReverbEngine._resolve_tonal_correction_scales(
+            feedback_gain_low=feedback_gain_low,
+            feedback_gain_mid=feedback_gain_mid,
+            feedback_gain_high=feedback_gain_high,
+            strength=strength,
+        )
 
     @classmethod
     def _resolve_diffusion_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float32]:
@@ -981,7 +1023,9 @@ class AlgoReverbEngine(ReverbEngine):
         envelopment_macro_curve = automation.get("envelopment-macro")
         fdn_rt60_tilt_curve = automation.get("fdn-rt60-tilt")
         tonal_correction_strength_curve = automation.get("fdn-tonal-correction-strength")
-        multiband_active = self._multiband_enabled or self._automation_requires_multiband(automation)
+        multiband_active = self._multiband_enabled or self._automation_requires_multiband(
+            automation
+        )
         has_dynamic_params = (
             rt60_curve is not None
             or damping_curve is not None
@@ -1079,11 +1123,13 @@ class AlgoReverbEngine(ReverbEngine):
         tonal_mid_scale = np.float32(1.0)
         tonal_high_scale = np.float32(1.0)
         if tonal_correction_enabled:
-            tonal_low_scale, tonal_mid_scale, tonal_high_scale = self._resolve_tonal_correction_scales(
-                feedback_gain_low=feedback_gain_low,
-                feedback_gain_mid=feedback_gain_mid,
-                feedback_gain_high=feedback_gain_high,
-                strength=tonal_correction_strength,
+            tonal_low_scale, tonal_mid_scale, tonal_high_scale = (
+                self._resolve_tonal_correction_scales(
+                    feedback_gain_low=feedback_gain_low,
+                    feedback_gain_mid=feedback_gain_mid,
+                    feedback_gain_high=feedback_gain_high,
+                    strength=tonal_correction_strength,
+                )
             )
         xover_low = max(20.0, float(self._config.fdn_xover_low_hz))
         xover_high = max(xover_low + 10.0, float(self._config.fdn_xover_high_hz))
@@ -1305,7 +1351,9 @@ class AlgoReverbEngine(ReverbEngine):
                 tonal_correction_enabled = multiband_active and tonal_correction_strength > 0.0
 
                 rt60_effective *= macro_rt60_scale
-                damping_effective = float(np.clip(damping_effective + macro_damping_delta, 0.0, 1.0))
+                damping_effective = float(
+                    np.clip(damping_effective + macro_damping_delta, 0.0, 1.0)
+                )
                 room_size = float(room_size_default)
                 if room_size_curve is not None:
                     room_size = float(np.clip(room_size_curve[n], 0.25, 4.0))
