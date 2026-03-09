@@ -1,11 +1,17 @@
-# IR Synthesis (v0.3)
+# IR Synthesis (v0.6.0 + v0.7 extensions)
 
-`verbx` v0.3 adds deterministic impulse-response synthesis with four modes:
+`verbx` includes deterministic impulse-response synthesis with four modes:
 
 - `fdn`: Algorithmic FDN-derived IR
 - `stochastic`: Noise-shaped diffuse tail
 - `modal`: Decaying modal resonator bank
 - `hybrid`: Early reflections + blended stochastic/modal/fdn tail
+
+Related v0.7 IR features:
+
+- cache-backed IR morphing (`verbx ir morph`)
+- render-time IR blend/morph (`verbx render --ir-blend ...`)
+- morph quality metadata (RT drift and spectral-distance diagnostics)
 
 ## Quick Start
 
@@ -30,11 +36,19 @@ hatch run verbx ir gen irs/resonated_120.wav --mode hybrid --length 120 \
 # Analyze generated IR
 hatch run verbx ir analyze irs/wash_120.wav
 
+# Morph two IRs into a hybrid target (cache-backed)
+hatch run verbx ir morph irs/hall_A.wav irs/hall_B.wav irs/hall_AB.wav \
+  --mode envelope-aware --alpha 0.6 --early-ms 80 --align-decay
+
 # Use generated IR directly in render
 hatch run verbx render input.wav output.wav --engine conv --ir irs/wash_120.wav
 
 # Auto-generate and cache IR during render
 hatch run verbx render input.wav output.wav --ir-gen --ir-gen-mode hybrid --ir-gen-length 120 --ir-gen-seed 7
+
+# Render-time IR blending (Track D)
+hatch run verbx render input.wav output.wav --engine conv --ir irs/hall_A.wav \
+  --ir-blend irs/hall_B.wav --ir-blend-mix 0.5 --ir-blend-mode spectral
 ```
 
 ## Recipes

@@ -1,4 +1,4 @@
-.TH VERBX-BATCH 1 "March 2026" "verbx 0.3.0" "User Commands"
+.TH VERBX-BATCH 1 "March 2026" "verbx 0.6.0" "User Commands"
 .SH NAME
 verbx-batch \- parallel manifest-driven render workflows
 .SH SYNOPSIS
@@ -28,8 +28,23 @@ Retry count per failed job.
 .B --continue-on-error / --fail-fast
 Continue after failures or stop immediately.
 .TP
+.B --checkpoint-file PATH
+Persist per-job completion state as jobs finish.
+.TP
+.B --resume
+Resume from --checkpoint-file and skip already completed jobs.
+.TP
 .B --dry-run
 Validate and print execution plan without rendering.
+.TP
+.B --lucky INT
+Generate N randomized render variants per manifest job.
+.TP
+.B --lucky-out-dir PATH
+Output directory for lucky render variants.
+.TP
+.B --lucky-seed INT
+Deterministic seed for lucky batch expansion.
 .SH EXAMPLES
 .TP
 .B verbx batch template > manifest.json
@@ -37,6 +52,9 @@ Create starter manifest.
 .TP
 .B verbx batch render manifest.json --jobs 8 --schedule longest-first
 Execute parallel batch render.
+.TP
+.B verbx batch render manifest.json --checkpoint-file state.json --resume
+Resume an interrupted batch and skip completed outputs.
 .SH SEE ALSO
 .BR verbx (1),
 .BR verbx-render (1)

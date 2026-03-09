@@ -1,4 +1,4 @@
-.TH VERBX 1 "March 2026" "verbx 0.3.0" "User Commands"
+.TH VERBX 1 "March 2026" "verbx 0.6.0" "User Commands"
 .SH NAME
 verbx \- extreme reverb command-line processor
 .SH SYNOPSIS
@@ -9,7 +9,7 @@ verbx \- extreme reverb command-line processor
 convolution reverb workflows.
 It supports long-tail processing, freeze/repeat chains, synthetic IR generation,
 loudness/peak targeting, multichannel routing, multi-source parameter
-modulation, batch execution, and analysis.
+modulation, batch execution, immersive handoff/QC workflows, and analysis.
 .PP
 Use \fBverbx --help\fR for full command discovery.
 .SH COMMANDS
@@ -34,6 +34,9 @@ Inspect and clear IR cache artifacts.
 .TP
 .B batch ...
 Template and render batch-manifest workflows.
+.TP
+.B immersive ...
+Immersive scene handoff packaging, QC, and distributed file-queue operations.
 .SH EXAMPLES
 .TP
 .B verbx render in.wav out.wav --engine algo --rt60 80 --wet 0.85 --dry 0.15
@@ -53,6 +56,12 @@ Assign different LFOs to different modulation targets.
 .TP
 .B verbx analyze in.wav --lufs --edr --json-out report.json
 Analyze loudness and EDR metrics to JSON.
+.TP
+.B verbx immersive handoff scene.json out_dir --strict
+Generate immersive sidecars/manifests and fail on policy, validation, or QC issues.
+.TP
+.B verbx immersive queue status queue.json
+Inspect queue progress and failed/pending counts.
 .SH FILES
 .TP
 \fBdocs/EXTREME_COOKBOOK.md\fR

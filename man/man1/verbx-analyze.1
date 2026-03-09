@@ -1,4 +1,4 @@
-.TH VERBX-ANALYZE 1 "March 2026" "verbx 0.3.0" "User Commands"
+.TH VERBX-ANALYZE 1 "March 2026" "verbx 0.6.0" "User Commands"
 .SH NAME
 verbx-analyze \- analyze audio metrics including loudness and EDR
 .SH SYNOPSIS
@@ -22,6 +22,15 @@ Include Energy Decay Relief summary metrics:
 .TP
 .B --frames-out PATH
 Write framewise feature CSV.
+.TP
+.B --ambi-order INT
+Enable Ambisonics spatial metrics for the given order (0 disables).
+.TP
+.B --ambi-normalization [auto|sn3d|n3d|fuma]
+Ambisonics normalization convention metadata for analysis mode.
+.TP
+.B --channel-order [auto|acn|fuma]
+Ambisonics channel-order convention metadata for analysis mode.
 .SH EXAMPLES
 .TP
 .B verbx analyze in.wav
@@ -32,6 +41,9 @@ Include loudness and EDR summaries.
 .TP
 .B verbx analyze in.wav --json-out report.json --frames-out frames.csv
 Export JSON and framewise CSV outputs.
+.TP
+.B verbx analyze bus_foa.wav --ambi-order 1 --ambi-normalization sn3d --channel-order acn
+Analyze FOA content with explicit Ambisonics convention metadata.
 .SH SEE ALSO
 .BR verbx (1),
 .BR verbx-render (1)

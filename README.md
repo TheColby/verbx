@@ -190,14 +190,12 @@ batch workflows.
 - [18.0 Project Layout](#180-project-layout)
 - [19.0 Additional Docs](#190-additional-docs)
 - [20.0 Roadmap](#200-roadmap)
-  - [20.1 v0.7 Objective: Immersive production interoperability (implemented)](#201-v07-objective-immersive-production-interoperability-implemented)
-  - [20.2 Remaining v0.7 Track A: Time-varying automation hardening](#202-remaining-v07-track-a-time-varying-automation-hardening)
-  - [20.3 Remaining v0.7 Track B: Feature-vector-driven reverb control](#203-remaining-v07-track-b-feature-vector-driven-reverb-control)
-  - [20.4 Remaining v0.7 Track C: Jot-inspired control completion](#204-remaining-v07-track-c-jot-inspired-control-completion)
-  - [20.5 Remaining v0.7 Track D: IR morphing completion](#205-remaining-v07-track-d-ir-morphing-completion)
-  - [20.6 FDN Structures: Implemented vs Remaining](#206-fdn-structures-implemented-vs-remaining)
-  - [20.7 Completed Milestones (Condensed)](#207-completed-milestones-condensed)
-  - [20.8 Sources for Remaining Roadmap Items](#208-sources-for-remaining-roadmap-items)
+  - [20.1 Remaining v0.7 Track A: Time-varying automation hardening](#201-remaining-v07-track-a-time-varying-automation-hardening)
+  - [20.2 Remaining v0.7 Track B: Feature-vector-driven reverb control](#202-remaining-v07-track-b-feature-vector-driven-reverb-control)
+  - [20.3 Remaining v0.7 Track C: Jot-inspired control completion](#203-remaining-v07-track-c-jot-inspired-control-completion)
+  - [20.4 Remaining v0.7 Track D: IR morphing completion](#204-remaining-v07-track-d-ir-morphing-completion)
+  - [20.5 Remaining FDN Structures](#205-remaining-fdn-structures)
+  - [20.6 Sources for Open Roadmap Items](#206-sources-for-open-roadmap-items)
 - [21.0 License](#210-license)
 - [22.0 Attribution](#220-attribution)
 
@@ -776,6 +774,7 @@ Current implementation level: **v0.6.0**
 - v0.7 Track A/C additions: JSON/CSV automation lanes (`--automation-file`), inline CLI points (`--automation-point`), block/sample evaluation, smoothing, clamp overrides, automation trace export, and Track C automation targets for `fdn-rt60-tilt` and `fdn-tonal-correction-strength`
 - v0.7 Track D additions: cache-backed `ir morph` command (`linear`, `equal-power`, `spectral`, `envelope-aware`), render-time IR blending via `--ir-blend`/`--ir-blend-mix`, and morph quality metadata (RT drift, spectral distance, coherence deltas)
 - v0.7 immersive interoperability additions: `immersive handoff` sidecar/deliverable packaging, object/bed policy checks, `immersive qc` gates, and distributed `immersive queue` worker heartbeats/retry semantics
+- v0.7 immersive hardening additions: strict handoff now fails on policy violations, scene validation errors, or any QC gate failure; scene sample-rate mismatches are surfaced in validation payloads; queue manifests now require unique job IDs
 
 ## 7.0 Quick Start Recipes
 
@@ -1961,7 +1960,7 @@ No command-specific switches (other than `--help`).
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
-| `--strict / --warn-only` | Whether policy/QC errors stop generation. | Use `--strict` in CI delivery gates; use `--warn-only` when iterating scene metadata. |
+| `--strict / --warn-only` | Whether policy errors, validation errors, or any QC gate failure stop generation. | Use `--strict` in CI delivery gates; use `--warn-only` when iterating scene metadata and inspecting validation payloads. |
 
 ### 12.17 `verbx immersive qc INFILE` switches
 
@@ -1984,6 +1983,11 @@ No command-specific switches (other than `--help`).
 - `template`
 - `status QUEUE_FILE`
 - `worker QUEUE_FILE`
+
+Manifest contract notes:
+
+- each job `id` must be unique within `jobs`
+- duplicate IDs fail fast during `status` and `worker` normalization
 
 `worker` switches:
 
@@ -2309,23 +2313,10 @@ pytest
 
 ## 20.0 Roadmap
 
-This section tracks active roadmap work and recently completed milestones.
+This section tracks only open roadmap work. Completed items are moved to
+Section 6.0 Status.
 
-### 20.1 v0.7 Objective: Immersive production interoperability (implemented)
-
-- `Atmos handoff` (implemented): `verbx immersive handoff SCENE_FILE OUT_DIR`
-  now emits machine-readable ADM/BWF-style sidecars and deliverable manifests.
-- `Object-aware policy layer` (implemented): bed/object policy validation is
-  available with downmix-risk checks and strict/warn-only CLI gating.
-- `Scene deliverables` (implemented): handoff package generation now emits
-  object-stem manifest, QA bundle, and deliverable manifest artifacts.
-- `Scale-out execution` (implemented baseline): file-backed distributed queue
-  worker (`verbx immersive queue worker`) now provides heartbeats,
-  claim/reclaim, idempotent success markers, and retry semantics.
-- `Immersive QC gates` (implemented): reusable QC command (`verbx immersive qc`)
-  enforces LUFS, true-peak, fold-down delta, and channel-occupancy checks.
-
-### 20.2 Remaining v0.7 Track A: Time-varying automation hardening
+### 20.1 Remaining v0.7 Track A: Time-varying automation hardening
 
 - `Target coverage`: expand automation targets in convolution and IR blend/morph
   paths so Track D features are timeline-addressable.
@@ -2336,7 +2327,7 @@ This section tracks active roadmap work and recently completed milestones.
 - `QA`: add regression vectors for mixed lane types (breakpoint/LFO/segment)
   and edge-case transitions on long renders.
 
-### 20.3 Remaining v0.7 Track B: Feature-vector-driven reverb control
+### 20.2 Remaining v0.7 Track B: Feature-vector-driven reverb control
 
 - `Feature bus`: implement frame-aligned feature streams (loudness, transient,
   spectral, harmonic) as reusable control inputs.
@@ -2347,7 +2338,7 @@ This section tracks active roadmap work and recently completed milestones.
 - `Explainability outputs`: emit feature-plus-parameter trace exports for QA and
   repeatability.
 
-### 20.4 Remaining v0.7 Track C: Jot-inspired control completion
+### 20.3 Remaining v0.7 Track C: Jot-inspired control completion
 
 - `Calibration pass`: tighten macro-to-coefficient mappings against measured
   decay/spectral outcomes across reference materials.
@@ -2356,7 +2347,7 @@ This section tracks active roadmap work and recently completed milestones.
 - `Validation tooling`: expand decay-target error summaries and spectral drift
   diagnostics for automated acceptance checks.
 
-### 20.5 Remaining v0.7 Track D: IR morphing completion
+### 20.4 Remaining v0.7 Track D: IR morphing completion
 
 - `Automation integration`: expose morph/blend coefficient timelines directly in
   render automation lanes.
@@ -2365,29 +2356,14 @@ This section tracks active roadmap work and recently completed milestones.
 - `Operational hardening`: finalize cache/metadata compatibility behavior across
   channel-count and sample-rate mismatches in batch pipelines.
 
-### 20.6 FDN Structures: Implemented vs Remaining
+### 20.5 Remaining FDN Structures
 
-- `Implemented`: Hadamard, Householder, random orthogonal, circulant, elliptic,
-  time-varying unitary (`tv_unitary`), delay-feedback-matrix augmentation,
-  sparse pair-mixing mode, nested/cascaded FDN, multiband decay shaping,
-  filter-feedback links, and graph-structured topologies.
-- `Remaining`: directional/spatial FDN coupling for immersive beds/objects,
-  SDN-hybrid topology mode, optional nonlinear in-loop behavior (experimental),
-  and topology fitting assistance based on analysis targets.
+- `Directional/spatial coupling`: directional/spatial FDN coupling for immersive beds/objects.
+- `SDN hybrid`: SDN-hybrid topology mode.
+- `Nonlinear loop options`: optional nonlinear in-loop behavior (experimental).
+- `Topology fitting`: topology fitting assistance based on analysis targets.
 
-### 20.7 Completed Milestones (Condensed)
-
-- `v0.5 complete`: surround-aware routing profiles, explicit route-map
-  validation, convolution trajectory controls, surround decorrelation controls,
-  framewise coherence/confidence metrics, and batch checkpoint/resume behavior.
-- `v0.6 complete`: Ambisonics baseline (metadata checks, canonicalization, FOA
-  transforms, yaw rotation, Ambisonics-aware convolution/analysis) plus advanced
-  FDN controls (multiband, filter-feedback, nested/cascaded, graph topology).
-- `v0.7 progress complete`: Track A starter (timeline automation framework),
-  Track C starter + tonal correction + automation targets, and Track D IR morph
-  core with blend modes, early/late split controls, and QA metrics.
-
-### 20.8 Sources for Remaining Roadmap Items
+### 20.6 Sources for Open Roadmap Items
 
 Canonical reference index: [docs/REFERENCES.md](docs/REFERENCES.md)
 
@@ -2395,6 +2371,9 @@ Canonical reference index: [docs/REFERENCES.md](docs/REFERENCES.md)
 - [Rocchesso and Smith (1997) - circulant/elliptic FDN families](docs/REFERENCES.md#ref-fdn-circulant-elliptic-1997)
 - [Schlecht and Habets (2019) - delay feedback matrices](docs/REFERENCES.md#ref-fdn-delay-feedback-2019)
 - [Valimaki et al. (2012) - fifty years of artificial reverberation](docs/REFERENCES.md#ref-reverb-survey-2012)
+
+Completed roadmap snapshots were intentionally removed from this section to
+keep roadmap scope strictly open-item only.
 
 ## 21.0 License
 
