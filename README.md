@@ -1284,19 +1284,19 @@ Notes:
 ### 8.2 Processing Architecture
 
 ```mermaid
-flowchart LR
-  A["Input Audio"] --> B["CLI Parse (Typer)"]
-  B --> C["RenderConfig"]
-  C --> D["Device Resolve<br/>auto/cpu/cuda/mps"]
+flowchart TD
+  A["Input audio"] --> B["CLI parse (Typer)"]
+  B --> C["RenderConfig build + validation"]
+  C --> D["Device resolve (auto/cpu/cuda/mps)"]
   D --> E{"Engine"}
-  E -->|"algo"| F["FDN + Diffusion"]
-  E -->|"conv"| G["Partitioned FFT Convolution"]
-  F --> H["Repeat / Freeze / Ambient Stage"]
+  E -->|"algo"| F["Algorithmic path (diffusion + FDN)"]
+  E -->|"conv"| G["Convolution path (partitioned FFT)"]
+  F --> H["Temporal/creative stage (repeat/freeze/ambient)"]
   G --> H
-  H --> I["Loudness / Peak Targeting"]
-  I --> J["Optional Final Peak Norm"]
-  J --> K["Audio Write (subtype selectable)"]
-  K --> L["Analysis JSON + Optional Frames CSV"]
+  H --> I["Loudness + peak policy stage"]
+  I --> J["Optional final peak normalization"]
+  J --> K["Audio write (format + subtype)"]
+  K --> L["Analysis JSON + optional frames CSV"]
 ```
 
 ### 8.3 IR Generation + Cache Flow
@@ -1320,6 +1320,15 @@ The intent is practical: when you change a switch, you should be able to
 predict which part of the signal path changes and why the result sounds
 different.
 
+Notation used in this section:
+
+- `n`: discrete-time sample index.
+- `k`: frame or block index in STFT/partitioned-convolution context.
+- `i`, `o`: input and output channel indices.
+- Bold lower-case symbols (for example `\mathbf{y}`): vectors across FDN lines.
+- Bold upper-case symbols (for example `\mathbf{M}`): matrices/operators.
+- `*`: linear convolution.
+
 ### 9.1 RT60 to Feedback Gain (FDN)
 
 For each delay line with delay $d$ seconds and target RT60 $T_{60}$:
@@ -1327,6 +1336,12 @@ For each delay line with delay $d$ seconds and target RT60 $T_{60}$:
 $$
 g \approx 10^{-3d/T_{60}}
 $$
+
+Variable definitions:
+
+- $g$: per-loop amplitude feedback gain for one delay line.
+- $d$: delay-line period in seconds.
+- $T_{60}$: target decay time (seconds) for a 60 dB level drop.
 
 Why this form is used:
 
@@ -1353,10 +1368,12 @@ $$
 \mathbf{x}_{fb}[n+1] = \mathbf{G}\mathbf{M}\mathbf{y}[n] + \mathbf{u}[n]
 $$
 
-- $\mathbf{M}$: feedback mixing matrix (orthonormal family; optionally time-varying)
-- $\mathbf{G}$: diagonal RT60-calibrated gains
-- $\mathbf{D}$: damping/DC conditioning in each loop path
-- $\mathbf{u}[n]$: injected excitation after pre-delay and diffusion
+- $\mathbf{x}_{fb}[n]$: feedback-line state vector read from delays at sample $n$.
+- $\mathbf{y}[n]$: loop-conditioned vector after damping/DC-block processing.
+- $\mathbf{M}$: feedback mixing matrix (orthonormal family; optionally time-varying).
+- $\mathbf{G}$: diagonal gain matrix from RT60 calibration.
+- $\mathbf{D}(\cdot)$: per-line loop conditioning operator (damping + DC control).
+- $\mathbf{u}[n]$: injected excitation vector (post pre-delay + diffusion).
 
 How to read this in signal-flow terms:
 
@@ -1379,7 +1396,21 @@ These graphs reflect the current implementation in:
 
 ##### 9.2.1.1 Algorithmic Render Topology
 
-![Algorithmic FDN topology graph](docs/assets/fdn_topology_algorithmic.svg)
+```mermaid
+flowchart TD
+  A["Input"] --> B["Pre-delay"]
+  B --> C["Allpass diffusion bank"]
+  C --> D["FDN late-field core"]
+  D --> E["Wet post shaping"]
+  E --> F["Wet/Dry summation"]
+  F --> G["Output"]
+  D -. optional .-> H["DFM micro-delay branch"]
+  D -. optional .-> I["Sparse pair-mixing branch"]
+  D -. optional .-> J["Feedback-link filter branch"]
+  H -.-> D
+  I -.-> D
+  J -.-> D
+```
 
 This is the canonical per-channel algorithmic render path.
 It shows where early diffusion ends and late-field feedback begins, and where
@@ -1397,7 +1428,22 @@ Implementation notes:
 
 ##### 9.2.1.2 FDN Matrix Family Graph
 
-![FDN matrix family graph](docs/assets/fdn_topology_variants.svg)
+```mermaid
+flowchart TD
+  A["Matrix family select"] --> B{"Family"}
+  B --> C["Hadamard / Householder"]
+  B --> D["Random orthogonal"]
+  B --> E["Circulant / Elliptic"]
+  B --> F["TV-unitary"]
+  B --> G["Graph-structured"]
+  C --> H["Normalize/orthonormalize"]
+  D --> H
+  E --> H
+  F --> H
+  G --> H
+  H --> I["Feedback mix operator M"]
+  I --> J["FDN state update"]
+```
 
 Matrix selection changes feedback coupling character more than decay time.
 In practice, this is a texture/diffusion control: same RT60 can sound denser,
@@ -1412,7 +1458,20 @@ Implementation notes:
 
 ##### 9.2.1.3 TV-Unitary + DFM Feedback Graph
 
-![TV-unitary and DFM feedback graph](docs/assets/fdn_topology_tvu_dfm.svg)
+```mermaid
+flowchart TD
+  A["Per-line feedback state"] --> B["Base feedback mix"]
+  B --> C{"TV-unitary enabled?"}
+  C -->|"no"| D["Static orthonormal matrix"]
+  C -->|"yes"| E["Time-varying unitary M(t)"]
+  D --> F["RT60 gain + input injection"]
+  E --> F
+  F --> G{"DFM taps enabled?"}
+  G -->|"no"| H["Write updated delay states"]
+  G -->|"yes"| I["Insert DFM micro-delays"]
+  I --> H
+  H --> J["Wet projection/output"]
+```
 
 This graph isolates two advanced feedback enrichments:
 
@@ -1429,7 +1488,17 @@ Implementation notes:
 
 ##### 9.2.1.4 IR FDN Path Parity Graph
 
-![IR and render FDN parity graph](docs/assets/fdn_topology_ir_path.svg)
+```mermaid
+flowchart TD
+  A["Shared FDN controls"] --> B["Render path"]
+  A --> C["IR generation path"]
+  B --> D["Algorithmic FDN core"]
+  C --> D
+  D --> E["Render wet output"]
+  D --> F["Generated IR late tail"]
+  E --> G["Comparable topology behavior"]
+  F --> G
+```
 
 Parity matters for workflow transfer:
 you can tune FDN behavior in render mode and carry the same structure into IR
@@ -1443,7 +1512,16 @@ Implementation notes:
 
 ##### 9.2.1.5 Sparse High-Order Pair-Mixing Graph
 
-![Sparse high-order FDN graph](docs/assets/fdn_topology_sparse.svg)
+```mermaid
+flowchart TD
+  A["Injected line vector"] --> B["Sparse pair-mix stage 1"]
+  B --> C["Sparse pair-mix stage 2"]
+  C --> D["Sparse pair-mix stage k"]
+  D --> E["Accumulated mixed vector"]
+  E --> F["Per-line delay + damping"]
+  F --> G["Feedback write"]
+  G --> H["Wet projection"]
+```
 
 Sparse mode targets higher apparent order without the full cost of dense
 all-to-all mixing. Pair-mixing stages gradually spread energy while controlling
@@ -1457,7 +1535,16 @@ Implementation notes:
 
 ##### 9.2.1.6 Nested/Cascaded FDN Graph
 
-![Nested cascaded FDN graph](docs/assets/fdn_topology_cascade.svg)
+```mermaid
+flowchart TD
+  A["Diffused input"] --> B["Primary FDN"]
+  A --> C["Nested FDN"]
+  C --> D["Nested feedback output"]
+  D --> E["Cascade mix scaler"]
+  E --> B
+  B --> F["Primary wet projection"]
+  F --> G["Output"]
+```
 
 Cascaded mode uses a fast nested network to inject additional structure into a
 larger primary network. This helps early density build faster while preserving
@@ -1471,7 +1558,19 @@ Implementation notes:
 
 ##### 9.2.1.7 Multiband + Filter-Feedback Graph
 
-![Multiband and filter-feedback graph](docs/assets/fdn_topology_multiband_filter.svg)
+```mermaid
+flowchart TD
+  A["Feedback state vector"] --> B["Band split (low/mid/high)"]
+  B --> C["Low-band RT target"]
+  B --> D["Mid-band RT target"]
+  B --> E["High-band RT target"]
+  C --> F["Band recombine"]
+  D --> F
+  E --> F
+  F --> G["Link filter (LP/HP/none)"]
+  G --> H["Feedback write"]
+  H --> I["Wet projection"]
+```
 
 This stage separates two orthogonal controls:
 
@@ -1490,21 +1589,15 @@ Implementation notes:
 ##### 9.2.1.8 Graph-Structured FDN Graph
 
 ```mermaid
-flowchart LR
-  In["diffused input"] --> Split["input injection (N lines)"]
-  Split --> V0["v0"]
-  Split --> V1["v1"]
-  Split --> V2["v2"]
-  Split --> V3["v3 ... vN-1"]
-  V0 --> E01["edge-mix (0,1)"]
-  V1 --> E01
-  V2 --> E23["edge-mix (2,3)"]
-  V3 --> E23
-  E01 --> Acc["graph stage accumulate"]
-  E23 --> Acc
-  Acc --> D["per-line delay + damping + dc block"]
-  D --> FB["feedback write"]
-  FB --> Out["wet output (mean/sum projection)"]
+flowchart TD
+  A["Diffused input"] --> B["Inject across N lines"]
+  B --> C["Graph edge stage 1"]
+  C --> D["Graph edge stage 2"]
+  D --> E["Graph edge stage k"]
+  E --> F["Accumulate mixed line state"]
+  F --> G["Per-line delay + damping + DC block"]
+  G --> H["Feedback write"]
+  H --> I["Wet output projection (mean/sum)"]
 ```
 
 Graph mode treats mixing as staged edge interactions over an explicit graph
@@ -1526,9 +1619,12 @@ $$
 Y_k(\omega) = \sum_{p=0}^{P-1} X_{k-p}(\omega)\,H_p(\omega)
 $$
 
-- $H_p$: FFT of IR partition $p$
-- $X_{k-p}$: FFT history of recent input partitions
-- $P$: number of IR partitions
+Variable definitions:
+
+- $Y_k(\omega)$: output spectrum for frame $k$ at angular frequency $\omega$.
+- $X_{k-p}(\omega)$: stored input spectrum from frame $(k-p)$.
+- $H_p(\omega)$: transfer function of IR partition $p$.
+- $P$: total number of IR partitions.
 
 Why this is used:
 
@@ -1551,7 +1647,14 @@ $$
 y_o[n] = \sum_{i=0}^{M-1} (x_i * h_{i,o})[n]
 $$
 
-- $h_{i,o}$ is the IR from input channel $i$ to output channel $o$
+Variable definitions:
+
+- $x_i[n]$: input signal for channel $i$.
+- $h_{i,o}[n]$: IR mapping input channel $i$ to output channel $o$.
+- $y_o[n]$: output signal for channel $o$.
+- $M$: number of input channels.
+- $N$: number of output channels.
+
 - `verbx` supports matrix-packed IR files where channel count is `M * N`
 - packing order is controlled by `--ir-matrix-layout`:
   `output-major`: channel index = `o*M + i`; `input-major`: channel index = `i*N + o`.
@@ -1574,6 +1677,15 @@ $$
 $$
 y = w_{out}\,x_{tail} + w_{in}\,x_{head}
 $$
+
+Variable definitions:
+
+- $\theta$: crossfade phase parameter over the boundary ramp.
+- $w_{out}$: fade-out weight for outgoing tail segment.
+- $w_{in}$: fade-in weight for incoming head segment.
+- $x_{tail}$: tail segment at loop end.
+- $x_{head}$: head segment at loop start.
+- $y$: blended output sample/block over the crossfade window.
 
 Why equal-power is used:
 
@@ -1639,6 +1751,8 @@ $$
 
 Where:
 
+- $T_{60}$ is decay time in seconds.
+- $V$ is room volume in cubic meters.
 - $S$ is total surface area.
 - $\bar{\alpha}$ is average absorption coefficient.
 
@@ -1659,6 +1773,13 @@ $$
 L(t)=10\log_{10}\left(\frac{E(t)}{E(0)}\right)
 $$
 
+Variable definitions:
+
+- $h(t)$: measured impulse-response amplitude over time.
+- $E(t)$: backward-integrated residual energy from time $t$ onward.
+- $L(t)$: normalized energy-decay curve in dB.
+- $\tau$: integration dummy variable for time.
+
 Implementation perspective:
 
 - Real IR data are noisy, so practical pipelines smooth and choose fit windows.
@@ -1674,6 +1795,11 @@ If the fitted decay slope is $m$ dB/s, then:
 $$
 T_{60} \approx -\frac{60}{m}
 $$
+
+Variable definitions:
+
+- $m$: fitted decay slope in dB/s over the selected fit window.
+- $T_{60}$: extrapolated 60 dB decay time in seconds.
 
 Common fit ranges:
 
