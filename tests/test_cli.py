@@ -57,6 +57,8 @@ def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
     assert out_sr == 48_000
     assert out_audio.shape[0] > audio.shape[0]
     assert out_audio.shape[1] == audio.shape[1]
+    tail_zero_window = min(64, out_audio.shape[0])
+    assert np.all(out_audio[-tail_zero_window:, :] == 0.0)
 
     analysis_path = Path(f"{outfile}.analysis.json")
     with analysis_path.open("r", encoding="utf-8") as handle:
@@ -1010,11 +1012,16 @@ def test_render_conv_streaming_mode(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code == 0, result.stdout
+    stream_tmp = outfile.with_name(f"{outfile.stem}.stream_tmp{outfile.suffix}")
+    assert not stream_tmp.exists()
 
     analysis_path = Path(f"{outfile}.analysis.json")
     payload = json.loads(analysis_path.read_text(encoding="utf-8"))
     assert payload["effective"]["streaming_mode"] is True
     assert payload["output_samples"] >= payload["input_samples"]
+    out_audio, _ = sf.read(str(outfile), always_2d=True, dtype="float32")
+    tail_zero_window = min(64, out_audio.shape[0])
+    assert np.all(out_audio[-tail_zero_window:, :] == 0.0)
 
 
 def test_render_self_convolve(tmp_path: Path) -> None:
@@ -2334,3 +2341,220 @@ def test_render_automation_invalid_lane_context_is_reported(tmp_path: Path) -> N
     )
     assert result.exit_code != 0
     assert "lane #1" in result.output
+
+
+def test_render_feature_vector_lanes_drive_wet_and_emit_trace(tmp_path: Path) -> None:
+    sr = 16_000
+    n = 2 * sr
+    x = np.zeros((n, 1), dtype=np.float32)
+    x[200:1200, 0] = 0.2
+    x[4000:5200, 0] = 0.8
+    x[12000:12500, 0] = 0.45
+    ir = np.zeros((64, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+
+    infile = tmp_path / "feature_lane_in.wav"
+    irfile = tmp_path / "feature_lane_ir.wav"
+    outfile = tmp_path / "feature_lane_out.wav"
+    trace_file = tmp_path / "feature_lane_trace.csv"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--wet",
+            "1.0",
+            "--dry",
+            "0.0",
+            "--normalize-stage",
+            "none",
+            "--feature-vector-lane",
+            "target=wet,source=loudness_norm,weight=0.75,bias=0.0,curve=smoothstep,combine=replace",
+            "--feature-vector-lane",
+            "target=wet,source=transient_strength,weight=0.35,bias=0.0,curve=power,curve_amount=1.5,hysteresis_up=0.02,hysteresis_down=0.01,combine=add",
+            "--feature-vector-trace-out",
+            str(trace_file),
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert trace_file.exists()
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    automation = payload["effective"]["automation"]
+    assert isinstance(automation, dict)
+    assert "wet" in automation["targets"]
+    feature_payload = automation.get("feature_vector")
+    assert isinstance(feature_payload, dict)
+    sources = feature_payload.get("sources", [])
+    assert isinstance(sources, list)
+    assert "loudness_norm" in sources
+    assert "transient_strength" in sources
+    assert isinstance(feature_payload.get("signature"), str)
+
+    trace_header = trace_file.read_text(encoding="utf-8").splitlines()[0]
+    assert "feature_loudness_norm" in trace_header
+    assert "target_wet" in trace_header
+
+
+def test_render_feature_vector_lanes_are_deterministic(tmp_path: Path) -> None:
+    sr = 16_000
+    n = 2 * sr
+    t = np.arange(n, dtype=np.float32) / np.float32(sr)
+    env = np.linspace(0.2, 1.0, n, dtype=np.float32)
+    x = (env * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float32)[:, np.newaxis]
+    ir = np.zeros((96, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+
+    infile = tmp_path / "feature_determin_in.wav"
+    irfile = tmp_path / "feature_determin_ir.wav"
+    out_a = tmp_path / "feature_determin_a.wav"
+    out_b = tmp_path / "feature_determin_b.wav"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    args = [
+        "render",
+        str(infile),
+        str(out_a),
+        "--engine",
+        "conv",
+        "--ir",
+        str(irfile),
+        "--normalize-stage",
+        "none",
+        "--feature-vector-lane",
+        "target=gain-db,source=loudness_norm,weight=9.0,bias=-9.0,curve=linear,combine=replace",
+        "--feature-vector-lane",
+        "target=gain-db,source=spectral_flux,weight=3.0,bias=0.0,curve=exp,curve_amount=1.2,hysteresis_up=0.01,hysteresis_down=0.01,combine=add",
+        "--no-progress",
+    ]
+    result_a = runner.invoke(app, args)
+    assert result_a.exit_code == 0, result_a.stdout
+
+    args[2] = str(out_b)
+    result_b = runner.invoke(app, args)
+    assert result_b.exit_code == 0, result_b.stdout
+
+    payload_a = json.loads(Path(f"{out_a}.analysis.json").read_text(encoding="utf-8"))
+    payload_b = json.loads(Path(f"{out_b}.analysis.json").read_text(encoding="utf-8"))
+    auto_a = payload_a["effective"]["automation"]
+    auto_b = payload_b["effective"]["automation"]
+    assert isinstance(auto_a, dict)
+    assert isinstance(auto_b, dict)
+    assert auto_a.get("signature") == auto_b.get("signature")
+    feature_a = auto_a.get("feature_vector")
+    feature_b = auto_b.get("feature_vector")
+    assert isinstance(feature_a, dict)
+    assert isinstance(feature_b, dict)
+    assert feature_a.get("signature") == feature_b.get("signature")
+
+    y_a, _ = sf.read(str(out_a), always_2d=True, dtype="float32")
+    y_b, _ = sf.read(str(out_b), always_2d=True, dtype="float32")
+    assert y_a.shape == y_b.shape
+    assert np.allclose(y_a, y_b, atol=1e-7)
+
+
+def test_render_rejects_invalid_feature_vector_lane(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.zeros((sr // 2, 1), dtype=np.float32)
+    ir = np.zeros((64, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+    infile = tmp_path / "feature_bad_in.wav"
+    irfile = tmp_path / "feature_bad_ir.wav"
+    outfile = tmp_path / "feature_bad_out.wav"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--feature-vector-lane",
+            "target=wet,source=does_not_exist",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "unsupported source" in result.output.lower()
+
+
+def test_render_automation_file_feature_vector_lane(tmp_path: Path) -> None:
+    sr = 16_000
+    n = sr
+    x = np.zeros((n, 1), dtype=np.float32)
+    x[200:1200, 0] = 0.4
+    ir = np.zeros((64, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+
+    infile = tmp_path / "feature_file_in.wav"
+    irfile = tmp_path / "feature_file_ir.wav"
+    outfile = tmp_path / "feature_file_out.wav"
+    auto_file = tmp_path / "feature_file_auto.json"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    auto_file.write_text(
+        json.dumps(
+            {
+                "mode": "block",
+                "block_ms": 20.0,
+                "lanes": [
+                    {
+                        "target": "wet",
+                        "type": "feature-vector",
+                        "source": "loudness_norm",
+                        "weight": 1.0,
+                        "bias": 0.0,
+                        "curve": "linear",
+                        "combine": "replace",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--wet",
+            "1.0",
+            "--dry",
+            "0.0",
+            "--normalize-stage",
+            "none",
+            "--automation-file",
+            str(auto_file),
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    automation = payload["effective"]["automation"]
+    assert isinstance(automation, dict)
+    assert "wet" in automation.get("targets", [])
+    feature_payload = automation.get("feature_vector")
+    assert isinstance(feature_payload, dict)
+    assert "loudness_norm" in feature_payload.get("sources", [])

@@ -4,6 +4,8 @@
 
 # verbx
 
+**Collossal audio reverberator.**
+
 `verbx` is a production-grade Python command-line tool for creating spacious,
 cinematic, and experimental reverb effects from audio files. It is designed for
 both beginners and advanced users: you can start with simple one-line commands,
@@ -51,22 +53,13 @@ batch workflows.
 - [3.0 Requirements](#30-requirements)
 - [4.0 Installation and Quick Start](#40-installation-and-quick-start)
   - [4.1 Installer Script and Man Pages](#41-installer-script-and-man-pages)
-  - [4.2 Install options](#42-install-options)
-    - [4.2.1 Option A: Hatch (recommended for contributors)](#421-option-a-hatch-recommended-for-contributors)
-    - [4.2.2 Option B: Plain virtualenv + pip (no Hatch)](#422-option-b-plain-virtualenv-pip-no-hatch)
-    - [4.2.3 Option C: pipx (isolated app install)](#423-option-c-pipx-isolated-app-install)
-    - [4.2.4 Option D: Run module directly (no console-script install)](#424-option-d-run-module-directly-no-console-script-install)
-  - [4.3 Add `verbx` to Your `PATH`](#43-add-verbx-to-your-path)
-    - [4.3.1 Virtualenv install (`.venv`)](#431-virtualenv-install-venv)
-    - [4.3.2 `pipx` install](#432-pipx-install)
-    - [4.3.3 User-site `pip install --user`](#433-user-site-pip-install-user)
-    - [4.3.4 Man page lookup (`MANPATH`)](#434-man-page-lookup-manpath)
-  - [4.4 Choosing How To Run `verbx`](#44-choosing-how-to-run-verbx)
-    - [4.4.1 Hatch](#441-hatch)
-    - [4.4.2 `uv`](#442-uv)
-    - [4.4.3 Plain `venv` + `pip`](#443-plain-venv-pip)
-    - [4.4.4 `pipx`](#444-pipx)
-    - [4.4.5 Direct `python -m verbx.cli`](#445-direct-python-m-verbxcli)
+  - [4.2 Installation methods and run workflows](#42-installation-methods-and-run-workflows)
+    - [4.2.1 Hatch workflow (recommended for contributors)](#421-hatch-workflow-recommended-for-contributors)
+    - [4.2.2 `uv` workflow](#422-uv-workflow)
+    - [4.2.3 Virtualenv + pip workflow](#423-virtualenv-pip-workflow)
+    - [4.2.4 `pipx` workflow](#424-pipx-workflow)
+    - [4.2.5 Direct `python -m verbx.cli` workflow](#425-direct-python-m-verbxcli-workflow)
+    - [4.2.6 PATH and MANPATH quick fixes](#426-path-and-manpath-quick-fixes)
 - [5.0 What is Reverberation (a/k/a Reverb)?](#50-what-is-reverberation-aka-reverb)
   - [5.1 Quick Reference Summary (from Wikipedia)](#51-quick-reference-summary-from-wikipedia)
   - [5.2 Reverb Timeline (Single Hit)](#52-reverb-timeline-single-hit)
@@ -108,6 +101,7 @@ batch workflows.
   - [7.23 Fast self-convolution (input as its own IR)](#723-fast-self-convolution-input-as-its-own-ir)
   - [7.24 Rapid convolution of `A.wav` with `B.wav`](#724-rapid-convolution-of-awav-with-bwav)
   - [7.25 Lucky mode (`--lucky N`) for wild random batches](#725-lucky-mode---lucky-n-for-wild-random-batches)
+  - [7.26 Feature-vector-driven reverb automation](#726-feature-vector-driven-reverb-automation)
 - [8.0 New User Guide](#80-new-user-guide)
   - [8.1 Start Here (5-minute setup)](#81-start-here-5-minute-setup)
   - [8.2 Processing Architecture](#82-processing-architecture)
@@ -249,6 +243,12 @@ batch workflows.
 - Automation from JSON/CSV lanes (`--automation-file`) and inline points (`--automation-point`).
 - Block and sample evaluation, smoothing, and clamp overrides.
 - Automation trace export for reproducible QA.
+- Feature-vector-driven control lanes (`--feature-vector-lane`) with frame-aligned
+  loudness/transient/spectral/harmonic streams.
+- Weighted, curved, and hysteretic feature mapping with multi-feature fusion to
+  one render target.
+- Feature-plus-parameter trace export (`--feature-vector-trace-out`) for
+  deterministic explainability.
 - Track C automation targets including `fdn-rt60-tilt` and `fdn-tonal-correction-strength`.
 
 ### 2.5 IR Toolchain
@@ -337,18 +337,68 @@ man verbx
 man verbx-render
 ```
 
-If your shell cannot find the man pages, see Section `4.3.4` for MANPATH setup.
+If your shell cannot find the man pages, see Section `4.2.6` for MANPATH setup.
 
-### 4.2 Install options
+### 4.2 Installation methods and run workflows
 
-#### 4.2.1 Option A: Hatch (recommended for contributors)
+#### 4.2.1 Hatch workflow (recommended for contributors)
 
 ```bash
 hatch env create
 hatch run verbx --help
 ```
 
-#### 4.2.2 Option B: Plain virtualenv + pip (no Hatch)
+Pros:
+
+- Best match for this repository's contributor workflow (`hatch run lint`, `typecheck`, `test`)
+- Reproducible project environment defined in `pyproject.toml`
+- No need to manually remember command variants for QA checks
+
+Cons:
+
+- Requires installing Hatch
+- Dependency resolution/install is usually slower than `uv`
+
+Best for:
+
+- Contributors working on `verbx` itself
+- CI/local parity with documented project scripts
+
+#### 4.2.2 `uv` workflow
+
+`uv`-native:
+
+```bash
+uv sync --extra dev
+uv run verbx --help
+```
+
+Pip-compatible `uv` flow:
+
+```bash
+uv venv
+source .venv/bin/activate
+uv pip install -e ".[dev]"
+verbx --help
+```
+
+Pros:
+
+- Very fast environment creation and dependency install
+- Supports both project-run (`uv run ...`) and pip-compatible (`uv pip ...`) flows
+- Good for users who already standardize on `uv` across projects
+
+Cons:
+
+- Repo scripts are authored under Hatch env scripts, so command names differ
+- Team docs and CI in this repo are Hatch-first
+
+Best for:
+
+- Power users prioritizing speed
+- Local development with `uv` conventions
+
+#### 4.2.3 Virtualenv + pip workflow
 
 ```bash
 python3 -m venv .venv
@@ -358,43 +408,14 @@ python -m pip install -e ".[dev]"
 verbx --help
 ```
 
-#### 4.2.3 Option C: pipx (isolated app install)
-
-```bash
-pipx install .
-verbx --help
-```
-
-#### 4.2.4 Option D: Run module directly (no console-script install)
-
-```bash
-python -m pip install typer rich numpy scipy soundfile librosa pyloudnorm
-PYTHONPATH=src python -m verbx.cli --help
-```
-
-### 4.3 Add `verbx` to Your `PATH`
-
-If `verbx --help` says `command not found`, your shell likely cannot see the
-install location yet.
-
-#### 4.3.1 Virtualenv install (`.venv`)
-
-Activate the environment before running `verbx`:
-
-```bash
-source .venv/bin/activate
-verbx --help
-```
-
-To auto-activate in this project folder:
+Optional auto-activation in this project folder:
 
 ```bash
 echo 'source .venv/bin/activate' >> .envrc
 direnv allow
 ```
 
-If you see `zsh: command not found: direnv`, either skip this step and activate
-manually (`source .venv/bin/activate`) or install direnv:
+If you see `zsh: command not found: direnv`:
 
 ```bash
 brew install direnv
@@ -403,23 +424,71 @@ source ~/.zshrc
 direnv allow
 ```
 
-#### 4.3.2 `pipx` install
+Pros:
 
-Make sure pipx paths are configured:
+- Universal, standard Python workflow
+- No extra package manager required
+
+Cons:
+
+- More manual steps
+- Usually slower dependency installs than `uv`
+
+Best for:
+
+- Environments where only standard Python tooling is allowed
+
+#### 4.2.4 `pipx` workflow
 
 ```bash
+pipx install .
 pipx ensurepath
-```
-
-Then open a new terminal and run:
-
-```bash
 verbx --help
 ```
 
-#### 4.3.3 User-site `pip install --user`
+Pros:
 
-Add Python's user bin directory to `PATH` (zsh on macOS/Linux):
+- Isolated app install without polluting global Python packages
+- Simple for command-line usage
+
+Cons:
+
+- Less convenient for editing/testing local source changes
+- Not ideal for contributor QA loops
+
+Best for:
+
+- End users who only want to run `verbx` commands
+
+#### 4.2.5 Direct `python -m verbx.cli` workflow
+
+```bash
+python -m pip install typer rich numpy scipy soundfile librosa pyloudnorm
+PYTHONPATH=src python -m verbx.cli --help
+```
+
+Pros:
+
+- Quickest way to run source without creating a console-script entry point
+- Useful for debugging local module execution
+
+Cons:
+
+- Requires `PYTHONPATH=src` (or equivalent path setup)
+- Easier to drift from normal installed usage
+- Not ideal as a primary workflow
+
+Best for:
+
+- Fast local checks and debugging
+- Situations where you intentionally avoid install steps
+
+#### 4.2.6 PATH and MANPATH quick fixes
+
+If `verbx --help` says `command not found`, your shell likely cannot see the
+install location yet.
+
+For user-site installs (`pip install --user`) on zsh:
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
@@ -446,124 +515,18 @@ exec fish
 verbx --help
 ```
 
-#### 4.3.4 Man page lookup (`MANPATH`)
-
-If `man verbx` is not found after install, add:
+If `man verbx` is not found after install:
 
 ```bash
 export MANPATH="$HOME/.local/share/man:$MANPATH"
 ```
 
-### 4.4 Choosing How To Run `verbx`
-
-#### 4.4.1 Hatch
-
-Pros:
-
-- Best match for this repository's contributor workflow (`hatch run lint`, `typecheck`, `test`)
-- Reproducible project environment defined in `pyproject.toml`
-- No need to manually remember command variants for QA checks
-
-Cons:
-
-- Requires installing Hatch
-- Dependency resolution/install is usually slower than `uv`
-
-Best for:
-
-- Contributors working on `verbx` itself
-- CI/local parity with documented project scripts
-
-#### 4.4.2 `uv`
-
-Pros:
-
-- Very fast environment creation and dependency install
-- Supports project run flows (`uv run ...`) and pip-compatible flows (`uv pip ...`)
-- Good for users who already standardize on `uv` across projects
-
-Cons:
-
-- Repo scripts are authored under Hatch env scripts, so command names differ
-- Team docs and CI in this repo are Hatch-first
-
-Best for:
-
-- Power users prioritizing speed
-- Local dev where you prefer `uv` tooling conventions
-
-Example (`uv`-native):
-
-```bash
-uv sync --extra dev
-uv run verbx --help
-```
-
-Example (pip-compatible with `uv`):
-
-```bash
-uv venv
-source .venv/bin/activate
-uv pip install -e ".[dev]"
-verbx --help
-```
-
-#### 4.4.3 Plain `venv` + `pip`
-
-Pros:
-
-- Universal, standard Python workflow
-- No extra package manager required
-
-Cons:
-
-- More manual steps
-- Slower installs than `uv`
-
-Best for:
-
-- Environments where only standard Python tooling is allowed
-
-#### 4.4.4 `pipx`
-
-Pros:
-
-- Isolated app install without polluting global Python packages
-- Simple for command-line usage only
-
-Cons:
-
-- Less convenient for editing/testing local source changes
-- Not ideal for contributor QA loops
-
-Best for:
-
-- End users who only want to run `verbx` commands
-
-#### 4.4.5 Direct `python -m verbx.cli`
-
-Pros:
-
-- Quickest way to run source without creating a console script entry point
-- Useful for debugging local module execution
-
-Cons:
-
-- Requires setting `PYTHONPATH=src` (or equivalent path setup)
-- Easier to drift from normal installed usage
-- Not ideal as a primary workflow
-
-Best for:
-
-- Fast local checks and debugging
-- Situations where you intentionally avoid install steps
-
 Recommendation:
 
 - Use Hatch for contributing to this repo.
-- Use `uv` if you want the same result with faster dependency operations.
-- Use `venv` + `pip` for maximal portability.
-- Use `python -m verbx.cli` for quick local debugging only.
+- Use `uv` if you want faster dependency operations.
+- Use `venv` + `pip` for maximum portability.
+- Use direct `python -m verbx.cli` for quick debugging only.
 
 ## 5.0 What is Reverberation?
 
@@ -833,7 +796,7 @@ verbx render in.wav out.wav --engine algo --pre-delay-ms 20 --rt60 2.5 --wet 0.3
 
 ## 6.0 Status
 
-Current implementation level: **v0.6.0**
+Current implementation level: **v0.7.0**
 
 - scaffolding and architecture
 - functional DSP render path
@@ -844,6 +807,7 @@ Current implementation level: **v0.6.0**
 - v0.6 additions: graph-structured FDN topology mode and expanded FDN topology controls
 - v0.6 spatial additions: Ambisonics convention validation (`--ambi-order`, `--ambi-normalization`, `--channel-order`), FOA encode/decode transforms, yaw rotation, and Ambisonics spatial metrics in analysis mode
 - v0.7 Track A/C additions: JSON/CSV automation lanes (`--automation-file`), inline CLI points (`--automation-point`), block/sample evaluation, smoothing, clamp overrides, automation trace export, deterministic automation signatures, lane-level validation diagnostics, convolution-path automation target `ir-blend-alpha` for IR blend timeline control, and Track C automation targets for `fdn-rt60-tilt` and `fdn-tonal-correction-strength`
+- v0.7 Track B additions: frame-aligned feature bus (loudness/transient/spectral/harmonic), feature-vector lanes (`--feature-vector-lane`), weighted/curved/hysteretic mapping with multi-feature fusion, deterministic signatures for feature-driven automation, and feature-plus-parameter trace export (`--feature-vector-trace-out`)
 - v0.7 Track D additions: cache-backed `ir morph` command (`linear`, `equal-power`, `spectral`, `envelope-aware`), render-time IR blending via `--ir-blend`/`--ir-blend-mix`, and morph quality metadata (RT drift, spectral distance, coherence deltas)
 - v0.7 immersive interoperability additions: `immersive handoff` sidecar/deliverable packaging, object/bed policy checks, `immersive qc` gates, and distributed `immersive queue` worker heartbeats/retry semantics
 - v0.7 immersive hardening additions: strict handoff now fails on policy violations, scene validation errors, or any QC gate failure; scene sample-rate mismatches are surfaced in validation payloads; queue manifests now require unique job IDs
@@ -1255,6 +1219,33 @@ Notes:
 - Each run randomizes engine choice and many processing parameters for extreme variation.
 - Use `--lucky-seed` for deterministic/repeatable random sets.
 - Supported processing workflows: `render`, `ir gen`, `ir process`, and `batch render`.
+
+### 7.26 Feature-vector-driven reverb automation
+
+Use this to drive one render target from multiple frame-aligned source features
+with deterministic mapping and explainable traces.
+
+```bash
+verbx render in.wav out.wav \
+  --engine conv \
+  --ir hall_ir.wav \
+  --normalize-stage none \
+  --feature-vector-lane "target=wet,source=loudness_norm,weight=0.70,curve=smoothstep,combine=replace" \
+  --feature-vector-lane "target=wet,source=transient_strength,weight=0.30,curve=power,curve_amount=1.4,hysteresis_up=0.02,hysteresis_down=0.01,combine=add" \
+  --feature-vector-frame-ms 40 \
+  --feature-vector-hop-ms 20 \
+  --feature-vector-trace-out feature_trace.csv
+```
+
+Notes:
+
+- Supported feature sources include `loudness_db`, `loudness_norm`,
+  `transient_strength`, `spectral_flux`, `spectral_centroid_hz`,
+  `spectral_centroid_norm`, `spectral_flatness`, and `harmonic_ratio`.
+- Feature lanes can be provided inline (`--feature-vector-lane`) or inside
+  `--automation-file` lanes with `type: feature-vector`.
+- The output analysis JSON includes a deterministic feature-vector signature
+  under `effective.automation.feature_vector.signature`.
 
 ## 8.0 New User Guide
 
@@ -1738,7 +1729,7 @@ When incompatible options are requested, `verbx` falls back to full-buffer proce
 ## 12.0 CLI Switch Reference
 
 This section lists all CLI switches available in the current
-`v0.6.0 + v0.7 Track A/C/D + immersive interoperability` interface.
+`v0.6.0 + v0.7 Track A/B/C/D + immersive interoperability` interface.
 For full descriptions and defaults, run `verbx <command> --help`.
 It is intended to be the canonical switch inventory for every `verbx` command.
 
@@ -1906,6 +1897,10 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--automation-smoothing-ms` | Default lane smoothing time constant. | Increase to reduce zipper artifacts on aggressive ramps/LFOs. |
 | `--automation-clamp` | Per-target clamp override (`target:min:max`, repeatable). | Use to enforce safe control ranges per target for deterministic batch behavior. |
 | `--automation-trace-out` | CSV path for resolved sample-level automation curves. | Use for QA, reproducibility, and perceptual tuning audits. |
+| `--feature-vector-lane` | Repeatable feature-mapping lane in key-value format. | Format: `target=<target>,source=<feature>[,weight=<w>][,bias=<b>][,curve=<...>][,curve_amount=<a>][,hysteresis_up=<u>][,hysteresis_down=<d>][,combine=<replace\|add\|multiply>][,smoothing_ms=<ms>]`. |
+| `--feature-vector-frame-ms` | Frame size for feature extraction. | Larger values smooth and stabilize control vectors; smaller values are more reactive. |
+| `--feature-vector-hop-ms` | Hop size for feature extraction. | Smaller hops increase temporal precision with higher control-rate overhead. |
+| `--feature-vector-trace-out` | CSV path for feature-plus-target trace export. | Emits `feature_*` and `target_*` columns for deterministic Track B QA and replay audits. |
 | `--frames-out` | Path for framewise CSV metrics output. | Exports per-frame analysis including modulation metrics. |
 | `--analysis-out` | Path for JSON analysis report. | If omitted, report is written to `<OUTFILE>.analysis.json` unless `--silent`; when perceptual macros are used, resolved mapping details are included under `effective.perceptual_macros`. |
 | `--lucky` | Generates N randomized "wild" render variants from one input. | Best for exploration and sound-design discovery; pair with `--lucky-out-dir`. |
@@ -1933,10 +1928,13 @@ Examples:
 - `--automation-point "room-size:0.0:0.8" --automation-point "room-size:12.0:1.8"`
 - `--automation-point "rt60-tilt:0.0:0.0" --automation-point "rt60-tilt:12.0:0.6" --automation-point "tonal-correction:0.0:0.2" --automation-point "tonal-correction:12.0:0.8"`
 - `--automation-point "ir-blend-alpha:0.0:0.0" --automation-point "ir-blend-alpha:18.0:1.0"` (with `--engine conv --ir ... --ir-blend ...`)
+- `--feature-vector-lane "target=wet,source=loudness_norm,weight=0.70,curve=smoothstep,combine=replace"`
+- `--feature-vector-lane "target=wet,source=transient_strength,weight=0.30,curve=power,curve_amount=1.4,hysteresis_up=0.02,hysteresis_down=0.01,combine=add"`
 
 Automation reproducibility note:
 
 - Analysis JSON includes `effective.automation.signature`, a stable digest of resolved automation curves for deterministic replay checks in batch/repeat workflows.
+- Analysis JSON includes `effective.automation.feature_vector.signature` when Track B feature lanes are active.
 
 ### 12.3 `verbx analyze` switches
 
@@ -2512,14 +2510,14 @@ Section 6.0 Status.
 
 ### 20.1 Remaining v0.7 Track B: Feature-vector-driven reverb control
 
-- `Feature bus`: implement frame-aligned feature streams (loudness, transient,
-  spectral, harmonic) as reusable control inputs.
-- `Mapping graph`: add weighted/curved/hysteretic mapping operators and
-  multi-feature fusion into one parameter target.
-- `Offline deterministic reactive mode`: preserve deterministic output while
-  enabling time-varying feature-driven parameter control.
-- `Explainability outputs`: emit feature-plus-parameter trace exports for QA and
-  repeatability.
+- `External guide source`: optional sidechain feature source file with robust
+  duration/sample-rate alignment policy.
+- `Expanded descriptors`: add richer descriptor families (for example MFCC/formant/rhythm)
+  with predictable normalization domains.
+- `Operator depth`: extend feature mapping beyond lane-level operators to
+  chained/nested graph expressions while preserving deterministic replay.
+- `Acceptance harness`: add golden-reference feature-trace regression fixtures
+  for cross-version mapping stability.
 
 ### 20.2 Remaining v0.7 Track C: Jot-inspired control completion
 

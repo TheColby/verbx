@@ -36,6 +36,7 @@ from verbx.core.automation import (
     load_automation_bundle,
     parse_automation_clamp_overrides,
     write_automation_trace,
+    write_feature_vector_trace,
 )
 from verbx.core.convolution_reverb import ConvolutionReverbConfig, ConvolutionReverbEngine
 from verbx.core.engine_base import ReverbEngine
@@ -108,11 +109,14 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             stream_engine = engine
             assert isinstance(stream_engine, ConvolutionReverbEngine)
             output_subtype = _resolve_output_subtype(runtime_config.output_subtype)
+            stream_tmp_out = outfile.with_name(f"{outfile.stem}.stream_tmp{outfile.suffix}")
             stream_stats = stream_engine.process_streaming_file(
                 infile=str(infile),
-                outfile=str(outfile),
+                outfile=str(stream_tmp_out),
                 output_subtype=output_subtype,
             )
+            output_samples = _complete_stream_file_tail_to_zero(stream_tmp_out)
+            stream_tmp_out.replace(outfile)
             progress.mark_read()
             progress.mark_process_pass(1)
             progress.mark_write()
@@ -121,7 +125,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 "engine": engine_name,
                 "sample_rate": int(stream_stats["sample_rate"]),
                 "input_samples": int(stream_stats["input_samples"]),
-                "output_samples": int(stream_stats["output_samples"]),
+                "output_samples": output_samples,
                 "channels": int(stream_stats["channels"]),
                 "config": asdict(runtime_config),
                 "effective": {
@@ -201,7 +205,9 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             )
 
         has_automation_source = (
-            runtime_config.automation_file is not None or len(runtime_config.automation_points) > 0
+            runtime_config.automation_file is not None
+            or len(runtime_config.automation_points) > 0
+            or len(runtime_config.feature_vector_lanes) > 0
         )
         clamp_overrides = (
             parse_automation_clamp_overrides(runtime_config.automation_clamp)
@@ -215,6 +221,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 sr=sr,
                 num_samples=int(input_for_engine.shape[0]),
                 clamp_overrides=clamp_overrides,
+                feature_audio=input_for_engine,
             )
             if isinstance(engine, AlgoReverbEngine):
                 engine.set_parameter_automation(preloaded_automation_bundle.curves)
@@ -241,6 +248,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                     sr=sr,
                     num_samples=int(rendered.shape[0]),
                     clamp_overrides=clamp_overrides,
+                    feature_audio=input_for_engine,
                 )
             assert preloaded_automation_bundle is not None
             _validate_automation_target_domains_for_engine(
@@ -318,6 +326,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                     sr=sr,
                     num_samples=int(rendered.shape[0]),
                     clamp_overrides=clamp_overrides,
+                    feature_audio=input_for_engine,
                 )
             assert bundle is not None
             _validate_automation_target_domains_for_engine(
@@ -352,6 +361,9 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             if runtime_config.automation_trace_out is not None:
                 trace_path = Path(runtime_config.automation_trace_out)
                 write_automation_trace(trace_path, bundle)
+            if runtime_config.feature_vector_trace_out is not None:
+                feature_trace_path = Path(runtime_config.feature_vector_trace_out)
+                write_feature_vector_trace(feature_trace_path, bundle)
 
         rendered = _apply_spatial_output_transform(rendered, runtime_config)
 
@@ -387,6 +399,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             input_peak_linear=input_peak_linear,
             target_dbfs=runtime_config.output_peak_target_dbfs,
         )
+        rendered = _complete_tail_to_zero(rendered, sr)
 
         output_subtype = _resolve_output_subtype(runtime_config.output_subtype)
         write_audio(str(outfile), rendered, sr, subtype=output_subtype)
@@ -449,6 +462,8 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 report["frames_path"] = str(frames_path)
             if runtime_config.automation_trace_out is not None and automation_summary is not None:
                 report["automation_trace_path"] = str(Path(runtime_config.automation_trace_out))
+            if runtime_config.feature_vector_trace_out is not None and automation_summary is not None:
+                report["feature_vector_trace_path"] = str(Path(runtime_config.feature_vector_trace_out))
 
         progress.mark_analyze()
 
@@ -487,7 +502,11 @@ def _can_stream_convolution(config: RenderConfig, engine_name: str, engine: Reve
         return False
     if len(config.mod_routes) > 0:
         return False
-    if config.automation_file is not None or len(config.automation_points) > 0:
+    if (
+        config.automation_file is not None
+        or len(config.automation_points) > 0
+        or len(config.feature_vector_lanes) > 0
+    ):
         return False
     if config.ambi_order > 0:
         return False
@@ -971,6 +990,108 @@ def _append_tail_padding(audio: AudioArray, sr: int, tail_seconds: float) -> Aud
     return np.concatenate((audio, padding), axis=0)
 
 
+def _tail_zero_hold_samples(sr: int) -> int:
+    """Return trailing zero-hold samples appended to finalize tail completion."""
+    return max(1, int(round(float(sr) * 0.01)))
+
+
+def _complete_stream_file_tail_to_zero(
+    path: Path,
+    *,
+    threshold: float = 1e-6,
+    scan_block_frames: int = 65536,
+    write_block_frames: int = 65536,
+) -> int:
+    """Finalize streamed output so tail decays into an exact zero-value hold."""
+    threshold_value = float(max(0.0, threshold))
+    scan_frames = max(1, int(scan_block_frames))
+    write_frames = max(1, int(write_block_frames))
+
+    with sf.SoundFile(str(path), mode="r+") as stream_file:
+        total_frames = int(stream_file.frames)
+        channels = int(stream_file.channels)
+        hold_samples = _tail_zero_hold_samples(int(stream_file.samplerate))
+
+        if total_frames <= 0:
+            if hold_samples > 0:
+                stream_file.seek(0, whence=sf.SEEK_END)
+                stream_file.write(np.zeros((hold_samples, channels), dtype=np.float32))
+            return hold_samples
+
+        last_active = -1
+        cursor = total_frames
+        while cursor > 0:
+            start = max(0, cursor - scan_frames)
+            frames = cursor - start
+            stream_file.seek(start, whence=sf.SEEK_SET)
+            block = np.asarray(
+                stream_file.read(frames, dtype="float32", always_2d=True),
+                dtype=np.float32,
+            )
+            if block.shape[0] > 0:
+                envelope = np.max(np.abs(block), axis=1)
+                active = np.flatnonzero(envelope > threshold_value)
+                if active.size > 0:
+                    last_active = start + int(active[-1])
+                    break
+            cursor = start
+
+        first_zero_frame = last_active + 1 if last_active >= 0 else 0
+        target_frames = max(total_frames, first_zero_frame + hold_samples)
+
+        tail_existing = max(0, total_frames - first_zero_frame)
+        if tail_existing > 0:
+            zero_block = np.zeros((write_frames, channels), dtype=np.float32)
+            write_cursor = first_zero_frame
+            remaining = tail_existing
+            while remaining > 0:
+                frames = min(write_frames, remaining)
+                stream_file.seek(write_cursor, whence=sf.SEEK_SET)
+                stream_file.write(zero_block[:frames, :])
+                write_cursor += frames
+                remaining -= frames
+
+        append_frames = target_frames - total_frames
+        if append_frames > 0:
+            zero_block = np.zeros((write_frames, channels), dtype=np.float32)
+            stream_file.seek(0, whence=sf.SEEK_END)
+            remaining = append_frames
+            while remaining > 0:
+                frames = min(write_frames, remaining)
+                stream_file.write(zero_block[:frames, :])
+                remaining -= frames
+
+    return target_frames
+
+
+def _complete_tail_to_zero(
+    audio: AudioArray,
+    sr: int,
+    *,
+    threshold: float = 1e-6,
+) -> AudioArray:
+    """Ensure rendered output ends with exact zeros after tail decay."""
+    x = np.asarray(audio, dtype=np.float32)
+    if x.shape[0] == 0:
+        return x.copy()
+
+    hold_samples = _tail_zero_hold_samples(sr)
+    envelope = np.max(np.abs(x), axis=1)
+    active = np.flatnonzero(envelope > float(max(0.0, threshold)))
+    if active.size == 0:
+        target_len = max(int(x.shape[0]), hold_samples)
+        out = np.zeros((target_len, x.shape[1]), dtype=np.float32)
+        return out
+
+    last_active = int(active[-1])
+    target_len = max(int(x.shape[0]), last_active + 1 + hold_samples)
+    out = np.zeros((target_len, x.shape[1]), dtype=np.float32)
+    out[: x.shape[0], :] = x
+    if last_active + 1 < target_len:
+        out[last_active + 1 :, :] = 0.0
+    return np.asarray(out, dtype=np.float32)
+
+
 def _prepare_spatial_input(audio: AudioArray, config: RenderConfig) -> AudioArray:
     """Prepare input audio for Ambisonics processing when enabled."""
     if config.ambi_order <= 0:
@@ -1068,15 +1189,20 @@ def _load_runtime_automation_bundle(
     sr: int,
     num_samples: int,
     clamp_overrides: dict[str, tuple[float, float]] | None,
+    feature_audio: AudioArray,
 ) -> AutomationBundle:
     return load_automation_bundle(
         path=None if config.automation_file is None else Path(config.automation_file),
         point_specs=config.automation_points,
+        feature_lane_specs=config.feature_vector_lanes,
+        feature_audio=feature_audio,
         sr=sr,
         num_samples=int(num_samples),
         mode=config.automation_mode,
         block_ms=config.automation_block_ms,
         smoothing_ms=config.automation_smoothing_ms,
+        feature_frame_ms=config.feature_vector_frame_ms,
+        feature_hop_ms=config.feature_vector_hop_ms,
         clamp_overrides=clamp_overrides,
     )
 

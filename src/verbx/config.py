@@ -161,5 +161,9 @@ class RenderConfig:
     automation_clamp: tuple[str, ...] = ()
     automation_points: tuple[str, ...] = ()
     automation_trace_out: str | None = None
+    feature_vector_lanes: tuple[str, ...] = ()
+    feature_vector_frame_ms: float = 40.0
+    feature_vector_hop_ms: float = 20.0
+    feature_vector_trace_out: str | None = None
     silent: bool = False
     progress: bool = True

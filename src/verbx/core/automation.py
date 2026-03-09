@@ -6,7 +6,7 @@ import csv
 import hashlib
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +19,15 @@ from verbx.core.control_targets import (
     ENGINE_CONTROL_TARGETS,
     POST_RENDER_CONTROL_TARGETS,
     normalize_control_target_name,
+)
+from verbx.core.feature_vector import (
+    FEATURE_LANE_COMBINE_CHOICES,
+    build_feature_vector_bus,
+    is_feature_vector_lane,
+    normalize_feature_source_name,
+    normalize_feature_vector_lane,
+    parse_feature_vector_lane_specs,
+    render_feature_vector_lane,
 )
 
 AudioArray = npt.NDArray[np.float32]
@@ -54,6 +63,9 @@ class AutomationBundle:
     curves: dict[str, AudioArray]
     lanes_per_target: dict[str, int]
     signature: str
+    feature_curves: dict[str, AudioArray] = field(default_factory=dict)
+    feature_sources: tuple[str, ...] = ()
+    feature_signature: str | None = None
 
 
 def parse_automation_clamp_overrides(
@@ -152,6 +164,7 @@ def collect_automation_targets(
     *,
     path: Path | None,
     point_specs: tuple[str, ...] | list[str] = (),
+    feature_lane_specs: tuple[str, ...] | list[str] = (),
 ) -> set[str]:
     """Collect normalized automation targets from file and inline point specs."""
     targets: set[str] = set()
@@ -173,6 +186,10 @@ def collect_automation_targets(
         target = _normalize_target_name(lane.get("target", ""))
         if target != "":
             targets.add(target)
+    for lane in parse_feature_vector_lane_specs(feature_lane_specs):
+        target = _normalize_target_name(str(lane.get("target", "")))
+        if target != "":
+            targets.add(target)
     return targets
 
 
@@ -180,11 +197,15 @@ def load_automation_bundle(
     *,
     path: Path | None,
     point_specs: tuple[str, ...] | list[str] = (),
+    feature_lane_specs: tuple[str, ...] | list[str] = (),
+    feature_audio: AudioArray | None = None,
     sr: int,
     num_samples: int,
     mode: str = "auto",
     block_ms: float = 20.0,
     smoothing_ms: float = 20.0,
+    feature_frame_ms: float = 40.0,
+    feature_hop_ms: float = 20.0,
     clamp_overrides: dict[str, tuple[float, float]] | None = None,
 ) -> AutomationBundle:
     """Load automation lanes from JSON/CSV and evaluate to sample-rate curves."""
@@ -202,6 +223,10 @@ def load_automation_bundle(
     if len(inline_lanes) > 0:
         lanes.extend(inline_lanes)
         source_tokens.append("inline-cli")
+    inline_feature_lanes = parse_feature_vector_lane_specs(feature_lane_specs)
+    if len(inline_feature_lanes) > 0:
+        lanes.extend(inline_feature_lanes)
+        source_tokens.append("inline-feature")
 
     file_mode = str(spec.get("mode", "block")).strip().lower()
     file_block_ms = float(spec.get("block_ms", block_ms))
@@ -224,6 +249,23 @@ def load_automation_bundle(
     ctrl_count = math.ceil(max(1, num_samples) / float(control_step))
     ctrl_times = np.arange(ctrl_count, dtype=np.float64) * (float(control_step) / float(sr))
 
+    feature_lane_sources = _collect_feature_lane_sources(lanes)
+    feature_bus = None
+    if len(feature_lane_sources) > 0:
+        if feature_audio is None:
+            raise ValueError(
+                "Feature-vector lanes require feature source audio. "
+                "Provide --feature-vector-lane or feature-vector automation only in render context."
+            )
+        feature_bus = build_feature_vector_bus(
+            audio=np.asarray(feature_audio, dtype=np.float32),
+            sr=int(sr),
+            ctrl_times=ctrl_times,
+            frame_ms=float(feature_frame_ms),
+            hop_ms=float(feature_hop_ms),
+            requested_sources=feature_lane_sources,
+        )
+
     limit_map = dict(TARGET_LIMITS)
     if clamp_overrides is not None:
         limit_map.update(clamp_overrides)
@@ -245,14 +287,18 @@ def load_automation_bundle(
 
         lane_context = f"lane #{lane_idx} (target '{target}')"
         combine = _normalize_lane_combine(lane.get("combine", "replace"), lane_context=lane_context)
+        lane_smoothing_raw = lane.get("smoothing_ms")
+        if lane_smoothing_raw is None:
+            lane_smoothing_raw = smoothing_ms
         lane_smoothing_ms = _parse_lane_smoothing_ms(
-            lane.get("smoothing_ms", smoothing_ms),
+            lane_smoothing_raw,
             lane_context=lane_context,
         )
         try:
             lane_values = _render_lane_values(
                 lane=lane,
                 ctrl_times=ctrl_times,
+                feature_bus=feature_bus,
             )
         except ValueError as exc:
             raise ValueError(f"Invalid automation {lane_context}: {exc}") from exc
@@ -277,6 +323,21 @@ def load_automation_bundle(
         control = controls[target]
         expanded = _expand_control_to_samples(control, step=control_step, num_samples=num_samples)
         curves[target] = np.asarray(expanded, dtype=np.float32)
+    feature_curves: dict[str, AudioArray] = {}
+    feature_signature: str | None = None
+    feature_sources: tuple[str, ...] = ()
+    if feature_bus is not None:
+        feature_signature = str(feature_bus.signature)
+        feature_sources = tuple(sorted(feature_bus.control_features.keys()))
+        for source in feature_sources:
+            control_values = feature_bus.control_features[source]
+            expanded_feature = _expand_control_to_samples(
+                control_values,
+                step=control_step,
+                num_samples=num_samples,
+            )
+            feature_curves[source] = np.asarray(expanded_feature, dtype=np.float32)
+
     source_path = "+".join(source_tokens) if len(source_tokens) > 0 else "inline-empty"
     signature = _bundle_signature(
         curves=curves,
@@ -295,6 +356,9 @@ def load_automation_bundle(
         curves=curves,
         lanes_per_target=lanes_per_target,
         signature=signature,
+        feature_curves=feature_curves,
+        feature_sources=feature_sources,
+        feature_signature=feature_signature,
     )
 
 
@@ -317,6 +381,12 @@ def apply_render_automation(
             "lanes_per_target": bundle.lanes_per_target,
             "signature": bundle.signature,
         }
+        if len(bundle.feature_curves) > 0:
+            summary["feature_vector"] = {
+                "sources": list(bundle.feature_sources),
+                "source_stats": _target_stats(bundle.feature_curves),
+                "signature": bundle.feature_signature,
+            }
         return np.asarray(rendered, dtype=np.float32), summary
 
     out = np.asarray(rendered, dtype=np.float32)
@@ -356,6 +426,12 @@ def apply_render_automation(
         "target_stats": _target_stats(bundle.curves),
         "signature": bundle.signature,
     }
+    if len(bundle.feature_curves) > 0:
+        summary["feature_vector"] = {
+            "sources": list(bundle.feature_sources),
+            "source_stats": _target_stats(bundle.feature_curves),
+            "signature": bundle.feature_signature,
+        }
     sanitized = np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float32)
     return sanitized, summary
 
@@ -376,6 +452,34 @@ def write_automation_trace(path: Path, bundle: AutomationBundle) -> None:
             for target in targets:
                 values = bundle.curves[target]
                 row.append(float(values[idx]))
+            writer.writerow(row)
+
+
+def write_feature_vector_trace(path: Path, bundle: AutomationBundle) -> None:
+    """Write feature + parameter trace export for Track B explainability."""
+    if len(bundle.feature_curves) == 0 and len(bundle.curves) == 0:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    feature_names = sorted(bundle.feature_curves.keys())
+    target_names = sorted(bundle.curves.keys())
+
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(
+            [
+                "sample_index",
+                "time_s",
+                *[f"feature_{name}" for name in feature_names],
+                *[f"target_{name}" for name in target_names],
+            ]
+        )
+        for idx in range(bundle.num_samples):
+            row: list[float | int] = [idx, float(idx / float(bundle.sample_rate))]
+            for name in feature_names:
+                row.append(float(bundle.feature_curves[name][idx]))
+            for name in target_names:
+                row.append(float(bundle.curves[name][idx]))
             writer.writerow(row)
 
 
@@ -449,6 +553,7 @@ def _render_lane_values(
     *,
     lane: dict[str, Any],
     ctrl_times: npt.NDArray[np.float64],
+    feature_bus: Any | None = None,
 ) -> npt.NDArray[np.float64]:
     """Render one automation lane at control-rate time samples."""
     lane_type = str(lane.get("type", "breakpoints")).strip().lower().replace("_", "-")
@@ -458,6 +563,10 @@ def _render_lane_values(
         return _render_lfo(lane, ctrl_times)
     if lane_type in {"segment", "segments"}:
         return _render_segment(lane, ctrl_times)
+    if lane_type in {"feature", "feature-map", "feature-vector"}:
+        if feature_bus is None:
+            raise ValueError("Feature-vector lanes require resolved feature bus context.")
+        return render_feature_vector_lane(lane, feature_bus=feature_bus)
     raise ValueError(f"Unsupported automation lane type: {lane_type}")
 
 
@@ -764,10 +873,28 @@ def _target_stats(curves: dict[str, AudioArray]) -> dict[str, dict[str, float]]:
     return stats
 
 
+def _collect_feature_lane_sources(lanes: list[Any]) -> set[str]:
+    """Collect normalized feature sources referenced by feature-vector lanes."""
+    sources: set[str] = set()
+    for lane_idx, lane_obj in enumerate(lanes, start=1):
+        if not isinstance(lane_obj, dict):
+            continue
+        if not is_feature_vector_lane(lane_obj):
+            continue
+        normalized_lane = normalize_feature_vector_lane(
+            lane_obj,
+            lane_context=f"lane #{lane_idx}",
+        )
+        sources.add(normalize_feature_source_name(str(normalized_lane["source"])))
+    return sources
+
+
 def _normalize_lane_combine(raw: Any, *, lane_context: str) -> str:
     combine = str(raw).strip().lower()
     if combine == "":
         return "replace"
+    if combine in FEATURE_LANE_COMBINE_CHOICES:
+        return combine
     if combine not in LANE_COMBINE_CHOICES:
         choices = ", ".join(sorted(LANE_COMBINE_CHOICES))
         raise ValueError(

@@ -82,6 +82,9 @@ from verbx.core.immersive import (
     summarize_file_queue,
     validate_layout_hint,
 )
+from verbx.core.feature_vector import (
+    parse_feature_vector_lane_specs,
+)
 from verbx.core.modulation import parse_mod_route_spec, parse_mod_sources
 from verbx.core.pipeline import run_render_pipeline
 from verbx.core.spatial import (
@@ -740,6 +743,34 @@ def render(
         "--automation-trace-out",
         help="Optional CSV path for resolved sample-level automation curves.",
     ),
+    feature_vector_lane: list[str] | None = typer.Option(
+        None,
+        "--feature-vector-lane",
+        help=(
+            "Feature-vector mapping lane (repeatable). "
+            "Format: target=<target>,source=<feature>[,weight=<w>][,bias=<b>]"
+            "[,curve=<linear|smoothstep|exp|log|tanh|power>][,curve_amount=<a>]"
+            "[,hysteresis_up=<u>][,hysteresis_down=<d>][,combine=<replace|add|multiply>]"
+            "[,smoothing_ms=<ms>]"
+        ),
+    ),
+    feature_vector_frame_ms: float = typer.Option(
+        40.0,
+        "--feature-vector-frame-ms",
+        min=1.0,
+        help="Frame size used for feature-vector extraction (ms).",
+    ),
+    feature_vector_hop_ms: float = typer.Option(
+        20.0,
+        "--feature-vector-hop-ms",
+        min=1.0,
+        help="Hop size used for feature-vector extraction (ms).",
+    ),
+    feature_vector_trace_out: str | None = typer.Option(
+        None,
+        "--feature-vector-trace-out",
+        help="Optional CSV path for feature+parameter trace exports.",
+    ),
     frames_out: str | None = typer.Option(None, "--frames-out"),
     analysis_out: str | None = typer.Option(None, "--analysis-out"),
     lucky: int | None = typer.Option(
@@ -920,6 +951,10 @@ def render(
         automation_clamp=tuple(automation_clamp or ()),
         automation_points=tuple(automation_point or ()),
         automation_trace_out=automation_trace_out,
+        feature_vector_lanes=tuple(feature_vector_lane or ()),
+        feature_vector_frame_ms=float(feature_vector_frame_ms),
+        feature_vector_hop_ms=float(feature_vector_hop_ms),
+        feature_vector_trace_out=feature_vector_trace_out,
         frames_out=frames_out,
         analysis_out=analysis_out,
         silent=silent,
@@ -2791,6 +2826,12 @@ def _print_render_summary(report: dict[str, Any]) -> None:
         if isinstance(targets, list):
             table.add_row("automation_targets", ",".join(str(t) for t in targets))
         table.add_row("automation_mode", str(automation_payload.get("mode", "")))
+        feature_payload = automation_payload.get("feature_vector")
+        if isinstance(feature_payload, dict):
+            sources = feature_payload.get("sources", [])
+            if isinstance(sources, list):
+                table.add_row("feature_vector_sources", ",".join(str(s) for s in sources))
+            table.add_row("feature_vector_signature", str(feature_payload.get("signature", "")))
     config_report = report.get("config", {})
     if isinstance(config_report, dict):
         for key in (
@@ -2817,6 +2858,8 @@ def _print_render_summary(report: dict[str, Any]) -> None:
     table.add_row("analysis_json", str(report.get("analysis_path", "")))
     if "frames_path" in report:
         table.add_row("frames_csv", str(report.get("frames_path")))
+    if "feature_vector_trace_path" in report:
+        table.add_row("feature_vector_trace_csv", str(report.get("feature_vector_trace_path")))
     if "ir_runtime" in report:
         runtime = report["ir_runtime"]
         if isinstance(runtime, dict):
@@ -2850,6 +2893,7 @@ def _build_lucky_config(
     cfg.frames_out = None
     cfg.analysis_out = None
     cfg.automation_trace_out = None
+    cfg.feature_vector_trace_out = None
 
     cfg.freeze = bool(input_duration_seconds > 1.5 and rng.random() < 0.33)
     if cfg.freeze:
@@ -3641,20 +3685,32 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
         raise typer.BadParameter("--automation-block-ms must be > 0.")
     if config.automation_smoothing_ms < 0.0:
         raise typer.BadParameter("--automation-smoothing-ms must be >= 0.")
+    if config.feature_vector_frame_ms <= 0.0:
+        raise typer.BadParameter("--feature-vector-frame-ms must be > 0.")
+    if config.feature_vector_hop_ms <= 0.0:
+        raise typer.BadParameter("--feature-vector-hop-ms must be > 0.")
 
-    has_automation_source = config.automation_file is not None or len(config.automation_points) > 0
+    has_automation_source = (
+        config.automation_file is not None
+        or len(config.automation_points) > 0
+        or len(config.feature_vector_lanes) > 0
+    )
     has_automation_args = (
         config.automation_mode != "auto"
         or abs(float(config.automation_block_ms) - 20.0) > 1e-12
         or abs(float(config.automation_smoothing_ms) - 20.0) > 1e-12
         or len(config.automation_clamp) > 0
         or config.automation_trace_out is not None
+        or abs(float(config.feature_vector_frame_ms) - 40.0) > 1e-12
+        or abs(float(config.feature_vector_hop_ms) - 20.0) > 1e-12
+        or config.feature_vector_trace_out is not None
     )
     if not has_automation_source and has_automation_args:
         msg = (
             "--automation-mode/--automation-block-ms/--automation-smoothing-ms/"
-            "--automation-clamp/--automation-trace-out require --automation-file "
-            "or --automation-point."
+            "--automation-clamp/--automation-trace-out/--feature-vector-frame-ms/"
+            "--feature-vector-hop-ms/--feature-vector-trace-out require --automation-file, "
+            "--automation-point, or --feature-vector-lane."
         )
         raise typer.BadParameter(msg)
 
@@ -3672,9 +3728,11 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
     try:
         parse_automation_clamp_overrides(config.automation_clamp)
         parse_automation_point_specs(config.automation_points)
+        parse_feature_vector_lane_specs(config.feature_vector_lanes)
         targets = collect_automation_targets(
             path=source_path,
             point_specs=config.automation_points,
+            feature_lane_specs=config.feature_vector_lanes,
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
@@ -3717,6 +3775,12 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
             raise typer.BadParameter("--automation-trace-out must differ from OUTFILE.")
         if trace_path.suffix.lower() != ".csv":
             raise typer.BadParameter("--automation-trace-out must use .csv extension.")
+    if config.feature_vector_trace_out is not None:
+        feature_trace = Path(config.feature_vector_trace_out)
+        if feature_trace.resolve() == outfile.resolve():
+            raise typer.BadParameter("--feature-vector-trace-out must differ from OUTFILE.")
+        if feature_trace.suffix.lower() != ".csv":
+            raise typer.BadParameter("--feature-vector-trace-out must use .csv extension.")
 
 
 def _validate_lucky_call(
@@ -3736,6 +3800,9 @@ def _validate_lucky_call(
         raise typer.BadParameter(msg)
     if config.automation_trace_out is not None:
         msg = "Do not use --automation-trace-out with --lucky."
+        raise typer.BadParameter(msg)
+    if config.feature_vector_trace_out is not None:
+        msg = "Do not use --feature-vector-trace-out with --lucky."
         raise typer.BadParameter(msg)
 
 
