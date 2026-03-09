@@ -975,9 +975,12 @@ verbx render input.wav output.wav --device mps --threads 8
 
 Notes:
 
-- CUDA path uses optional CuPy acceleration for partitioned FFT convolution.
-- Algorithmic FDN path uses CPU backend (optional Numba JIT when installed).
-- If requested acceleration is unavailable, `verbx` falls back to CPU and reports the effective backend.
+- `--device auto` is engine-aware:
+  - convolution (`--engine conv`, or `--engine auto` with `--ir`) prefers `cuda`, then `mps`, then `cpu`
+  - algorithmic (`--engine algo`, or `--engine auto` without `--ir`) prefers `mps` on Apple Silicon, otherwise `cpu`
+- CUDA acceleration is optional and applies to partitioned FFT convolution through CuPy.
+- Algorithmic FDN path uses CPU backend (optional Numba JIT when installed), with Apple Silicon profile support via `mps`.
+- If requested acceleration is unavailable, `verbx` falls back safely and reports both effective engine device and platform-resolved device in analysis JSON.
 
 ### 7.12 Batch throughput
 
@@ -1688,9 +1691,11 @@ that is normal and expected.
 
 ### 10.1 Device Selection
 
-- `--device auto`: choose best available platform (`cuda` > `mps` > `cpu`)
-- `--device cuda`: enables CuPy backend for convolution if available
-- `--device mps`: optimized Apple Silicon profile (CPU backend + thread tuning)
+- `--device auto`: engine-aware resolution
+  - convolution path: `cuda` > `mps` > `cpu`
+  - algorithmic path: `mps` on Apple Silicon, otherwise `cpu`
+- `--device cuda`: optional override for convolution CUDA backend (falls back if unavailable or unsupported by selected engine)
+- `--device mps`: Apple Silicon profile (algorithmic CPU/Numba path; convolution CPU FFT path)
 - `--device cpu`: deterministic CPU-only execution
 
 ### 10.2 Threading
@@ -1886,7 +1891,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
-| `--device [auto\|cpu\|cuda\|mps]` | Compute platform preference. | `auto` picks best available backend; force `cuda`/`mps` when validating platform-specific behavior. |
+| `--device [auto\|cpu\|cuda\|mps]` | Compute platform preference. | `auto` is engine-aware (`conv`: `cuda` > `mps` > `cpu`; `algo`: `mps` on Apple Silicon else `cpu`). Use `cuda` for optional CuPy convolution acceleration, `mps` for Apple Silicon profile behavior. |
 | `--threads` | CPU thread hint for processing/FFT stacks. | Tune for throughput on multi-core systems. |
 | `--mod-target [none\|mix\|wet\|gain-db]` | Time-varying parameter target driven by modulation sources. | Start with `mix` (or `wet`) for musically intuitive animated reverb depth. |
 | `--mod-source` | Repeatable modulation source spec. | Use multiple `--mod-source` switches to layer LFO + envelope + external sidechain control. |

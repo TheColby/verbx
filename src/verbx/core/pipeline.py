@@ -24,7 +24,7 @@ import soundfile as sf
 from verbx.analysis.analyzer import AudioAnalyzer
 from verbx.analysis.framewise import write_framewise_csv
 from verbx.config import NormalizeStage, RenderConfig
-from verbx.core.accel import configure_cpu_threads, resolve_device
+from verbx.core.accel import configure_cpu_threads, resolve_device_for_engine
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
 from verbx.core.ambient import apply_ambient_processing
 from verbx.core.automation import (
@@ -86,8 +86,16 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             input_duration_seconds,
         )
         perceptual_macro_summary = _build_perceptual_macro_summary(config, runtime_config)
-        resolved_device = resolve_device(runtime_config.device)
-        engine_name, engine, engine_device = _resolve_engine(runtime_config, resolved_device)
+        resolved_engine_name = _resolve_engine_name(runtime_config)
+        engine_device, platform_device = resolve_device_for_engine(
+            runtime_config.device,
+            resolved_engine_name,
+        )
+        engine_name, engine, engine_device = _resolve_engine(
+            runtime_config,
+            engine_device,
+            engine_name=resolved_engine_name,
+        )
         if engine_device in {"cpu", "mps"}:
             configure_cpu_threads(runtime_config.threads)
 
@@ -119,7 +127,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                     "engine_resolved": engine_name,
                     "device_requested": config.device,
                     "device_resolved": engine_device,
-                    "device_platform_resolved": resolved_device,
+                    "device_platform_resolved": platform_device,
                     "compute_backend": engine.backend_name(),
                     "ir_used": runtime_config.ir,
                     "self_convolve": runtime_config.self_convolve,
@@ -373,7 +381,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 "engine_resolved": engine_name,
                 "device_requested": config.device,
                 "device_resolved": engine_device,
-                "device_platform_resolved": resolved_device,
+                "device_platform_resolved": platform_device,
                 "compute_backend": engine.backend_name(),
                 "ir_used": runtime_config.ir,
                 "self_convolve": runtime_config.self_convolve,
@@ -765,13 +773,24 @@ def _build_perceptual_macro_summary(
     }
 
 
-def _resolve_engine(config: RenderConfig, device: str) -> tuple[str, ReverbEngine, str]:
-    """Resolve engine name and instantiate concrete engine instance."""
-    engine_name = config.engine
+def _resolve_engine_name(config: RenderConfig) -> str:
+    """Resolve concrete engine name from explicit/auto config."""
+    engine_name = str(config.engine).strip().lower()
     if engine_name == "auto":
-        engine_name = "conv" if config.ir is not None else "algo"
+        return "conv" if config.ir is not None else "algo"
+    return engine_name
 
-    if engine_name == "conv":
+
+def _resolve_engine(
+    config: RenderConfig,
+    device: str,
+    *,
+    engine_name: str | None = None,
+) -> tuple[str, ReverbEngine, str]:
+    """Resolve engine name and instantiate concrete engine instance."""
+    resolved_name = _resolve_engine_name(config) if engine_name is None else str(engine_name)
+
+    if resolved_name == "conv":
         if config.ir is None:
             msg = "Convolution engine requires --ir when --engine conv is selected"
             raise ValueError(msg)

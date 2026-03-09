@@ -13,6 +13,11 @@ chains, loudness/peak targets, ambient controls, and random lucky-mode batches.
 .B --engine [conv|algo|auto]
 Select convolution, algorithmic, or automatic engine resolution.
 .TP
+.B --device [auto|cpu|cuda|mps]
+Compute device preference.
+\fBauto\fR is engine-aware:
+convolution prefers CUDA when available, while algorithmic prefers Apple Silicon profile (\fBmps\fR) on arm64 macOS and CPU elsewhere.
+.TP
 .B --rt60 FLOAT
 Target decay time in seconds.
 .TP

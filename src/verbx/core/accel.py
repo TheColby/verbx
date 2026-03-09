@@ -12,6 +12,7 @@ import platform
 from typing import Literal
 
 DeviceName = Literal["auto", "cpu", "cuda", "mps"]
+EngineName = Literal["algo", "conv"]
 
 LOGGER = logging.getLogger(__name__)
 
@@ -66,3 +67,30 @@ def resolve_device(requested: DeviceName) -> DeviceName:
         return "cpu"
 
     return requested
+
+
+def resolve_device_for_engine(
+    requested: DeviceName,
+    engine: EngineName | str,
+) -> tuple[DeviceName, DeviceName]:
+    """Resolve device for a concrete engine.
+
+    Returns ``(engine_device, platform_device)`` where:
+    - ``platform_device`` is generic host capability resolution.
+    - ``engine_device`` is the concrete device used by the selected engine.
+    """
+    platform_device = resolve_device(requested)
+    engine_name = str(engine).strip().lower()
+
+    if engine_name == "algo" and platform_device == "cuda":
+        fallback: DeviceName = "mps" if is_apple_silicon() else "cpu"
+        if requested == "cuda":
+            target = "Apple Silicon profile (MPS)" if fallback == "mps" else "CPU"
+            LOGGER.warning(
+                "CUDA requested but algorithmic engine has no CUDA backend. "
+                "Falling back to %s.",
+                target,
+            )
+        return fallback, platform_device
+
+    return platform_device, platform_device

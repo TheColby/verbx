@@ -20,3 +20,29 @@ def test_resolve_device_auto_prefers_mps_when_no_cuda(monkeypatch: MonkeyPatch) 
 def test_resolve_device_explicit_cuda_falls_back(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(accel, "cuda_available", lambda: False)
     assert accel.resolve_device("cuda") == "cpu"
+
+
+def test_resolve_device_for_engine_algo_auto_avoids_cuda(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(accel, "cuda_available", lambda: True)
+    monkeypatch.setattr(accel, "is_apple_silicon", lambda: False)
+    engine_device, platform_device = accel.resolve_device_for_engine("auto", "algo")
+    assert engine_device == "cpu"
+    assert platform_device == "cuda"
+
+
+def test_resolve_device_for_engine_algo_auto_prefers_mps_on_apple(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(accel, "cuda_available", lambda: True)
+    monkeypatch.setattr(accel, "is_apple_silicon", lambda: True)
+    engine_device, platform_device = accel.resolve_device_for_engine("auto", "algo")
+    assert engine_device == "mps"
+    assert platform_device == "cuda"
+
+
+def test_resolve_device_for_engine_conv_auto_keeps_cuda(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(accel, "cuda_available", lambda: True)
+    monkeypatch.setattr(accel, "is_apple_silicon", lambda: True)
+    engine_device, platform_device = accel.resolve_device_for_engine("auto", "conv")
+    assert engine_device == "cuda"
+    assert platform_device == "cuda"

@@ -8,6 +8,7 @@ import soundfile as sf
 from typer.testing import CliRunner
 
 from verbx.cli import app
+from verbx.core import accel
 
 runner = CliRunner()
 
@@ -73,6 +74,79 @@ def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
     assert payload["effective"]["tail_padding_seconds"] > 0.0
     assert payload["effective"]["perceptual_macros"] is None
     assert payload["output_samples"] > payload["input_samples"]
+
+
+def test_render_algo_auto_reports_engine_specific_device(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(accel, "cuda_available", lambda: True)
+    monkeypatch.setattr(accel, "is_apple_silicon", lambda: False)
+
+    audio = np.zeros((1024, 1), dtype=np.float32)
+    audio[80:120, 0] = 0.5
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--device",
+            "auto",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    assert payload["effective"]["engine_resolved"] == "algo"
+    assert payload["effective"]["device_requested"] == "auto"
+    assert payload["effective"]["device_platform_resolved"] == "cuda"
+    assert payload["effective"]["device_resolved"] == "cpu"
+
+
+def test_render_conv_auto_prefers_cuda_when_available(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(accel, "cuda_available", lambda: True)
+    monkeypatch.setattr(accel, "is_apple_silicon", lambda: True)
+
+    audio = np.zeros((1024, 1), dtype=np.float32)
+    audio[80:120, 0] = 0.5
+    infile = tmp_path / "in.wav"
+    irfile = tmp_path / "ir.wav"
+    outfile = tmp_path / "out.wav"
+    ir = np.zeros((256, 1), dtype=np.float32)
+    ir[0, 0] = 1.0
+    sf.write(str(infile), audio, 48_000)
+    sf.write(str(irfile), ir, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "auto",
+            "--ir",
+            str(irfile),
+            "--device",
+            "auto",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    assert payload["effective"]["engine_resolved"] == "conv"
+    assert payload["effective"]["device_requested"] == "auto"
+    assert payload["effective"]["device_platform_resolved"] == "cuda"
+    assert payload["effective"]["device_resolved"] == "cuda"
 
 
 def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path) -> None:
