@@ -4,7 +4,7 @@
 
 # verbx
 
-**Collossal audio reverberator.**
+**Colossal audio reverberator.**
 
 `verbx` is a production-grade Python command-line tool for creating spacious,
 cinematic, and experimental reverb effects from audio files. It is designed for
