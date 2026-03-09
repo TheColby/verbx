@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 980" role="img" aria-labelledby="title desc">
+  <title id="title">IR FDN Path Parity Graph</title>
+  <desc id="desc">Graph showing parity between render algorithmic FDN core and ir gen fdn/hybrid paths in verbx.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8fbff"/>
+      <stop offset="100%" stop-color="#eef4fc"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M1,1 L11,6 L1,11 Z" fill="#274266"/>
+    </marker>
+    <style>
+      .panel { fill: #ffffff; stroke: #d4e2f4; stroke-width: 2.1; }
+      .card { fill: #fbfdff; stroke: #708aae; stroke-width: 2; }
+      .soft { fill: #f2f8ff; stroke: #6a86ac; stroke-width: 2; }
+      .line { fill: none; stroke: #274266; stroke-width: 3; marker-end: url(#arrow); }
+      .title { fill: #132941; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 34px; font-weight: 700; }
+      .subtitle { fill: #2d4d79; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 600; }
+      .label { fill: #1a3657; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 20px; font-weight: 700; }
+      .small { fill: #34557e; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 15px; }
+      .mono { font-family: "Menlo", "Consolas", monospace; }
+      .note { fill: #223f67; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 16px; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1900" height="980" fill="url(#bg)"/>
+  <rect class="panel" x="52" y="62" width="1796" height="870" rx="20"/>
+
+  <text class="title" x="92" y="124">IR and Render FDN Core Parity</text>
+  <text class="subtitle" x="92" y="158">Both pipelines use the same configurable algorithmic FDN core and option surface.</text>
+
+  <rect class="soft" x="92" y="208" width="800" height="504" rx="16"/>
+  <text class="label" x="126" y="252">Render Path</text>
+
+  <rect class="card" x="126" y="304" width="250" height="96" rx="12"/>
+  <text class="label" x="251" y="358" text-anchor="middle">verbx render</text>
+
+  <rect class="card" x="440" y="304" width="220" height="96" rx="12"/>
+  <text class="small" x="550" y="348" text-anchor="middle"><tspan class="mono">--engine algo</tspan></text>
+  <text class="small" x="550" y="372" text-anchor="middle">input audio stream</text>
+
+  <path class="line" d="M376,352 L440,352"/>
+
+  <rect class="soft" x="1008" y="208" width="800" height="504" rx="16"/>
+  <text class="label" x="1042" y="252">IR Generation Path</text>
+
+  <rect class="card" x="1042" y="304" width="250" height="96" rx="12"/>
+  <text class="label" x="1167" y="358" text-anchor="middle">verbx ir gen</text>
+
+  <rect class="card" x="1356" y="304" width="220" height="96" rx="12"/>
+  <text class="small" x="1466" y="348" text-anchor="middle"><tspan class="mono">--mode fdn|hybrid</tspan></text>
+  <text class="small" x="1466" y="372" text-anchor="middle">impulse excitation</text>
+
+  <path class="line" d="M1292,352 L1356,352"/>
+
+  <rect class="card" x="726" y="466" width="448" height="140" rx="14"/>
+  <text class="label" x="950" y="522" text-anchor="middle">Shared AlgoReverbEngine Core</text>
+  <text class="small" x="950" y="548" text-anchor="middle"><tspan class="mono">fdn_lines | fdn_matrix | fdn_tv_* | fdn_dfm_delays_ms</tspan></text>
+  <text class="small" x="950" y="572" text-anchor="middle">same matrix builders and feedback loop behavior</text>
+
+  <path class="line" d="M660,352 L872,466"/>
+  <path class="line" d="M1356,352 L1028,466"/>
+
+  <rect class="card" x="300" y="760" width="508" height="104" rx="12"/>
+  <text class="small" x="554" y="808" text-anchor="middle">render output: wet/dry mix over source audio</text>
+  <text class="small" x="554" y="832" text-anchor="middle">then analysis JSON / optional frames CSV</text>
+
+  <rect class="card" x="1092" y="760" width="508" height="104" rx="12"/>
+  <text class="small" x="1346" y="808" text-anchor="middle">IR output: synthesized impulse response waveform</text>
+  <text class="small" x="1346" y="832" text-anchor="middle">then IR shaping + metadata write</text>
+
+  <path class="line" d="M864,606 L620,760"/>
+  <path class="line" d="M1036,606 L1280,760"/>
+
+  <text class="note" x="92" y="906">Practical result: topology tuning is portable between realtime-like render design and offline IR synthesis workflows.</text>
+</svg>
