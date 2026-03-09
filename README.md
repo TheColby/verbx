@@ -41,6 +41,13 @@ batch workflows.
 <summary>Expand full outline</summary>
 
 - [2.0 Features](#20-features)
+  - [2.1 CLI Surface and Platform](#21-cli-surface-and-platform)
+  - [2.2 Reverb DSP and Tail Design](#22-reverb-dsp-and-tail-design)
+  - [2.3 Spatial, Surround, and Immersive Workflows](#23-spatial-surround-and-immersive-workflows)
+  - [2.4 Time-Varying Control Architecture](#24-time-varying-control-architecture)
+  - [2.5 IR Toolchain](#25-ir-toolchain)
+  - [2.6 Analysis, QA, and Production Operations](#26-analysis-qa-and-production-operations)
+  - [2.7 Performance and Determinism](#27-performance-and-determinism)
 - [3.0 Requirements](#30-requirements)
 - [4.0 Installation and Quick Start](#40-installation-and-quick-start)
   - [4.1 Installer Script and Man Pages](#41-installer-script-and-man-pages)
@@ -53,6 +60,7 @@ batch workflows.
     - [4.3.1 Virtualenv install (`.venv`)](#431-virtualenv-install-venv)
     - [4.3.2 `pipx` install](#432-pipx-install)
     - [4.3.3 User-site `pip install --user`](#433-user-site-pip-install-user)
+    - [4.3.4 Man page lookup (`MANPATH`)](#434-man-page-lookup-manpath)
   - [4.4 Choosing How To Run `verbx`](#44-choosing-how-to-run-verbx)
     - [4.4.1 Hatch](#441-hatch)
     - [4.4.2 `uv`](#442-uv)
@@ -203,24 +211,78 @@ batch workflows.
 
 ## 2.0 Features
 
-- CLI-only architecture (Typer + Rich)
-- Algorithmic reverb (Schroeder allpass diffusion + 8-line FDN / coupled comb-like feedback loops)
-- Experimental graph-structured FDN matrix mode (`--fdn-matrix graph`)
-- Partitioned FFT convolution (long IR friendly)
-- Native multichannel/surround processing and matrix IR routing (M input × N output)
-- Explicit convolution route-map + trajectory controls for multichannel workflows
-- Freeze segment looping + repeat chaining
-- Loudness/peak controls (LUFS, sample peak, true-peak approximation)
-- Ambient controls (shimmer, ducking, bloom, tilt EQ)
-- Modulation source/route system for dynamic parameter control
-- Synthetic IR generation (`fdn`, `stochastic`, `modal`, `hybrid`)
-- Deterministic IR cache with metadata sidecars
-- Batch rendering manifests
-- Immersive handoff package generation (ADM/BWF-style sidecars + deliverable manifests)
-- Immersive QC gates (LUFS, true-peak, fold-down delta, channel occupancy)
-- Distributed file-queue worker with heartbeats and idempotent retries
-- Tempo-synced note parsing (`--pre-delay 1/8D --bpm 120`)
-- Framewise CSV analysis exports
+### 2.1 CLI Surface and Platform
+
+- Typer + Rich command-line architecture.
+- Command groups: `render`, `analyze`, `suggest`, `presets`, `ir`, `cache`, `batch`, `immersive`.
+- Strong option/path validation and typed command interfaces.
+- Output controls for container format and subtype/bit depth.
+
+### 2.2 Reverb DSP and Tail Design
+
+- Dual engines: algorithmic and partitioned-FFT convolution.
+- Algorithmic chain with pre-delay, Schroeder diffusion, and FDN late field.
+- FDN matrix families: `hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`, `graph`.
+- Advanced FDN structures: DFM delays, sparse pair-mixing, cascaded FDN, graph topology/degree/seed controls.
+- Multiband/tilted RT60 control and tonal-correction equalization.
+- Perceptual macros: room size, clarity, warmth, envelopment.
+- Feedback-link filter modes (`none`/`lowpass`/`highpass`) with cutoff/mix controls.
+- Convolution route-map and trajectory interpolation controls.
+- Freeze segment looping, repeat-pass chaining, and beast-mode scaling.
+- Loudness/peak normalization pipeline, limiter staging, and output peak targeting.
+- Ambient/tone controls: shimmer, ducking, bloom, tilt, lowcut/highcut.
+- Tempo-synced note-value pre-delay parsing (`--pre-delay 1/8D --bpm 120`).
+
+### 2.3 Spatial, Surround, and Immersive Workflows
+
+- Native multichannel processing and matrix IR routing (M input x N output).
+- Semantic channel layouts (`mono`, `stereo`, `lcr`, `5.1`, `7.1`, `7.1.2`, `7.1.4`).
+- Ambisonics conventions (`SN3D`/`N3D`/`FuMa`, `ACN`/`FuMa`) with FOA encode/decode and yaw rotation.
+- Ambisonics-aware analysis metrics.
+- Immersive handoff packaging: ADM/BWF-style sidecar, object-stem manifest, QA bundle, and deliverables manifest.
+- Immersive bed/object policy checks and strict/warn-only gating.
+- Immersive QC gates: LUFS, true-peak, fold-down delta, and channel occupancy.
+- Handoff validation reporting, including scene/asset sample-rate consistency checks.
+
+### 2.4 Time-Varying Control Architecture
+
+- Modulation source/route framework for dynamic parameter control.
+- Automation from JSON/CSV lanes (`--automation-file`) and inline points (`--automation-point`).
+- Block and sample evaluation, smoothing, and clamp overrides.
+- Automation trace export for reproducible QA.
+- Track C automation targets including `fdn-rt60-tilt` and `fdn-tonal-correction-strength`.
+
+### 2.5 IR Toolchain
+
+- IR generation modes: `fdn`, `stochastic`, `modal`, `hybrid`.
+- IR analysis with machine-readable JSON export.
+- IR processing for damping/filtering/normalization/loudness shaping.
+- IR morphing modes: `linear`, `equal-power`, `spectral`, `envelope-aware`.
+- Early/late morph controls with decay alignment and phase-coherence safeguards.
+- Render-time IR blending with repeatable `--ir-blend` paths.
+- IR fitting pipeline with candidate scoring and optional tuning analysis.
+- Deterministic IR cache with metadata sidecars plus cache inspect/clear commands.
+- Lucky-mode randomized variants for render and IR workflows.
+
+### 2.6 Analysis, QA, and Production Operations
+
+- `analyze` metrics including loudness and EDR summaries.
+- Framewise CSV exports (including modulation/spatial metrics).
+- `suggest` command for analysis-driven starter settings.
+- Built-in preset listing command for fast starting points.
+- JSON template commands for batch and immersive workflows.
+- Batch manifests with scheduling policies, retries, dry-run, fail-fast/continue modes.
+- Batch checkpoint/resume support for long render queues.
+- Immersive distributed file queue (`template`, `status`, `worker`) with heartbeats and reclaim/retry semantics.
+- Queue manifest ID uniqueness enforcement for safe distributed execution.
+
+### 2.7 Performance and Determinism
+
+- Device targeting (`cpu`, `mps`, `cuda`, `auto`).
+- Optional acceleration backends (`numba`, `cupy`).
+- Threading, block-size, partition-size, and streaming-convolution controls.
+- Deterministic seed and cache semantics across render/IR workflows.
+- Repeatable JSON sidecars/reports for CI and regression checks.
 
 ## 3.0 Requirements
 
@@ -276,11 +338,7 @@ man verbx
 man verbx-render
 ```
 
-If your shell cannot find the man pages, add this to your shell profile:
-
-```bash
-export MANPATH="$HOME/.local/share/man:$MANPATH"
-```
+If your shell cannot find the man pages, see Section `4.3.4` for MANPATH setup.
 
 ### 4.2 Install options
 
@@ -387,6 +445,14 @@ fish_add_path $HOME/.local/bin
 fish_add_path $HOME/Library/Python/3.11/bin
 exec fish
 verbx --help
+```
+
+#### 4.3.4 Man page lookup (`MANPATH`)
+
+If `man verbx` is not found after install, add:
+
+```bash
+export MANPATH="$HOME/.local/share/man:$MANPATH"
 ```
 
 ### 4.4 Choosing How To Run `verbx`
