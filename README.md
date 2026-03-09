@@ -1554,6 +1554,7 @@ When incompatible options are requested, `verbx` falls back to full-buffer proce
 This section lists all CLI switches available in the current
 `v0.6.0 + v0.7 Track A/C/D + immersive interoperability` interface.
 For full descriptions and defaults, run `verbx <command> --help`.
+It is intended to be the canonical switch inventory for every `verbx` command.
 
 ### 12.1 Top-level commands
 
@@ -1947,6 +1948,8 @@ No command-specific switches (other than `--help`).
 | `--schedule [fifo\|shortest-first\|longest-first]` | Batch job ordering policy. | `longest-first` helps keep workers busy; `fifo` preserves manifest order semantics. |
 | `--retries` | Retry count per failed job. | Use `1-2` for transient I/O or resource hiccups. |
 | `--continue-on-error / --fail-fast` | Whether to continue processing after a failure. | Use fail-fast for strict pipelines; continue-on-error for large best-effort batches. |
+| `--checkpoint-file` | Optional checkpoint file path for persisting per-job completion state. | Use for long-running batches where resumability matters. |
+| `--resume` | Resume mode that skips outputs already marked successful in `--checkpoint-file`. | Use with `--checkpoint-file` after interrupted runs. |
 | `--dry-run` | Validates and prints plan without rendering audio. | Recommended before long multi-job runs. |
 | `--lucky` | For each manifest job, generates N randomized render variants. | Use when exploring wide parameter spaces from a fixed manifest set. |
 | `--lucky-out-dir` | Shared output directory for batch lucky renders. | Helpful for collecting all randomized outputs in one place. |
