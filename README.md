@@ -43,22 +43,22 @@ batch workflows.
 - [2.0 Features](#20-features)
 - [3.0 Requirements](#30-requirements)
 - [4.0 Installation and Quick Start](#40-installation-and-quick-start)
-  - [4.1 Install options](#41-install-options)
-    - [4.1.1 Option A: Hatch (recommended for contributors)](#411-option-a-hatch-recommended-for-contributors)
-    - [4.1.2 Option B: Plain virtualenv + pip (no Hatch)](#412-option-b-plain-virtualenv-pip-no-hatch)
-    - [4.1.3 Option C: pipx (isolated app install)](#413-option-c-pipx-isolated-app-install)
-    - [4.1.4 Option D: Run module directly (no console-script install)](#414-option-d-run-module-directly-no-console-script-install)
-  - [4.2 Add `verbx` to Your `PATH`](#42-add-verbx-to-your-path)
-    - [4.2.1 Virtualenv install (`.venv`)](#421-virtualenv-install-venv)
-    - [4.2.2 `pipx` install](#422-pipx-install)
-    - [4.2.3 User-site `pip install --user`](#423-user-site-pip-install-user)
-  - [4.3 Choosing How To Run `verbx`](#43-choosing-how-to-run-verbx)
-    - [4.3.1 Hatch](#431-hatch)
-    - [4.3.2 `uv`](#432-uv)
-    - [4.3.3 Plain `venv` + `pip`](#433-plain-venv-pip)
-    - [4.3.4 `pipx`](#434-pipx)
-    - [4.3.5 Direct `python -m verbx.cli`](#435-direct-python-m-verbxcli)
-  - [4.4 Installer Script and Man Pages](#44-installer-script-and-man-pages)
+  - [4.1 Installer Script and Man Pages](#41-installer-script-and-man-pages)
+  - [4.2 Install options](#42-install-options)
+    - [4.2.1 Option A: Hatch (recommended for contributors)](#421-option-a-hatch-recommended-for-contributors)
+    - [4.2.2 Option B: Plain virtualenv + pip (no Hatch)](#422-option-b-plain-virtualenv-pip-no-hatch)
+    - [4.2.3 Option C: pipx (isolated app install)](#423-option-c-pipx-isolated-app-install)
+    - [4.2.4 Option D: Run module directly (no console-script install)](#424-option-d-run-module-directly-no-console-script-install)
+  - [4.3 Add `verbx` to Your `PATH`](#43-add-verbx-to-your-path)
+    - [4.3.1 Virtualenv install (`.venv`)](#431-virtualenv-install-venv)
+    - [4.3.2 `pipx` install](#432-pipx-install)
+    - [4.3.3 User-site `pip install --user`](#433-user-site-pip-install-user)
+  - [4.4 Choosing How To Run `verbx`](#44-choosing-how-to-run-verbx)
+    - [4.4.1 Hatch](#441-hatch)
+    - [4.4.2 `uv`](#442-uv)
+    - [4.4.3 Plain `venv` + `pip`](#443-plain-venv-pip)
+    - [4.4.4 `pipx`](#444-pipx)
+    - [4.4.5 Direct `python -m verbx.cli`](#445-direct-python-m-verbxcli)
 - [5.0 What is Reverberation (a/k/a Reverb)?](#50-what-is-reverberation-aka-reverb)
   - [5.1 Quick Reference Summary (from Wikipedia)](#51-quick-reference-summary-from-wikipedia)
   - [5.2 Reverb Timeline (Single Hit)](#52-reverb-timeline-single-hit)
@@ -232,225 +232,14 @@ batch workflows.
 
 ## 4.0 Installation and Quick Start
 
-### 4.1 Install options
+### 4.1 Installer Script and Man Pages
 
-#### 4.1.1 Option A: Hatch (recommended for contributors)
-
-```bash
-hatch env create
-hatch run verbx --help
-```
-
-#### 4.1.2 Option B: Plain virtualenv + pip (no Hatch)
+Start from a fresh clone (or skip if you already have the repo):
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
-verbx --help
+git clone https://github.com/TheColby/verbx.git
+cd verbx
 ```
-
-#### 4.1.3 Option C: pipx (isolated app install)
-
-```bash
-pipx install .
-verbx --help
-```
-
-#### 4.1.4 Option D: Run module directly (no console-script install)
-
-```bash
-python -m pip install typer rich numpy scipy soundfile librosa pyloudnorm
-PYTHONPATH=src python -m verbx.cli --help
-```
-
-### 4.2 Add `verbx` to Your `PATH`
-
-If `verbx --help` says `command not found`, your shell likely cannot see the
-install location yet.
-
-#### 4.2.1 Virtualenv install (`.venv`)
-
-Activate the environment before running `verbx`:
-
-```bash
-source .venv/bin/activate
-verbx --help
-```
-
-To auto-activate in this project folder:
-
-```bash
-echo 'source .venv/bin/activate' >> .envrc
-direnv allow
-```
-
-If you see `zsh: command not found: direnv`, either skip this step and activate
-manually (`source .venv/bin/activate`) or install direnv:
-
-```bash
-brew install direnv
-echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
-source ~/.zshrc
-direnv allow
-```
-
-#### 4.2.2 `pipx` install
-
-Make sure pipx paths are configured:
-
-```bash
-pipx ensurepath
-```
-
-Then open a new terminal and run:
-
-```bash
-verbx --help
-```
-
-#### 4.2.3 User-site `pip install --user`
-
-Add Python's user bin directory to `PATH` (zsh on macOS/Linux):
-
-```bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-echo 'export PATH="$HOME/Library/Python/3.11/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
-verbx --help
-```
-
-For bash:
-
-```bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-echo 'export PATH="$HOME/Library/Python/3.11/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-verbx --help
-```
-
-For fish:
-
-```fish
-fish_add_path $HOME/.local/bin
-fish_add_path $HOME/Library/Python/3.11/bin
-exec fish
-verbx --help
-```
-
-### 4.3 Choosing How To Run `verbx`
-
-#### 4.3.1 Hatch
-
-Pros:
-
-- Best match for this repository's contributor workflow (`hatch run lint`, `typecheck`, `test`)
-- Reproducible project environment defined in `pyproject.toml`
-- No need to manually remember command variants for QA checks
-
-Cons:
-
-- Requires installing Hatch
-- Dependency resolution/install is usually slower than `uv`
-
-Best for:
-
-- Contributors working on `verbx` itself
-- CI/local parity with documented project scripts
-
-#### 4.3.2 `uv`
-
-Pros:
-
-- Very fast environment creation and dependency install
-- Supports project run flows (`uv run ...`) and pip-compatible flows (`uv pip ...`)
-- Good for users who already standardize on `uv` across projects
-
-Cons:
-
-- Repo scripts are authored under Hatch env scripts, so command names differ
-- Team docs and CI in this repo are Hatch-first
-
-Best for:
-
-- Power users prioritizing speed
-- Local dev where you prefer `uv` tooling conventions
-
-Example (`uv`-native):
-
-```bash
-uv sync --extra dev
-uv run verbx --help
-```
-
-Example (pip-compatible with `uv`):
-
-```bash
-uv venv
-source .venv/bin/activate
-uv pip install -e ".[dev]"
-verbx --help
-```
-
-#### 4.3.3 Plain `venv` + `pip`
-
-Pros:
-
-- Universal, standard Python workflow
-- No extra package manager required
-
-Cons:
-
-- More manual steps
-- Slower installs than `uv`
-
-Best for:
-
-- Environments where only standard Python tooling is allowed
-
-#### 4.3.4 `pipx`
-
-Pros:
-
-- Isolated app install without polluting global Python packages
-- Simple for command-line usage only
-
-Cons:
-
-- Less convenient for editing/testing local source changes
-- Not ideal for contributor QA loops
-
-Best for:
-
-- End users who only want to run `verbx` commands
-
-#### 4.3.5 Direct `python -m verbx.cli`
-
-Pros:
-
-- Quickest way to run source without creating a console script entry point
-- Useful for debugging local module execution
-
-Cons:
-
-- Requires setting `PYTHONPATH=src` (or equivalent path setup)
-- Easier to drift from normal installed usage
-- Not ideal as a primary workflow
-
-Best for:
-
-- Fast local checks and debugging
-- Situations where you intentionally avoid install steps
-
-Recommendation:
-
-- Use Hatch for contributing to this repo.
-- Use `uv` if you want the same result with faster dependency operations.
-- Use `venv` + `pip` for maximal portability.
-- Use `python -m verbx.cli` for quick local debugging only.
-
-### 4.4 Installer Script and Man Pages
 
 `verbx` ships installable man pages and an install helper script:
 
@@ -492,6 +281,224 @@ If your shell cannot find the man pages, add this to your shell profile:
 ```bash
 export MANPATH="$HOME/.local/share/man:$MANPATH"
 ```
+
+### 4.2 Install options
+
+#### 4.2.1 Option A: Hatch (recommended for contributors)
+
+```bash
+hatch env create
+hatch run verbx --help
+```
+
+#### 4.2.2 Option B: Plain virtualenv + pip (no Hatch)
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+verbx --help
+```
+
+#### 4.2.3 Option C: pipx (isolated app install)
+
+```bash
+pipx install .
+verbx --help
+```
+
+#### 4.2.4 Option D: Run module directly (no console-script install)
+
+```bash
+python -m pip install typer rich numpy scipy soundfile librosa pyloudnorm
+PYTHONPATH=src python -m verbx.cli --help
+```
+
+### 4.3 Add `verbx` to Your `PATH`
+
+If `verbx --help` says `command not found`, your shell likely cannot see the
+install location yet.
+
+#### 4.3.1 Virtualenv install (`.venv`)
+
+Activate the environment before running `verbx`:
+
+```bash
+source .venv/bin/activate
+verbx --help
+```
+
+To auto-activate in this project folder:
+
+```bash
+echo 'source .venv/bin/activate' >> .envrc
+direnv allow
+```
+
+If you see `zsh: command not found: direnv`, either skip this step and activate
+manually (`source .venv/bin/activate`) or install direnv:
+
+```bash
+brew install direnv
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+source ~/.zshrc
+direnv allow
+```
+
+#### 4.3.2 `pipx` install
+
+Make sure pipx paths are configured:
+
+```bash
+pipx ensurepath
+```
+
+Then open a new terminal and run:
+
+```bash
+verbx --help
+```
+
+#### 4.3.3 User-site `pip install --user`
+
+Add Python's user bin directory to `PATH` (zsh on macOS/Linux):
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+echo 'export PATH="$HOME/Library/Python/3.11/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+verbx --help
+```
+
+For bash:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+echo 'export PATH="$HOME/Library/Python/3.11/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+verbx --help
+```
+
+For fish:
+
+```fish
+fish_add_path $HOME/.local/bin
+fish_add_path $HOME/Library/Python/3.11/bin
+exec fish
+verbx --help
+```
+
+### 4.4 Choosing How To Run `verbx`
+
+#### 4.4.1 Hatch
+
+Pros:
+
+- Best match for this repository's contributor workflow (`hatch run lint`, `typecheck`, `test`)
+- Reproducible project environment defined in `pyproject.toml`
+- No need to manually remember command variants for QA checks
+
+Cons:
+
+- Requires installing Hatch
+- Dependency resolution/install is usually slower than `uv`
+
+Best for:
+
+- Contributors working on `verbx` itself
+- CI/local parity with documented project scripts
+
+#### 4.4.2 `uv`
+
+Pros:
+
+- Very fast environment creation and dependency install
+- Supports project run flows (`uv run ...`) and pip-compatible flows (`uv pip ...`)
+- Good for users who already standardize on `uv` across projects
+
+Cons:
+
+- Repo scripts are authored under Hatch env scripts, so command names differ
+- Team docs and CI in this repo are Hatch-first
+
+Best for:
+
+- Power users prioritizing speed
+- Local dev where you prefer `uv` tooling conventions
+
+Example (`uv`-native):
+
+```bash
+uv sync --extra dev
+uv run verbx --help
+```
+
+Example (pip-compatible with `uv`):
+
+```bash
+uv venv
+source .venv/bin/activate
+uv pip install -e ".[dev]"
+verbx --help
+```
+
+#### 4.4.3 Plain `venv` + `pip`
+
+Pros:
+
+- Universal, standard Python workflow
+- No extra package manager required
+
+Cons:
+
+- More manual steps
+- Slower installs than `uv`
+
+Best for:
+
+- Environments where only standard Python tooling is allowed
+
+#### 4.4.4 `pipx`
+
+Pros:
+
+- Isolated app install without polluting global Python packages
+- Simple for command-line usage only
+
+Cons:
+
+- Less convenient for editing/testing local source changes
+- Not ideal for contributor QA loops
+
+Best for:
+
+- End users who only want to run `verbx` commands
+
+#### 4.4.5 Direct `python -m verbx.cli`
+
+Pros:
+
+- Quickest way to run source without creating a console script entry point
+- Useful for debugging local module execution
+
+Cons:
+
+- Requires setting `PYTHONPATH=src` (or equivalent path setup)
+- Easier to drift from normal installed usage
+- Not ideal as a primary workflow
+
+Best for:
+
+- Fast local checks and debugging
+- Situations where you intentionally avoid install steps
+
+Recommendation:
+
+- Use Hatch for contributing to this repo.
+- Use `uv` if you want the same result with faster dependency operations.
+- Use `venv` + `pip` for maximal portability.
+- Use `python -m verbx.cli` for quick local debugging only.
 
 ## 5.0 What is Reverberation?
 
