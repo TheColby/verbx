@@ -122,6 +122,10 @@ batch workflows.
       - [9.2.1.6 Nested/Cascaded FDN Graph](#9216-nestedcascaded-fdn-graph)
       - [9.2.1.7 Multiband + Filter-Feedback Graph](#9217-multiband--filter-feedback-graph)
       - [9.2.1.8 Graph-Structured FDN Graph](#9218-graph-structured-fdn-graph)
+    - [9.2.2 Detailed DSP Flow Diagrams](#922-detailed-dsp-flow-diagrams)
+      - [9.2.2.1 Canonical Per-Line FDN Loop](#9221-canonical-per-line-fdn-loop)
+      - [9.2.2.2 N-Line Matrix-Coupled FDN Loop](#9222-n-line-matrix-coupled-fdn-loop)
+      - [9.2.2.3 Time-Varying Multiband Overlay](#9223-time-varying-multiband-overlay)
   - [9.3 Partitioned FFT Convolution](#93-partitioned-fft-convolution)
   - [9.4 Multichannel Matrix Convolution](#94-multichannel-matrix-convolution)
   - [9.5 Freeze Crossfade (Equal Power)](#95-freeze-crossfade-equal-power)
@@ -233,6 +237,7 @@ batch workflows.
 
 - Dual engines: algorithmic and partitioned-FFT convolution.
 - Algorithmic chain with pre-delay, Schroeder diffusion, and FDN late field.
+- Internal algorithmic, convolution, modulation, and analysis math runs in `f64` precision.
 - FDN matrix families: `hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`, `graph`.
 - Advanced FDN structures: DFM delays, sparse pair-mixing, cascaded FDN, graph topology/degree/seed controls.
 - Multiband/tilted RT60 control and tonal-correction equalization.
@@ -1302,9 +1307,9 @@ flowchart TD
   B --> C["RenderConfig build + validation"]
   C --> D["Device resolve (auto/cpu/cuda/mps)"]
   D --> E{"Engine"}
-  E -->|"algo"| F["Algorithmic path (diffusion + FDN)"]
-  E -->|"conv"| G["Convolution path (partitioned FFT)"]
-  F --> H["Temporal/creative stage (repeat/freeze/ambient)"]
+  E -->|"algo"| F["Algorithmic path (f64 diffusion + FDN)"]
+  E -->|"conv"| G["Convolution path (f64 partitioned FFT)"]
+  F --> H["Temporal/creative stage (f64 repeat/freeze/ambient)"]
   G --> H
   H --> I["Loudness + peak policy stage"]
   I --> J["Optional final peak normalization"]
@@ -1399,6 +1404,8 @@ Implementation note:
 
 - `verbx` processes this topology in blocks for throughput, but the state update
   semantics are equivalent to the sample-domain equations above.
+- All matrix/vector/filter operations in this loop are computed in internal
+  `f64` precision.
 
 #### 9.2.1 Supported FDN Topologies (Graphs)
 
@@ -1411,23 +1418,22 @@ These graphs reflect the current implementation in:
 
 ```mermaid
 flowchart TD
-  A["Input"] --> B["Pre-delay"]
-  B --> C["Allpass diffusion bank"]
-  C --> D["FDN late-field core"]
-  D --> E["Wet post shaping"]
-  E --> F["Wet/Dry summation"]
-  F --> G["Output"]
-  D -. optional .-> H["DFM micro-delay branch"]
-  D -. optional .-> I["Sparse pair-mixing branch"]
-  D -. optional .-> J["Feedback-link filter branch"]
-  H -.-> D
-  I -.-> D
-  J -.-> D
+  X["x(t) input"] --> P["Pre-delay z^-Npre"]
+  P --> A1["Allpass AP1"]
+  A1 --> A2["Allpass AP2"]
+  A2 --> AK["Allpass APk"]
+  AK --> FDN["FDN core"]
+  FDN --> POST["Wet post"]
+  POST --> MIX["Dry/Wet mix"]
+  X --> MIX
+  MIX --> Y["y(t) output"]
+  FDN -. optional .-> OPT["DFM / Sparse / Link filter"]
+  OPT -.-> FDN
 ```
 
 This is the canonical per-channel algorithmic render path.
-It shows where early diffusion ends and late-field feedback begins, and where
-post-wet coloration and wet/dry summation occur.
+It shows where early diffusion ends, where late feedback recirculates, and
+where dry signal is reintroduced before final output.
 
 Implementation notes:
 
@@ -1443,19 +1449,19 @@ Implementation notes:
 
 ```mermaid
 flowchart TD
-  A["Matrix family select"] --> B{"Family"}
-  B --> C["Hadamard / Householder"]
-  B --> D["Random orthogonal"]
-  B --> E["Circulant / Elliptic"]
-  B --> F["TV-unitary"]
-  B --> G["Graph-structured"]
-  C --> H["Normalize/orthonormalize"]
-  D --> H
-  E --> H
-  F --> H
-  G --> H
-  H --> I["Feedback mix operator M"]
-  I --> J["FDN state update"]
+  S["Select matrix family"] --> Q{"Family"}
+  Q --> M1["Hadamard/Householder"]
+  Q --> M2["Random orthogonal"]
+  Q --> M3["Circulant/Elliptic"]
+  Q --> M4["TV-unitary"]
+  Q --> M5["Graph"]
+  M1 --> ORTHO["Orthonormalize"]
+  M2 --> ORTHO
+  M3 --> ORTHO
+  M4 --> ORTHO
+  M5 --> ORTHO
+  ORTHO --> MIXM["Feedback mix M"]
+  MIXM --> STEP["FDN update"]
 ```
 
 Matrix selection changes feedback coupling character more than decay time.
@@ -1473,17 +1479,17 @@ Implementation notes:
 
 ```mermaid
 flowchart TD
-  A["Per-line feedback state"] --> B["Base feedback mix"]
-  B --> C{"TV-unitary enabled?"}
-  C -->|"no"| D["Static orthonormal matrix"]
-  C -->|"yes"| E["Time-varying unitary M(t)"]
-  D --> F["RT60 gain + input injection"]
-  E --> F
-  F --> G{"DFM taps enabled?"}
-  G -->|"no"| H["Write updated delay states"]
-  G -->|"yes"| I["Insert DFM micro-delays"]
-  I --> H
-  H --> J["Wet projection/output"]
+  R["Delay reads"] --> BASE["Base mix"]
+  BASE --> TV{"TV-unitary?"}
+  TV -->|"no"| MSTAT["Static M"]
+  TV -->|"yes"| MTV["Time-varying M(t)"]
+  MSTAT --> GAIN["Gain + injection sum"]
+  MTV --> GAIN
+  GAIN --> DFMQ{"DFM taps?"}
+  DFMQ -->|"no"| WRITE["Delay writes"]
+  DFMQ -->|"yes"| DFM["DFM micro-delays"]
+  DFM --> WRITE
+  WRITE --> WET["Wet projection"]
 ```
 
 This graph isolates two advanced feedback enrichments:
@@ -1503,14 +1509,14 @@ Implementation notes:
 
 ```mermaid
 flowchart TD
-  A["Shared FDN controls"] --> B["Render path"]
-  A --> C["IR generation path"]
-  B --> D["Algorithmic FDN core"]
-  C --> D
-  D --> E["Render wet output"]
-  D --> F["Generated IR late tail"]
-  E --> G["Comparable topology behavior"]
-  F --> G
+  CTRL["Shared FDN controls"] --> RPATH["Render path"]
+  CTRL --> IPATH["IR generation path"]
+  RPATH --> CORE["Common FDN core"]
+  IPATH --> CORE
+  CORE --> ROUT["Rendered wet output"]
+  CORE --> IROUT["Generated IR late tail"]
+  ROUT --> PAR["Behavior parity"]
+  IROUT --> PAR
 ```
 
 Parity matters for workflow transfer:
@@ -1527,13 +1533,13 @@ Implementation notes:
 
 ```mermaid
 flowchart TD
-  A["Injected line vector"] --> B["Sparse pair-mix stage 1"]
-  B --> C["Sparse pair-mix stage 2"]
-  C --> D["Sparse pair-mix stage k"]
-  D --> E["Accumulated mixed vector"]
-  E --> F["Per-line delay + damping"]
-  F --> G["Feedback write"]
-  G --> H["Wet projection"]
+  U["Injected line vector"] --> P1["Pair-mix stage 1"]
+  P1 --> P2["Pair-mix stage 2"]
+  P2 --> PK["Pair-mix stage k"]
+  PK --> ACC["Accumulated mix"]
+  ACC --> LOOP["Delay + damping"]
+  LOOP --> W["Delay write"]
+  W --> OUT["Wet projection"]
 ```
 
 Sparse mode targets higher apparent order without the full cost of dense
@@ -1550,13 +1556,12 @@ Implementation notes:
 
 ```mermaid
 flowchart TD
-  A["Diffused input"] --> B["Primary FDN"]
-  A --> C["Nested FDN"]
-  C --> D["Nested feedback output"]
-  D --> E["Cascade mix scaler"]
-  E --> B
-  B --> F["Primary wet projection"]
-  F --> G["Output"]
+  DIN["Diffused input"] --> PFDN["Primary FDN"]
+  DIN --> NFDN["Nested FDN"]
+  NFDN --> NMIX["Cascade mix scale"]
+  NMIX --> PFDN
+  PFDN --> WETP["Primary wet projection"]
+  WETP --> OUT["Output"]
 ```
 
 Cascaded mode uses a fast nested network to inject additional structure into a
@@ -1573,16 +1578,16 @@ Implementation notes:
 
 ```mermaid
 flowchart TD
-  A["Feedback state vector"] --> B["Band split (low/mid/high)"]
-  B --> C["Low-band RT target"]
-  B --> D["Mid-band RT target"]
-  B --> E["High-band RT target"]
-  C --> F["Band recombine"]
-  D --> F
-  E --> F
-  F --> G["Link filter (LP/HP/none)"]
-  G --> H["Feedback write"]
-  H --> I["Wet projection"]
+  FB["Feedback state"] --> SPLIT["Band split"]
+  SPLIT --> L["Low RT60 path"]
+  SPLIT --> M["Mid RT60 path"]
+  SPLIT --> H["High RT60 path"]
+  L --> JOIN["Band recombine"]
+  M --> JOIN
+  H --> JOIN
+  JOIN --> FILT["Link filter"]
+  FILT --> WR["Delay write"]
+  WR --> WET["Wet projection"]
 ```
 
 This stage separates two orthogonal controls:
@@ -1603,14 +1608,14 @@ Implementation notes:
 
 ```mermaid
 flowchart TD
-  A["Diffused input"] --> B["Inject across N lines"]
-  B --> C["Graph edge stage 1"]
-  C --> D["Graph edge stage 2"]
-  D --> E["Graph edge stage k"]
-  E --> F["Accumulate mixed line state"]
-  F --> G["Per-line delay + damping + DC block"]
-  G --> H["Feedback write"]
-  H --> I["Wet output projection (mean/sum)"]
+  INJ["Diffused input"] --> LINES["Inject over N lines"]
+  LINES --> E1["Edge stage 1"]
+  E1 --> E2["Edge stage 2"]
+  E2 --> EK["Edge stage k"]
+  EK --> MIX["Accumulate line mix"]
+  MIX --> LOOP["Delay + damping + DC block"]
+  LOOP --> WR["Delay write"]
+  WR --> WET["Wet projection"]
 ```
 
 Graph mode treats mixing as staged edge interactions over an explicit graph
@@ -1623,6 +1628,95 @@ Implementation notes:
 - Connectivity/stage density is controlled by `--fdn-graph-degree`.
 - Pairing schedules are deterministic with `--fdn-graph-seed` for reproducible renders.
 - Graph mode is mutually exclusive with sparse mode (`--fdn-sparse`).
+
+#### 9.2.2 Detailed DSP Flow Diagrams
+
+These diagrams zoom into low-level blocks with explicit `x(t)`, `y(t)`,
+allpass diffusion, and `z^-N` delays.
+
+##### 9.2.2.1 Canonical Per-Line FDN Loop
+
+```mermaid
+flowchart TD
+  X["x(t)"] --> PRE["Pre-delay z^-Npre"]
+  PRE --> AP1["Allpass AP1"]
+  AP1 --> AP2["Allpass AP2"]
+  AP2 --> APK["Allpass APk"]
+  APK --> SUM["Injection sum u_i(t)"]
+  SUM --> DEL["Delay z^-Ni"]
+  DEL --> DAMP["Damping/DC D_i(z)"]
+  DAMP --> GAIN["RT60 gain g_i"]
+  GAIN --> MMIX["Matrix contribution M_ij"]
+  MMIX --> SUM
+  DAMP --> PROJ["Wet projection"]
+  PROJ --> MIX["Dry/Wet mix"]
+  X --> MIX
+  MIX --> Y["y(t)"]
+```
+
+Symbol legend for this diagram:
+
+- `x(t)`: dry input signal.
+- `u_i(t)`: injected signal into FDN line `i`.
+- `z^-Ni`: line `i` delay element.
+- `D_i(z)`: per-line loop conditioning (damping/DC control).
+- `g_i`: per-line gain from RT60 mapping.
+- `M_ij`: matrix coupling from line `j` to line `i`.
+- `y(t)`: mixed output signal.
+
+##### 9.2.2.2 N-Line Matrix-Coupled FDN Loop
+
+```mermaid
+flowchart TD
+  UV["u(t) excitation vector"] --> DELV["z^-N delay bank"]
+  DELV --> DV["D(z) loop conditioning"]
+  DV --> GV["G diagonal gains"]
+  GV --> MV["M feedback matrix"]
+  MV --> SUMV["Vector sum"]
+  SUMV --> DELV
+  DV --> PROJV["Output projection P"]
+  PROJV --> WY["Wet y_wet(t)"]
+```
+
+State-space form used for this block:
+
+$$
+\mathbf{y}[n] = \mathbf{D}\left(\mathbf{x}_{fb}[n]\right), \quad
+\mathbf{x}_{fb}[n+1] = \mathbf{G}\mathbf{M}\mathbf{y}[n] + \mathbf{u}[n]
+$$
+
+Variable definitions:
+
+- $\mathbf{x}_{fb}[n]$: feedback state vector sampled from delay outputs.
+- $\mathbf{y}[n]$: conditioned vector after $\mathbf{D}$.
+- $\mathbf{D}$: per-line damping/DC operator.
+- $\mathbf{G}$: diagonal RT60 gain matrix.
+- $\mathbf{M}$: feedback mixing matrix.
+- $\mathbf{u}[n]$: injected excitation vector.
+
+##### 9.2.2.3 Time-Varying Multiband Overlay
+
+```mermaid
+flowchart TD
+  FB0["Feedback vector"] --> TVM["M(t) time-varying unitary mix"]
+  TVM --> SPL["Split low/mid/high"]
+  SPL --> LRT["Low-band RT target"]
+  SPL --> MRT["Mid-band RT target"]
+  SPL --> HRT["High-band RT target"]
+  LRT --> JOIN["Band recombine"]
+  MRT --> JOIN
+  HRT --> JOIN
+  JOIN --> LF["Link filter LP/HP/none"]
+  LF --> DFM["Optional DFM taps"]
+  DFM --> FB1["Updated feedback vector"]
+```
+
+Control meaning:
+
+- `M(t)`: decorrelates feedback over time while preserving loop energy.
+- Band RT targets shape decay envelopes by frequency region.
+- Link filter shapes in-loop spectral flow on feedback edges.
+- DFM adds micro-delay structure before delay-write.
 
 ### 9.3 Partitioned FFT Convolution
 
