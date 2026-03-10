@@ -46,14 +46,15 @@ batch workflows.
 <details>
 <summary>Expand full outline</summary>
 
-- [2.0 Features](#20-features)
-  - [2.1 CLI Surface and Platform](#21-cli-surface-and-platform)
-  - [2.2 Reverb DSP and Tail Design](#22-reverb-dsp-and-tail-design)
-  - [2.3 Spatial, Surround, and Immersive Workflows](#23-spatial-surround-and-immersive-workflows)
-  - [2.4 Time-Varying Control Architecture](#24-time-varying-control-architecture)
-  - [2.5 IR Toolchain](#25-ir-toolchain)
-  - [2.6 Analysis, QA, and Production Operations](#26-analysis-qa-and-production-operations)
-  - [2.7 Performance and Determinism](#27-performance-and-determinism)
+- [2.0 Instant Sonic Gratification](#20-instant-sonic-gratification)
+- [2.1 Features](#21-features)
+  - [2.2 CLI Surface and Platform](#22-cli-surface-and-platform)
+  - [2.3 Reverb DSP and Tail Design](#23-reverb-dsp-and-tail-design)
+  - [2.4 Spatial, Surround, and Immersive Workflows](#24-spatial-surround-and-immersive-workflows)
+  - [2.5 Time-Varying Control Architecture](#25-time-varying-control-architecture)
+  - [2.6 IR Toolchain](#26-ir-toolchain)
+  - [2.7 Analysis, QA, and Production Operations](#27-analysis-qa-and-production-operations)
+  - [2.8 Performance and Determinism](#28-performance-and-determinism)
 - [3.0 Requirements](#30-requirements)
 - [4.0 Installation and Quick Start](#40-installation-and-quick-start)
   - [4.1 Installer Script and Man Pages](#41-installer-script-and-man-pages)
@@ -224,16 +225,29 @@ batch workflows.
 
 </details>
 
-## 2.0 Features
+## 2.0 Instant Sonic Gratification
 
-### 2.1 CLI Surface and Platform
+If you already have an `in.wav` file and want immediate results, run:
+
+```bash
+git clone https://github.com/TheColby/verbx.git
+cd verbx
+./scripts/install.sh
+verbx render ../in.wav out.wav --engine auto
+```
+
+This installs `verbx` and renders a first reverb output as `out.wav`.
+
+## 2.1 Features
+
+### 2.2 CLI Surface and Platform
 
 - Typer + Rich command-line architecture.
 - Command groups: `render`, `analyze`, `suggest`, `presets`, `ir`, `cache`, `batch`, `immersive`.
 - Strong option/path validation and typed command interfaces.
 - Output controls for container format and subtype/bit depth.
 
-### 2.2 Reverb DSP and Tail Design
+### 2.3 Reverb DSP and Tail Design
 
 - Dual engines: algorithmic and partitioned-FFT convolution.
 - Algorithmic chain with pre-delay, Schroeder diffusion, and FDN late field.
@@ -249,7 +263,7 @@ batch workflows.
 - Ambient/tone controls: shimmer, ducking, bloom, tilt, lowcut/highcut.
 - Tempo-synced note-value pre-delay parsing (`--pre-delay 1/8D --bpm 120`).
 
-### 2.3 Spatial, Surround, and Immersive Workflows
+### 2.4 Spatial, Surround, and Immersive Workflows
 
 - Native multichannel processing and matrix IR routing (M input x N output).
 - Semantic channel layouts (`mono`, `stereo`, `lcr`, `5.1`, `7.1`, `7.1.2`, `7.1.4`).
@@ -260,7 +274,7 @@ batch workflows.
 - Immersive QC gates: LUFS, true-peak, fold-down delta, and channel occupancy.
 - Handoff validation reporting, including scene/asset sample-rate consistency checks.
 
-### 2.4 Time-Varying Control Architecture
+### 2.5 Time-Varying Control Architecture
 
 - Modulation source/route framework for dynamic parameter control.
 - Automation from JSON/CSV lanes (`--automation-file`) and inline points (`--automation-point`).
@@ -274,7 +288,7 @@ batch workflows.
   deterministic explainability.
 - Track C automation targets including `fdn-rt60-tilt` and `fdn-tonal-correction-strength`.
 
-### 2.5 IR Toolchain
+### 2.6 IR Toolchain
 
 - IR generation modes: `fdn`, `stochastic`, `modal`, `hybrid`.
 - IR analysis with machine-readable JSON export.
@@ -286,7 +300,7 @@ batch workflows.
 - Deterministic IR cache with metadata sidecars plus cache inspect/clear commands.
 - Lucky-mode randomized variants for render and IR workflows.
 
-### 2.6 Analysis, QA, and Production Operations
+### 2.7 Analysis, QA, and Production Operations
 
 - `analyze` metrics including loudness and EDR summaries.
 - Framewise CSV exports (including modulation/spatial metrics).
@@ -298,7 +312,7 @@ batch workflows.
 - Immersive distributed file queue (`template`, `status`, `worker`) with heartbeats and reclaim/retry semantics.
 - Queue manifest ID uniqueness enforcement for safe distributed execution.
 
-### 2.7 Performance and Determinism
+### 2.8 Performance and Determinism
 
 - Internal render/control math runs in `f64` precision end-to-end.
 - Device targeting (`cpu`, `mps`, `cuda`, `auto`).
@@ -1418,7 +1432,7 @@ These graphs reflect the current implementation in:
 
 ```mermaid
 flowchart TD
-  X["x(t) input"] --> P["Pre-delay z^-Npre"]
+  X["x(t) input"] --> P["Pre-delay z<sup>-N<sub>pre</sub></sup>"]
   P --> A1["Allpass AP1"]
   A1 --> A2["Allpass AP2"]
   A2 --> AK["Allpass APk"]
@@ -1632,18 +1646,18 @@ Implementation notes:
 #### 9.2.2 Detailed DSP Flow Diagrams
 
 These diagrams zoom into low-level blocks with explicit `x(t)`, `y(t)`,
-allpass diffusion, and `z^-N` delays.
+allpass diffusion, and $z^{-N}$ delays.
 
 ##### 9.2.2.1 Canonical Per-Line FDN Loop
 
 ```mermaid
 flowchart TD
-  X["x(t)"] --> PRE["Pre-delay z^-Npre"]
+  X["x(t)"] --> PRE["Pre-delay z<sup>-N<sub>pre</sub></sup>"]
   PRE --> AP1["Allpass AP1"]
   AP1 --> AP2["Allpass AP2"]
   AP2 --> APK["Allpass APk"]
   APK --> SUM["Injection sum u_i(t)"]
-  SUM --> DEL["Delay z^-Ni"]
+  SUM --> DEL["Delay z<sup>-N<sub>i</sub></sup>"]
   DEL --> DAMP["Damping/DC D_i(z)"]
   DAMP --> GAIN["RT60 gain g_i"]
   GAIN --> MMIX["Matrix contribution M_ij"]
@@ -1658,7 +1672,7 @@ Symbol legend for this diagram:
 
 - `x(t)`: dry input signal.
 - `u_i(t)`: injected signal into FDN line `i`.
-- `z^-Ni`: line `i` delay element.
+- $z^{-N_i}$: line `i` delay element.
 - `D_i(z)`: per-line loop conditioning (damping/DC control).
 - `g_i`: per-line gain from RT60 mapping.
 - `M_ij`: matrix coupling from line `j` to line `i`.
@@ -1668,7 +1682,7 @@ Symbol legend for this diagram:
 
 ```mermaid
 flowchart TD
-  UV["u(t) excitation vector"] --> DELV["z^-N delay bank"]
+  UV["u(t) excitation vector"] --> DELV["z<sup>-N</sup> delay bank"]
   DELV --> DV["D(z) loop conditioning"]
   DV --> GV["G diagonal gains"]
   GV --> MV["M feedback matrix"]
