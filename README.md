@@ -1453,6 +1453,7 @@ These graphs reflect the current implementation in:
 ##### 10.2.1.1 Algorithmic Render Topology
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize': '8px'}, 'flowchart': {'nodeSpacing': 16, 'rankSpacing': 16, 'padding': 4}}}%%
 flowchart TD
   X["x(t) input"] --> P["Pre-delay z<sup>-N<sub>pre</sub></sup>"]
   P --> A1["Allpass AP1"]
@@ -1484,6 +1485,7 @@ Implementation notes:
 ##### 10.2.1.2 FDN Matrix Family Graph
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize': '8px'}, 'flowchart': {'nodeSpacing': 16, 'rankSpacing': 16, 'padding': 4}}}%%
 flowchart TD
   S["Select matrix family"] --> Q{"Family"}
   Q --> M1["Hadamard/Householder"]
@@ -1514,6 +1516,7 @@ Implementation notes:
 ##### 10.2.1.3 TV-Unitary + DFM Feedback Graph
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize': '8px'}, 'flowchart': {'nodeSpacing': 16, 'rankSpacing': 16, 'padding': 4}}}%%
 flowchart TD
   R["Delay reads"] --> BASE["Base mix"]
   BASE --> TV{"TV-unitary?"}
@@ -1544,6 +1547,7 @@ Implementation notes:
 ##### 10.2.1.4 IR FDN Path Parity Graph
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize': '8px'}, 'flowchart': {'nodeSpacing': 16, 'rankSpacing': 16, 'padding': 4}}}%%
 flowchart TD
   CTRL["Shared FDN controls"] --> RPATH["Render path"]
   CTRL --> IPATH["IR generation path"]
@@ -1568,6 +1572,7 @@ Implementation notes:
 ##### 10.2.1.5 Sparse High-Order Pair-Mixing Graph
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize': '8px'}, 'flowchart': {'nodeSpacing': 16, 'rankSpacing': 16, 'padding': 4}}}%%
 flowchart TD
   U["Injected line vector"] --> P1["Pair-mix stage 1"]
   P1 --> P2["Pair-mix stage 2"]
@@ -1591,6 +1596,7 @@ Implementation notes:
 ##### 10.2.1.6 Nested/Cascaded FDN Graph
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize': '8px'}, 'flowchart': {'nodeSpacing': 16, 'rankSpacing': 16, 'padding': 4}}}%%
 flowchart TD
   DIN["Diffused input"] --> PFDN["Primary FDN"]
   DIN --> NFDN["Nested FDN"]
@@ -1613,6 +1619,7 @@ Implementation notes:
 ##### 10.2.1.7 Multiband + Filter-Feedback Graph
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize': '8px'}, 'flowchart': {'nodeSpacing': 16, 'rankSpacing': 16, 'padding': 4}}}%%
 flowchart TD
   FB["Feedback state"] --> SPLIT["Band split"]
   SPLIT --> L["Low RT60 path"]
@@ -1643,6 +1650,7 @@ Implementation notes:
 ##### 10.2.1.8 Graph-Structured FDN Graph
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize': '8px'}, 'flowchart': {'nodeSpacing': 16, 'rankSpacing': 16, 'padding': 4}}}%%
 flowchart TD
   INJ["Diffused input"] --> LINES["Inject over N lines"]
   LINES --> E1["Edge stage 1"]
@@ -1673,6 +1681,7 @@ allpass diffusion, and $z^{-N}$ delays.
 ##### 10.2.2.1 Canonical Per-Line FDN Loop
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize': '8px'}, 'flowchart': {'nodeSpacing': 16, 'rankSpacing': 16, 'padding': 4}}}%%
 flowchart TD
   X["x(t)"] --> PRE["Pre-delay z<sup>-N<sub>pre</sub></sup>"]
   PRE --> AP1["Allpass AP1"]
@@ -1703,6 +1712,7 @@ Symbol legend for this diagram:
 ##### 10.2.2.2 N-Line Matrix-Coupled FDN Loop
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize': '8px'}, 'flowchart': {'nodeSpacing': 16, 'rankSpacing': 16, 'padding': 4}}}%%
 flowchart TD
   UV["u(t) excitation vector"] --> DELV["z<sup>-N</sup> delay bank"]
   DELV --> DV["D(z) loop conditioning"]
@@ -1733,6 +1743,7 @@ Variable definitions:
 ##### 10.2.2.3 Time-Varying Multiband Overlay
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize': '8px'}, 'flowchart': {'nodeSpacing': 16, 'rankSpacing': 16, 'padding': 4}}}%%
 flowchart TD
   FB0["Feedback vector"] --> TVM["M(t) time-varying unitary mix"]
   TVM --> SPL["Split low/mid/high"]
