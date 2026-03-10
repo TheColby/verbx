@@ -233,10 +233,32 @@ If you already have an `in.wav` file and want immediate results, run:
 git clone https://github.com/TheColby/verbx.git
 cd verbx
 ./scripts/install.sh
-verbx render ../in.wav out.wav --engine auto
+verbx render ../in.wav out.wav \
+  --engine algo \
+  --rt60 120 \
+  --wet 0.99 \
+  --dry 0.01 \
+  --pre-delay 1/2D --bpm 48 \
+  --allpass-stages 10 \
+  --fdn-lines 32 \
+  --fdn-matrix tv_unitary \
+  --fdn-tv-rate-hz 0.30 \
+  --fdn-tv-depth 0.85 \
+  --fdn-dfm-delays-ms 2.5 \
+  --fdn-link-filter lowpass \
+  --fdn-link-filter-hz 1600 \
+  --fdn-link-filter-mix 0.9 \
+  --fdn-rt60-tilt 0.9 \
+  --fdn-tonal-correction-strength 0.85 \
+  --shimmer --shimmer-semitones 12 --shimmer-mix 0.45 --shimmer-feedback 0.75 \
+  --bloom 2.8 \
+  --tilt 2.0 \
+  --beast-mode 30 \
+  --repeat 2 \
+  --out-subtype float64
 ```
 
-This installs `verbx` and renders a first reverb output as `out.wav`.
+This installs `verbx` and renders an intentionally extreme long-tail reverb as `out.wav`.
 
 ## 3.0 Features
 
