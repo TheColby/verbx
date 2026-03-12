@@ -2624,3 +2624,120 @@ def test_render_automation_file_feature_vector_lane(tmp_path: Path) -> None:
     feature_payload = automation.get("feature_vector")
     assert isinstance(feature_payload, dict)
     assert "loudness_norm" in feature_payload.get("sources", [])
+
+
+def test_render_feature_guide_align_reports_mismatch_actions(tmp_path: Path) -> None:
+    sr = 16_000
+    n = 2 * sr
+    x = np.zeros((n, 1), dtype=np.float64)
+    x[1000:2000, 0] = 0.8
+    ir = np.zeros((64, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+
+    guide_sr = 22_050
+    guide_len = int(0.8 * guide_sr)
+    t = np.arange(guide_len, dtype=np.float64) / float(guide_sr)
+    guide = np.stack(
+        (
+            0.35 * np.sin(2.0 * np.pi * 220.0 * t),
+            0.35 * np.sin(2.0 * np.pi * 330.0 * t),
+        ),
+        axis=1,
+    ).astype(np.float64)
+
+    infile = tmp_path / "feature_guide_in.wav"
+    irfile = tmp_path / "feature_guide_ir.wav"
+    guidefile = tmp_path / "feature_guide.wav"
+    outfile = tmp_path / "feature_guide_out.wav"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+    sf.write(str(guidefile), guide, guide_sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--wet",
+            "1.0",
+            "--dry",
+            "0.0",
+            "--normalize-stage",
+            "none",
+            "--feature-vector-lane",
+            "target=wet,source=loudness_norm,weight=1.0,bias=0.0,curve=linear,combine=replace",
+            "--feature-guide",
+            str(guidefile),
+            "--feature-guide-policy",
+            "align",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    automation = payload["effective"]["automation"]
+    assert isinstance(automation, dict)
+    feature_payload = automation.get("feature_vector")
+    assert isinstance(feature_payload, dict)
+    guide_alignment = feature_payload.get("guide_alignment")
+    assert isinstance(guide_alignment, dict)
+    assert guide_alignment.get("policy") == "align"
+    assert str(guide_alignment.get("sample_rate_action", "")).startswith("resample:")
+    assert str(guide_alignment.get("channel_action", "")).startswith("mixdown:")
+    assert str(guide_alignment.get("duration_action", "")).startswith("hold-last:")
+
+
+def test_render_feature_guide_strict_rejects_mismatch(tmp_path: Path) -> None:
+    sr = 16_000
+    n = sr
+    x = np.zeros((n, 1), dtype=np.float64)
+    x[120:900, 0] = 0.6
+    ir = np.zeros((64, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+
+    guide_sr = 22_050
+    guide = np.zeros((guide_sr // 2, 2), dtype=np.float64)
+    guide[200:600, 0] = 0.4
+    guide[300:700, 1] = 0.3
+
+    infile = tmp_path / "feature_guide_strict_in.wav"
+    irfile = tmp_path / "feature_guide_strict_ir.wav"
+    guidefile = tmp_path / "feature_guide_strict.wav"
+    outfile = tmp_path / "feature_guide_strict_out.wav"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+    sf.write(str(guidefile), guide, guide_sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--wet",
+            "1.0",
+            "--dry",
+            "0.0",
+            "--normalize-stage",
+            "none",
+            "--feature-vector-lane",
+            "target=wet,source=loudness_norm,weight=1.0,bias=0.0,curve=linear,combine=replace",
+            "--feature-guide",
+            str(guidefile),
+            "--feature-guide-policy",
+            "strict",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "feature-guide sample-rate mismatch" in result.output.lower()

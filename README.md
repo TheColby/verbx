@@ -304,6 +304,8 @@ This installs `verbx` and renders an intentionally extreme long-tail reverb as `
 - Automation trace export for reproducible QA.
 - Feature-vector-driven control lanes (`--feature-vector-lane`) with frame-aligned
   loudness/transient/spectral/harmonic streams.
+- External feature-guide ingest (`--feature-guide`) with deterministic mismatch
+  policy (`--feature-guide-policy align|strict`) for sample-rate/duration/channel-layout differences.
 - Weighted, curved, and hysteretic feature mapping with multi-feature fusion to
   one render target.
 - Feature-plus-parameter trace export (`--feature-vector-trace-out`) for
@@ -1312,8 +1314,12 @@ Notes:
   `spectral_centroid_norm`, `spectral_flatness`, and `harmonic_ratio`.
 - Feature lanes can be provided inline (`--feature-vector-lane`) or inside
   `--automation-file` lanes with `type: feature-vector`.
+- Use `--feature-guide GUIDE.wav` to drive feature extraction from external audio
+  instead of the render input; `--feature-guide-policy align` applies
+  deterministic resample/hold-trim/mixdown behavior and `strict` fails on any mismatch.
 - The output analysis JSON includes a deterministic feature-vector signature
-  under `effective.automation.feature_vector.signature`.
+  under `effective.automation.feature_vector.signature` plus optional
+  `effective.automation.feature_vector.guide_alignment` metadata.
 
 ## 9.0 New User Guide
 
@@ -2194,6 +2200,8 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--feature-vector-lane` | Repeatable feature-mapping lane in key-value format. | Format: `target=<target>,source=<feature>[,weight=<w>][,bias=<b>][,curve=<...>][,curve_amount=<a>][,hysteresis_up=<u>][,hysteresis_down=<d>][,combine=<replace\|add\|multiply>][,smoothing_ms=<ms>]`. |
 | `--feature-vector-frame-ms` | Frame size for feature extraction. | Larger values smooth and stabilize control vectors; smaller values are more reactive. |
 | `--feature-vector-hop-ms` | Hop size for feature extraction. | Smaller hops increase temporal precision with higher control-rate overhead. |
+| `--feature-guide` | External guide audio path for feature extraction. | When set, Track B features are extracted from guide audio rather than INFILE; useful for sidechain-like control narratives. |
+| `--feature-guide-policy [align\|strict]` | Mismatch behavior between feature guide and render context. | `align` applies deterministic sample-rate resample + duration hold/trim + channel mixdown policy; `strict` fails on any sample-rate/channel/duration mismatch. |
 | `--feature-vector-trace-out` | CSV path for feature-plus-target trace export. | Emits `feature_*` and `target_*` columns for deterministic Track B QA and replay audits. |
 | `--frames-out` | Path for framewise CSV metrics output. | Exports per-frame analysis including modulation metrics. |
 | `--analysis-out` | Path for JSON analysis report. | If omitted, report is written to `<OUTFILE>.analysis.json` unless `--silent`; when perceptual macros are used, resolved mapping details are included under `effective.perceptual_macros`. |
@@ -2918,7 +2926,7 @@ The program is split into four execution streams, each with a release milestone.
 
 Goal: make time-varying and feature-driven control deterministic and production-safe.
 
-- Add external feature-guide ingest with deterministic alignment policy for
+- [x] Add external feature-guide ingest with deterministic alignment policy for
   sample-rate, duration, and channel-layout mismatch.
 - Expand descriptor families (for example MFCC/formant/rhythm) with locked
   normalization domains and versioned schema metadata.

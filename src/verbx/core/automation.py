@@ -12,6 +12,7 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
+from verbx.io.audio import read_audio
 
 from verbx.core.control_targets import (
     CONV_CONTROL_TARGETS,
@@ -49,6 +50,7 @@ BREAKPOINT_INTERP_CHOICES = {
     "exponential",
 }
 LANE_COMBINE_CHOICES = {"replace", "add", "multiply"}
+FEATURE_GUIDE_POLICY_CHOICES = {"align", "strict"}
 
 
 @dataclass(slots=True)
@@ -66,6 +68,7 @@ class AutomationBundle:
     feature_curves: dict[str, AudioArray] = field(default_factory=dict)
     feature_sources: tuple[str, ...] = ()
     feature_signature: str | None = None
+    feature_guide: dict[str, Any] | None = None
 
 
 def parse_automation_clamp_overrides(
@@ -199,6 +202,8 @@ def load_automation_bundle(
     point_specs: tuple[str, ...] | list[str] = (),
     feature_lane_specs: tuple[str, ...] | list[str] = (),
     feature_audio: AudioArray | None = None,
+    feature_guide_path: Path | None = None,
+    feature_guide_policy: str = "align",
     sr: int,
     num_samples: int,
     mode: str = "auto",
@@ -251,15 +256,31 @@ def load_automation_bundle(
 
     feature_lane_sources = _collect_feature_lane_sources(lanes)
     feature_bus = None
+    feature_guide_summary: dict[str, Any] | None = None
     if len(feature_lane_sources) > 0:
         if feature_audio is None:
             raise ValueError(
                 "Feature-vector lanes require feature source audio. "
                 "Provide --feature-vector-lane or feature-vector automation only in render context."
             )
+        resolved_feature_audio = np.asarray(feature_audio, dtype=np.float64)
+        resolved_feature_sr = int(sr)
+        if feature_guide_path is not None:
+            (
+                resolved_feature_audio,
+                resolved_feature_sr,
+                feature_guide_summary,
+            ) = _resolve_feature_guide_audio(
+                render_audio=np.asarray(feature_audio, dtype=np.float64),
+                render_sr=int(sr),
+                render_num_samples=int(num_samples),
+                guide_path=Path(feature_guide_path),
+                guide_policy=str(feature_guide_policy),
+            )
+            source_tokens.append(f"feature-guide:{feature_guide_path}")
         feature_bus = build_feature_vector_bus(
-            audio=np.asarray(feature_audio, dtype=np.float64),
-            sr=int(sr),
+            audio=resolved_feature_audio,
+            sr=resolved_feature_sr,
             ctrl_times=ctrl_times,
             frame_ms=float(feature_frame_ms),
             hop_ms=float(feature_hop_ms),
@@ -328,6 +349,16 @@ def load_automation_bundle(
     feature_sources: tuple[str, ...] = ()
     if feature_bus is not None:
         feature_signature = str(feature_bus.signature)
+        if feature_guide_summary is not None:
+            h = hashlib.sha256()
+            h.update(feature_signature.encode("utf-8"))
+            h.update(b"|")
+            h.update(
+                json.dumps(feature_guide_summary, sort_keys=True, separators=(",", ":")).encode(
+                    "utf-8"
+                )
+            )
+            feature_signature = h.hexdigest()[:16]
         feature_sources = tuple(sorted(feature_bus.control_features.keys()))
         for source in feature_sources:
             control_values = feature_bus.control_features[source]
@@ -359,6 +390,7 @@ def load_automation_bundle(
         feature_curves=feature_curves,
         feature_sources=feature_sources,
         feature_signature=feature_signature,
+        feature_guide=feature_guide_summary,
     )
 
 
@@ -387,6 +419,8 @@ def apply_render_automation(
                 "source_stats": _target_stats(bundle.feature_curves),
                 "signature": bundle.feature_signature,
             }
+            if bundle.feature_guide is not None:
+                summary["feature_vector"]["guide_alignment"] = dict(bundle.feature_guide)
         return np.asarray(rendered, dtype=np.float64), summary
 
     out = np.asarray(rendered, dtype=np.float64)
@@ -432,6 +466,8 @@ def apply_render_automation(
             "source_stats": _target_stats(bundle.feature_curves),
             "signature": bundle.feature_signature,
         }
+        if bundle.feature_guide is not None:
+            summary["feature_vector"]["guide_alignment"] = dict(bundle.feature_guide)
     sanitized = np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
     return sanitized, summary
 
@@ -887,6 +923,122 @@ def _collect_feature_lane_sources(lanes: list[Any]) -> set[str]:
         )
         sources.add(normalize_feature_source_name(str(normalized_lane["source"])))
     return sources
+
+
+def _resolve_feature_guide_audio(
+    *,
+    render_audio: AudioArray,
+    render_sr: int,
+    render_num_samples: int,
+    guide_path: Path,
+    guide_policy: str,
+) -> tuple[AudioArray, int, dict[str, Any]]:
+    """Load and align optional external feature-guide audio."""
+    policy = _normalize_feature_guide_policy(guide_policy)
+    guide_audio, guide_sr = read_audio(str(guide_path))
+    guide = np.asarray(guide_audio, dtype=np.float64)
+    render_channels = int(render_audio.shape[1])
+    guide_channels = int(guide.shape[1])
+    guide_samples_in = int(guide.shape[0])
+
+    if policy == "strict":
+        if int(guide_sr) != int(render_sr):
+            raise ValueError(
+                "Feature-guide sample-rate mismatch under strict policy: "
+                f"guide={guide_sr}Hz render={render_sr}Hz."
+            )
+        if int(guide_channels) != int(render_channels):
+            raise ValueError(
+                "Feature-guide channel-layout mismatch under strict policy: "
+                f"guide={guide_channels} render={render_channels}."
+            )
+        if int(guide_samples_in) != int(render_num_samples):
+            raise ValueError(
+                "Feature-guide duration mismatch under strict policy: "
+                f"guide_samples={guide_samples_in} render_samples={render_num_samples}."
+            )
+        summary = {
+            "path": str(guide_path),
+            "policy": policy,
+            "sample_rate_action": "match",
+            "channel_action": "match",
+            "duration_action": "match",
+            "render_sample_rate": int(render_sr),
+            "guide_sample_rate": int(guide_sr),
+            "render_channels": int(render_channels),
+            "guide_channels": int(guide_channels),
+            "render_samples": int(render_num_samples),
+            "guide_samples": int(guide_samples_in),
+        }
+        return guide, int(render_sr), summary
+
+    sample_rate_action = "match"
+    aligned = guide
+    if int(guide_sr) != int(render_sr):
+        aligned = _resample_audio_linear(
+            aligned,
+            src_sr=int(guide_sr),
+            dst_sr=int(render_sr),
+        )
+        sample_rate_action = f"resample:{guide_sr}->{render_sr}"
+
+    channel_action = "match"
+    if int(guide_channels) != int(render_channels):
+        channel_action = f"mixdown:{guide_channels}->mono"
+
+    guide_samples_out = int(aligned.shape[0])
+    duration_action = "match"
+    if guide_samples_out < int(render_num_samples):
+        duration_action = f"hold-last:{guide_samples_out}->{render_num_samples}"
+    elif guide_samples_out > int(render_num_samples):
+        duration_action = f"trim-view:{guide_samples_out}->{render_num_samples}"
+
+    summary = {
+        "path": str(guide_path),
+        "policy": policy,
+        "sample_rate_action": sample_rate_action,
+        "channel_action": channel_action,
+        "duration_action": duration_action,
+        "render_sample_rate": int(render_sr),
+        "guide_sample_rate": int(guide_sr),
+        "render_channels": int(render_channels),
+        "guide_channels": int(guide_channels),
+        "render_samples": int(render_num_samples),
+        "guide_samples": int(guide_samples_out),
+    }
+    return np.asarray(aligned, dtype=np.float64), int(render_sr), summary
+
+
+def _resample_audio_linear(audio: AudioArray, *, src_sr: int, dst_sr: int) -> AudioArray:
+    """Deterministic linear resampling for feature-guide alignment."""
+    if src_sr == dst_sr or audio.shape[0] == 0:
+        return np.asarray(audio, dtype=np.float64)
+    src_samples = int(audio.shape[0])
+    channels = int(audio.shape[1])
+    dst_samples = max(1, int(round(float(src_samples) * float(dst_sr) / float(src_sr))))
+
+    src_times = np.arange(src_samples, dtype=np.float64) / float(src_sr)
+    dst_times = np.arange(dst_samples, dtype=np.float64) / float(dst_sr)
+    out = np.empty((dst_samples, channels), dtype=np.float64)
+    for ch in range(channels):
+        out[:, ch] = np.interp(
+            dst_times,
+            src_times,
+            np.asarray(audio[:, ch], dtype=np.float64),
+            left=float(audio[0, ch]),
+            right=float(audio[-1, ch]),
+        )
+    return out
+
+
+def _normalize_feature_guide_policy(value: str) -> str:
+    normalized = str(value).strip().lower().replace("_", "-")
+    if normalized == "":
+        normalized = "align"
+    if normalized not in FEATURE_GUIDE_POLICY_CHOICES:
+        choices = ", ".join(sorted(FEATURE_GUIDE_POLICY_CHOICES))
+        raise ValueError(f"Unsupported feature-guide policy '{value}'. Supported: {choices}.")
+    return normalized
 
 
 def _normalize_lane_combine(raw: Any, *, lane_context: str) -> str:

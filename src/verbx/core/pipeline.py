@@ -1196,6 +1196,10 @@ def _load_runtime_automation_bundle(
         point_specs=config.automation_points,
         feature_lane_specs=config.feature_vector_lanes,
         feature_audio=feature_audio,
+        feature_guide_path=(
+            None if config.feature_guide is None else Path(config.feature_guide)
+        ),
+        feature_guide_policy=config.feature_guide_policy,
         sr=sr,
         num_samples=int(num_samples),
         mode=config.automation_mode,

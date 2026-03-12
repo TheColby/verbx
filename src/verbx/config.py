@@ -21,6 +21,7 @@ AmbiChannelOrder = Literal["auto", "acn", "fuma"]
 AmbiEncodeFrom = Literal["none", "mono", "stereo"]
 AmbiDecodeTo = Literal["none", "stereo"]
 AutomationMode = Literal["auto", "sample", "block"]
+FeatureGuidePolicy = Literal["align", "strict"]
 
 
 @dataclass(slots=True)
@@ -164,6 +165,8 @@ class RenderConfig:
     feature_vector_lanes: tuple[str, ...] = ()
     feature_vector_frame_ms: float = 40.0
     feature_vector_hop_ms: float = 20.0
+    feature_guide: str | None = None
+    feature_guide_policy: FeatureGuidePolicy = "align"
     feature_vector_trace_out: str | None = None
     silent: bool = False
     progress: bool = True

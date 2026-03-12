@@ -34,6 +34,7 @@ from verbx.config import (
     ChannelLayout,
     DeviceName,
     EngineName,
+    FeatureGuidePolicy,
     IRMatrixLayout,
     IRMode,
     IRNormalize,
@@ -47,6 +48,7 @@ from verbx.config import (
 from verbx.core.automation import (
     CONV_AUTOMATION_TARGETS,
     ENGINE_AUTOMATION_TARGETS,
+    FEATURE_GUIDE_POLICY_CHOICES,
     collect_automation_targets,
     parse_automation_clamp_overrides,
     parse_automation_point_specs,
@@ -769,6 +771,25 @@ def render(
         min=1.0,
         help="Hop size used for feature-vector extraction (ms).",
     ),
+    feature_guide: Path | None = typer.Option(
+        None,
+        "--feature-guide",
+        exists=True,
+        readable=True,
+        resolve_path=True,
+        help=(
+            "Optional external guide audio used for feature-vector extraction "
+            "instead of INFILE (Track B external feature-guide ingest)."
+        ),
+    ),
+    feature_guide_policy: FeatureGuidePolicy = typer.Option(
+        "align",
+        "--feature-guide-policy",
+        help=(
+            "Mismatch policy for --feature-guide relative to render context: "
+            "align (deterministic resample + hold/trim + mixdown) or strict."
+        ),
+    ),
     feature_vector_trace_out: str | None = typer.Option(
         None,
         "--feature-vector-trace-out",
@@ -976,6 +997,11 @@ def render(
         feature_vector_lanes=tuple(feature_vector_lane or ()),
         feature_vector_frame_ms=float(feature_vector_frame_ms),
         feature_vector_hop_ms=float(feature_vector_hop_ms),
+        feature_guide=None if feature_guide is None else str(feature_guide),
+        feature_guide_policy=cast(
+            FeatureGuidePolicy,
+            str(feature_guide_policy).strip().lower(),
+        ),
         feature_vector_trace_out=feature_vector_trace_out,
         frames_out=frames_out,
         analysis_out=analysis_out,
@@ -2916,6 +2942,22 @@ def _print_render_summary(report: dict[str, Any], *, verbosity: int = 1) -> None
             if isinstance(sources, list):
                 table.add_row("feature_vector_sources", ",".join(str(s) for s in sources))
             table.add_row("feature_vector_signature", str(feature_payload.get("signature", "")))
+            guide_alignment = feature_payload.get("guide_alignment")
+            if isinstance(guide_alignment, dict):
+                table.add_row("feature_guide_path", str(guide_alignment.get("path", "")))
+                table.add_row("feature_guide_policy", str(guide_alignment.get("policy", "")))
+                table.add_row(
+                    "feature_guide_sr_action",
+                    str(guide_alignment.get("sample_rate_action", "")),
+                )
+                table.add_row(
+                    "feature_guide_ch_action",
+                    str(guide_alignment.get("channel_action", "")),
+                )
+                table.add_row(
+                    "feature_guide_dur_action",
+                    str(guide_alignment.get("duration_action", "")),
+                )
     config_report = report.get("config", {})
     if isinstance(config_report, dict):
         for key in (
@@ -3785,6 +3827,11 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
         raise typer.BadParameter("--feature-vector-frame-ms must be > 0.")
     if config.feature_vector_hop_ms <= 0.0:
         raise typer.BadParameter("--feature-vector-hop-ms must be > 0.")
+    if config.feature_guide_policy not in FEATURE_GUIDE_POLICY_CHOICES:
+        choices = ", ".join(sorted(FEATURE_GUIDE_POLICY_CHOICES))
+        raise typer.BadParameter(f"--feature-guide-policy must be one of: {choices}.")
+    if config.feature_guide is not None and not Path(config.feature_guide).exists():
+        raise typer.BadParameter(f"Feature guide file not found: {config.feature_guide}")
 
     has_automation_source = (
         config.automation_file is not None
@@ -3799,14 +3846,17 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
         or config.automation_trace_out is not None
         or abs(float(config.feature_vector_frame_ms) - 40.0) > 1e-12
         or abs(float(config.feature_vector_hop_ms) - 20.0) > 1e-12
+        or config.feature_guide is not None
+        or config.feature_guide_policy != "align"
         or config.feature_vector_trace_out is not None
     )
     if not has_automation_source and has_automation_args:
         msg = (
             "--automation-mode/--automation-block-ms/--automation-smoothing-ms/"
             "--automation-clamp/--automation-trace-out/--feature-vector-frame-ms/"
-            "--feature-vector-hop-ms/--feature-vector-trace-out require --automation-file, "
-            "--automation-point, or --feature-vector-lane."
+            "--feature-vector-hop-ms/--feature-guide/--feature-guide-policy/"
+            "--feature-vector-trace-out require --automation-file, --automation-point, "
+            "or --feature-vector-lane."
         )
         raise typer.BadParameter(msg)
 
