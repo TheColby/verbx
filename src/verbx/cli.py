@@ -2942,6 +2942,15 @@ def _print_render_summary(report: dict[str, Any], *, verbosity: int = 1) -> None
             if isinstance(sources, list):
                 table.add_row("feature_vector_sources", ",".join(str(s) for s in sources))
             table.add_row("feature_vector_signature", str(feature_payload.get("signature", "")))
+            mapping = feature_payload.get("mapping")
+            if isinstance(mapping, dict):
+                table.add_row("feature_map_signature", str(mapping.get("signature", "")))
+                mapping_targets = mapping.get("targets", [])
+                if isinstance(mapping_targets, list):
+                    table.add_row(
+                        "feature_map_targets",
+                        ",".join(str(target) for target in mapping_targets),
+                    )
             guide_alignment = feature_payload.get("guide_alignment")
             if isinstance(guide_alignment, dict):
                 table.add_row("feature_guide_path", str(guide_alignment.get("path", "")))

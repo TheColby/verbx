@@ -2529,6 +2529,129 @@ def test_render_feature_vector_lanes_are_deterministic(tmp_path: Path) -> None:
     assert np.allclose(y_a, y_b, atol=1e-7)
 
 
+def test_render_feature_vector_target_source_mapping_graph_is_topological(
+    tmp_path: Path,
+) -> None:
+    sr = 16_000
+    n = sr
+    t = np.arange(n, dtype=np.float64) / np.float64(sr)
+    x = (0.7 * np.sin(2.0 * np.pi * 180.0 * t)).astype(np.float64)[:, np.newaxis]
+    ir = np.zeros((64, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+
+    infile = tmp_path / "feature_graph_in.wav"
+    irfile = tmp_path / "feature_graph_ir.wav"
+    outfile = tmp_path / "feature_graph_out.wav"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--normalize-stage",
+            "none",
+            "--feature-vector-lane",
+            "target=dry,source=target:wet,weight=1.0,bias=0.0,curve=linear,combine=replace",
+            "--feature-vector-lane",
+            "target=wet,source=loudness_norm,weight=1.0,bias=0.0,curve=linear,combine=replace",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    automation = payload["effective"]["automation"]
+    assert isinstance(automation, dict)
+    feature_payload = automation.get("feature_vector")
+    assert isinstance(feature_payload, dict)
+    mapping = feature_payload.get("mapping")
+    assert isinstance(mapping, dict)
+    assert mapping.get("targets") == ["wet", "dry"]
+    deps = mapping.get("dependencies")
+    assert isinstance(deps, dict)
+    assert deps.get("dry") == ["wet"]
+    eval_order = mapping.get("evaluation_order")
+    assert isinstance(eval_order, list)
+    assert [str(item.get("target")) for item in eval_order] == ["wet", "dry"]
+    assert isinstance(mapping.get("signature"), str)
+    assert isinstance(feature_payload.get("signature"), str)
+
+
+def test_render_rejects_feature_vector_target_source_cycle(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.zeros((sr, 1), dtype=np.float64)
+    x[200:1200, 0] = 0.5
+    ir = np.zeros((64, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+    infile = tmp_path / "feature_cycle_in.wav"
+    irfile = tmp_path / "feature_cycle_ir.wav"
+    outfile = tmp_path / "feature_cycle_out.wav"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--normalize-stage",
+            "none",
+            "--feature-vector-lane",
+            "target=wet,source=target:dry,weight=1.0,bias=0.0,curve=linear,combine=replace",
+            "--feature-vector-lane",
+            "target=dry,source=target:wet,weight=1.0,bias=0.0,curve=linear,combine=replace",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "contains a cycle" in result.output.lower()
+
+
+def test_render_rejects_unresolved_feature_vector_target_source(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.zeros((sr, 1), dtype=np.float64)
+    x[200:800, 0] = 0.6
+    ir = np.zeros((64, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+    infile = tmp_path / "feature_unresolved_in.wav"
+    irfile = tmp_path / "feature_unresolved_ir.wav"
+    outfile = tmp_path / "feature_unresolved_out.wav"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--normalize-stage",
+            "none",
+            "--feature-vector-lane",
+            "target=dry,source=target:wet,weight=1.0,bias=0.0,curve=linear,combine=replace",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "define automation for 'wet' first" in result.output.lower()
+
+
 def test_render_rejects_invalid_feature_vector_lane(tmp_path: Path) -> None:
     sr = 16_000
     x = np.zeros((sr // 2, 1), dtype=np.float64)

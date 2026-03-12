@@ -1314,11 +1314,15 @@ Notes:
   `spectral_centroid_norm`, `spectral_flatness`, and `harmonic_ratio`.
 - Feature lanes can be provided inline (`--feature-vector-lane`) or inside
   `--automation-file` lanes with `type: feature-vector`.
+- Feature lanes can read either extracted features (`source=<feature>`) or a
+  previously resolved automation target (`source=target:<automation-target>`),
+  and target-to-target mappings must form an acyclic graph.
 - Use `--feature-guide GUIDE.wav` to drive feature extraction from external audio
   instead of the render input; `--feature-guide-policy align` applies
   deterministic resample/hold-trim/mixdown behavior and `strict` fails on any mismatch.
 - The output analysis JSON includes a deterministic feature-vector signature
   under `effective.automation.feature_vector.signature` plus optional
+  `effective.automation.feature_vector.mapping` and
   `effective.automation.feature_vector.guide_alignment` metadata.
 
 ## 9.0 New User Guide
@@ -2197,7 +2201,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--automation-smoothing-ms` | Default lane smoothing time constant. | Increase to reduce zipper artifacts on aggressive ramps/LFOs. |
 | `--automation-clamp` | Per-target clamp override (`target:min:max`, repeatable). | Use to enforce safe control ranges per target for deterministic batch behavior. |
 | `--automation-trace-out` | CSV path for resolved sample-level automation curves. | Use for QA, reproducibility, and perceptual tuning audits. |
-| `--feature-vector-lane` | Repeatable feature-mapping lane in key-value format. | Format: `target=<target>,source=<feature>[,weight=<w>][,bias=<b>][,curve=<...>][,curve_amount=<a>][,hysteresis_up=<u>][,hysteresis_down=<d>][,combine=<replace\|add\|multiply>][,smoothing_ms=<ms>]`. |
+| `--feature-vector-lane` | Repeatable feature-mapping lane in key-value format. | Format: `target=<target>,source=<feature\|target:<automation-target>>[,weight=<w>][,bias=<b>][,curve=<...>][,curve_amount=<a>][,hysteresis_up=<u>][,hysteresis_down=<d>][,combine=<replace\|add\|multiply>][,smoothing_ms=<ms>]`. Target-source mappings are evaluated in deterministic acyclic graph order. |
 | `--feature-vector-frame-ms` | Frame size for feature extraction. | Larger values smooth and stabilize control vectors; smaller values are more reactive. |
 | `--feature-vector-hop-ms` | Hop size for feature extraction. | Smaller hops increase temporal precision with higher control-rate overhead. |
 | `--feature-guide` | External guide audio path for feature extraction. | When set, Track B features are extracted from guide audio rather than INFILE; useful for sidechain-like control narratives. |
@@ -2234,11 +2238,13 @@ Examples:
 - `--automation-point "ir-blend-alpha:0.0:0.0" --automation-point "ir-blend-alpha:18.0:1.0"` (with `--engine conv --ir ... --ir-blend ...`)
 - `--feature-vector-lane "target=wet,source=loudness_norm,weight=0.70,curve=smoothstep,combine=replace"`
 - `--feature-vector-lane "target=wet,source=transient_strength,weight=0.30,curve=power,curve_amount=1.4,hysteresis_up=0.02,hysteresis_down=0.01,combine=add"`
+- `--feature-vector-lane "target=dry,source=target:wet,weight=1.0,bias=0.0,curve=linear,combine=replace"`
 
 Automation reproducibility note:
 
 - Analysis JSON includes `effective.automation.signature`, a stable digest of resolved automation curves for deterministic replay checks in batch/repeat workflows.
 - Analysis JSON includes `effective.automation.feature_vector.signature` when Track B feature lanes are active.
+- Analysis JSON includes `effective.automation.feature_vector.mapping.signature` for deterministic lane-graph structure and evaluation-order replay checks.
 
 ### 13.3 `verbx analyze` switches
 
@@ -2930,7 +2936,7 @@ Goal: make time-varying and feature-driven control deterministic and production-
   sample-rate, duration, and channel-layout mismatch.
 - Expand descriptor families (for example MFCC/formant/rhythm) with locked
   normalization domains and versioned schema metadata.
-- Promote lane mappings to composable, acyclic mapping graphs with explicit
+- [x] Promote lane mappings to composable, acyclic mapping graphs with explicit
   evaluation order and deterministic signatures.
 - Add golden fixtures covering feature extraction, lane fusion, and mapped target
   trajectories across speech/music/percussive content classes.

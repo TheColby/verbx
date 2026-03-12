@@ -25,10 +25,10 @@ from verbx.core.feature_vector import (
     FEATURE_LANE_COMBINE_CHOICES,
     build_feature_vector_bus,
     is_feature_vector_lane,
-    normalize_feature_source_name,
     normalize_feature_vector_lane,
     parse_feature_vector_lane_specs,
     render_feature_vector_lane,
+    render_feature_vector_lane_from_values,
 )
 
 AudioArray = npt.NDArray[np.float64]
@@ -68,6 +68,7 @@ class AutomationBundle:
     feature_curves: dict[str, AudioArray] = field(default_factory=dict)
     feature_sources: tuple[str, ...] = ()
     feature_signature: str | None = None
+    feature_mapping: dict[str, Any] | None = None
     feature_guide: dict[str, Any] | None = None
 
 
@@ -254,7 +255,64 @@ def load_automation_bundle(
     ctrl_count = math.ceil(max(1, num_samples) / float(control_step))
     ctrl_times = np.arange(ctrl_count, dtype=np.float64) * (float(control_step) / float(sr))
 
-    feature_lane_sources = _collect_feature_lane_sources(lanes)
+    limit_map = dict(TARGET_LIMITS)
+    if clamp_overrides is not None:
+        limit_map.update(clamp_overrides)
+
+    controls: dict[str, npt.NDArray[np.float64]] = {}
+    lanes_per_target: dict[str, int] = {}
+    feature_lane_entries: list[dict[str, Any]] = []
+    non_feature_lane_entries: list[dict[str, Any]] = []
+    for lane_idx, lane_obj in enumerate(lanes, start=1):
+        if not isinstance(lane_obj, dict):
+            raise ValueError(f"Automation lane #{lane_idx} must be an object.")
+        lane = dict(lane_obj)
+        target = _normalize_target_name(lane.get("target", ""))
+        if target not in SUPPORTED_AUTOMATION_TARGETS:
+            options = ", ".join(sorted(SUPPORTED_AUTOMATION_TARGETS))
+            msg = (
+                f"Unsupported automation target '{target}' in lane #{lane_idx}. "
+                f"Supported: {options}."
+            )
+            raise ValueError(msg)
+        lane["target"] = target
+        lane_context = f"lane #{lane_idx} (target '{target}')"
+        if is_feature_vector_lane(lane):
+            normalized_feature_lane = normalize_feature_vector_lane(
+                lane,
+                lane_context=lane_context,
+            )
+            source_kind = str(normalized_feature_lane.get("source_kind", "feature"))
+            source_name = str(normalized_feature_lane.get("source", ""))
+            if source_kind == "target" and source_name not in SUPPORTED_AUTOMATION_TARGETS:
+                options = ", ".join(sorted(SUPPORTED_AUTOMATION_TARGETS))
+                raise ValueError(
+                    f"Invalid automation {lane_context}: unsupported target source "
+                    f"'{source_name}'. Supported: {options}."
+                )
+            feature_lane_entries.append(
+                {
+                    "lane_idx": int(lane_idx),
+                    "target": target,
+                    "lane_context": lane_context,
+                    "lane": normalized_feature_lane,
+                }
+            )
+            continue
+        non_feature_lane_entries.append(
+            {
+                "lane_idx": int(lane_idx),
+                "target": target,
+                "lane_context": lane_context,
+                "lane": lane,
+            }
+        )
+
+    feature_lane_sources = {
+        str(entry["lane"]["source"])
+        for entry in feature_lane_entries
+        if str(entry["lane"].get("source_kind", "feature")) == "feature"
+    }
     feature_bus = None
     feature_guide_summary: dict[str, Any] | None = None
     if len(feature_lane_sources) > 0:
@@ -287,26 +345,10 @@ def load_automation_bundle(
             requested_sources=feature_lane_sources,
         )
 
-    limit_map = dict(TARGET_LIMITS)
-    if clamp_overrides is not None:
-        limit_map.update(clamp_overrides)
-
-    controls: dict[str, npt.NDArray[np.float64]] = {}
-    lanes_per_target: dict[str, int] = {}
-    for lane_idx, lane_obj in enumerate(lanes, start=1):
-        if not isinstance(lane_obj, dict):
-            raise ValueError(f"Automation lane #{lane_idx} must be an object.")
-        lane = dict(lane_obj)
-        target = _normalize_target_name(lane.get("target", ""))
-        if target not in SUPPORTED_AUTOMATION_TARGETS:
-            options = ", ".join(sorted(SUPPORTED_AUTOMATION_TARGETS))
-            msg = (
-                f"Unsupported automation target '{target}' in lane #{lane_idx}. "
-                f"Supported: {options}."
-            )
-            raise ValueError(msg)
-
-        lane_context = f"lane #{lane_idx} (target '{target}')"
+    for entry in non_feature_lane_entries:
+        target = str(entry["target"])
+        lane_context = str(entry["lane_context"])
+        lane = dict(entry["lane"])
         combine = _normalize_lane_combine(lane.get("combine", "replace"), lane_context=lane_context)
         lane_smoothing_raw = lane.get("smoothing_ms")
         if lane_smoothing_raw is None:
@@ -327,17 +369,109 @@ def load_automation_bundle(
         lane_values = _apply_smoothing(lane_values, lane_smoothing_ms, sr=sr, step=control_step)
         min_v, max_v = limit_map[target]
         lane_values = np.clip(lane_values, min_v, max_v)
+        _combine_target_lane(
+            controls=controls,
+            lanes_per_target=lanes_per_target,
+            target=target,
+            lane_values=lane_values,
+            combine=combine,
+            ctrl_count=ctrl_count,
+        )
 
-        existing = controls.get(target, np.full(ctrl_count, np.nan, dtype=np.float64))
-        if combine == "add":
-            existing = np.nan_to_num(existing, nan=0.0) + lane_values
-        elif combine == "multiply":
-            existing = np.nan_to_num(existing, nan=1.0) * lane_values
-        else:
-            mask = ~np.isnan(lane_values)
-            existing[mask] = lane_values[mask]
-        controls[target] = existing
-        lanes_per_target[target] = int(lanes_per_target.get(target, 0) + 1)
+    feature_mapping_summary: dict[str, Any] | None = None
+    if len(feature_lane_entries) > 0:
+        (
+            target_order,
+            ordered_feature_entries,
+            dependencies,
+        ) = _plan_feature_lane_execution(
+            feature_lane_entries=feature_lane_entries,
+            controls=controls,
+        )
+        evaluation_order: list[dict[str, Any]] = []
+        for entry in ordered_feature_entries:
+            target = str(entry["target"])
+            lane_context = str(entry["lane_context"])
+            lane_idx = int(entry["lane_idx"])
+            lane = dict(entry["lane"])
+            source_kind = str(lane["source_kind"])
+            source_name = str(lane["source"])
+            combine = _normalize_lane_combine(lane.get("combine", "replace"), lane_context=lane_context)
+            lane_smoothing_raw = lane.get("smoothing_ms")
+            if lane_smoothing_raw is None:
+                lane_smoothing_raw = smoothing_ms
+            lane_smoothing_ms = _parse_lane_smoothing_ms(
+                lane_smoothing_raw,
+                lane_context=lane_context,
+            )
+            try:
+                if source_kind == "feature":
+                    if feature_bus is None:
+                        raise ValueError(
+                            "Feature source lanes require resolved feature bus context."
+                        )
+                    source_values = feature_bus.control_features.get(source_name)
+                    if source_values is None:
+                        raise ValueError(
+                            f"feature-vector lane source '{source_name}' not present in feature bus."
+                        )
+                    lane_values = render_feature_vector_lane_from_values(
+                        lane,
+                        source_values=np.asarray(source_values, dtype=np.float64),
+                        source_kind="feature",
+                        sample_rate=int(feature_bus.sample_rate),
+                    )
+                elif source_kind == "target":
+                    source_curve = controls.get(source_name)
+                    if source_curve is None:
+                        raise ValueError(
+                            f"target-source lane depends on unresolved source target '{source_name}'."
+                        )
+                    lane_values = render_feature_vector_lane_from_values(
+                        lane,
+                        source_values=np.asarray(source_curve, dtype=np.float64),
+                        source_kind="target",
+                        sample_rate=int(sr),
+                        source_range=limit_map.get(source_name),
+                    )
+                else:
+                    raise ValueError(f"Unsupported feature source kind '{source_kind}'.")
+            except ValueError as exc:
+                raise ValueError(f"Invalid automation {lane_context}: {exc}") from exc
+
+            lane_values = _apply_smoothing(lane_values, lane_smoothing_ms, sr=sr, step=control_step)
+            min_v, max_v = limit_map[target]
+            lane_values = np.clip(lane_values, min_v, max_v)
+            _combine_target_lane(
+                controls=controls,
+                lanes_per_target=lanes_per_target,
+                target=target,
+                lane_values=lane_values,
+                combine=combine,
+                ctrl_count=ctrl_count,
+            )
+            evaluation_order.append(
+                {
+                    "lane_index": lane_idx,
+                    "target": target,
+                    "source_kind": source_kind,
+                    "source": source_name,
+                    "combine": combine,
+                }
+            )
+
+        mapping_signature = _feature_mapping_signature(
+            dependencies=dependencies,
+            evaluation_order=evaluation_order,
+        )
+        feature_mapping_summary = {
+            "targets": list(target_order),
+            "dependencies": {
+                target: list(dep_list) for target, dep_list in sorted(dependencies.items())
+            },
+            "evaluation_order": evaluation_order,
+            "signature": mapping_signature,
+        }
 
     curves: dict[str, AudioArray] = {}
     for target in sorted(controls.keys()):
@@ -348,17 +482,6 @@ def load_automation_bundle(
     feature_signature: str | None = None
     feature_sources: tuple[str, ...] = ()
     if feature_bus is not None:
-        feature_signature = str(feature_bus.signature)
-        if feature_guide_summary is not None:
-            h = hashlib.sha256()
-            h.update(feature_signature.encode("utf-8"))
-            h.update(b"|")
-            h.update(
-                json.dumps(feature_guide_summary, sort_keys=True, separators=(",", ":")).encode(
-                    "utf-8"
-                )
-            )
-            feature_signature = h.hexdigest()[:16]
         feature_sources = tuple(sorted(feature_bus.control_features.keys()))
         for source in feature_sources:
             control_values = feature_bus.control_features[source]
@@ -368,6 +491,23 @@ def load_automation_bundle(
                 num_samples=num_samples,
             )
             feature_curves[source] = np.asarray(expanded_feature, dtype=np.float64)
+    signature_parts: list[bytes] = []
+    if feature_bus is not None:
+        signature_parts.append(str(feature_bus.signature).encode("utf-8"))
+    if feature_mapping_summary is not None:
+        signature_parts.append(str(feature_mapping_summary["signature"]).encode("utf-8"))
+    if feature_guide_summary is not None:
+        signature_parts.append(
+            json.dumps(feature_guide_summary, sort_keys=True, separators=(",", ":")).encode(
+                "utf-8"
+            )
+        )
+    if len(signature_parts) > 0:
+        h = hashlib.sha256()
+        for part in signature_parts:
+            h.update(part)
+            h.update(b"|")
+        feature_signature = h.hexdigest()[:16]
 
     source_path = "+".join(source_tokens) if len(source_tokens) > 0 else "inline-empty"
     signature = _bundle_signature(
@@ -390,6 +530,7 @@ def load_automation_bundle(
         feature_curves=feature_curves,
         feature_sources=feature_sources,
         feature_signature=feature_signature,
+        feature_mapping=feature_mapping_summary,
         feature_guide=feature_guide_summary,
     )
 
@@ -413,14 +554,22 @@ def apply_render_automation(
             "lanes_per_target": bundle.lanes_per_target,
             "signature": bundle.signature,
         }
-        if len(bundle.feature_curves) > 0:
-            summary["feature_vector"] = {
+        if (
+            len(bundle.feature_curves) > 0
+            or bundle.feature_signature is not None
+            or bundle.feature_mapping is not None
+        ):
+            feature_payload: dict[str, Any] = {
                 "sources": list(bundle.feature_sources),
                 "source_stats": _target_stats(bundle.feature_curves),
-                "signature": bundle.feature_signature,
             }
+            if bundle.feature_signature is not None:
+                feature_payload["signature"] = bundle.feature_signature
+            if bundle.feature_mapping is not None:
+                feature_payload["mapping"] = dict(bundle.feature_mapping)
             if bundle.feature_guide is not None:
-                summary["feature_vector"]["guide_alignment"] = dict(bundle.feature_guide)
+                feature_payload["guide_alignment"] = dict(bundle.feature_guide)
+            summary["feature_vector"] = feature_payload
         return np.asarray(rendered, dtype=np.float64), summary
 
     out = np.asarray(rendered, dtype=np.float64)
@@ -460,14 +609,22 @@ def apply_render_automation(
         "target_stats": _target_stats(bundle.curves),
         "signature": bundle.signature,
     }
-    if len(bundle.feature_curves) > 0:
-        summary["feature_vector"] = {
+    if (
+        len(bundle.feature_curves) > 0
+        or bundle.feature_signature is not None
+        or bundle.feature_mapping is not None
+    ):
+        feature_payload = {
             "sources": list(bundle.feature_sources),
             "source_stats": _target_stats(bundle.feature_curves),
-            "signature": bundle.feature_signature,
         }
+        if bundle.feature_signature is not None:
+            feature_payload["signature"] = bundle.feature_signature
+        if bundle.feature_mapping is not None:
+            feature_payload["mapping"] = dict(bundle.feature_mapping)
         if bundle.feature_guide is not None:
-            summary["feature_vector"]["guide_alignment"] = dict(bundle.feature_guide)
+            feature_payload["guide_alignment"] = dict(bundle.feature_guide)
+        summary["feature_vector"] = feature_payload
     sanitized = np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
     return sanitized, summary
 
@@ -909,20 +1066,133 @@ def _target_stats(curves: dict[str, AudioArray]) -> dict[str, dict[str, float]]:
     return stats
 
 
-def _collect_feature_lane_sources(lanes: list[Any]) -> set[str]:
-    """Collect normalized feature sources referenced by feature-vector lanes."""
-    sources: set[str] = set()
-    for lane_idx, lane_obj in enumerate(lanes, start=1):
-        if not isinstance(lane_obj, dict):
+def _combine_target_lane(
+    *,
+    controls: dict[str, npt.NDArray[np.float64]],
+    lanes_per_target: dict[str, int],
+    target: str,
+    lane_values: npt.NDArray[np.float64],
+    combine: str,
+    ctrl_count: int,
+) -> None:
+    """Merge one lane into a target control vector with deterministic semantics."""
+    existing = controls.get(target, np.full(ctrl_count, np.nan, dtype=np.float64))
+    if combine == "add":
+        existing = np.nan_to_num(existing, nan=0.0) + lane_values
+    elif combine == "multiply":
+        existing = np.nan_to_num(existing, nan=1.0) * lane_values
+    else:
+        mask = ~np.isnan(lane_values)
+        existing[mask] = lane_values[mask]
+    controls[target] = existing
+    lanes_per_target[target] = int(lanes_per_target.get(target, 0) + 1)
+
+
+def _plan_feature_lane_execution(
+    *,
+    feature_lane_entries: list[dict[str, Any]],
+    controls: dict[str, npt.NDArray[np.float64]],
+) -> tuple[list[str], list[dict[str, Any]], dict[str, list[str]]]:
+    """Resolve target-lane dependencies and return deterministic eval order."""
+    feature_targets = sorted({str(entry["target"]) for entry in feature_lane_entries})
+    dependencies: dict[str, set[str]] = {target: set() for target in feature_targets}
+    entries_by_target: dict[str, list[dict[str, Any]]] = {target: [] for target in feature_targets}
+
+    for entry in feature_lane_entries:
+        target = str(entry["target"])
+        lane_context = str(entry["lane_context"])
+        lane = dict(entry["lane"])
+        source_kind = str(lane.get("source_kind", "feature"))
+        if source_kind != "target":
+            entries_by_target[target].append(entry)
             continue
-        if not is_feature_vector_lane(lane_obj):
-            continue
-        normalized_lane = normalize_feature_vector_lane(
-            lane_obj,
-            lane_context=f"lane #{lane_idx}",
+        source_target = normalize_control_target_name(str(lane.get("source", "")).strip())
+        if source_target == "":
+            raise ValueError(
+                f"Invalid automation {lane_context}: target-source lane must reference "
+                "source=target:<automation-target>."
+            )
+        if source_target == target:
+            raise ValueError(
+                f"Invalid automation {lane_context}: target-source lane creates a self-cycle "
+                f"('{target}' -> '{target}')."
+            )
+        if source_target in dependencies:
+            dependencies[target].add(source_target)
+        elif source_target not in controls:
+            raise ValueError(
+                f"Invalid automation {lane_context}: unresolved target source "
+                f"'{source_target}'. Define automation for '{source_target}' first."
+            )
+        entries_by_target[target].append(entry)
+
+    target_order = _topological_target_order(dependencies)
+    ordered_entries: list[dict[str, Any]] = []
+    for target in target_order:
+        target_entries = entries_by_target[target]
+        target_entries.sort(key=lambda entry: int(entry["lane_idx"]))
+        ordered_entries.extend(target_entries)
+    dependencies_view = {
+        target: sorted(dependencies[target])
+        for target in sorted(dependencies.keys())
+    }
+    return target_order, ordered_entries, dependencies_view
+
+
+def _topological_target_order(dependencies: dict[str, set[str]]) -> list[str]:
+    """Topologically sort target dependency graph with lexical tie-breaks."""
+    indegree = {target: len(source_targets) for target, source_targets in dependencies.items()}
+    outgoing: dict[str, set[str]] = {target: set() for target in dependencies}
+    for target, source_targets in dependencies.items():
+        for source_target in source_targets:
+            outgoing[source_target].add(target)
+
+    ready = sorted(target for target, degree in indegree.items() if degree == 0)
+    order: list[str] = []
+    while len(ready) > 0:
+        current = ready.pop(0)
+        order.append(current)
+        for dependent in sorted(outgoing[current]):
+            indegree[dependent] = int(indegree[dependent] - 1)
+            if indegree[dependent] == 0:
+                ready.append(dependent)
+        ready.sort()
+
+    if len(order) != len(dependencies):
+        remaining = sorted(target for target, degree in indegree.items() if degree > 0)
+        cycle_terms: list[str] = []
+        for target in remaining:
+            deps = sorted(dependencies.get(target, set()))
+            cycle_terms.append(f"{target}<-[{','.join(deps)}]")
+        raise ValueError(
+            "Feature-vector target mapping graph contains a cycle: "
+            + "; ".join(cycle_terms)
         )
-        sources.add(normalize_feature_source_name(str(normalized_lane["source"])))
-    return sources
+    return order
+
+
+def _feature_mapping_signature(
+    *,
+    dependencies: dict[str, list[str]],
+    evaluation_order: list[dict[str, Any]],
+) -> str:
+    """Build stable digest of mapping graph structure and lane eval ordering."""
+    h = hashlib.sha256()
+    for target in sorted(dependencies.keys()):
+        h.update(target.encode("utf-8"))
+        h.update(b"<-")
+        h.update(",".join(dependencies[target]).encode("utf-8"))
+        h.update(b"|")
+    for lane_entry in evaluation_order:
+        h.update(
+            json.dumps(
+                lane_entry,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        )
+        h.update(b"|")
+    return h.hexdigest()[:16]
 
 
 def _resolve_feature_guide_audio(

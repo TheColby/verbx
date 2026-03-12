@@ -35,6 +35,7 @@ FEATURE_CURVE_CHOICES = {
     "power",
 }
 FEATURE_LANE_COMBINE_CHOICES = {"replace", "add", "multiply"}
+FEATURE_SOURCE_KIND_CHOICES = {"feature", "target"}
 
 _FEATURE_SOURCE_ALIASES: dict[str, str] = {
     "loudness_db": "loudness_db",
@@ -186,12 +187,35 @@ def normalize_feature_vector_lane(
         if lane_copy.get("source") is not None
         else lane_copy.get("feature", lane_copy.get("input", ""))
     )
-    source = normalize_feature_source_name(str(source_raw).strip())
-    if source not in SUPPORTED_FEATURE_SOURCES:
-        choices = ", ".join(sorted(SUPPORTED_FEATURE_SOURCES))
-        raise ValueError(
-            f"{lane_context}: unsupported source '{source_raw}'. Supported: {choices}."
-        )
+    source_kind_raw = str(lane_copy.get("source_kind", "")).strip().lower()
+    if source_kind_raw != "":
+        if source_kind_raw not in FEATURE_SOURCE_KIND_CHOICES:
+            choices = ", ".join(sorted(FEATURE_SOURCE_KIND_CHOICES))
+            raise ValueError(
+                f"{lane_context}: unsupported source_kind '{source_kind_raw}'. Supported: {choices}."
+            )
+        source_token = str(source_raw).strip()
+        if source_token == "":
+            raise ValueError(f"{lane_context}: missing required source.")
+        if source_kind_raw == "feature":
+            source = normalize_feature_source_name(source_token)
+            if source not in SUPPORTED_FEATURE_SOURCES:
+                choices = ", ".join(sorted(SUPPORTED_FEATURE_SOURCES))
+                raise ValueError(
+                    f"{lane_context}: unsupported source '{source_raw}'. Supported features: {choices}; "
+                    "or use target:<automation-target>."
+                )
+            source_kind = "feature"
+        else:
+            source = normalize_control_target_name(source_token)
+            if source == "":
+                raise ValueError(
+                    f"{lane_context}: invalid target source '{source_token}'. "
+                    "Use target:<automation-target>."
+                )
+            source_kind = "target"
+    else:
+        source_kind, source = _normalize_lane_source(source_raw, lane_context=lane_context)
 
     curve = str(lane_copy.get("curve", "linear")).strip().lower()
     if curve == "":
@@ -244,6 +268,7 @@ def normalize_feature_vector_lane(
     return {
         "type": "feature-vector",
         "target": target,
+        "source_kind": source_kind,
         "source": source,
         "weight": float(weight),
         "bias": float(bias),
@@ -336,15 +361,49 @@ def render_feature_vector_lane(
         lane,
         lane_context="feature-vector lane",
     )
+    if str(normalized.get("source_kind", "feature")) != "feature":
+        source = str(normalized.get("source", ""))
+        raise ValueError(
+            "feature-vector lane source kind is not 'feature': "
+            f"{source}. Use render_feature_vector_lane_from_values for target-source lanes."
+        )
     source = str(normalized["source"])
     source_values = feature_bus.control_features.get(source)
     if source_values is None:
         raise ValueError(f"feature-vector lane source '{source}' not present in feature bus.")
-
-    mapped = _feature_to_unit_interval(
+    return render_feature_vector_lane_from_values(
+        normalized,
         source_values=np.asarray(source_values, dtype=np.float64),
-        source=source,
+        source_kind="feature",
         sample_rate=int(feature_bus.sample_rate),
+    )
+
+
+def render_feature_vector_lane_from_values(
+    lane: dict[str, Any],
+    *,
+    source_values: FloatArray,
+    source_kind: str,
+    sample_rate: int,
+    source_range: tuple[float, float] | None = None,
+) -> FloatArray:
+    """Render one feature-vector lane from caller-provided source values."""
+    normalized = normalize_feature_vector_lane(
+        lane,
+        lane_context="feature-vector lane",
+    )
+    resolved_kind = str(normalized.get("source_kind", "feature"))
+    if resolved_kind != str(source_kind):
+        raise ValueError(
+            f"feature-vector lane source kind mismatch: lane={resolved_kind} requested={source_kind}."
+        )
+
+    mapped = _source_to_unit_interval(
+        source_values=np.asarray(source_values, dtype=np.float64),
+        source=str(normalized["source"]),
+        source_kind=resolved_kind,
+        sample_rate=int(sample_rate),
+        source_range=source_range,
     )
     curved = _apply_feature_curve(
         mapped,
@@ -462,6 +521,31 @@ def _feature_to_unit_interval(
     return np.clip(source_values, 0.0, 1.0).astype(np.float64)
 
 
+def _source_to_unit_interval(
+    *,
+    source_values: FloatArray,
+    source: str,
+    source_kind: str,
+    sample_rate: int,
+    source_range: tuple[float, float] | None = None,
+) -> FloatArray:
+    if source_kind == "feature":
+        return _feature_to_unit_interval(
+            source_values=source_values,
+            source=source,
+            sample_rate=sample_rate,
+        )
+    if source_kind == "target":
+        values = np.asarray(np.nan_to_num(source_values, nan=0.0), dtype=np.float64)
+        if source_range is not None:
+            lo = float(source_range[0])
+            hi = float(source_range[1])
+            if np.isfinite(lo) and np.isfinite(hi) and hi > lo + 1e-12:
+                return np.clip((values - lo) / (hi - lo), 0.0, 1.0).astype(np.float64)
+        return _robust_unit_scale(values)
+    raise ValueError(f"Unsupported source kind '{source_kind}'.")
+
+
 def _apply_feature_curve(values: FloatArray, *, curve: str, amount: float) -> FloatArray:
     x = np.clip(values, 0.0, 1.0).astype(np.float64)
     mode = curve.strip().lower()
@@ -550,6 +634,32 @@ def _parse_lane_kv_spec(spec: str, *, lane_context: str) -> dict[str, str]:
             raise ValueError(f"{lane_context}: empty key in token '{part}'.")
         out[norm_key] = value.strip()
     return out
+
+
+def _normalize_lane_source(raw: Any, *, lane_context: str) -> tuple[str, str]:
+    token = str(raw).strip()
+    if token == "":
+        raise ValueError(f"{lane_context}: missing required source.")
+
+    lowered = token.lower()
+    if lowered.startswith("target:") or lowered.startswith("control:") or lowered.startswith("param:"):
+        _, _, target_raw = token.partition(":")
+        target_name = normalize_control_target_name(target_raw.strip())
+        if target_name == "":
+            raise ValueError(
+                f"{lane_context}: invalid target source '{token}'. "
+                "Use target:<automation-target>."
+            )
+        return "target", target_name
+
+    source = normalize_feature_source_name(token)
+    if source not in SUPPORTED_FEATURE_SOURCES:
+        choices = ", ".join(sorted(SUPPORTED_FEATURE_SOURCES))
+        raise ValueError(
+            f"{lane_context}: unsupported source '{raw}'. Supported features: {choices}; "
+            "or use target:<automation-target>."
+        )
+    return "feature", source
 
 
 def _parse_finite_float(raw: Any, *, context: str) -> float:
