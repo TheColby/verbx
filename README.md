@@ -2809,6 +2809,12 @@ pyright
 pytest
 ```
 
+Testing note:
+
+- Feature-vector golden regressions validate deterministic replay plus bounded
+  profile envelopes (instead of raw float-byte hashes) so CI remains stable
+  across CPU/FFT backends while still catching behavior drift.
+
 ## 19.0 Project Layout
 
 - `src/verbx/cli.py`: command routing and UX
@@ -2955,7 +2961,8 @@ Goal: make time-varying and feature-driven control deterministic and production-
 - [x] Promote lane mappings to composable, acyclic mapping graphs with explicit
   evaluation order and deterministic signatures.
 - [x] Add golden fixtures covering feature extraction, lane fusion, and mapped target
-  trajectories across speech/music/percussive content classes.
+  trajectories across speech/music/percussive content classes with deterministic
+  replay checks and cross-platform profile-envelope assertions.
 - Exit criteria: replay parity, schema-validated traces, and stable regression
   fixtures for every supported descriptor family.
 

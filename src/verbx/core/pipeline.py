@@ -820,6 +820,7 @@ def _resolve_track_c_calibration_targets(
     envelopment: float,
 ) -> dict[str, float]:
     """Return calibrated perceptual macro transfer targets."""
+    # Conservative bounds keep typo-level macros from turning into mix-destroying chaos.
     return {
         "pre_delay_scale": float(
             np.clip(np.power(2.0, (0.45 * room_size) + (0.25 * clarity)), 0.5, 2.0)

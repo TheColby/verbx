@@ -1425,11 +1425,13 @@ def _apply_safety_guards(
             if np.isnan(before[idx]):
                 continue
             candidate = float(before[idx])
+            # Ignore micro-jitter unless zipper noise is somehow the artistic goal.
             if deadband_abs > 0.0 and abs(candidate - state) < deadband_abs:
                 deadband_hits += 1
                 candidate = state
             if max_delta > 0.0:
                 delta = candidate - state
+                # Prevent control "teleportation" between adjacent control samples.
                 if delta > max_delta:
                     candidate = state + max_delta
                     slew_hits += 1

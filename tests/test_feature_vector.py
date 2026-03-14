@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import hashlib
-
 import numpy as np
 
 from verbx.core.feature_vector import (
     FEATURE_SCHEMA_VERSION,
+    FeatureVectorBus,
     build_feature_vector_bus,
     render_feature_vector_lane,
 )
@@ -45,6 +44,23 @@ def _percussive_like(sr: int, seconds: float) -> np.ndarray:
         t = np.arange(length, dtype=np.float64) / float(sr)
         x[start : start + length] += 0.4 * env * np.sin(2.0 * np.pi * tone_hz * t)
     return x.astype(np.float64)[:, np.newaxis]
+
+
+def _stats(values: np.ndarray) -> dict[str, float]:
+    arr = np.asarray(values, dtype=np.float64)
+    return {
+        "min": float(np.min(arr)),
+        "max": float(np.max(arr)),
+        "mean": float(np.mean(arr)),
+        "std": float(np.std(arr)),
+        "p95": float(np.percentile(arr, 95.0)),
+    }
+
+
+def _assert_between(value: float, low: float, high: float, *, label: str) -> None:
+    assert low <= value <= high, (
+        f"{label}: expected {low:.6f} <= value <= {high:.6f}, got {value:.6f}"
+    )
 
 
 def test_feature_vector_bus_exposes_schema_metadata_for_new_families() -> None:
@@ -88,40 +104,123 @@ def test_feature_vector_golden_signatures_for_content_classes() -> None:
     }
     ctrl_times = np.linspace(0.0, seconds, 200, dtype=np.float64)
 
-    buses = {
-        "speech": build_feature_vector_bus(
-            audio=_speech_like(sr, seconds),
+    buses: dict[str, FeatureVectorBus] = {}
+    for name, audio in {
+        "speech": _speech_like(sr, seconds),
+        "music": _music_like(sr, seconds),
+        "percussive": _percussive_like(sr, seconds),
+    }.items():
+        bus_a = build_feature_vector_bus(
+            audio=audio,
             sr=sr,
             ctrl_times=ctrl_times,
             frame_ms=40.0,
             hop_ms=20.0,
             requested_sources=requested,
-        ),
-        "music": build_feature_vector_bus(
-            audio=_music_like(sr, seconds),
+        )
+        bus_b = build_feature_vector_bus(
+            audio=audio,
             sr=sr,
             ctrl_times=ctrl_times,
             frame_ms=40.0,
             hop_ms=20.0,
             requested_sources=requested,
-        ),
-        "percussive": build_feature_vector_bus(
-            audio=_percussive_like(sr, seconds),
-            sr=sr,
-            ctrl_times=ctrl_times,
-            frame_ms=40.0,
-            hop_ms=20.0,
-            requested_sources=requested,
-        ),
+        )
+        assert bus_a.signature == bus_b.signature
+        assert len(bus_a.signature) == 16
+        assert set(bus_a.signature).issubset(set("0123456789abcdef"))
+        buses[name] = bus_a
+
+    assert len({bus.signature for bus in buses.values()}) == 3
+
+    # CPUs/FFT backends can disagree on tiny float crumbs; behavior envelopes should not.
+    profiles: dict[str, dict[str, dict[str, float]]] = {
+        name: {source: _stats(bus.control_features[source]) for source in requested}
+        for name, bus in buses.items()
     }
 
-    signatures = {key: bus.signature for key, bus in buses.items()}
-    expected = {
-        "speech": "2b82d77c78dcfd22",
-        "music": "455c35865d6c93cb",
-        "percussive": "f68de02308c3b278",
-    }
-    assert signatures == expected
+    _assert_between(
+        profiles["speech"]["formant_balance_norm"]["mean"],
+        0.95,
+        1.00,
+        label="speech formant_balance_norm mean",
+    )
+    _assert_between(
+        profiles["music"]["formant_balance_norm"]["mean"],
+        0.94,
+        1.00,
+        label="music formant_balance_norm mean",
+    )
+    _assert_between(
+        profiles["percussive"]["formant_balance_norm"]["mean"],
+        0.55,
+        0.90,
+        label="percussive formant_balance_norm mean",
+    )
+    _assert_between(
+        profiles["speech"]["mfcc_1_norm"]["mean"],
+        0.50,
+        0.57,
+        label="speech mfcc_1_norm mean",
+    )
+    _assert_between(
+        profiles["music"]["mfcc_1_norm"]["mean"],
+        0.50,
+        0.57,
+        label="music mfcc_1_norm mean",
+    )
+    _assert_between(
+        profiles["percussive"]["mfcc_1_norm"]["mean"],
+        0.45,
+        0.54,
+        label="percussive mfcc_1_norm mean",
+    )
+    _assert_between(
+        profiles["speech"]["rhythm_pulse"]["mean"],
+        0.08,
+        0.30,
+        label="speech rhythm_pulse mean",
+    )
+    _assert_between(
+        profiles["music"]["rhythm_pulse"]["mean"],
+        0.08,
+        0.32,
+        label="music rhythm_pulse mean",
+    )
+    _assert_between(
+        profiles["percussive"]["rhythm_pulse"]["mean"],
+        0.03,
+        0.20,
+        label="percussive rhythm_pulse mean",
+    )
+    _assert_between(
+        profiles["speech"]["rhythm_periodicity"]["mean"],
+        0.60,
+        0.90,
+        label="speech rhythm_periodicity mean",
+    )
+    _assert_between(
+        profiles["music"]["rhythm_periodicity"]["mean"],
+        0.65,
+        0.92,
+        label="music rhythm_periodicity mean",
+    )
+    _assert_between(
+        profiles["percussive"]["rhythm_periodicity"]["mean"],
+        0.75,
+        0.97,
+        label="percussive rhythm_periodicity mean",
+    )
+    assert (
+        profiles["music"]["rhythm_pulse"]["mean"]
+        > profiles["speech"]["rhythm_pulse"]["mean"]
+        > profiles["percussive"]["rhythm_pulse"]["mean"]
+    )
+    assert (
+        profiles["percussive"]["rhythm_periodicity"]["mean"]
+        > profiles["music"]["rhythm_periodicity"]["mean"]
+        > profiles["speech"]["rhythm_periodicity"]["mean"]
+    )
 
 
 def test_feature_lane_fusion_trajectory_golden_signatures() -> None:
@@ -140,13 +239,13 @@ def test_feature_lane_fusion_trajectory_golden_signatures() -> None:
         "combine": "replace",
     }
 
-    signatures: dict[str, str] = {}
+    trajectories: dict[str, np.ndarray] = {}
     for name, audio in {
         "speech": _speech_like(sr, seconds),
         "music": _music_like(sr, seconds),
         "percussive": _percussive_like(sr, seconds),
     }.items():
-        bus = build_feature_vector_bus(
+        bus_a = build_feature_vector_bus(
             audio=audio,
             sr=sr,
             ctrl_times=ctrl_times,
@@ -154,14 +253,41 @@ def test_feature_lane_fusion_trajectory_golden_signatures() -> None:
             hop_ms=20.0,
             requested_sources=requested,
         )
-        trajectory = render_feature_vector_lane(lane, feature_bus=bus)
-        signatures[name] = hashlib.sha256(
-            np.asarray(trajectory, dtype=np.float64).tobytes(order="C")
-        ).hexdigest()[:16]
+        bus_b = build_feature_vector_bus(
+            audio=audio,
+            sr=sr,
+            ctrl_times=ctrl_times,
+            frame_ms=40.0,
+            hop_ms=20.0,
+            requested_sources=requested,
+        )
+        trajectory_a = np.asarray(
+            render_feature_vector_lane(lane, feature_bus=bus_a),
+            dtype=np.float64,
+        )
+        trajectory_b = np.asarray(
+            render_feature_vector_lane(lane, feature_bus=bus_b),
+            dtype=np.float64,
+        )
+        np.testing.assert_array_equal(trajectory_a, trajectory_b)
+        trajectories[name] = trajectory_a
 
-    expected = {
-        "speech": "d3bce8631b2badb1",
-        "music": "eee5d08085e08161",
-        "percussive": "a52c9ddd1d15eca1",
-    }
-    assert signatures == expected
+    stats = {name: _stats(values) for name, values in trajectories.items()}
+
+    _assert_between(stats["speech"]["min"], 0.749, 0.751, label="speech trajectory min")
+    _assert_between(stats["speech"]["max"], 0.749, 0.751, label="speech trajectory max")
+    _assert_between(stats["speech"]["mean"], 0.749, 0.751, label="speech trajectory mean")
+    _assert_between(stats["speech"]["std"], 0.0, 1e-7, label="speech trajectory std")
+
+    _assert_between(stats["music"]["min"], 0.65, 0.75, label="music trajectory min")
+    _assert_between(stats["music"]["max"], 0.749, 0.751, label="music trajectory max")
+    _assert_between(stats["music"]["mean"], 0.73, 0.751, label="music trajectory mean")
+    _assert_between(stats["music"]["std"], 0.0, 0.02, label="music trajectory std")
+
+    _assert_between(stats["percussive"]["min"], 0.35, 0.50, label="percussive trajectory min")
+    _assert_between(stats["percussive"]["max"], 0.72, 0.76, label="percussive trajectory max")
+    _assert_between(stats["percussive"]["mean"], 0.52, 0.66, label="percussive trajectory mean")
+    _assert_between(stats["percussive"]["std"], 0.08, 0.20, label="percussive trajectory std")
+
+    assert stats["speech"]["mean"] > stats["percussive"]["mean"]
+    assert stats["percussive"]["std"] > stats["music"]["std"] > stats["speech"]["std"]

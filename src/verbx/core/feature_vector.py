@@ -621,6 +621,7 @@ def _extract_frame_features(
     mfcc_basis_1 = np.cos((np.pi * k) / float(n_bins))
     mfcc_basis_2 = np.cos((2.0 * np.pi * k) / float(n_bins))
 
+    # Coarse bands on purpose: control proxies need stability more than vowel-lab precision.
     low_mask = (freq_bins >= 300.0) & (freq_bins < 1_000.0)
     mid_mask = (freq_bins >= 1_000.0) & (freq_bins < 3_000.0)
 
@@ -918,6 +919,7 @@ def _derive_rhythm_features(
     spectral_flux: FloatArray,
 ) -> tuple[FloatArray, FloatArray]:
     """Derive deterministic rhythm descriptors from onset-oriented features."""
+    # Weighted blend keeps pulse tracking useful when either onset metric gets noisy.
     onset_env = np.clip(
         (0.65 * np.asarray(transient, dtype=np.float64))
         + (0.35 * np.asarray(spectral_flux, dtype=np.float64)),
