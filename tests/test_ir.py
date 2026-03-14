@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
+from click.testing import Result as ClickResult
 from typer.testing import CliRunner
 
 from verbx.cli import app
@@ -13,6 +15,18 @@ from verbx.core.tempo import parse_note_duration_seconds, parse_pre_delay_ms
 from verbx.ir.generator import IRGenConfig, generate_or_load_cached_ir
 
 runner = CliRunner()
+_ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+
+
+def _combined_cli_output(result: ClickResult) -> str:
+    parts = [result.output]
+    stdout_text = getattr(result, "stdout", "")
+    stderr_text = getattr(result, "stderr", "")
+    if isinstance(stdout_text, str):
+        parts.append(stdout_text)
+    if isinstance(stderr_text, str):
+        parts.append(stderr_text)
+    return _ANSI_ESCAPE_RE.sub("", "\n".join(parts))
 
 
 def test_ir_gen_writes_wav_and_meta(tmp_path: Path) -> None:
@@ -256,8 +270,9 @@ def test_ir_gen_rejects_graph_options_without_graph_matrix(tmp_path: Path) -> No
         ],
     )
     assert result.exit_code != 0
-    assert "--fdn-graph-topology/--fdn-graph-degree are only valid with" in result.output
-    assert "--fdn-matrix graph" in result.output
+    text = _combined_cli_output(result)
+    assert "--fdn-graph-topology/--fdn-graph-degree are only valid with" in text
+    assert "--fdn-matrix graph" in text
 
 
 def test_ir_gen_supports_cascaded_fdn_controls(tmp_path: Path) -> None:
@@ -320,7 +335,7 @@ def test_ir_gen_rejects_cascade_with_single_line_fdn(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "--fdn-cascade requires at least 2 FDN lines." in result.output
+    assert "--fdn-cascade requires at least 2 FDN lines." in _combined_cli_output(result)
 
 
 def test_ir_gen_supports_multiband_fdn_controls(tmp_path: Path) -> None:
@@ -427,7 +442,7 @@ def test_ir_gen_rejects_partial_multiband_rt60_set(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "provide all three values" in result.output
+    assert "provide all three values" in _combined_cli_output(result)
 
 
 def test_ir_gen_supports_filter_feedback_controls(tmp_path: Path) -> None:
@@ -484,7 +499,7 @@ def test_ir_gen_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "--fdn-link-filter must be one of" in result.output
+    assert "--fdn-link-filter must be one of" in _combined_cli_output(result)
 
 
 def test_ir_gen_accepts_hyphenated_filter_feedback_alias(tmp_path: Path) -> None:

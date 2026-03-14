@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
+from click.testing import Result as ClickResult
 from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
@@ -13,6 +15,18 @@ from verbx.cli import app
 from verbx.core import accel
 
 runner = CliRunner()
+_ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+
+
+def _combined_cli_output(result: ClickResult) -> str:
+    parts = [result.output]
+    stdout_text = getattr(result, "stdout", "")
+    stderr_text = getattr(result, "stderr", "")
+    if isinstance(stdout_text, str):
+        parts.append(stdout_text)
+    if isinstance(stderr_text, str):
+        parts.append(stderr_text)
+    return _ANSI_ESCAPE_RE.sub("", "\n".join(parts))
 
 
 def test_cli_boots() -> None:
@@ -327,8 +341,9 @@ def test_render_rejects_invalid_tvu_combo(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "--fdn-matrix tv_unitary requires both" in result.output
-    assert "--fdn-tv-depth > 0" in result.output
+    text = _combined_cli_output(result)
+    assert "--fdn-matrix tv_unitary requires both" in text
+    assert "--fdn-tv-depth > 0" in text
 
 
 def test_render_sparse_high_order_switches_are_applied(tmp_path: Path) -> None:
@@ -389,7 +404,9 @@ def test_render_rejects_sparse_with_tv_unitary(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "--fdn-sparse cannot be combined with --fdn-matrix tv_unitary" in result.output
+    assert "--fdn-sparse cannot be combined with --fdn-matrix tv_unitary" in _combined_cli_output(
+        result
+    )
 
 
 def test_render_graph_fdn_switches_are_applied(tmp_path: Path) -> None:
@@ -449,8 +466,9 @@ def test_render_rejects_graph_options_without_graph_matrix(tmp_path: Path) -> No
         ],
     )
     assert result.exit_code != 0
-    assert "--fdn-graph-topology/--fdn-graph-degree are only valid with" in result.output
-    assert "--fdn-matrix graph" in result.output
+    text = _combined_cli_output(result)
+    assert "--fdn-graph-topology/--fdn-graph-degree are only valid with" in text
+    assert "--fdn-matrix graph" in text
 
 
 def test_render_rejects_sparse_with_graph_matrix(tmp_path: Path) -> None:
@@ -474,7 +492,9 @@ def test_render_rejects_sparse_with_graph_matrix(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "--fdn-sparse cannot be combined with --fdn-matrix graph" in result.output
+    assert "--fdn-sparse cannot be combined with --fdn-matrix graph" in _combined_cli_output(
+        result
+    )
 
 
 def test_render_cascaded_fdn_switches_are_applied(tmp_path: Path) -> None:
@@ -536,7 +556,7 @@ def test_render_rejects_cascade_with_single_line_fdn(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "--fdn-cascade requires at least 2 FDN lines." in result.output
+    assert "--fdn-cascade requires at least 2 FDN lines." in _combined_cli_output(result)
 
 
 def test_render_multiband_fdn_switches_are_applied(tmp_path: Path) -> None:
@@ -606,7 +626,7 @@ def test_render_rejects_partial_multiband_rt60_set(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "provide all three values" in result.output
+    assert "provide all three values" in _combined_cli_output(result)
 
 
 def test_render_filter_feedback_switches_are_applied(tmp_path: Path) -> None:
@@ -664,7 +684,7 @@ def test_render_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "--fdn-link-filter must be one of" in result.output
+    assert "--fdn-link-filter must be one of" in _combined_cli_output(result)
 
 
 def test_render_accepts_hyphenated_filter_feedback_alias(tmp_path: Path) -> None:
@@ -873,7 +893,7 @@ def test_render_rejects_ir_blend_without_base_ir_source(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "--ir-blend requires base IR source" in result.output
+    assert "--ir-blend requires base IR source" in _combined_cli_output(result)
 
 
 def test_render_rejects_ambiguous_matrix_ir_without_route_hint(tmp_path: Path) -> None:
@@ -946,7 +966,7 @@ def test_render_allpass_gain_count_mismatch_rejected(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "exactly 4 entries" in result.output
+    assert "exactly 4 entries" in _combined_cli_output(result)
 
 
 def test_analyze_lufs_mode(tmp_path: Path) -> None:
@@ -1764,8 +1784,9 @@ def test_render_rejects_ambi_channel_mismatch_without_encode(tmp_path: Path) -> 
         ],
     )
     assert result.exit_code != 0
-    assert "Input channels" in result.output
-    assert "--ambi-order 2" in result.output
+    text = _combined_cli_output(result)
+    assert "Input channels" in text
+    assert "--ambi-order 2" in text
 
 
 def test_analyze_ambisonic_metrics_mode(tmp_path: Path) -> None:
@@ -1887,7 +1908,7 @@ def test_render_rejects_automation_options_without_file(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "--automation-point" in result.output
+    assert "--automation-point" in _combined_cli_output(result)
 
 
 def test_render_automation_points_wet_ramp_without_file(tmp_path: Path) -> None:
@@ -1965,7 +1986,7 @@ def test_render_rejects_invalid_automation_point_interp(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "automation interpolation" in result.output
+    assert "automation interpolation" in _combined_cli_output(result)
 
 
 def test_render_rejects_invalid_automation_file_interp(tmp_path: Path) -> None:
@@ -2014,7 +2035,7 @@ def test_render_rejects_invalid_automation_file_interp(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "automation interpolation" in result.output
+    assert "automation interpolation" in _combined_cli_output(result)
 
 
 def test_render_automation_points_drive_algo_engine_targets(tmp_path: Path) -> None:
@@ -2175,7 +2196,7 @@ def test_render_rejects_engine_automation_targets_for_convolution(tmp_path: Path
         ],
     )
     assert result.exit_code != 0
-    assert "require algorithmic render path" in result.output
+    assert "require algorithmic render path" in _combined_cli_output(result)
 
 
 def test_render_rejects_conv_automation_targets_for_algo(tmp_path: Path) -> None:
@@ -2200,7 +2221,7 @@ def test_render_rejects_conv_automation_targets_for_algo(tmp_path: Path) -> None
         ],
     )
     assert result.exit_code != 0
-    assert "require convolution render path" in result.output
+    assert "require convolution render path" in _combined_cli_output(result)
 
 
 def test_render_rejects_ir_blend_alpha_without_ir_blend(tmp_path: Path) -> None:
@@ -2233,7 +2254,7 @@ def test_render_rejects_ir_blend_alpha_without_ir_blend(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "requires --ir-blend" in result.output
+    assert "requires --ir-blend" in _combined_cli_output(result)
 
 
 def test_render_conv_ir_blend_alpha_automation_applies(tmp_path: Path) -> None:
@@ -2418,7 +2439,7 @@ def test_render_automation_invalid_lane_context_is_reported(tmp_path: Path) -> N
         ],
     )
     assert result.exit_code != 0
-    assert "lane #1" in result.output
+    assert "lane #1" in _combined_cli_output(result)
 
 
 def test_render_feature_vector_lanes_drive_wet_and_emit_trace(tmp_path: Path) -> None:
@@ -2628,7 +2649,7 @@ def test_render_rejects_feature_vector_target_source_cycle(tmp_path: Path) -> No
         ],
     )
     assert result.exit_code != 0
-    assert "contains a cycle" in result.output.lower()
+    assert "contains a cycle" in _combined_cli_output(result).lower()
 
 
 def test_render_rejects_unresolved_feature_vector_target_source(tmp_path: Path) -> None:
@@ -2661,7 +2682,7 @@ def test_render_rejects_unresolved_feature_vector_target_source(tmp_path: Path) 
         ],
     )
     assert result.exit_code != 0
-    assert "define automation for 'wet' first" in result.output.lower()
+    assert "define automation for 'wet' first" in _combined_cli_output(result).lower()
 
 
 def test_render_rejects_invalid_feature_vector_lane(tmp_path: Path) -> None:
@@ -2691,7 +2712,7 @@ def test_render_rejects_invalid_feature_vector_lane(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "unsupported source" in result.output.lower()
+    assert "unsupported source" in _combined_cli_output(result).lower()
 
 
 def test_render_automation_file_feature_vector_lane(tmp_path: Path) -> None:
@@ -2875,4 +2896,4 @@ def test_render_feature_guide_strict_rejects_mismatch(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "feature-guide sample-rate mismatch" in result.output.lower()
+    assert "feature-guide sample-rate mismatch" in _combined_cli_output(result).lower()
