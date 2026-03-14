@@ -6,6 +6,8 @@ starting points rather than immutable production values.
 
 from __future__ import annotations
 
+import difflib
+
 DEFAULT_PRESETS: dict[str, dict[str, float | int | bool | str]] = {
     "cathedral_extreme": {
         "rt60": 90.0,
@@ -64,3 +66,27 @@ DEFAULT_PRESETS: dict[str, dict[str, float | int | bool | str]] = {
 def preset_names() -> list[str]:
     """Return sorted preset names for CLI display."""
     return sorted(DEFAULT_PRESETS)
+
+
+def normalize_preset_name(value: str) -> str:
+    """Normalize preset token into catalog key style."""
+    token = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+    while "__" in token:
+        token = token.replace("__", "_")
+    return token
+
+
+def resolve_preset(value: str) -> tuple[str, dict[str, float | int | bool | str]]:
+    """Resolve preset key and payload or raise a helpful error."""
+    normalized = normalize_preset_name(value)
+    if normalized in DEFAULT_PRESETS:
+        return normalized, dict(DEFAULT_PRESETS[normalized])
+
+    suggestion = difflib.get_close_matches(normalized, preset_names(), n=1, cutoff=0.5)
+    options = ", ".join(preset_names())
+    if len(suggestion) > 0:
+        raise ValueError(
+            f"Unknown preset '{value}'. Did you mean '{suggestion[0]}'? "
+            f"Available presets: {options}."
+        )
+    raise ValueError(f"Unknown preset '{value}'. Available presets: {options}.")

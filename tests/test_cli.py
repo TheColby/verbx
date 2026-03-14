@@ -34,6 +34,8 @@ def test_cli_boots() -> None:
     assert result.exit_code == 0
     assert "render" in result.stdout
     assert "analyze" in result.stdout
+    assert "quickstart" in result.stdout
+    assert "doctor" in result.stdout
     assert "presets" in result.stdout
     assert "version" in result.stdout
     assert "suggest" in result.stdout
@@ -47,6 +49,124 @@ def test_version_command_reports_package_version() -> None:
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
     assert f"verbx {__version__}" in result.stdout
+
+
+def test_quickstart_command_prints_copyable_workflows() -> None:
+    result = runner.invoke(app, ["quickstart"])
+    assert result.exit_code == 0
+    text = _combined_cli_output(result)
+    assert "verbx Quickstart" in text
+    assert "verbx render ../in.wav out.wav" in text
+    assert "verbx analyze in.wav" in text
+
+
+def test_doctor_command_prints_runtime_diagnostics(tmp_path: Path) -> None:
+    json_out = tmp_path / "doctor.json"
+    result = runner.invoke(app, ["doctor", "--json-out", str(json_out)])
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "verbx Doctor" in text
+    assert "python_version" in text
+    assert "device_auto" in text
+
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["verbx_version"] == __version__
+    assert "engine_auto_resolution" in payload
+    assert "dependencies" in payload
+
+
+def test_presets_show_displays_resolved_values() -> None:
+    result = runner.invoke(app, ["presets", "--show", "cathedral-extreme"])
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "Preset:" in text
+    assert "cathedral_extreme" in text
+    assert "rt60" in text
+    assert "90.0" in text
+
+
+def test_render_dry_run_validates_without_writing_audio(tmp_path: Path) -> None:
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[10:40, 0] = 0.4
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--dry-run",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "Render Dry-Run Plan" in text
+    assert "audio_write" in text
+    assert "skipped" in text
+    assert not outfile.exists()
+    assert not Path(f"{outfile}.analysis.json").exists()
+
+
+def test_render_preset_applies_defaults_and_respects_cli_override(tmp_path: Path) -> None:
+    audio = np.zeros((1600, 1), dtype=np.float64)
+    audio[100:200, 0] = 0.5
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--preset",
+            "cathedral-extreme",
+            "--rt60",
+            "12.0",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert abs(float(config["rt60"]) - 12.0) < 1e-6
+    assert abs(float(config["wet"]) - 0.9) < 1e-6
+    assert abs(float(config["dry"]) - 0.1) < 1e-6
+
+
+def test_render_invalid_fdn_matrix_includes_suggestion(tmp_path: Path) -> None:
+    audio = np.zeros((512, 1), dtype=np.float64)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-matrix",
+            "hadmard",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "--fdn-matrix must be one of:" in text
+    assert "Did you mean" in text
+    assert "hadamard" in text
 
 
 def test_render_creates_output_and_analysis(tmp_path: Path) -> None:

@@ -80,6 +80,7 @@ batch workflows.
     - [6.11 How to Listen Critically to Reverb](#611-how-to-listen-critically-to-reverb)
     - [6.12 Beginner Workflow: Choosing Reverb on Purpose](#612-beginner-workflow-choosing-reverb-on-purpose)
   - [7.0 Project Status](#70-status)
+    - [7.1 Public-launch hardening: top 5 likely complaints and mitigations](#71-public-launch-hardening-top-5-likely-complaints-and-mitigations)
   - [8.0 Quick Start Recipes](#80-quick-start-recipes)
     - [8.1 First render (algorithmic)](#81-first-render-algorithmic)
     - [8.2 Convolution render with external IR](#82-convolution-render-with-external-ir)
@@ -154,7 +155,7 @@ batch workflows.
       - [13.2.7 Execution, resources, and reporting](#1327-execution-resources-and-reporting)
     - [13.3 `verbx analyze` switches](#133-verbx-analyze-switches)
     - [13.4 `verbx suggest` switches](#134-verbx-suggest-switches)
-    - [13.5 `verbx presets` switches](#135-verbx-presets-switches)
+    - [13.5 `verbx presets`, `verbx version`, `verbx quickstart`, and `verbx doctor` switches](#135-verbx-presets-verbx-version-verbx-quickstart-and-verbx-doctor-switches)
     - [13.6 `verbx ir gen OUT_IR` switches](#136-verbx-ir-gen-out_ir-switches)
       - [13.6.1 Base output and synthesis mode](#1361-base-output-and-synthesis-mode)
       - [13.6.2 Decay shape and broadband tone controls](#1362-decay-shape-and-broadband-tone-controls)
@@ -265,7 +266,7 @@ This installs `verbx` and renders an intentionally extreme long-tail reverb as `
 ### 3.1 CLI Surface and Platform
 
 - Typer + Rich command-line architecture.
-- Command groups: `render`, `analyze`, `suggest`, `presets`, `version`, `ir`, `cache`, `batch`, `immersive`.
+- Command groups: `render`, `analyze`, `suggest`, `quickstart`, `doctor`, `presets`, `version`, `ir`, `cache`, `batch`, `immersive`.
 - Strong option/path validation and typed command interfaces.
 - Output controls for container format and subtype/bit depth.
 
@@ -330,7 +331,11 @@ This installs `verbx` and renders an intentionally extreme long-tail reverb as `
 - `analyze` metrics including loudness and EDR summaries.
 - Framewise CSV exports (including modulation/spatial metrics).
 - `suggest` command for analysis-driven starter settings.
-- Built-in preset listing command for fast starting points.
+- Built-in quickstart command (`verbx quickstart`) for copy/paste first-run workflows.
+- Built-in diagnostics command (`verbx doctor`) for platform/acceleration troubleshooting.
+- Preset catalog with inspect/apply workflow (`verbx presets --show <name>`, `verbx render --preset <name>`).
+- Render `--dry-run` mode for no-write validation of resolved settings before long jobs.
+- Validation messages include close-match suggestions for common categorical options.
 - JSON template commands for batch and immersive workflows.
 - Batch manifests with scheduling policies, retries, dry-run, fail-fast/continue modes.
 - Batch checkpoint/resume support for long render queues.
@@ -875,6 +880,19 @@ Current implementation level: **v0.7.0**
 - v0.7 Track D additions: cache-backed `ir morph` command (`linear`, `equal-power`, `spectral`, `envelope-aware`), render-time IR blending via `--ir-blend`/`--ir-blend-mix`, and morph quality metadata (RT drift, spectral distance, coherence deltas)
 - v0.7 immersive interoperability additions: `immersive handoff` sidecar/deliverable packaging, object/bed policy checks, `immersive qc` gates, and distributed `immersive queue` worker heartbeats/retry semantics
 - v0.7 immersive hardening additions: strict handoff now fails on policy violations, scene validation errors, or any QC gate failure; scene sample-rate mismatches are surfaced in validation payloads; queue manifests now require unique job IDs
+
+### 7.1 Public-launch hardening: top 5 likely complaints and mitigations
+
+1. Complaint: "I can’t tell where to start."
+   Mitigation: `verbx quickstart` prints copy/paste first-run commands for algorithmic, convolution, and analyze/suggest workflows.
+2. Complaint: "I don’t want to wait minutes just to discover a config mistake."
+   Mitigation: `verbx render --dry-run` validates and prints a resolved plan without writing audio.
+3. Complaint: "Presets are listed but not practical to use."
+   Mitigation: `verbx presets --show <name>` displays exact preset values, and `verbx render --preset <name>` applies preset defaults while keeping explicit CLI overrides.
+4. Complaint: "Your error messages are strict but not helpful when I typo a value."
+   Mitigation: categorical validators now include `Did you mean ...?` suggestions for common option families (`--fdn-matrix`, `--fdn-graph-topology`, `--fdn-link-filter`, `--ir-route-map`, `--conv-route-curve`, etc.).
+5. Complaint: "I can’t diagnose acceleration/platform issues quickly."
+   Mitigation: `verbx doctor` reports host/runtime/device resolution and optional JSON diagnostics (`--json-out`).
 
 ## 8.0 Quick Start Recipes
 
@@ -2044,12 +2062,16 @@ This section lists all CLI switches available in the current
 `v0.7.0` interface.
 For full descriptions and defaults, run `verbx <command> --help`.
 It is intended to be the canonical switch inventory for every `verbx` command.
+When categorical value validation fails, `verbx` now includes close-match
+`Did you mean ...?` hints for common option families.
 
 ### 13.1 Top-level commands
 
 - `verbx render INFILE OUTFILE`
 - `verbx analyze INFILE`
 - `verbx suggest INFILE`
+- `verbx quickstart`
+- `verbx doctor`
 - `verbx presets`
 - `verbx version`
 - `verbx ir ...`
@@ -2065,6 +2087,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 
 | Switch | What it controls | Practical guidance |
 |---|---|---|
+| `--preset` | Named baseline preset (see `verbx presets`). | Applies default values from preset and keeps explicitly supplied CLI options as overrides. |
 | `--engine [conv\|algo\|auto]` | Selects convolution, algorithmic FDN, or automatic selection. | Use `conv` when you have an IR (`--ir`). Use `algo` for generated tails. `auto` picks `conv` if IR is present, otherwise `algo`. |
 | `--rt60` | Target decay time in seconds for algorithmic or generated-IR style behavior. | Higher values produce longer tails (e.g., ambient washes). Lower values keep mixes tighter and more intelligible. |
 | `--wet` | Amount of processed (reverberated) signal in the output mix. | Increase for stronger ambience. |
@@ -2226,6 +2249,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--quiet` | Suppresses console summary tables after render completion. | Keeps render + analysis artifacts on disk while reducing console output. |
 | `--verbosity [0\|1\|2]` | Console detail level for render completion reporting. | `1` (default) prints render summary plus output audio features/statistics; `0` prints only minimal summary; `2` also prints input features/statistics. |
 | `--silent` | Suppresses analysis/report output and all console summaries. | Use for minimal-output automation contexts where no analysis JSON should be written. |
+| `--dry-run` | Validates inputs and prints resolved render plan without writing audio. | Use before long/high-cost renders to catch configuration issues early. |
 | `--progress / --no-progress` | Enables or disables progress UI. | Disable for non-interactive logs or CI environments. |
 
 `--mod-source` syntax reference:
@@ -2273,9 +2297,14 @@ Automation reproducibility note:
 
 No command-specific switches (other than `--help`).
 
-### 13.5 `verbx presets` and `verbx version` switches
+### 13.5 `verbx presets`, `verbx version`, `verbx quickstart`, and `verbx doctor` switches
 
-No command-specific switches (other than `--help`).
+| Command | Switch | What it controls | Practical guidance |
+|---|---|---|---|
+| `verbx presets` | `--show <name>` | Prints the resolved parameter payload for one preset. | Use to inspect baseline values before applying with `render --preset`. |
+| `verbx version` | none | Prints package version string. | Useful in bug reports and reproducibility notes. |
+| `verbx quickstart` | none | Prints copy/paste starter workflows. | Best first stop for new users and announcement demos. |
+| `verbx doctor` | `--json-out <path>` | Writes runtime/platform diagnostics to JSON. | Attach output to issue reports when troubleshooting acceleration or host mismatches. |
 
 ### 13.6 `verbx ir gen OUT_IR` switches
 
@@ -2526,9 +2555,12 @@ verbx --help
 
 ```bash
 verbx render INFILE OUTFILE [options]
+verbx render INFILE OUTFILE --dry-run [options]
 verbx analyze INFILE [--lufs] [--json-out report.json] [--frames-out frames.csv]
 verbx suggest INFILE
-verbx presets
+verbx quickstart
+verbx doctor [--json-out doctor.json]
+verbx presets [--show PRESET]
 verbx version
 verbx immersive template
 verbx immersive handoff scene.json out_dir
@@ -2540,6 +2572,9 @@ verbx immersive qc mix.wav --layout 7.1.2 --fail-on-violation
 ```bash
 # high-density algorithmic tail
 verbx render in.wav out.wav --engine algo --rt60 120 --damping 0.5 --width 1.2
+
+# validate resolved config before burning cycles
+verbx render in.wav out.wav --preset cathedral_extreme --dry-run
 
 # convolution with IR normalization and tail cap
 verbx render in.wav out.wav --engine conv --ir plate.wav --ir-normalize peak --tail-limit 45

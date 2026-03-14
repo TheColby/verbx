@@ -11,15 +11,21 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import shutil
+import sys
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import asdict
+from difflib import get_close_matches
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
 from pathlib import Path
 from typing import Any, Literal, TypedDict, cast
 
 import numpy as np
 import soundfile as sf
 import typer
+from click.core import ParameterSource
 from rich.console import Console
 from rich.table import Table
 
@@ -45,6 +51,12 @@ from verbx.config import (
     OutputPeakNorm,
     OutputSubtype,
     RenderConfig,
+)
+from verbx.core.accel import (
+    cuda_available,
+    is_apple_silicon,
+    resolve_device,
+    resolve_device_for_engine,
 )
 from verbx.core.automation import (
     CONV_AUTOMATION_TARGETS,
@@ -116,7 +128,7 @@ from verbx.ir.morph import (
 from verbx.ir.shaping import apply_ir_shaping
 from verbx.ir.tuning import analyze_audio_for_tuning, parse_frequency_hz
 from verbx.logging import configure_logging
-from verbx.presets.default_presets import preset_names
+from verbx.presets.default_presets import preset_names, resolve_preset
 
 IRFileFormat = Literal["auto", "wav", "flac", "aiff", "aif", "ogg", "caf"]
 _FDN_MATRIX_CHOICES = set(FDN_MATRIX_CHOICES)
@@ -206,9 +218,109 @@ def version() -> None:
 
 
 @app.command()
+def quickstart() -> None:
+    """Print minimal copy/paste commands for first successful renders."""
+    commands = [
+        (
+            "Install + extreme algorithmic render",
+            "git clone https://github.com/TheColby/verbx.git && cd verbx && "
+            "./scripts/install.sh && "
+            "verbx render ../in.wav out.wav --engine algo --rt60 12 --wet 0.88 --dry 0.12",
+        ),
+        (
+            "Analyze then suggested settings",
+            "verbx analyze in.wav --lufs --json-out analysis.json && verbx suggest in.wav",
+        ),
+        (
+            "Convolution render with IR",
+            "verbx render in.wav out_conv.wav --engine conv --ir hall.wav --wet 0.75 --dry 0.25",
+        ),
+    ]
+    table = Table(title="verbx Quickstart")
+    table.add_column("Workflow", style="cyan")
+    table.add_column("Command", style="white")
+    for name, cmd in commands:
+        table.add_row(name, cmd)
+    console.print(table)
+
+
+@app.command()
+def doctor(
+    json_out: Path | None = typer.Option(
+        None,
+        "--json-out",
+        resolve_path=True,
+        help="Optional path to write machine-readable diagnostics JSON.",
+    ),
+) -> None:
+    """Print runtime diagnostics for launch-day troubleshooting."""
+    report: dict[str, Any] = {
+        "verbx_version": __version__,
+        "python_version": sys.version.split()[0],
+        "platform": platform.platform(),
+        "system": platform.system(),
+        "machine": platform.machine(),
+        "cpu_count": os.cpu_count(),
+        "apple_silicon": bool(is_apple_silicon()),
+        "cuda_available": bool(cuda_available()),
+        "device_auto": str(resolve_device("auto")),
+    }
+    algo_device, algo_platform = resolve_device_for_engine("auto", "algo")
+    conv_device, conv_platform = resolve_device_for_engine("auto", "conv")
+    report["engine_auto_resolution"] = {
+        "algo": {"engine_device": str(algo_device), "platform_device": str(algo_platform)},
+        "conv": {"engine_device": str(conv_device), "platform_device": str(conv_platform)},
+    }
+    deps: dict[str, str | None] = {}
+    try:
+        for package_name in ("numpy", "soundfile", "rich", "typer", "cupy"):
+            try:
+                deps[package_name] = str(pkg_version(package_name))
+            except PackageNotFoundError:
+                deps[package_name] = None
+    except Exception:
+        deps = {"numpy": None, "soundfile": None, "rich": None, "typer": None, "cupy": None}
+    report["dependencies"] = deps
+
+    table = Table(title="verbx Doctor")
+    table.add_column("Key", style="cyan")
+    table.add_column("Value", style="white")
+    table.add_row("verbx_version", str(report["verbx_version"]))
+    table.add_row("python_version", str(report["python_version"]))
+    table.add_row("platform", str(report["platform"]))
+    table.add_row("machine", str(report["machine"]))
+    table.add_row("cpu_count", str(report["cpu_count"]))
+    table.add_row("apple_silicon", str(report["apple_silicon"]))
+    table.add_row("cuda_available", str(report["cuda_available"]))
+    table.add_row("device_auto", str(report["device_auto"]))
+    table.add_row(
+        "auto_algo_device",
+        str(report["engine_auto_resolution"]["algo"]["engine_device"]),
+    )
+    table.add_row(
+        "auto_conv_device",
+        str(report["engine_auto_resolution"]["conv"]["engine_device"]),
+    )
+    table.add_row("cupy_version", str(report["dependencies"].get("cupy")))
+    console.print(table)
+
+    if json_out is not None:
+        json_out.write_text(json.dumps(report, indent=2), encoding="utf-8")
+
+
+@app.command()
 def render(
+    ctx: typer.Context,
     infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
     outfile: Path = typer.Argument(..., resolve_path=True),
+    preset: str | None = typer.Option(
+        None,
+        "--preset",
+        help=(
+            "Named preset baseline (see `verbx presets`). Explicitly supplied CLI options "
+            "override preset values."
+        ),
+    ),
     engine: EngineName = typer.Option("auto", "--engine", help="Engine: conv, algo, or auto."),
     rt60: float = typer.Option(60.0, "--rt60", min=0.1),
     wet: float = typer.Option(0.8, "--wet", min=0.0, max=1.0),
@@ -864,6 +976,11 @@ def render(
         "--silent",
         help="Disable analysis JSON generation and console output.",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Validate inputs and print resolved render plan without writing audio.",
+    ),
     progress: bool = typer.Option(True, "--progress/--no-progress"),
 ) -> None:
     """Render input audio with algorithmic or convolution reverb."""
@@ -1041,9 +1158,31 @@ def render(
         progress=progress,
     )
 
+    preset_summary: dict[str, Any] | None = None
+    if preset is not None:
+        try:
+            preset_summary = _apply_render_preset(
+                ctx=ctx,
+                config=config,
+                preset_name=preset,
+            )
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+
     _validate_render_call(infile, outfile, config)
     _validate_lucky_call(config, lucky, lucky_out_dir)
     configure_logging(verbose=not config.silent)
+
+    if dry_run:
+        _print_render_dry_run_plan(
+            infile=infile,
+            outfile=outfile,
+            config=config,
+            lucky=lucky,
+            lucky_out_dir=lucky_out_dir,
+            preset_summary=preset_summary,
+        )
+        return
 
     if lucky is not None:
         try:
@@ -1113,7 +1252,15 @@ def render(
     if config.silent or quiet:
         return
 
-    _print_render_summary(report, verbosity=verbosity)
+    _print_render_summary(
+        report,
+        verbosity=verbosity,
+        preset_name=(
+            None
+            if preset_summary is None
+            else str(preset_summary.get("name", "")).strip() or None
+        ),
+    )
 
 
 @app.command()
@@ -1217,8 +1364,27 @@ def suggest(
 
 
 @app.command(name="presets")
-def list_presets() -> None:
-    """Print available presets."""
+def list_presets(
+    show: str | None = typer.Option(
+        None,
+        "--show",
+        help="Show resolved values for one preset.",
+    ),
+) -> None:
+    """Print available presets or one preset payload."""
+    if show is not None:
+        try:
+            resolved_name, payload = resolve_preset(show)
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+        table = Table(title=f"Preset: {resolved_name}")
+        table.add_column("Parameter", style="cyan")
+        table.add_column("Value", style="white")
+        for key in sorted(payload.keys()):
+            table.add_row(key, str(payload[key]))
+        console.print(table)
+        return
+
     names = preset_names()
     table = Table(title="Available Presets")
     table.add_column("Preset", style="green")
@@ -2912,11 +3078,18 @@ def _print_feature_table(title: str, metrics: dict[str, Any]) -> None:
     console.print(table)
 
 
-def _print_render_summary(report: dict[str, Any], *, verbosity: int = 1) -> None:
+def _print_render_summary(
+    report: dict[str, Any],
+    *,
+    verbosity: int = 1,
+    preset_name: str | None = None,
+) -> None:
     """Print render summary and output feature/statistics tables."""
     table = Table(title="Render Summary")
     table.add_column("Key", style="cyan")
     table.add_column("Value", style="white")
+    if preset_name is not None and str(preset_name).strip() != "":
+        table.add_row("preset", str(preset_name))
     table.add_row("requested_engine", str(report.get("effective", {}).get("engine_requested", "")))
     table.add_row("engine", str(report.get("engine", "unknown")))
     table.add_row("requested_device", str(report.get("effective", {}).get("device_requested", "")))
@@ -3496,13 +3669,144 @@ def _parse_gain_list(
     return tuple(values)
 
 
+def _did_you_mean(value: str, choices: set[str]) -> str | None:
+    token = str(value).strip().lower()
+    if token == "":
+        return None
+    matches = get_close_matches(token, sorted(choices), n=1, cutoff=0.5)
+    if len(matches) == 0:
+        return None
+    return str(matches[0])
+
+
+def _choice_error(option_name: str, choices: set[str], actual: str) -> str:
+    options = ", ".join(sorted(choices))
+    suggestion = _did_you_mean(actual, choices)
+    if suggestion is not None:
+        return (
+            f"{option_name} must be one of: {options}. "
+            f"Did you mean '{suggestion}'?"
+        )
+    return f"{option_name} must be one of: {options}."
+
+
+def _param_is_default(ctx: typer.Context, param_name: str) -> bool:
+    """Return True when a Click/Typer param came from default value."""
+    try:
+        source = ctx.get_parameter_source(param_name)
+    except Exception:
+        return True
+    return source in {None, ParameterSource.DEFAULT}
+
+
+def _apply_render_preset(
+    *,
+    ctx: typer.Context,
+    config: RenderConfig,
+    preset_name: str,
+) -> dict[str, Any]:
+    """Apply preset values only where user did not explicitly provide a CLI override."""
+    resolved_name, preset_values = resolve_preset(preset_name)
+    applied: dict[str, Any] = {}
+    skipped: list[str] = []
+    fields = RenderConfig.__dataclass_fields__.keys()
+
+    for key, value in sorted(preset_values.items()):
+        if key not in fields:
+            continue
+        if not _param_is_default(ctx, key):
+            skipped.append(str(key))
+            continue
+        setattr(config, key, value)
+        applied[str(key)] = value
+
+    return {
+        "name": resolved_name,
+        "applied": applied,
+        "skipped": tuple(skipped),
+    }
+
+
+def _print_render_dry_run_plan(
+    *,
+    infile: Path,
+    outfile: Path,
+    config: RenderConfig,
+    lucky: int | None,
+    lucky_out_dir: Path | None,
+    preset_summary: dict[str, Any] | None,
+) -> None:
+    """Print resolved render plan without writing audio."""
+    table = Table(title="Render Dry-Run Plan")
+    table.add_column("Key", style="cyan")
+    table.add_column("Value", style="white")
+    table.add_row("mode", "dry-run")
+    table.add_row("infile", str(infile))
+    table.add_row("outfile", str(outfile))
+    if preset_summary is not None:
+        table.add_row("preset", str(preset_summary.get("name", "")))
+        applied = preset_summary.get("applied", {})
+        skipped = preset_summary.get("skipped", ())
+        table.add_row(
+            "preset_applied_fields",
+            str(len(applied) if isinstance(applied, dict) else 0),
+        )
+        table.add_row(
+            "preset_overridden_fields",
+            str(len(skipped) if isinstance(skipped, tuple) else 0),
+        )
+
+    table.add_row("engine_requested", str(config.engine))
+    table.add_row("device_requested", str(config.device))
+    table.add_row("rt60", f"{float(config.rt60):.3f}")
+    table.add_row("wet", f"{float(config.wet):.3f}")
+    table.add_row("dry", f"{float(config.dry):.3f}")
+    table.add_row("repeat", str(int(config.repeat)))
+    table.add_row("fdn_matrix", str(config.fdn_matrix))
+    table.add_row("fdn_lines", str(int(config.fdn_lines)))
+    table.add_row("ir", str(config.ir))
+    table.add_row("ir_blend_count", str(len(config.ir_blend)))
+    table.add_row("automation_file", str(config.automation_file))
+    table.add_row("automation_points", str(len(config.automation_points)))
+    table.add_row("feature_vector_lanes", str(len(config.feature_vector_lanes)))
+    try:
+        targets = sorted(
+            collect_automation_targets(
+                path=(
+                    None
+                    if config.automation_file is None
+                    else Path(config.automation_file)
+                ),
+                point_specs=config.automation_points,
+                feature_lane_specs=config.feature_vector_lanes,
+            )
+        )
+    except ValueError:
+        targets = []
+    if len(targets) > 0:
+        table.add_row("automation_targets", ",".join(targets))
+    if lucky is not None:
+        target_dir = outfile.parent if lucky_out_dir is None else lucky_out_dir
+        table.add_row("lucky_count", str(int(lucky)))
+        table.add_row("lucky_out_dir", str(target_dir))
+    if not config.silent:
+        analysis_path = Path(config.analysis_out) if config.analysis_out is not None else Path(
+            f"{outfile}.analysis.json"
+        )
+        table.add_row("analysis_out", str(analysis_path))
+
+    # Dry-run means no disk audio write. Yes, this is the point.
+    table.add_row("audio_write", "skipped")
+    console.print(table)
+
+
 def _validate_fdn_matrix_name(fdn_matrix: str) -> None:
     """Validate FDN matrix topology identifier."""
     normalized = _normalize_fdn_matrix_name(fdn_matrix)
     if normalized not in _FDN_MATRIX_CHOICES:
-        options = ", ".join(sorted(_FDN_MATRIX_CHOICES))
-        msg = f"--fdn-matrix must be one of: {options}."
-        raise typer.BadParameter(msg)
+        raise typer.BadParameter(
+            _choice_error("--fdn-matrix", _FDN_MATRIX_CHOICES, normalized)
+        )
 
 
 def _validate_fdn_tv_settings(
@@ -3559,9 +3863,13 @@ def _validate_fdn_graph_settings(
 
     if normalized_matrix == "graph":
         if normalized_topology not in _FDN_GRAPH_TOPOLOGY_CHOICES:
-            options = ", ".join(sorted(_FDN_GRAPH_TOPOLOGY_CHOICES))
-            msg = f"--fdn-graph-topology must be one of: {options}."
-            raise typer.BadParameter(msg)
+            raise typer.BadParameter(
+                _choice_error(
+                    "--fdn-graph-topology",
+                    _FDN_GRAPH_TOPOLOGY_CHOICES,
+                    normalized_topology,
+                )
+            )
         if int(fdn_graph_degree) < 1:
             msg = "--fdn-graph-degree must be >= 1."
             raise typer.BadParameter(msg)
@@ -3628,9 +3936,9 @@ def _validate_fdn_link_filter_settings(
     """Validate feedback-link filter controls used in the FDN path."""
     normalized = _normalize_fdn_link_filter_name(fdn_link_filter)
     if normalized not in _FDN_LINK_FILTER_CHOICES:
-        options = ", ".join(sorted(_FDN_LINK_FILTER_CHOICES))
-        msg = f"--fdn-link-filter must be one of: {options}."
-        raise typer.BadParameter(msg)
+        raise typer.BadParameter(
+            _choice_error("--fdn-link-filter", _FDN_LINK_FILTER_CHOICES, normalized)
+        )
     if float(fdn_link_filter_hz) <= 0.0:
         msg = "--fdn-link-filter-hz must be > 0."
         raise typer.BadParameter(msg)
@@ -3704,9 +4012,9 @@ def _validate_ir_route_map_name(value: str) -> None:
     """Validate named convolution route-map preset."""
     normalized = _normalize_ir_route_map_name(value)
     if normalized not in _IR_ROUTE_MAP_CHOICES:
-        options = ", ".join(sorted(_IR_ROUTE_MAP_CHOICES))
-        msg = f"--ir-route-map must be one of: {options}."
-        raise typer.BadParameter(msg)
+        raise typer.BadParameter(
+            _choice_error("--ir-route-map", _IR_ROUTE_MAP_CHOICES, normalized)
+        )
 
 
 def _validate_ir_blend_settings(config: RenderConfig) -> None:
@@ -3767,9 +4075,9 @@ def _validate_conv_route_settings(
         raise typer.BadParameter(msg)
     normalized_curve = _normalize_conv_route_curve_name(conv_route_curve)
     if normalized_curve not in _CONV_ROUTE_CURVE_CHOICES:
-        options = ", ".join(sorted(_CONV_ROUTE_CURVE_CHOICES))
-        msg = f"--conv-route-curve must be one of: {options}."
-        raise typer.BadParameter(msg)
+        raise typer.BadParameter(
+            _choice_error("--conv-route-curve", _CONV_ROUTE_CURVE_CHOICES, normalized_curve)
+        )
 
 
 def _validate_ambisonic_settings(infile: Path, config: RenderConfig) -> None:
@@ -3779,17 +4087,25 @@ def _validate_ambisonic_settings(infile: Path, config: RenderConfig) -> None:
         raise typer.BadParameter("--ambi-order must be >= 0.")
 
     if config.ambi_normalization not in _AMBI_NORMALIZATION_CHOICES:
-        options = ", ".join(sorted(_AMBI_NORMALIZATION_CHOICES))
-        raise typer.BadParameter(f"--ambi-normalization must be one of: {options}.")
+        raise typer.BadParameter(
+            _choice_error(
+                "--ambi-normalization",
+                _AMBI_NORMALIZATION_CHOICES,
+                str(config.ambi_normalization),
+            )
+        )
     if config.channel_order not in _AMBI_CHANNEL_ORDER_CHOICES:
-        options = ", ".join(sorted(_AMBI_CHANNEL_ORDER_CHOICES))
-        raise typer.BadParameter(f"--channel-order must be one of: {options}.")
+        raise typer.BadParameter(
+            _choice_error("--channel-order", _AMBI_CHANNEL_ORDER_CHOICES, str(config.channel_order))
+        )
     if config.ambi_encode_from not in _AMBI_ENCODE_CHOICES:
-        options = ", ".join(sorted(_AMBI_ENCODE_CHOICES))
-        raise typer.BadParameter(f"--ambi-encode-from must be one of: {options}.")
+        raise typer.BadParameter(
+            _choice_error("--ambi-encode-from", _AMBI_ENCODE_CHOICES, str(config.ambi_encode_from))
+        )
     if config.ambi_decode_to not in _AMBI_DECODE_CHOICES:
-        options = ", ".join(sorted(_AMBI_DECODE_CHOICES))
-        raise typer.BadParameter(f"--ambi-decode-to must be one of: {options}.")
+        raise typer.BadParameter(
+            _choice_error("--ambi-decode-to", _AMBI_DECODE_CHOICES, str(config.ambi_decode_to))
+        )
 
     if order == 0:
         if config.ambi_encode_from != "none":
@@ -3857,8 +4173,13 @@ def _validate_ambisonic_settings(infile: Path, config: RenderConfig) -> None:
 def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
     """Validate automation file/options before render dispatch."""
     if config.automation_mode not in _AUTOMATION_MODE_CHOICES:
-        choices = ", ".join(sorted(_AUTOMATION_MODE_CHOICES))
-        raise typer.BadParameter(f"--automation-mode must be one of: {choices}.")
+        raise typer.BadParameter(
+            _choice_error(
+                "--automation-mode",
+                _AUTOMATION_MODE_CHOICES,
+                str(config.automation_mode),
+            )
+        )
 
     if config.automation_block_ms <= 0.0:
         raise typer.BadParameter("--automation-block-ms must be > 0.")
@@ -3876,8 +4197,13 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
     if config.feature_vector_hop_ms <= 0.0:
         raise typer.BadParameter("--feature-vector-hop-ms must be > 0.")
     if config.feature_guide_policy not in FEATURE_GUIDE_POLICY_CHOICES:
-        choices = ", ".join(sorted(FEATURE_GUIDE_POLICY_CHOICES))
-        raise typer.BadParameter(f"--feature-guide-policy must be one of: {choices}.")
+        raise typer.BadParameter(
+            _choice_error(
+                "--feature-guide-policy",
+                set(FEATURE_GUIDE_POLICY_CHOICES),
+                str(config.feature_guide_policy),
+            )
+        )
     if config.feature_guide is not None and not Path(config.feature_guide).exists():
         raise typer.BadParameter(f"Feature guide file not found: {config.feature_guide}")
 
