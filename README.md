@@ -108,6 +108,7 @@ batch workflows.
     - [8.24 Rapid convolution of `A.wav` with `B.wav`](#824-rapid-convolution-of-awav-with-bwav)
     - [8.25 Lucky mode (`--lucky N`) for wild random batches](#825-lucky-mode---lucky-n-for-wild-random-batches)
     - [8.26 Feature-vector-driven reverb automation](#826-feature-vector-driven-reverb-automation)
+    - [8.27 AI research and data augmentation dataset generation](#827-ai-research-and-data-augmentation-dataset-generation)
   - [9.0 New User Guide](#90-new-user-guide)
     - [9.1 Start Here (5-minute setup)](#91-start-here-5-minute-setup)
     - [9.2 Processing Architecture](#92-processing-architecture)
@@ -176,6 +177,7 @@ batch workflows.
     - [13.16 `verbx immersive handoff SCENE_FILE OUT_DIR` switches](#1316-verbx-immersive-handoff-scene_file-out_dir-switches)
     - [13.17 `verbx immersive qc INFILE` switches](#1317-verbx-immersive-qc-infile-switches)
     - [13.18 `verbx immersive queue` switches](#1318-verbx-immersive-queue-switches)
+    - [13.19 `verbx batch augment-template` and `verbx batch augment MANIFEST` switches](#1319-verbx-batch-augment-template-and-verbx-batch-augment-manifest-switches)
   - [14.0 CLI Command Cookbook](#140-cli-command-cookbook)
     - [14.1 Global help](#141-global-help)
     - [14.2 Core commands](#142-core-commands)
@@ -339,6 +341,8 @@ This installs `verbx` and renders an intentionally extreme long-tail reverb as `
 - JSON template commands for batch and immersive workflows.
 - Batch manifests with scheduling policies, retries, dry-run, fail-fast/continue modes.
 - Batch checkpoint/resume support for long render queues.
+- AI-oriented augmentation pipeline (`batch augment`) with deterministic profile-based
+  parameter sampling, split/label metadata, and JSONL summary artifacts.
 - Immersive distributed file queue (`template`, `status`, `worker`) with heartbeats and reclaim/retry semantics.
 - Queue manifest ID uniqueness enforcement for safe distributed execution.
 
@@ -880,6 +884,7 @@ Current implementation level: **v0.7.0**
 - v0.7 Track D additions: cache-backed `ir morph` command (`linear`, `equal-power`, `spectral`, `envelope-aware`), render-time IR blending via `--ir-blend`/`--ir-blend-mix`, and morph quality metadata (RT drift, spectral distance, coherence deltas)
 - v0.7 immersive interoperability additions: `immersive handoff` sidecar/deliverable packaging, object/bed policy checks, `immersive qc` gates, and distributed `immersive queue` worker heartbeats/retry semantics
 - v0.7 immersive hardening additions: strict handoff now fails on policy violations, scene validation errors, or any QC gate failure; scene sample-rate mismatches are surfaced in validation payloads; queue manifests now require unique job IDs
+- v0.7 AI/research additions: deterministic batch augmentation workflow (`batch augment-template`, `batch augment`) with profile-driven sampling, split/label metadata, JSONL dataset manifests, and summary artifacts
 
 ### 7.1 Public-launch hardening: top 5 likely complaints and mitigations
 
@@ -1350,6 +1355,35 @@ Notes:
 - Feature payloads include versioned schema metadata under
   `effective.automation.feature_vector.schema_version` and
   `effective.automation.feature_vector.source_schema`.
+
+### 8.27 AI research and data augmentation dataset generation
+
+Use this to generate deterministic, metadata-rich reverberant training sets.
+
+```bash
+# emit manifest template
+verbx batch augment-template > augment_manifest.json
+
+# plan-only check
+verbx batch augment augment_manifest.json --dry-run
+
+# render dataset and metadata artifacts
+verbx batch augment augment_manifest.json \
+  --jobs 8 \
+  --copy-dry \
+  --summary-out out/augmentation_summary.json \
+  --jsonl-out out/augmentation_manifest.jsonl
+```
+
+Notes:
+
+- Built-in profiles: `asr-reverb-v1`, `music-reverb-v1`, `drums-room-v1`.
+- Manifest jobs support `split`, `label`, `tags`, and arbitrary per-source
+  `metadata` payloads for downstream ML pipelines.
+- JSONL rows include deterministic seed, sampled archetype/config, output path,
+  and render success/error status.
+- Use `--profile`, `--seed`, and `--variants-per-input` to override manifest
+  values for rapid experiment sweeps without editing files.
 
 ## 9.0 New User Guide
 
@@ -2494,6 +2528,29 @@ No command-specific switches (other than `--help`).
 | `--lucky-out-dir` | Shared output directory for batch lucky renders. | Helpful for collecting all randomized outputs in one place. |
 | `--lucky-seed` | Deterministic seed for batch lucky randomization. | Keep fixed to regenerate the same lucky batch expansion. |
 
+### 13.19 `verbx batch augment-template` and `verbx batch augment MANIFEST` switches
+
+`verbx batch augment-template` has no command-specific switches (other than `--help`).
+
+`verbx batch augment MANIFEST` switches:
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--output-root` | Override output directory from manifest. | Use to route one manifest into multiple experiment roots without editing JSON. |
+| `--profile` | Profile override (`asr-reverb-v1`, `music-reverb-v1`, `drums-room-v1`). | Useful for fast profile A/B runs against the same source list. |
+| `--seed` | Deterministic seed override. | Keep fixed for reproducibility; change to sample a new augmentation draw. |
+| `--variants-per-input` | Global variant count override per source. | Increase for higher diversity; reduce for quick iteration. |
+| `--write-analysis / --no-write-analysis` | Per-render analysis sidecar generation override. | Keep off for throughput-focused dataset generation; enable for QA datasets. |
+| `--copy-dry / --no-copy-dry` | Copy clean sources to output tree for paired datasets. | Enable for clean/wet supervised tasks. |
+| `--jobs` | Number of concurrent workers (`0` = auto). | Set near available cores for throughput. |
+| `--schedule [fifo\|shortest-first\|longest-first]` | Job ordering policy for expanded variants. | `longest-first` usually keeps workers saturated. |
+| `--retries` | Retry count per failed render. | Use `1-2` for transient filesystem/runtime hiccups. |
+| `--continue-on-error / --fail-fast` | Continue after failures or stop immediately. | Fail-fast for strict pipelines; continue for exploratory corpus generation. |
+| `--fail-if-any-failed / --allow-failed` | Exit behavior when failures occurred. | Keep default fail behavior for CI and data-pipeline gates. |
+| `--dry-run` | Validate manifest and print expanded augmentation plan only. | Recommended before long/high-volume generation runs. |
+| `--jsonl-out` | Dataset metadata JSONL path. | Default is `<output_root>/augmentation_manifest.jsonl`. |
+| `--summary-out` | Summary JSON path. | Default is `<output_root>/augmentation_summary.json`. |
+
 ### 13.15 `verbx immersive template` switches
 
 No command-specific switches (other than `--help`).
@@ -2562,6 +2619,8 @@ verbx quickstart
 verbx doctor [--json-out doctor.json]
 verbx presets [--show PRESET]
 verbx version
+verbx batch augment-template
+verbx batch augment augment_manifest.json [options]
 verbx immersive template
 verbx immersive handoff scene.json out_dir
 verbx immersive qc mix.wav --layout 7.1.2 --fail-on-violation
@@ -2723,6 +2782,9 @@ verbx batch template > manifest.json
 verbx batch render manifest.json --jobs 4   # parallel workers
 verbx batch render manifest.json --jobs 0 --schedule longest-first --retries 1
 verbx batch render manifest.json --jobs 4 --dry-run
+verbx batch augment-template > augment_manifest.json
+verbx batch augment augment_manifest.json --jobs 8 --copy-dry
+verbx batch augment augment_manifest.json --dry-run
 ```
 
 ## 15.0 Pregenerated IRs and Audio Examples
@@ -2880,6 +2942,7 @@ Testing note:
 ## 20.0 Additional Docs
 
 - [IR synthesis guide](docs/IR_SYNTHESIS.md)
+- [AI augmentation guide](docs/AI_AUGMENTATION.md)
 - [Extreme cookbook (100 workflows)](docs/EXTREME_COOKBOOK.md)
 - [Academic references](docs/REFERENCES.md)
 - [Changelog](CHANGELOG.md)

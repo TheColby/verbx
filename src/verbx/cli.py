@@ -58,6 +58,13 @@ from verbx.core.accel import (
     resolve_device,
     resolve_device_for_engine,
 )
+from verbx.core.augmentation import (
+    AugmentationBuild,
+    augmentation_profiles,
+    build_augmentation_manifest_template,
+    build_augmentation_plans,
+    render_config_snapshot,
+)
 from verbx.core.automation import (
     CONV_AUTOMATION_TARGETS,
     ENGINE_AUTOMATION_TARGETS,
@@ -2367,6 +2374,200 @@ def batch_template() -> None:
     typer.echo(json.dumps(template, indent=2))
 
 
+@batch_app.command("augment-template")
+def batch_augment_template() -> None:
+    """Print an AI/data-augmentation manifest template as JSON."""
+    template = build_augmentation_manifest_template()
+    template["profiles"] = {
+        name: {"description": str(data.get("description", ""))}
+        for name, data in augmentation_profiles().items()
+    }
+    typer.echo(json.dumps(template, indent=2))
+
+
+@batch_app.command("augment")
+def batch_augment(
+    manifest: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
+    output_root: Path | None = typer.Option(
+        None,
+        "--output-root",
+        resolve_path=True,
+        help="Override output root directory from manifest.",
+    ),
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        help="Optional profile override (for quick profile A/B against one manifest).",
+    ),
+    seed: int | None = typer.Option(
+        None,
+        "--seed",
+        help="Optional deterministic seed override.",
+    ),
+    variants_per_input: int | None = typer.Option(
+        None,
+        "--variants-per-input",
+        min=1,
+        max=500,
+        help="Optional variants-per-source override.",
+    ),
+    write_analysis: bool | None = typer.Option(
+        None,
+        "--write-analysis/--no-write-analysis",
+        help="Override manifest write_analysis behavior.",
+    ),
+    copy_dry: bool = typer.Option(
+        False,
+        "--copy-dry/--no-copy-dry",
+        help="Copy clean source files into output tree (paired dry/wet dataset layout).",
+    ),
+    jobs: int = typer.Option(0, "--jobs", min=0, help="0 = auto"),
+    schedule: BatchSchedulePolicy = typer.Option("longest-first", "--schedule"),
+    retries: int = typer.Option(0, "--retries", min=0),
+    continue_on_error: bool = typer.Option(False, "--continue-on-error/--fail-fast"),
+    fail_if_any_failed: bool = typer.Option(
+        True,
+        "--fail-if-any-failed/--allow-failed",
+        help="Exit non-zero when any augmentation render fails.",
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+    jsonl_out: Path | None = typer.Option(
+        None,
+        "--jsonl-out",
+        resolve_path=True,
+        help=(
+            "Path for dataset metadata JSONL "
+            "(default: <output_root>/augmentation_manifest.jsonl)."
+        ),
+    ),
+    summary_out: Path | None = typer.Option(
+        None,
+        "--summary-out",
+        resolve_path=True,
+        help="Path for run summary JSON (default: <output_root>/augmentation_summary.json).",
+    ),
+) -> None:
+    """Render a deterministic augmentation dataset for AI research workflows."""
+    try:
+        payload = json.loads(manifest.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise typer.BadParameter(f"Invalid JSON manifest: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise typer.BadParameter("Augmentation manifest must be a JSON object.")
+
+    if profile is not None:
+        payload["profile"] = str(profile)
+    if seed is not None:
+        payload["seed"] = int(seed)
+    if variants_per_input is not None:
+        payload["variants_per_input"] = int(variants_per_input)
+    if write_analysis is not None:
+        payload["write_analysis"] = bool(write_analysis)
+
+    try:
+        build = build_augmentation_plans(
+            payload=cast(dict[str, Any], payload),
+            manifest_path=manifest,
+            output_root_override=output_root,
+            copy_dry=copy_dry,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if len(build.plans) == 0:
+        raise typer.BadParameter("No augmentation plans were generated from manifest.")
+
+    for plan in build.plans:
+        if plan.infile.resolve() == plan.outfile.resolve():
+            msg = (
+                f"Augmentation source #{plan.source_index} resolved identical input/output path: "
+                f"{plan.infile}"
+            )
+            raise typer.BadParameter(msg)
+        if not plan.infile.exists():
+            raise typer.BadParameter(f"Augmentation infile not found: {plan.infile}")
+        _validate_output_audio_path(plan.outfile, str(plan.config.output_subtype))
+
+    if dry_run:
+        _print_augmentation_dry_run(build=build, schedule=schedule)
+        return
+
+    _copy_augmentation_dry_sources(build=build)
+
+    prepared_jobs = [
+        BatchJobSpec(
+            index=plan.index,
+            infile=plan.infile,
+            outfile=plan.outfile,
+            config=plan.config,
+            estimated_cost=estimate_job_cost(plan.infile, plan.config),
+        )
+        for plan in build.plans
+    ]
+
+    max_workers = int(os.cpu_count() or 1) if jobs == 0 else int(jobs)
+    max_workers = max(1, min(max_workers, len(prepared_jobs)))
+    results_by_index: dict[int, BatchJobResult] = {}
+
+    def runner(job: BatchJobSpec) -> None:
+        run_render_pipeline(infile=job.infile, outfile=job.outfile, config=job.config)
+
+    def on_result(result: BatchJobResult) -> None:
+        results_by_index[int(result.index)] = result
+        if result.success:
+            console.print(
+                f"augmented {result.index}: {result.outfile} "
+                f"(attempts={result.attempts}, {result.duration_seconds:.2f}s)"
+            )
+        else:
+            console.print(
+                f"augment-failed {result.index}: {result.outfile} "
+                f"(attempts={result.attempts}) {result.error}"
+            )
+
+    try:
+        run_parallel_batch(
+            jobs=prepared_jobs,
+            max_workers=max_workers,
+            schedule=schedule,
+            retries=retries,
+            continue_on_error=continue_on_error,
+            runner=runner,
+            on_result=on_result,
+        )
+    except RuntimeError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    out_root = build.output_root
+    out_root.mkdir(parents=True, exist_ok=True)
+    jsonl_path = (
+        jsonl_out.resolve()
+        if jsonl_out is not None
+        else (out_root / "augmentation_manifest.jsonl").resolve()
+    )
+    summary_path = (
+        summary_out.resolve()
+        if summary_out is not None
+        else (out_root / "augmentation_summary.json").resolve()
+    )
+    records = _build_augmentation_records(build=build, results_by_index=results_by_index)
+    _write_jsonl_atomic(jsonl_path, records)
+    summary_payload = _build_augmentation_summary(
+        build=build,
+        records=records,
+        manifest_path=manifest,
+        jsonl_path=jsonl_path,
+        schedule=schedule,
+        jobs=max_workers,
+    )
+    _write_json_atomic(summary_path, summary_payload)
+    _print_augmentation_summary_table(summary_payload, summary_path=summary_path)
+
+    failed = int(summary_payload.get("failed", 0))
+    if fail_if_any_failed and failed > 0:
+        raise typer.Exit(code=2)
+
+
 @batch_app.command("render")
 def batch_render(
     manifest: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
@@ -2954,6 +3155,196 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     tmp = path.with_suffix(f"{path.suffix}.tmp")
     tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     tmp.replace(path)
+
+
+def _write_jsonl_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
+    """Atomically write JSONL rows to disk."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(f"{path.suffix}.tmp")
+    with tmp.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(f"{json.dumps(row, sort_keys=True)}\n")
+    tmp.replace(path)
+
+
+def _print_augmentation_dry_run(
+    *,
+    build: AugmentationBuild,
+    schedule: BatchSchedulePolicy,
+) -> None:
+    """Print dry-run summary for augmentation plan expansion."""
+    table = Table(title="Batch Augment Dry-Run")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="white")
+    table.add_row("dataset_name", build.dataset_name)
+    table.add_row("profile", build.profile)
+    table.add_row("seed", str(build.seed))
+    table.add_row("variants_per_input", str(build.variants_per_input))
+    table.add_row("write_analysis", str(build.write_analysis))
+    table.add_row("copy_dry", str(build.copy_dry))
+    table.add_row("schedule", str(schedule))
+    table.add_row("plans", str(len(build.plans)))
+    table.add_row("output_root", str(build.output_root))
+    console.print(table)
+
+    ordered = order_jobs(
+        [
+            BatchJobSpec(
+                index=plan.index,
+                infile=plan.infile,
+                outfile=plan.outfile,
+                config=plan.config,
+                estimated_cost=estimate_job_cost(plan.infile, plan.config),
+            )
+            for plan in build.plans
+        ],
+        schedule,
+    )
+    for job in ordered:
+        match_plan = build.plans[job.index - 1]
+        console.print(
+            "[dry-run] augment "
+            f"{job.index}: {job.infile} -> {job.outfile} "
+            f"(profile={match_plan.profile}, archetype={match_plan.archetype}, "
+            f"split={match_plan.split}, label={match_plan.label}, seed={match_plan.seed})"
+        )
+
+
+def _copy_augmentation_dry_sources(*, build: AugmentationBuild) -> list[Path]:
+    """Copy clean source files to output tree (optional paired dataset mode)."""
+    copied: list[Path] = []
+    seen: set[str] = set()
+    for plan in build.plans:
+        target = plan.dry_copy_outfile
+        if target is None:
+            continue
+        key = str(target.resolve())
+        if key in seen:
+            continue
+        seen.add(key)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(plan.infile, target)
+        copied.append(target)
+    return copied
+
+
+def _build_augmentation_records(
+    *,
+    build: AugmentationBuild,
+    results_by_index: dict[int, BatchJobResult],
+) -> list[dict[str, Any]]:
+    """Build machine-friendly per-variant metadata rows."""
+    records: list[dict[str, Any]] = []
+    for plan in build.plans:
+        result = results_by_index.get(plan.index)
+        success = bool(result.success) if result is not None else False
+        duration = float(result.duration_seconds) if result is not None else 0.0
+        attempts = int(result.attempts) if result is not None else 0
+        error = None if result is None else result.error
+        outfile_rel = (
+            str(plan.outfile.relative_to(build.output_root))
+            if plan.outfile.is_relative_to(build.output_root)
+            else str(plan.outfile)
+        )
+        record = {
+            "augment_index": int(plan.index),
+            "source_index": int(plan.source_index),
+            "source_id": plan.source_id,
+            "split": plan.split,
+            "label": plan.label,
+            "tags": list(plan.tags),
+            "infile": str(plan.infile.resolve()),
+            "outfile": str(plan.outfile.resolve()),
+            "outfile_relative": outfile_rel,
+            "profile": plan.profile,
+            "archetype": plan.archetype,
+            "variant_index": int(plan.variant_index),
+            "seed": int(plan.seed),
+            "render_config": render_config_snapshot(plan.config),
+            "success": success,
+            "attempts": attempts,
+            "duration_seconds": duration,
+            "error": error,
+            "source_metadata": dict(plan.source_metadata),
+        }
+        if plan.dry_copy_outfile is not None:
+            dry_rel = (
+                str(plan.dry_copy_outfile.relative_to(build.output_root))
+                if plan.dry_copy_outfile.is_relative_to(build.output_root)
+                else str(plan.dry_copy_outfile)
+            )
+            record["dry_outfile"] = str(plan.dry_copy_outfile.resolve())
+            record["dry_outfile_relative"] = dry_rel
+        records.append(record)
+    return records
+
+
+def _build_augmentation_summary(
+    *,
+    build: AugmentationBuild,
+    records: list[dict[str, Any]],
+    manifest_path: Path,
+    jsonl_path: Path,
+    schedule: BatchSchedulePolicy,
+    jobs: int,
+) -> dict[str, Any]:
+    """Build summary payload for augmentation run."""
+    total = len(records)
+    success = int(sum(1 for row in records if bool(row.get("success", False))))
+    failed = int(total - success)
+    split_counts: dict[str, int] = {}
+    label_counts: dict[str, int] = {}
+    for row in records:
+        split = str(row.get("split", ""))
+        label = str(row.get("label", ""))
+        split_counts[split] = int(split_counts.get(split, 0) + 1)
+        if label != "":
+            label_counts[label] = int(label_counts.get(label, 0) + 1)
+    return {
+        "version": "0.7",
+        "mode": "batch-augment",
+        "dataset_name": build.dataset_name,
+        "profile": build.profile,
+        "seed": int(build.seed),
+        "variants_per_input": int(build.variants_per_input),
+        "write_analysis": bool(build.write_analysis),
+        "copy_dry": bool(build.copy_dry),
+        "manifest_path": str(manifest_path.resolve()),
+        "output_root": str(build.output_root.resolve()),
+        "metadata_jsonl": str(jsonl_path.resolve()),
+        "schedule": str(schedule),
+        "jobs": int(jobs),
+        "planned": int(total),
+        "success": int(success),
+        "failed": int(failed),
+        "split_counts": split_counts,
+        "label_counts": label_counts,
+    }
+
+
+def _print_augmentation_summary_table(
+    summary: dict[str, Any],
+    *,
+    summary_path: Path,
+) -> None:
+    """Print concise augmentation run summary."""
+    table = Table(title="Batch Augment Summary")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="white")
+    for key in (
+        "dataset_name",
+        "profile",
+        "seed",
+        "variants_per_input",
+        "planned",
+        "success",
+        "failed",
+        "output_root",
+        "metadata_jsonl",
+    ):
+        table.add_row(key, str(summary.get(key, "")))
+    table.add_row("summary_json", str(summary_path.resolve()))
+    console.print(table)
 
 
 class _ScoredFitCandidate:

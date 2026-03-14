@@ -1577,6 +1577,137 @@ def test_batch_render_parallel_jobs(tmp_path: Path) -> None:
     assert out2.exists()
 
 
+def test_batch_augment_template_emits_manifest_shape() -> None:
+    result = runner.invoke(app, ["batch", "augment-template"])
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["version"] == "0.7"
+    assert "jobs" in payload
+    assert "profiles" in payload
+    assert "asr-reverb-v1" in payload["profiles"]
+
+
+def test_batch_augment_dry_run_plans_without_writing_audio(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "in.wav"
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[40:90, 0] = 0.4
+    sf.write(str(infile), audio, sr)
+
+    out_root = tmp_path / "aug_out"
+    manifest = tmp_path / "augment_manifest.json"
+    payload = {
+        "version": "0.7",
+        "dataset_name": "dry_run_case",
+        "profile": "asr-reverb-v1",
+        "seed": 17,
+        "variants_per_input": 2,
+        "output_root": str(out_root),
+        "jobs": [
+            {
+                "id": "utt_0001",
+                "infile": str(infile),
+                "split": "train",
+                "label": "speaker_a",
+                "tags": ["speech"],
+                "options": {"rt60": 0.25, "wet": 0.28, "dry": 0.92},
+            }
+        ],
+    }
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = runner.invoke(app, ["batch", "augment", str(manifest), "--dry-run"])
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "Batch Augment Dry-Run" in text
+    assert "plans" in text
+    assert not out_root.exists()
+
+
+def test_batch_augment_generates_dataset_and_metadata(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "voice.wav"
+    audio = np.zeros((1400, 1), dtype=np.float64)
+    audio[120:240, 0] = 0.55
+    sf.write(str(infile), audio, sr)
+
+    out_root = tmp_path / "augmented_data"
+    manifest = tmp_path / "augment_manifest_run.json"
+    payload = {
+        "version": "0.7",
+        "dataset_name": "research_set_alpha",
+        "profile": "asr-reverb-v1",
+        "seed": 31,
+        "variants_per_input": 2,
+        "output_root": str(out_root),
+        "default_options": {
+            "engine": "algo",
+            "rt60": 0.22,
+            "wet": 0.30,
+            "dry": 0.90,
+            "repeat": 1,
+            "fdn_matrix": "hadamard",
+            "fdn_lines": 6,
+            "output_subtype": "pcm16",
+            "normalize_stage": "none",
+            "output_peak_norm": "input",
+        },
+        "jobs": [
+            {
+                "id": "src_voice_01",
+                "infile": str(infile),
+                "split": "train",
+                "label": "speaker_a",
+                "tags": ["speech", "en"],
+                "metadata": {"speaker_id": "A01"},
+            }
+        ],
+    }
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            "augment",
+            str(manifest),
+            "--jobs",
+            "1",
+            "--copy-dry",
+            "--allow-failed",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    augmented = sorted((out_root / "train").glob("*__a*.wav"))
+    assert len(augmented) == 2
+    dry = sorted((out_root / "train").glob("*__dry.wav"))
+    assert len(dry) == 1
+
+    jsonl_path = out_root / "augmentation_manifest.jsonl"
+    summary_path = out_root / "augmentation_summary.json"
+    assert jsonl_path.exists()
+    assert summary_path.exists()
+
+    rows = [
+        json.loads(line)
+        for line in jsonl_path.read_text(encoding="utf-8").splitlines()
+        if line.strip() != ""
+    ]
+    assert len(rows) == 2
+    assert all(bool(row["success"]) for row in rows)
+    assert all(str(row["label"]) == "speaker_a" for row in rows)
+    assert all(str(row["profile"]) == "asr-reverb-v1" for row in rows)
+    assert all("render_config" in row for row in rows)
+    assert all("source_metadata" in row for row in rows)
+
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["dataset_name"] == "research_set_alpha"
+    assert int(summary["planned"]) == 2
+    assert int(summary["success"]) == 2
+    assert int(summary["failed"]) == 0
+
+
 def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
     sr = 16_000
     infile = tmp_path / "in.wav"
