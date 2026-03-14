@@ -7,6 +7,7 @@
 - Generate many reverberant variants per clean source with fixed random seeds.
 - Keep train/val/test split and label metadata attached to every rendered file.
 - Export machine-friendly run artifacts (`JSONL` manifest + summary JSON).
+- Emit split-level QA bundle artifacts (quality summaries + class-balance tables).
 - Export optional dataset-card Markdown and per-output metrics CSV artifacts.
 - Enforce split-isolation by default to reduce accidental train/val/test leakage.
 - Optionally copy dry sources into the output tree for paired clean/wet training.
@@ -34,6 +35,8 @@ verbx batch augment augment_manifest.json \
   --copy-dry \
   --dataset-card-out out/DATASET_CARD.md \
   --metrics-csv-out out/augmentation_metrics.csv \
+  --qa-bundle-out out/augmentation_qa_bundle.json \
+  --provenance-hash \
   --summary-out out/augmentation_summary.json \
   --jsonl-out out/augmentation_manifest.jsonl
 ```
@@ -94,10 +97,15 @@ verbx batch augment augment_manifest.json --dry-run
     sampled `render_config`, deterministic `seed`, and success/error status
 - Summary JSON:
   - aggregate counts (`planned/success/failed`) plus split/label/archetype/tag counts
+- QA bundle JSON:
+  - split-level metric summaries and split/global class-balance tables
+  - when `--baseline-summary` is provided, includes regeneration deltas
 - Optional dataset card:
   - markdown file documenting generation settings and distribution summary
 - Optional metrics CSV:
   - per-output scalar features for QA, filtering, and dataset debugging
+- Optional provenance hash:
+  - deterministic manifest+input signature for external dataset registries
 
 ## Reproducibility notes
 
@@ -106,3 +114,5 @@ verbx batch augment augment_manifest.json --dry-run
   without editing files.
 - Default split guard enforces one source ID/input path per split. Use
   `--allow-split-overlap` only when intentional cross-split reuse is required.
+- Use `--baseline-summary <previous_summary.json>` to compare class-balance drift
+  between regeneration runs.

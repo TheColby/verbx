@@ -22,6 +22,9 @@ AmbiEncodeFrom = Literal["none", "mono", "stereo"]
 AmbiDecodeTo = Literal["none", "stereo"]
 AutomationMode = Literal["auto", "sample", "block"]
 FeatureGuidePolicy = Literal["align", "strict"]
+IRMorphMismatchPolicy = Literal["coerce", "strict"]
+FDNSpatialCouplingMode = Literal["none", "adjacent", "front_rear", "bed_top", "all_to_all"]
+FDNNonlinearityMode = Literal["none", "tanh", "softclip"]
 
 
 @dataclass(slots=True)
@@ -77,6 +80,11 @@ class RenderConfig:
     fdn_graph_topology: str = "ring"
     fdn_graph_degree: int = 2
     fdn_graph_seed: int = 2026
+    fdn_spatial_coupling_mode: FDNSpatialCouplingMode = "none"
+    fdn_spatial_coupling_strength: float = 0.0
+    fdn_nonlinearity: FDNNonlinearityMode = "none"
+    fdn_nonlinearity_amount: float = 0.0
+    fdn_nonlinearity_drive: float = 1.0
     room_size_macro: float = 0.0
     clarity_macro: float = 0.0
     warmth_macro: float = 0.0
@@ -101,6 +109,7 @@ class RenderConfig:
     ir_blend_align_decay: bool = True
     ir_blend_phase_coherence: float = 0.75
     ir_blend_spectral_smooth_bins: int = 3
+    ir_blend_mismatch_policy: IRMorphMismatchPolicy = "coerce"
     ir_blend_cache_dir: str = ".verbx_cache/ir_morph"
     ir_blend_base_ir: str | None = None
     ir_blend_composite_ir: str | None = None

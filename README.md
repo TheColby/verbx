@@ -224,7 +224,7 @@ batch workflows.
       - [21.2.7 Stream R5: AI research and data augmentation operations](#2127-stream-r5-ai-research-and-data-augmentation-operations)
       - [21.2.8 Verification matrix and release SLOs](#2128-verification-matrix-and-release-slos)
       - [21.2.9 Risk register and mitigations](#2129-risk-register-and-mitigations)
-      - [21.2.10 Execution cadence and ownership model](#21210-execution-cadence-and-ownership-model)
+      - [21.2.10 Execution status](#21210-execution-status)
     - [21.3 Sources for Roadmap Items](#213-sources-for-roadmap-items)
   - [22.0 License](#220-license)
   - [23.0 Attribution](#230-attribution)
@@ -280,8 +280,10 @@ This installs `verbx` and renders an intentionally extreme long-tail reverb as `
 - Dual engines: algorithmic and partitioned-FFT convolution.
 - Algorithmic chain with pre-delay, Schroeder diffusion, and FDN late field.
 - Internal algorithmic, convolution, modulation, and analysis math runs in `f64` precision.
-- FDN matrix families: `hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`, `graph`.
+- FDN matrix families: `hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`, `graph`, `sdn_hybrid`.
 - Advanced FDN structures: DFM delays, sparse pair-mixing, cascaded FDN, graph topology/degree/seed controls.
+- Directional wet-bus coupling modes for immersive bed/object workflows.
+- Safety-bounded optional in-loop nonlinearity for controlled density/color enhancement.
 - Multiband/tilted RT60 control and tonal-correction equalization.
 - Perceptual macros: room size, clarity, warmth, envelopment.
 - Feedback-link filter modes (`none`/`lowpass`/`highpass`) with cutoff/mix controls.
@@ -326,10 +328,13 @@ This installs `verbx` and renders an intentionally extreme long-tail reverb as `
 - IR processing for damping/filtering/normalization/loudness shaping.
 - IR morphing modes: `linear`, `equal-power`, `spectral`, `envelope-aware`.
 - Early/late morph controls with decay alignment and phase-coherence safeguards.
+- Explicit morph/blend mismatch policy controls (`coerce`/`strict`) for
+  sample-rate/channel/duration compatibility handling.
 - `ir morph-sweep` alpha-timeline batches with QA CSV/JSON artifacts plus
   retry/checkpoint/resume controls for long runs.
 - Render-time IR blending with repeatable `--ir-blend` paths.
-- IR fitting pipeline with candidate scoring and optional tuning analysis.
+- IR fitting pipeline with candidate scoring, optional tuning analysis, and
+  topology-aware candidate assistance.
 - Deterministic IR cache with canonical source signatures (content hash + audio
   metadata) plus cache inspect/clear commands.
 - Lucky-mode randomized variants for render and IR workflows.
@@ -349,7 +354,9 @@ This installs `verbx` and renders an intentionally extreme long-tail reverb as `
 - Batch checkpoint/resume support for long render queues.
 - AI-oriented augmentation pipeline (`batch augment`) with deterministic profile-based
   parameter sampling, split-leakage guards, split/label/tag metadata, JSONL summary
-  artifacts, optional dataset cards, and optional per-output metrics CSV export.
+  artifacts, optional dataset cards, optional per-output metrics CSV export,
+  split-quality QA bundles, regeneration deltas (`--baseline-summary`), and
+  optional provenance hash emission (`--provenance-hash`).
 - Immersive distributed file queue (`template`, `status`, `worker`) with heartbeats and reclaim/retry semantics.
 - Queue manifest ID uniqueness enforcement for safe distributed execution.
 
@@ -888,10 +895,11 @@ Current implementation level: **v0.7.0**
 - v0.6 spatial additions: Ambisonics convention validation (`--ambi-order`, `--ambi-normalization`, `--channel-order`), FOA encode/decode transforms, yaw rotation, and Ambisonics spatial metrics in analysis mode
 - v0.7 Track A/C additions: JSON/CSV automation lanes (`--automation-file`), inline CLI points (`--automation-point`), block/sample evaluation, smoothing, clamp overrides, automation trace export, deterministic automation signatures, lane-level validation diagnostics, convolution-path automation target `ir-blend-alpha` for IR blend timeline control, and Track C automation targets for `fdn-rt60-tilt` and `fdn-tonal-correction-strength`
 - v0.7 Track B additions: frame-aligned feature bus (loudness/transient/spectral/harmonic), feature-vector lanes (`--feature-vector-lane`), weighted/curved/hysteretic mapping with multi-feature fusion, deterministic signatures for feature-driven automation, and feature-plus-parameter trace export (`--feature-vector-trace-out`)
-- v0.7 Track D additions: cache-backed `ir morph` command (`linear`, `equal-power`, `spectral`, `envelope-aware`), cache-signature canonicalization (content hash + format metadata), render-time IR blending via `--ir-blend`/`--ir-blend-mix`, morph quality metadata (RT drift, spectral distance, coherence deltas), and `ir morph-sweep` QA bundles with retries/checkpoint/resume
+- v0.7 Track D additions: cache-backed `ir morph` command (`linear`, `equal-power`, `spectral`, `envelope-aware`), cache-signature canonicalization (content hash + format metadata), render-time IR blending via `--ir-blend`/`--ir-blend-mix`, strict/coerce mismatch policy enforcement (`--mismatch-policy`, `--ir-blend-mismatch-policy`), morph quality metadata (RT drift, spectral distance, coherence deltas), and `ir morph-sweep` QA bundles with retries/checkpoint/resume
+- v0.7 topology expansion additions: directional wet-bus coupling (`--fdn-spatial-coupling-mode`, `--fdn-spatial-coupling-strength`), SDN-hybrid matrix family (`--fdn-matrix sdn_hybrid`), bounded in-loop nonlinearity (`--fdn-nonlinearity*`), and topology-assisted IR fitting candidate generation
 - v0.7 immersive interoperability additions: `immersive handoff` sidecar/deliverable packaging, object/bed policy checks, `immersive qc` gates, and distributed `immersive queue` worker heartbeats/retry semantics
 - v0.7 immersive hardening additions: strict handoff now fails on policy violations, scene validation errors, or any QC gate failure; scene sample-rate mismatches are surfaced in validation payloads; queue manifests now require unique job IDs
-- v0.7 AI/research additions: deterministic batch augmentation workflow (`batch augment-template`, `batch augment-profiles`, `batch augment`) with profile-driven sampling, split-isolation validation, split/label/tag metadata, JSONL dataset manifests, summary artifacts, optional dataset cards, and optional per-output metrics CSV export
+- v0.7 AI/research additions: deterministic batch augmentation workflow (`batch augment-template`, `batch augment-profiles`, `batch augment`) with profile-driven sampling, split-isolation validation, split/label/tag metadata, JSONL dataset manifests, summary artifacts, optional dataset cards, optional per-output metrics CSV export, split-level QA bundles (including baseline deltas), and optional augmentation provenance hashes for registry workflows
 
 ### 7.1 Public-launch hardening: top 5 likely complaints and mitigations
 
@@ -1383,6 +1391,8 @@ verbx batch augment augment_manifest.json \
   --copy-dry \
   --dataset-card-out out/DATASET_CARD.md \
   --metrics-csv-out out/augmentation_metrics.csv \
+  --qa-bundle-out out/augmentation_qa_bundle.json \
+  --provenance-hash \
   --summary-out out/augmentation_summary.json \
   --jsonl-out out/augmentation_manifest.jsonl
 ```
@@ -1398,7 +1408,12 @@ Notes:
 - JSONL rows include deterministic seed, sampled archetype/config, output path,
   and render success/error status.
 - Optional metrics CSV captures per-output scalar audio features for QA/filtering.
+- Augmentation runs emit a QA bundle JSON (default:
+  `augmentation_qa_bundle.json`) with split-level metric summaries and class-balance
+  tables; provide `--baseline-summary` to add regeneration deltas.
 - Optional dataset card output summarizes provenance and class/split distributions.
+- Enable `--provenance-hash` to emit a deterministic manifest+input hash suitable
+  for external dataset registries.
 - Use `--profile`, `--seed`, and `--variants-per-input` to override manifest
   values for rapid experiment sweeps without editing files.
 
@@ -1421,6 +1436,8 @@ verbx ir morph-sweep ir_a.wav ir_b.wav out/morph_sweep \
 Notes:
 
 - Use repeated `--alpha` options for explicit non-linear timelines.
+- Use `--mismatch-policy strict` to fail fast on sample-rate/channel/duration
+  incompatibilities before sweep execution.
 - QA CSV includes per-step quality metrics such as `rt60_drift_s` and
   `spectral_distance_db`.
 - `--resume` skips steps already marked successful in checkpoint data.
@@ -2179,7 +2196,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--allpass-delays-ms` | Optional comma-separated allpass delay list (milliseconds). | Use to tune diffusion timing explicitly; list length can be shorter/longer than `--allpass-stages`. |
 | `--comb-delays-ms` | Optional comma-separated FDN comb-like delay list (milliseconds). | Overrides default FDN line timing and effectively sets line count from the list length. |
 | `--fdn-lines` | FDN line count when `--comb-delays-ms` is not supplied. | More lines can increase density/smoothness but raise CPU usage. |
-| `--fdn-matrix` | FDN matrix family (`hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`, `graph`). | Use `circulant`/`elliptic` for alternative diffusion color; use `tv_unitary` for evolving orthonormal mixing; use `graph` for adjacency-structured pair mixing. |
+| `--fdn-matrix` | FDN matrix family (`hadamard`, `householder`, `random_orthogonal`, `circulant`, `elliptic`, `tv_unitary`, `graph`, `sdn_hybrid`). | Use `sdn_hybrid` for geometry-inspired scattering behavior; use `tv_unitary` for evolving orthonormal mixing; use `graph` for adjacency-structured pair mixing. |
 | `--fdn-tv-rate-hz` | Update rate for time-varying unitary mode. | Active only with `--fdn-matrix tv_unitary`; start with low rates. |
 | `--fdn-tv-depth` | Blend depth for time-varying unitary mode. | Active only with `--fdn-matrix tv_unitary`; keep moderate for stability/color balance. |
 | `--fdn-dfm-delays-ms` | Delay-feedback-matrix (DFM) delays (one value broadcast or one per line). | Very short delays can increase late-tail density and smoothness. |
@@ -2193,6 +2210,11 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--fdn-graph-topology` | Graph topology used by `--fdn-matrix graph` (`ring`, `path`, `star`, `random`). | `ring` is a balanced default; `star` produces hub-heavy energy routing; `random` increases variation. |
 | `--fdn-graph-degree` | Graph connectivity/stage degree for graph mode. | Increase gradually (`2-6`) to raise feedback mixing density. |
 | `--fdn-graph-seed` | Deterministic seed for graph pairing schedule generation. | Use fixed values for reproducible renders and A/B comparisons. |
+| `--fdn-spatial-coupling-mode [none\|adjacent\|front_rear\|bed_top\|all_to_all]` | Directional wet-bus coupling mode for immersive channel interaction. | Start with `front_rear` or `adjacent` at low strength for subtle bed/object energy exchange. |
+| `--fdn-spatial-coupling-strength` | Coupling amount (`0..1`) for `--fdn-spatial-coupling-mode`. | Keep low (`0.05-0.30`) for controlled broadening without collapsing channel identity. |
+| `--fdn-nonlinearity [none\|tanh\|softclip]` | Optional bounded in-loop feedback nonlinearity. | Use for controlled density/color enhancement experiments in high-feedback tails. |
+| `--fdn-nonlinearity-amount` | Wet blend amount (`0..1`) of nonlinear feedback shaping. | Keep moderate (`0.05-0.25`) to avoid over-saturation. |
+| `--fdn-nonlinearity-drive` | Drive multiplier (`0.1..8.0`) for nonlinear feedback shaping. | Increase gradually; higher values thicken tone and reduce linear transparency. |
 | `--room-size-macro` | Perceptual room-size macro (`-1..1`) mapped to timing/decay behavior. | Use positive values for larger-room behavior and longer spacing; negative values tighten response. |
 | `--clarity-macro` | Perceptual clarity macro (`-1..1`) mapped to damping/decay balance. | Positive values increase intelligibility; negative values bias toward thicker tails. |
 | `--warmth-macro` | Perceptual warmth macro (`-1..1`) mapped to spectral/decay coloration. | Positive values bias toward warmer, bass-heavier tails; negative values sound drier/brighter. |
@@ -2225,6 +2247,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--ir-blend-align-decay / --no-ir-blend-align-decay` | Enables/disables RT-alignment before blending. | Keep enabled for stable trajectories; disable only for intentionally raw/asymmetric decay transitions. |
 | `--ir-blend-phase-coherence` | Spectral phase-coherence safeguard strength (`0..1`). | Increase when spectral morphing sounds combed/phasier; lower for more aggressive phase movement. |
 | `--ir-blend-spectral-smooth-bins` | Frequency smoothing radius used by spectral blend modes (FFT bins). | Small values preserve detail; larger values reduce narrow-band artifacts. |
+| `--ir-blend-mismatch-policy [coerce\|strict]` | Blend-source mismatch behavior (sample-rate/channel/duration). | `coerce` auto-aligns blend IRs; `strict` fails early on any format mismatch. |
 | `--ir-blend-cache-dir` | Cache location for Track D morphed/blended IR artifacts. | Reuse this directory to make repeated blend renders deterministic and fast. |
 | `--self-convolve` | Uses the input file as its own IR for fast partitioned FFT self-convolution. | Useful for iterative texture/smear experiments without preparing a separate IR file. Equivalent to `--engine conv --ir INFILE`. |
 | `--ir-route-map [auto\|diagonal\|broadcast\|full]` | Route-map strategy for multichannel convolution. | Use `full` for explicit MxN routing, `diagonal` for one-to-one, `broadcast` for mono-style sends, or `auto` for default behavior. |
@@ -2523,6 +2546,10 @@ No command-specific switches (other than `--help`).
 | `--analyze-tuning / --no-analyze-tuning` | Enables/disables source tuning analysis during fit. | Enable for musically aligned IRs; disable for faster neutral fitting. |
 | `--cache-dir` | Cache directory for generated/loaded candidates. | Reuse across runs to avoid recomputing identical candidates. |
 
+Topology assistance is automatic in `ir fit`: candidate pools now include
+analysis-driven matrix/topology/filter/nonlinearity suggestions (including
+`sdn_hybrid`, graph variants, and bounded in-loop coloration profiles).
+
 ### 13.10 `verbx ir morph IR_A IR_B OUT_IR` switches
 
 | Switch | What it controls | Practical guidance |
@@ -2535,6 +2562,7 @@ No command-specific switches (other than `--help`).
 | `--align-decay / --no-align-decay` | Enable/disable decay-shape alignment before morphing. | Keep enabled for stable RT behavior and fewer collapse/stretch artifacts. |
 | `--phase-coherence` | Spectral phase-coherence safeguard strength (`0..1`). | Increase when spectral morphing sounds phasey/comb-filtered. |
 | `--spectral-smooth-bins` | Spectral smoothing radius (FFT bins). | Higher values smooth narrow resonances; lower values preserve fine detail. |
+| `--mismatch-policy [coerce\|strict]` | Morph-source mismatch behavior (sample-rate/channel/duration). | `coerce` aligns formats deterministically; `strict` fails before morph execution. |
 | `--target-sr` | Optional target sample rate for morph processing/output. | Set when normalizing a mixed IR library to one sample rate. |
 | `--cache-dir` | Cache directory for morphed IR artifacts and sidecars. | Reuse for deterministic reruns and fast iterative auditioning. |
 
@@ -2554,6 +2582,7 @@ No command-specific switches (other than `--help`).
 | `--align-decay / --no-align-decay` | Enable/disable decay-shape alignment before each step. | Keep enabled for smoother RT trajectories across sweeps. |
 | `--phase-coherence` | Spectral phase-coherence safeguard strength (`0..1`). | Raise when spectral sweeps show combing artifacts. |
 | `--spectral-smooth-bins` | Spectral smoothing radius (FFT bins). | Increase to reduce narrow resonance jitter between adjacent alpha steps. |
+| `--mismatch-policy [coerce\|strict]` | Sweep-source mismatch behavior (sample-rate/channel/duration). | Use `strict` in CI gates to catch incompatible source pairs before sweep execution. |
 | `--target-sr` | Optional unified sample rate for sweep processing/output. | Use when QA baselines require one fixed sample rate. |
 | `--cache-dir` | Morph cache directory for sweep jobs. | Reuse across repeated sweeps for deterministic cache behavior checks. |
 | `--workers` | Parallel sweep workers (`0` = auto). | Use more workers for long sweep lists on multi-core hosts. |
@@ -2630,6 +2659,9 @@ No command-specific switches (other than `--help`).
 | `--dataset-card-out` | Optional Markdown dataset-card output path. | Keep with your dataset artifacts to preserve provenance and distribution context. |
 | `--metrics-csv-out` | Optional per-output metrics CSV path. | Useful for filtering outlier renders and building QA dashboards. |
 | `--metrics-include-loudness / --metrics-fast` | Include or skip LUFS/true-peak/LRA in metrics CSV. | Use `--metrics-fast` for speed; enable loudness when label/QC policies require it. |
+| `--qa-bundle-out` | Optional augmentation QA bundle JSON output path. | Default is `<output_root>/augmentation_qa_bundle.json`; includes split-quality summaries and class-balance diagnostics. |
+| `--baseline-summary` | Optional prior summary/QA JSON used for regeneration deltas. | Use to compare split/label balance drift across reruns. |
+| `--provenance-hash / --no-provenance-hash` | Emit deterministic provenance hash over manifest payload + source signatures. | Enable when registering generated sets in external dataset catalogs/registries. |
 
 ### 13.15 `verbx immersive template` switches
 
@@ -3125,7 +3157,7 @@ outcomes rather than broad command-surface expansion.
 
 ### 21.2.1 Architecture objective function
 
-The remaining roadmap is evaluated against six architecture objectives:
+The v0.7.x roadmap was evaluated against six architecture objectives:
 
 - `Deterministic control`: identical inputs, seeds, and options produce repeatable
   automation traces, signatures, and render outputs within defined tolerance.
@@ -3193,7 +3225,7 @@ Goal: make IR morphing and render-time blending reliable at scale.
 - [x] Add batch QA artifact bundles (summary tables + diagnostic CSV/JSON) for morph
   sweeps and blend timelines.
 - [x] Strengthen failure/retry/resume semantics for long batch pipelines.
-- Define and enforce explicit mismatch policy behavior for unsupported format
+- [x] Define and enforce explicit mismatch policy behavior for unsupported format
   combinations before render execution.
 - Exit criteria: reproducible cache behavior, deterministic QA artifacts, and
   robust batch recovery under mixed-format stress tests.
@@ -3202,11 +3234,11 @@ Goal: make IR morphing and render-time blending reliable at scale.
 
 Goal: increase topology expressiveness without sacrificing stability.
 
-- Add directional/spatial coupling modes for immersive bed/object workflows.
-- Implement SDN-hybrid topology path for geometry-inspired late-field behavior.
-- Add safety-bounded optional nonlinear in-loop behavior for controlled density
+- [x] Add directional/spatial coupling modes for immersive bed/object workflows.
+- [x] Implement SDN-hybrid topology path for geometry-inspired late-field behavior.
+- [x] Add safety-bounded optional nonlinear in-loop behavior for controlled density
   and color enhancement experiments.
-- Add topology fitting assistance from analysis targets (for example decay/EDR
+- [x] Add topology fitting assistance from analysis targets (for example decay/EDR
   curves and spectral constraints).
 - Exit criteria: per-topology validation reports, deterministic render signatures,
   and stable long-tail stress behavior.
@@ -3222,9 +3254,9 @@ Goal: make augmentation outputs directly usable in production ML research loops.
 - [x] Add optional dataset-card generation for provenance and dataset distribution
   documentation.
 - [x] Add optional per-output metrics CSV export for automated QA/filtering.
-- Add augmentation-focused QA bundles (for example split-level quality summaries and
+- [x] Add augmentation-focused QA bundles (for example split-level quality summaries and
   class-balance deltas across regeneration runs).
-- Add optional augmentation provenance hash over manifest+inputs for external dataset
+- [x] Add optional augmentation provenance hash over manifest+inputs for external dataset
   registries.
 - Exit criteria: augmentation runs emit complete reproducibility metadata and pass
   leakage/quality gates in CI.
@@ -3260,16 +3292,16 @@ Every stream must pass the same release SLO matrix:
   `Mitigation`: enforce split guards, emit distribution summaries, and add drift
   checks in augmentation QA bundles.
 
-### 21.2.10 Execution cadence and ownership model
+### 21.2.10 Execution status
 
-Execution order remains reliability-first, with explicit ownership boundaries.
+Roadmap status is now complete for the v0.7.x program:
 
-1. Complete M1 reliability gates and fixture infrastructure.
-2. Ship Stream R1 (reactive/control-plane hardening).
-3. Ship Stream R2 (perceptual integrity and safety).
-4. Ship Stream R3 (IR morph productionization).
-5. Ship Stream R4 (topology expansion).
-6. Ship Stream R5 (augmentation operations) and cut v0.7 release candidate.
+- [x] M1 reliability gates and fixture infrastructure.
+- [x] Stream R1 (reactive/control-plane hardening).
+- [x] Stream R2 (perceptual integrity and safety).
+- [x] Stream R3 (IR morph productionization).
+- [x] Stream R4 (topology expansion).
+- [x] Stream R5 (augmentation operations) and v0.7 release candidate scope.
 
 ### 21.3 Sources for Roadmap Items
 

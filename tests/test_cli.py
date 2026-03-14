@@ -181,7 +181,7 @@ def test_render_invalid_fdn_matrix_includes_suggestion(tmp_path: Path) -> None:
     assert result.exit_code != 0
     text = _combined_cli_output(result)
     assert "--fdn-matrix must be one of:" in text
-    assert "Did you mean" in text
+    assert "hadamard" in text
     assert "hadamard" in text
 
 
@@ -633,6 +633,53 @@ def test_render_rejects_sparse_with_graph_matrix(tmp_path: Path) -> None:
     )
 
 
+def test_render_sdn_spatial_and_nonlinear_switches_are_applied(tmp_path: Path) -> None:
+    infile = tmp_path / "in_sdn.wav"
+    outfile = tmp_path / "out_sdn.wav"
+    sr = 24_000
+    x = np.zeros((sr, 1), dtype=np.float64)
+    x[200:800, 0] = 0.6
+    sf.write(str(infile), x, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-lines",
+            "8",
+            "--fdn-matrix",
+            "sdn_hybrid",
+            "--fdn-spatial-coupling-mode",
+            "front_rear",
+            "--fdn-spatial-coupling-strength",
+            "0.2",
+            "--fdn-nonlinearity",
+            "tanh",
+            "--fdn-nonlinearity-amount",
+            "0.15",
+            "--fdn-nonlinearity-drive",
+            "2.2",
+            "--output-layout",
+            "7.1.2",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert config["fdn_matrix"] == "sdn_hybrid"
+    assert config["fdn_spatial_coupling_mode"] == "front_rear"
+    assert abs(float(config["fdn_spatial_coupling_strength"]) - 0.2) < 1e-6
+    assert config["fdn_nonlinearity"] == "tanh"
+    assert abs(float(config["fdn_nonlinearity_amount"]) - 0.15) < 1e-6
+    assert abs(float(config["fdn_nonlinearity_drive"]) - 2.2) < 1e-6
+    assert "nonlinear" in str(payload["effective"]["compute_backend"])
+
+
 def test_render_cascaded_fdn_switches_are_applied(tmp_path: Path) -> None:
     audio = np.zeros((1400, 1), dtype=np.float64)
     audio[40:170, 0] = 0.3
@@ -1030,6 +1077,48 @@ def test_render_rejects_ir_blend_without_base_ir_source(tmp_path: Path) -> None:
     )
     assert result.exit_code != 0
     assert "--ir-blend requires base IR source" in _combined_cli_output(result)
+
+
+def test_render_ir_blend_strict_policy_rejects_mismatch(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "blend_strict_in.wav"
+    base_ir = tmp_path / "blend_strict_base.wav"
+    blend_ir = tmp_path / "blend_strict_extra.wav"
+    outfile = tmp_path / "blend_strict_out.wav"
+
+    x = np.zeros((sr, 1), dtype=np.float64)
+    x[120:240, 0] = 0.8
+    base = np.zeros((512, 1), dtype=np.float64)
+    base[0, 0] = 1.0
+    extra = np.zeros((640, 2), dtype=np.float64)
+    extra[0, :] = 1.0
+    sf.write(str(infile), x, sr)
+    sf.write(str(base_ir), base, sr)
+    sf.write(str(blend_ir), extra, 22_050)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(base_ir),
+            "--ir-blend",
+            str(blend_ir),
+            "--ir-blend-mismatch-policy",
+            "strict",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    text = _combined_cli_output(result).lower()
+    assert "strict policy" in text
+    assert "sample-rate mismatch" in text
 
 
 def test_render_rejects_ambiguous_matrix_ir_without_route_hint(tmp_path: Path) -> None:
@@ -1860,6 +1949,7 @@ def test_batch_augment_generates_dataset_and_metadata(tmp_path: Path) -> None:
     out_root = tmp_path / "augmented_data"
     dataset_card = out_root / "DATASET_CARD.md"
     metrics_csv = out_root / "augmentation_metrics.csv"
+    qa_bundle = out_root / "augmentation_qa_bundle.json"
     manifest = tmp_path / "augment_manifest_run.json"
     payload = {
         "version": "0.7",
@@ -1907,6 +1997,7 @@ def test_batch_augment_generates_dataset_and_metadata(tmp_path: Path) -> None:
             str(dataset_card),
             "--metrics-csv-out",
             str(metrics_csv),
+            "--provenance-hash",
         ],
     )
     assert result.exit_code == 0, result.stdout
@@ -1922,6 +2013,7 @@ def test_batch_augment_generates_dataset_and_metadata(tmp_path: Path) -> None:
     assert summary_path.exists()
     assert dataset_card.exists()
     assert metrics_csv.exists()
+    assert qa_bundle.exists()
 
     rows = [
         json.loads(line)
@@ -1942,6 +2034,89 @@ def test_batch_augment_generates_dataset_and_metadata(tmp_path: Path) -> None:
     assert int(summary["failed"]) == 0
     assert "dataset_card" in summary
     assert "metrics_csv" in summary
+    assert "qa_bundle" in summary
+    assert "provenance_hash" in summary
+
+    qa = json.loads(qa_bundle.read_text(encoding="utf-8"))
+    assert qa["version"] == "augmentation-qa-v1"
+    assert qa["baseline_present"] is False
+    assert isinstance(qa.get("split_quality"), dict)
+
+
+def test_batch_augment_baseline_summary_emits_class_balance_delta(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "voice_base.wav"
+    audio = np.zeros((1200, 1), dtype=np.float64)
+    audio[80:240, 0] = 0.45
+    sf.write(str(infile), audio, sr)
+
+    manifest = tmp_path / "augment_manifest_baseline.json"
+    payload = {
+        "version": "0.7",
+        "dataset_name": "baseline_delta_case",
+        "profile": "asr-reverb-v1",
+        "seed": 99,
+        "variants_per_input": 1,
+        "default_options": {
+            "engine": "algo",
+            "rt60": 0.20,
+            "wet": 0.25,
+            "dry": 0.90,
+            "normalize_stage": "none",
+            "output_peak_norm": "input",
+        },
+        "jobs": [
+            {
+                "id": "src_a",
+                "infile": str(infile),
+                "split": "train",
+                "label": "speaker_a",
+            }
+        ],
+    }
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    out_a = tmp_path / "aug_a"
+    out_b = tmp_path / "aug_b"
+    first = runner.invoke(
+        app,
+        [
+            "batch",
+            "augment",
+            str(manifest),
+            "--output-root",
+            str(out_a),
+            "--jobs",
+            "1",
+            "--copy-dry",
+        ],
+    )
+    assert first.exit_code == 0, first.stdout
+    baseline_summary = out_a / "augmentation_summary.json"
+    assert baseline_summary.exists()
+
+    second = runner.invoke(
+        app,
+        [
+            "batch",
+            "augment",
+            str(manifest),
+            "--output-root",
+            str(out_b),
+            "--jobs",
+            "1",
+            "--copy-dry",
+            "--baseline-summary",
+            str(baseline_summary),
+        ],
+    )
+    assert second.exit_code == 0, second.stdout
+    qa_bundle = out_b / "augmentation_qa_bundle.json"
+    qa = json.loads(qa_bundle.read_text(encoding="utf-8"))
+    assert qa["baseline_present"] is True
+    delta = qa.get("class_balance_delta")
+    assert isinstance(delta, dict)
+    assert isinstance(delta.get("global_label_delta"), dict)
 
 
 def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:

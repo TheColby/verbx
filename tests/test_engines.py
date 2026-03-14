@@ -156,6 +156,7 @@ def test_algo_engine_matrix_families() -> None:
         "random_orthogonal",
         "circulant",
         "elliptic",
+        "sdn_hybrid",
     ]:
         engine = AlgoReverbEngine(
             AlgoReverbConfig(
@@ -170,6 +171,46 @@ def test_algo_engine_matrix_families() -> None:
         assert output.shape == audio.shape
         assert output.dtype == np.float64
         assert np.all(np.isfinite(output))
+
+
+def test_algo_engine_directional_spatial_coupling_mode() -> None:
+    engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=16.0,
+            fdn_lines=8,
+            fdn_matrix="sdn_hybrid",
+            fdn_spatial_coupling_mode="front_rear",
+            fdn_spatial_coupling_strength=0.25,
+            output_layout="7.1.2",
+            block_size=256,
+        )
+    )
+    audio = np.random.default_rng(77).standard_normal((2048, 10)).astype(np.float64) * 0.03
+    output = engine.process(audio, sr=48_000)
+    assert output.shape == audio.shape
+    assert output.dtype == np.float64
+    assert np.all(np.isfinite(output))
+    assert "spatialcouple" in engine.backend_name()
+
+
+def test_algo_engine_inloop_nonlinearity_mode() -> None:
+    engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=24.0,
+            fdn_lines=10,
+            fdn_matrix="hadamard",
+            fdn_nonlinearity="tanh",
+            fdn_nonlinearity_amount=0.2,
+            fdn_nonlinearity_drive=2.2,
+            block_size=256,
+        )
+    )
+    audio = np.random.default_rng(96).standard_normal((2048, 2)).astype(np.float64) * 0.06
+    output = engine.process(audio, sr=48_000)
+    assert output.shape == audio.shape
+    assert output.dtype == np.float64
+    assert np.all(np.isfinite(output))
+    assert "nonlinear" in engine.backend_name()
 
 
 def test_algo_engine_graph_matrix_mode() -> None:

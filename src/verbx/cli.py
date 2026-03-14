@@ -10,6 +10,7 @@ Commands are grouped by workflow:
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import os
 import platform
@@ -44,9 +45,12 @@ from verbx.config import (
     ChannelLayout,
     DeviceName,
     EngineName,
+    FDNNonlinearityMode,
+    FDNSpatialCouplingMode,
     FeatureGuidePolicy,
     IRMatrixLayout,
     IRMode,
+    IRMorphMismatchPolicy,
     IRNormalize,
     ModCombine,
     ModTarget,
@@ -132,8 +136,10 @@ from verbx.ir.metrics import analyze_ir
 from verbx.ir.morph import (
     IRMorphConfig,
     generate_or_load_cached_morphed_ir,
+    normalize_ir_morph_mismatch_policy_name,
     normalize_ir_morph_mode_name,
     resolve_blend_mix_values,
+    validate_ir_morph_mismatch_policy_name,
     validate_ir_morph_mode_name,
 )
 from verbx.ir.shaping import apply_ir_shaping
@@ -145,6 +151,18 @@ IRFileFormat = Literal["auto", "wav", "flac", "aiff", "aif", "ogg", "caf"]
 _FDN_MATRIX_CHOICES = set(FDN_MATRIX_CHOICES)
 _FDN_GRAPH_TOPOLOGY_CHOICES = set(FDN_GRAPH_TOPOLOGY_CHOICES)
 _FDN_LINK_FILTER_CHOICES = set(FDN_LINK_FILTER_CHOICES)
+_FDN_SPATIAL_COUPLING_CHOICES = {
+    "none",
+    "adjacent",
+    "front_rear",
+    "bed_top",
+    "all_to_all",
+}
+_FDN_NONLINEARITY_CHOICES = {
+    "none",
+    "tanh",
+    "softclip",
+}
 _IR_ROUTE_MAP_CHOICES = {
     "auto",
     "diagonal",
@@ -185,6 +203,10 @@ _IR_MORPH_MODE_CHOICES = {
     "equal-power",
     "spectral",
     "envelope-aware",
+}
+_IR_MORPH_MISMATCH_POLICY_CHOICES = {
+    "coerce",
+    "strict",
 }
 
 
@@ -433,7 +455,8 @@ def render(
         "--fdn-matrix",
         help=(
             "FDN matrix topology: hadamard, householder, random_orthogonal, "
-            "circulant, elliptic, tv_unitary, or graph. Default resolves to hadamard."
+            "circulant, elliptic, tv_unitary, graph, or sdn_hybrid. "
+            "Default resolves to hadamard."
         ),
     ),
     fdn_tv_rate_hz: float = typer.Option(
@@ -580,6 +603,39 @@ def render(
         "--fdn-graph-seed",
         help="Deterministic seed used to build graph-structured FDN pairings.",
     ),
+    fdn_spatial_coupling_mode: FDNSpatialCouplingMode = typer.Option(
+        "none",
+        "--fdn-spatial-coupling-mode",
+        help=(
+            "Directional wet-bus coupling mode: none, adjacent, front_rear, bed_top, all_to_all."
+        ),
+    ),
+    fdn_spatial_coupling_strength: float = typer.Option(
+        0.0,
+        "--fdn-spatial-coupling-strength",
+        min=0.0,
+        max=1.0,
+        help="Wet-bus directional coupling amount (0..1).",
+    ),
+    fdn_nonlinearity: FDNNonlinearityMode = typer.Option(
+        "none",
+        "--fdn-nonlinearity",
+        help="Optional in-loop nonlinearity: none, tanh, or softclip.",
+    ),
+    fdn_nonlinearity_amount: float = typer.Option(
+        0.0,
+        "--fdn-nonlinearity-amount",
+        min=0.0,
+        max=1.0,
+        help="Blend amount for in-loop nonlinearity shaping (0..1).",
+    ),
+    fdn_nonlinearity_drive: float = typer.Option(
+        1.0,
+        "--fdn-nonlinearity-drive",
+        min=0.1,
+        max=8.0,
+        help="Drive multiplier for in-loop nonlinearity shaping.",
+    ),
     room_size_macro: float = typer.Option(
         0.0,
         "--room-size-macro",
@@ -683,6 +739,14 @@ def render(
         min=0,
         max=128,
         help="Frequency smoothing radius (FFT bins) used by spectral blend modes.",
+    ),
+    ir_blend_mismatch_policy: IRMorphMismatchPolicy = typer.Option(
+        "coerce",
+        "--ir-blend-mismatch-policy",
+        help=(
+            "Mismatch behavior for blend-source sample-rate/channel/duration differences: "
+            "coerce (resample/align) or strict (fail)."
+        ),
     ),
     ir_blend_cache_dir: str = typer.Option(
         ".verbx_cache/ir_morph",
@@ -1066,6 +1130,17 @@ def render(
         fdn_graph_topology=_normalize_fdn_graph_topology_name(fdn_graph_topology),
         fdn_graph_degree=fdn_graph_degree,
         fdn_graph_seed=fdn_graph_seed,
+        fdn_spatial_coupling_mode=cast(
+            FDNSpatialCouplingMode,
+            str(fdn_spatial_coupling_mode).strip().lower().replace("-", "_"),
+        ),
+        fdn_spatial_coupling_strength=float(fdn_spatial_coupling_strength),
+        fdn_nonlinearity=cast(
+            FDNNonlinearityMode,
+            str(fdn_nonlinearity).strip().lower().replace("-", "_"),
+        ),
+        fdn_nonlinearity_amount=float(fdn_nonlinearity_amount),
+        fdn_nonlinearity_drive=float(fdn_nonlinearity_drive),
         room_size_macro=room_size_macro,
         clarity_macro=clarity_macro,
         warmth_macro=warmth_macro,
@@ -1093,6 +1168,10 @@ def render(
         ir_blend_align_decay=bool(ir_blend_align_decay),
         ir_blend_phase_coherence=float(ir_blend_phase_coherence),
         ir_blend_spectral_smooth_bins=int(ir_blend_spectral_smooth_bins),
+        ir_blend_mismatch_policy=cast(
+            IRMorphMismatchPolicy,
+            normalize_ir_morph_mismatch_policy_name(ir_blend_mismatch_policy),
+        ),
         ir_blend_cache_dir=ir_blend_cache_dir,
         input_layout=input_layout,
         output_layout=output_layout,
@@ -1446,7 +1525,7 @@ def ir_gen(
         "--fdn-matrix",
         help=(
             "FDN matrix topology: hadamard, householder, random_orthogonal, "
-            "circulant, elliptic, tv_unitary, or graph."
+            "circulant, elliptic, tv_unitary, graph, or sdn_hybrid."
         ),
     ),
     fdn_tv_rate_hz: float = typer.Option(
@@ -1593,6 +1672,39 @@ def ir_gen(
         "--fdn-graph-seed",
         help="Deterministic seed used to build graph-structured FDN pairings.",
     ),
+    fdn_spatial_coupling_mode: FDNSpatialCouplingMode = typer.Option(
+        "none",
+        "--fdn-spatial-coupling-mode",
+        help=(
+            "Directional wet-bus coupling mode: none, adjacent, front_rear, bed_top, all_to_all."
+        ),
+    ),
+    fdn_spatial_coupling_strength: float = typer.Option(
+        0.0,
+        "--fdn-spatial-coupling-strength",
+        min=0.0,
+        max=1.0,
+        help="Wet-bus directional coupling amount (0..1).",
+    ),
+    fdn_nonlinearity: FDNNonlinearityMode = typer.Option(
+        "none",
+        "--fdn-nonlinearity",
+        help="Optional in-loop nonlinearity: none, tanh, or softclip.",
+    ),
+    fdn_nonlinearity_amount: float = typer.Option(
+        0.0,
+        "--fdn-nonlinearity-amount",
+        min=0.0,
+        max=1.0,
+        help="Blend amount for in-loop nonlinearity shaping (0..1).",
+    ),
+    fdn_nonlinearity_drive: float = typer.Option(
+        1.0,
+        "--fdn-nonlinearity-drive",
+        min=0.1,
+        max=8.0,
+        help="Drive multiplier for in-loop nonlinearity shaping.",
+    ),
     room_size_macro: float = typer.Option(
         0.0,
         "--room-size-macro",
@@ -1707,6 +1819,11 @@ def ir_gen(
         fdn_link_filter_mix=fdn_link_filter_mix,
         fdn_graph_topology=fdn_graph_topology,
         fdn_graph_degree=fdn_graph_degree,
+        fdn_spatial_coupling_mode=fdn_spatial_coupling_mode,
+        fdn_spatial_coupling_strength=fdn_spatial_coupling_strength,
+        fdn_nonlinearity=fdn_nonlinearity,
+        fdn_nonlinearity_amount=fdn_nonlinearity_amount,
+        fdn_nonlinearity_drive=fdn_nonlinearity_drive,
         room_size_macro=room_size_macro,
         clarity_macro=clarity_macro,
         warmth_macro=warmth_macro,
@@ -1795,6 +1912,11 @@ def ir_gen(
         fdn_graph_topology=_normalize_fdn_graph_topology_name(fdn_graph_topology),
         fdn_graph_degree=fdn_graph_degree,
         fdn_graph_seed=fdn_graph_seed,
+        fdn_spatial_coupling_mode=str(fdn_spatial_coupling_mode).strip().lower().replace("-", "_"),
+        fdn_spatial_coupling_strength=float(fdn_spatial_coupling_strength),
+        fdn_nonlinearity=str(fdn_nonlinearity).strip().lower().replace("-", "_"),
+        fdn_nonlinearity_amount=float(fdn_nonlinearity_amount),
+        fdn_nonlinearity_drive=float(fdn_nonlinearity_drive),
         fdn_stereo_inject=fdn_stereo_inject,
         room_size_macro=room_size_macro,
         clarity_macro=clarity_macro,
@@ -2138,6 +2260,14 @@ def ir_morph(
         max=128,
         help="Frequency smoothing radius (FFT bins) used by spectral modes.",
     ),
+    mismatch_policy: IRMorphMismatchPolicy = typer.Option(
+        "coerce",
+        "--mismatch-policy",
+        help=(
+            "Mismatch behavior for sample-rate/channel/duration differences: "
+            "coerce (align) or strict (fail)."
+        ),
+    ),
     target_sr: int | None = typer.Option(
         None,
         "--target-sr",
@@ -2155,6 +2285,7 @@ def ir_morph(
         mode=mode,
         early_alpha=early_alpha,
         late_alpha=late_alpha,
+        mismatch_policy=mismatch_policy,
         cache_dir=cache_dir,
     )
 
@@ -2170,6 +2301,10 @@ def ir_morph(
         align_decay=bool(align_decay),
         phase_coherence=float(phase_coherence),
         spectral_smooth_bins=int(spectral_smooth_bins),
+        mismatch_policy=cast(
+            IRMorphMismatchPolicy,
+            normalize_ir_morph_mismatch_policy_name(mismatch_policy),
+        ),
     )
 
     try:
@@ -2193,6 +2328,7 @@ def ir_morph(
     table.add_row("mode", cfg.mode)
     table.add_row("alpha", f"{cfg.alpha:.3f}")
     table.add_row("early_ms", f"{cfg.early_ms:.2f}")
+    table.add_row("mismatch_policy", str(cfg.mismatch_policy))
     table.add_row("out_ir", str(out_ir))
     table.add_row("cache_path", str(cache_path))
     table.add_row("cache_hit", str(cache_hit))
@@ -2245,6 +2381,14 @@ def ir_morph_sweep(
     ),
     phase_coherence: float = typer.Option(0.75, "--phase-coherence", min=0.0, max=1.0),
     spectral_smooth_bins: int = typer.Option(3, "--spectral-smooth-bins", min=0, max=128),
+    mismatch_policy: IRMorphMismatchPolicy = typer.Option(
+        "coerce",
+        "--mismatch-policy",
+        help=(
+            "Mismatch behavior for sample-rate/channel/duration differences: "
+            "coerce (align) or strict (fail)."
+        ),
+    ),
     target_sr: int | None = typer.Option(None, "--target-sr", min=1),
     cache_dir: str = typer.Option(".verbx_cache/ir_morph", "--cache-dir"),
     workers: int = typer.Option(0, "--workers", min=0, help="0 = auto"),
@@ -2285,6 +2429,7 @@ def ir_morph_sweep(
         mode=mode,
         early_alpha=early_alpha,
         late_alpha=late_alpha,
+        mismatch_policy=mismatch_policy,
         cache_dir=cache_dir,
         out_prefix=out_prefix,
         alpha_points=alpha_points,
@@ -2325,6 +2470,10 @@ def ir_morph_sweep(
         align_decay=bool(align_decay),
         phase_coherence=float(phase_coherence),
         spectral_smooth_bins=int(spectral_smooth_bins),
+        mismatch_policy=cast(
+            IRMorphMismatchPolicy,
+            normalize_ir_morph_mismatch_policy_name(mismatch_policy),
+        ),
     )
 
     all_jobs: list[BatchJobSpec] = []
@@ -2387,6 +2536,7 @@ def ir_morph_sweep(
             align_decay=bool(template_cfg.align_decay),
             phase_coherence=float(template_cfg.phase_coherence),
             spectral_smooth_bins=int(template_cfg.spectral_smooth_bins),
+            mismatch_policy=template_cfg.mismatch_policy,
         )
         audio, sr, meta, cache_path, cache_hit = generate_or_load_cached_morphed_ir(
             ir_a_path=ir_a,
@@ -2513,6 +2663,7 @@ def ir_morph_sweep(
         "ir_b": str(ir_b.resolve()),
         "out_dir": str(out_root),
         "morph_mode": resolved_mode,
+        "mismatch_policy": str(template_cfg.mismatch_policy),
         "alpha_values": [float(value) for value in alphas],
         "workers": int(max_workers),
         "schedule": str(schedule),
@@ -2536,6 +2687,7 @@ def ir_morph_sweep(
         table.add_column("Value", style="white")
         for key in (
             "morph_mode",
+            "mismatch_policy",
             "planned",
             "executed",
             "resumed_skipped",
@@ -2853,6 +3005,27 @@ def batch_augment(
         "--metrics-include-loudness/--metrics-fast",
         help="Include LUFS/true-peak/LRA in metrics CSV export (slower).",
     ),
+    qa_bundle_out: Path | None = typer.Option(
+        None,
+        "--qa-bundle-out",
+        resolve_path=True,
+        help=(
+            "Optional QA bundle JSON path (default: <output_root>/augmentation_qa_bundle.json)."
+        ),
+    ),
+    baseline_summary: Path | None = typer.Option(
+        None,
+        "--baseline-summary",
+        exists=True,
+        readable=True,
+        resolve_path=True,
+        help="Optional prior augmentation summary/QA bundle JSON used for regeneration deltas.",
+    ),
+    provenance_hash: bool = typer.Option(
+        False,
+        "--provenance-hash/--no-provenance-hash",
+        help="Emit deterministic provenance hash over manifest payload + source signatures.",
+    ),
 ) -> None:
     """Render a deterministic augmentation dataset for AI research workflows."""
     try:
@@ -2958,6 +3131,11 @@ def batch_augment(
         if summary_out is not None
         else (out_root / "augmentation_summary.json").resolve()
     )
+    qa_bundle_path = (
+        qa_bundle_out.resolve()
+        if qa_bundle_out is not None
+        else (out_root / "augmentation_qa_bundle.json").resolve()
+    )
     records = _build_augmentation_records(build=build, results_by_index=results_by_index)
     _write_jsonl_atomic(jsonl_path, records)
     summary_payload = _build_augmentation_summary(
@@ -2968,6 +3146,12 @@ def batch_augment(
         schedule=schedule,
         jobs=max_workers,
     )
+    baseline_payload: dict[str, Any] | None = None
+    if baseline_summary is not None:
+        baseline_payload = _load_optional_summary_payload(baseline_summary)
+        summary_payload["baseline_summary"] = str(baseline_summary.resolve())
+
+    qa_metric_rows: list[dict[str, Any]] = []
     if metrics_csv_out is not None:
         metrics_path = metrics_csv_out.resolve()
         metrics_rows = _build_augmentation_metrics_rows(
@@ -2978,6 +3162,31 @@ def batch_augment(
         summary_payload["metrics_csv"] = str(metrics_path)
         summary_payload["metrics_rows"] = len(metrics_rows)
         summary_payload["metrics_include_loudness"] = bool(metrics_include_loudness)
+        qa_metric_rows = metrics_rows
+
+    if len(qa_metric_rows) == 0:
+        qa_metric_rows = _build_augmentation_metrics_rows(
+            records=records,
+            include_loudness=False,
+        )
+    qa_bundle_payload = _build_augmentation_qa_bundle(
+        build=build,
+        records=records,
+        metrics_rows=qa_metric_rows,
+        baseline_summary=baseline_payload,
+    )
+    _write_json_atomic(qa_bundle_path, qa_bundle_payload)
+    summary_payload["qa_bundle"] = str(qa_bundle_path)
+    summary_payload["qa_bundle_version"] = str(qa_bundle_payload.get("version", ""))
+
+    if provenance_hash:
+        provenance = _compute_augmentation_provenance_hash(
+            build=build,
+            manifest=manifest,
+            records=records,
+        )
+        summary_payload["provenance_hash"] = str(provenance.get("sha256", ""))
+        summary_payload["provenance"] = provenance
 
     if dataset_card_out is not None:
         dataset_card_path = dataset_card_out.resolve()
@@ -3693,6 +3902,7 @@ def _build_augmentation_dataset_card(
         f"- generated_utc: `{datetime.now(UTC).isoformat()}`",
         f"- manifest_path: `{manifest_path.resolve()}`",
         f"- summary_json: `{summary_path.resolve()}`",
+        f"- qa_bundle_json: `{summary.get('qa_bundle', '(none)')}`",
         f"- output_root: `{build.output_root.resolve()}`",
         "",
         "## Render Summary",
@@ -3700,6 +3910,7 @@ def _build_augmentation_dataset_card(
         f"- success: `{summary.get('success', 0)}`",
         f"- failed: `{summary.get('failed', 0)}`",
         f"- variants_per_input: `{build.variants_per_input}`",
+        f"- provenance_hash: `{summary.get('provenance_hash', '(disabled)')}`",
         "",
         "## Split Distribution",
     ]
@@ -3921,6 +4132,7 @@ def _build_augmentation_summary(
     failed = int(total - success)
     split_counts: dict[str, int] = {}
     split_source_ids: dict[str, set[str]] = {}
+    split_label_counts: dict[str, dict[str, int]] = {}
     label_counts: dict[str, int] = {}
     archetype_counts: dict[str, int] = {}
     tag_counts: dict[str, int] = {}
@@ -3930,6 +4142,9 @@ def _build_augmentation_summary(
         source_id = str(row.get("source_id", ""))
         archetype = str(row.get("archetype", ""))
         split_counts[split] = int(split_counts.get(split, 0) + 1)
+        if split != "" and label != "":
+            split_map = split_label_counts.setdefault(split, {})
+            split_map[label] = int(split_map.get(label, 0) + 1)
         if split != "" and source_id != "":
             split_source_ids.setdefault(split, set()).add(source_id)
         if label != "":
@@ -3965,10 +4180,293 @@ def _build_augmentation_summary(
             split: len(source_ids) for split, source_ids in sorted(split_source_ids.items())
         },
         "split_counts": split_counts,
+        "split_label_counts": {
+            split: dict(sorted(label_map.items()))
+            for split, label_map in sorted(split_label_counts.items())
+        },
         "label_counts": label_counts,
         "archetype_counts": archetype_counts,
         "tag_counts": tag_counts,
     }
+
+
+def _load_optional_summary_payload(path: Path) -> dict[str, Any]:
+    """Load optional JSON summary payload for regeneration delta reporting."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(f"Invalid baseline summary JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise typer.BadParameter("--baseline-summary must contain a JSON object.")
+    return cast(dict[str, Any], payload)
+
+
+def _build_augmentation_qa_bundle(
+    *,
+    build: AugmentationBuild,
+    records: list[dict[str, Any]],
+    metrics_rows: list[dict[str, Any]],
+    baseline_summary: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Build augmentation QA bundle with split-quality and class-balance deltas."""
+    split_label_counts = _extract_split_label_counts(records)
+    split_quality = _summarize_split_quality(metrics_rows)
+    successful = int(sum(1 for row in records if bool(row.get("success", False))))
+    failed = int(len(records) - successful)
+
+    baseline_split_label_counts = (
+        _extract_baseline_split_label_counts(baseline_summary)
+        if baseline_summary is not None
+        else {}
+    )
+    class_balance_delta = (
+        _compute_class_balance_delta(
+            current=split_label_counts,
+            baseline=baseline_split_label_counts,
+        )
+        if baseline_summary is not None
+        else None
+    )
+
+    return {
+        "version": "augmentation-qa-v1",
+        "mode": "batch-augment-qa",
+        "dataset_name": build.dataset_name,
+        "profile": build.profile,
+        "seed": int(build.seed),
+        "planned": len(records),
+        "success": int(successful),
+        "failed": int(failed),
+        "split_label_counts": split_label_counts,
+        "split_quality": split_quality,
+        "baseline_present": baseline_summary is not None,
+        "class_balance_delta": class_balance_delta,
+    }
+
+
+def _extract_split_label_counts(records: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
+    """Extract split->label->count table from augmentation metadata rows."""
+    counts: dict[str, dict[str, int]] = {}
+    for row in records:
+        split = str(row.get("split", ""))
+        label = str(row.get("label", ""))
+        if split == "" or label == "":
+            continue
+        split_map = counts.setdefault(split, {})
+        split_map[label] = int(split_map.get(label, 0) + 1)
+    return {
+        split: dict(sorted(label_map.items()))
+        for split, label_map in sorted(counts.items())
+    }
+
+
+def _extract_baseline_split_label_counts(payload: dict[str, Any]) -> dict[str, dict[str, int]]:
+    """Extract split-label table from baseline summary or QA bundle payload."""
+    direct = payload.get("split_label_counts")
+    if isinstance(direct, dict):
+        return _normalize_split_label_counts(direct)
+    qa_raw = payload.get("class_balance")
+    if isinstance(qa_raw, dict):
+        nested = qa_raw.get("split_label_counts")
+        if isinstance(nested, dict):
+            return _normalize_split_label_counts(nested)
+    return {}
+
+
+def _normalize_split_label_counts(payload: dict[str, Any]) -> dict[str, dict[str, int]]:
+    normalized: dict[str, dict[str, int]] = {}
+    for split, labels_raw in payload.items():
+        if not isinstance(labels_raw, dict):
+            continue
+        labels: dict[str, int] = {}
+        for label, count_raw in labels_raw.items():
+            try:
+                labels[str(label)] = int(count_raw)
+            except (TypeError, ValueError):
+                continue
+        if labels:
+            normalized[str(split)] = dict(sorted(labels.items()))
+    return dict(sorted(normalized.items()))
+
+
+def _compute_class_balance_delta(
+    *,
+    current: dict[str, dict[str, int]],
+    baseline: dict[str, dict[str, int]],
+) -> dict[str, Any]:
+    """Compute split-level and global class-balance deltas against baseline."""
+    split_delta: dict[str, dict[str, dict[str, float | int]]] = {}
+    for split in sorted(set(current) | set(baseline)):
+        cur_labels = current.get(split, {})
+        base_labels = baseline.get(split, {})
+        cur_total = int(sum(cur_labels.values()))
+        base_total = int(sum(base_labels.values()))
+        label_delta: dict[str, dict[str, float | int]] = {}
+        for label in sorted(set(cur_labels) | set(base_labels)):
+            cur_count = int(cur_labels.get(label, 0))
+            base_count = int(base_labels.get(label, 0))
+            cur_ratio = float(cur_count / cur_total) if cur_total > 0 else 0.0
+            base_ratio = float(base_count / base_total) if base_total > 0 else 0.0
+            label_delta[label] = {
+                "current_count": cur_count,
+                "baseline_count": base_count,
+                "count_delta": int(cur_count - base_count),
+                "current_ratio": cur_ratio,
+                "baseline_ratio": base_ratio,
+                "ratio_delta": float(cur_ratio - base_ratio),
+            }
+        split_delta[split] = label_delta
+
+    current_global = _collapse_split_label_counts(current)
+    baseline_global = _collapse_split_label_counts(baseline)
+    global_total = int(sum(current_global.values()))
+    baseline_total = int(sum(baseline_global.values()))
+    global_delta: dict[str, dict[str, float | int]] = {}
+    for label in sorted(set(current_global) | set(baseline_global)):
+        cur_count = int(current_global.get(label, 0))
+        base_count = int(baseline_global.get(label, 0))
+        cur_ratio = float(cur_count / global_total) if global_total > 0 else 0.0
+        base_ratio = float(base_count / baseline_total) if baseline_total > 0 else 0.0
+        global_delta[label] = {
+            "current_count": cur_count,
+            "baseline_count": base_count,
+            "count_delta": int(cur_count - base_count),
+            "current_ratio": cur_ratio,
+            "baseline_ratio": base_ratio,
+            "ratio_delta": float(cur_ratio - base_ratio),
+        }
+    return {
+        "split_label_delta": split_delta,
+        "global_label_delta": global_delta,
+    }
+
+
+def _collapse_split_label_counts(counts: dict[str, dict[str, int]]) -> dict[str, int]:
+    merged: dict[str, int] = {}
+    for label_map in counts.values():
+        for label, count in label_map.items():
+            merged[label] = int(merged.get(label, 0) + int(count))
+    return merged
+
+
+def _summarize_split_quality(metrics_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Summarize numeric quality metrics per split from augmentation metrics rows."""
+    fields = (
+        "rt60_estimate_seconds",
+        "early_late_ratio_db",
+        "stereo_width",
+        "stereo_coherence",
+        "spectral_centroid",
+        "spectral_flatness",
+        "dynamic_range",
+        "lufs_integrated",
+    )
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for row in metrics_rows:
+        split = str(row.get("split", ""))
+        if split == "":
+            continue
+        grouped.setdefault(split, []).append(row)
+    summary: dict[str, Any] = {}
+    for split, rows in sorted(grouped.items()):
+        split_summary: dict[str, Any] = {}
+        for field in fields:
+            stats = _summarize_metrics_field(rows, field)
+            if stats is not None:
+                split_summary[field] = stats
+        errors = int(sum(1 for row in rows if str(row.get("metrics_error", "")).strip() != ""))
+        split_summary["rows"] = len(rows)
+        split_summary["metrics_errors"] = int(errors)
+        summary[split] = split_summary
+    return summary
+
+
+def _summarize_metrics_field(
+    rows: list[dict[str, Any]],
+    field: str,
+) -> dict[str, float] | None:
+    values: list[float] = []
+    for row in rows:
+        raw = row.get(field)
+        if raw is None:
+            continue
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            continue
+        if np.isfinite(value):
+            values.append(value)
+    if len(values) == 0:
+        return None
+    vec = np.asarray(values, dtype=np.float64)
+    return {
+        "min": float(np.min(vec)),
+        "max": float(np.max(vec)),
+        "mean": float(np.mean(vec)),
+    }
+
+
+def _compute_augmentation_provenance_hash(
+    *,
+    build: AugmentationBuild,
+    manifest: Path,
+    records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Compute deterministic augmentation provenance hash for registry workflows."""
+    manifest_payload: dict[str, Any] | None = None
+    try:
+        parsed = json.loads(manifest.read_text(encoding="utf-8"))
+        if isinstance(parsed, dict):
+            manifest_payload = cast(dict[str, Any], parsed)
+    except (OSError, json.JSONDecodeError):
+        manifest_payload = None
+    if manifest_payload is None:
+        manifest_canonical = manifest.read_bytes()
+    else:
+        manifest_canonical = json.dumps(
+            manifest_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+    source_paths = sorted({str(plan.infile.resolve()) for plan in build.plans})
+    source_signatures: list[dict[str, Any]] = []
+    digest = hashlib.sha256()
+    digest.update(manifest_canonical)
+    for source in source_paths:
+        path = Path(source)
+        info = sf.info(str(path))
+        signature = {
+            "path": source,
+            "sha256": _sha256_file(path),
+            "frames": int(info.frames),
+            "sample_rate": int(info.samplerate),
+            "channels": int(info.channels),
+            "format": str(info.format),
+            "subtype": str(info.subtype),
+        }
+        source_signatures.append(signature)
+        digest.update(json.dumps(signature, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    digest.update(str(len(records)).encode("utf-8"))
+
+    return {
+        "schema": "augmentation-provenance-v1",
+        "sha256": digest.hexdigest(),
+        "manifest_sha256": hashlib.sha256(manifest_canonical).hexdigest(),
+        "source_count": len(source_signatures),
+        "sources": source_signatures,
+    }
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(1 << 20)
+            if chunk == b"":
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _print_augmentation_summary_table(
@@ -3996,9 +4494,15 @@ def _print_augmentation_summary_table(
     metrics_csv = summary.get("metrics_csv")
     if metrics_csv:
         table.add_row("metrics_csv", str(metrics_csv))
+    qa_bundle = summary.get("qa_bundle")
+    if qa_bundle:
+        table.add_row("qa_bundle", str(qa_bundle))
     dataset_card = summary.get("dataset_card")
     if dataset_card:
         table.add_row("dataset_card", str(dataset_card))
+    provenance_hash = summary.get("provenance_hash")
+    if provenance_hash:
+        table.add_row("provenance_hash", str(provenance_hash))
     table.add_row("summary_json", str(summary_path.resolve()))
     console.print(table)
 
@@ -4995,6 +5499,60 @@ def _validate_fdn_link_filter_settings(
         raise typer.BadParameter(msg)
 
 
+def _validate_fdn_spatial_coupling_settings(
+    *,
+    fdn_spatial_coupling_mode: str,
+    fdn_spatial_coupling_strength: float,
+) -> None:
+    """Validate directional wet-bus coupling controls."""
+    normalized = str(fdn_spatial_coupling_mode).strip().lower().replace("-", "_")
+    if normalized not in _FDN_SPATIAL_COUPLING_CHOICES:
+        raise typer.BadParameter(
+            _choice_error(
+                "--fdn-spatial-coupling-mode",
+                _FDN_SPATIAL_COUPLING_CHOICES,
+                normalized,
+            )
+        )
+    strength = float(fdn_spatial_coupling_strength)
+    if strength < 0.0 or strength > 1.0:
+        msg = "--fdn-spatial-coupling-strength must be in [0.0, 1.0]."
+        raise typer.BadParameter(msg)
+    if normalized == "none" and strength > 0.0:
+        msg = (
+            "--fdn-spatial-coupling-strength must be 0 when "
+            "--fdn-spatial-coupling-mode none is selected."
+        )
+        raise typer.BadParameter(msg)
+
+
+def _validate_fdn_nonlinearity_settings(
+    *,
+    fdn_nonlinearity: str,
+    fdn_nonlinearity_amount: float,
+    fdn_nonlinearity_drive: float,
+) -> None:
+    """Validate bounded in-loop nonlinearity controls."""
+    normalized = str(fdn_nonlinearity).strip().lower().replace("-", "_")
+    if normalized not in _FDN_NONLINEARITY_CHOICES:
+        raise typer.BadParameter(
+            _choice_error("--fdn-nonlinearity", _FDN_NONLINEARITY_CHOICES, normalized)
+        )
+    amount = float(fdn_nonlinearity_amount)
+    if amount < 0.0 or amount > 1.0:
+        msg = "--fdn-nonlinearity-amount must be in [0.0, 1.0]."
+        raise typer.BadParameter(msg)
+    drive = float(fdn_nonlinearity_drive)
+    if drive < 0.1 or drive > 8.0:
+        msg = "--fdn-nonlinearity-drive must be in [0.1, 8.0]."
+        raise typer.BadParameter(msg)
+    if normalized == "none" and amount > 0.0:
+        msg = (
+            "--fdn-nonlinearity-amount must be 0 when --fdn-nonlinearity none is selected."
+        )
+        raise typer.BadParameter(msg)
+
+
 def _validate_perceptual_macro_settings(
     *,
     fdn_rt60_tilt: float,
@@ -5076,6 +5634,7 @@ def _validate_ir_blend_settings(config: RenderConfig) -> None:
         or not bool(config.ir_blend_align_decay)
         or abs(float(config.ir_blend_phase_coherence) - 0.75) > 1e-12
         or int(config.ir_blend_spectral_smooth_bins) != 3
+        or config.ir_blend_mismatch_policy != "coerce"
         or config.ir_blend_cache_dir != ".verbx_cache/ir_morph"
     )
     if not has_blend and has_blend_args:
@@ -5083,7 +5642,8 @@ def _validate_ir_blend_settings(config: RenderConfig) -> None:
             "--ir-blend-mix/--ir-blend-mode/--ir-blend-early-ms/"
             "--ir-blend-early-alpha/--ir-blend-late-alpha/"
             "--ir-blend-align-decay/--ir-blend-phase-coherence/"
-            "--ir-blend-spectral-smooth-bins/--ir-blend-cache-dir "
+            "--ir-blend-spectral-smooth-bins/--ir-blend-mismatch-policy/"
+            "--ir-blend-cache-dir "
             "require at least one --ir-blend path."
         )
         raise typer.BadParameter(msg)
@@ -5101,6 +5661,10 @@ def _validate_ir_blend_settings(config: RenderConfig) -> None:
 
     try:
         config.ir_blend_mode = validate_ir_morph_mode_name(config.ir_blend_mode)
+        config.ir_blend_mismatch_policy = cast(
+            IRMorphMismatchPolicy,
+            validate_ir_morph_mismatch_policy_name(config.ir_blend_mismatch_policy),
+        )
         resolve_blend_mix_values(config.ir_blend_mix, len(config.ir_blend))
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
@@ -5537,6 +6101,15 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
         fdn_link_filter_hz=config.fdn_link_filter_hz,
         fdn_link_filter_mix=config.fdn_link_filter_mix,
     )
+    _validate_fdn_spatial_coupling_settings(
+        fdn_spatial_coupling_mode=config.fdn_spatial_coupling_mode,
+        fdn_spatial_coupling_strength=config.fdn_spatial_coupling_strength,
+    )
+    _validate_fdn_nonlinearity_settings(
+        fdn_nonlinearity=config.fdn_nonlinearity,
+        fdn_nonlinearity_amount=config.fdn_nonlinearity_amount,
+        fdn_nonlinearity_drive=config.fdn_nonlinearity_drive,
+    )
     _validate_perceptual_macro_settings(
         fdn_rt60_tilt=config.fdn_rt60_tilt,
         room_size_macro=config.room_size_macro,
@@ -5660,6 +6233,11 @@ def _validate_ir_gen_call(
     fdn_link_filter_mix: float,
     fdn_graph_topology: str,
     fdn_graph_degree: int,
+    fdn_spatial_coupling_mode: str,
+    fdn_spatial_coupling_strength: float,
+    fdn_nonlinearity: str,
+    fdn_nonlinearity_amount: float,
+    fdn_nonlinearity_drive: float,
     room_size_macro: float,
     clarity_macro: float,
     warmth_macro: float,
@@ -5726,6 +6304,15 @@ def _validate_ir_gen_call(
         fdn_link_filter_hz=fdn_link_filter_hz,
         fdn_link_filter_mix=fdn_link_filter_mix,
     )
+    _validate_fdn_spatial_coupling_settings(
+        fdn_spatial_coupling_mode=fdn_spatial_coupling_mode,
+        fdn_spatial_coupling_strength=fdn_spatial_coupling_strength,
+    )
+    _validate_fdn_nonlinearity_settings(
+        fdn_nonlinearity=fdn_nonlinearity,
+        fdn_nonlinearity_amount=fdn_nonlinearity_amount,
+        fdn_nonlinearity_drive=fdn_nonlinearity_drive,
+    )
     _validate_perceptual_macro_settings(
         fdn_rt60_tilt=fdn_rt60_tilt,
         room_size_macro=room_size_macro,
@@ -5746,6 +6333,7 @@ def _validate_ir_morph_sweep_call(
     mode: str,
     early_alpha: float | None,
     late_alpha: float | None,
+    mismatch_policy: IRMorphMismatchPolicy,
     cache_dir: str,
     out_prefix: str,
     alpha_points: list[float] | None,
@@ -5761,6 +6349,10 @@ def _validate_ir_morph_sweep_call(
 
     try:
         validate_ir_morph_mode_name(mode)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    try:
+        validate_ir_morph_mismatch_policy_name(mismatch_policy)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -5846,6 +6438,7 @@ def _validate_ir_morph_call(
     mode: str,
     early_alpha: float | None,
     late_alpha: float | None,
+    mismatch_policy: IRMorphMismatchPolicy,
     cache_dir: str,
 ) -> None:
     """Validate IR morph command inputs."""
@@ -5856,6 +6449,10 @@ def _validate_ir_morph_call(
 
     try:
         validate_ir_morph_mode_name(mode)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    try:
+        validate_ir_morph_mismatch_policy_name(mismatch_policy)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
 

@@ -100,6 +100,11 @@ class IRGenConfig:
     fdn_graph_topology: str = "ring"
     fdn_graph_degree: int = 2
     fdn_graph_seed: int = 2026
+    fdn_spatial_coupling_mode: str = "none"
+    fdn_spatial_coupling_strength: float = 0.0
+    fdn_nonlinearity: str = "none"
+    fdn_nonlinearity_amount: float = 0.0
+    fdn_nonlinearity_drive: float = 1.0
     fdn_stereo_inject: float = 1.0
     room_size_macro: float = 0.0
     clarity_macro: float = 0.0
@@ -165,6 +170,11 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             fdn_graph_topology=config.fdn_graph_topology,
             fdn_graph_degree=config.fdn_graph_degree,
             fdn_graph_seed=config.fdn_graph_seed,
+            fdn_spatial_coupling_mode=config.fdn_spatial_coupling_mode,
+            fdn_spatial_coupling_strength=config.fdn_spatial_coupling_strength,
+            fdn_nonlinearity=config.fdn_nonlinearity,
+            fdn_nonlinearity_amount=config.fdn_nonlinearity_amount,
+            fdn_nonlinearity_drive=config.fdn_nonlinearity_drive,
             fdn_stereo_inject=config.fdn_stereo_inject,
             room_size_macro=config.room_size_macro,
             clarity_macro=config.clarity_macro,
@@ -277,6 +287,11 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             fdn_graph_topology=config.fdn_graph_topology,
             fdn_graph_degree=config.fdn_graph_degree,
             fdn_graph_seed=config.fdn_graph_seed,
+            fdn_spatial_coupling_mode=config.fdn_spatial_coupling_mode,
+            fdn_spatial_coupling_strength=config.fdn_spatial_coupling_strength,
+            fdn_nonlinearity=config.fdn_nonlinearity,
+            fdn_nonlinearity_amount=config.fdn_nonlinearity_amount,
+            fdn_nonlinearity_drive=config.fdn_nonlinearity_drive,
             fdn_stereo_inject=config.fdn_stereo_inject,
             room_size_macro=config.room_size_macro,
             clarity_macro=config.clarity_macro,

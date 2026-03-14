@@ -100,6 +100,11 @@ class AlgoReverbConfig:
     fdn_graph_topology: str = "ring"
     fdn_graph_degree: int = 2
     fdn_graph_seed: int = 2026
+    fdn_spatial_coupling_mode: str = "none"
+    fdn_spatial_coupling_strength: float = 0.0
+    fdn_nonlinearity: str = "none"
+    fdn_nonlinearity_amount: float = 0.0
+    fdn_nonlinearity_drive: float = 1.0
     room_size_macro: float = 0.0
     clarity_macro: float = 0.0
     warmth_macro: float = 0.0
@@ -149,6 +154,10 @@ class AlgoReverbEngine(ReverbEngine):
     _RT60_UPDATE_EPS = 1e-3
     _LP_ALPHA_UPDATE_EPS = 1e-5
     _TRACK_C_UPDATE_EPS = 1e-5
+    _SPATIAL_COUPLING_MODES: ClassVar[frozenset[str]] = frozenset(
+        {"none", "adjacent", "front_rear", "bed_top", "all_to_all"}
+    )
+    _NONLINEARITY_MODES: ClassVar[frozenset[str]] = frozenset({"none", "tanh", "softclip"})
 
     def __init__(self, config: AlgoReverbConfig) -> None:
         self._config = config
@@ -188,6 +197,18 @@ class AlgoReverbEngine(ReverbEngine):
             seed=tv_seed,
         )
         self._matrix_kind = self._normalize_matrix_type(config.fdn_matrix)
+        self._spatial_coupling_mode = self._resolve_spatial_coupling_mode(
+            config.fdn_spatial_coupling_mode
+        )
+        self._spatial_coupling_strength = float(
+            np.clip(config.fdn_spatial_coupling_strength, 0.0, 1.0)
+        )
+        self._nonlinearity_mode = self._resolve_nonlinearity_mode(config.fdn_nonlinearity)
+        self._nonlinearity_amount = float(np.clip(config.fdn_nonlinearity_amount, 0.0, 1.0))
+        self._nonlinearity_drive = float(np.clip(config.fdn_nonlinearity_drive, 0.1, 8.0))
+        self._nonlinearity_enabled = (
+            self._nonlinearity_mode != "none" and self._nonlinearity_amount > 0.0
+        )
         self._graph_enabled = self._matrix_kind == "graph"
         self._graph_pairings = self._build_graph_pairings(
             size=int(self._base_delay_ms.shape[0]),
@@ -243,6 +264,7 @@ class AlgoReverbEngine(ReverbEngine):
             and not self._multiband_enabled
             and not self._link_filter_enabled
             and not self._cascade_enabled
+            and not self._nonlinearity_enabled
             and abs(float(config.room_size_macro)) <= 1e-9
             and abs(float(config.clarity_macro)) <= 1e-9
             and abs(float(config.warmth_macro)) <= 1e-9
@@ -349,6 +371,7 @@ class AlgoReverbEngine(ReverbEngine):
             )
 
         wet = self._apply_multichannel_decorrelation(wet, sr)
+        wet = self._apply_spatial_coupling(wet)
 
         if n_channels == 2 and self._config.width != 1.0:
             wet = self._apply_stereo_width(wet, self._config.width)
@@ -417,6 +440,57 @@ class AlgoReverbEngine(ReverbEngine):
 
         return np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
 
+    def _apply_spatial_coupling(self, wet: AudioArray) -> AudioArray:
+        """Apply optional directional coupling for immersive wet-channel interaction."""
+        channels = int(wet.shape[1])
+        if channels <= 2:
+            return wet
+        strength = float(np.clip(self._spatial_coupling_strength, 0.0, 1.0))
+        mode = self._spatial_coupling_mode
+        if strength <= 0.0 or mode == "none":
+            return wet
+
+        out = np.asarray(wet, dtype=np.float64)
+        coupled = np.asarray(out.copy(), dtype=np.float64)
+        layout = self._config.output_layout.strip().lower()
+        if layout == "auto":
+            layout = {
+                3: "lcr",
+                6: "5.1",
+                8: "7.1",
+                10: "7.1.2",
+                12: "7.1.4",
+            }.get(channels, "auto")
+        front_idx, rear_idx, top_idx = self._layout_channel_groups(layout=layout, channels=channels)
+
+        if mode == "adjacent":
+            coupled[:, :] = 0.5 * (np.roll(out, 1, axis=1) + np.roll(out, -1, axis=1))
+        elif mode == "all_to_all":
+            total = np.sum(out, axis=1, keepdims=True)
+            coupled[:, :] = (total - out) / float(max(1, channels - 1))
+        elif mode == "front_rear":
+            if len(front_idx) == 0 or len(rear_idx) == 0:
+                return out
+            front_mean = np.mean(out[:, front_idx], axis=1, keepdims=True)
+            rear_mean = np.mean(out[:, rear_idx], axis=1, keepdims=True)
+            for idx in front_idx:
+                coupled[:, idx] = rear_mean[:, 0]
+            for idx in rear_idx:
+                coupled[:, idx] = front_mean[:, 0]
+        elif mode == "bed_top":
+            bed_idx = sorted({*front_idx, *rear_idx})
+            if len(bed_idx) == 0 or len(top_idx) == 0:
+                return out
+            bed_mean = np.mean(out[:, bed_idx], axis=1, keepdims=True)
+            top_mean = np.mean(out[:, top_idx], axis=1, keepdims=True)
+            for idx in bed_idx:
+                coupled[:, idx] = top_mean[:, 0]
+            for idx in top_idx:
+                coupled[:, idx] = bed_mean[:, 0]
+
+        mixed = ((1.0 - strength) * out) + (strength * coupled)
+        return np.asarray(np.nan_to_num(mixed, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
+
     @staticmethod
     def _layout_channel_groups(
         layout: str,
@@ -457,6 +531,10 @@ class AlgoReverbEngine(ReverbEngine):
             suffixes.append("tonalcorr")
         if self._link_filter_enabled:
             suffixes.append("linkfilter")
+        if self._spatial_coupling_mode != "none" and self._spatial_coupling_strength > 0.0:
+            suffixes.append("spatialcouple")
+        if self._nonlinearity_enabled:
+            suffixes.append("nonlinear")
         if len(suffixes) == 0:
             return base
         return f"{base}-{'-'.join(suffixes)}"
@@ -533,10 +611,76 @@ class AlgoReverbEngine(ReverbEngine):
         )
         return cls._orthonormalize(proto)
 
+    @classmethod
+    def _build_sdn_hybrid_matrix(cls, size: int) -> npt.NDArray[np.float64]:
+        """Build an SDN-inspired scattering matrix from pseudo-geometry."""
+        if size <= 1:
+            return np.eye(size, dtype=np.float64)
+        idx = np.arange(size, dtype=np.float64)
+        golden = np.pi * (3.0 - np.sqrt(5.0))
+        z = 1.0 - (2.0 * (idx + 0.5) / float(size))
+        radius = np.sqrt(np.maximum(0.0, 1.0 - (z * z)))
+        theta = golden * idx
+        coords = np.stack(
+            (
+                radius * np.cos(theta),
+                radius * np.sin(theta),
+                z,
+            ),
+            axis=1,
+        ).astype(np.float64)
+
+        matrix = np.eye(size, dtype=np.float64) * 0.58
+        for i in range(size):
+            for j in range(size):
+                if i == j:
+                    continue
+                dist = float(np.linalg.norm(coords[i] - coords[j]))
+                weight = 0.42 / (1.0 + (4.0 * dist))
+                sign = 1.0 if ((i + j) % 2 == 0) else -1.0
+                matrix[i, j] = np.float64(sign * weight)
+        return cls._orthonormalize(matrix)
+
     @staticmethod
     def _normalize_matrix_type(matrix_type: str) -> str:
         """Normalize user matrix string to lowercase identifier."""
         return normalize_fdn_matrix_name(matrix_type)
+
+    @classmethod
+    def _resolve_spatial_coupling_mode(cls, mode: str) -> str:
+        """Normalize and validate spatial-coupling mode identifier."""
+        normalized = str(mode).strip().lower().replace("-", "_")
+        if normalized in cls._SPATIAL_COUPLING_MODES:
+            return normalized
+        msg = f"Unsupported FDN spatial coupling mode: {mode}"
+        raise ValueError(msg)
+
+    @classmethod
+    def _resolve_nonlinearity_mode(cls, mode: str) -> str:
+        """Normalize and validate in-loop nonlinearity mode identifier."""
+        normalized = str(mode).strip().lower().replace("-", "_")
+        if normalized in cls._NONLINEARITY_MODES:
+            return normalized
+        msg = f"Unsupported FDN nonlinearity mode: {mode}"
+        raise ValueError(msg)
+
+    def _apply_feedback_nonlinearity(
+        self,
+        values: npt.NDArray[np.float64],
+    ) -> npt.NDArray[np.float64]:
+        """Apply bounded nonlinear feedback shaping for density/color experiments."""
+        if not self._nonlinearity_enabled:
+            return np.asarray(values, dtype=np.float64)
+        drive = float(max(1e-6, self._nonlinearity_drive))
+        amount = float(np.clip(self._nonlinearity_amount, 0.0, 1.0))
+        driven = np.asarray(values * drive, dtype=np.float64)
+        if self._nonlinearity_mode == "tanh":
+            shaped = np.tanh(driven)
+        else:
+            shaped = driven / (1.0 + np.abs(driven))
+        normalized = np.asarray(shaped / drive, dtype=np.float64)
+        blended = ((1.0 - amount) * values) + (amount * normalized)
+        return np.asarray(np.clip(blended, -32.0, 32.0), dtype=np.float64)
 
     @staticmethod
     def _normalize_graph_topology(topology: str) -> str:
@@ -741,6 +885,9 @@ class AlgoReverbEngine(ReverbEngine):
 
         if kind == "elliptic":
             return cls._build_elliptic_matrix(size=size)
+
+        if kind == "sdn_hybrid":
+            return cls._build_sdn_hybrid_matrix(size=size)
 
         if kind == "graph":
             pairings = cls._build_graph_pairings(
@@ -1539,6 +1686,8 @@ class AlgoReverbEngine(ReverbEngine):
                     cascade_size = int(cascade_feedback.shape[0])
                     for i in range(num_lines):
                         mixed_feedback[i] += cascade_mix * cascade_feedback[i % cascade_size]
+                if self._nonlinearity_enabled:
+                    mixed_feedback[:] = self._apply_feedback_nonlinearity(mixed_feedback)
 
                 injection = np.float64(diffused * inv_sqrt_lines)
 

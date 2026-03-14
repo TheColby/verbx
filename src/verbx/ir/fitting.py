@@ -132,8 +132,16 @@ def build_ir_fit_candidates(
         density = float(
             np.clip(target.density + density_offsets[idx % len(density_offsets)], 0.05, 2.2)
         )
+        topology = _suggest_fdn_topology_profile(
+            index=idx,
+            target=target,
+            mode=mode,
+            density=density,
+            diffusion=diffusion,
+            seed=seed,
+        )
         modal_count = int(np.clip(28 + (idx % 5) * 10, 12, 96))
-        fdn_lines = int(np.clip(8 + (idx % 4) * 2, 4, 16))
+        fdn_lines = int(topology["fdn_lines"])
 
         cfg = IRGenConfig(
             mode=mode,
@@ -149,10 +157,31 @@ def build_ir_fit_candidates(
             peak_dbfs=-1.0,
             modal_count=modal_count,
             fdn_lines=fdn_lines,
+            fdn_matrix=str(topology["fdn_matrix"]),
+            fdn_graph_topology=str(topology["fdn_graph_topology"]),
+            fdn_graph_degree=int(topology["fdn_graph_degree"]),
+            fdn_graph_seed=int(topology["fdn_graph_seed"]),
+            fdn_sparse=bool(topology["fdn_sparse"]),
+            fdn_sparse_degree=int(topology["fdn_sparse_degree"]),
+            fdn_cascade=bool(topology["fdn_cascade"]),
+            fdn_cascade_mix=float(topology["fdn_cascade_mix"]),
+            fdn_link_filter=str(topology["fdn_link_filter"]),
+            fdn_link_filter_hz=float(topology["fdn_link_filter_hz"]),
+            fdn_link_filter_mix=float(topology["fdn_link_filter_mix"]),
+            fdn_spatial_coupling_mode=str(topology["fdn_spatial_coupling_mode"]),
+            fdn_spatial_coupling_strength=float(topology["fdn_spatial_coupling_strength"]),
+            fdn_nonlinearity=str(topology["fdn_nonlinearity"]),
+            fdn_nonlinearity_amount=float(topology["fdn_nonlinearity_amount"]),
+            fdn_nonlinearity_drive=float(topology["fdn_nonlinearity_drive"]),
             f0_hz=f0_hz,
             harmonic_targets_hz=harmonic_targets_hz,
         )
-        out.append(IRFitCandidate(config=cfg, strategy=f"{mode}-heuristic-{idx + 1:02d}"))
+        out.append(
+            IRFitCandidate(
+                config=cfg,
+                strategy=f"{mode}-heuristic-{idx + 1:02d}-{topology['fdn_matrix']}",
+            )
+        )
 
     return out
 
@@ -240,3 +269,102 @@ def _metric_as_float(metrics: dict[str, float | list[float]], key: str, default:
     if isinstance(value, (int, float, np.floating)):
         return float(value)
     return float(default)
+
+
+def _suggest_fdn_topology_profile(
+    *,
+    index: int,
+    target: IRFitTarget,
+    mode: IRMode,
+    density: float,
+    diffusion: float,
+    seed: int,
+) -> dict[str, float | int | str | bool]:
+    """Suggest topology-oriented FDN controls from analysis-derived targets."""
+    if target.flatness >= 0.35:
+        matrix_pool = ("graph", "sdn_hybrid", "random_orthogonal", "circulant")
+    elif target.flatness <= 0.15:
+        matrix_pool = ("elliptic", "householder", "sdn_hybrid", "hadamard")
+    else:
+        matrix_pool = ("hadamard", "householder", "random_orthogonal", "sdn_hybrid")
+    matrix = str(matrix_pool[index % len(matrix_pool)])
+
+    lines = int(np.clip(8 + (index % 5) * 2 + int(np.floor(max(0.0, density - 1.0) * 3.0)), 4, 24))
+    graph_topology = "ring"
+    graph_degree = 2
+    if matrix == "graph":
+        topologies = ("ring", "path", "star", "random")
+        graph_topology = str(topologies[index % len(topologies)])
+        graph_degree = int(np.clip(2 + (index % 3), 1, 6))
+
+    sparse = (
+        matrix not in {"graph", "tv_unitary"}
+        and density > 1.1
+        and diffusion > 0.45
+        and (index % 5 == 0)
+    )
+    sparse_degree = int(np.clip(2 + (index % 3), 1, 6))
+
+    cascade = bool(target.rt60_seconds > 24.0 and (index % 2 == 0))
+    cascade_mix = float(np.clip(0.20 + (0.18 * np.clip(density - 0.7, 0.0, 1.5)), 0.1, 0.6))
+
+    if target.centroid_hz < 900.0:
+        link_filter = "lowpass"
+    elif target.centroid_hz > 2600.0:
+        link_filter = "highpass"
+    else:
+        link_filter = "none"
+    link_filter_hz = float(np.clip(target.centroid_hz * 1.2, 180.0, 8_000.0))
+    link_filter_mix = (
+        0.0
+        if link_filter == "none"
+        else float(np.clip(0.22 + (0.25 * diffusion), 0.0, 0.75))
+    )
+
+    if target.stereo_coherence < 0.35:
+        coupling_mode = "adjacent"
+        coupling_strength = float(
+            np.clip(0.10 + (0.20 * (0.35 - target.stereo_coherence)), 0.0, 0.35)
+        )
+    elif target.stereo_coherence < 0.55:
+        coupling_mode = "front_rear"
+        coupling_strength = float(
+            np.clip(0.08 + (0.10 * (0.55 - target.stereo_coherence)), 0.0, 0.25)
+        )
+    else:
+        coupling_mode = "none"
+        coupling_strength = 0.0
+
+    nonlinear_mode = "none"
+    nonlinear_amount = 0.0
+    nonlinear_drive = 1.0
+    if mode in {"fdn", "hybrid"} and target.flatness < 0.12 and (index % 4 in {0, 1}):
+        nonlinear_mode = "tanh"
+        nonlinear_amount = float(
+            np.clip(
+                0.08 + (0.10 * np.clip(0.12 - target.flatness, 0.0, 0.12) / 0.12),
+                0.0,
+                0.25,
+            )
+        )
+        nonlinear_drive = float(np.clip(1.2 + (0.8 * nonlinear_amount * 10.0), 1.0, 3.0))
+
+    return {
+        "fdn_matrix": matrix,
+        "fdn_lines": lines,
+        "fdn_graph_topology": graph_topology,
+        "fdn_graph_degree": graph_degree,
+        "fdn_graph_seed": int(seed + (index * 31)),
+        "fdn_sparse": bool(sparse),
+        "fdn_sparse_degree": sparse_degree,
+        "fdn_cascade": cascade,
+        "fdn_cascade_mix": cascade_mix,
+        "fdn_link_filter": link_filter,
+        "fdn_link_filter_hz": link_filter_hz,
+        "fdn_link_filter_mix": link_filter_mix,
+        "fdn_spatial_coupling_mode": coupling_mode,
+        "fdn_spatial_coupling_strength": coupling_strength,
+        "fdn_nonlinearity": nonlinear_mode,
+        "fdn_nonlinearity_amount": nonlinear_amount,
+        "fdn_nonlinearity_drive": nonlinear_drive,
+    }

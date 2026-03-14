@@ -8,7 +8,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -19,6 +19,7 @@ from verbx.ir.metrics import analyze_ir
 
 AudioArray = npt.NDArray[np.float64]
 IRMorphMode = Literal["linear", "equal-power", "spectral", "envelope-aware"]
+IRMorphMismatchPolicy = Literal["coerce", "strict"]
 
 _MORPH_MODE_CHOICES = {
     "linear",
@@ -26,7 +27,11 @@ _MORPH_MODE_CHOICES = {
     "spectral",
     "envelope-aware",
 }
-_CACHE_KEY_SCHEMA = "ir-morph-v2"
+_MORPH_MISMATCH_POLICY_CHOICES = {
+    "coerce",
+    "strict",
+}
+_CACHE_KEY_SCHEMA = "ir-morph-v3"
 
 
 @dataclass(slots=True)
@@ -41,6 +46,7 @@ class IRMorphConfig:
     align_decay: bool = True
     phase_coherence: float = 0.75
     spectral_smooth_bins: int = 3
+    mismatch_policy: IRMorphMismatchPolicy = "coerce"
 
 
 def normalize_ir_morph_mode_name(value: str) -> str:
@@ -59,6 +65,24 @@ def validate_ir_morph_mode_name(value: str) -> str:
     if normalized not in _MORPH_MODE_CHOICES:
         options = ", ".join(sorted(_MORPH_MODE_CHOICES))
         msg = f"IR morph mode must be one of: {options}."
+        raise ValueError(msg)
+    return normalized
+
+
+def normalize_ir_morph_mismatch_policy_name(value: str) -> str:
+    """Normalize mismatch-policy names to canonical CLI/API identifiers."""
+    normalized = str(value).strip().lower().replace("_", "-")
+    if normalized in {"align", "auto", "coercive"}:
+        return "coerce"
+    return normalized
+
+
+def validate_ir_morph_mismatch_policy_name(value: str) -> str:
+    """Validate and return normalized mismatch-policy name."""
+    normalized = normalize_ir_morph_mismatch_policy_name(value)
+    if normalized not in _MORPH_MISMATCH_POLICY_CHOICES:
+        options = ", ".join(sorted(_MORPH_MISMATCH_POLICY_CHOICES))
+        msg = f"IR morph mismatch policy must be one of: {options}."
         raise ValueError(msg)
     return normalized
 
@@ -88,7 +112,12 @@ def morph_ir_arrays(
     config: IRMorphConfig,
 ) -> tuple[AudioArray, dict[str, Any]]:
     """Morph two in-memory IR arrays and return output + quality summary."""
-    a, b = _align_ir_pair(np.asarray(ir_a, dtype=np.float64), np.asarray(ir_b, dtype=np.float64))
+    policy = validate_ir_morph_mismatch_policy_name(config.mismatch_policy)
+    a, b = _align_ir_pair(
+        np.asarray(ir_a, dtype=np.float64),
+        np.asarray(ir_b, dtype=np.float64),
+        mismatch_policy=cast(IRMorphMismatchPolicy, policy),
+    )
     mode = validate_ir_morph_mode_name(config.mode)
     alpha = float(np.clip(config.alpha, 0.0, 1.0))
     early_alpha = float(
@@ -173,6 +202,7 @@ def morph_ir_arrays(
     quality["early_alpha"] = early_alpha
     quality["late_alpha"] = late_alpha
     quality["aligned_decay"] = bool(config.align_decay)
+    quality["mismatch_policy"] = policy
     return out, quality
 
 
@@ -188,6 +218,13 @@ def generate_or_load_cached_morphed_ir(
     cache_dir.mkdir(parents=True, exist_ok=True)
     sig_a = _source_signature(ir_a_path)
     sig_b = _source_signature(ir_b_path)
+    mismatch_policy = validate_ir_morph_mismatch_policy_name(config.mismatch_policy)
+    _validate_source_mismatch_policy(
+        reference=sig_a,
+        candidate=sig_b,
+        candidate_label="IR_B",
+        mismatch_policy=cast(IRMorphMismatchPolicy, mismatch_policy),
+    )
     payload = {
         "cache_schema": _CACHE_KEY_SCHEMA,
         "op": "pair-morph",
@@ -246,6 +283,14 @@ def generate_or_load_cached_blended_ir(
     cache_dir.mkdir(parents=True, exist_ok=True)
     base_sig = _source_signature(base_ir_path)
     blend_sigs = [_source_signature(path) for path in blend_ir_paths]
+    mismatch_policy = validate_ir_morph_mismatch_policy_name(config.mismatch_policy)
+    for idx, blend_sig in enumerate(blend_sigs, start=1):
+        _validate_source_mismatch_policy(
+            reference=base_sig,
+            candidate=blend_sig,
+            candidate_label=f"IR_BLEND[{idx}]",
+            mismatch_policy=cast(IRMorphMismatchPolicy, mismatch_policy),
+        )
     payload = {
         "cache_schema": _CACHE_KEY_SCHEMA,
         "op": "multi-blend",
@@ -384,11 +429,31 @@ def _load_ir_resampled(path: Path, *, target_sr: int) -> AudioArray:
     return np.asarray(resample_poly(x, up=up, down=down, axis=0), dtype=np.float64)
 
 
-def _align_ir_pair(ir_a: AudioArray, ir_b: AudioArray) -> tuple[AudioArray, AudioArray]:
+def _align_ir_pair(
+    ir_a: AudioArray,
+    ir_b: AudioArray,
+    *,
+    mismatch_policy: IRMorphMismatchPolicy = "coerce",
+) -> tuple[AudioArray, AudioArray]:
     a = np.asarray(ir_a, dtype=np.float64)
     b = np.asarray(ir_b, dtype=np.float64)
     if a.ndim != 2 or b.ndim != 2:
         raise ValueError("IR arrays must be 2D with shape [samples, channels].")
+    policy = validate_ir_morph_mismatch_policy_name(mismatch_policy)
+    if policy == "strict":
+        if int(a.shape[1]) != int(b.shape[1]):
+            msg = (
+                "IR channel-layout mismatch under strict policy: "
+                f"{int(a.shape[1])} vs {int(b.shape[1])}."
+            )
+            raise ValueError(msg)
+        if int(a.shape[0]) != int(b.shape[0]):
+            msg = (
+                "IR duration mismatch under strict policy: "
+                f"{int(a.shape[0])} vs {int(b.shape[0])} samples."
+            )
+            raise ValueError(msg)
+        return np.asarray(a, dtype=np.float64), np.asarray(b, dtype=np.float64)
 
     target_channels = max(int(a.shape[1]), int(b.shape[1]))
     a = _match_channels(a, target_channels)
@@ -675,6 +740,42 @@ def _source_signature(path: Path) -> dict[str, Any]:
         "format": str(info.format),
         "subtype": str(info.subtype),
     }
+
+
+def _validate_source_mismatch_policy(
+    *,
+    reference: dict[str, Any],
+    candidate: dict[str, Any],
+    candidate_label: str,
+    mismatch_policy: IRMorphMismatchPolicy,
+) -> None:
+    policy = validate_ir_morph_mismatch_policy_name(mismatch_policy)
+    if policy != "strict":
+        return
+    ref_sr = int(reference.get("sample_rate", 0))
+    cand_sr = int(candidate.get("sample_rate", 0))
+    if ref_sr != cand_sr:
+        msg = (
+            f"{candidate_label} sample-rate mismatch under strict policy: "
+            f"{cand_sr} vs {ref_sr}."
+        )
+        raise ValueError(msg)
+    ref_channels = int(reference.get("channels", 0))
+    cand_channels = int(candidate.get("channels", 0))
+    if ref_channels != cand_channels:
+        msg = (
+            f"{candidate_label} channel-layout mismatch under strict policy: "
+            f"{cand_channels} vs {ref_channels}."
+        )
+        raise ValueError(msg)
+    ref_frames = int(reference.get("frames", 0))
+    cand_frames = int(candidate.get("frames", 0))
+    if ref_frames != cand_frames:
+        msg = (
+            f"{candidate_label} duration mismatch under strict policy: "
+            f"{cand_frames} vs {ref_frames} frames."
+        )
+        raise ValueError(msg)
 
 
 def _payload_hash(payload: dict[str, Any]) -> str:

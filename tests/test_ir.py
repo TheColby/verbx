@@ -12,6 +12,7 @@ from typer.testing import CliRunner
 from verbx.cli import app
 from verbx.core.convolution_reverb import ConvolutionReverbConfig, ConvolutionReverbEngine
 from verbx.core.tempo import parse_note_duration_seconds, parse_pre_delay_ms
+from verbx.ir.fitting import IRFitTarget, build_ir_fit_candidates
 from verbx.ir.generator import IRGenConfig, generate_or_load_cached_ir
 
 runner = CliRunner()
@@ -247,6 +248,47 @@ def test_ir_gen_supports_graph_fdn_controls(tmp_path: Path) -> None:
     assert params["fdn_graph_topology"] == "path"
     assert int(params["fdn_graph_degree"]) == 3
     assert int(params["fdn_graph_seed"]) == 42
+
+
+def test_ir_gen_supports_sdn_spatial_and_nonlinear_controls(tmp_path: Path) -> None:
+    out_ir = tmp_path / "fdn_sdn_spatial.wav"
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "fdn",
+            "--length",
+            "0.5",
+            "--sr",
+            "12000",
+            "--channels",
+            "10",
+            "--fdn-matrix",
+            "sdn_hybrid",
+            "--fdn-spatial-coupling-mode",
+            "front_rear",
+            "--fdn-spatial-coupling-strength",
+            "0.2",
+            "--fdn-nonlinearity",
+            "softclip",
+            "--fdn-nonlinearity-amount",
+            "0.15",
+            "--fdn-nonlinearity-drive",
+            "2.0",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(out_ir.with_suffix(".wav.ir.meta.json").read_text(encoding="utf-8"))
+    params = payload["params"]
+    assert params["fdn_matrix"] == "sdn_hybrid"
+    assert params["fdn_spatial_coupling_mode"] == "front_rear"
+    assert abs(float(params["fdn_spatial_coupling_strength"]) - 0.2) < 1e-9
+    assert params["fdn_nonlinearity"] == "softclip"
+    assert abs(float(params["fdn_nonlinearity_amount"]) - 0.15) < 1e-9
+    assert abs(float(params["fdn_nonlinearity_drive"]) - 2.0) < 1e-9
 
 
 def test_ir_gen_rejects_graph_options_without_graph_matrix(tmp_path: Path) -> None:
@@ -685,6 +727,33 @@ def test_ir_fit_heuristic_scoring_outputs_top_k(tmp_path: Path) -> None:
     assert fit["rank"] == 1
     assert float(fit["score"]) > 0.0
     assert "errors" in fit
+
+
+def test_ir_fit_topology_assistance_emits_nontrivial_fdn_profiles() -> None:
+    target = IRFitTarget(
+        rt60_seconds=22.0,
+        early_late_ratio_db=-4.0,
+        stereo_coherence=0.25,
+        centroid_hz=3000.0,
+        flatness=0.08,
+        damping=0.36,
+        diffusion=0.82,
+        density=1.45,
+    )
+    candidates = build_ir_fit_candidates(
+        base_mode="fdn",
+        length=0.8,
+        sr=16_000,
+        channels=2,
+        seed=17,
+        pool_size=8,
+        target=target,
+    )
+    assert len(candidates) == 8
+    matrices = {candidate.config.fdn_matrix for candidate in candidates}
+    assert "graph" in matrices or "sdn_hybrid" in matrices
+    assert any(candidate.config.fdn_nonlinearity != "none" for candidate in candidates)
+    assert any(candidate.config.fdn_spatial_coupling_mode != "none" for candidate in candidates)
 
 
 def test_convolution_with_generated_ir_is_nonzero(tmp_path: Path) -> None:

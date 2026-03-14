@@ -11,6 +11,7 @@ FDN_MATRIX_CHOICES = frozenset(
         "elliptic",
         "tv_unitary",
         "graph",
+        "sdn_hybrid",
     }
 )
 

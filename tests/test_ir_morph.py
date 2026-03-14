@@ -102,8 +102,8 @@ def test_generate_or_load_cached_morphed_ir_reuses_cache_when_source_path_change
     assert wav_path_1 == wav_path_2
     assert cache_hit_1 is False
     assert cache_hit_2 is True
-    assert meta_1["cache_schema"] == "ir-morph-v2"
-    assert meta_2["cache_schema"] == "ir-morph-v2"
+    assert meta_1["cache_schema"] == "ir-morph-v3"
+    assert meta_2["cache_schema"] == "ir-morph-v3"
 
 
 def test_generate_or_load_cached_blended_ir_supports_broadcast_mix(tmp_path: Path) -> None:
@@ -136,3 +136,28 @@ def test_generate_or_load_cached_blended_ir_supports_broadcast_mix(tmp_path: Pat
     assert np.all(np.isfinite(out))
     assert meta["mode"] == "ir-blend"
     assert len(meta["weights"]) == 3
+
+
+def test_generate_or_load_cached_morphed_ir_strict_policy_rejects_mismatch(tmp_path: Path) -> None:
+    a = _impulse_with_echo(length=2048, channels=1, echo_index=120, echo_gain=0.4)
+    b = _impulse_with_echo(length=4096, channels=2, echo_index=320, echo_gain=0.3)
+    path_a = tmp_path / "strict_a.wav"
+    path_b = tmp_path / "strict_b.wav"
+    sf.write(str(path_a), a, 16_000)
+    sf.write(str(path_b), b, 22_050)
+    cfg = IRMorphConfig(mode="equal-power", alpha=0.5, mismatch_policy="strict")
+
+    try:
+        generate_or_load_cached_morphed_ir(
+            ir_a_path=path_a,
+            ir_b_path=path_b,
+            config=cfg,
+            cache_dir=tmp_path / "cache",
+            target_sr=None,
+        )
+    except ValueError as exc:
+        text = str(exc).lower()
+        assert "strict policy" in text
+        assert "sample-rate mismatch" in text
+        return
+    raise AssertionError("Expected strict mismatch policy to reject incompatible IR sources.")
