@@ -1587,6 +1587,15 @@ def test_batch_augment_template_emits_manifest_shape() -> None:
     assert "asr-reverb-v1" in payload["profiles"]
 
 
+def test_batch_augment_profiles_lists_builtin_profiles() -> None:
+    result = runner.invoke(app, ["batch", "augment-profiles", "--json"])
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    assert "asr-reverb-v1" in payload
+    assert "music-reverb-v1" in payload
+    assert "drums-room-v1" in payload
+
+
 def test_batch_augment_dry_run_plans_without_writing_audio(tmp_path: Path) -> None:
     sr = 16_000
     infile = tmp_path / "in.wav"
@@ -1624,6 +1633,49 @@ def test_batch_augment_dry_run_plans_without_writing_audio(tmp_path: Path) -> No
     assert not out_root.exists()
 
 
+def test_batch_augment_split_isolation_rejects_overlapping_sources(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "source.wav"
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[10:40, 0] = 0.2
+    sf.write(str(infile), audio, sr)
+
+    manifest = tmp_path / "augment_overlap_manifest.json"
+    payload = {
+        "version": "0.7",
+        "dataset_name": "leak_guard",
+        "profile": "asr-reverb-v1",
+        "seed": 7,
+        "variants_per_input": 1,
+        "jobs": [
+            {
+                "id": "shared_utt",
+                "infile": str(infile),
+                "split": "train",
+                "label": "speaker_a",
+            },
+            {
+                "id": "shared_utt",
+                "infile": str(infile),
+                "split": "val",
+                "label": "speaker_a",
+            },
+        ],
+    }
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = runner.invoke(app, ["batch", "augment", str(manifest), "--dry-run"])
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "Split isolation violation" in text
+
+    allowed = runner.invoke(
+        app,
+        ["batch", "augment", str(manifest), "--dry-run", "--allow-split-overlap"],
+    )
+    assert allowed.exit_code == 0, allowed.stdout
+
+
 def test_batch_augment_generates_dataset_and_metadata(tmp_path: Path) -> None:
     sr = 16_000
     infile = tmp_path / "voice.wav"
@@ -1632,6 +1684,8 @@ def test_batch_augment_generates_dataset_and_metadata(tmp_path: Path) -> None:
     sf.write(str(infile), audio, sr)
 
     out_root = tmp_path / "augmented_data"
+    dataset_card = out_root / "DATASET_CARD.md"
+    metrics_csv = out_root / "augmentation_metrics.csv"
     manifest = tmp_path / "augment_manifest_run.json"
     payload = {
         "version": "0.7",
@@ -1675,6 +1729,10 @@ def test_batch_augment_generates_dataset_and_metadata(tmp_path: Path) -> None:
             "1",
             "--copy-dry",
             "--allow-failed",
+            "--dataset-card-out",
+            str(dataset_card),
+            "--metrics-csv-out",
+            str(metrics_csv),
         ],
     )
     assert result.exit_code == 0, result.stdout
@@ -1688,6 +1746,8 @@ def test_batch_augment_generates_dataset_and_metadata(tmp_path: Path) -> None:
     summary_path = out_root / "augmentation_summary.json"
     assert jsonl_path.exists()
     assert summary_path.exists()
+    assert dataset_card.exists()
+    assert metrics_csv.exists()
 
     rows = [
         json.loads(line)
@@ -1706,6 +1766,8 @@ def test_batch_augment_generates_dataset_and_metadata(tmp_path: Path) -> None:
     assert int(summary["planned"]) == 2
     assert int(summary["success"]) == 2
     assert int(summary["failed"]) == 0
+    assert "dataset_card" in summary
+    assert "metrics_csv" in summary
 
 
 def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:

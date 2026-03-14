@@ -7,6 +7,8 @@
 - Generate many reverberant variants per clean source with fixed random seeds.
 - Keep train/val/test split and label metadata attached to every rendered file.
 - Export machine-friendly run artifacts (`JSONL` manifest + summary JSON).
+- Export optional dataset-card Markdown and per-output metrics CSV artifacts.
+- Enforce split-isolation by default to reduce accidental train/val/test leakage.
 - Optionally copy dry sources into the output tree for paired clean/wet training.
 
 ## Commands
@@ -17,12 +19,21 @@
 verbx batch augment-template > augment_manifest.json
 ```
 
+### 1b) Inspect built-in profile families
+
+```bash
+verbx batch augment-profiles
+verbx batch augment-profiles --json
+```
+
 ### 2) Run augmentation
 
 ```bash
 verbx batch augment augment_manifest.json \
   --jobs 8 \
   --copy-dry \
+  --dataset-card-out out/DATASET_CARD.md \
+  --metrics-csv-out out/augmentation_metrics.csv \
   --summary-out out/augmentation_summary.json \
   --jsonl-out out/augmentation_manifest.jsonl
 ```
@@ -82,10 +93,16 @@ verbx batch augment augment_manifest.json --dry-run
   - one row per rendered variant with `source_id`, `split`, `label`, `tags`,
     sampled `render_config`, deterministic `seed`, and success/error status
 - Summary JSON:
-  - aggregate counts (`planned/success/failed`) plus split/label counts
+  - aggregate counts (`planned/success/failed`) plus split/label/archetype/tag counts
+- Optional dataset card:
+  - markdown file documenting generation settings and distribution summary
+- Optional metrics CSV:
+  - per-output scalar features for QA, filtering, and dataset debugging
 
 ## Reproducibility notes
 
 - Identical manifest + seed + inputs => identical augmentation plans.
 - Use `--profile`, `--seed`, or `--variants-per-input` to override manifest values
   without editing files.
+- Default split guard enforces one source ID/input path per split. Use
+  `--allow-split-overlap` only when intentional cross-split reuse is required.

@@ -177,7 +177,7 @@ batch workflows.
     - [13.16 `verbx immersive handoff SCENE_FILE OUT_DIR` switches](#1316-verbx-immersive-handoff-scene_file-out_dir-switches)
     - [13.17 `verbx immersive qc INFILE` switches](#1317-verbx-immersive-qc-infile-switches)
     - [13.18 `verbx immersive queue` switches](#1318-verbx-immersive-queue-switches)
-    - [13.19 `verbx batch augment-template` and `verbx batch augment MANIFEST` switches](#1319-verbx-batch-augment-template-and-verbx-batch-augment-manifest-switches)
+    - [13.19 `verbx batch augment-template`, `verbx batch augment-profiles`, and `verbx batch augment MANIFEST` switches](#1319-verbx-batch-augment-template-verbx-batch-augment-profiles-and-verbx-batch-augment-manifest-switches)
   - [14.0 CLI Command Cookbook](#140-cli-command-cookbook)
     - [14.1 Global help](#141-global-help)
     - [14.2 Core commands](#142-core-commands)
@@ -219,9 +219,10 @@ batch workflows.
       - [21.2.4 Stream R2: Perceptual parameter integrity (Track C)](#2124-stream-r2-perceptual-parameter-integrity-track-c)
       - [21.2.5 Stream R3: IR morph productionization (Track D)](#2125-stream-r3-ir-morph-productionization-track-d)
       - [21.2.6 Stream R4: Next-generation FDN topology expansion](#2126-stream-r4-next-generation-fdn-topology-expansion)
-      - [21.2.7 Verification matrix and release SLOs](#2127-verification-matrix-and-release-slos)
-      - [21.2.8 Risk register and mitigations](#2128-risk-register-and-mitigations)
-      - [21.2.9 Execution cadence and ownership model](#2129-execution-cadence-and-ownership-model)
+      - [21.2.7 Stream R5: AI research and data augmentation operations](#2127-stream-r5-ai-research-and-data-augmentation-operations)
+      - [21.2.8 Verification matrix and release SLOs](#2128-verification-matrix-and-release-slos)
+      - [21.2.9 Risk register and mitigations](#2129-risk-register-and-mitigations)
+      - [21.2.10 Execution cadence and ownership model](#21210-execution-cadence-and-ownership-model)
     - [21.3 Sources for Roadmap Items](#213-sources-for-roadmap-items)
   - [22.0 License](#220-license)
   - [23.0 Attribution](#230-attribution)
@@ -342,7 +343,8 @@ This installs `verbx` and renders an intentionally extreme long-tail reverb as `
 - Batch manifests with scheduling policies, retries, dry-run, fail-fast/continue modes.
 - Batch checkpoint/resume support for long render queues.
 - AI-oriented augmentation pipeline (`batch augment`) with deterministic profile-based
-  parameter sampling, split/label metadata, and JSONL summary artifacts.
+  parameter sampling, split-leakage guards, split/label/tag metadata, JSONL summary
+  artifacts, optional dataset cards, and optional per-output metrics CSV export.
 - Immersive distributed file queue (`template`, `status`, `worker`) with heartbeats and reclaim/retry semantics.
 - Queue manifest ID uniqueness enforcement for safe distributed execution.
 
@@ -884,7 +886,7 @@ Current implementation level: **v0.7.0**
 - v0.7 Track D additions: cache-backed `ir morph` command (`linear`, `equal-power`, `spectral`, `envelope-aware`), render-time IR blending via `--ir-blend`/`--ir-blend-mix`, and morph quality metadata (RT drift, spectral distance, coherence deltas)
 - v0.7 immersive interoperability additions: `immersive handoff` sidecar/deliverable packaging, object/bed policy checks, `immersive qc` gates, and distributed `immersive queue` worker heartbeats/retry semantics
 - v0.7 immersive hardening additions: strict handoff now fails on policy violations, scene validation errors, or any QC gate failure; scene sample-rate mismatches are surfaced in validation payloads; queue manifests now require unique job IDs
-- v0.7 AI/research additions: deterministic batch augmentation workflow (`batch augment-template`, `batch augment`) with profile-driven sampling, split/label metadata, JSONL dataset manifests, and summary artifacts
+- v0.7 AI/research additions: deterministic batch augmentation workflow (`batch augment-template`, `batch augment-profiles`, `batch augment`) with profile-driven sampling, split-isolation validation, split/label/tag metadata, JSONL dataset manifests, summary artifacts, optional dataset cards, and optional per-output metrics CSV export
 
 ### 7.1 Public-launch hardening: top 5 likely complaints and mitigations
 
@@ -1364,6 +1366,9 @@ Use this to generate deterministic, metadata-rich reverberant training sets.
 # emit manifest template
 verbx batch augment-template > augment_manifest.json
 
+# inspect built-in profile families
+verbx batch augment-profiles
+
 # plan-only check
 verbx batch augment augment_manifest.json --dry-run
 
@@ -1371,6 +1376,8 @@ verbx batch augment augment_manifest.json --dry-run
 verbx batch augment augment_manifest.json \
   --jobs 8 \
   --copy-dry \
+  --dataset-card-out out/DATASET_CARD.md \
+  --metrics-csv-out out/augmentation_metrics.csv \
   --summary-out out/augmentation_summary.json \
   --jsonl-out out/augmentation_manifest.jsonl
 ```
@@ -1380,8 +1387,13 @@ Notes:
 - Built-in profiles: `asr-reverb-v1`, `music-reverb-v1`, `drums-room-v1`.
 - Manifest jobs support `split`, `label`, `tags`, and arbitrary per-source
   `metadata` payloads for downstream ML pipelines.
+- Default split-isolation checks prevent one source ID or input file from
+  crossing train/val/test boundaries. Use `--allow-split-overlap` only when that
+  reuse is intentional.
 - JSONL rows include deterministic seed, sampled archetype/config, output path,
   and render success/error status.
+- Optional metrics CSV captures per-output scalar audio features for QA/filtering.
+- Optional dataset card output summarizes provenance and class/split distributions.
 - Use `--profile`, `--seed`, and `--variants-per-input` to override manifest
   values for rapid experiment sweeps without editing files.
 
@@ -2528,9 +2540,15 @@ No command-specific switches (other than `--help`).
 | `--lucky-out-dir` | Shared output directory for batch lucky renders. | Helpful for collecting all randomized outputs in one place. |
 | `--lucky-seed` | Deterministic seed for batch lucky randomization. | Keep fixed to regenerate the same lucky batch expansion. |
 
-### 13.19 `verbx batch augment-template` and `verbx batch augment MANIFEST` switches
+### 13.19 `verbx batch augment-template`, `verbx batch augment-profiles`, and `verbx batch augment MANIFEST` switches
 
 `verbx batch augment-template` has no command-specific switches (other than `--help`).
+
+`verbx batch augment-profiles` switches:
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--json` | Emit machine-readable JSON instead of a console table. | Use in scripts to snapshot profile/archetype definitions and compare changes across versions. |
 
 `verbx batch augment MANIFEST` switches:
 
@@ -2542,6 +2560,7 @@ No command-specific switches (other than `--help`).
 | `--variants-per-input` | Global variant count override per source. | Increase for higher diversity; reduce for quick iteration. |
 | `--write-analysis / --no-write-analysis` | Per-render analysis sidecar generation override. | Keep off for throughput-focused dataset generation; enable for QA datasets. |
 | `--copy-dry / --no-copy-dry` | Copy clean sources to output tree for paired datasets. | Enable for clean/wet supervised tasks. |
+| `--verify-split-isolation / --allow-split-overlap` | Enforce one source ID/input path per split. | Keep isolation on for ML hygiene; disable only for intentionally shared-source experiments. |
 | `--jobs` | Number of concurrent workers (`0` = auto). | Set near available cores for throughput. |
 | `--schedule [fifo\|shortest-first\|longest-first]` | Job ordering policy for expanded variants. | `longest-first` usually keeps workers saturated. |
 | `--retries` | Retry count per failed render. | Use `1-2` for transient filesystem/runtime hiccups. |
@@ -2550,6 +2569,9 @@ No command-specific switches (other than `--help`).
 | `--dry-run` | Validate manifest and print expanded augmentation plan only. | Recommended before long/high-volume generation runs. |
 | `--jsonl-out` | Dataset metadata JSONL path. | Default is `<output_root>/augmentation_manifest.jsonl`. |
 | `--summary-out` | Summary JSON path. | Default is `<output_root>/augmentation_summary.json`. |
+| `--dataset-card-out` | Optional Markdown dataset-card output path. | Keep with your dataset artifacts to preserve provenance and distribution context. |
+| `--metrics-csv-out` | Optional per-output metrics CSV path. | Useful for filtering outlier renders and building QA dashboards. |
+| `--metrics-include-loudness / --metrics-fast` | Include or skip LUFS/true-peak/LRA in metrics CSV. | Use `--metrics-fast` for speed; enable loudness when label/QC policies require it. |
 
 ### 13.15 `verbx immersive template` switches
 
@@ -2783,7 +2805,9 @@ verbx batch render manifest.json --jobs 4   # parallel workers
 verbx batch render manifest.json --jobs 0 --schedule longest-first --retries 1
 verbx batch render manifest.json --jobs 4 --dry-run
 verbx batch augment-template > augment_manifest.json
-verbx batch augment augment_manifest.json --jobs 8 --copy-dry
+verbx batch augment-profiles
+verbx batch augment augment_manifest.json --jobs 8 --copy-dry --dataset-card-out out/DATASET_CARD.md
+verbx batch augment augment_manifest.json --jobs 8 --metrics-csv-out out/augmentation_metrics.csv --metrics-include-loudness
 verbx batch augment augment_manifest.json --dry-run
 ```
 
@@ -3040,7 +3064,7 @@ outcomes rather than broad command-surface expansion.
 
 ### 21.2.1 Architecture objective function
 
-The remaining roadmap is evaluated against five architecture objectives:
+The remaining roadmap is evaluated against six architecture objectives:
 
 - `Deterministic control`: identical inputs, seeds, and options produce repeatable
   automation traces, signatures, and render outputs within defined tolerance.
@@ -3052,17 +3076,20 @@ The remaining roadmap is evaluated against five architecture objectives:
   mixed-format workflows remain explicit and failure-safe.
 - `Explainability`: analysis outputs expose enough metrics to diagnose why an
   automation, topology, or morph result behaved the way it did.
+- `Dataset utility`: augmentation workflows produce reproducible, leakage-safe,
+  metadata-rich corpora suitable for ML training and evaluation.
 
 ### 21.2.2 Release streams and milestones
 
-The program is split into four execution streams, each with a release milestone.
+The program is split into five execution streams, each with a release milestone.
 
 - `M1 (foundation gates)`: finalize deterministic, numerical, and interoperability
   gates with fixtures and CI coverage.
 - `M2 (reactive hardening)`: close Stream R1.
 - `M3 (perceptual integrity)`: close Stream R2.
 - `M4 (IR morph productionization)`: close Stream R3.
-- `M5 (topology expansion + release candidate)`: close Stream R4 and pass full
+- `M5 (topology expansion)`: close Stream R4.
+- `M6 (augmentation ops + release candidate)`: close Stream R5 and pass full
   release SLO matrix.
 
 ### 21.2.3 Stream R1: Control-plane reliability and reactive hardening (Track B/A)
@@ -3123,7 +3150,25 @@ Goal: increase topology expressiveness without sacrificing stability.
 - Exit criteria: per-topology validation reports, deterministic render signatures,
   and stable long-tail stress behavior.
 
-### 21.2.7 Verification matrix and release SLOs
+### 21.2.7 Stream R5: AI research and data augmentation operations
+
+Goal: make augmentation outputs directly usable in production ML research loops.
+
+- [x] Add deterministic profile-family introspection (`batch augment-profiles`) for
+  scripting and reproducible experiment setup.
+- [x] Enforce split isolation by default so one source ID/input path cannot leak
+  across train/val/test unless explicitly overridden.
+- [x] Add optional dataset-card generation for provenance and dataset distribution
+  documentation.
+- [x] Add optional per-output metrics CSV export for automated QA/filtering.
+- Add augmentation-focused QA bundles (for example split-level quality summaries and
+  class-balance deltas across regeneration runs).
+- Add optional augmentation provenance hash over manifest+inputs for external dataset
+  registries.
+- Exit criteria: augmentation runs emit complete reproducibility metadata and pass
+  leakage/quality gates in CI.
+
+### 21.2.8 Verification matrix and release SLOs
 
 Every stream must pass the same release SLO matrix:
 
@@ -3135,9 +3180,11 @@ Every stream must pass the same release SLO matrix:
   auto-resolve according to documented policy.
 - `SLO-Q1 quality evidence`: feature/automation traces and analysis artifacts are
   sufficient to reproduce and audit results.
+- `SLO-A1 augmentation integrity`: split isolation, metadata completeness, and
+  optional dataset-card/metrics artifacts remain deterministic and schema-stable.
 - `SLO-T1 test gate`: stream-targeted regression tests and full-suite tests pass.
 
-### 21.2.8 Risk register and mitigations
+### 21.2.9 Risk register and mitigations
 
 - `Risk`: feature-space overfitting can make mappings brittle across material.
   `Mitigation`: enforce corpus diversity in fixture sets and track per-class error.
@@ -3148,8 +3195,11 @@ Every stream must pass the same release SLO matrix:
 - `Risk`: perceptual macros can become non-monotonic after tuning changes.
   `Mitigation`: lock calibration curves with regression thresholds and fallback
   safe-mode clamping.
+- `Risk`: regenerated augmentation sets can drift in label/split distribution.
+  `Mitigation`: enforce split guards, emit distribution summaries, and add drift
+  checks in augmentation QA bundles.
 
-### 21.2.9 Execution cadence and ownership model
+### 21.2.10 Execution cadence and ownership model
 
 Execution order remains reliability-first, with explicit ownership boundaries.
 
@@ -3157,7 +3207,8 @@ Execution order remains reliability-first, with explicit ownership boundaries.
 2. Ship Stream R1 (reactive/control-plane hardening).
 3. Ship Stream R2 (perceptual integrity and safety).
 4. Ship Stream R3 (IR morph productionization).
-5. Ship Stream R4 (topology expansion) and cut v0.7 release candidate.
+5. Ship Stream R4 (topology expansion).
+6. Ship Stream R5 (augmentation operations) and cut v0.7 release candidate.
 
 ### 21.3 Sources for Roadmap Items
 

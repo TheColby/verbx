@@ -253,6 +253,7 @@ def build_augmentation_plans(
     manifest_path: Path,
     output_root_override: Path | None = None,
     copy_dry: bool = False,
+    verify_split_isolation: bool = True,
 ) -> AugmentationBuild:
     """Expand augmentation manifest into deterministic render plans."""
     jobs_raw = payload.get("jobs")
@@ -286,6 +287,8 @@ def build_augmentation_plans(
         raise ValueError("default_options must be an object when provided.")
 
     plans: list[AugmentationPlan] = []
+    source_id_splits: dict[str, set[str]] = {}
+    infile_splits: dict[str, set[str]] = {}
     global_index = 1
     for source_index, job_raw in enumerate(jobs_raw, start=1):
         if not isinstance(job_raw, dict):
@@ -312,6 +315,25 @@ def build_augmentation_plans(
         source_metadata = (
             dict(source_metadata_raw) if isinstance(source_metadata_raw, dict) else {}
         )
+        source_id_splits.setdefault(source_id, set()).add(split)
+        infile_key = str(infile.resolve())
+        infile_splits.setdefault(infile_key, set()).add(split)
+        if verify_split_isolation:
+            source_splits = source_id_splits[source_id]
+            if len(source_splits) > 1:
+                joined = ", ".join(sorted(source_splits))
+                raise ValueError(
+                    "Split isolation violation: "
+                    f"source id '{source_id}' appears in splits {joined}. "
+                    "Set verify_split_isolation=False to allow this."
+                )
+            file_splits = infile_splits[infile_key]
+            if len(file_splits) > 1:
+                joined = ", ".join(sorted(file_splits))
+                raise ValueError(
+                    f"Split isolation violation: infile '{infile}' appears in splits {joined}. "
+                    "Set verify_split_isolation=False to allow this."
+                )
 
         base_name = f"{source_index:05d}_{source_id}"
         dry_copy_outfile = (

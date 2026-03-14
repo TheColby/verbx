@@ -9,6 +9,7 @@ Commands are grouped by workflow:
 
 from __future__ import annotations
 
+import csv
 import json
 import os
 import platform
@@ -16,6 +17,7 @@ import shutil
 import sys
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import asdict
+from datetime import UTC, datetime
 from difflib import get_close_matches
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
@@ -60,6 +62,7 @@ from verbx.core.accel import (
 )
 from verbx.core.augmentation import (
     AugmentationBuild,
+    augmentation_profile_names,
     augmentation_profiles,
     build_augmentation_manifest_template,
     build_augmentation_plans,
@@ -2385,6 +2388,38 @@ def batch_augment_template() -> None:
     typer.echo(json.dumps(template, indent=2))
 
 
+@batch_app.command("augment-profiles")
+def batch_augment_profiles(
+    as_json: bool = typer.Option(
+        False,
+        "--json",
+        help="Emit profile definitions as JSON instead of a table.",
+    ),
+) -> None:
+    """List built-in augmentation profiles and archetypes."""
+    profiles = augmentation_profiles()
+    if as_json:
+        typer.echo(json.dumps(profiles, indent=2, sort_keys=True))
+        return
+
+    table = Table(title="Batch Augment Profiles")
+    table.add_column("Profile", style="cyan")
+    table.add_column("Archetypes", style="magenta")
+    table.add_column("Description", style="white")
+    for name in augmentation_profile_names():
+        data = profiles.get(name, {})
+        archetypes = data.get("archetypes", [])
+        archetype_names = ", ".join(
+            str(item.get("name", "")) for item in archetypes if isinstance(item, dict)
+        )
+        table.add_row(
+            name,
+            archetype_names,
+            str(data.get("description", "")),
+        )
+    console.print(table)
+
+
 @batch_app.command("augment")
 def batch_augment(
     manifest: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
@@ -2421,6 +2456,14 @@ def batch_augment(
         "--copy-dry/--no-copy-dry",
         help="Copy clean source files into output tree (paired dry/wet dataset layout).",
     ),
+    verify_split_isolation: bool = typer.Option(
+        True,
+        "--verify-split-isolation/--allow-split-overlap",
+        help=(
+            "Require one source id/input file to belong to exactly one split "
+            "(prevents train/val/test leakage)."
+        ),
+    ),
     jobs: int = typer.Option(0, "--jobs", min=0, help="0 = auto"),
     schedule: BatchSchedulePolicy = typer.Option("longest-first", "--schedule"),
     retries: int = typer.Option(0, "--retries", min=0),
@@ -2446,6 +2489,23 @@ def batch_augment(
         resolve_path=True,
         help="Path for run summary JSON (default: <output_root>/augmentation_summary.json).",
     ),
+    dataset_card_out: Path | None = typer.Option(
+        None,
+        "--dataset-card-out",
+        resolve_path=True,
+        help="Optional Markdown dataset-card path for ML dataset documentation.",
+    ),
+    metrics_csv_out: Path | None = typer.Option(
+        None,
+        "--metrics-csv-out",
+        resolve_path=True,
+        help="Optional CSV path for per-output acoustic features.",
+    ),
+    metrics_include_loudness: bool = typer.Option(
+        False,
+        "--metrics-include-loudness/--metrics-fast",
+        help="Include LUFS/true-peak/LRA in metrics CSV export (slower).",
+    ),
 ) -> None:
     """Render a deterministic augmentation dataset for AI research workflows."""
     try:
@@ -2470,6 +2530,7 @@ def batch_augment(
             manifest_path=manifest,
             output_root_override=output_root,
             copy_dry=copy_dry,
+            verify_split_isolation=verify_split_isolation,
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
@@ -2560,6 +2621,29 @@ def batch_augment(
         schedule=schedule,
         jobs=max_workers,
     )
+    if metrics_csv_out is not None:
+        metrics_path = metrics_csv_out.resolve()
+        metrics_rows = _build_augmentation_metrics_rows(
+            records=records,
+            include_loudness=metrics_include_loudness,
+        )
+        _write_csv_atomic(metrics_path, metrics_rows)
+        summary_payload["metrics_csv"] = str(metrics_path)
+        summary_payload["metrics_rows"] = len(metrics_rows)
+        summary_payload["metrics_include_loudness"] = bool(metrics_include_loudness)
+
+    if dataset_card_out is not None:
+        dataset_card_path = dataset_card_out.resolve()
+        card = _build_augmentation_dataset_card(
+            build=build,
+            summary=summary_payload,
+            manifest_path=manifest,
+            summary_path=summary_path,
+            records=records,
+        )
+        _write_text_atomic(dataset_card_path, card)
+        summary_payload["dataset_card"] = str(dataset_card_path)
+
     _write_json_atomic(summary_path, summary_payload)
     _print_augmentation_summary_table(summary_payload, summary_path=summary_path)
 
@@ -3167,6 +3251,202 @@ def _write_jsonl_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
     tmp.replace(path)
 
 
+def _write_csv_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
+    """Atomically write tabular rows to CSV."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(f"{path.suffix}.tmp")
+    columns: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        for key in row:
+            if key in seen:
+                continue
+            seen.add(key)
+            columns.append(key)
+    if not columns:
+        columns = ["note"]
+    if "metrics_error" in columns:
+        columns.remove("metrics_error")
+        columns.append("metrics_error")
+    with tmp.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=columns, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+    tmp.replace(path)
+
+
+def _write_text_atomic(path: Path, text: str) -> None:
+    """Atomically write UTF-8 text file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(f"{path.suffix}.tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(path)
+
+
+def _build_augmentation_metrics_rows(
+    *,
+    records: list[dict[str, Any]],
+    include_loudness: bool,
+) -> list[dict[str, Any]]:
+    """Extract per-output metrics rows from augmentation records."""
+    analyzer = AudioAnalyzer()
+    rows: list[dict[str, Any]] = []
+    for record in records:
+        if not bool(record.get("success", False)):
+            continue
+        outfile = Path(str(record.get("outfile", "")))
+        base: dict[str, Any] = {
+            "augment_index": int(record.get("augment_index", 0)),
+            "source_id": str(record.get("source_id", "")),
+            "split": str(record.get("split", "")),
+            "label": str(record.get("label", "")),
+            "archetype": str(record.get("archetype", "")),
+            "outfile": str(outfile),
+        }
+        try:
+            audio, sr = read_audio(str(outfile))
+            metrics = analyzer.analyze(
+                audio,
+                sr,
+                include_loudness=include_loudness,
+                include_edr=False,
+            )
+            base["sample_rate"] = int(sr)
+            base["samples"] = int(audio.shape[0])
+            base["channels"] = int(audio.shape[1])
+            for key in sorted(metrics):
+                base[key] = float(metrics[key])
+            base["metrics_error"] = ""
+        except (RuntimeError, OSError, ValueError, TypeError) as exc:
+            base["metrics_error"] = str(exc)
+        rows.append(base)
+    return rows
+
+
+def _build_augmentation_dataset_card(
+    *,
+    build: AugmentationBuild,
+    summary: dict[str, Any],
+    manifest_path: Path,
+    summary_path: Path,
+    records: list[dict[str, Any]],
+) -> str:
+    """Generate a compact markdown dataset card for AI/data workflows."""
+    split_counts = cast(dict[str, Any], summary.get("split_counts", {}))
+    label_counts = cast(dict[str, Any], summary.get("label_counts", {}))
+    archetype_counts = cast(dict[str, Any], summary.get("archetype_counts", {}))
+    lines = [
+        "# Dataset Card",
+        "",
+        "## Identity",
+        f"- dataset_name: `{build.dataset_name}`",
+        f"- profile: `{build.profile}`",
+        f"- seed: `{build.seed}`",
+        f"- generated_utc: `{datetime.now(UTC).isoformat()}`",
+        f"- manifest_path: `{manifest_path.resolve()}`",
+        f"- summary_json: `{summary_path.resolve()}`",
+        f"- output_root: `{build.output_root.resolve()}`",
+        "",
+        "## Render Summary",
+        f"- planned: `{summary.get('planned', 0)}`",
+        f"- success: `{summary.get('success', 0)}`",
+        f"- failed: `{summary.get('failed', 0)}`",
+        f"- variants_per_input: `{build.variants_per_input}`",
+        "",
+        "## Split Distribution",
+    ]
+    if split_counts:
+        for split in sorted(split_counts):
+            lines.append(f"- {split}: `{split_counts[split]}`")
+    else:
+        lines.append("- (none)")
+    lines.extend(
+        [
+            "",
+            "## Label Distribution",
+        ]
+    )
+    if label_counts:
+        for label in sorted(label_counts):
+            lines.append(f"- {label}: `{label_counts[label]}`")
+    else:
+        lines.append("- (none)")
+    lines.extend(
+        [
+            "",
+            "## Archetype Distribution",
+        ]
+    )
+    if archetype_counts:
+        for archetype in sorted(archetype_counts):
+            lines.append(f"- {archetype}: `{archetype_counts[archetype]}`")
+    else:
+        lines.append("- (none)")
+
+    rt60_values: list[float] = []
+    wet_values: list[float] = []
+    damping_values: list[float] = []
+    fdn_lines_values: list[int] = []
+    fdn_matrices: set[str] = set()
+    for row in records:
+        config = row.get("render_config", {})
+        if not isinstance(config, dict):
+            continue
+        rt60 = config.get("rt60")
+        wet = config.get("wet")
+        damping = config.get("damping")
+        fdn_lines = config.get("fdn_lines")
+        fdn_matrix = config.get("fdn_matrix")
+        if isinstance(rt60, (int, float)):
+            rt60_values.append(float(rt60))
+        if isinstance(wet, (int, float)):
+            wet_values.append(float(wet))
+        if isinstance(damping, (int, float)):
+            damping_values.append(float(damping))
+        if isinstance(fdn_lines, (int, float)):
+            fdn_lines_values.append(int(fdn_lines))
+        if isinstance(fdn_matrix, str) and fdn_matrix != "":
+            fdn_matrices.add(fdn_matrix)
+
+    lines.extend(
+        [
+            "",
+            "## Parameter Envelope",
+        ]
+    )
+    if rt60_values:
+        lines.append(f"- rt60_s_min_max: `{min(rt60_values):.3f} .. {max(rt60_values):.3f}`")
+    if wet_values:
+        lines.append(f"- wet_min_max: `{min(wet_values):.3f} .. {max(wet_values):.3f}`")
+    if damping_values:
+        lines.append(
+            f"- damping_min_max: `{min(damping_values):.3f} .. {max(damping_values):.3f}`"
+        )
+    if fdn_lines_values:
+        lines.append(
+            f"- fdn_lines_min_max: `{min(fdn_lines_values)} .. {max(fdn_lines_values)}`"
+        )
+    if fdn_matrices:
+        lines.append(f"- fdn_matrices: `{', '.join(sorted(fdn_matrices))}`")
+    if len(lines) > 0 and lines[-1] == "## Parameter Envelope":
+        lines.append("- (no parameter metadata available)")
+
+    lines.extend(
+        [
+            "",
+            "## Notes",
+            "- This card is auto-generated by `verbx batch augment`.",
+            (
+                "- Keep this file with `augmentation_manifest.jsonl` and summary JSON "
+                "for reproducibility."
+            ),
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def _print_augmentation_dry_run(
     *,
     build: AugmentationBuild,
@@ -3293,13 +3573,29 @@ def _build_augmentation_summary(
     success = int(sum(1 for row in records if bool(row.get("success", False))))
     failed = int(total - success)
     split_counts: dict[str, int] = {}
+    split_source_ids: dict[str, set[str]] = {}
     label_counts: dict[str, int] = {}
+    archetype_counts: dict[str, int] = {}
+    tag_counts: dict[str, int] = {}
     for row in records:
         split = str(row.get("split", ""))
         label = str(row.get("label", ""))
+        source_id = str(row.get("source_id", ""))
+        archetype = str(row.get("archetype", ""))
         split_counts[split] = int(split_counts.get(split, 0) + 1)
+        if split != "" and source_id != "":
+            split_source_ids.setdefault(split, set()).add(source_id)
         if label != "":
             label_counts[label] = int(label_counts.get(label, 0) + 1)
+        if archetype != "":
+            archetype_counts[archetype] = int(archetype_counts.get(archetype, 0) + 1)
+        tags = row.get("tags", [])
+        if isinstance(tags, list):
+            for tag in tags:
+                token = str(tag)
+                if token == "":
+                    continue
+                tag_counts[token] = int(tag_counts.get(token, 0) + 1)
     return {
         "version": "0.7",
         "mode": "batch-augment",
@@ -3317,8 +3613,14 @@ def _build_augmentation_summary(
         "planned": int(total),
         "success": int(success),
         "failed": int(failed),
+        "unique_sources": len({str(row.get("source_id", "")) for row in records}),
+        "source_split_counts": {
+            split: len(source_ids) for split, source_ids in sorted(split_source_ids.items())
+        },
         "split_counts": split_counts,
         "label_counts": label_counts,
+        "archetype_counts": archetype_counts,
+        "tag_counts": tag_counts,
     }
 
 
@@ -3339,10 +3641,17 @@ def _print_augmentation_summary_table(
         "planned",
         "success",
         "failed",
+        "unique_sources",
         "output_root",
         "metadata_jsonl",
     ):
         table.add_row(key, str(summary.get(key, "")))
+    metrics_csv = summary.get("metrics_csv")
+    if metrics_csv:
+        table.add_row("metrics_csv", str(metrics_csv))
+    dataset_card = summary.get("dataset_card")
+    if dataset_card:
+        table.add_row("dataset_card", str(dataset_card))
     table.add_row("summary_json", str(summary_path.resolve()))
     console.print(table)
 
