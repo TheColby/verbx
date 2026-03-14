@@ -23,6 +23,7 @@ from verbx.core.control_targets import (
 from verbx.core.feature_vector import (
     FEATURE_LANE_COMBINE_CHOICES,
     build_feature_vector_bus,
+    feature_source_metadata,
     is_feature_vector_lane,
     normalize_feature_vector_lane,
     parse_feature_vector_lane_specs,
@@ -70,6 +71,9 @@ class AutomationBundle:
     feature_signature: str | None = None
     feature_mapping: dict[str, Any] | None = None
     feature_guide: dict[str, Any] | None = None
+    feature_schema_version: str | None = None
+    feature_source_metadata: dict[str, dict[str, Any]] = field(default_factory=dict)
+    safety_guards: dict[str, Any] | None = None
 
 
 def parse_automation_clamp_overrides(
@@ -212,6 +216,8 @@ def load_automation_bundle(
     smoothing_ms: float = 20.0,
     feature_frame_ms: float = 40.0,
     feature_hop_ms: float = 20.0,
+    slew_limit_per_s: float | None = None,
+    deadband: float = 0.0,
     clamp_overrides: dict[str, tuple[float, float]] | None = None,
 ) -> AutomationBundle:
     """Load automation lanes from JSON/CSV and evaluate to sample-rate curves."""
@@ -315,6 +321,8 @@ def load_automation_bundle(
     }
     feature_bus = None
     feature_guide_summary: dict[str, Any] | None = None
+    feature_schema_version: str | None = None
+    feature_source_meta: dict[str, dict[str, Any]] = {}
     if len(feature_lane_sources) > 0:
         if feature_audio is None:
             raise ValueError(
@@ -344,6 +352,8 @@ def load_automation_bundle(
             hop_ms=float(feature_hop_ms),
             requested_sources=feature_lane_sources,
         )
+        feature_schema_version = str(feature_bus.schema_version)
+        feature_source_meta = dict(feature_bus.source_metadata)
 
     for entry in non_feature_lane_entries:
         target = str(entry["target"])
@@ -478,6 +488,15 @@ def load_automation_bundle(
             "signature": mapping_signature,
         }
 
+    safety_guards = _apply_safety_guards(
+        controls=controls,
+        target_limits=limit_map,
+        sr=int(sr),
+        control_step=int(control_step),
+        slew_limit_per_s=slew_limit_per_s,
+        deadband=deadband,
+    )
+
     curves: dict[str, AudioArray] = {}
     for target in sorted(controls.keys()):
         control = controls[target]
@@ -488,6 +507,8 @@ def load_automation_bundle(
     feature_sources: tuple[str, ...] = ()
     if feature_bus is not None:
         feature_sources = tuple(sorted(feature_bus.control_features.keys()))
+        if len(feature_source_meta) == 0:
+            feature_source_meta = feature_source_metadata(feature_sources)
         for source in feature_sources:
             control_values = feature_bus.control_features[source]
             expanded_feature = _expand_control_to_samples(
@@ -537,6 +558,9 @@ def load_automation_bundle(
         feature_signature=feature_signature,
         feature_mapping=feature_mapping_summary,
         feature_guide=feature_guide_summary,
+        feature_schema_version=feature_schema_version,
+        feature_source_metadata=feature_source_meta,
+        safety_guards=safety_guards,
     )
 
 
@@ -574,7 +598,13 @@ def apply_render_automation(
                 feature_payload["mapping"] = dict(bundle.feature_mapping)
             if bundle.feature_guide is not None:
                 feature_payload["guide_alignment"] = dict(bundle.feature_guide)
+            if bundle.feature_schema_version is not None:
+                feature_payload["schema_version"] = str(bundle.feature_schema_version)
+            if len(bundle.feature_source_metadata) > 0:
+                feature_payload["source_schema"] = dict(bundle.feature_source_metadata)
             summary["feature_vector"] = feature_payload
+        if bundle.safety_guards is not None:
+            summary["safety_guards"] = dict(bundle.safety_guards)
         return np.asarray(rendered, dtype=np.float64), summary
 
     out = np.asarray(rendered, dtype=np.float64)
@@ -629,7 +659,13 @@ def apply_render_automation(
             feature_payload["mapping"] = dict(bundle.feature_mapping)
         if bundle.feature_guide is not None:
             feature_payload["guide_alignment"] = dict(bundle.feature_guide)
+        if bundle.feature_schema_version is not None:
+            feature_payload["schema_version"] = str(bundle.feature_schema_version)
+        if len(bundle.feature_source_metadata) > 0:
+            feature_payload["source_schema"] = dict(bundle.feature_source_metadata)
         summary["feature_vector"] = feature_payload
+    if bundle.safety_guards is not None:
+        summary["safety_guards"] = dict(bundle.safety_guards)
     sanitized = np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
     return sanitized, summary
 
@@ -1342,6 +1378,82 @@ def _parse_lane_smoothing_ms(raw: Any, *, lane_context: str) -> float:
     if smoothing_ms < 0.0:
         raise ValueError(f"smoothing_ms for {lane_context} must be >= 0.")
     return float(smoothing_ms)
+
+
+def _apply_safety_guards(
+    *,
+    controls: dict[str, npt.NDArray[np.float64]],
+    target_limits: dict[str, tuple[float, float]],
+    sr: int,
+    control_step: int,
+    slew_limit_per_s: float | None,
+    deadband: float,
+) -> dict[str, Any] | None:
+    """Apply optional deadband/slew guards to control vectors and report diagnostics."""
+    slew = 0.0 if slew_limit_per_s is None else float(slew_limit_per_s)
+    band = float(deadband)
+    if slew <= 0.0 and band <= 0.0:
+        return None
+
+    out: dict[str, Any] = {
+        "slew_limit_per_s": float(max(0.0, slew)),
+        "deadband": float(max(0.0, band)),
+        "targets": {},
+    }
+    dt = float(max(1, int(control_step))) / float(max(1, int(sr)))
+
+    for target in sorted(controls.keys()):
+        values = np.asarray(controls[target], dtype=np.float64)
+        if values.size <= 1:
+            continue
+        before = values.copy()
+        finite = ~np.isnan(before)
+        if np.count_nonzero(finite) <= 1:
+            continue
+
+        lo, hi = target_limits.get(target, (0.0, 1.0))
+        span = float(max(1e-9, hi - lo))
+        deadband_abs = float(max(0.0, band) * span)
+        max_delta = float(max(0.0, slew) * span * dt)
+
+        deadband_hits = 0
+        slew_hits = 0
+        first = int(np.flatnonzero(finite)[0])
+        state = float(before[first])
+        values[first] = state
+        for idx in range(first + 1, values.shape[0]):
+            if np.isnan(before[idx]):
+                continue
+            candidate = float(before[idx])
+            if deadband_abs > 0.0 and abs(candidate - state) < deadband_abs:
+                deadband_hits += 1
+                candidate = state
+            if max_delta > 0.0:
+                delta = candidate - state
+                if delta > max_delta:
+                    candidate = state + max_delta
+                    slew_hits += 1
+                elif delta < -max_delta:
+                    candidate = state - max_delta
+                    slew_hits += 1
+            state = candidate
+            values[idx] = state
+
+        controls[target] = np.asarray(values, dtype=np.float64)
+        before_delta = np.diff(before[finite])
+        after_delta = np.diff(values[finite])
+        out["targets"][target] = {
+            "deadband_hits": int(deadband_hits),
+            "slew_hits": int(slew_hits),
+            "max_delta_before": (
+                float(np.max(np.abs(before_delta))) if before_delta.size > 0 else 0.0
+            ),
+            "max_delta_after": (
+                float(np.max(np.abs(after_delta))) if after_delta.size > 0 else 0.0
+            ),
+        }
+
+    return out
 
 
 def _bundle_signature(

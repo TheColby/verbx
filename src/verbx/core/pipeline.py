@@ -166,6 +166,13 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                     input_sr,
                     include_loudness=include_loudness,
                 )
+                track_c_diag = _build_track_c_calibration_diagnostics(
+                    perceptual_macros=perceptual_macro_summary,
+                    input_metrics=cast(dict[str, Any], report.get("input")),
+                    output_metrics=cast(dict[str, Any], report.get("output")),
+                )
+                if track_c_diag is not None:
+                    report["effective"]["track_c_calibration"] = track_c_diag
                 analysis_path = _resolve_analysis_path(outfile, runtime_config.analysis_out)
                 analysis_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
                 report["analysis_path"] = str(analysis_path)
@@ -453,6 +460,13 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 ambi_normalization=runtime_config.ambi_normalization,
                 ambi_channel_order=runtime_config.channel_order,
             )
+            track_c_diag = _build_track_c_calibration_diagnostics(
+                perceptual_macros=perceptual_macro_summary,
+                input_metrics=cast(dict[str, Any], report.get("input")),
+                output_metrics=cast(dict[str, Any], report.get("output")),
+            )
+            if track_c_diag is not None:
+                report["effective"]["track_c_calibration"] = track_c_diag
             analysis_path = _resolve_analysis_path(outfile, runtime_config.analysis_out)
             analysis_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
             report["analysis_path"] = str(analysis_path)
@@ -725,44 +739,60 @@ def _apply_perceptual_fdn_macros(config: RenderConfig) -> RenderConfig:
     if max(abs(room_size), abs(clarity), abs(warmth), abs(envelopment)) <= 1e-9:
         return mapped
 
+    calibration = _resolve_track_c_calibration_targets(
+        room_size=room_size,
+        clarity=clarity,
+        warmth=warmth,
+        envelopment=envelopment,
+    )
+
     mapped.pre_delay_ms = float(
         max(
             0.0,
-            mapped.pre_delay_ms
-            * float(np.clip(np.power(2.0, (0.45 * room_size) + (0.25 * clarity)), 0.5, 2.0)),
+            mapped.pre_delay_ms * float(calibration["pre_delay_scale"]),
         )
     )
     mapped.width = float(
         np.clip(
-            mapped.width * float(np.clip(np.power(2.0, 0.35 * envelopment), 0.6, 2.0)),
+            mapped.width * float(calibration["width_scale"]),
             0.0,
             2.0,
         )
     )
     mapped.wet = float(
         np.clip(
-            mapped.wet
-            * float(np.clip(np.power(2.0, (0.20 * envelopment) - (0.16 * clarity)), 0.55, 1.55)),
+            mapped.wet * float(calibration["wet_scale"]),
             0.0,
             1.0,
         )
     )
     mapped.dry = float(
         np.clip(
-            mapped.dry
-            * float(np.clip(np.power(2.0, (0.20 * clarity) - (0.15 * envelopment)), 0.55, 1.55)),
+            mapped.dry * float(calibration["dry_scale"]),
             0.0,
             1.0,
         )
     )
     mapped.algo_decorrelation_front = float(
-        np.clip(mapped.algo_decorrelation_front + (0.18 * envelopment), 0.0, 1.0)
+        np.clip(
+            mapped.algo_decorrelation_front + float(calibration["decorrelation_front_delta"]),
+            0.0,
+            1.0,
+        )
     )
     mapped.algo_decorrelation_rear = float(
-        np.clip(mapped.algo_decorrelation_rear + (0.28 * envelopment), 0.0, 1.0)
+        np.clip(
+            mapped.algo_decorrelation_rear + float(calibration["decorrelation_rear_delta"]),
+            0.0,
+            1.0,
+        )
     )
     mapped.algo_decorrelation_top = float(
-        np.clip(mapped.algo_decorrelation_top + (0.25 * envelopment), 0.0, 1.0)
+        np.clip(
+            mapped.algo_decorrelation_top + float(calibration["decorrelation_top_delta"]),
+            0.0,
+            1.0,
+        )
     )
 
     if mapped.fdn_link_filter == "none":
@@ -782,6 +812,59 @@ def _apply_perceptual_fdn_macros(config: RenderConfig) -> RenderConfig:
     return mapped
 
 
+def _resolve_track_c_calibration_targets(
+    *,
+    room_size: float,
+    clarity: float,
+    warmth: float,
+    envelopment: float,
+) -> dict[str, float]:
+    """Return calibrated perceptual macro transfer targets."""
+    return {
+        "pre_delay_scale": float(
+            np.clip(np.power(2.0, (0.45 * room_size) + (0.25 * clarity)), 0.5, 2.0)
+        ),
+        "width_scale": float(np.clip(np.power(2.0, 0.35 * envelopment), 0.6, 2.0)),
+        "wet_scale": float(
+            np.clip(np.power(2.0, (0.20 * envelopment) - (0.16 * clarity)), 0.55, 1.55)
+        ),
+        "dry_scale": float(
+            np.clip(np.power(2.0, (0.20 * clarity) - (0.15 * envelopment)), 0.55, 1.55)
+        ),
+        "decorrelation_front_delta": float(0.18 * envelopment),
+        "decorrelation_rear_delta": float(0.28 * envelopment),
+        "decorrelation_top_delta": float(0.25 * envelopment),
+        # Track C calibration targets used for diagnostics.
+        "banded_rt60_scale_low": float(
+            np.clip(
+                np.power(2.0, (0.30 * room_size) + (0.35 * warmth) - (0.22 * clarity)),
+                0.5,
+                2.5,
+            )
+        ),
+        "banded_rt60_scale_mid": float(
+            np.clip(
+                np.power(2.0, (0.28 * room_size) + (0.10 * warmth) - (0.30 * clarity)),
+                0.5,
+                2.5,
+            )
+        ),
+        "banded_rt60_scale_high": float(
+            np.clip(
+                np.power(2.0, (0.22 * room_size) - (0.45 * warmth) - (0.45 * clarity)),
+                0.35,
+                2.0,
+            )
+        ),
+        "spectral_tilt_target": float((1.8 * warmth) - (1.2 * clarity)),
+        "clarity_proxy_target": float(0.55 * clarity),
+        "decay_shape_target": float((0.60 * room_size) + (0.40 * envelopment) - (0.35 * clarity)),
+        "error_envelope_spectral_tilt": 0.55,
+        "error_envelope_clarity_proxy": 0.35,
+        "error_envelope_decay_shape": 0.45,
+    }
+
+
 def _build_perceptual_macro_summary(
     requested: RenderConfig,
     resolved: RenderConfig,
@@ -795,6 +878,12 @@ def _build_perceptual_macro_summary(
     }
     if max(abs(value) for value in input_macros.values()) <= 1e-9:
         return None
+    calibration = _resolve_track_c_calibration_targets(
+        room_size=float(input_macros["room_size_macro"]),
+        clarity=float(input_macros["clarity_macro"]),
+        warmth=float(input_macros["warmth_macro"]),
+        envelopment=float(input_macros["envelopment_macro"]),
+    )
 
     numeric_keys = (
         "rt60",
@@ -818,9 +907,75 @@ def _build_perceptual_macro_summary(
     for key in numeric_keys:
         delta[key] = float(getattr(resolved, key) - getattr(requested, key))
     return {
+        "calibration_version": "track-c-cal-v1",
         "input": input_macros,
         "resolved": resolved_values,
         "delta_from_requested": delta,
+        "calibration_targets": calibration,
+    }
+
+
+def _build_track_c_calibration_diagnostics(
+    *,
+    perceptual_macros: dict[str, Any] | None,
+    input_metrics: dict[str, Any] | None,
+    output_metrics: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Compute Track C calibration diagnostics from targets and measured proxies."""
+    if not isinstance(perceptual_macros, dict):
+        return None
+    targets_raw = perceptual_macros.get("calibration_targets")
+    if not isinstance(targets_raw, dict):
+        return None
+
+    targets = {
+        str(key): float(value)
+        for key, value in targets_raw.items()
+        if isinstance(value, (int, float))
+    }
+    measured: dict[str, float] = {}
+    errors: dict[str, float] = {}
+    within_envelope = True
+
+    if isinstance(input_metrics, dict) and isinstance(output_metrics, dict):
+        slope_in = float(input_metrics.get("spectral_slope", 0.0))
+        slope_out = float(output_metrics.get("spectral_slope", 0.0))
+        transient_in = float(input_metrics.get("transient_density", 0.0))
+        transient_out = float(output_metrics.get("transient_density", 0.0))
+        dyn_in = float(input_metrics.get("dynamic_range", 0.0))
+        dyn_out = float(output_metrics.get("dynamic_range", 0.0))
+
+        measured["spectral_tilt_proxy"] = float(slope_out - slope_in)
+        measured["clarity_proxy"] = float(transient_out - transient_in)
+        measured["decay_shape_proxy"] = float((dyn_out - dyn_in) / max(1e-9, abs(dyn_in) + 1.0))
+
+        target_tilt = float(targets.get("spectral_tilt_target", 0.0)) * 0.10
+        target_clarity = float(targets.get("clarity_proxy_target", 0.0))
+        target_decay = float(targets.get("decay_shape_target", 0.0)) * 0.25
+
+        errors["spectral_tilt_error"] = float(measured["spectral_tilt_proxy"] - target_tilt)
+        errors["clarity_proxy_error"] = float(measured["clarity_proxy"] - target_clarity)
+        errors["decay_shape_error"] = float(measured["decay_shape_proxy"] - target_decay)
+
+        if abs(errors["spectral_tilt_error"]) > float(
+            targets.get("error_envelope_spectral_tilt", 0.55)
+        ):
+            within_envelope = False
+        if abs(errors["clarity_proxy_error"]) > float(
+            targets.get("error_envelope_clarity_proxy", 0.35)
+        ):
+            within_envelope = False
+        if abs(errors["decay_shape_error"]) > float(
+            targets.get("error_envelope_decay_shape", 0.45)
+        ):
+            within_envelope = False
+
+    return {
+        "version": "track-c-cal-v1",
+        "targets": targets,
+        "measured": measured,
+        "errors": errors,
+        "within_envelope": bool(within_envelope),
     }
 
 
@@ -1210,6 +1365,8 @@ def _load_runtime_automation_bundle(
         mode=config.automation_mode,
         block_ms=config.automation_block_ms,
         smoothing_ms=config.automation_smoothing_ms,
+        slew_limit_per_s=config.automation_slew_limit_per_s,
+        deadband=config.automation_deadband,
         feature_frame_ms=config.feature_vector_frame_ms,
         feature_hop_ms=config.feature_vector_hop_ms,
         clamp_overrides=clamp_overrides,

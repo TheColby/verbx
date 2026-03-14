@@ -738,6 +738,25 @@ def render(
         min=0.0,
         help="Default smoothing time (ms) applied to automation lanes.",
     ),
+    automation_slew_limit_per_s: float | None = typer.Option(
+        None,
+        "--automation-slew-limit-per-s",
+        min=0.0,
+        help=(
+            "Optional max control slew as target-range fraction per second; "
+            "0/None disables slew guard."
+        ),
+    ),
+    automation_deadband: float = typer.Option(
+        0.0,
+        "--automation-deadband",
+        min=0.0,
+        max=1.0,
+        help=(
+            "Optional control deadband as target-range fraction; "
+            "small changes below threshold are suppressed."
+        ),
+    ),
     automation_clamp: list[str] | None = typer.Option(
         None,
         "--automation-clamp",
@@ -998,6 +1017,12 @@ def render(
         automation_mode=cast(AutomationMode, str(automation_mode).strip().lower()),
         automation_block_ms=float(automation_block_ms),
         automation_smoothing_ms=float(automation_smoothing_ms),
+        automation_slew_limit_per_s=(
+            None
+            if automation_slew_limit_per_s is None
+            else float(automation_slew_limit_per_s)
+        ),
+        automation_deadband=float(automation_deadband),
         automation_clamp=tuple(automation_clamp or ()),
         automation_points=tuple(automation_point or ()),
         automation_trace_out=automation_trace_out,
@@ -3839,6 +3864,13 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
         raise typer.BadParameter("--automation-block-ms must be > 0.")
     if config.automation_smoothing_ms < 0.0:
         raise typer.BadParameter("--automation-smoothing-ms must be >= 0.")
+    if (
+        config.automation_slew_limit_per_s is not None
+        and config.automation_slew_limit_per_s < 0.0
+    ):
+        raise typer.BadParameter("--automation-slew-limit-per-s must be >= 0.")
+    if not (0.0 <= float(config.automation_deadband) <= 1.0):
+        raise typer.BadParameter("--automation-deadband must be in [0.0, 1.0].")
     if config.feature_vector_frame_ms <= 0.0:
         raise typer.BadParameter("--feature-vector-frame-ms must be > 0.")
     if config.feature_vector_hop_ms <= 0.0:
@@ -3858,6 +3890,11 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
         config.automation_mode != "auto"
         or abs(float(config.automation_block_ms) - 20.0) > 1e-12
         or abs(float(config.automation_smoothing_ms) - 20.0) > 1e-12
+        or (
+            config.automation_slew_limit_per_s is not None
+            and abs(float(config.automation_slew_limit_per_s)) > 1e-12
+        )
+        or abs(float(config.automation_deadband)) > 1e-12
         or len(config.automation_clamp) > 0
         or config.automation_trace_out is not None
         or abs(float(config.feature_vector_frame_ms) - 40.0) > 1e-12
@@ -3869,6 +3906,7 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
     if not has_automation_source and has_automation_args:
         msg = (
             "--automation-mode/--automation-block-ms/--automation-smoothing-ms/"
+            "--automation-slew-limit-per-s/--automation-deadband/"
             "--automation-clamp/--automation-trace-out/--feature-vector-frame-ms/"
             "--feature-vector-hop-ms/--feature-guide/--feature-guide-policy/"
             "--feature-vector-trace-out require --automation-file, --automation-point, "

@@ -159,6 +159,8 @@ class RenderConfig:
     automation_mode: AutomationMode = "auto"
     automation_block_ms: float = 20.0
     automation_smoothing_ms: float = 20.0
+    automation_slew_limit_per_s: float | None = None
+    automation_deadband: float = 0.0
     automation_clamp: tuple[str, ...] = ()
     automation_points: tuple[str, ...] = ()
     automation_trace_out: str | None = None

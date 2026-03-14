@@ -300,10 +300,10 @@ This installs `verbx` and renders an intentionally extreme long-tail reverb as `
 
 - Modulation source/route framework for dynamic parameter control.
 - Automation from JSON/CSV lanes (`--automation-file`) and inline points (`--automation-point`).
-- Block and sample evaluation, smoothing, and clamp overrides.
+- Block and sample evaluation, smoothing, slew/deadband safety guards, and clamp overrides.
 - Automation trace export for reproducible QA.
 - Feature-vector-driven control lanes (`--feature-vector-lane`) with frame-aligned
-  loudness/transient/spectral/harmonic streams.
+  loudness/transient/spectral/harmonic plus MFCC/formant/rhythm streams.
 - External feature-guide ingest (`--feature-guide`) with deterministic mismatch
   policy (`--feature-guide-policy align|strict`) for sample-rate/duration/channel-layout differences.
 - Weighted, curved, and hysteretic feature mapping with multi-feature fusion to
@@ -311,6 +311,7 @@ This installs `verbx` and renders an intentionally extreme long-tail reverb as `
 - Feature-plus-parameter trace export (`--feature-vector-trace-out`) for
   deterministic explainability.
 - Track C automation targets including `fdn-rt60-tilt` and `fdn-tonal-correction-strength`.
+- Track C calibration diagnostics emitted in analysis JSON when perceptual macros are active.
 
 ### 3.5 IR Toolchain
 
@@ -1312,7 +1313,10 @@ Notes:
 
 - Supported feature sources include `loudness_db`, `loudness_norm`,
   `transient_strength`, `spectral_flux`, `spectral_centroid_hz`,
-  `spectral_centroid_norm`, `spectral_flatness`, and `harmonic_ratio`.
+  `spectral_centroid_norm`, `spectral_flatness`, `harmonic_ratio`,
+  `mfcc_1`, `mfcc_2`, `mfcc_1_norm`, `mfcc_2_norm`,
+  `formant_spread_hz`, `formant_spread_norm`, `formant_balance_db`,
+  `formant_balance_norm`, `rhythm_pulse`, and `rhythm_periodicity`.
 - Feature lanes can be provided inline (`--feature-vector-lane`) or inside
   `--automation-file` lanes with `type: feature-vector`.
 - Feature lanes can read either extracted features (`source=<feature>`) or a
@@ -1325,6 +1329,9 @@ Notes:
   under `effective.automation.feature_vector.signature` plus optional
   `effective.automation.feature_vector.mapping` and
   `effective.automation.feature_vector.guide_alignment` metadata.
+- Feature payloads include versioned schema metadata under
+  `effective.automation.feature_vector.schema_version` and
+  `effective.automation.feature_vector.source_schema`.
 
 ## 9.0 New User Guide
 
@@ -2201,6 +2208,8 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--automation-mode [auto\|sample\|block]` | Automation evaluation mode. | `sample` is highest precision; `block` is efficient for long renders. |
 | `--automation-block-ms` | Control block size for block-mode automation. | Smaller values increase precision; larger values reduce control-rate overhead. |
 | `--automation-smoothing-ms` | Default lane smoothing time constant. | Increase to reduce zipper artifacts on aggressive ramps/LFOs. |
+| `--automation-slew-limit-per-s` | Optional max control slew (target-range fraction per second). | Use to prevent abrupt jumps in perceptual controls during aggressive automation. |
+| `--automation-deadband` | Optional control deadband (target-range fraction). | Use to suppress inaudibly small control movement and reduce control chatter. |
 | `--automation-clamp` | Per-target clamp override (`target:min:max`, repeatable). | Use to enforce safe control ranges per target for deterministic batch behavior. |
 | `--automation-trace-out` | CSV path for resolved sample-level automation curves. | Use for QA, reproducibility, and perceptual tuning audits. |
 | `--feature-vector-lane` | Repeatable feature-mapping lane in key-value format. | Format: `target=<target>,source=<feature\|target:<automation-target>>[,weight=<w>][,bias=<b>][,curve=<...>][,curve_amount=<a>][,hysteresis_up=<u>][,hysteresis_down=<d>][,combine=<replace\|add\|multiply>][,smoothing_ms=<ms>]`. Target-source mappings are evaluated in deterministic acyclic graph order. |
@@ -2210,7 +2219,7 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--feature-guide-policy [align\|strict]` | Mismatch behavior between feature guide and render context. | `align` applies deterministic sample-rate resample + duration hold/trim + channel mixdown policy; `strict` fails on any sample-rate/channel/duration mismatch. |
 | `--feature-vector-trace-out` | CSV path for feature-plus-target trace export. | Emits `feature_*` and `target_*` columns for deterministic Track B QA and replay audits. |
 | `--frames-out` | Path for framewise CSV metrics output. | Exports per-frame analysis including modulation metrics. |
-| `--analysis-out` | Path for JSON analysis report. | If omitted, report is written to `<OUTFILE>.analysis.json` unless `--silent`; when perceptual macros are used, resolved mapping details are included under `effective.perceptual_macros`. |
+| `--analysis-out` | Path for JSON analysis report. | If omitted, report is written to `<OUTFILE>.analysis.json` unless `--silent`; perceptual-macro runs include both `effective.perceptual_macros` and `effective.track_c_calibration` diagnostics. |
 | `--lucky` | Generates N randomized "wild" render variants from one input. | Best for exploration and sound-design discovery; pair with `--lucky-out-dir`. |
 | `--lucky-out-dir` | Output directory used by lucky mode. | Use a dedicated folder so variant sets are easy to browse and compare. |
 | `--lucky-seed` | Deterministic seed for lucky mode randomization. | Keep fixed when you want reproducible variant batches. |
@@ -2941,11 +2950,11 @@ Goal: make time-varying and feature-driven control deterministic and production-
 
 - [x] Add external feature-guide ingest with deterministic alignment policy for
   sample-rate, duration, and channel-layout mismatch.
-- Expand descriptor families (for example MFCC/formant/rhythm) with locked
+- [x] Expand descriptor families (for example MFCC/formant/rhythm) with locked
   normalization domains and versioned schema metadata.
 - [x] Promote lane mappings to composable, acyclic mapping graphs with explicit
   evaluation order and deterministic signatures.
-- Add golden fixtures covering feature extraction, lane fusion, and mapped target
+- [x] Add golden fixtures covering feature extraction, lane fusion, and mapped target
   trajectories across speech/music/percussive content classes.
 - Exit criteria: replay parity, schema-validated traces, and stable regression
   fixtures for every supported descriptor family.
@@ -2955,11 +2964,11 @@ Goal: make time-varying and feature-driven control deterministic and production-
 Goal: keep Jot-inspired and perceptual controls musically useful, measurable,
 and safe under automation.
 
-- Calibrate macro-to-parameter transforms against measured outcomes (banded RT,
+- [x] Calibrate macro-to-parameter transforms against measured outcomes (banded RT,
   spectral tilt drift, clarity proxies, and decay-shape error).
-- Add safety guards for abrupt, unstable, or inaudibly granular automation
+- [x] Add safety guards for abrupt, unstable, or inaudibly granular automation
   movement (slew limits, floor/ceiling clamps, perceptual deadbands).
-- Emit calibration diagnostics in analysis/report outputs for acceptance testing.
+- [x] Emit calibration diagnostics in analysis/report outputs for acceptance testing.
 - Add corpus-based perceptual regression presets spanning small room to extreme
   long-tail scenarios.
 - Exit criteria: calibration error envelopes documented and enforced; safety

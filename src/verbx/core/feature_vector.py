@@ -36,6 +36,7 @@ FEATURE_CURVE_CHOICES = {
 }
 FEATURE_LANE_COMBINE_CHOICES = {"replace", "add", "multiply"}
 FEATURE_SOURCE_KIND_CHOICES = {"feature", "target"}
+FEATURE_SCHEMA_VERSION = "2.0.0"
 
 _FEATURE_SOURCE_ALIASES: dict[str, str] = {
     "loudness_db": "loudness_db",
@@ -63,8 +64,119 @@ _FEATURE_SOURCE_ALIASES: dict[str, str] = {
     "flatness": "spectral_flatness",
     "harmonic_ratio": "harmonic_ratio",
     "harm_ratio": "harmonic_ratio",
+    "mfcc_1": "mfcc_1",
+    "mfcc1": "mfcc_1",
+    "mfcc_2": "mfcc_2",
+    "mfcc2": "mfcc_2",
+    "mfcc_1_norm": "mfcc_1_norm",
+    "mfcc1_norm": "mfcc_1_norm",
+    "mfcc_2_norm": "mfcc_2_norm",
+    "mfcc2_norm": "mfcc_2_norm",
+    "formant_spread_hz": "formant_spread_hz",
+    "formant_spread": "formant_spread_hz",
+    "formant_spread_norm": "formant_spread_norm",
+    "formant_balance_db": "formant_balance_db",
+    "formant_balance": "formant_balance_db",
+    "formant_balance_norm": "formant_balance_norm",
+    "rhythm_pulse": "rhythm_pulse",
+    "pulse_rhythm": "rhythm_pulse",
+    "rhythm_periodicity": "rhythm_periodicity",
+    "rhythm_periodic": "rhythm_periodicity",
 }
 SUPPORTED_FEATURE_SOURCES = frozenset(_FEATURE_SOURCE_ALIASES.values())
+
+_FEATURE_SOURCE_SCHEMA: dict[str, dict[str, Any]] = {
+    "loudness_db": {
+        "family": "loudness",
+        "unit": "dBFS",
+        "normalization": {"kind": "fixed_range", "minimum": -80.0, "maximum": 0.0},
+    },
+    "loudness_norm": {
+        "family": "loudness",
+        "unit": "norm",
+        "normalization": {"kind": "percentile_unit", "p_low": 5.0, "p_high": 95.0},
+    },
+    "transient_strength": {
+        "family": "transient",
+        "unit": "norm",
+        "normalization": {"kind": "percentile_unit", "p_low": 5.0, "p_high": 95.0},
+    },
+    "spectral_flux": {
+        "family": "spectral",
+        "unit": "norm",
+        "normalization": {"kind": "percentile_unit", "p_low": 5.0, "p_high": 95.0},
+    },
+    "spectral_centroid_hz": {
+        "family": "spectral",
+        "unit": "Hz",
+        "normalization": {"kind": "sample_rate_relative", "minimum": 0.0, "maximum": "nyquist"},
+    },
+    "spectral_centroid_norm": {
+        "family": "spectral",
+        "unit": "norm",
+        "normalization": {"kind": "fixed_range", "minimum": 0.0, "maximum": 1.0},
+    },
+    "spectral_flatness": {
+        "family": "spectral",
+        "unit": "norm",
+        "normalization": {"kind": "fixed_range", "minimum": 0.0, "maximum": 1.0},
+    },
+    "harmonic_ratio": {
+        "family": "spectral",
+        "unit": "norm",
+        "normalization": {"kind": "fixed_range", "minimum": 0.0, "maximum": 1.0},
+    },
+    "mfcc_1": {
+        "family": "mfcc",
+        "unit": "coef",
+        "normalization": {"kind": "fixed_range", "minimum": -30.0, "maximum": 30.0},
+    },
+    "mfcc_2": {
+        "family": "mfcc",
+        "unit": "coef",
+        "normalization": {"kind": "fixed_range", "minimum": -20.0, "maximum": 20.0},
+    },
+    "mfcc_1_norm": {
+        "family": "mfcc",
+        "unit": "norm",
+        "normalization": {"kind": "fixed_range", "minimum": 0.0, "maximum": 1.0},
+    },
+    "mfcc_2_norm": {
+        "family": "mfcc",
+        "unit": "norm",
+        "normalization": {"kind": "fixed_range", "minimum": 0.0, "maximum": 1.0},
+    },
+    "formant_spread_hz": {
+        "family": "formant",
+        "unit": "Hz",
+        "normalization": {"kind": "fixed_range", "minimum": 150.0, "maximum": 4500.0},
+    },
+    "formant_spread_norm": {
+        "family": "formant",
+        "unit": "norm",
+        "normalization": {"kind": "fixed_range", "minimum": 0.0, "maximum": 1.0},
+    },
+    "formant_balance_db": {
+        "family": "formant",
+        "unit": "dB",
+        "normalization": {"kind": "fixed_range", "minimum": -24.0, "maximum": 24.0},
+    },
+    "formant_balance_norm": {
+        "family": "formant",
+        "unit": "norm",
+        "normalization": {"kind": "fixed_range", "minimum": 0.0, "maximum": 1.0},
+    },
+    "rhythm_pulse": {
+        "family": "rhythm",
+        "unit": "norm",
+        "normalization": {"kind": "fixed_range", "minimum": 0.0, "maximum": 1.0},
+    },
+    "rhythm_periodicity": {
+        "family": "rhythm",
+        "unit": "norm",
+        "normalization": {"kind": "fixed_range", "minimum": 0.0, "maximum": 1.0},
+    },
+}
 
 _FEATURE_LANE_TYPE_CHOICES = {
     "feature",
@@ -84,12 +196,41 @@ class FeatureVectorBus:
     frame_size: int
     hop_size: int
     signature: str
+    schema_version: str
+    source_metadata: dict[str, dict[str, Any]]
 
 
 def normalize_feature_source_name(value: str) -> str:
     """Normalize a feature source token and resolve aliases."""
     key = str(value).strip().lower().replace("-", "_")
     return _FEATURE_SOURCE_ALIASES.get(key, key)
+
+
+def feature_source_metadata(
+    sources: set[str] | tuple[str, ...] | list[str] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Return schema metadata for supported feature sources."""
+    names = (
+        sorted(SUPPORTED_FEATURE_SOURCES)
+        if sources is None
+        else sorted(normalize_feature_source_name(source) for source in sources)
+    )
+    metadata: dict[str, dict[str, Any]] = {}
+    for name in names:
+        schema = _FEATURE_SOURCE_SCHEMA.get(
+            name,
+            {
+                "family": "unknown",
+                "unit": "norm",
+                "normalization": {"kind": "fixed_range", "minimum": 0.0, "maximum": 1.0},
+            },
+        )
+        metadata[name] = {
+            "family": str(schema["family"]),
+            "unit": str(schema["unit"]),
+            "normalization": dict(schema["normalization"]),
+        }
+    return metadata
 
 
 def parse_feature_vector_lane_specs(specs: tuple[str, ...] | list[str]) -> list[dict[str, Any]]:
@@ -352,6 +493,8 @@ def build_feature_vector_bus(
         frame_size=frame_size,
         hop_size=hop_size,
         signature=signature,
+        schema_version=FEATURE_SCHEMA_VERSION,
+        source_metadata=feature_source_metadata(resolved_sources),
     )
 
 
@@ -444,6 +587,16 @@ def _extract_frame_features(
             "spectral_centroid_norm": empty,
             "spectral_flatness": empty,
             "harmonic_ratio": empty,
+            "mfcc_1": empty,
+            "mfcc_2": empty,
+            "mfcc_1_norm": empty,
+            "mfcc_2_norm": empty,
+            "formant_spread_hz": empty,
+            "formant_spread_norm": empty,
+            "formant_balance_db": empty,
+            "formant_balance_norm": empty,
+            "rhythm_pulse": empty,
+            "rhythm_periodicity": empty,
         }
 
     starts = np.arange(0, mono.shape[0], hop_size, dtype=np.int64)
@@ -455,8 +608,22 @@ def _extract_frame_features(
     spectral_flux_raw = np.zeros(frame_count, dtype=np.float64)
     centroid_hz = np.zeros(frame_count, dtype=np.float64)
     flatness = np.zeros(frame_count, dtype=np.float64)
+    mfcc_1 = np.zeros(frame_count, dtype=np.float64)
+    mfcc_2 = np.zeros(frame_count, dtype=np.float64)
+    formant_spread_hz = np.zeros(frame_count, dtype=np.float64)
+    formant_balance_db = np.zeros(frame_count, dtype=np.float64)
 
     window = np.hanning(frame_size).astype(np.float64)
+    freq_bins = np.fft.rfftfreq(frame_size, d=1.0 / float(sr)).astype(np.float64)
+    n_bins = int(freq_bins.shape[0])
+    # Lightweight MFCC-like coefficients from log-spectrum cosine projections.
+    k = np.arange(n_bins, dtype=np.float64) + 0.5
+    mfcc_basis_1 = np.cos((np.pi * k) / float(n_bins))
+    mfcc_basis_2 = np.cos((2.0 * np.pi * k) / float(n_bins))
+
+    low_mask = (freq_bins >= 300.0) & (freq_bins < 1_000.0)
+    mid_mask = (freq_bins >= 1_000.0) & (freq_bins < 3_000.0)
+
     prev_mag: FloatArray | None = None
     prev_rms = 0.0
 
@@ -480,15 +647,28 @@ def _extract_frame_features(
 
         spec_sum = float(np.sum(spectrum))
         if spec_sum > 1e-12:
-            freqs = np.fft.rfftfreq(frame_size, d=1.0 / float(sr)).astype(np.float64)
-            centroid_hz[idx] = float(np.sum(freqs * spectrum) / spec_sum)
+            centroid_hz[idx] = float(np.sum(freq_bins * spectrum) / spec_sum)
             spectrum_eps = np.maximum(spectrum, 1e-12)
             geometric = float(np.exp(np.mean(np.log(spectrum_eps))))
             arithmetic = float(np.mean(spectrum_eps))
             flatness[idx] = float(np.clip(geometric / max(arithmetic, 1e-12), 0.0, 1.0))
+            log_spec = np.log(spectrum_eps)
+            mfcc_1[idx] = float(np.sum(log_spec * mfcc_basis_1) / float(n_bins))
+            mfcc_2[idx] = float(np.sum(log_spec * mfcc_basis_2) / float(n_bins))
+            centered = freq_bins - centroid_hz[idx]
+            spread = np.sqrt(np.sum(np.square(centered) * spectrum) / max(spec_sum, 1e-12))
+            formant_spread_hz[idx] = float(np.clip(spread, 0.0, 24_000.0))
+            low_energy = float(np.mean(spectrum_eps[low_mask])) if np.any(low_mask) else 1e-12
+            mid_energy = float(np.mean(spectrum_eps[mid_mask])) if np.any(mid_mask) else 1e-12
+            ratio = (low_energy + 1e-12) / (mid_energy + 1e-12)
+            formant_balance_db[idx] = float(20.0 * np.log10(ratio))
         else:
             centroid_hz[idx] = 0.0
             flatness[idx] = 0.0
+            mfcc_1[idx] = 0.0
+            mfcc_2[idx] = 0.0
+            formant_spread_hz[idx] = 0.0
+            formant_balance_db[idx] = 0.0
 
         center_sample = float(start + (0.5 * frame_size))
         frame_times[idx] = center_sample / float(sr)
@@ -496,9 +676,14 @@ def _extract_frame_features(
     transient = _robust_unit_scale(transient_raw)
     spectral_flux = _robust_unit_scale(spectral_flux_raw)
     loudness_norm = _robust_unit_scale(loudness_db)
+    mfcc_1_norm = _fixed_range_scale(mfcc_1, minimum=-30.0, maximum=30.0)
+    mfcc_2_norm = _fixed_range_scale(mfcc_2, minimum=-20.0, maximum=20.0)
+    formant_spread_norm = _fixed_range_scale(formant_spread_hz, minimum=150.0, maximum=4500.0)
+    formant_balance_norm = _fixed_range_scale(formant_balance_db, minimum=-24.0, maximum=24.0)
     nyquist = max(1e-9, 0.5 * float(sr))
     centroid_norm = np.clip(centroid_hz / nyquist, 0.0, 1.0).astype(np.float64)
     harmonic_ratio = np.clip(1.0 - flatness, 0.0, 1.0).astype(np.float64)
+    rhythm_pulse, rhythm_periodicity = _derive_rhythm_features(transient, spectral_flux)
 
     return frame_times, {
         "loudness_db": loudness_db.astype(np.float64),
@@ -509,6 +694,16 @@ def _extract_frame_features(
         "spectral_centroid_norm": centroid_norm.astype(np.float64),
         "spectral_flatness": flatness.astype(np.float64),
         "harmonic_ratio": harmonic_ratio.astype(np.float64),
+        "mfcc_1": mfcc_1.astype(np.float64),
+        "mfcc_2": mfcc_2.astype(np.float64),
+        "mfcc_1_norm": mfcc_1_norm.astype(np.float64),
+        "mfcc_2_norm": mfcc_2_norm.astype(np.float64),
+        "formant_spread_hz": formant_spread_hz.astype(np.float64),
+        "formant_spread_norm": formant_spread_norm.astype(np.float64),
+        "formant_balance_db": formant_balance_db.astype(np.float64),
+        "formant_balance_norm": formant_balance_norm.astype(np.float64),
+        "rhythm_pulse": rhythm_pulse.astype(np.float64),
+        "rhythm_periodicity": rhythm_periodicity.astype(np.float64),
     }
 
 
@@ -523,6 +718,14 @@ def _feature_to_unit_interval(
     if source == "spectral_centroid_hz":
         nyquist = max(1e-9, 0.5 * float(sample_rate))
         return np.clip(source_values / nyquist, 0.0, 1.0).astype(np.float64)
+    if source == "mfcc_1":
+        return _fixed_range_scale(source_values, minimum=-30.0, maximum=30.0)
+    if source == "mfcc_2":
+        return _fixed_range_scale(source_values, minimum=-20.0, maximum=20.0)
+    if source == "formant_spread_hz":
+        return _fixed_range_scale(source_values, minimum=150.0, maximum=4500.0)
+    if source == "formant_balance_db":
+        return _fixed_range_scale(source_values, minimum=-24.0, maximum=24.0)
     return np.clip(source_values, 0.0, 1.0).astype(np.float64)
 
 
@@ -694,3 +897,57 @@ def _robust_unit_scale(values: FloatArray) -> FloatArray:
     if hi <= lo + 1e-9:
         return np.zeros_like(values, dtype=np.float64)
     return np.clip((values - lo) / (hi - lo), 0.0, 1.0).astype(np.float64)
+
+
+def _fixed_range_scale(
+    values: FloatArray,
+    *,
+    minimum: float,
+    maximum: float,
+) -> FloatArray:
+    """Scale values into ``[0, 1]`` using fixed calibration bounds."""
+    lo = float(minimum)
+    hi = float(maximum)
+    if hi <= lo + 1e-12:
+        return np.zeros_like(values, dtype=np.float64)
+    return np.clip((values - lo) / (hi - lo), 0.0, 1.0).astype(np.float64)
+
+
+def _derive_rhythm_features(
+    transient: FloatArray,
+    spectral_flux: FloatArray,
+) -> tuple[FloatArray, FloatArray]:
+    """Derive deterministic rhythm descriptors from onset-oriented features."""
+    onset_env = np.clip(
+        (0.65 * np.asarray(transient, dtype=np.float64))
+        + (0.35 * np.asarray(spectral_flux, dtype=np.float64)),
+        0.0,
+        1.0,
+    )
+    if onset_env.shape[0] == 0:
+        empty = np.zeros((0,), dtype=np.float64)
+        return empty, empty
+    if onset_env.shape[0] < 4:
+        return onset_env.astype(np.float64), onset_env.astype(np.float64)
+
+    centered = onset_env - float(np.mean(onset_env))
+    autocorr = np.correlate(centered, centered, mode="full")
+    autocorr = np.asarray(autocorr[autocorr.shape[0] // 2 :], dtype=np.float64)
+    lag_min = 2
+    lag_max = min(64, max(lag_min + 1, onset_env.shape[0] - 1))
+    lag_slice = autocorr[lag_min : lag_max + 1]
+    if lag_slice.shape[0] == 0 or float(np.max(np.abs(lag_slice))) <= 1e-12:
+        lag = 4
+    else:
+        lag = int(lag_min + int(np.argmax(lag_slice)))
+
+    pulse = np.zeros_like(onset_env, dtype=np.float64)
+    periodicity = np.zeros_like(onset_env, dtype=np.float64)
+    if lag < onset_env.shape[0]:
+        prev = onset_env[:-lag]
+        current = onset_env[lag:]
+        pulse[lag:] = np.clip(current * prev, 0.0, 1.0)
+        periodicity[lag:] = np.clip(1.0 - np.abs(current - prev), 0.0, 1.0)
+    pulse[:lag] = onset_env[:lag] * 0.5
+    periodicity[:lag] = onset_env[:lag] * 0.5
+    return pulse.astype(np.float64), periodicity.astype(np.float64)

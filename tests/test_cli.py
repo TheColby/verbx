@@ -2897,3 +2897,151 @@ def test_render_feature_guide_strict_rejects_mismatch(tmp_path: Path) -> None:
     )
     assert result.exit_code != 0
     assert "feature-guide sample-rate mismatch" in _combined_cli_output(result).lower()
+
+
+def test_render_feature_vector_payload_includes_schema_metadata(tmp_path: Path) -> None:
+    sr = 16_000
+    n = int(1.5 * sr)
+    t = np.arange(n, dtype=np.float64) / float(sr)
+    x = (
+        0.22 * np.sin(2.0 * np.pi * 180.0 * t)
+        + 0.14 * np.sin(2.0 * np.pi * 360.0 * t)
+    ).astype(np.float64)[:, np.newaxis]
+    ir = np.zeros((64, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+    infile = tmp_path / "feature_schema_in.wav"
+    irfile = tmp_path / "feature_schema_ir.wav"
+    outfile = tmp_path / "feature_schema_out.wav"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--normalize-stage",
+            "none",
+            "--feature-vector-lane",
+            "target=wet,source=mfcc_1_norm,weight=0.8,bias=0.0,curve=smoothstep,combine=replace",
+            "--feature-vector-lane",
+            "target=wet,source=formant_balance_norm,weight=0.3,bias=0.0,curve=linear,combine=add",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    feature_payload = payload["effective"]["automation"]["feature_vector"]
+    assert isinstance(feature_payload, dict)
+    assert feature_payload.get("schema_version") == "2.0.0"
+    source_schema = feature_payload.get("source_schema")
+    assert isinstance(source_schema, dict)
+    assert "mfcc_1_norm" in source_schema
+    assert "formant_balance_norm" in source_schema
+
+
+def test_render_automation_safety_guards_reduce_control_step_delta(tmp_path: Path) -> None:
+    sr = 16_000
+    x = np.ones((sr, 1), dtype=np.float64)
+    ir = np.zeros((64, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+    infile = tmp_path / "auto_guard_in.wav"
+    irfile = tmp_path / "auto_guard_ir.wav"
+    outfile = tmp_path / "auto_guard_out.wav"
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--normalize-stage",
+            "none",
+            "--automation-mode",
+            "block",
+            "--automation-block-ms",
+            "10",
+            "--automation-point",
+            "wet:0.00:0.00:hold",
+            "--automation-point",
+            "wet:0.05:1.00:hold",
+            "--automation-point",
+            "wet:0.10:0.00:hold",
+            "--automation-slew-limit-per-s",
+            "0.20",
+            "--automation-deadband",
+            "0.03",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    automation = payload["effective"]["automation"]
+    assert isinstance(automation, dict)
+    guards = automation.get("safety_guards")
+    assert isinstance(guards, dict)
+    assert float(guards.get("slew_limit_per_s", 0.0)) > 0.0
+    target_stats = guards.get("targets", {})
+    assert isinstance(target_stats, dict)
+    wet_stats = target_stats.get("wet")
+    assert isinstance(wet_stats, dict)
+    assert int(wet_stats.get("slew_hits", 0)) > 0
+    assert float(wet_stats.get("max_delta_after", 0.0)) <= float(
+        wet_stats.get("max_delta_before", 0.0)
+    )
+
+
+def test_render_track_c_calibration_diagnostics_are_emitted(tmp_path: Path) -> None:
+    sr = 16_000
+    n = int(1.2 * sr)
+    t = np.arange(n, dtype=np.float64) / float(sr)
+    x = (
+        0.28 * np.sin(2.0 * np.pi * 220.0 * t)
+        + 0.10 * np.sin(2.0 * np.pi * 880.0 * t)
+    ).astype(np.float64)[:, np.newaxis]
+    infile = tmp_path / "trackc_diag_in.wav"
+    outfile = tmp_path / "trackc_diag_out.wav"
+    sf.write(str(infile), x, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--room-size-macro",
+            "0.50",
+            "--clarity-macro",
+            "-0.25",
+            "--warmth-macro",
+            "0.45",
+            "--envelopment-macro",
+            "0.35",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    calibration = payload["effective"].get("track_c_calibration")
+    assert isinstance(calibration, dict)
+    assert calibration.get("version") == "track-c-cal-v1"
+    assert isinstance(calibration.get("targets"), dict)
+    assert isinstance(calibration.get("measured"), dict)
+    assert isinstance(calibration.get("errors"), dict)
+    assert isinstance(calibration.get("within_envelope"), bool)
