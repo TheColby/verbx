@@ -109,6 +109,7 @@ batch workflows.
     - [8.25 Lucky mode (`--lucky N`) for wild random batches](#825-lucky-mode---lucky-n-for-wild-random-batches)
     - [8.26 Feature-vector-driven reverb automation](#826-feature-vector-driven-reverb-automation)
     - [8.27 AI research and data augmentation dataset generation](#827-ai-research-and-data-augmentation-dataset-generation)
+    - [8.28 IR morph sweep QA bundles](#828-ir-morph-sweep-qa-bundles)
   - [9.0 New User Guide](#90-new-user-guide)
     - [9.1 Start Here (5-minute setup)](#91-start-here-5-minute-setup)
     - [9.2 Processing Architecture](#92-processing-architecture)
@@ -169,6 +170,7 @@ batch workflows.
     - [13.8 `verbx ir process IN_IR OUT_IR` switches](#138-verbx-ir-process-in_ir-out_ir-switches)
     - [13.9 `verbx ir fit INFILE OUT_IR` switches](#139-verbx-ir-fit-infile-out_ir-switches)
     - [13.10 `verbx ir morph IR_A IR_B OUT_IR` switches](#1310-verbx-ir-morph-ir_a-ir_b-out_ir-switches)
+      - [13.10.1 `verbx ir morph-sweep IR_A IR_B OUT_DIR` switches](#13101-verbx-ir-morph-sweep-ir_a-ir_b-out_dir-switches)
     - [13.11 `verbx cache info` switches](#1311-verbx-cache-info-switches)
     - [13.12 `verbx cache clear` switches](#1312-verbx-cache-clear-switches)
     - [13.13 `verbx batch template` switches](#1313-verbx-batch-template-switches)
@@ -324,9 +326,12 @@ This installs `verbx` and renders an intentionally extreme long-tail reverb as `
 - IR processing for damping/filtering/normalization/loudness shaping.
 - IR morphing modes: `linear`, `equal-power`, `spectral`, `envelope-aware`.
 - Early/late morph controls with decay alignment and phase-coherence safeguards.
+- `ir morph-sweep` alpha-timeline batches with QA CSV/JSON artifacts plus
+  retry/checkpoint/resume controls for long runs.
 - Render-time IR blending with repeatable `--ir-blend` paths.
 - IR fitting pipeline with candidate scoring and optional tuning analysis.
-- Deterministic IR cache with metadata sidecars plus cache inspect/clear commands.
+- Deterministic IR cache with canonical source signatures (content hash + audio
+  metadata) plus cache inspect/clear commands.
 - Lucky-mode randomized variants for render and IR workflows.
 
 ### 3.6 Analysis, QA, and Production Operations
@@ -883,7 +888,7 @@ Current implementation level: **v0.7.0**
 - v0.6 spatial additions: Ambisonics convention validation (`--ambi-order`, `--ambi-normalization`, `--channel-order`), FOA encode/decode transforms, yaw rotation, and Ambisonics spatial metrics in analysis mode
 - v0.7 Track A/C additions: JSON/CSV automation lanes (`--automation-file`), inline CLI points (`--automation-point`), block/sample evaluation, smoothing, clamp overrides, automation trace export, deterministic automation signatures, lane-level validation diagnostics, convolution-path automation target `ir-blend-alpha` for IR blend timeline control, and Track C automation targets for `fdn-rt60-tilt` and `fdn-tonal-correction-strength`
 - v0.7 Track B additions: frame-aligned feature bus (loudness/transient/spectral/harmonic), feature-vector lanes (`--feature-vector-lane`), weighted/curved/hysteretic mapping with multi-feature fusion, deterministic signatures for feature-driven automation, and feature-plus-parameter trace export (`--feature-vector-trace-out`)
-- v0.7 Track D additions: cache-backed `ir morph` command (`linear`, `equal-power`, `spectral`, `envelope-aware`), render-time IR blending via `--ir-blend`/`--ir-blend-mix`, and morph quality metadata (RT drift, spectral distance, coherence deltas)
+- v0.7 Track D additions: cache-backed `ir morph` command (`linear`, `equal-power`, `spectral`, `envelope-aware`), cache-signature canonicalization (content hash + format metadata), render-time IR blending via `--ir-blend`/`--ir-blend-mix`, morph quality metadata (RT drift, spectral distance, coherence deltas), and `ir morph-sweep` QA bundles with retries/checkpoint/resume
 - v0.7 immersive interoperability additions: `immersive handoff` sidecar/deliverable packaging, object/bed policy checks, `immersive qc` gates, and distributed `immersive queue` worker heartbeats/retry semantics
 - v0.7 immersive hardening additions: strict handoff now fails on policy violations, scene validation errors, or any QC gate failure; scene sample-rate mismatches are surfaced in validation payloads; queue manifests now require unique job IDs
 - v0.7 AI/research additions: deterministic batch augmentation workflow (`batch augment-template`, `batch augment-profiles`, `batch augment`) with profile-driven sampling, split-isolation validation, split/label/tag metadata, JSONL dataset manifests, summary artifacts, optional dataset cards, and optional per-output metrics CSV export
@@ -1396,6 +1401,30 @@ Notes:
 - Optional dataset card output summarizes provenance and class/split distributions.
 - Use `--profile`, `--seed`, and `--variants-per-input` to override manifest
   values for rapid experiment sweeps without editing files.
+
+### 8.28 IR morph sweep QA bundles
+
+Run deterministic alpha-timeline sweeps and export QA artifacts for Track D regression.
+
+```bash
+verbx ir morph-sweep ir_a.wav ir_b.wav out/morph_sweep \
+  --alpha-start 0.0 \
+  --alpha-end 1.0 \
+  --alpha-steps 9 \
+  --workers 4 \
+  --retries 1 \
+  --checkpoint-file out/morph_sweep.checkpoint.json \
+  --qa-json-out out/morph_sweep_summary.json \
+  --qa-csv-out out/morph_sweep_metrics.csv
+```
+
+Notes:
+
+- Use repeated `--alpha` options for explicit non-linear timelines.
+- QA CSV includes per-step quality metrics such as `rt60_drift_s` and
+  `spectral_distance_db`.
+- `--resume` skips steps already marked successful in checkpoint data.
+- Keep `--fail-if-any-failed` enabled for CI-quality gates.
 
 ## 9.0 New User Guide
 
@@ -2509,6 +2538,35 @@ No command-specific switches (other than `--help`).
 | `--target-sr` | Optional target sample rate for morph processing/output. | Set when normalizing a mixed IR library to one sample rate. |
 | `--cache-dir` | Cache directory for morphed IR artifacts and sidecars. | Reuse for deterministic reruns and fast iterative auditioning. |
 
+### 13.10.1 `verbx ir morph-sweep IR_A IR_B OUT_DIR` switches
+
+| Switch | What it controls | Practical guidance |
+|---|---|---|
+| `--mode [linear\|equal-power\|spectral\|envelope-aware]` | Morph algorithm used for each sweep step. | Keep consistent with your production morph mode when generating QA baselines. |
+| `--alpha` | Explicit alpha point (repeatable). | Use repeated `--alpha` to encode custom non-linear blend timelines. |
+| `--alpha-start` | Start alpha when generating linear sweep points. | Ignored when explicit `--alpha` values are provided. |
+| `--alpha-end` | End alpha when generating linear sweep points. | Use with `--alpha-steps` for deterministic evenly spaced sweeps. |
+| `--alpha-steps` | Number of generated sweep points for `--alpha-start/--alpha-end`. | Start with `7-13` for coverage; increase for fine-grained trend analysis. |
+| `--out-prefix` | Prefix used for generated IR filenames in `OUT_DIR`. | Set per experiment to keep sweep outputs easy to diff. |
+| `--early-ms` | Early/late split time for split-aware morph modes. | Keep aligned with production settings so QA traces are representative. |
+| `--early-alpha` | Optional early-region alpha override. | Lower values preserve source-A localization in early reflections. |
+| `--late-alpha` | Optional late-tail alpha override. | Raise to transfer more source-B tail character. |
+| `--align-decay / --no-align-decay` | Enable/disable decay-shape alignment before each step. | Keep enabled for smoother RT trajectories across sweeps. |
+| `--phase-coherence` | Spectral phase-coherence safeguard strength (`0..1`). | Raise when spectral sweeps show combing artifacts. |
+| `--spectral-smooth-bins` | Spectral smoothing radius (FFT bins). | Increase to reduce narrow resonance jitter between adjacent alpha steps. |
+| `--target-sr` | Optional unified sample rate for sweep processing/output. | Use when QA baselines require one fixed sample rate. |
+| `--cache-dir` | Morph cache directory for sweep jobs. | Reuse across repeated sweeps for deterministic cache behavior checks. |
+| `--workers` | Parallel sweep workers (`0` = auto). | Use more workers for long sweep lists on multi-core hosts. |
+| `--schedule [fifo\|shortest-first\|longest-first]` | Sweep job ordering policy. | `longest-first` generally minimizes tail idle time across workers. |
+| `--retries` | Retry attempts per failed sweep step. | Set `1-2` to absorb transient I/O/runtime failures. |
+| `--continue-on-error / --fail-fast` | Continue after step failures or stop immediately. | Use fail-fast for strict CI gates; continue to collect partial diagnostics. |
+| `--fail-if-any-failed / --allow-failed` | Exit behavior when one or more steps fail. | Keep fail behavior in CI to enforce QA integrity. |
+| `--checkpoint-file` | Checkpoint JSON path for persisted per-step status. | Required with `--resume`; recommended for long sweeps. |
+| `--resume` | Skip steps already marked successful in checkpoint data. | Use after interrupted runs to avoid rerendering completed alphas. |
+| `--qa-json-out` | Summary JSON output path. | Default: `<OUT_DIR>/morph_sweep_summary.json`. |
+| `--qa-csv-out` | Per-step QA metrics CSV output path. | Default: `<OUT_DIR>/morph_sweep_metrics.csv`. |
+| `--silent` | Reduce console output during sweep execution. | Use in scripted/CI environments where logs are collected elsewhere. |
+
 ### 13.11 `verbx cache info` switches
 
 | Switch | What it controls | Practical guidance |
@@ -2788,6 +2846,8 @@ verbx ir process IRs/hybrid_120.wav IRs/hybrid_120_dark.wav \
   --lowcut 120 --highcut 7000 --tilt -1.0 --normalize peak
 
 verbx ir fit input.wav IRs/fitted.wav --top-k 3 --candidate-pool 12 --fit-workers 4
+verbx ir morph-sweep ir_a.wav ir_b.wav out/morph_sweep --alpha-start 0 --alpha-end 1 --alpha-steps 9
+verbx ir morph-sweep ir_a.wav ir_b.wav out/morph_sweep --alpha 0.0 --alpha 0.2 --alpha 0.5 --alpha 1.0 --checkpoint-file out/morph.checkpoint.json --resume
 ```
 
 ### 14.6 Cache command group
@@ -2967,6 +3027,7 @@ Testing note:
 
 - [IR synthesis guide](docs/IR_SYNTHESIS.md)
 - [AI augmentation guide](docs/AI_AUGMENTATION.md)
+- [IR morph QA guide](docs/IR_MORPH_QA.md)
 - [Extreme cookbook (100 workflows)](docs/EXTREME_COOKBOOK.md)
 - [Academic references](docs/REFERENCES.md)
 - [Changelog](CHANGELOG.md)
@@ -3118,7 +3179,7 @@ and safe under automation.
 - [x] Add safety guards for abrupt, unstable, or inaudibly granular automation
   movement (slew limits, floor/ceiling clamps, perceptual deadbands).
 - [x] Emit calibration diagnostics in analysis/report outputs for acceptance testing.
-- Add corpus-based perceptual regression presets spanning small room to extreme
+- [x] Add corpus-based perceptual regression presets spanning small room to extreme
   long-tail scenarios.
 - Exit criteria: calibration error envelopes documented and enforced; safety
   guards active in runtime and covered by tests.
@@ -3127,11 +3188,11 @@ and safe under automation.
 
 Goal: make IR morphing and render-time blending reliable at scale.
 
-- Harden cache-key canonicalization for channel/layout/sample-rate variants and
+- [x] Harden cache-key canonicalization for channel/layout/sample-rate variants and
   ensure reproducible cache hits.
-- Add batch QA artifact bundles (summary tables + diagnostic CSV/JSON) for morph
+- [x] Add batch QA artifact bundles (summary tables + diagnostic CSV/JSON) for morph
   sweeps and blend timelines.
-- Strengthen failure/retry/resume semantics for long batch pipelines.
+- [x] Strengthen failure/retry/resume semantics for long batch pipelines.
 - Define and enforce explicit mismatch policy behavior for unsupported format
   combinations before render execution.
 - Exit criteria: reproducible cache behavior, deterministic QA artifacts, and

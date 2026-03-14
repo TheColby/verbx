@@ -85,6 +85,22 @@ def test_presets_show_displays_resolved_values() -> None:
     assert "90.0" in text
 
 
+def test_presets_include_perceptual_regression_corpus_variants() -> None:
+    result = runner.invoke(app, ["presets"])
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "perceptual_small_room_regression" in text
+    assert "perceptual_mid_room_regression" in text
+    assert "perceptual_long_hall_regression" in text
+    assert "perceptual_extreme_tail_regression" in text
+
+    detail = runner.invoke(app, ["presets", "--show", "perceptual-long-hall-regression"])
+    assert detail.exit_code == 0, detail.stdout
+    detail_text = _combined_cli_output(detail)
+    assert "fdn_tonal_correction_strength" in detail_text
+    assert "room_size_macro" in detail_text
+
+
 def test_render_dry_run_validates_without_writing_audio(tmp_path: Path) -> None:
     audio = np.zeros((1024, 1), dtype=np.float64)
     audio[10:40, 0] = 0.4
@@ -1527,6 +1543,164 @@ def test_ir_process_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
     for path in outputs:
         assert path.exists()
         assert Path(f"{path}.ir.meta.json").exists()
+
+
+def test_ir_morph_sweep_generates_qa_bundle(tmp_path: Path) -> None:
+    sr = 16_000
+    ir_a = tmp_path / "a.wav"
+    ir_b = tmp_path / "b.wav"
+    out_dir = tmp_path / "morph_sweep"
+    a = np.zeros((1024, 1), dtype=np.float64)
+    b = np.zeros((1024, 1), dtype=np.float64)
+    a[0, 0] = 1.0
+    a[80, 0] = 0.4
+    b[0, 0] = 1.0
+    b[220, 0] = 0.25
+    sf.write(str(ir_a), a, sr)
+    sf.write(str(ir_b), b, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "morph-sweep",
+            str(ir_a),
+            str(ir_b),
+            str(out_dir),
+            "--alpha-start",
+            "0.1",
+            "--alpha-end",
+            "0.9",
+            "--alpha-steps",
+            "3",
+            "--workers",
+            "1",
+            "--cache-dir",
+            str(tmp_path / "cache"),
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    outputs = sorted(out_dir.glob("morph_*.wav"))
+    assert len(outputs) == 3
+    qa_csv = out_dir / "morph_sweep_metrics.csv"
+    qa_json = out_dir / "morph_sweep_summary.json"
+    assert qa_csv.exists()
+    assert qa_json.exists()
+    rows = [line for line in qa_csv.read_text(encoding="utf-8").splitlines() if line.strip() != ""]
+    assert len(rows) == 4  # header + 3 rows
+    summary = json.loads(qa_json.read_text(encoding="utf-8"))
+    assert int(summary["planned"]) == 3
+    assert int(summary["success"]) == 3
+    assert int(summary["failed"]) == 0
+
+
+def test_ir_morph_sweep_resume_skips_completed_outputs(tmp_path: Path) -> None:
+    sr = 16_000
+    ir_a = tmp_path / "a.wav"
+    ir_b = tmp_path / "b.wav"
+    out_dir = tmp_path / "resume_sweep"
+    checkpoint = tmp_path / "resume_checkpoint.json"
+    a = np.zeros((1024, 1), dtype=np.float64)
+    b = np.zeros((1024, 1), dtype=np.float64)
+    a[0, 0] = 1.0
+    a[96, 0] = 0.35
+    b[0, 0] = 1.0
+    b[280, 0] = 0.2
+    sf.write(str(ir_a), a, sr)
+    sf.write(str(ir_b), b, sr)
+
+    first = runner.invoke(
+        app,
+        [
+            "ir",
+            "morph-sweep",
+            str(ir_a),
+            str(ir_b),
+            str(out_dir),
+            "--alpha",
+            "0.25",
+            "--alpha",
+            "0.75",
+            "--checkpoint-file",
+            str(checkpoint),
+            "--workers",
+            "1",
+            "--cache-dir",
+            str(tmp_path / "cache"),
+        ],
+    )
+    assert first.exit_code == 0, first.stdout
+
+    second = runner.invoke(
+        app,
+        [
+            "ir",
+            "morph-sweep",
+            str(ir_a),
+            str(ir_b),
+            str(out_dir),
+            "--alpha",
+            "0.25",
+            "--alpha",
+            "0.75",
+            "--checkpoint-file",
+            str(checkpoint),
+            "--resume",
+            "--workers",
+            "1",
+            "--cache-dir",
+            str(tmp_path / "cache"),
+        ],
+    )
+    assert second.exit_code == 0, second.stdout
+    summary = json.loads((out_dir / "morph_sweep_summary.json").read_text(encoding="utf-8"))
+    assert int(summary["planned"]) == 2
+    assert int(summary["executed"]) == 0
+    assert int(summary["resumed_skipped"]) == 2
+
+
+def test_ir_morph_sweep_retries_and_persists_failures(tmp_path: Path) -> None:
+    ir_a = tmp_path / "a.wav"
+    ir_b = tmp_path / "not_audio.wav"
+    out_dir = tmp_path / "failed_sweep"
+    checkpoint = tmp_path / "failed_checkpoint.json"
+    a = np.zeros((1024, 1), dtype=np.float64)
+    a[0, 0] = 1.0
+    sf.write(str(ir_a), a, 16_000)
+    ir_b.write_text("this is not a valid wav file", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "morph-sweep",
+            str(ir_a),
+            str(ir_b),
+            str(out_dir),
+            "--alpha",
+            "0.2",
+            "--alpha",
+            "0.6",
+            "--retries",
+            "2",
+            "--continue-on-error",
+            "--allow-failed",
+            "--checkpoint-file",
+            str(checkpoint),
+            "--workers",
+            "1",
+            "--cache-dir",
+            str(tmp_path / "cache"),
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(checkpoint.read_text(encoding="utf-8"))
+    rows = payload.get("results", [])
+    assert isinstance(rows, list)
+    assert len(rows) == 2
+    assert all(int(row["attempts"]) == 3 for row in rows if isinstance(row, dict))
+    assert all(not bool(row["success"]) for row in rows if isinstance(row, dict))
 
 
 def test_batch_render_parallel_jobs(tmp_path: Path) -> None:

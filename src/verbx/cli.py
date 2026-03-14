@@ -22,6 +22,7 @@ from difflib import get_close_matches
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
+from threading import Lock
 from typing import Any, Literal, TypedDict, cast
 
 import numpy as np
@@ -2207,6 +2208,352 @@ def ir_morph(
         if spectral is not None:
             table.add_row("spectral_distance_db", f"{float(spectral):.4f}")
     console.print(table)
+
+
+@ir_app.command("morph-sweep")
+def ir_morph_sweep(
+    ir_a: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
+    ir_b: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
+    out_dir: Path = typer.Argument(..., resolve_path=True),
+    mode: str = typer.Option(
+        "equal-power",
+        "--mode",
+        help="Morph mode: linear, equal-power, spectral, or envelope-aware.",
+    ),
+    alpha_points: list[float] | None = typer.Option(
+        None,
+        "--alpha",
+        min=0.0,
+        max=1.0,
+        help="Explicit alpha point. Repeat to define custom sweep timeline.",
+    ),
+    alpha_start: float = typer.Option(0.0, "--alpha-start", min=0.0, max=1.0),
+    alpha_end: float = typer.Option(1.0, "--alpha-end", min=0.0, max=1.0),
+    alpha_steps: int = typer.Option(9, "--alpha-steps", min=2, max=257),
+    out_prefix: str = typer.Option(
+        "morph",
+        "--out-prefix",
+        help="Output filename prefix for generated sweep IR files.",
+    ),
+    early_ms: float = typer.Option(80.0, "--early-ms", min=0.0),
+    early_alpha: float | None = typer.Option(None, "--early-alpha", min=0.0, max=1.0),
+    late_alpha: float | None = typer.Option(None, "--late-alpha", min=0.0, max=1.0),
+    align_decay: bool = typer.Option(
+        True,
+        "--align-decay/--no-align-decay",
+        help="Align decay profiles before morphing for stable RT trajectories.",
+    ),
+    phase_coherence: float = typer.Option(0.75, "--phase-coherence", min=0.0, max=1.0),
+    spectral_smooth_bins: int = typer.Option(3, "--spectral-smooth-bins", min=0, max=128),
+    target_sr: int | None = typer.Option(None, "--target-sr", min=1),
+    cache_dir: str = typer.Option(".verbx_cache/ir_morph", "--cache-dir"),
+    workers: int = typer.Option(0, "--workers", min=0, help="0 = auto"),
+    schedule: BatchSchedulePolicy = typer.Option("longest-first", "--schedule"),
+    retries: int = typer.Option(0, "--retries", min=0),
+    continue_on_error: bool = typer.Option(False, "--continue-on-error/--fail-fast"),
+    fail_if_any_failed: bool = typer.Option(
+        True,
+        "--fail-if-any-failed/--allow-failed",
+        help="Exit non-zero when any sweep step fails.",
+    ),
+    checkpoint_file: Path | None = typer.Option(
+        None,
+        "--checkpoint-file",
+        resolve_path=True,
+        help="Optional checkpoint JSON path for resume-safe sweep execution.",
+    ),
+    resume: bool = typer.Option(False, "--resume", help="Resume from --checkpoint-file."),
+    qa_json_out: Path | None = typer.Option(
+        None,
+        "--qa-json-out",
+        resolve_path=True,
+        help="Summary JSON output path (default: <out_dir>/morph_sweep_summary.json).",
+    ),
+    qa_csv_out: Path | None = typer.Option(
+        None,
+        "--qa-csv-out",
+        resolve_path=True,
+        help="Per-step QA metrics CSV path (default: <out_dir>/morph_sweep_metrics.csv).",
+    ),
+    silent: bool = typer.Option(False, "--silent"),
+) -> None:
+    """Run an alpha timeline sweep and emit Track D QA artifacts."""
+    _validate_ir_morph_sweep_call(
+        ir_a=ir_a,
+        ir_b=ir_b,
+        out_dir=out_dir,
+        mode=mode,
+        early_alpha=early_alpha,
+        late_alpha=late_alpha,
+        cache_dir=cache_dir,
+        out_prefix=out_prefix,
+        alpha_points=alpha_points,
+        alpha_steps=alpha_steps,
+        checkpoint_file=checkpoint_file,
+        resume=resume,
+    )
+    resolved_mode = validate_ir_morph_mode_name(mode)
+    alphas = _resolve_ir_morph_sweep_alphas(
+        alpha_points=alpha_points,
+        alpha_start=alpha_start,
+        alpha_end=alpha_end,
+        alpha_steps=alpha_steps,
+    )
+    out_root = out_dir.resolve()
+    out_root.mkdir(parents=True, exist_ok=True)
+    qa_json_path = (
+        qa_json_out.resolve()
+        if qa_json_out is not None
+        else (out_root / "morph_sweep_summary.json").resolve()
+    )
+    qa_csv_path = (
+        qa_csv_out.resolve()
+        if qa_csv_out is not None
+        else (out_root / "morph_sweep_metrics.csv").resolve()
+    )
+    checkpoint_path = checkpoint_file.resolve() if checkpoint_file is not None else None
+
+    template_cfg = IRMorphConfig(
+        mode=cast(
+            Literal["linear", "equal-power", "spectral", "envelope-aware"],
+            resolved_mode,
+        ),
+        alpha=0.0,
+        early_ms=float(early_ms),
+        early_alpha=None if early_alpha is None else float(early_alpha),
+        late_alpha=None if late_alpha is None else float(late_alpha),
+        align_decay=bool(align_decay),
+        phase_coherence=float(phase_coherence),
+        spectral_smooth_bins=int(spectral_smooth_bins),
+    )
+
+    all_jobs: list[BatchJobSpec] = []
+    alpha_by_index: dict[int, float] = {}
+    for idx, alpha_value in enumerate(alphas, start=1):
+        token = _alpha_token(alpha_value)
+        outfile = out_root / f"{out_prefix}_{idx:03d}_{token}.wav"
+        all_jobs.append(
+            BatchJobSpec(
+                index=idx,
+                infile=ir_a,
+                outfile=outfile,
+                config=RenderConfig(progress=False),
+                estimated_cost=1.0 + abs(float(alpha_value) - 0.5),
+            )
+        )
+        alpha_by_index[idx] = float(alpha_value)
+
+    checkpoint_payload: dict[str, Any] = {
+        "version": "0.7",
+        "mode": "ir-morph-sweep",
+        "ir_a": str(ir_a.resolve()),
+        "ir_b": str(ir_b.resolve()),
+        "out_dir": str(out_root),
+        "results": [],
+    }
+    if resume and checkpoint_path is not None and checkpoint_path.exists():
+        checkpoint_payload = _load_batch_checkpoint(checkpoint_path)
+        checkpoint_payload.setdefault("results", [])
+    completed_outfiles = (
+        _checkpoint_success_outfiles(checkpoint_payload)
+        if (resume and checkpoint_path is not None)
+        else set()
+    )
+    prepared_jobs = [
+        job for job in all_jobs if str(job.outfile.resolve()) not in completed_outfiles
+    ]
+
+    active_count = len(prepared_jobs) if prepared_jobs else 1
+    if workers == 0:
+        max_workers = max(1, min(int(os.cpu_count() or 1), active_count))
+    else:
+        max_workers = max(1, min(int(workers), active_count))
+
+    runtime_meta: dict[int, dict[str, Any]] = {}
+    checkpoint_results = checkpoint_payload.get("results", [])
+    if not isinstance(checkpoint_results, list):
+        checkpoint_results = []
+        checkpoint_payload["results"] = checkpoint_results
+    lock = Lock()
+
+    def runner(job: BatchJobSpec) -> None:
+        alpha_value = alpha_by_index[job.index]
+        cfg = IRMorphConfig(
+            mode=template_cfg.mode,
+            alpha=float(alpha_value),
+            early_ms=float(template_cfg.early_ms),
+            early_alpha=template_cfg.early_alpha,
+            late_alpha=template_cfg.late_alpha,
+            align_decay=bool(template_cfg.align_decay),
+            phase_coherence=float(template_cfg.phase_coherence),
+            spectral_smooth_bins=int(template_cfg.spectral_smooth_bins),
+        )
+        audio, sr, meta, cache_path, cache_hit = generate_or_load_cached_morphed_ir(
+            ir_a_path=ir_a,
+            ir_b_path=ir_b,
+            config=cfg,
+            cache_dir=Path(cache_dir),
+            target_sr=None if target_sr is None else int(target_sr),
+        )
+        write_ir_artifacts(job.outfile, audio, sr, meta, silent=True)
+        quality = meta.get("quality", {})
+        with lock:
+            runtime_meta[job.index] = {
+                "alpha": float(alpha_value),
+                "cache_path": str(cache_path),
+                "cache_hit": bool(cache_hit),
+                "sample_rate": int(sr),
+                "channels": int(audio.shape[1]),
+                "duration_s": float(audio.shape[0]) / float(max(1, sr)),
+                "quality": quality if isinstance(quality, dict) else {},
+            }
+
+    def on_result(result: BatchJobResult) -> None:
+        meta = runtime_meta.get(result.index, {})
+        row = {
+            "index": int(result.index),
+            "alpha": float(meta.get("alpha", alpha_by_index.get(result.index, 0.0))),
+            "outfile": str(result.outfile.resolve()),
+            "success": bool(result.success),
+            "attempts": int(result.attempts),
+            "duration_seconds": float(result.duration_seconds),
+            "cache_hit": bool(meta.get("cache_hit", False)),
+            "cache_path": str(meta.get("cache_path", "")),
+            "sample_rate": int(meta.get("sample_rate", 0)),
+            "channels": int(meta.get("channels", 0)),
+            "render_duration_s": float(meta.get("duration_s", 0.0)),
+            "quality": meta.get("quality", {}),
+            "error": result.error,
+        }
+        with lock:
+            _upsert_checkpoint_row(checkpoint_results, row)
+            if checkpoint_path is not None:
+                _write_json_atomic(checkpoint_path, checkpoint_payload)
+        if silent:
+            return
+        status = "ok" if result.success else "failed"
+        console.print(
+            f"morph-sweep {status} {result.index}: {result.outfile} "
+            f"(alpha={row['alpha']:.3f}, attempts={result.attempts})"
+        )
+
+    run_error: str | None = None
+    if prepared_jobs:
+        try:
+            run_parallel_batch(
+                jobs=prepared_jobs,
+                max_workers=max_workers,
+                schedule=schedule,
+                retries=retries,
+                continue_on_error=continue_on_error,
+                runner=runner,
+                on_result=on_result,
+            )
+        except RuntimeError as exc:
+            run_error = str(exc)
+
+    checkpoint_by_outfile: dict[str, dict[str, Any]] = {}
+    for row in checkpoint_results:
+        if not isinstance(row, dict):
+            continue
+        outfile = row.get("outfile")
+        if not isinstance(outfile, str):
+            continue
+        checkpoint_by_outfile[str(Path(outfile).resolve())] = dict(row)
+
+    qa_rows: list[dict[str, Any]] = []
+    resumed_skipped = 0
+    executed_outfiles = {str(job.outfile.resolve()) for job in prepared_jobs}
+    for job in all_jobs:
+        out_key = str(job.outfile.resolve())
+        row = checkpoint_by_outfile.get(out_key, {})
+        merged: dict[str, Any] = {
+            "index": int(job.index),
+            "alpha": float(row.get("alpha", alpha_by_index[job.index])),
+            "outfile": out_key,
+            "success": bool(row.get("success", False)),
+            "attempts": int(row.get("attempts", 0)),
+            "duration_seconds": float(row.get("duration_seconds", 0.0)),
+            "cache_hit": bool(row.get("cache_hit", False)),
+            "cache_path": str(row.get("cache_path", "")),
+            "sample_rate": int(row.get("sample_rate", 0)),
+            "channels": int(row.get("channels", 0)),
+            "render_duration_s": float(row.get("render_duration_s", 0.0)),
+            "error": row.get("error"),
+        }
+        quality_raw = row.get("quality", {})
+        quality = quality_raw if isinstance(quality_raw, dict) else {}
+        for key in (
+            "rt60_target_s",
+            "rt60_out_s",
+            "rt60_drift_s",
+            "early_late_target_db",
+            "early_late_out_db",
+            "early_late_drift_db",
+            "spectral_distance_db",
+            "interchannel_coherence_target",
+            "interchannel_coherence_out",
+            "interchannel_coherence_delta",
+        ):
+            value = quality.get(key)
+            merged[key] = None if value is None else float(value)
+        resumed = bool(out_key in completed_outfiles and out_key not in executed_outfiles)
+        merged["resumed_skip"] = resumed
+        if resumed:
+            resumed_skipped += 1
+        qa_rows.append(merged)
+
+    _write_csv_atomic(qa_csv_path, qa_rows)
+    success = int(sum(1 for row in qa_rows if bool(row.get("success", False))))
+    failed = int(len(qa_rows) - success)
+    summary_payload = {
+        "version": "0.7",
+        "mode": "ir-morph-sweep",
+        "ir_a": str(ir_a.resolve()),
+        "ir_b": str(ir_b.resolve()),
+        "out_dir": str(out_root),
+        "morph_mode": resolved_mode,
+        "alpha_values": [float(value) for value in alphas],
+        "workers": int(max_workers),
+        "schedule": str(schedule),
+        "retries": int(retries),
+        "continue_on_error": bool(continue_on_error),
+        "planned": len(all_jobs),
+        "executed": len(prepared_jobs),
+        "resumed_skipped": int(resumed_skipped),
+        "success": int(success),
+        "failed": int(failed),
+        "qa_csv": str(qa_csv_path),
+        "checkpoint_file": None if checkpoint_path is None else str(checkpoint_path),
+        "rt60_drift_s_stats": _summarize_numeric_column(qa_rows, "rt60_drift_s"),
+        "spectral_distance_db_stats": _summarize_numeric_column(qa_rows, "spectral_distance_db"),
+    }
+    _write_json_atomic(qa_json_path, summary_payload)
+
+    if not silent:
+        table = Table(title="IR Morph Sweep Summary")
+        table.add_column("Field", style="cyan")
+        table.add_column("Value", style="white")
+        for key in (
+            "morph_mode",
+            "planned",
+            "executed",
+            "resumed_skipped",
+            "success",
+            "failed",
+            "qa_csv",
+        ):
+            table.add_row(key, str(summary_payload.get(key, "")))
+        table.add_row("qa_json", str(qa_json_path))
+        console.print(table)
+
+    if run_error is not None and not continue_on_error:
+        if fail_if_any_failed:
+            raise typer.Exit(code=2)
+        raise typer.BadParameter(run_error)
+
+    if fail_if_any_failed and failed > 0:
+        raise typer.Exit(code=2)
 
 
 @ir_app.command("fit")
@@ -5389,6 +5736,106 @@ def _validate_ir_gen_call(
     _validate_fdn_tonal_correction_settings(
         fdn_tonal_correction_strength=fdn_tonal_correction_strength,
     )
+
+
+def _validate_ir_morph_sweep_call(
+    *,
+    ir_a: Path,
+    ir_b: Path,
+    out_dir: Path,
+    mode: str,
+    early_alpha: float | None,
+    late_alpha: float | None,
+    cache_dir: str,
+    out_prefix: str,
+    alpha_points: list[float] | None,
+    alpha_steps: int,
+    checkpoint_file: Path | None,
+    resume: bool,
+) -> None:
+    """Validate IR morph-sweep command inputs."""
+    _ensure_distinct_paths(ir_a, ir_b, "IR_A", "IR_B")
+    out_resolved = out_dir.resolve()
+    if out_resolved in {ir_a.resolve(), ir_b.resolve()}:
+        raise typer.BadParameter("OUT_DIR must be different from IR input file paths.")
+
+    try:
+        validate_ir_morph_mode_name(mode)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if early_alpha is not None and not (0.0 <= float(early_alpha) <= 1.0):
+        raise typer.BadParameter("--early-alpha must be in [0.0, 1.0].")
+    if late_alpha is not None and not (0.0 <= float(late_alpha) <= 1.0):
+        raise typer.BadParameter("--late-alpha must be in [0.0, 1.0].")
+    if str(cache_dir).strip() == "":
+        raise typer.BadParameter("--cache-dir must not be empty.")
+    if str(out_prefix).strip() == "":
+        raise typer.BadParameter("--out-prefix must not be empty.")
+    points = [] if alpha_points is None else alpha_points
+    if len(points) == 0 and int(alpha_steps) < 2:
+        raise typer.BadParameter("--alpha-steps must be >= 2 when --alpha is not provided.")
+    if resume and checkpoint_file is None:
+        raise typer.BadParameter("--resume requires --checkpoint-file.")
+
+
+def _resolve_ir_morph_sweep_alphas(
+    *,
+    alpha_points: list[float] | None,
+    alpha_start: float,
+    alpha_end: float,
+    alpha_steps: int,
+) -> tuple[float, ...]:
+    """Resolve alpha timeline values for morph-sweep execution."""
+    if alpha_points is not None and len(alpha_points) > 0:
+        return tuple(float(np.clip(float(value), 0.0, 1.0)) for value in alpha_points)
+    if int(alpha_steps) <= 1:
+        return (float(np.clip(alpha_start, 0.0, 1.0)),)
+    values = np.linspace(float(alpha_start), float(alpha_end), int(alpha_steps), dtype=np.float64)
+    return tuple(float(np.clip(value, 0.0, 1.0)) for value in values.tolist())
+
+
+def _alpha_token(alpha: float) -> str:
+    """Return filename-safe alpha token."""
+    token = f"{float(alpha):.3f}".replace("-", "m").replace(".", "p")
+    return f"a{token}"
+
+
+def _upsert_checkpoint_row(rows: list[Any], row: dict[str, Any]) -> None:
+    """Insert or replace checkpoint result row by outfile."""
+    key = str(row.get("outfile", ""))
+    for idx, existing in enumerate(rows):
+        if not isinstance(existing, dict):
+            continue
+        if str(existing.get("outfile", "")) != key:
+            continue
+        rows[idx] = row
+        return
+    rows.append(row)
+
+
+def _summarize_numeric_column(rows: list[dict[str, Any]], key: str) -> dict[str, float] | None:
+    """Return min/max/mean summary for a numeric QA column."""
+    values: list[float] = []
+    for row in rows:
+        raw = row.get(key)
+        if raw is None:
+            continue
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            continue
+        if not np.isfinite(value):
+            continue
+        values.append(value)
+    if len(values) == 0:
+        return None
+    data = np.asarray(values, dtype=np.float64)
+    return {
+        "min": float(np.min(data)),
+        "max": float(np.max(data)),
+        "mean": float(np.mean(data)),
+    }
 
 
 def _validate_ir_morph_call(

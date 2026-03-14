@@ -26,6 +26,7 @@ _MORPH_MODE_CHOICES = {
     "spectral",
     "envelope-aware",
 }
+_CACHE_KEY_SCHEMA = "ir-morph-v2"
 
 
 @dataclass(slots=True)
@@ -185,10 +186,13 @@ def generate_or_load_cached_morphed_ir(
 ) -> tuple[AudioArray, int, dict[str, Any], Path, bool]:
     """Morph two IR files with deterministic cache lookup."""
     cache_dir.mkdir(parents=True, exist_ok=True)
+    sig_a = _source_signature(ir_a_path)
+    sig_b = _source_signature(ir_b_path)
     payload = {
+        "cache_schema": _CACHE_KEY_SCHEMA,
         "op": "pair-morph",
-        "a": _source_signature(ir_a_path),
-        "b": _source_signature(ir_b_path),
+        "a": sig_a,
+        "b": sig_b,
         "config": asdict(config),
         "target_sr": None if target_sr is None else int(target_sr),
     }
@@ -208,10 +212,15 @@ def generate_or_load_cached_morphed_ir(
 
     meta = {
         "mode": "ir-morph",
+        "cache_schema": _CACHE_KEY_SCHEMA,
         "cache_key": key,
         "sample_rate": chosen_sr,
         "params": asdict(config),
         "sources": [str(ir_a_path), str(ir_b_path)],
+        "source_signatures": {
+            "a": sig_a,
+            "b": sig_b,
+        },
         "quality": quality,
     }
     sf.write(str(wav_path), morphed, chosen_sr)
@@ -235,10 +244,13 @@ def generate_or_load_cached_blended_ir(
 
     mix_values = resolve_blend_mix_values(blend_mix, len(blend_ir_paths))
     cache_dir.mkdir(parents=True, exist_ok=True)
+    base_sig = _source_signature(base_ir_path)
+    blend_sigs = [_source_signature(path) for path in blend_ir_paths]
     payload = {
+        "cache_schema": _CACHE_KEY_SCHEMA,
         "op": "multi-blend",
-        "base": _source_signature(base_ir_path),
-        "blend": [_source_signature(path) for path in blend_ir_paths],
+        "base": base_sig,
+        "blend": blend_sigs,
         "mix": list(mix_values),
         "config": asdict(config),
         "target_sr": None if target_sr is None else int(target_sr),
@@ -286,10 +298,15 @@ def generate_or_load_cached_blended_ir(
         last_quality = {}
     meta = {
         "mode": "ir-blend",
+        "cache_schema": _CACHE_KEY_SCHEMA,
         "cache_key": key,
         "sample_rate": chosen_sr,
         "params": asdict(config),
         "sources": [str(path) for path in sources],
+        "source_signatures": {
+            "base": base_sig,
+            "blend": blend_sigs,
+        },
         "weights": [float(w) for w in weights],
         "blend_mix_input": [float(v) for v in mix_values],
         "quality_last_step": last_quality,
@@ -649,14 +666,28 @@ def _pad_vec(x: npt.NDArray[np.float64], n: int) -> npt.NDArray[np.float64]:
 
 
 def _source_signature(path: Path) -> dict[str, Any]:
-    stats = path.stat()
+    info = sf.info(str(path))
     return {
-        "path": str(path.resolve()),
-        "size": int(stats.st_size),
-        "mtime_ns": int(stats.st_mtime_ns),
+        "sha256": _file_sha256(path),
+        "frames": int(info.frames),
+        "channels": int(info.channels),
+        "sample_rate": int(info.samplerate),
+        "format": str(info.format),
+        "subtype": str(info.subtype),
     }
 
 
 def _payload_hash(payload: dict[str, Any]) -> str:
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()[:24]
+
+
+def _file_sha256(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(1024 * 1024)
+            if not chunk:
+                break
+            hasher.update(chunk)
+    return hasher.hexdigest()

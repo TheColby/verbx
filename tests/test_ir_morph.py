@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -68,6 +69,41 @@ def test_generate_or_load_cached_morphed_ir_reuses_cache(tmp_path: Path) -> None
     assert wav_path_1 == wav_path_2
     assert cache_hit_1 is False
     assert cache_hit_2 is True
+
+
+def test_generate_or_load_cached_morphed_ir_reuses_cache_when_source_path_changes(
+    tmp_path: Path,
+) -> None:
+    sr = 16_000
+    ir_a = _impulse_with_echo(length=2048, channels=1, echo_index=120, echo_gain=0.4)
+    ir_b = _impulse_with_echo(length=2048, channels=1, echo_index=640, echo_gain=0.28)
+    path_a = tmp_path / "a.wav"
+    path_a_copy = tmp_path / "a_copy.wav"
+    path_b = tmp_path / "b.wav"
+    sf.write(str(path_a), ir_a, sr)
+    sf.write(str(path_b), ir_b, sr)
+    shutil.copy2(path_a, path_a_copy)
+
+    cfg = IRMorphConfig(mode="equal-power", alpha=0.35)
+    _, _, meta_1, wav_path_1, cache_hit_1 = generate_or_load_cached_morphed_ir(
+        ir_a_path=path_a,
+        ir_b_path=path_b,
+        config=cfg,
+        cache_dir=tmp_path / "cache",
+        target_sr=sr,
+    )
+    _, _, meta_2, wav_path_2, cache_hit_2 = generate_or_load_cached_morphed_ir(
+        ir_a_path=path_a_copy,
+        ir_b_path=path_b,
+        config=cfg,
+        cache_dir=tmp_path / "cache",
+        target_sr=sr,
+    )
+    assert wav_path_1 == wav_path_2
+    assert cache_hit_1 is False
+    assert cache_hit_2 is True
+    assert meta_1["cache_schema"] == "ir-morph-v2"
+    assert meta_2["cache_schema"] == "ir-morph-v2"
 
 
 def test_generate_or_load_cached_blended_ir_supports_broadcast_mix(tmp_path: Path) -> None:
