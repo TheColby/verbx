@@ -2751,6 +2751,22 @@ Each IR includes a sidecar metadata file:
 - [Hybrid IR (short)](examples/audio/hybrid_ir_short.wav)
 - [Dry click reverbed](examples/audio/dry_click_reverbed.wav)
 
+Realistic program-material examples (stereo, 24 kHz):
+
+- [Speech-like dry](examples/audio/realistic_speech_dry.wav)
+- [Speech-like room render](examples/audio/realistic_speech_room.wav)
+- [Music-like dry](examples/audio/realistic_music_dry.wav)
+- [Music-like hall render](examples/audio/realistic_music_hall.wav)
+- [Drums-like dry](examples/audio/realistic_drums_dry.wav)
+- [Drums-like room render](examples/audio/realistic_drums_room.wav)
+- [Generation metadata](examples/audio/realistic_examples.meta.json)
+
+Regenerate the realistic example pack:
+
+```bash
+uv run python scripts/generate_realistic_audio_examples.py
+```
+
 ## 16.0 Where to Obtain New Impulse Responses (IRs)
 
 This section lists practical sources for acquiring new impulse responses and
@@ -2823,6 +2839,7 @@ Scripts:
 
 - [scripts/generate_ir_bank.py](scripts/generate_ir_bank.py)
 - [scripts/generate_ir_bank.sh](scripts/generate_ir_bank.sh)
+- [scripts/generate_realistic_audio_examples.py](scripts/generate_realistic_audio_examples.py)
 
 ## 18.0 Development
 

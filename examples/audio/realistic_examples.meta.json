@@ -1,0 +1,67 @@
+{
+  "generated_by": "scripts/generate_realistic_audio_examples.py",
+  "seed": 20260314,
+  "sample_rate": 24000,
+  "duration_seconds": 5.5,
+  "dry_assets": [
+    "realistic_drums_dry.wav",
+    "realistic_music_dry.wav",
+    "realistic_speech_dry.wav"
+  ],
+  "wet_assets": [
+    {
+      "file": "realistic_speech_room.wav",
+      "source": "realistic_speech_dry.wav",
+      "engine": "algo",
+      "config": {
+        "engine": "algo",
+        "rt60": 2.1,
+        "wet": 0.46,
+        "dry": 0.84,
+        "pre_delay_ms": 22.0,
+        "damping": 0.52,
+        "width": 1.15,
+        "fdn_matrix": "hadamard",
+        "ir": null,
+        "tail_limit": null,
+        "partition_size": 16384
+      }
+    },
+    {
+      "file": "realistic_music_hall.wav",
+      "source": "realistic_music_dry.wav",
+      "engine": "conv",
+      "config": {
+        "engine": "conv",
+        "rt60": 60.0,
+        "wet": 0.58,
+        "dry": 0.74,
+        "pre_delay_ms": 20.0,
+        "damping": 0.45,
+        "width": 1.0,
+        "fdn_matrix": "hadamard",
+        "ir": "/Users/cleider/dev/verbx/IRs/ir_hybrid_60s.flac",
+        "tail_limit": 3.5,
+        "partition_size": 8192
+      }
+    },
+    {
+      "file": "realistic_drums_room.wav",
+      "source": "realistic_drums_dry.wav",
+      "engine": "algo",
+      "config": {
+        "engine": "algo",
+        "rt60": 1.05,
+        "wet": 0.34,
+        "dry": 0.92,
+        "pre_delay_ms": 9.0,
+        "damping": 0.63,
+        "width": 1.02,
+        "fdn_matrix": "householder",
+        "ir": null,
+        "tail_limit": null,
+        "partition_size": 16384
+      }
+    }
+  ]
+}
