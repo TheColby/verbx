@@ -192,7 +192,8 @@ def normalize_feature_vector_lane(
         if source_kind_raw not in FEATURE_SOURCE_KIND_CHOICES:
             choices = ", ".join(sorted(FEATURE_SOURCE_KIND_CHOICES))
             raise ValueError(
-                f"{lane_context}: unsupported source_kind '{source_kind_raw}'. Supported: {choices}."
+                f"{lane_context}: unsupported source_kind '{source_kind_raw}'. "
+                f"Supported: {choices}."
             )
         source_token = str(source_raw).strip()
         if source_token == "":
@@ -202,7 +203,8 @@ def normalize_feature_vector_lane(
             if source not in SUPPORTED_FEATURE_SOURCES:
                 choices = ", ".join(sorted(SUPPORTED_FEATURE_SOURCES))
                 raise ValueError(
-                    f"{lane_context}: unsupported source '{source_raw}'. Supported features: {choices}; "
+                    f"{lane_context}: unsupported source '{source_raw}'. "
+                    f"Supported features: {choices}; "
                     "or use target:<automation-target>."
                 )
             source_kind = "feature"
@@ -305,15 +307,17 @@ def build_feature_vector_bus(
     resolved_sources = sorted(
         normalize_feature_source_name(source) for source in requested_sources
     )
-    unsupported = sorted(source for source in resolved_sources if source not in SUPPORTED_FEATURE_SOURCES)
+    unsupported = sorted(
+        source for source in resolved_sources if source not in SUPPORTED_FEATURE_SOURCES
+    )
     if len(unsupported) > 0:
         choices = ", ".join(sorted(SUPPORTED_FEATURE_SOURCES))
         raise ValueError(
             "Unsupported feature sources: " + ", ".join(unsupported) + f". Supported: {choices}."
         )
 
-    frame_size = max(64, int(round(float(sr) * float(frame_ms) / 1000.0)))
-    hop_size = max(1, int(round(float(sr) * float(hop_ms) / 1000.0)))
+    frame_size = max(64, round(float(sr) * float(frame_ms) / 1000.0))
+    hop_size = max(1, round(float(sr) * float(hop_ms) / 1000.0))
 
     frame_times, frame_features = _extract_frame_features(
         audio=audio,
@@ -395,7 +399,8 @@ def render_feature_vector_lane_from_values(
     resolved_kind = str(normalized.get("source_kind", "feature"))
     if resolved_kind != str(source_kind):
         raise ValueError(
-            f"feature-vector lane source kind mismatch: lane={resolved_kind} requested={source_kind}."
+            "feature-vector lane source kind mismatch: "
+            f"lane={resolved_kind} requested={source_kind}."
         )
 
     mapped = _source_to_unit_interval(
@@ -642,7 +647,11 @@ def _normalize_lane_source(raw: Any, *, lane_context: str) -> tuple[str, str]:
         raise ValueError(f"{lane_context}: missing required source.")
 
     lowered = token.lower()
-    if lowered.startswith("target:") or lowered.startswith("control:") or lowered.startswith("param:"):
+    if (
+        lowered.startswith("target:")
+        or lowered.startswith("control:")
+        or lowered.startswith("param:")
+    ):
         _, _, target_raw = token.partition(":")
         target_name = normalize_control_target_name(target_raw.strip())
         if target_name == "":

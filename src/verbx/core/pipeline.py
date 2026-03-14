@@ -462,8 +462,13 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 report["frames_path"] = str(frames_path)
             if runtime_config.automation_trace_out is not None and automation_summary is not None:
                 report["automation_trace_path"] = str(Path(runtime_config.automation_trace_out))
-            if runtime_config.feature_vector_trace_out is not None and automation_summary is not None:
-                report["feature_vector_trace_path"] = str(Path(runtime_config.feature_vector_trace_out))
+            if (
+                runtime_config.feature_vector_trace_out is not None
+                and automation_summary is not None
+            ):
+                report["feature_vector_trace_path"] = str(
+                    Path(runtime_config.feature_vector_trace_out)
+                )
 
         progress.mark_analyze()
 
@@ -992,7 +997,7 @@ def _append_tail_padding(audio: AudioArray, sr: int, tail_seconds: float) -> Aud
 
 def _tail_zero_hold_samples(sr: int) -> int:
     """Return trailing zero-hold samples appended to finalize tail completion."""
-    return max(1, int(round(float(sr) * 0.01)))
+    return max(1, round(float(sr) * 0.01))
 
 
 def _complete_stream_file_tail_to_zero(
@@ -1218,7 +1223,9 @@ def _validate_automation_target_domains_for_engine(
 ) -> None:
     targets = set(bundle.curves.keys())
     if engine_name != "algo":
-        unsupported_engine = sorted(target for target in targets if target in ENGINE_AUTOMATION_TARGETS)
+        unsupported_engine = sorted(
+            target for target in targets if target in ENGINE_AUTOMATION_TARGETS
+        )
         if len(unsupported_engine) > 0:
             raise ValueError(
                 "Automation targets require algorithmic engine: " + ", ".join(unsupported_engine)
@@ -1231,7 +1238,12 @@ def _validate_automation_target_domains_for_engine(
             )
 
 
-def _build_convolution_config(config: RenderConfig, *, ir_path: str, device: str) -> ConvolutionReverbConfig:
+def _build_convolution_config(
+    config: RenderConfig,
+    *,
+    ir_path: str,
+    device: str,
+) -> ConvolutionReverbConfig:
     return ConvolutionReverbConfig(
         wet=config.wet,
         dry=config.dry,
@@ -1290,7 +1302,9 @@ def _estimate_wet_component(
 ) -> AudioArray:
     if abs(base_wet) <= 1e-9:
         return np.asarray(rendered, dtype=np.float64)
-    wet = (np.asarray(rendered, dtype=np.float64) - (float(base_dry) * dry_reference)) / float(base_wet)
+    wet = (
+        np.asarray(rendered, dtype=np.float64) - (float(base_dry) * dry_reference)
+    ) / float(base_wet)
     return np.asarray(np.nan_to_num(wet, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
 
 

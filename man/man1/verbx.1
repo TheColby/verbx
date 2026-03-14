@@ -1,4 +1,4 @@
-.TH VERBX 1 "March 2026" "verbx 0.6.0" "User Commands"
+.TH VERBX 1 "March 2026" "verbx 0.7.0" "User Commands"
 .SH NAME
 verbx \- extreme reverb command-line processor
 .SH SYNOPSIS
@@ -25,6 +25,9 @@ Suggest practical render defaults inferred from analysis.
 .TP
 .B presets
 List built-in preset names.
+.TP
+.B version
+Print installed CLI/package version.
 .TP
 .B ir ...
 Impulse-response generation, analysis, processing, and fitting commands.
@@ -56,6 +59,9 @@ Assign different LFOs to different modulation targets.
 .TP
 .B verbx analyze in.wav --lufs --edr --json-out report.json
 Analyze loudness and EDR metrics to JSON.
+.TP
+.B verbx version
+Print installed version.
 .TP
 .B verbx immersive handoff scene.json out_dir --strict
 Generate immersive sidecars/manifests and fail on policy, validation, or QC issues.

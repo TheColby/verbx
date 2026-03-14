@@ -12,11 +12,10 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
-from verbx.io.audio import read_audio
 
 from verbx.core.control_targets import (
-    CONV_CONTROL_TARGETS,
     CONTROL_TARGET_LIMITS,
+    CONV_CONTROL_TARGETS,
     ENGINE_CONTROL_TARGETS,
     POST_RENDER_CONTROL_TARGETS,
     normalize_control_target_name,
@@ -30,6 +29,7 @@ from verbx.core.feature_vector import (
     render_feature_vector_lane,
     render_feature_vector_lane_from_values,
 )
+from verbx.io.audio import read_audio
 
 AudioArray = npt.NDArray[np.float64]
 
@@ -396,7 +396,10 @@ def load_automation_bundle(
             lane = dict(entry["lane"])
             source_kind = str(lane["source_kind"])
             source_name = str(lane["source"])
-            combine = _normalize_lane_combine(lane.get("combine", "replace"), lane_context=lane_context)
+            combine = _normalize_lane_combine(
+                lane.get("combine", "replace"),
+                lane_context=lane_context,
+            )
             lane_smoothing_raw = lane.get("smoothing_ms")
             if lane_smoothing_raw is None:
                 lane_smoothing_raw = smoothing_ms
@@ -413,7 +416,8 @@ def load_automation_bundle(
                     source_values = feature_bus.control_features.get(source_name)
                     if source_values is None:
                         raise ValueError(
-                            f"feature-vector lane source '{source_name}' not present in feature bus."
+                            "feature-vector lane source "
+                            f"'{source_name}' not present in feature bus."
                         )
                     lane_values = render_feature_vector_lane_from_values(
                         lane,
@@ -425,7 +429,8 @@ def load_automation_bundle(
                     source_curve = controls.get(source_name)
                     if source_curve is None:
                         raise ValueError(
-                            f"target-source lane depends on unresolved source target '{source_name}'."
+                            "target-source lane depends on unresolved source target "
+                            f"'{source_name}'."
                         )
                     lane_values = render_feature_vector_lane_from_values(
                         lane,
@@ -1285,7 +1290,7 @@ def _resample_audio_linear(audio: AudioArray, *, src_sr: int, dst_sr: int) -> Au
         return np.asarray(audio, dtype=np.float64)
     src_samples = int(audio.shape[0])
     channels = int(audio.shape[1])
-    dst_samples = max(1, int(round(float(src_samples) * float(dst_sr) / float(src_sr))))
+    dst_samples = max(1, round(float(src_samples) * float(dst_sr) / float(src_sr)))
 
     src_times = np.arange(src_samples, dtype=np.float64) / float(src_sr)
     dst_times = np.arange(dst_samples, dtype=np.float64) / float(dst_sr)

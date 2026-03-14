@@ -23,6 +23,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from verbx import __version__
 from verbx.analysis.analyzer import AudioAnalyzer
 from verbx.analysis.framewise import write_framewise_csv
 from verbx.config import (
@@ -75,6 +76,9 @@ from verbx.core.fdn_capabilities import (
 from verbx.core.fdn_capabilities import (
     normalize_fdn_matrix_name as _shared_normalize_fdn_matrix_name,
 )
+from verbx.core.feature_vector import (
+    parse_feature_vector_lane_specs,
+)
 from verbx.core.immersive import (
     QueueWorkerConfig,
     build_qc_gates,
@@ -83,9 +87,6 @@ from verbx.core.immersive import (
     run_file_queue_worker,
     summarize_file_queue,
     validate_layout_hint,
-)
-from verbx.core.feature_vector import (
-    parse_feature_vector_lane_specs,
 )
 from verbx.core.modulation import parse_mod_route_spec, parse_mod_sources
 from verbx.core.pipeline import run_render_pipeline
@@ -196,6 +197,12 @@ app.add_typer(immersive_app, name="immersive")
 immersive_app.add_typer(immersive_queue_app, name="queue")
 
 console = Console()
+
+
+@app.command()
+def version() -> None:
+    """Print CLI/package version."""
+    console.print(f"verbx {__version__}")
 
 
 @app.command()

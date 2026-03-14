@@ -209,7 +209,7 @@ batch workflows.
       - [21.1.5 v0.5.0 Surround and operational hardening](#2115-v050-surround-and-operational-hardening)
       - [21.1.6 v0.6.0 Advanced FDN and Ambisonics](#2116-v060-advanced-fdn-and-ambisonics)
       - [21.1.7 v0.7.0 Reactive control and immersive interoperability](#2117-v070-reactive-control-and-immersive-interoperability)
-    - [21.2 Open Roadmap (v0.7 Completion Program)](#212-open-roadmap-v07-completion-program)
+    - [21.2 Post-Launch Roadmap (v0.7.x Program)](#212-post-launch-roadmap-v07x-program)
       - [21.2.1 Architecture objective function](#2121-architecture-objective-function)
       - [21.2.2 Release streams and milestones](#2122-release-streams-and-milestones)
       - [21.2.3 Stream R1: Control-plane reliability and reactive hardening (Track B/A)](#2123-stream-r1-control-plane-reliability-and-reactive-hardening-track-ba)
@@ -219,7 +219,7 @@ batch workflows.
       - [21.2.7 Verification matrix and release SLOs](#2127-verification-matrix-and-release-slos)
       - [21.2.8 Risk register and mitigations](#2128-risk-register-and-mitigations)
       - [21.2.9 Execution cadence and ownership model](#2129-execution-cadence-and-ownership-model)
-    - [21.3 Sources for Open Roadmap Items](#213-sources-for-open-roadmap-items)
+    - [21.3 Sources for Roadmap Items](#213-sources-for-roadmap-items)
   - [22.0 License](#220-license)
   - [23.0 Attribution](#230-attribution)
 
@@ -265,7 +265,7 @@ This installs `verbx` and renders an intentionally extreme long-tail reverb as `
 ### 3.1 CLI Surface and Platform
 
 - Typer + Rich command-line architecture.
-- Command groups: `render`, `analyze`, `suggest`, `presets`, `ir`, `cache`, `batch`, `immersive`.
+- Command groups: `render`, `analyze`, `suggest`, `presets`, `version`, `ir`, `cache`, `batch`, `immersive`.
 - Strong option/path validation and typed command interfaces.
 - Output controls for container format and subtype/bit depth.
 
@@ -395,6 +395,7 @@ After install, verify:
 
 ```bash
 verbx --help
+verbx version
 man verbx
 man verbx-render
 ```
@@ -2033,7 +2034,7 @@ When incompatible options are requested, `verbx` falls back to full-buffer proce
 ## 13.0 CLI Switch Reference
 
 This section lists all CLI switches available in the current
-`v0.6.0 + v0.7 Track A/B/C/D + immersive interoperability` interface.
+`v0.7.0` interface.
 For full descriptions and defaults, run `verbx <command> --help`.
 It is intended to be the canonical switch inventory for every `verbx` command.
 
@@ -2043,6 +2044,7 @@ It is intended to be the canonical switch inventory for every `verbx` command.
 - `verbx analyze INFILE`
 - `verbx suggest INFILE`
 - `verbx presets`
+- `verbx version`
 - `verbx ir ...`
 - `verbx cache ...`
 - `verbx batch ...`
@@ -2262,7 +2264,7 @@ Automation reproducibility note:
 
 No command-specific switches (other than `--help`).
 
-### 13.5 `verbx presets` switches
+### 13.5 `verbx presets` and `verbx version` switches
 
 No command-specific switches (other than `--help`).
 
@@ -2518,6 +2520,7 @@ verbx render INFILE OUTFILE [options]
 verbx analyze INFILE [--lufs] [--json-out report.json] [--frames-out frames.csv]
 verbx suggest INFILE
 verbx presets
+verbx version
 verbx immersive template
 verbx immersive handoff scene.json out_dir
 verbx immersive qc mix.wav --layout 7.1.2 --fail-on-violation
@@ -2812,6 +2815,10 @@ pytest
 - [IR synthesis guide](docs/IR_SYNTHESIS.md)
 - [Extreme cookbook (100 workflows)](docs/EXTREME_COOKBOOK.md)
 - [Academic references](docs/REFERENCES.md)
+- [Changelog](CHANGELOG.md)
+- [Contributing guide](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+- [Code of conduct](CODE_OF_CONDUCT.md)
 
 ## 21.0 Roadmap
 
@@ -2895,9 +2902,9 @@ immersive production interoperability and traceable automation behavior.
 - Added immersive interoperability workflows (`immersive handoff`, `immersive qc`,
   queue worker/heartbeat/retry semantics) with stricter policy/QC gating.
 
-### 21.2 Open Roadmap (v0.7 Completion Program)
+### 21.2 Post-Launch Roadmap (v0.7.x Program)
 
-This roadmap is a v0.7 completion program optimized for reliability, perceptual
+This roadmap is a post-launch v0.7.x program optimized for reliability, perceptual
 trust, and creative headroom. It is intentionally constrained to shipping-grade
 outcomes rather than broad command-surface expansion.
 
@@ -3021,7 +3028,7 @@ Execution order remains reliability-first, with explicit ownership boundaries.
 4. Ship Stream R3 (IR morph productionization).
 5. Ship Stream R4 (topology expansion) and cut v0.7 release candidate.
 
-### 21.3 Sources for Open Roadmap Items
+### 21.3 Sources for Roadmap Items
 
 Canonical reference index: [docs/REFERENCES.md](docs/REFERENCES.md)
 

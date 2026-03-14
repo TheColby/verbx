@@ -5,8 +5,10 @@ from pathlib import Path
 
 import numpy as np
 import soundfile as sf
+from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
+from verbx import __version__
 from verbx.cli import app
 from verbx.core import accel
 
@@ -19,11 +21,18 @@ def test_cli_boots() -> None:
     assert "render" in result.stdout
     assert "analyze" in result.stdout
     assert "presets" in result.stdout
+    assert "version" in result.stdout
     assert "suggest" in result.stdout
     assert "ir" in result.stdout
     assert "cache" in result.stdout
     assert "batch" in result.stdout
     assert "immersive" in result.stdout
+
+
+def test_version_command_reports_package_version() -> None:
+    result = runner.invoke(app, ["version"])
+    assert result.exit_code == 0
+    assert f"verbx {__version__}" in result.stdout
 
 
 def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
@@ -146,7 +155,7 @@ def test_render_quiet_or_low_verbosity_suppresses_output_feature_table(tmp_path:
 
 def test_render_algo_auto_reports_engine_specific_device(
     tmp_path: Path,
-    monkeypatch,
+    monkeypatch: MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(accel, "cuda_available", lambda: True)
     monkeypatch.setattr(accel, "is_apple_silicon", lambda: False)
@@ -179,7 +188,10 @@ def test_render_algo_auto_reports_engine_specific_device(
     assert payload["effective"]["device_resolved"] == "cpu"
 
 
-def test_render_conv_auto_prefers_cuda_when_available(tmp_path: Path, monkeypatch) -> None:
+def test_render_conv_auto_prefers_cuda_when_available(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
     monkeypatch.setattr(accel, "cuda_available", lambda: True)
     monkeypatch.setattr(accel, "is_apple_silicon", lambda: True)
 
