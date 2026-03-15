@@ -4,7 +4,7 @@
 
 # verbx
 
-**Colossal 64-bit audio reverberator. Algorithmic, convolution, and everything between.**
+**Colossal bit audio reverberator, accelerated with CUDA and Metal.**
 
 `verbx` is a production-grade Python CLI for creating reverb effects that range from subtle room placement to cathedral-scale tails 360 seconds long. It handles the complete reverb workflow: generating impulse responses, processing audio through two independent engines, controlling every parameter with time-varying automation, delivering loudness-targeted multichannel output, and producing reproducible analysis artifacts at every step.
 
