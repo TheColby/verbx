@@ -6,19 +6,19 @@
 
 **Colossal 64-bit audio reverberator.**
 
-`verbx` is a production-grade Python command-line tool for creating spacious,
+`verbx` is a research-grade Python command-line tool for creating spacious,
 cinematic, and experimental reverb effects from audio files. It is designed for
 both beginners and advanced users: you can start with simple one-line commands,
 then gradually use deeper controls as your workflow grows.
 
 Under the hood, `verbx` supports two main reverb approaches:
-**algorithmic reverb** (including FDN, or *Feedback Delay Network*, for very long,
+**algorithmic reverb** (including FDN, or *Feedback Delay Network*, for long,
 stable tails) and **convolution reverb** (using impulse responses). It also includes
 freeze/repeat processing, loudness and peak targeting, multichannel/surround
 routing, and synthetic IR generation with deterministic caching for reproducible
 results.
 
-All internal DSP and control processing runs in **64-bit floating point (`f64`)**
+All internal DSP and control processing runs in 64-bit floating point (`f64`)
 precision. You can still choose output container subtype/bit depth (`float32`,
 `float64`, PCM variants) at export time without changing internal precision.
 
