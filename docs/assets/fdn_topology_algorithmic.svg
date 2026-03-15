@@ -1,134 +1,136 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 1180" role="img" aria-labelledby="title desc">
-  <title id="title">Algorithmic Render Topology (verbx)</title>
-  <desc id="desc">Orthogonal signal-flow diagram for algorithmic rendering: input, pre-delay, allpass diffusion, FDN late core with optional DFM branch, wet processing, wet dry mix, and output.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2100 1280" role="img" aria-labelledby="title desc">
+  <title id="title">Figure 6.2.1 — Algorithmic Render Topology (verbx)</title>
+  <desc id="desc">Readable orthogonal signal-flow graph for algorithmic render path: input, pre-delay, allpass diffusion, FDN core with optional DFM branch, wet path, dry path, and final mix/output.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#f8fbff"/>
-      <stop offset="100%" stop-color="#eef4fc"/>
+      <stop offset="100%" stop-color="#edf4fd"/>
     </linearGradient>
     <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#ffffff"/>
       <stop offset="100%" stop-color="#f7fbff"/>
     </linearGradient>
     <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto">
-      <path d="M1,1 L11,6 L1,11 Z" fill="#234064"/>
+      <path d="M1,1 L11,6 L1,11 Z" fill="#274164"/>
     </marker>
     <style>
-      .panel { fill: #ffffff; stroke: #d5e2f4; stroke-width: 2.2; }
-      .card { fill: url(#card); stroke: #6f89ad; stroke-width: 2; }
-      .core { fill: #f2f8ff; stroke: #5b7ca7; stroke-width: 2.4; }
-      .line { fill: none; stroke: #234064; stroke-width: 3.1; marker-end: url(#arrow); }
-      .line-soft { fill: none; stroke: #5a7ba5; stroke-width: 2.6; marker-end: url(#arrow); }
-      .loop { fill: none; stroke: #4f739f; stroke-width: 2.4; stroke-dasharray: 10 7; marker-end: url(#arrow); }
-      .title { fill: #102640; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 37px; font-weight: 700; }
-      .subtitle { fill: #304f79; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 600; }
-      .h2 { fill: #173153; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 700; }
+      .panel { fill: #ffffff; stroke: #d4e2f4; stroke-width: 2.2; }
+      .group { fill: #f2f8ff; stroke: #6b87ad; stroke-width: 2.2; }
+      .card { fill: url(#card); stroke: #708aae; stroke-width: 2; }
+      .line { fill: none; stroke: #274164; stroke-width: 3.1; marker-end: url(#arrow); }
+      .line-soft { fill: none; stroke: #577ba6; stroke-width: 2.8; marker-end: url(#arrow); }
+      .loop { fill: none; stroke: #4f739f; stroke-width: 2.5; stroke-dasharray: 10 7; marker-end: url(#arrow); }
+      .title { fill: #132842; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 36px; font-weight: 700; }
+      .subtitle { fill: #2d4d79; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 600; }
+      .h2 { fill: #173153; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 24px; font-weight: 700; }
       .label { fill: #173153; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 20px; font-weight: 700; }
-      .small { fill: #2f4f78; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 15px; }
+      .small { fill: #34547f; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 15px; }
       .mono { font-family: "Menlo", "Consolas", monospace; }
-      .eq { fill: #163052; font-family: "Menlo", "Consolas", monospace; font-size: 14px; }
-      .legend { fill: #f5f9ff; stroke: #d8e4f6; stroke-width: 2; }
-      .badge { fill: #eaf3ff; stroke: #c5d8f1; stroke-width: 1.8; }
-      .badge-text { fill: #2d4f79; font-family: "Menlo", "Consolas", monospace; font-size: 13px; }
+      .eq { fill: #183356; font-family: "Menlo", "Consolas", monospace; font-size: 15px; }
+      .notebox { fill: #f5f9ff; stroke: #d8e4f6; stroke-width: 2; }
     </style>
   </defs>
 
-  <rect x="0" y="0" width="1900" height="1180" fill="url(#bg)"/>
-  <rect class="panel" x="52" y="72" width="1796" height="1062" rx="20"/>
+  <rect x="0" y="0" width="2100" height="1280" fill="url(#bg)"/>
+  <rect class="panel" x="52" y="64" width="1996" height="1158" rx="20"/>
 
-  <text class="title" x="92" y="132">Algorithmic Render Topology (Orthogonal)</text>
-  <text class="subtitle" x="92" y="166">Path implemented in <tspan class="mono">src/verbx/core/algo_reverb.py</tspan> for <tspan class="mono">verbx render --engine algo</tspan></text>
+  <text class="title" x="92" y="126">Figure 6.2.1 — Algorithmic Render Topology (Orthogonal, Readable)</text>
+  <text class="subtitle" x="92" y="160">Implemented in <tspan class="mono">src/verbx/core/algo_reverb.py</tspan> and selected by <tspan class="mono">verbx render --engine algo</tspan></text>
 
-  <rect class="card" x="100" y="220" width="200" height="90" rx="12"/>
-  <text class="label" x="200" y="273" text-anchor="middle">Input</text>
+  <!-- Front-end chain -->
+  <rect class="card" x="100" y="240" width="220" height="96" rx="12"/>
+  <text class="label" x="210" y="296" text-anchor="middle">Input</text>
 
-  <rect class="card" x="360" y="220" width="230" height="90" rx="12"/>
-  <text class="label" x="475" y="264" text-anchor="middle">Pre-delay</text>
-  <text class="small" x="475" y="286" text-anchor="middle"><tspan class="mono">--pre-delay-ms</tspan></text>
+  <rect class="card" x="390" y="240" width="250" height="96" rx="12"/>
+  <text class="label" x="515" y="286" text-anchor="middle">Pre-delay</text>
+  <text class="small" x="515" y="310" text-anchor="middle"><tspan class="mono">--pre-delay-ms</tspan></text>
 
-  <rect class="card" x="650" y="208" width="310" height="114" rx="12"/>
-  <text class="label" x="805" y="252" text-anchor="middle">Allpass Diffusion</text>
-  <text class="small" x="805" y="274" text-anchor="middle"><tspan class="mono">--allpass-stages --allpass-gain</tspan></text>
-  <text class="small" x="805" y="294" text-anchor="middle"><tspan class="mono">--allpass-delays-ms</tspan></text>
+  <rect class="card" x="710" y="228" width="320" height="120" rx="12"/>
+  <text class="label" x="870" y="278" text-anchor="middle">Allpass Diffusion</text>
+  <text class="small" x="870" y="302" text-anchor="middle"><tspan class="mono">--allpass-stages --allpass-gain</tspan></text>
+  <text class="small" x="870" y="324" text-anchor="middle"><tspan class="mono">--allpass-delays-ms</tspan></text>
 
-  <path class="line" d="M300,265 H360"/>
-  <path class="line" d="M590,265 H650"/>
+  <path class="line" d="M320,288 H390"/>
+  <path class="line" d="M640,288 H710"/>
 
-  <rect class="core" x="980" y="170" width="840" height="700" rx="16"/>
-  <text class="h2" x="1012" y="214">FDN Late Core (per channel)</text>
+  <!-- FDN core block -->
+  <rect class="group" x="1060" y="180" width="940" height="720" rx="16"/>
+  <text class="h2" x="1092" y="224">FDN Late Core (per channel)</text>
 
-  <rect class="card" x="1170" y="234" width="260" height="56" rx="10"/>
-  <text class="small" x="1300" y="267" text-anchor="middle">Injection u[n] / sqrt(N)</text>
+  <rect class="card" x="1120" y="420" width="190" height="100" rx="12"/>
+  <text class="label" x="1215" y="478" text-anchor="middle">Delay Reads</text>
 
-  <rect class="card" x="1020" y="300" width="180" height="90" rx="10"/>
-  <text class="label" x="1110" y="352" text-anchor="middle">Delay Reads</text>
+  <rect class="card" x="1350" y="420" width="220" height="100" rx="12"/>
+  <text class="label" x="1460" y="466" text-anchor="middle">Loop Filters</text>
+  <text class="small" x="1460" y="490" text-anchor="middle">LP + DC block</text>
 
-  <rect class="card" x="1260" y="300" width="190" height="90" rx="10"/>
-  <text class="label" x="1355" y="340" text-anchor="middle">Loop Filters</text>
-  <text class="small" x="1355" y="362" text-anchor="middle">LP + DC block</text>
+  <rect class="card" x="1610" y="420" width="180" height="100" rx="12"/>
+  <text class="label" x="1700" y="466" text-anchor="middle">Matrix M</text>
+  <text class="small" x="1700" y="490" text-anchor="middle">family select</text>
 
-  <rect class="card" x="1500" y="300" width="170" height="90" rx="10"/>
-  <text class="label" x="1585" y="340" text-anchor="middle">Matrix M</text>
-  <text class="small" x="1585" y="362" text-anchor="middle">selectable family</text>
+  <rect class="card" x="1820" y="420" width="100" height="100" rx="12"/>
+  <text class="label" x="1870" y="466" text-anchor="middle">G</text>
+  <text class="small" x="1870" y="490" text-anchor="middle">RT60</text>
 
-  <rect class="card" x="1720" y="300" width="80" height="90" rx="10"/>
-  <text class="label" x="1760" y="340" text-anchor="middle">G</text>
-  <text class="small" x="1760" y="362" text-anchor="middle">RT60</text>
+  <circle cx="1870" cy="630" r="36" fill="#ffffff" stroke="#5f7da6" stroke-width="2.3"/>
+  <text class="label" x="1870" y="638" text-anchor="middle">+</text>
 
-  <circle cx="1760" cy="500" r="34" fill="#ffffff" stroke="#5f7da6" stroke-width="2.2"/>
-  <text class="label" x="1760" y="508" text-anchor="middle">+</text>
+  <rect class="card" x="1280" y="260" width="280" height="100" rx="12"/>
+  <text class="label" x="1420" y="306" text-anchor="middle">Injection u[n]/sqrt(N)</text>
+  <text class="small" x="1420" y="330" text-anchor="middle">from diffusion output</text>
 
-  <rect class="card" x="1490" y="450" width="190" height="90" rx="10"/>
-  <text class="label" x="1585" y="490" text-anchor="middle">Optional DFM</text>
-  <text class="small" x="1585" y="512" text-anchor="middle"><tspan class="mono">--fdn-dfm-delays-ms</tspan></text>
+  <rect class="card" x="1600" y="560" width="220" height="100" rx="12"/>
+  <text class="label" x="1710" y="606" text-anchor="middle">Optional DFM</text>
+  <text class="small" x="1710" y="630" text-anchor="middle"><tspan class="mono">--fdn-dfm-delays-ms</tspan></text>
 
-  <path class="line" d="M960,265 H1170"/>
-  <path class="line" d="M1430,262 H1760 V466"/>
+  <rect class="card" x="1400" y="720" width="220" height="100" rx="12"/>
+  <text class="label" x="1510" y="778" text-anchor="middle">Wet Tap</text>
 
-  <path class="line" d="M1200,345 H1260"/>
-  <path class="line" d="M1450,345 H1500"/>
-  <path class="line" d="M1670,345 H1720"/>
-  <path class="line" d="M1760,390 V466"/>
+  <rect class="card" x="1680" y="720" width="220" height="100" rx="12"/>
+  <text class="label" x="1790" y="766" text-anchor="middle">Wet Post</text>
+  <text class="small" x="1790" y="790" text-anchor="middle">width + shimmer + tone</text>
 
-  <path class="line-soft" d="M1585,390 V450"/>
-  <path class="line-soft" d="M1680,495 H1726"/>
+  <!-- Core signal lines -->
+  <path class="line" d="M1030,288 H1120 V470"/>
+  <path class="line" d="M1310,470 H1350"/>
+  <path class="line" d="M1570,470 H1610"/>
+  <path class="line" d="M1790,470 H1820"/>
+  <path class="line" d="M1870,520 V594"/>
 
-  <path class="loop" d="M1760,534 V620 H1000 V345 H1020"/>
-  <text class="small" x="1362" y="642" text-anchor="middle">feedback write: x_fb[n+1] -&gt; delay lines</text>
+  <path class="line-soft" d="M1420,360 V630 H1834"/>
+  <path class="line-soft" d="M1820,610 H1834"/>
 
-  <rect class="card" x="1240" y="690" width="220" height="96" rx="10"/>
-  <text class="label" x="1350" y="741" text-anchor="middle">Wet Tap</text>
-  <text class="small" x="1350" y="763" text-anchor="middle">mean(line outputs)</text>
+  <!-- Feedback loop -->
+  <path class="loop" d="M1870,666 V860 H1120 V470"/>
+  <text class="small" x="1490" y="880" text-anchor="middle">feedback write: x_fb[n+1] -&gt; delay lines</text>
 
-  <rect class="card" x="1500" y="690" width="220" height="96" rx="10"/>
-  <text class="label" x="1610" y="734" text-anchor="middle">Wet Post</text>
-  <text class="small" x="1610" y="757" text-anchor="middle">width + shimmer</text>
+  <!-- Wet path -->
+  <path class="line" d="M1460,520 V720 H1510"/>
+  <path class="line" d="M1620,770 H1680"/>
 
-  <path class="line" d="M1355,390 V690"/>
-  <path class="line" d="M1460,738 H1500"/>
+  <!-- Dry path + final mix -->
+  <rect class="card" x="220" y="960" width="220" height="96" rx="12"/>
+  <text class="label" x="330" y="1016" text-anchor="middle">Dry Tap</text>
 
-  <rect class="card" x="250" y="900" width="230" height="90" rx="12"/>
-  <text class="label" x="365" y="952" text-anchor="middle">Dry Tap</text>
+  <rect class="card" x="1450" y="948" width="280" height="120" rx="12"/>
+  <text class="label" x="1590" y="996" text-anchor="middle">Wet / Dry Mix</text>
+  <text class="small" x="1590" y="1020" text-anchor="middle"><tspan class="mono">--wet --dry</tspan></text>
 
-  <rect class="card" x="1280" y="886" width="250" height="116" rx="12"/>
-  <text class="label" x="1405" y="934" text-anchor="middle">Wet / Dry Mix</text>
-  <text class="small" x="1405" y="958" text-anchor="middle"><tspan class="mono">--wet --dry</tspan></text>
+  <rect class="card" x="1790" y="966" width="220" height="96" rx="12"/>
+  <text class="label" x="1900" y="1022" text-anchor="middle">Output</text>
 
-  <rect class="card" x="1580" y="905" width="210" height="90" rx="12"/>
-  <text class="label" x="1685" y="958" text-anchor="middle">Output</text>
+  <path class="line" d="M210,336 V1008 H220"/>
+  <path class="line" d="M440,1008 H1450"/>
+  <path class="line" d="M1790,820 V948"/>
+  <path class="line" d="M1730,1008 H1790"/>
 
-  <path class="line" d="M200,310 V945 H250"/>
-  <path class="line" d="M480,945 H1280"/>
-  <path class="line" d="M1610,786 V886"/>
-  <path class="line" d="M1530,944 H1580"/>
+  <!-- Equations -->
+  <text class="eq" x="100" y="1128">q[n] = delay_read(x_fb[n])</text>
+  <text class="eq" x="100" y="1154">r[n] = D(q[n])</text>
+  <text class="eq" x="100" y="1180">m[n] = M r[n]</text>
+  <text class="eq" x="560" y="1154">x_fb[n+1] = u[n]/sqrt(N) + G m[n] (optional DFM branch)</text>
 
-  <text class="eq" x="1010" y="898">q[n] = delay_read(x_fb[n])</text>
-  <text class="eq" x="1010" y="920">r[n] = D(q[n])</text>
-  <text class="eq" x="1010" y="942">m[n] = M r[n]</text>
-  <text class="eq" x="1010" y="964">x_fb[n+1] = u[n]/sqrt(N) + G m[n] (with optional DFM delay branch)</text>
-
-  <rect class="legend" x="92" y="1032" width="1708" height="84" rx="12"/>
-  <rect class="badge" x="120" y="1052" width="286" height="44" rx="8"/>
-  <text class="badge-text" x="263" y="1080" text-anchor="middle">matrix: hadamard|householder|random_orthogonal|circulant|elliptic|tv_unitary</text>
-  <text class="small" x="442" y="1079">Use <tspan class="mono">--fdn-tv-rate-hz</tspan> and <tspan class="mono">--fdn-tv-depth</tspan> when matrix is <tspan class="mono">tv_unitary</tspan>.</text>
+  <rect class="notebox" x="1320" y="1104" width="690" height="92" rx="12"/>
+  <text class="small" x="1350" y="1142"><tspan class="mono">--fdn-matrix</tspan>: hadamard | householder | random_orthogonal | circulant | elliptic | tv_unitary | graph | sdn_hybrid</text>
+  <text class="small" x="1350" y="1170">Use <tspan class="mono">--fdn-tv-rate-hz</tspan> and <tspan class="mono">--fdn-tv-depth</tspan> when matrix is <tspan class="mono">tv_unitary</tspan>.</text>
 </svg>
