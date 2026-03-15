@@ -108,6 +108,15 @@ If `verbx` is not found after install, add `~/.local/bin` to your PATH:
 export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc or ~/.bashrc
 ```
 
+## Public Alpha Launch Notes
+
+Current public alpha target: **v0.7.0**.
+
+- Confirm your environment with `verbx quickstart --verify --strict` and `verbx doctor`.
+- Verify one algorithmic render and one convolution render before batch usage.
+- For reproducible reports and bug submissions, attach `--repro-bundle` outputs and `verbx doctor --json-out doctor.json`.
+- For demo-ready outputs, keep `--true-peak --target-peak-dbfs -1` enabled when files will be transcoded.
+
 ---
 
 ## What Is Reverb? (and Why Does verbx Sound Different)
@@ -116,9 +125,15 @@ When sound leaves a source in a physical space, it arrives at a listener via mul
 
 In digital audio production, reverb is synthesized one of two ways. Algorithmic reverbs construct the room response from digital signal processing structures — delay networks, filters, and feedback topologies — shaped to produce the statistical properties of a real room without simulating any specific one. Convolution reverbs play back a recorded or synthesized impulse response, which captures everything about a real space in a single linear filter. Each approach has genuine advantages: algorithmic is controllable, computationally efficient at extreme lengths, and creates spaces that do not physically exist; convolution is realistic and reproducible from measured spaces.
 
-Most reverb tools top out at RT60 values between 10 and 30 seconds. verbx is designed for extreme decay lengths — up to 360 seconds — without the numerical instability that typically kills long algorithmic tails. The key is the Feedback Delay Network design: 64-bit internal precision everywhere, per-line gain calibration from the exact RT60-to-gain formula, and a choice of eight feedback matrix families that let you control tail diffusion and decay coloration independently from decay time. At 120 seconds of RT60, you are not simulating any physical space — you are synthesizing a temporal dimension that does not exist acoustically. That's the point. Beyond the algorithmic side, the convolution engine supports true MxN matrix routing for multichannel spaces, and the IR synthesis toolchain generates IRs up to 360 seconds in four modes with deterministic caching so the same seed always produces the same space.
+Most reverb tools top out at RT60 values between 10 and 30 seconds. verbx is designed for extreme decay lengths — up to 360 seconds — without the numerical instability that typically kills long algorithmic tails. The key is the Feedback Delay Network design: 64-bit internal precision everywhere, per-line gain calibration from the exact RT60-to-gain formula, and a choice of eight feedback matrix families that let you control tail diffusion and decay coloration independently from decay time. At 120 seconds of RT60, you are not simulating any physical space — you are synthesizing a temporal dimension that does not exist acoustically. That's the point. Beyond the algorithmic side, the convolution engine supports true $M \times N$ matrix routing for multichannel spaces, and the IR synthesis toolchain generates IRs up to 360 seconds in four modes with deterministic caching so the same seed always produces the same space.
 
-The Schroeder frequency — roughly `f_s ≈ 2000 * sqrt(RT60 / V)` for a room of volume V m³ — is the threshold below which modal behavior dominates over diffuse statistics. For very long tails and large virtual spaces, this boundary sits low in the frequency range, meaning the modal structure of the FDN matters more, not less, than in short-room design. verbx exposes direct control over that structure: matrix type, delay line count, per-band RT60 targets, and time-varying decorrelation rates, so you can design long tails that remain spectrally coherent rather than metallic or ringing.
+The Schroeder frequency is often approximated as:
+
+$$
+f_s \approx 2000\sqrt{\frac{T_{60}}{V}}
+$$
+
+where $f_s$ is in hertz, $T_{60}$ is RT60 in seconds, and $V$ is room volume in $\mathrm{m}^3$. This is the threshold below which modal behavior dominates over diffuse statistics. For very long tails and large virtual spaces, this boundary sits low in the frequency range, meaning the modal structure of the FDN matters more, not less, than in short-room design. verbx exposes direct control over that structure: matrix type, delay line count, per-band RT60 targets, and time-varying decorrelation rates, so you can design long tails that remain spectrally coherent rather than metallic or ringing.
 
 ---
 
@@ -136,7 +151,13 @@ Choose algorithmic when you want: extreme lengths, animated or time-varying deca
 
 **For beginners:** RT60 is roughly how long the reverb tail takes to fade away — specifically, how many seconds until the level drops by 60 dB (about a factor of 1000 in amplitude). A small bathroom is around 0.5 seconds. A bedroom is 0.3–0.8 seconds. A concert hall is 1.5–2.5 seconds. A cathedral reaches 5–12 seconds. verbx handles up to 360 seconds. If the tail sounds too long and washes over everything, reduce RT60. If it sounds too dry and cut-off, increase it.
 
-**For experts:** RT60 drives per-line gain calibration in the FDN via `g = 10^(-3 * d / RT60)`, where `d` is the delay line period in seconds. Shorter delays require gains closer to 1.0 for the same RT60 target. Multiband RT60 (`--fdn-rt60-low`, `--fdn-rt60-mid`, `--fdn-rt60-high`) applies this formula per band with crossovers at `--fdn-xover-low-hz` and `--fdn-xover-high-hz`. The `--fdn-rt60-tilt` parameter applies a Jot-style frequency-dependent decay skew around the broadband target without requiring explicit per-band values. For analysis, use `verbx analyze --edr` to compute frequency-dependent RT estimates via backward Schroeder integration of the output.
+**For experts:** RT60 drives per-line gain calibration in the FDN:
+
+$$
+g_i = 10^{-\frac{3d_i}{T_{60}}}
+$$
+
+where $d_i$ is delay-line $i$ duration in seconds and $T_{60}$ is the target decay time. Shorter delays require gains closer to $1.0$ for the same RT60 target. Multiband RT60 (`--fdn-rt60-low`, `--fdn-rt60-mid`, `--fdn-rt60-high`) applies this formula per band with crossovers at `--fdn-xover-low-hz` and `--fdn-xover-high-hz`. The `--fdn-rt60-tilt` parameter applies a Jot-style frequency-dependent decay skew around the broadband target without requiring explicit per-band values. For analysis, use `verbx analyze --edr` to compute frequency-dependent RT estimates via backward Schroeder integration of the output.
 
 ### Impulse Responses
 
@@ -178,20 +199,23 @@ input
        └─ wet/dry mix → shimmer → bloom/tilt/EQ → loudness → output
 ```
 
-**FDN mechanics:** At each sample, the FDN reads from N delay lines, applies per-line damping and DC blocking, multiplies by the gain diagonal G, multiplies by the feedback matrix M, adds the injected excitation from the diffusion stage, and writes back to the delays. The matrix M must be orthonormal (or nearly so) to preserve energy over long tails — verbx orthonormalizes all matrix families before use. The state update is:
+**FDN mechanics:** At each sample, the FDN reads from $N$ delay lines, applies per-line damping and DC blocking, multiplies by the gain diagonal $\mathbf{G}$, multiplies by the feedback matrix $\mathbf{M}$, adds the injected excitation from the diffusion stage, and writes back to the delays. The matrix $\mathbf{M}$ must be orthonormal (or nearly so) to preserve energy over long tails; verbx orthonormalizes all matrix families before use. The state update is:
 
-```
-y[n] = D(x_fb[n])
-x_fb[n+1] = G * M * y[n] + u[n]
-```
+$$
+\mathbf{y}[n] = \mathbf{D}\!\left(\mathbf{x}_{\mathrm{fb}}[n]\right)
+$$
 
-where `u[n]` is the post-diffusion injection vector.
+$$
+\mathbf{x}_{\mathrm{fb}}[n+1] = \mathbf{G}\mathbf{M}\mathbf{y}[n] + \mathbf{u}[n]
+$$
 
-**FDN gain calibration:** For delay line i with period d_i seconds and target RT60 T60:
+where $\mathbf{u}[n]$ is the post-diffusion injection vector.
 
-```
-g_i = 10^(-3 * d_i / T60)
-```
+**FDN gain calibration:** For delay line $i$ with period $d_i$ seconds and target decay $T_{60}$:
+
+$$
+g_i = 10^{-\frac{3d_i}{T_{60}}}
+$$
 
 Shorter delay lines require gains closer to 1.0. This is computed per line so different delay lengths in the same network all decay toward the same target RT60.
 
@@ -199,7 +223,7 @@ Shorter delay lines require gains closer to 1.0. This is computed per line so di
 
 | Matrix | Sound character | Math note |
 |---|---|---|
-| `hadamard` | Even, neutral density | N×N Walsh-Hadamard; valid for power-of-2 line counts |
+| `hadamard` | Even, neutral density | $N \times N$ Walsh-Hadamard; valid for power-of-2 line counts |
 | `householder` | Similar to Hadamard, slightly more uniform | Householder reflection matrix |
 | `random_orthogonal` | Unpredictable coloration | QR decomposition of random normal matrix |
 | `circulant` | Periodic, regular resonance | Diagonalized by DFT; controlled frequency-domain structure |
@@ -212,7 +236,7 @@ Shorter delay lines require gains closer to 1.0. This is computed per line so di
 
 | Parameter | Range | What it does | Expert note |
 |---|---|---|---|
-| `--rt60` | 0.1–360 | Decay time target (seconds) | Drives per-line gain via `g = 10^(-3d/T60)` |
+| `--rt60` | 0.1–360 | Decay time target (seconds) | Drives per-line gain via $g_i = 10^{-3d_i/T_{60}}$ |
 | `--fdn-lines` | 2–64 | Number of delay lines | Higher line counts increase tail density; above 32 the returns diminish |
 | `--fdn-matrix` | see above | Feedback mixing topology | Controls tail texture and energy diffusion pattern |
 | `--allpass-stages` | 0–16 | Early diffusion stages | 4–10 is typical; 0 disables diffusion entirely |
@@ -236,21 +260,21 @@ The convolution engine filters audio through an impulse response. Use it when yo
 
 **Partitioned convolution:** For long IRs, direct time-domain convolution is impractical. verbx uses uniformly-partitioned overlap-save convolution in the frequency domain:
 
-```
-Y_k(ω) = Σ_{p=0}^{P-1} X_{k-p}(ω) * H_p(ω)
-```
+$$
+Y_k(\omega) = \sum_{p=0}^{P-1} X_{k-p}(\omega)\,H_p(\omega)
+$$
 
-where `X_{k-p}` are stored input spectrum frames and `H_p` are pre-transformed IR partitions. `--partition-size` controls the partition length: larger partitions reduce per-block FFT overhead but increase latency and peak memory. 16384–65536 samples is a practical range for offline rendering. With CuPy installed and `--device cuda`, the FFT multiply accumulation runs on GPU.
+where $X_{k-p}$ are stored input spectrum frames and $H_p$ are pre-transformed IR partitions. `--partition-size` controls the partition length: larger partitions reduce per-block FFT overhead but increase latency and peak memory. 16384–65536 samples is a practical range for offline rendering. With CuPy installed and `--device cuda`, the FFT multiply accumulation runs on GPU.
 
 **Streaming vs. in-memory:** verbx automatically uses streaming convolution (low peak RAM) when the render is simple: engine conv, no repeat, no freeze, no normalization stages, no post-processing effects. All other combinations fall back to full-buffer processing. If RAM is a concern for very long IRs, keep the render chain minimal.
 
-**Multichannel routing:** For M input channels and N output channels:
+**Multichannel routing:** For $M$ input channels and $N$ output channels:
 
-```
-y_o[n] = Σ_{i=0}^{M-1} (x_i * h_{i,o})[n]
-```
+$$
+y_o[n] = \sum_{i=0}^{M-1} \left(x_i * h_{i,o}\right)[n]
+$$
 
-The IR file must contain M×N channels packed in output-major order (channel index `o*M + i`) or input-major order (`i*N + o`). Set `--ir-matrix-layout output-major` or `input-major` accordingly. Wrong packing order produces valid audio but semantically incorrect routing — verify with `verbx analyze` on the output.
+The IR file must contain $M \times N$ channels packed in output-major order (channel index $oM + i$) or input-major order ($iN + o$). Set `--ir-matrix-layout output-major` or `input-major` accordingly. Wrong packing order produces valid audio but semantically incorrect routing; verify with `verbx analyze` on the output.
 
 **Key parameters:**
 
@@ -353,12 +377,18 @@ For most uses, stereo output is all you need. Multichannel processing becomes re
 | `7.1` | 8 | Expanded surround |
 | `7.1.2` | 10 | Surround with overhead pair |
 | `7.1.4` | 12 | Full Atmos bed format |
+| `7.2.4` | 13 | 7-bed + dual-LFE + 4-top layout |
+| `8.0` | 8 | 8-channel bed without dedicated LFE |
+| `16.0` | 16 | Large-format discrete bed |
+| `64.4` | 68 | High-density immersive bed + top layer |
 
 Use `--input-layout` and `--output-layout` to declare channel semantics explicitly. Without them, verbx uses channel count alone, which can produce ambiguous routing for formats above stereo.
 
+Other formats are also easy to support: the routing and DSP paths already operate on arbitrary channel counts, and new symbolic layout names are straightforward to add when you need explicit semantics.
+
 **Ambisonics:** verbx supports First-Order Ambisonics (FOA) with ACN channel ordering and SN3D/N3D/FuMa normalization. Use `--ambi-order 1` to declare FOA mode. `--ambi-encode-from stereo` encodes a stereo input into FOA before processing; `--ambi-decode-to stereo` decodes back out after. `--ambi-rotate-yaw-deg` applies rotation in the Ambisonics domain — useful for spatial orientation of the reverb field relative to a listener position. FUMA is FOA-only; ACN with SN3D is the standard workflow for most Ambisonics toolchains.
 
-**IR matrix routing for surround:** If your IR file contains M×N channels (for M input and N output channels), declare the packing order with `--ir-matrix-layout`. Output-major packing stores all inputs for output 0 first, then all inputs for output 1, etc. (channel index `o*M + i`). Input-major stores all outputs for input 0 first (channel index `i*N + o`). A 5.1 input to 5.1 output full-matrix IR has 36 channels; a diagonal (same IR per channel) has 6. The routing is explicit: verbx does not guess.
+**IR matrix routing for surround:** If your IR file contains $M \times N$ channels (for $M$ input and $N$ output channels), declare the packing order with `--ir-matrix-layout`. Output-major packing stores all inputs for output 0 first, then all inputs for output 1, etc. (channel index $oM + i$). Input-major stores all outputs for input 0 first (channel index $iN + o$). A 5.1 input to 5.1 output full-matrix IR has 36 channels; a diagonal (same IR per channel) has 6. The routing is explicit: verbx does not guess.
 
 ---
 
@@ -430,7 +460,7 @@ Source syntax: `lfo:<shape>:<rate_hz>[:depth[:phase_deg]][*weight]` | `env[:atta
 | Switch | Range | What it does | Expert note |
 |---|---|---|---|
 | `--engine` | algo/conv/auto | Reverb engine | `auto` picks `conv` if IR present, else `algo` |
-| `--rt60` | 0.1–360 | Decay time (seconds) | Per-line gain via `g = 10^(-3d/T60)` |
+| `--rt60` | 0.1–360 | Decay time (seconds) | Per-line gain via $g_i = 10^{-3d_i/T_{60}}$ |
 | `--wet` | 0–∞ | Wet signal level | Values >1.0 overdrive wet bus intentionally |
 | `--dry` | 0–1 | Dry signal level | |
 | `--pre-delay-ms` | 0–500 | Reverb onset delay (ms) | |
@@ -490,8 +520,8 @@ Source syntax: `lfo:<shape>:<rate_hz>[:depth[:phase_deg]][*weight]` | `env[:atta
 
 | Switch | Values | What it does |
 |---|---|---|
-| `--input-layout` | mono/stereo/LCR/5.1/7.1/7.1.2/7.1.4 | Input channel semantics |
-| `--output-layout` | mono/stereo/LCR/5.1/7.1/7.1.2/7.1.4 | Output channel semantics |
+| `--input-layout` | auto/mono/stereo/LCR/5.1/7.1/7.1.2/7.1.4/7.2.4/8.0/16.0/64.4 | Input channel semantics |
+| `--output-layout` | auto/mono/stereo/LCR/5.1/7.1/7.1.2/7.1.4/7.2.4/8.0/16.0/64.4 | Output channel semantics |
 | `--ambi-order` | 0–7 | Ambisonics order (1 = FOA) |
 | `--ambi-normalization` | auto/sn3d/n3d/fuma | Normalization convention |
 | `--channel-order` | auto/acn/fuma | Channel ordering convention |
@@ -721,6 +751,14 @@ verbx batch augment augment_manifest.json --profile asr-reverb-v1 \
 
 ### Experimental Recipes
 
+**Musical landmark examples (public alpha demo set):**
+
+- Alvin Lucier / *I Am Sitting in a Room*
+- Brian Eno / *Discreet Music*
+- Pauline Oliveros / *Deep Listening*
+- Frippertronics-style tape-loop accumulation
+- Shoegaze reverse-wash freeze+shimmer textures
+
 **Alvin Lucier room resonance accumulation** — inspired by "I Am Sitting in a Room":
 ```bash
 mkdir passes && cp input_voice.wav passes/pass_00.wav && current="passes/pass_00.wav"
@@ -941,4 +979,4 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.07.0 — current release. See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.7.0 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.

@@ -1117,6 +1117,45 @@ def test_render_convolution_route_map_and_trajectory(tmp_path: Path) -> None:
     assert late_right > late_left
 
 
+def test_render_convolution_accepts_extended_output_layout_token(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "mono_in.wav"
+    irfile = tmp_path / "mono_ir.wav"
+    outfile = tmp_path / "layout_out.wav"
+
+    x = np.zeros((sr // 4, 1), dtype=np.float64)
+    x[0, 0] = 1.0
+    ir = np.zeros((128, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--input-layout",
+            "mono",
+            "--output-layout",
+            "7.2.4",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == sr
+    assert out.shape[1] == 13
+
+
 def test_render_convolution_ir_blend_generates_composite_ir_runtime(tmp_path: Path) -> None:
     sr = 16_000
     infile = tmp_path / "in.wav"

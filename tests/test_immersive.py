@@ -13,11 +13,13 @@ from verbx.core.immersive import (
     ImmersiveQCGates,
     QueueJobClaim,
     QueueWorkerConfig,
+    channel_labels_for_layout,
     evaluate_immersive_qc,
     fold_down_to_stereo,
     generate_immersive_handoff_package,
     run_file_queue_worker,
     summarize_file_queue,
+    validate_layout_hint,
 )
 
 runner = CliRunner()
@@ -29,6 +31,26 @@ def test_fold_down_to_stereo_for_5p1_shape() -> None:
     audio[:, 1] = -0.5
     folded = fold_down_to_stereo(audio, layout="5.1")
     assert folded.shape == (256, 2)
+
+
+def test_fold_down_to_stereo_for_7p2p4_mapping() -> None:
+    audio = np.zeros((128, 13), dtype=np.float64)
+    audio[:, 5] = 1.0
+    folded = fold_down_to_stereo(audio, layout="7.2.4")
+    assert folded.shape == (128, 2)
+    assert np.allclose(folded[:, 0], 0.7071, atol=1e-5)
+    assert np.allclose(folded[:, 1], 0.0, atol=1e-8)
+
+
+def test_extended_layout_hints_and_labels() -> None:
+    assert validate_layout_hint("7.2.4") == "7.2.4"
+    assert validate_layout_hint("8_0") == "8.0"
+    assert validate_layout_hint("16.0") == "16.0"
+    assert validate_layout_hint("64.4") == "64.4"
+    labels = channel_labels_for_layout("7.2.4", 13)
+    assert labels[0] == "L"
+    assert labels[3] == "LFE1"
+    assert labels[12] == "Rtr"
 
 
 def test_evaluate_immersive_qc_returns_gate_payload() -> None:
@@ -46,6 +68,14 @@ def test_evaluate_immersive_qc_returns_gate_payload() -> None:
     assert "passes" in report
     assert "metrics" in report
     assert report["channels"] == 2
+
+
+def test_evaluate_immersive_qc_accepts_extended_layout_hint() -> None:
+    audio = np.zeros((1024, 16), dtype=np.float64)
+    audio[20:200, 0] = 0.5
+    report = evaluate_immersive_qc(audio=audio, sr=48_000, label="bus16", layout="16.0")
+    assert report["layout"] == "16.0"
+    assert int(report["channels"]) == 16
 
 
 def test_generate_immersive_handoff_package_writes_outputs(tmp_path: Path) -> None:

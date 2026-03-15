@@ -54,7 +54,7 @@ F = TypeVar("F", bound=Callable[..., object])
 
 
 def _maybe_njit(func: F) -> F:
-    """Decorate with ``numba.njit`` when available, else return unchanged."""
+    """Wrap with numba.njit if it's installed, otherwise it's a no-op."""
     if njit is None:
         return func
     return njit(cache=True, fastmath=True)(func)  # type: ignore[return-value,no-any-return]
@@ -142,6 +142,7 @@ class AlgoReverbEngine(ReverbEngine):
     cinematic/"frozen-time" use cases.
     """
 
+    # primes help avoid common subharmonics between delay lines — classic Schroeder advice
     _DEFAULT_BASE_DELAY_MS = np.array(
         [31.0, 37.0, 41.0, 43.0, 47.0, 53.0, 59.0, 67.0],
         dtype=np.float64,
@@ -169,12 +170,15 @@ class AlgoReverbEngine(ReverbEngine):
             self._diffusion_delay_ms.shape[0],
         )
         self._cascade_enabled = bool(config.fdn_cascade)
+        # TODO: cascade path needs more thorough testing at extreme RT60 values — gains can drift
         self._cascade_mix = float(np.clip(config.fdn_cascade_mix, 0.0, 1.0))
         self._cascade_delay_scale = float(np.clip(config.fdn_cascade_delay_scale, 0.2, 1.0))
         self._cascade_rt60_ratio = float(np.clip(config.fdn_cascade_rt60_ratio, 0.1, 1.0))
         self._sparse_enabled = bool(config.fdn_sparse)
         self._sparse_degree = max(1, int(config.fdn_sparse_degree))
         self._rt60_tilt = float(np.clip(config.fdn_rt60_tilt, -1.0, 1.0))
+        # This condition is a bit tangled — multiband kicks in either when all three
+        # RT60 bands are set explicitly, OR when tilt/warmth/clarity macros are active.
         self._base_multiband_enabled = all(
             value is not None
             for value in (config.fdn_rt60_low, config.fdn_rt60_mid, config.fdn_rt60_high)
@@ -411,6 +415,9 @@ class AlgoReverbEngine(ReverbEngine):
                 8: "7.1",
                 10: "7.1.2",
                 12: "7.1.4",
+                13: "7.2.4",
+                16: "16.0",
+                68: "64.4",
             }.get(channels, "auto")
 
         front_idx, rear_idx, top_idx = self._layout_channel_groups(layout=layout, channels=channels)
@@ -460,6 +467,9 @@ class AlgoReverbEngine(ReverbEngine):
                 8: "7.1",
                 10: "7.1.2",
                 12: "7.1.4",
+                13: "7.2.4",
+                16: "16.0",
+                68: "64.4",
             }.get(channels, "auto")
         front_idx, rear_idx, top_idx = self._layout_channel_groups(layout=layout, channels=channels)
 
@@ -507,6 +517,16 @@ class AlgoReverbEngine(ReverbEngine):
             return [0, 1, 2, 3], [4, 5, 6, 7], [8, 9]
         if layout == "7.1.4":
             return [0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]
+        if layout == "7.2.4":
+            return [0, 1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]
+        if layout == "8.0":
+            return [0, 1, 2], [3, 4, 5, 6, 7], []
+        if layout == "16.0":
+            return list(range(0, min(8, channels))), list(range(8, channels)), []
+        if layout == "64.4":
+            if channels >= 68:
+                return list(range(0, 32)), list(range(32, 64)), list(range(64, 68))
+            return list(range(channels)), [], []
         # Fallback: all channels treated as front group.
         return list(range(channels)), [], []
 

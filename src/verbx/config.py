@@ -12,7 +12,20 @@ IRMode = Literal["fdn", "stochastic", "modal", "hybrid"]
 IRMatrixLayout = Literal["output-major", "input-major"]
 DeviceName = Literal["auto", "cpu", "cuda", "mps"]
 OutputSubtype = Literal["auto", "float32", "float64", "pcm16", "pcm24", "pcm32"]
-ChannelLayout = Literal["auto", "mono", "stereo", "LCR", "5.1", "7.1", "7.1.2", "7.1.4"]
+ChannelLayout = Literal[
+    "auto",
+    "mono",
+    "stereo",
+    "LCR",
+    "5.1",
+    "7.1",
+    "7.1.2",
+    "7.1.4",
+    "7.2.4",
+    "8.0",
+    "16.0",
+    "64.4",
+]
 OutputPeakNorm = Literal["none", "input", "target", "full-scale"]
 ModTarget = Literal["none", "mix", "wet", "gain-db"]
 ModCombine = Literal["sum", "avg", "max"]

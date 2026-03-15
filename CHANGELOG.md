@@ -4,18 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-### Added
-- `verbx version` command for explicit CLI/package version reporting.
-- Release-readiness project docs: `CONTRIBUTING.md`, `SECURITY.md`, and
-  `CODE_OF_CONDUCT.md`.
-- GitHub release workflow for tag-based artifact build, validation, and optional
-  PyPI publish.
+## [0.7.0] - 2026-03-14
 
-### Changed
-- Launch metadata aligned to `v0.7.0` across package metadata and man pages.
-- Roadmap section renamed to clarify post-launch `v0.7.x` scope.
-
-## [0.7.0] - 2026-03-13
+_Public alpha release._
 
 ### Added
 - Deterministic time-varying automation lanes (`--automation-file`,
@@ -33,6 +24,11 @@ All notable changes to this project are documented in this file.
   control (`ir-blend-alpha`).
 - Immersive interoperability workflows (`immersive handoff`, `immersive qc`,
   distributed queue worker/status/template commands).
+- `verbx version` command for explicit CLI/package version reporting.
+- Release-readiness project docs: `CONTRIBUTING.md`, `SECURITY.md`, and
+  `CODE_OF_CONDUCT.md`.
+- GitHub Actions CI (lint, typecheck, test) and tag-based release workflow with
+  optional PyPI publish.
 
 ### Changed
 - Internal processing paths standardized on `float64` for render, automation,
@@ -40,6 +36,7 @@ All notable changes to this project are documented in this file.
 - Render summary now surfaces output audio feature/statistics by default unless
   reduced verbosity/quiet modes are selected.
 - Installer and man-page coverage expanded and documented.
+- Version scheme normalized to semantic minor numbering (`0.7.x`).
 
 ### Fixed
 - Deterministic control-plane and lane-validation diagnostics strengthened across

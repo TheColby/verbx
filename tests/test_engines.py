@@ -149,6 +149,75 @@ def test_convolution_engine_cross_channel_ir_matrix(tmp_path: Path) -> None:
     assert np.isclose(out[0, 1], 1.25, atol=5e-5)
 
 
+def test_convolution_engine_supports_extended_symbolic_layouts(tmp_path: Path) -> None:
+    sr = 48_000
+    audio = np.zeros((256, 1), dtype=np.float64)
+    audio[0, 0] = 1.0
+    ir = np.zeros((64, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+    ir_path = tmp_path / "mono_ir.wav"
+    sf.write(str(ir_path), ir, sr)
+
+    for layout_name, expected_channels in (
+        ("7.2.4", 13),
+        ("8.0", 8),
+        ("16.0", 16),
+        ("64.4", 68),
+    ):
+        engine = ConvolutionReverbEngine(
+            ConvolutionReverbConfig(
+                wet=1.0,
+                dry=0.0,
+                ir_path=str(ir_path),
+                ir_normalize="none",
+                input_layout="mono",
+                output_layout=layout_name,
+                partition_size=128,
+                threads=1,
+                device="cpu",
+            )
+        )
+        out = engine.process(audio, sr=sr)
+        assert out.shape[1] == expected_channels
+        assert out.dtype == np.float64
+        assert np.all(np.isfinite(out))
+
+
+def test_convolution_route_aliases_for_extended_layouts(tmp_path: Path) -> None:
+    sr = 48_000
+    audio = np.zeros((256, 1), dtype=np.float64)
+    audio[:, 0] = 1.0
+    ir = np.zeros((64, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+    ir_path = tmp_path / "mono_alias_ir.wav"
+    sf.write(str(ir_path), ir, sr)
+
+    for layout_name, start_token, end_token, expected_channels in (
+        ("7.2.4", "lfe2", "top-front-right", 13),
+        ("8.0", "rear-center", "left", 8),
+        ("64.4", "left", "top-rear-right", 68),
+    ):
+        engine = ConvolutionReverbEngine(
+            ConvolutionReverbConfig(
+                wet=1.0,
+                dry=0.0,
+                ir_path=str(ir_path),
+                ir_normalize="none",
+                input_layout="mono",
+                output_layout=layout_name,
+                route_start=start_token,
+                route_end=end_token,
+                route_curve="equal-power",
+                partition_size=128,
+                threads=1,
+                device="cpu",
+            )
+        )
+        out = engine.process(audio, sr=sr)
+        assert out.shape[1] == expected_channels
+        assert np.all(np.isfinite(out))
+
+
 def test_algo_engine_matrix_families() -> None:
     for matrix_type in [
         "hadamard",
@@ -386,3 +455,25 @@ def test_algo_engine_surround_decorrelation_controls() -> None:
     base_delta = float(np.mean(np.abs(out_base[:, 0] - out_base[:, 4])))
     deco_delta = float(np.mean(np.abs(out_deco[:, 0] - out_deco[:, 4])))
     assert deco_delta > base_delta
+
+
+def test_algo_engine_surround_decorrelation_controls_for_7p2p4() -> None:
+    signal = np.random.default_rng(177).standard_normal((2048, 1)).astype(np.float64) * 0.03
+    audio = np.repeat(signal, 13, axis=1)
+
+    engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=4.5,
+            fdn_lines=8,
+            output_layout="7.2.4",
+            algo_decorrelation_front=0.25,
+            algo_decorrelation_rear=0.55,
+            algo_decorrelation_top=0.65,
+            block_size=256,
+        )
+    )
+
+    out = engine.process(audio, sr=48_000)
+    assert out.shape == audio.shape
+    assert out.dtype == np.float64
+    assert np.all(np.isfinite(out))

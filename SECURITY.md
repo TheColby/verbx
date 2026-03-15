@@ -4,7 +4,7 @@
 
 Security updates are prioritized for:
 
-- `0.7.x` (active)
+- `0.7.x` (active public alpha)
 
 Older versions may receive fixes at maintainer discretion.
 

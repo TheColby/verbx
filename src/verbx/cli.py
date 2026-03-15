@@ -1076,12 +1076,18 @@ def render(
     input_layout: ChannelLayout = typer.Option(
         "auto",
         "--input-layout",
-        help="Input signal channel layout: auto, mono, stereo, LCR, 5.1, 7.1, 7.1.2, 7.1.4",
+        help=(
+            "Input signal channel layout: auto, mono, stereo, LCR, 5.1, 7.1, "
+            "7.1.2, 7.1.4, 7.2.4, 8.0, 16.0, 64.4"
+        ),
     ),
     output_layout: ChannelLayout = typer.Option(
         "auto",
         "--output-layout",
-        help="Output signal channel layout: auto, mono, stereo, LCR, 5.1, 7.1, 7.1.2, 7.1.4",
+        help=(
+            "Output signal channel layout: auto, mono, stereo, LCR, 5.1, 7.1, "
+            "7.1.2, 7.1.4, 7.2.4, 8.0, 16.0, 64.4"
+        ),
     ),
     ir_normalize: IRNormalize = typer.Option("peak", "--ir-normalize"),
     ir_matrix_layout: IRMatrixLayout = typer.Option("output-major", "--ir-matrix-layout"),
@@ -3926,7 +3932,10 @@ def immersive_qc(
     layout: str = typer.Option(
         "auto",
         "--layout",
-        help="Channel layout hint: auto, mono, stereo, lcr, 5.1, 7.1, 7.1.2, 7.1.4",
+        help=(
+            "Channel layout hint: auto, mono, stereo, lcr, 5.1, 7.1, "
+            "7.1.2, 7.1.4, 7.2.4, 8.0, 16.0, 64.4"
+        ),
     ),
     target_lufs: float = typer.Option(-18.0, "--target-lufs"),
     lufs_tolerance: float = typer.Option(3.0, "--lufs-tolerance", min=0.0),

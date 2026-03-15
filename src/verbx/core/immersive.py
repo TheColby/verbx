@@ -38,6 +38,10 @@ LAYOUT_CHANNELS: dict[str, int] = {
     "7.1": 8,
     "7.1.2": 10,
     "7.1.4": 12,
+    "7.2.4": 13,
+    "8.0": 8,
+    "16.0": 16,
+    "64.4": 68,
 }
 
 LAYOUT_CHANNEL_LABELS: dict[str, tuple[str, ...]] = {
@@ -48,6 +52,8 @@ LAYOUT_CHANNEL_LABELS: dict[str, tuple[str, ...]] = {
     "7.1": ("L", "R", "C", "LFE", "Ls", "Rs", "Lrs", "Rrs"),
     "7.1.2": ("L", "R", "C", "LFE", "Ls", "Rs", "Lrs", "Rrs", "Ltf", "Rtf"),
     "7.1.4": ("L", "R", "C", "LFE", "Ls", "Rs", "Lrs", "Rrs", "Ltf", "Rtf", "Ltr", "Rtr"),
+    "7.2.4": ("L", "R", "C", "LFE1", "LFE2", "Ls", "Rs", "Lrs", "Rrs", "Ltf", "Rtf", "Ltr", "Rtr"),
+    "8.0": ("L", "R", "C", "Ls", "Rs", "Lrs", "Rrs", "Cs"),
 }
 
 POLICY_MODES = {"bed-safe", "object-safe", "balanced"}
@@ -147,7 +153,44 @@ def fold_down_to_stereo(audio: AudioArray, layout: str = "auto") -> AudioArray:
     if normalized_layout in {"", "auto"}:
         normalized_layout = inferred
 
-    if normalized_layout in {"lcr", "5.1", "7.1", "7.1.2", "7.1.4"} and channels >= 3:
+    if (
+        normalized_layout in {"lcr", "5.1", "7.1", "7.1.2", "7.1.4", "7.2.4", "8.0"}
+        and channels >= 3
+    ):
+        if normalized_layout == "7.2.4" and channels >= 13:
+            # 7.2.4 assumption:
+            # L(0), R(1), C(2), LFE1(3), LFE2(4), Ls(5), Rs(6), Lrs(7), Rrs(8),
+            # Ltf(9), Rtf(10), Ltr(11), Rtr(12)
+            left = np.asarray(x[:, 0], dtype=np.float64).copy()
+            right = np.asarray(x[:, 1], dtype=np.float64).copy()
+            center = np.asarray(x[:, 2], dtype=np.float64) * np.float64(0.7071)
+            left += center
+            right += center
+            left += np.asarray(x[:, 5], dtype=np.float64) * np.float64(0.7071)
+            right += np.asarray(x[:, 6], dtype=np.float64) * np.float64(0.7071)
+            left += np.asarray(x[:, 7], dtype=np.float64) * np.float64(0.5)
+            right += np.asarray(x[:, 8], dtype=np.float64) * np.float64(0.5)
+            left += np.asarray(x[:, 9], dtype=np.float64) * np.float64(0.5)
+            right += np.asarray(x[:, 10], dtype=np.float64) * np.float64(0.5)
+            left += np.asarray(x[:, 11], dtype=np.float64) * np.float64(0.5)
+            right += np.asarray(x[:, 12], dtype=np.float64) * np.float64(0.5)
+            return np.asarray(np.column_stack((left, right)), dtype=np.float64)
+        if normalized_layout == "8.0" and channels >= 8:
+            # 8.0 assumption:
+            # L(0), R(1), C(2), Ls(3), Rs(4), Lrs(5), Rrs(6), Cs(7)
+            left = np.asarray(x[:, 0], dtype=np.float64).copy()
+            right = np.asarray(x[:, 1], dtype=np.float64).copy()
+            center = np.asarray(x[:, 2], dtype=np.float64) * np.float64(0.7071)
+            left += center
+            right += center
+            left += np.asarray(x[:, 3], dtype=np.float64) * np.float64(0.7071)
+            right += np.asarray(x[:, 4], dtype=np.float64) * np.float64(0.7071)
+            left += np.asarray(x[:, 5], dtype=np.float64) * np.float64(0.5)
+            right += np.asarray(x[:, 6], dtype=np.float64) * np.float64(0.5)
+            rear_center = np.asarray(x[:, 7], dtype=np.float64) * np.float64(0.5)
+            left += rear_center
+            right += rear_center
+            return np.asarray(np.column_stack((left, right)), dtype=np.float64)
         left = np.asarray(x[:, 0], dtype=np.float64).copy()
         right = np.asarray(x[:, 1], dtype=np.float64).copy()
         center = np.asarray(x[:, 2], dtype=np.float64) * np.float64(0.7071)

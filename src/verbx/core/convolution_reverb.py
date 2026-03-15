@@ -33,6 +33,8 @@ from verbx.io.audio import ensure_mono_or_stereo
 AudioArray = npt.NDArray[np.float64]
 LOGGER = logging.getLogger(__name__)
 
+# Module-level singleton so we don't re-probe CUDA on every engine instantiation —
+# import + device enumeration is slow and we only need to do it once per process.
 _cupy_module: Any | None = None
 _cupy_probed = False
 
@@ -60,6 +62,7 @@ class ConvolutionReverbConfig:
     ir_normalize: str = "peak"
     ir_matrix_layout: str = "output-major"
     ir_route_map: str = "auto"
+    # 16384 is a good default — big enough for long IRs to be efficient, small enough for memory
     partition_size: int = 16_384
     tail_limit: float | None = None
     threads: int | None = None
@@ -82,6 +85,10 @@ LAYOUT_CHANNELS: dict[str, int] = {
     "7.1": 8,
     "7.1.2": 10,
     "7.1.4": 12,
+    "7.2.4": 13,
+    "8.0": 8,
+    "16.0": 16,
+    "64.4": 68,
 }
 
 
@@ -248,6 +255,9 @@ class ConvolutionReverbEngine(ReverbEngine):
                     if block_peak > input_peak_linear:
                         input_peak_linear = block_peak
 
+                    # Note: if the IR has more output channels than the source file,
+                    # in_block will be narrower than states expects — _stream_accumulate_wet
+                    # handles the mismatch but the dry mix below needs the same out_channels.
                     wet_block = self._stream_accumulate_wet(states, in_block, out_channels)
                     wet_block = self._apply_route_trajectory(
                         wet=wet_block,
@@ -390,9 +400,47 @@ class ConvolutionReverbEngine(ReverbEngine):
         if (
             out_l == "stereo"
             and out_channels == 2
-            and in_l in {"lcr", "5.1", "7.1", "7.1.2", "7.1.4"}
+            and in_l in {"lcr", "5.1", "7.1", "7.1.2", "7.1.4", "7.2.4", "8.0"}
             and in_channels >= 3
         ):
+            if in_l == "7.2.4" and in_channels >= 13:
+                # 7.2.4 assumption:
+                # L(0), R(1), C(2), LFE1(3), LFE2(4), Ls(5), Rs(6), Lrs(7), Rrs(8),
+                # Ltf(9), Rtf(10), Ltr(11), Rtr(12)
+                left = block[:, 0].copy()
+                right = block[:, 1].copy()
+                center_mix = block[:, 2] * 0.7071
+                left += center_mix
+                right += center_mix
+                left += block[:, 5] * 0.7071
+                right += block[:, 6] * 0.7071
+                left += block[:, 7] * 0.5
+                right += block[:, 8] * 0.5
+                left += block[:, 9] * 0.5
+                right += block[:, 10] * 0.5
+                left += block[:, 11] * 0.5
+                right += block[:, 12] * 0.5
+                dry[:copy_len, 0] = left
+                dry[:copy_len, 1] = right
+                return dry
+            if in_l == "8.0" and in_channels >= 8:
+                # 8.0 assumption:
+                # L(0), R(1), C(2), Ls(3), Rs(4), Lrs(5), Rrs(6), Cs(7)
+                left = block[:, 0].copy()
+                right = block[:, 1].copy()
+                center_mix = block[:, 2] * 0.7071
+                left += center_mix
+                right += center_mix
+                left += block[:, 3] * 0.7071
+                right += block[:, 4] * 0.7071
+                left += block[:, 5] * 0.5
+                right += block[:, 6] * 0.5
+                rear_center = block[:, 7] * 0.5
+                left += rear_center
+                right += rear_center
+                dry[:copy_len, 0] = left
+                dry[:copy_len, 1] = right
+                return dry
             # Standard SMPTE layout assumption: L(0), R(1), C(2), LFE(3), Ls(4), Rs(5)
             left = block[:, 0].copy()
             right = block[:, 1].copy()
@@ -596,6 +644,9 @@ class ConvolutionReverbEngine(ReverbEngine):
             8: "7.1",
             10: "7.1.2",
             12: "7.1.4",
+            13: "7.2.4",
+            16: "16.0",
+            68: "64.4",
         }
         return by_channels.get(out_channels, "auto")
 
@@ -675,9 +726,66 @@ class ConvolutionReverbEngine(ReverbEngine):
                 "top-left": 8,
                 "top-right": 9,
             }
+        elif layout == "7.2.4":
+            aliases = {
+                "left": 0,
+                "right": 1,
+                "center": 2,
+                "lfe": 3,
+                "lfe1": 3,
+                "lfe2": 4,
+                "side-left": 5,
+                "side-right": 6,
+                "rear-left": 7,
+                "rear-right": 8,
+                "top-front-left": 9,
+                "top-front-right": 10,
+                "top-rear-left": 11,
+                "top-rear-right": 12,
+                "top-left": 9,
+                "top-right": 10,
+            }
+        elif layout == "8.0":
+            aliases = {
+                "left": 0,
+                "right": 1,
+                "center": 2,
+                "side-left": 3,
+                "side-right": 4,
+                "rear-left": 5,
+                "rear-right": 6,
+                "rear-center": 7,
+            }
+        elif layout == "16.0":
+            aliases = {
+                "left": 0,
+                "right": 1,
+                "center": 2,
+                "rear-left": 8,
+                "rear-right": 9,
+            }
+        elif layout == "64.4":
+            aliases = {
+                "left": 0,
+                "right": 1,
+                "center": 2,
+                "top-front-left": 64,
+                "top-front-right": 65,
+                "top-rear-left": 66,
+                "top-rear-right": 67,
+            }
 
         if cleaned in aliases:
             return aliases[cleaned]
+        fallback_aliases: dict[str, int] = {"left": 0, "front-left": 0}
+        if out_channels >= 2:
+            fallback_aliases["right"] = 1
+            fallback_aliases["front-right"] = 1
+        if out_channels >= 3:
+            fallback_aliases["center"] = 2
+            fallback_aliases["front-center"] = 2
+        if cleaned in fallback_aliases:
+            return fallback_aliases[cleaned]
 
         msg = (
             f"Unsupported route token '{token}'. Use channel index or known aliases "

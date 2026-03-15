@@ -93,7 +93,11 @@ def _pitch_shift_audio(audio: AudioArray, sr: int, semitones: float) -> AudioArr
             out[:, ch] = shifted.astype(np.float64)
             continue
 
+        # librosa isn't here, so we do the janky version.
+        # It works, but sounds rougher on fast material.
         ratio = float(2.0 ** (semitones / 12.0))
+        # Fraction gives us a rational approximation of the pitch ratio so the
+        # scale correction below doesn't have to deal with irrational floats.
         frac = Fraction(ratio).limit_denominator(1000)
         # Resample up then back down to approximate a simple pitch shift.
         tmp = np.asarray(
@@ -138,6 +142,8 @@ def _bandlimit(
             try:
                 filtered = sosfiltfilt(sos, out[:, ch]).astype(np.float64)
             except ValueError:
+                # sosfiltfilt needs the signal to be longer than padlen (3*filter_order).
+                # Very short shimmer blocks can hit this, so fall back to causal filter.
                 fallback = sosfilt(sos, out[:, ch])
                 if isinstance(fallback, tuple):
                     fallback = fallback[0]
