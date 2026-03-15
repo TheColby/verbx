@@ -251,7 +251,24 @@ def version() -> None:
 
 
 @app.command()
-def quickstart() -> None:
+def quickstart(
+    verify: bool = typer.Option(
+        False,
+        "--verify",
+        help="Run startup readiness checks for first-run confidence.",
+    ),
+    strict: bool = typer.Option(
+        False,
+        "--strict",
+        help="Exit non-zero when --verify finds one or more failed checks.",
+    ),
+    json_out: Path | None = typer.Option(
+        None,
+        "--json-out",
+        resolve_path=True,
+        help="Optional path to write readiness checks JSON (requires --verify).",
+    ),
+) -> None:
     """Print minimal copy/paste commands for first successful renders."""
     commands = [
         (
@@ -276,6 +293,18 @@ def quickstart() -> None:
         table.add_row(name, cmd)
     console.print(table)
 
+    if json_out is not None and not verify:
+        raise typer.BadParameter("--json-out requires --verify.")
+    if not verify:
+        return
+
+    report = _collect_runtime_diagnostics()
+    _print_runtime_checks_table(report, title="verbx Quickstart Verify")
+    if json_out is not None:
+        _write_json_atomic(json_out.resolve(), report)
+    if strict and not bool(report.get("ready", False)):
+        raise typer.Exit(code=2)
+
 
 @app.command()
 def doctor(
@@ -285,35 +314,14 @@ def doctor(
         resolve_path=True,
         help="Optional path to write machine-readable diagnostics JSON.",
     ),
+    strict: bool = typer.Option(
+        False,
+        "--strict",
+        help="Exit non-zero when startup checks fail.",
+    ),
 ) -> None:
     """Print runtime diagnostics for launch-day troubleshooting."""
-    report: dict[str, Any] = {
-        "verbx_version": __version__,
-        "python_version": sys.version.split()[0],
-        "platform": platform.platform(),
-        "system": platform.system(),
-        "machine": platform.machine(),
-        "cpu_count": os.cpu_count(),
-        "apple_silicon": bool(is_apple_silicon()),
-        "cuda_available": bool(cuda_available()),
-        "device_auto": str(resolve_device("auto")),
-    }
-    algo_device, algo_platform = resolve_device_for_engine("auto", "algo")
-    conv_device, conv_platform = resolve_device_for_engine("auto", "conv")
-    report["engine_auto_resolution"] = {
-        "algo": {"engine_device": str(algo_device), "platform_device": str(algo_platform)},
-        "conv": {"engine_device": str(conv_device), "platform_device": str(conv_platform)},
-    }
-    deps: dict[str, str | None] = {}
-    try:
-        for package_name in ("numpy", "soundfile", "rich", "typer", "cupy"):
-            try:
-                deps[package_name] = str(pkg_version(package_name))
-            except PackageNotFoundError:
-                deps[package_name] = None
-    except Exception:
-        deps = {"numpy": None, "soundfile": None, "rich": None, "typer": None, "cupy": None}
-    report["dependencies"] = deps
+    report = _collect_runtime_diagnostics()
 
     table = Table(title="verbx Doctor")
     table.add_column("Key", style="cyan")
@@ -335,10 +343,163 @@ def doctor(
         str(report["engine_auto_resolution"]["conv"]["engine_device"]),
     )
     table.add_row("cupy_version", str(report["dependencies"].get("cupy")))
+    table.add_row("status", str(report.get("status", "")))
+    table.add_row("checks_total", str(report.get("checks_total", 0)))
+    table.add_row("checks_failed", str(report.get("failed_checks", 0)))
     console.print(table)
+    _print_runtime_checks_table(report, title="verbx Doctor Checks")
+    recommendations = report.get("recommendations", [])
+    if isinstance(recommendations, list) and len(recommendations) > 0:
+        rec_table = Table(title="verbx Doctor Recommendations")
+        rec_table.add_column("#", style="cyan", justify="right")
+        rec_table.add_column("Recommendation", style="white")
+        for idx, text in enumerate(recommendations, start=1):
+            rec_table.add_row(str(idx), str(text))
+        console.print(rec_table)
 
     if json_out is not None:
-        json_out.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        _write_json_atomic(json_out.resolve(), report)
+    if strict and int(report.get("failed_checks", 0)) > 0:
+        raise typer.Exit(code=2)
+
+
+def _dependency_versions() -> dict[str, str | None]:
+    """Return optional dependency versions used by doctor/quickstart checks."""
+    deps: dict[str, str | None] = {}
+    try:
+        for package_name in ("numpy", "soundfile", "rich", "typer", "cupy"):
+            try:
+                deps[package_name] = str(pkg_version(package_name))
+            except PackageNotFoundError:
+                deps[package_name] = None
+    except Exception:
+        deps = {"numpy": None, "soundfile": None, "rich": None, "typer": None, "cupy": None}
+    return deps
+
+
+def _collect_runtime_diagnostics() -> dict[str, Any]:
+    """Build a runtime diagnostics payload with startup readiness checks."""
+    report: dict[str, Any] = {
+        "verbx_version": __version__,
+        "python_version": sys.version.split()[0],
+        "platform": platform.platform(),
+        "system": platform.system(),
+        "machine": platform.machine(),
+        "cpu_count": os.cpu_count(),
+        "apple_silicon": bool(is_apple_silicon()),
+        "cuda_available": bool(cuda_available()),
+        "device_auto": str(resolve_device("auto")),
+    }
+    algo_device, algo_platform = resolve_device_for_engine("auto", "algo")
+    conv_device, conv_platform = resolve_device_for_engine("auto", "conv")
+    report["engine_auto_resolution"] = {
+        "algo": {"engine_device": str(algo_device), "platform_device": str(algo_platform)},
+        "conv": {"engine_device": str(conv_device), "platform_device": str(conv_platform)},
+    }
+    report["dependencies"] = _dependency_versions()
+    checks = _runtime_checks(report)
+    failed_checks = [item for item in checks if not bool(item.get("ok", False))]
+    report["checks"] = checks
+    report["checks_total"] = len(checks)
+    report["failed_checks"] = len(failed_checks)
+    report["issues"] = failed_checks
+    report["ready"] = len(failed_checks) == 0
+    report["status"] = "ok" if len(failed_checks) == 0 else "warn"
+    report["recommendations"] = _runtime_recommendations(report)
+    return report
+
+
+def _runtime_checks(report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Compute actionable startup checks for first-run readiness."""
+    dependencies = report.get("dependencies", {})
+    deps = dependencies if isinstance(dependencies, dict) else {}
+    auto_device = str(report.get("device_auto", "cpu"))
+
+    return [
+        {
+            "id": "python_min",
+            "name": "Python >= 3.11",
+            "ok": bool(sys.version_info >= (3, 11)),
+            "value": str(report.get("python_version", "")),
+            "hint": "Use Python 3.11 or newer.",
+        },
+        {
+            "id": "numpy_present",
+            "name": "numpy installed",
+            "ok": deps.get("numpy") is not None,
+            "value": str(deps.get("numpy")),
+            "hint": "Install dependencies with ./scripts/install.sh.",
+        },
+        {
+            "id": "soundfile_present",
+            "name": "soundfile installed",
+            "ok": deps.get("soundfile") is not None,
+            "value": str(deps.get("soundfile")),
+            "hint": "Install dependencies with ./scripts/install.sh.",
+        },
+        {
+            "id": "wav_write",
+            "name": "WAV write support",
+            "ok": bool(sf.check_format("WAV")),
+            "value": "WAV",
+            "hint": "Install/repair libsndfile for local WAV I/O.",
+        },
+        {
+            "id": "auto_device",
+            "name": "auto device resolves",
+            "ok": auto_device in {"cpu", "mps", "cuda"},
+            "value": auto_device,
+            "hint": "Run `verbx doctor --json-out doctor.json` and check accelerator settings.",
+        },
+    ]
+
+
+def _runtime_recommendations(report: dict[str, Any]) -> list[str]:
+    """Derive concise recommendations from diagnostics payload."""
+    recs: list[str] = []
+    failed = report.get("issues", [])
+    if isinstance(failed, list):
+        for item in failed:
+            if not isinstance(item, dict):
+                continue
+            hint = str(item.get("hint", "")).strip()
+            if hint != "" and hint not in recs:
+                recs.append(hint)
+
+    dependencies = report.get("dependencies", {})
+    deps = dependencies if isinstance(dependencies, dict) else {}
+    if bool(report.get("cuda_available", False)) and deps.get("cupy") is None:
+        recs.append("CUDA is available; install CuPy to enable accelerated convolution.")
+    if bool(report.get("apple_silicon", False)) and str(report.get("device_auto", "")) == "cpu":
+        recs.append(
+            "Apple Silicon host is falling back to CPU; verify MPS support in your runtime."
+        )
+    if len(recs) == 0:
+        recs.append(
+            "Runtime checks are clean. Run `verbx quickstart --verify --strict` before demos."
+        )
+    return recs
+
+
+def _print_runtime_checks_table(report: dict[str, Any], *, title: str) -> None:
+    """Render startup checks table used by quickstart and doctor."""
+    checks = report.get("checks", [])
+    if not isinstance(checks, list):
+        return
+    table = Table(title=title)
+    table.add_column("Check", style="cyan")
+    table.add_column("Status", style="white")
+    table.add_column("Value", style="white")
+    for item in checks:
+        if not isinstance(item, dict):
+            continue
+        status = "PASS" if bool(item.get("ok", False)) else "FAIL"
+        table.add_row(
+            str(item.get("name", "")),
+            status,
+            str(item.get("value", "")),
+        )
+    console.print(table)
 
 
 @app.command()
@@ -1056,6 +1217,17 @@ def render(
         "--dry-run",
         help="Validate inputs and print resolved render plan without writing audio.",
     ),
+    repro_bundle: bool = typer.Option(
+        False,
+        "--repro-bundle",
+        help="Write a reproducibility/support JSON bundle next to OUTFILE.",
+    ),
+    repro_bundle_out: Path | None = typer.Option(
+        None,
+        "--repro-bundle-out",
+        resolve_path=True,
+        help="Optional explicit path for reproducibility/support JSON bundle.",
+    ),
     progress: bool = typer.Option(True, "--progress/--no-progress"),
 ) -> None:
     """Render input audio with algorithmic or convolution reverb."""
@@ -1259,8 +1431,24 @@ def render(
         except ValueError as exc:
             raise typer.BadParameter(str(exc)) from exc
 
+    repro_bundle_path = _resolve_repro_bundle_path(
+        outfile=outfile,
+        repro_bundle=repro_bundle,
+        repro_bundle_out=repro_bundle_out,
+    )
+    _validate_repro_bundle_path(
+        infile=infile,
+        outfile=outfile,
+        analysis_out=config.analysis_out,
+        repro_bundle_path=repro_bundle_path,
+    )
     _validate_render_call(infile, outfile, config)
-    _validate_lucky_call(config, lucky, lucky_out_dir)
+    _validate_lucky_call(
+        config,
+        lucky,
+        lucky_out_dir,
+        repro_bundle_path=repro_bundle_path,
+    )
     configure_logging(verbose=not config.silent)
 
     if dry_run:
@@ -1271,6 +1459,7 @@ def render(
             lucky=lucky,
             lucky_out_dir=lucky_out_dir,
             preset_summary=preset_summary,
+            repro_bundle_path=repro_bundle_path,
         )
         return
 
@@ -1338,6 +1527,24 @@ def render(
         report = run_render_pipeline(infile=infile, outfile=outfile, config=config)
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
+
+    if repro_bundle_path is not None:
+        try:
+            repro_payload = _build_render_repro_bundle(
+                infile=infile,
+                outfile=outfile,
+                report=report,
+                config=config,
+                preset_name=(
+                    None
+                    if preset_summary is None
+                    else str(preset_summary.get("name", "")).strip() or None
+                ),
+            )
+            _write_json_atomic(repro_bundle_path, repro_payload)
+        except (OSError, RuntimeError, ValueError, sf.LibsndfileError) as exc:
+            raise typer.BadParameter(f"Failed to write repro bundle: {exc}") from exc
+        report["repro_bundle_path"] = str(repro_bundle_path.resolve())
 
     if config.silent or quiet:
         return
@@ -4406,6 +4613,78 @@ def _summarize_metrics_field(
     }
 
 
+def _audio_file_signature(path: Path) -> dict[str, Any]:
+    """Return deterministic file signature + audio metadata for reproducibility bundles."""
+    info = sf.info(str(path))
+    return {
+        "path": str(path.resolve()),
+        "sha256": _sha256_file(path),
+        "bytes": int(path.stat().st_size),
+        "frames": int(info.frames),
+        "sample_rate": int(info.samplerate),
+        "channels": int(info.channels),
+        "format": str(info.format),
+        "subtype": str(info.subtype),
+    }
+
+
+def _build_render_repro_bundle(
+    *,
+    infile: Path,
+    outfile: Path,
+    report: dict[str, Any],
+    config: RenderConfig,
+    preset_name: str | None,
+) -> dict[str, Any]:
+    """Build render reproducibility/support bundle payload."""
+    input_signature = _audio_file_signature(infile)
+    output_signature = _audio_file_signature(outfile)
+    analysis_entry: dict[str, Any] | None = None
+    analysis_path_raw = report.get("analysis_path")
+    if isinstance(analysis_path_raw, str) and analysis_path_raw.strip() != "":
+        analysis_path = Path(analysis_path_raw)
+        if analysis_path.exists():
+            analysis_entry = {
+                "path": str(analysis_path.resolve()),
+                "sha256": _sha256_file(analysis_path),
+                "bytes": int(analysis_path.stat().st_size),
+            }
+
+    signature_payload = {
+        "verbx_version": __version__,
+        "engine": report.get("engine"),
+        "config": report.get("config"),
+        "effective": report.get("effective"),
+        "input_sha256": input_signature["sha256"],
+        "output_sha256": output_signature["sha256"],
+        "analysis_sha256": None if analysis_entry is None else analysis_entry.get("sha256"),
+    }
+    run_signature = hashlib.sha256(
+        json.dumps(
+            signature_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+
+    payload: dict[str, Any] = {
+        "schema": "render-repro-bundle-v1",
+        "created_utc": datetime.now(UTC).replace(microsecond=0).isoformat(),
+        "verbx_version": __version__,
+        "python_version": sys.version.split()[0],
+        "platform": platform.platform(),
+        "run_signature": run_signature,
+        "engine": str(report.get("engine", "")),
+        "preset": preset_name,
+        "input": input_signature,
+        "output": output_signature,
+        "analysis": analysis_entry,
+        "effective": report.get("effective"),
+        "config": asdict(config),
+    }
+    return payload
+
+
 def _compute_augmentation_provenance_hash(
     *,
     build: AugmentationBuild,
@@ -4747,6 +5026,8 @@ def _print_render_summary(
             if key in config_report and isinstance(config_report[key], (list, tuple)):
                 table.add_row(f"{key}_count", str(len(config_report[key])))
     table.add_row("analysis_json", str(report.get("analysis_path", "")))
+    if "repro_bundle_path" in report:
+        table.add_row("repro_bundle_json", str(report.get("repro_bundle_path")))
     if "frames_path" in report:
         table.add_row("frames_csv", str(report.get("frames_path")))
     if "feature_vector_trace_path" in report:
@@ -5278,6 +5559,29 @@ def _apply_render_preset(
     }
 
 
+def _estimate_render_output_duration_seconds(*, infile: Path, config: RenderConfig) -> float | None:
+    """Estimate render output duration for dry-run planning."""
+    try:
+        info = sf.info(str(infile))
+    except (RuntimeError, TypeError, ValueError):
+        return None
+    sr = int(info.samplerate)
+    frames = int(info.frames)
+    if sr <= 0:
+        return None
+
+    duration_s = float(frames) / float(sr)
+    if config.engine == "algo" or (
+        config.engine == "auto"
+        and not (config.ir is not None or config.ir_gen or config.self_convolve)
+    ):
+        duration_s += max(
+            0.25,
+            float(config.rt60) + (max(0.0, float(config.pre_delay_ms)) / 1000.0),
+        )
+    return duration_s
+
+
 def _print_render_dry_run_plan(
     *,
     infile: Path,
@@ -5286,6 +5590,7 @@ def _print_render_dry_run_plan(
     lucky: int | None,
     lucky_out_dir: Path | None,
     preset_summary: dict[str, Any] | None,
+    repro_bundle_path: Path | None,
 ) -> None:
     """Print resolved render plan without writing audio."""
     table = Table(title="Render Dry-Run Plan")
@@ -5317,6 +5622,9 @@ def _print_render_dry_run_plan(
     table.add_row("fdn_lines", str(int(config.fdn_lines)))
     table.add_row("ir", str(config.ir))
     table.add_row("ir_blend_count", str(len(config.ir_blend)))
+    estimated_duration_s = _estimate_render_output_duration_seconds(infile=infile, config=config)
+    if estimated_duration_s is not None:
+        table.add_row("estimated_output_duration_s", f"{estimated_duration_s:.3f}")
     table.add_row("automation_file", str(config.automation_file))
     table.add_row("automation_points", str(len(config.automation_points)))
     table.add_row("feature_vector_lanes", str(len(config.feature_vector_lanes)))
@@ -5345,6 +5653,8 @@ def _print_render_dry_run_plan(
             f"{outfile}.analysis.json"
         )
         table.add_row("analysis_out", str(analysis_path))
+    if repro_bundle_path is not None:
+        table.add_row("repro_bundle_out", str(repro_bundle_path))
 
     # Dry-run means no disk audio write. Yes, this is the point.
     table.add_row("audio_write", "skipped")
@@ -5920,15 +6230,51 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
             raise typer.BadParameter("--feature-vector-trace-out must use .csv extension.")
 
 
+def _resolve_repro_bundle_path(
+    *,
+    outfile: Path,
+    repro_bundle: bool,
+    repro_bundle_out: Path | None,
+) -> Path | None:
+    """Resolve final repro bundle path from render CLI options."""
+    if repro_bundle_out is not None:
+        return repro_bundle_out.resolve()
+    if repro_bundle:
+        return Path(f"{outfile}.repro.json").resolve()
+    return None
+
+
+def _validate_repro_bundle_path(
+    *,
+    infile: Path,
+    outfile: Path,
+    analysis_out: str | None,
+    repro_bundle_path: Path | None,
+) -> None:
+    """Validate optional repro bundle output path for render command."""
+    if repro_bundle_path is None:
+        return
+    if repro_bundle_path.suffix.lower() != ".json":
+        raise typer.BadParameter("--repro-bundle-out must use .json extension.")
+    if repro_bundle_path.resolve() in {infile.resolve(), outfile.resolve()}:
+        raise typer.BadParameter("--repro-bundle-out must differ from INFILE and OUTFILE.")
+    if analysis_out is not None and repro_bundle_path.resolve() == Path(analysis_out).resolve():
+        raise typer.BadParameter("--repro-bundle-out must differ from --analysis-out.")
+
+
 def _validate_lucky_call(
     config: RenderConfig,
     lucky: int | None,
     lucky_out_dir: Path | None,
+    repro_bundle_path: Path | None = None,
 ) -> None:
     """Validate lucky-mode options for randomized batch rendering."""
     _validate_generic_lucky_call(lucky, lucky_out_dir)
     if lucky is None:
         return
+    if repro_bundle_path is not None:
+        msg = "Do not use --repro-bundle/--repro-bundle-out with --lucky."
+        raise typer.BadParameter(msg)
     if config.analysis_out is not None:
         msg = "Do not use --analysis-out with --lucky (analysis files are per-output by default)."
         raise typer.BadParameter(msg)
@@ -6503,7 +6849,7 @@ def _validate_output_audio_path(path: Path, out_subtype_mode: str) -> None:
     """Validate output extension and requested SoundFile subtype support."""
     suffix = path.suffix.lower().lstrip(".")
     if suffix == "":
-        msg = f"Output path must include an audio file extension: {path}"
+        msg = f"Output path must include an audio file extension: {path} (try .wav or .flac)."
         raise typer.BadParameter(msg)
 
     format_map = {
@@ -6517,7 +6863,20 @@ def _validate_output_audio_path(path: Path, out_subtype_mode: str) -> None:
     }
     fmt = format_map.get(suffix)
     if fmt is None:
-        msg = f"Unsupported output audio extension: .{suffix}"
+        supported = ", ".join(f".{ext}" for ext in sorted(format_map))
+        suggestion = _did_you_mean(suffix, set(format_map.keys()))
+        if suggestion is None:
+            for ext in sorted(format_map.keys()):
+                if suffix.startswith(ext) or ext.startswith(suffix):
+                    suggestion = ext
+                    break
+        if suggestion is not None:
+            msg = (
+                f"Unsupported output audio extension: .{suffix}. "
+                f"Did you mean '.{suggestion}'? Supported: {supported}."
+            )
+        else:
+            msg = f"Unsupported output audio extension: .{suffix}. Supported: {supported}."
         raise typer.BadParameter(msg)
 
     subtype_map = {
@@ -6539,7 +6898,17 @@ def _validate_output_audio_path(path: Path, out_subtype_mode: str) -> None:
             raise typer.BadParameter(msg)
     else:
         if not sf.check_format(fmt, subtype):
-            msg = f"Subtype '{subtype}' is not supported for format '{fmt}'"
+            supported_subtypes: list[str] = []
+            for mode, candidate in subtype_map.items():
+                if candidate is None:
+                    continue
+                if sf.check_format(fmt, candidate):
+                    supported_subtypes.append(mode)
+            supported_text = ", ".join(sorted(supported_subtypes))
+            msg = (
+                f"Subtype '{subtype}' is not supported for format '{fmt}'. "
+                f"Use --out-subtype auto or one of: {supported_text}."
+            )
             raise typer.BadParameter(msg)
 
 

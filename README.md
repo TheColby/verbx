@@ -904,15 +904,15 @@ Current implementation level: **v0.7.0**
 ### 7.1 Public-launch hardening: top 5 likely complaints and mitigations
 
 1. Complaint: "I can’t tell where to start."
-   Mitigation: `verbx quickstart` prints copy/paste first-run commands for algorithmic, convolution, and analyze/suggest workflows.
+   Mitigation: `verbx quickstart --verify --strict` now runs startup readiness checks in addition to printing copy/paste first-run workflows.
 2. Complaint: "I don’t want to wait minutes just to discover a config mistake."
-   Mitigation: `verbx render --dry-run` validates and prints a resolved plan without writing audio.
-3. Complaint: "Presets are listed but not practical to use."
-   Mitigation: `verbx presets --show <name>` displays exact preset values, and `verbx render --preset <name>` applies preset defaults while keeping explicit CLI overrides.
-4. Complaint: "Your error messages are strict but not helpful when I typo a value."
-   Mitigation: categorical validators now include `Did you mean ...?` suggestions for common option families (`--fdn-matrix`, `--fdn-graph-topology`, `--fdn-link-filter`, `--ir-route-map`, `--conv-route-curve`, etc.).
+   Mitigation: `verbx render --dry-run` now validates without writing audio and prints resolved plan details including estimated output duration.
+3. Complaint: "I need one artifact that lets me reproduce or report this exact render."
+   Mitigation: `verbx render --repro-bundle` (or `--repro-bundle-out`) writes a deterministic support bundle with input/output signatures, resolved config/effective settings, and run signature digest.
+4. Complaint: "Your output/path errors are strict but not actionable."
+   Mitigation: output-path validation now includes extension suggestions and explicit supported-format lists (for example `.wavee` suggests `.wav`).
 5. Complaint: "I can’t diagnose acceleration/platform issues quickly."
-   Mitigation: `verbx doctor` reports host/runtime/device resolution and optional JSON diagnostics (`--json-out`).
+   Mitigation: `verbx doctor --strict` now includes startup checks, failures count, and actionable recommendations, plus optional JSON diagnostics (`--json-out`).
 
 ## 8.0 Quick Start Recipes
 
@@ -2344,10 +2344,12 @@ Use this as a methodical guide for `verbx render INFILE OUTFILE`.
 | `--lucky` | Generates N randomized "wild" render variants from one input. | Best for exploration and sound-design discovery; pair with `--lucky-out-dir`. |
 | `--lucky-out-dir` | Output directory used by lucky mode. | Use a dedicated folder so variant sets are easy to browse and compare. |
 | `--lucky-seed` | Deterministic seed for lucky mode randomization. | Keep fixed when you want reproducible variant batches. |
+| `--repro-bundle` | Writes `<OUTFILE>.repro.json` support/reproducibility bundle. | Use for launch demos, bug reports, and deterministic run capture without manually assembling metadata. |
+| `--repro-bundle-out` | Explicit path for reproducibility/support JSON bundle. | Use when storing artifacts in a dedicated QA/report folder or CI workspace. |
 | `--quiet` | Suppresses console summary tables after render completion. | Keeps render + analysis artifacts on disk while reducing console output. |
 | `--verbosity [0\|1\|2]` | Console detail level for render completion reporting. | `1` (default) prints render summary plus output audio features/statistics; `0` prints only minimal summary; `2` also prints input features/statistics. |
 | `--silent` | Suppresses analysis/report output and all console summaries. | Use for minimal-output automation contexts where no analysis JSON should be written. |
-| `--dry-run` | Validates inputs and prints resolved render plan without writing audio. | Use before long/high-cost renders to catch configuration issues early. |
+| `--dry-run` | Validates inputs and prints resolved render plan without writing audio. | Use before long/high-cost renders to catch configuration issues early; includes estimated output duration for planning. |
 | `--progress / --no-progress` | Enables or disables progress UI. | Disable for non-interactive logs or CI environments. |
 
 `--mod-source` syntax reference:
@@ -2401,8 +2403,11 @@ No command-specific switches (other than `--help`).
 |---|---|---|---|
 | `verbx presets` | `--show <name>` | Prints the resolved parameter payload for one preset. | Use to inspect baseline values before applying with `render --preset`. |
 | `verbx version` | none | Prints package version string. | Useful in bug reports and reproducibility notes. |
-| `verbx quickstart` | none | Prints copy/paste starter workflows. | Best first stop for new users and announcement demos. |
+| `verbx quickstart` | `--verify` | Runs startup readiness checks after printing starter workflows. | Use before a public demo or launch run to confirm runtime readiness quickly. |
+| `verbx quickstart` | `--strict` | Exits non-zero when `--verify` finds failed checks. | Use in CI/release scripts where startup regressions must fail fast. |
+| `verbx quickstart` | `--json-out <path>` | Writes readiness JSON (requires `--verify`). | Archive with release artifacts as pre-demo environment proof. |
 | `verbx doctor` | `--json-out <path>` | Writes runtime/platform diagnostics to JSON. | Attach output to issue reports when troubleshooting acceleration or host mismatches. |
+| `verbx doctor` | `--strict` | Exits non-zero when startup checks fail. | Use as a gate in installation checks or pre-release smoke pipelines. |
 
 ### 13.6 `verbx ir gen OUT_IR` switches
 

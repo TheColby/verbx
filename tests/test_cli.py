@@ -10,6 +10,7 @@ from click.testing import Result as ClickResult
 from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
+import verbx.cli as cli_module
 from verbx import __version__
 from verbx.cli import app
 from verbx.core import accel
@@ -73,6 +74,53 @@ def test_doctor_command_prints_runtime_diagnostics(tmp_path: Path) -> None:
     assert payload["verbx_version"] == __version__
     assert "engine_auto_resolution" in payload
     assert "dependencies" in payload
+
+
+def test_quickstart_verify_emits_readiness_report(tmp_path: Path) -> None:
+    json_out = tmp_path / "quickstart_verify.json"
+    result = runner.invoke(app, ["quickstart", "--verify", "--json-out", str(json_out)])
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "verbx Quickstart Verify" in text
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert isinstance(payload.get("checks"), list)
+    assert "ready" in payload
+
+
+def test_doctor_strict_fails_when_checks_fail(monkeypatch: MonkeyPatch) -> None:
+    report: dict[str, object] = {
+        "verbx_version": __version__,
+        "python_version": "3.10.0",
+        "platform": "test-platform",
+        "machine": "test-machine",
+        "cpu_count": 8,
+        "apple_silicon": False,
+        "cuda_available": False,
+        "device_auto": "cpu",
+        "engine_auto_resolution": {
+            "algo": {"engine_device": "cpu", "platform_device": "cpu"},
+            "conv": {"engine_device": "cpu", "platform_device": "cpu"},
+        },
+        "dependencies": {"cupy": None},
+    }
+    report["checks"] = [
+        {
+            "id": "python_min",
+            "name": "Python >= 3.11",
+            "ok": False,
+            "value": "3.10.0",
+            "hint": "Use Python 3.11 or newer.",
+        }
+    ]
+    report["issues"] = list(report["checks"])
+    report["checks_total"] = 1
+    report["failed_checks"] = 1
+    report["ready"] = False
+    report["status"] = "warn"
+    report["recommendations"] = ["Use Python 3.11 or newer."]
+    monkeypatch.setattr(cli_module, "_collect_runtime_diagnostics", lambda: report)
+    result = runner.invoke(app, ["doctor", "--strict"])
+    assert result.exit_code == 2
 
 
 def test_presets_show_displays_resolved_values() -> None:
@@ -260,6 +308,38 @@ def test_render_prints_output_feature_table_by_default(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
     assert "Render Summary" in result.stdout
     assert "Output Audio Features and Statistics" in result.stdout
+
+
+def test_render_writes_repro_bundle(tmp_path: Path) -> None:
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[10:30, 0] = 0.4
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--repeat",
+            "1",
+            "--repro-bundle",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    repro_path = Path(f"{outfile}.repro.json")
+    assert repro_path.exists()
+    payload = json.loads(repro_path.read_text(encoding="utf-8"))
+    assert payload["schema"] == "render-repro-bundle-v1"
+    assert payload["input"]["path"] == str(infile.resolve())
+    assert payload["output"]["path"] == str(outfile.resolve())
+    assert isinstance(payload.get("run_signature"), str)
+    assert len(str(payload.get("run_signature"))) == 64
 
 
 def test_render_quiet_or_low_verbosity_suppresses_output_feature_table(tmp_path: Path) -> None:
@@ -2362,6 +2442,56 @@ def test_render_validation_errors(tmp_path: Path) -> None:
         ],
     )
     assert bad_mod_route.exit_code != 0
+
+
+def test_render_validation_rejects_repro_bundle_in_lucky_mode(tmp_path: Path) -> None:
+    sr = 48_000
+    audio = np.zeros((512, 1), dtype=np.float64)
+    infile = tmp_path / "in.wav"
+    sf.write(str(infile), audio, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(tmp_path / "out.wav"),
+            "--engine",
+            "algo",
+            "--lucky",
+            "2",
+            "--repro-bundle",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "--repro-bundle" in text
+
+
+def test_render_validation_suggests_supported_output_extension(tmp_path: Path) -> None:
+    sr = 48_000
+    audio = np.zeros((512, 1), dtype=np.float64)
+    infile = tmp_path / "in.wav"
+    sf.write(str(infile), audio, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(tmp_path / "out.wavee"),
+            "--engine",
+            "algo",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "Unsupported output audio extension: .wavee." in text
+    assert "Did you mean" in text
+    assert ".wav" in text
+    assert "Supported:" in text
 
 
 def test_ir_gen_validation_errors(tmp_path: Path) -> None:
