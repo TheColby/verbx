@@ -21,7 +21,7 @@ reproducibility tooling, and f64 internal DSP.
 - [x] Tag and publish `v0.7.0` release artifacts.
 - [x] Verify install flows on macOS/Linux (`uv`, `pip+venv`, `install.sh`).
 - [x] Confirm man pages install and render correctly (`man verbx`, `man verbx-render`).
-- [ ] Run release smoke matrix:
+- [x] Run release smoke matrix:
   - [x] Algorithmic render smoke test
   - [x] Convolution render smoke test
   - [x] IR generation + IR morph smoke test
