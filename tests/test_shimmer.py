@@ -4,7 +4,8 @@ from unittest.mock import patch
 
 import numpy as np
 
-from verbx.core.shimmer import ShimmerConfig, ShimmerProcessor, _bandlimit, _pitch_shift_audio
+import verbx.core.shimmer as shimmer_mod
+from verbx.core.shimmer import ShimmerConfig, ShimmerProcessor
 
 
 def _sine(samples: int, freq: float = 440.0, sr: int = 44100, channels: int = 1) -> np.ndarray:
@@ -86,13 +87,13 @@ def test_feedback_resets_on_shape_change() -> None:
     # Process mono block to build up feedback state.
     mono = _sine(512, channels=1)
     proc.process(mono, sr=44100)
-    assert proc._feedback_state is not None
-    assert proc._feedback_state.shape == (512, 1)
+    assert proc._feedback_state is not None  # pyright: ignore[reportPrivateUsage]
+    assert proc._feedback_state.shape == (512, 1)  # pyright: ignore[reportPrivateUsage]
 
     # Switch to stereo — feedback state must be reset.
     stereo = _sine(512, channels=2)
     proc.process(stereo, sr=44100)
-    assert proc._feedback_state.shape == (512, 2)
+    assert proc._feedback_state.shape == (512, 2)  # pyright: ignore[reportPrivateUsage]
 
 
 # ── 7. Output shape matches input shape for mono and stereo ─────────────
@@ -122,6 +123,7 @@ def test_output_within_limiter_bounds() -> None:
     proc = ShimmerProcessor(cfg)
     # Drive it hard with multiple passes to build feedback.
     audio = _sine(2048, channels=2) * 2.0
+    out = np.zeros_like(audio)
     for _ in range(5):
         out = proc.process(audio, sr=44100)
     # soft_limiter uses a knee, so values can slightly exceed 1.0 but should be bounded
@@ -135,7 +137,9 @@ def test_output_within_limiter_bounds() -> None:
 
 def test_pitch_shift_zero_semitones_returns_copy() -> None:
     audio = _sine(512, channels=1)
-    out = _pitch_shift_audio(audio, sr=44100, semitones=0.0)
+    out = shimmer_mod._pitch_shift_audio(  # pyright: ignore[reportPrivateUsage]
+        audio, sr=44100, semitones=0.0
+    )
     np.testing.assert_array_equal(out, audio)
     # Must be a copy, not a view.
     assert out is not audio
@@ -147,7 +151,9 @@ def test_pitch_shift_zero_semitones_returns_copy() -> None:
 def test_pitch_shift_fallback_without_librosa() -> None:
     audio = _sine(1024, channels=1)
     with patch("verbx.core.shimmer.librosa", None):
-        out = _pitch_shift_audio(audio, sr=44100, semitones=12.0)
+        out = shimmer_mod._pitch_shift_audio(  # pyright: ignore[reportPrivateUsage]
+            audio, sr=44100, semitones=12.0
+        )
     assert out.shape == audio.shape
     assert out.dtype == np.float64
     assert np.all(np.isfinite(out))
@@ -159,7 +165,9 @@ def test_pitch_shift_fallback_without_librosa() -> None:
 
 def test_bandlimit_none_cuts_passthrough() -> None:
     audio = _sine(1024, channels=1)
-    out = _bandlimit(audio, sr=44100, lowcut=None, highcut=None)
+    out = shimmer_mod._bandlimit(  # pyright: ignore[reportPrivateUsage]
+        audio, sr=44100, lowcut=None, highcut=None
+    )
     np.testing.assert_array_equal(out, audio)
 
 
@@ -169,7 +177,9 @@ def test_bandlimit_none_cuts_passthrough() -> None:
 def test_bandlimit_short_signal_causal_fallback() -> None:
     # Very short signal that will trip the sosfiltfilt padlen requirement.
     audio = np.array([[0.5], [-0.3]], dtype=np.float64)
-    out = _bandlimit(audio, sr=44100, lowcut=300.0, highcut=8000.0)
+    out = shimmer_mod._bandlimit(  # pyright: ignore[reportPrivateUsage]
+        audio, sr=44100, lowcut=300.0, highcut=8000.0
+    )
     assert out.shape == audio.shape
     assert out.dtype == np.float64
     assert np.all(np.isfinite(out))

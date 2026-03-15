@@ -18,17 +18,17 @@ reproducibility tooling, and f64 internal DSP.
 
 ## 2. Public Alpha Launch Checklist (v0.7.0)
 
-- [ ] Tag and publish `v0.7.0` release artifacts.
-- [ ] Verify install flows on macOS/Linux (`uv`, `pip+venv`, `install.sh`).
-- [ ] Confirm man pages install and render correctly (`man verbx`, `man verbx-render`).
+- [x] Tag and publish `v0.7.0` release artifacts.
+- [x] Verify install flows on macOS/Linux (`uv`, `pip+venv`, `install.sh`).
+- [x] Confirm man pages install and render correctly (`man verbx`, `man verbx-render`).
 - [ ] Run release smoke matrix:
   - [x] Algorithmic render smoke test
   - [x] Convolution render smoke test
   - [x] IR generation + IR morph smoke test
   - [x] Batch augment smoke test
   - [x] Immersive handoff + QC smoke test
-- [ ] Publish public-alpha notes with known limitations and support channels.
-- [ ] Pin demo commands and expected outputs for launch week reproducibility.
+- [x] Publish public-alpha notes with known limitations and support channels.
+- [x] Pin demo commands and expected outputs for launch week reproducibility.
 
 ---
 

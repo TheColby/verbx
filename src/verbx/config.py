@@ -48,7 +48,7 @@ class RenderConfig:
     validation, and DSP pipeline behavior.
     """
 
-    def __post_init__(self) -> None:  # noqa: C901
+    def __post_init__(self) -> None:
         """Validate field constraints that would cause silent corruption or crashes."""
         if self.rt60 < 0.0:
             raise ValueError(f"rt60 must be >= 0, got {self.rt60}")
@@ -61,7 +61,7 @@ class RenderConfig:
         if self.pre_delay_ms < 0.0:
             raise ValueError(f"pre_delay_ms must be >= 0, got {self.pre_delay_ms}")
         if not 0.0 <= self.damping <= 1.0:
-            raise ValueError(f"damping must be 0–1, got {self.damping}")
+            raise ValueError(f"damping must be 0-1, got {self.damping}")
         if self.wet < 0.0:
             raise ValueError(f"wet must be >= 0, got {self.wet}")
         if self.dry < 0.0:
@@ -71,15 +71,15 @@ class RenderConfig:
         if self.allpass_stages < 0:
             raise ValueError(f"allpass_stages must be >= 0, got {self.allpass_stages}")
         if not 0.0 <= self.allpass_gain <= 1.0:
-            raise ValueError(f"allpass_gain must be 0–1, got {self.allpass_gain}")
+            raise ValueError(f"allpass_gain must be 0-1, got {self.allpass_gain}")
         if self.beast_mode < 1:
             raise ValueError(f"beast_mode must be >= 1, got {self.beast_mode}")
         if self.ambi_order < 0:
             raise ValueError(f"ambi_order must be >= 0, got {self.ambi_order}")
         if not 0.0 <= self.shimmer_mix <= 1.0:
-            raise ValueError(f"shimmer_mix must be 0–1, got {self.shimmer_mix}")
+            raise ValueError(f"shimmer_mix must be 0-1, got {self.shimmer_mix}")
         if not 0.0 <= self.shimmer_feedback <= 0.98:
-            raise ValueError(f"shimmer_feedback must be 0–0.98, got {self.shimmer_feedback}")
+            raise ValueError(f"shimmer_feedback must be 0-0.98, got {self.shimmer_feedback}")
         if self.fdn_sparse_degree < 1:
             raise ValueError(f"fdn_sparse_degree must be >= 1, got {self.fdn_sparse_degree}")
 

@@ -5,9 +5,11 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from verbx.core.convolution_reverb import ConvolutionReverbConfig, ConvolutionReverbEngine
+from verbx.core.convolution_reverb import (
+    ConvolutionReverbConfig,
+    ConvolutionReverbEngine,
+)
 from verbx.io.audio import iter_audio_blocks
-
 
 # ---------------------------------------------------------------------------
 # iter_audio_blocks

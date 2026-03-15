@@ -1,0 +1,72 @@
+name: Install Verification
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  install-check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsndfile1 man-db
+
+      - name: Install macOS system dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install libsndfile
+
+      - name: Install uv
+        run: python -m pip install --upgrade pip uv
+
+      - name: Verify uv install flow
+        run: |
+          uv sync
+          uv run verbx --help >/dev/null
+          uv run verbx quickstart --verify --strict --json-out "$RUNNER_TEMP/quickstart_uv.json" >/dev/null
+
+      - name: Verify pip + venv flow
+        run: |
+          python -m venv "$RUNNER_TEMP/verbx-venv"
+          source "$RUNNER_TEMP/verbx-venv/bin/activate"
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          verbx --help >/dev/null
+          verbx quickstart --verify --strict --json-out "$RUNNER_TEMP/quickstart_venv.json" >/dev/null
+
+      - name: Verify installer script + man pages
+        run: |
+          PREFIX="$RUNNER_TEMP/verbx-prefix"
+          ./scripts/install.sh --prefix "$PREFIX" --python python3 --wheel
+          test -f "$PREFIX/share/man/man1/verbx.1"
+          test -f "$PREFIX/share/man/man1/verbx-render.1"
+          man -M "$PREFIX/share/man" verbx | head -n 30 > "$RUNNER_TEMP/man_verbx.txt"
+          man -M "$PREFIX/share/man" verbx-render | head -n 30 > "$RUNNER_TEMP/man_verbx_render.txt"
+
+      - name: Upload verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-verify-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/quickstart_uv.json
+            ${{ runner.temp }}/quickstart_venv.json
+            ${{ runner.temp }}/man_verbx.txt
+            ${{ runner.temp }}/man_verbx_render.txt
