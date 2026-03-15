@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,5 +25,29 @@ jobs:
       - name: Pyright
         run: hatch run typecheck
 
-      - name: Pytest
-        run: hatch run test
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Hatch
+        run: python -m pip install --upgrade pip hatch
+
+      - name: Run tests with coverage
+        run: hatch run test -- --cov=verbx --cov-report=term-missing --cov-fail-under=70
+
+      - name: Upload coverage artifact
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: .coverage

@@ -127,6 +127,8 @@ def _bandlimit(
 ) -> AudioArray:
     """Apply optional high/low cut filtering around shimmer pitch stage."""
     x = ensure_mono_or_stereo(audio)
+    if x.shape[0] == 0:
+        return x.copy()
     out = x.copy()
 
     if lowcut is not None and lowcut > 1.0 and lowcut < (0.5 * sr):

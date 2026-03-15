@@ -6297,7 +6297,7 @@ def _validate_ambisonic_settings(infile: Path, config: RenderConfig) -> None:
             f"[yellow]Warning:[/yellow] HOA order {order} is beyond first-order Ambisonics (FOA). "
             "Higher-order paths exist in verbx but have not been fully validated — "
             "results may be incorrect. "
-            "FOA (--ambi-order 1) is the supported configuration for v0.07.x."
+            "FOA (--ambi-order 1) is the supported configuration for v0.7.x."
         )
 
     if config.ambi_normalization not in _AMBI_NORMALIZATION_CHOICES:

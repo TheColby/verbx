@@ -125,12 +125,16 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.07.0**.
+Current public alpha release: **v0.7.0**.
 
 - Confirm your environment with `verbx quickstart --verify --strict` and `verbx doctor`.
 - Verify one algorithmic render and one convolution render before batch usage.
 - For reproducible reports and bug submissions, attach `--repro-bundle` outputs and `verbx doctor --json-out doctor.json`.
 - For demo-ready outputs, keep `--true-peak --target-peak-dbfs -1` enabled when files will be transcoded.
+- Public alpha scope, known limitations, and support paths:
+  [`docs/PUBLIC_ALPHA_NOTES.md`](docs/PUBLIC_ALPHA_NOTES.md)
+- Launch-week pinned demo commands and expected SHA256 outputs:
+  [`docs/LAUNCH_WEEK_DEMO_PINS.md`](docs/LAUNCH_WEEK_DEMO_PINS.md)
 
 ---
 

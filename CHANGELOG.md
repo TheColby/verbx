@@ -4,16 +4,25 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Cross-platform install verification workflow
+  (`.github/workflows/install-verify.yml`) that checks `uv`, `pip+venv`, and
+  `scripts/install.sh` + man-page rendering on macOS and Linux.
+- Public-alpha support/limitations notes in `docs/PUBLIC_ALPHA_NOTES.md`.
+- Launch-week pinned demo command/hash matrix in
+  `docs/LAUNCH_WEEK_DEMO_PINS.md`.
+
 ### Changed
 - Raised RT60 upper bounds to 3600 seconds across control-target specs, runtime
   automation clamps, and CLI validation for render/IR workflows.
 - Updated release docs and roadmap status for current public-alpha readiness.
+- Normalized version labeling to semantic `0.7.x` notation across package/docs.
 
 ### Fixed
 - `batch augment` now pre-creates output/analysis directories before parallel
   rendering, so runs succeed even when `--copy-dry` is not enabled.
 
-## [0.07.0] - 2026-03-14
+## [0.7.0] - 2026-03-14
 
 _Public alpha release._
 
@@ -45,44 +54,44 @@ _Public alpha release._
 - Render summary now surfaces output audio feature/statistics by default unless
   reduced verbosity/quiet modes are selected.
 - Installer and man-page coverage expanded and documented.
-- Version scheme updated to zero-padded minor (`0.07.x`).
+- Version scheme normalized to semantic minor (`0.7.x`).
 
 ### Fixed
 - Deterministic control-plane and lane-validation diagnostics strengthened across
   automation and feature-lane workflows.
 
-## [0.06.0] - 2026-03-08
+## [0.6.0] - 2026-03-08
 
 ### Added
 - Advanced FDN structures and controls, including topology expansion and
   Ambisonics-focused spatial workflows.
 - Additional CLI/documentation coverage for production-oriented reverb design.
 
-## [0.05.0] - 2026-03-02
+## [0.5.0] - 2026-03-02
 
 ### Added
-- v0.05 feature set covering expanded render workflows, testing growth, and
+- v0.5 feature set covering expanded render workflows, testing growth, and
   installer/man-page foundations.
 
-## [0.04.0] - 2026-02-28
+## [0.4.0] - 2026-02-28
 
 ### Added
 - Control and modulation expansion, stronger batch semantics, and operational
   reliability improvements.
 
-## [0.03.0] - 2026-02-27
+## [0.3.0] - 2026-02-27
 
 ### Added
 - IR generation/analysis/processing command group and deterministic IR cache
   workflows.
 
-## [0.02.0] - 2026-02-26
+## [0.2.0] - 2026-02-26
 
 ### Added
 - Broader convolution and algorithmic tuning controls, plus expanded analysis
   utilities.
 
-## [0.01.0] - 2026-02-24
+## [0.1.0] - 2026-02-24
 
 ### Added
 - Initial dual-engine reverberation CLI (`render`, `analyze`, `suggest`,
