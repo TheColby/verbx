@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import importlib.util
 import json
 import os
 import platform
 import shutil
 import sys
+import tempfile
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -266,7 +268,18 @@ def quickstart(
         None,
         "--json-out",
         resolve_path=True,
-        help="Optional path to write readiness checks JSON (requires --verify).",
+        help="Optional path to write quickstart verification/smoke JSON.",
+    ),
+    smoke_test: bool = typer.Option(
+        False,
+        "--smoke-test",
+        help="Run a tiny end-to-end render smoke test with synthetic input audio.",
+    ),
+    smoke_out_dir: Path | None = typer.Option(
+        None,
+        "--smoke-out-dir",
+        resolve_path=True,
+        help="Optional output directory for smoke-test artifacts.",
     ),
 ) -> None:
     """Print minimal copy/paste commands for first successful renders."""
@@ -293,17 +306,48 @@ def quickstart(
         table.add_row(name, cmd)
     console.print(table)
 
-    if json_out is not None and not verify:
-        raise typer.BadParameter("--json-out requires --verify.")
-    if not verify:
-        return
+    if strict and not verify and not smoke_test:
+        raise typer.BadParameter("--strict requires --verify and/or --smoke-test.")
+    if json_out is not None and not verify and not smoke_test:
+        raise typer.BadParameter("--json-out requires --verify and/or --smoke-test.")
 
-    report = _collect_runtime_diagnostics()
-    _print_runtime_checks_table(report, title="verbx Quickstart Verify")
+    report: dict[str, Any] | None = None
+    smoke_report: dict[str, Any] | None = None
+    if verify:
+        report = _collect_runtime_diagnostics()
+        _print_runtime_checks_table(report, title="verbx Quickstart Verify")
+    if smoke_test:
+        smoke_report = _run_render_smoke_test(out_dir=smoke_out_dir)
+        _print_render_smoke_test_table(smoke_report, title="verbx Quickstart Smoke Test")
+
     if json_out is not None:
-        _write_json_atomic(json_out.resolve(), report)
-    if strict and not bool(report.get("ready", False)):
-        raise typer.Exit(code=2)
+        if verify and not smoke_test:
+            payload = report if report is not None else {}
+        elif smoke_test and not verify:
+            payload = {
+                "schema": "quickstart-smoke-v1",
+                "smoke_test": smoke_report,
+                "ready": bool(smoke_report is not None and smoke_report.get("ok", False)),
+            }
+        else:
+            payload = {
+                "schema": "quickstart-verify-smoke-v1",
+                "diagnostics": report,
+                "smoke_test": smoke_report,
+                "ready": bool(
+                    report is not None
+                    and report.get("ready", False)
+                    and smoke_report is not None
+                    and smoke_report.get("ok", False)
+                ),
+            }
+        _write_json_atomic(json_out.resolve(), cast(dict[str, Any], payload))
+
+    if strict:
+        verify_ok = True if report is None else bool(report.get("ready", False))
+        smoke_ok = True if smoke_report is None else bool(smoke_report.get("ok", False))
+        if not verify_ok or not smoke_ok:
+            raise typer.Exit(code=2)
 
 
 @app.command()
@@ -318,6 +362,17 @@ def doctor(
         False,
         "--strict",
         help="Exit non-zero when startup checks fail.",
+    ),
+    render_smoke_test: bool = typer.Option(
+        False,
+        "--render-smoke-test",
+        help="Run a tiny end-to-end render smoke test after diagnostics.",
+    ),
+    smoke_out_dir: Path | None = typer.Option(
+        None,
+        "--smoke-out-dir",
+        resolve_path=True,
+        help="Optional output directory for doctor smoke-test artifacts.",
     ),
 ) -> None:
     """Print runtime diagnostics for launch-day troubleshooting."""
@@ -357,9 +412,23 @@ def doctor(
             rec_table.add_row(str(idx), str(text))
         console.print(rec_table)
 
+    smoke_report: dict[str, Any] | None = None
+    if render_smoke_test:
+        smoke_report = _run_render_smoke_test(out_dir=smoke_out_dir)
+        _print_render_smoke_test_table(smoke_report, title="verbx Doctor Smoke Test")
+
     if json_out is not None:
-        _write_json_atomic(json_out.resolve(), report)
-    if strict and int(report.get("failed_checks", 0)) > 0:
+        if smoke_report is None:
+            _write_json_atomic(json_out.resolve(), report)
+        else:
+            payload = dict(report)
+            payload["render_smoke_test"] = smoke_report
+            payload["ready"] = bool(payload.get("ready", False) and smoke_report.get("ok", False))
+            _write_json_atomic(json_out.resolve(), payload)
+    if strict and (
+        int(report.get("failed_checks", 0)) > 0
+        or (smoke_report is not None and not bool(smoke_report.get("ok", False)))
+    ):
         raise typer.Exit(code=2)
 
 
@@ -479,6 +548,83 @@ def _runtime_recommendations(report: dict[str, Any]) -> list[str]:
             "Runtime checks are clean. Run `verbx quickstart --verify --strict` before demos."
         )
     return recs
+
+
+def _run_render_smoke_test(*, out_dir: Path | None) -> dict[str, Any]:
+    """Run a tiny end-to-end render to validate practical startup readiness."""
+    temp_dir: tempfile.TemporaryDirectory[str] | None = None
+    root: Path
+    if out_dir is None:
+        temp_dir = tempfile.TemporaryDirectory(prefix="verbx_smoke_")
+        root = Path(temp_dir.name).resolve()
+    else:
+        root = out_dir.resolve()
+        root.mkdir(parents=True, exist_ok=True)
+
+    infile = root / "smoke_in.wav"
+    outfile = root / "smoke_out.wav"
+    sr = 24_000
+    num_samples = round(0.35 * float(sr))
+    timeline = np.arange(num_samples, dtype=np.float64) / float(sr)
+    audio = (0.2 * np.sin(2.0 * np.pi * 220.0 * timeline)).reshape(-1, 1).astype(np.float64)
+    try:
+        sf.write(str(infile), audio, sr, subtype="DOUBLE")
+        config = RenderConfig(
+            engine="algo",
+            rt60=0.8,
+            wet=0.35,
+            dry=0.65,
+            repeat=1,
+            output_subtype="float64",
+            silent=True,
+            progress=False,
+        )
+        report = run_render_pipeline(infile=infile, outfile=outfile, config=config)
+        info = sf.info(str(outfile))
+        output_frames = int(info.frames)
+        ok = bool(outfile.exists() and output_frames > num_samples)
+        return {
+            "ok": ok,
+            "infile": str(infile),
+            "outfile": str(outfile),
+            "sample_rate": int(info.samplerate),
+            "input_frames": int(num_samples),
+            "output_frames": int(output_frames),
+            "engine": str(report.get("engine", "")),
+            "error": "",
+        }
+    except (OSError, RuntimeError, ValueError, sf.LibsndfileError) as exc:
+        return {
+            "ok": False,
+            "infile": str(infile),
+            "outfile": str(outfile),
+            "sample_rate": int(sr),
+            "input_frames": int(num_samples),
+            "output_frames": 0,
+            "engine": "algo",
+            "error": str(exc),
+        }
+    finally:
+        if temp_dir is not None:
+            temp_dir.cleanup()
+
+
+def _print_render_smoke_test_table(report: dict[str, Any], *, title: str) -> None:
+    """Print smoke-test status table for quickstart/doctor output."""
+    table = Table(title=title)
+    table.add_column("Key", style="cyan")
+    table.add_column("Value", style="white")
+    table.add_row("status", "PASS" if bool(report.get("ok", False)) else "FAIL")
+    table.add_row("engine", str(report.get("engine", "")))
+    table.add_row("sample_rate", str(report.get("sample_rate", "")))
+    table.add_row("input_frames", str(report.get("input_frames", "")))
+    table.add_row("output_frames", str(report.get("output_frames", "")))
+    table.add_row("infile", str(report.get("infile", "")))
+    table.add_row("outfile", str(report.get("outfile", "")))
+    error_text = str(report.get("error", "")).strip()
+    if error_text != "":
+        table.add_row("error", error_text)
+    console.print(table)
 
 
 def _print_runtime_checks_table(report: dict[str, Any], *, title: str) -> None:
@@ -1228,6 +1374,12 @@ def render(
         resolve_path=True,
         help="Optional explicit path for reproducibility/support JSON bundle.",
     ),
+    failure_report_out: Path | None = typer.Option(
+        None,
+        "--failure-report-out",
+        resolve_path=True,
+        help="Optional JSON report path populated when render execution fails.",
+    ),
     progress: bool = typer.Option(True, "--progress/--no-progress"),
 ) -> None:
     """Render input audio with algorithmic or convolution reverb."""
@@ -1442,12 +1594,20 @@ def render(
         analysis_out=config.analysis_out,
         repro_bundle_path=repro_bundle_path,
     )
+    _validate_failure_report_path(
+        infile=infile,
+        outfile=outfile,
+        analysis_out=config.analysis_out,
+        repro_bundle_path=repro_bundle_path,
+        failure_report_out=failure_report_out,
+    )
     _validate_render_call(infile, outfile, config)
     _validate_lucky_call(
         config,
         lucky,
         lucky_out_dir,
         repro_bundle_path=repro_bundle_path,
+        failure_report_out=failure_report_out,
     )
     configure_logging(verbose=not config.silent)
 
@@ -1523,9 +1683,36 @@ def render(
             console.print(summary)
         return
 
+    if config.shimmer:
+        if importlib.util.find_spec("librosa") is None:
+            console.print(
+                "[yellow]Warning:[/yellow] --shimmer is enabled but librosa is not installed. "
+                "Pitch-shift quality will be significantly lower (linear interpolation fallback). "
+                "Install with: pip install librosa"
+            )
+
     try:
         report = run_render_pipeline(infile=infile, outfile=outfile, config=config)
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+        if failure_report_out is not None:
+            try:
+                payload = _build_render_failure_report(
+                    infile=infile,
+                    outfile=outfile,
+                    config=config,
+                    preset_name=(
+                        None
+                        if preset_summary is None
+                        else str(preset_summary.get("name", "")).strip() or None
+                    ),
+                    error=exc,
+                )
+                _write_json_atomic(failure_report_out.resolve(), payload)
+                msg = f"{exc} (failure report: {failure_report_out.resolve()})"
+                raise typer.BadParameter(msg) from exc
+            except (OSError, RuntimeError, ValueError) as write_exc:
+                msg = f"{exc} (also failed to write failure report: {write_exc})"
+                raise typer.BadParameter(msg) from exc
         raise typer.BadParameter(str(exc)) from exc
 
     if repro_bundle_path is not None:
@@ -4685,6 +4872,32 @@ def _build_render_repro_bundle(
     return payload
 
 
+def _build_render_failure_report(
+    *,
+    infile: Path,
+    outfile: Path,
+    config: RenderConfig,
+    preset_name: str | None,
+    error: Exception,
+) -> dict[str, Any]:
+    """Build structured failure report payload for render support workflows."""
+    diagnostics = _collect_runtime_diagnostics()
+    return {
+        "schema": "render-failure-report-v1",
+        "created_utc": datetime.now(UTC).replace(microsecond=0).isoformat(),
+        "verbx_version": __version__,
+        "python_version": sys.version.split()[0],
+        "platform": platform.platform(),
+        "error_type": type(error).__name__,
+        "error": str(error),
+        "infile": str(infile.resolve()),
+        "outfile": str(outfile.resolve()),
+        "preset": preset_name,
+        "config": asdict(config),
+        "diagnostics": diagnostics,
+    }
+
+
 def _compute_augmentation_provenance_hash(
     *,
     build: AugmentationBuild,
@@ -5582,6 +5795,29 @@ def _estimate_render_output_duration_seconds(*, infile: Path, config: RenderConf
     return duration_s
 
 
+def _estimate_output_file_size_mb(
+    *,
+    duration_s: float,
+    sample_rate: int,
+    channels: int,
+    out_subtype_mode: str,
+) -> float | None:
+    """Estimate output file size in MiB for dry-run planning."""
+    if duration_s <= 0.0 or sample_rate <= 0 or channels <= 0:
+        return None
+    bytes_per_sample_map = {
+        "float64": 8,
+        "float32": 4,
+        "pcm32": 4,
+        "pcm24": 3,
+        "pcm16": 2,
+    }
+    bytes_per_sample = bytes_per_sample_map.get(str(out_subtype_mode).strip().lower(), 8)
+    frames = int(np.ceil(float(duration_s) * float(sample_rate)))
+    total_bytes = int(frames * int(channels) * int(bytes_per_sample))
+    return float(total_bytes / float(1024 * 1024))
+
+
 def _print_render_dry_run_plan(
     *,
     infile: Path,
@@ -5625,6 +5861,20 @@ def _print_render_dry_run_plan(
     estimated_duration_s = _estimate_render_output_duration_seconds(infile=infile, config=config)
     if estimated_duration_s is not None:
         table.add_row("estimated_output_duration_s", f"{estimated_duration_s:.3f}")
+        try:
+            info = sf.info(str(infile))
+            sample_rate = int(info.samplerate)
+            channels = int(info.channels)
+            estimated_size_mb = _estimate_output_file_size_mb(
+                duration_s=estimated_duration_s,
+                sample_rate=sample_rate,
+                channels=channels,
+                out_subtype_mode=str(config.output_subtype),
+            )
+            if estimated_size_mb is not None:
+                table.add_row("estimated_output_size_mb", f"{estimated_size_mb:.3f}")
+        except (RuntimeError, TypeError, ValueError):
+            pass
     table.add_row("automation_file", str(config.automation_file))
     table.add_row("automation_points", str(len(config.automation_points)))
     table.add_row("feature_vector_lanes", str(len(config.feature_vector_lanes)))
@@ -6007,6 +6257,14 @@ def _validate_ambisonic_settings(infile: Path, config: RenderConfig) -> None:
     if order < 0:
         raise typer.BadParameter("--ambi-order must be >= 0.")
 
+    if order > 1:
+        console.print(
+            f"[yellow]Warning:[/yellow] HOA order {order} is beyond first-order Ambisonics (FOA). "
+            "Higher-order paths exist in verbx but have not been fully validated — "
+            "results may be incorrect. "
+            "FOA (--ambi-order 1) is the supported configuration for v0.07.x."
+        )
+
     if config.ambi_normalization not in _AMBI_NORMALIZATION_CHOICES:
         raise typer.BadParameter(
             _choice_error(
@@ -6262,11 +6520,34 @@ def _validate_repro_bundle_path(
         raise typer.BadParameter("--repro-bundle-out must differ from --analysis-out.")
 
 
+def _validate_failure_report_path(
+    *,
+    infile: Path,
+    outfile: Path,
+    analysis_out: str | None,
+    repro_bundle_path: Path | None,
+    failure_report_out: Path | None,
+) -> None:
+    """Validate optional failure-report output path for render command."""
+    if failure_report_out is None:
+        return
+    resolved = failure_report_out.resolve()
+    if resolved.suffix.lower() != ".json":
+        raise typer.BadParameter("--failure-report-out must use .json extension.")
+    if resolved in {infile.resolve(), outfile.resolve()}:
+        raise typer.BadParameter("--failure-report-out must differ from INFILE and OUTFILE.")
+    if analysis_out is not None and resolved == Path(analysis_out).resolve():
+        raise typer.BadParameter("--failure-report-out must differ from --analysis-out.")
+    if repro_bundle_path is not None and resolved == repro_bundle_path.resolve():
+        raise typer.BadParameter("--failure-report-out must differ from --repro-bundle-out.")
+
+
 def _validate_lucky_call(
     config: RenderConfig,
     lucky: int | None,
     lucky_out_dir: Path | None,
     repro_bundle_path: Path | None = None,
+    failure_report_out: Path | None = None,
 ) -> None:
     """Validate lucky-mode options for randomized batch rendering."""
     _validate_generic_lucky_call(lucky, lucky_out_dir)
@@ -6274,6 +6555,9 @@ def _validate_lucky_call(
         return
     if repro_bundle_path is not None:
         msg = "Do not use --repro-bundle/--repro-bundle-out with --lucky."
+        raise typer.BadParameter(msg)
+    if failure_report_out is not None:
+        msg = "Do not use --failure-report-out with --lucky."
         raise typer.BadParameter(msg)
     if config.analysis_out is not None:
         msg = "Do not use --analysis-out with --lucky (analysis files are per-output by default)."

@@ -87,6 +87,30 @@ def test_quickstart_verify_emits_readiness_report(tmp_path: Path) -> None:
     assert "ready" in payload
 
 
+def test_quickstart_smoke_test_writes_artifacts(tmp_path: Path) -> None:
+    smoke_dir = tmp_path / "smoke"
+    json_out = tmp_path / "quickstart_smoke.json"
+    result = runner.invoke(
+        app,
+        [
+            "quickstart",
+            "--smoke-test",
+            "--strict",
+            "--smoke-out-dir",
+            str(smoke_dir),
+            "--json-out",
+            str(json_out),
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "verbx Quickstart Smoke Test" in text
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    smoke = payload.get("smoke_test", {})
+    assert bool(smoke.get("ok", False))
+    assert Path(str(smoke.get("outfile", ""))).exists()
+
+
 def test_doctor_strict_fails_when_checks_fail(monkeypatch: MonkeyPatch) -> None:
     report: dict[str, object] = {
         "verbx_version": __version__,
@@ -120,6 +144,23 @@ def test_doctor_strict_fails_when_checks_fail(monkeypatch: MonkeyPatch) -> None:
     report["recommendations"] = ["Use Python 3.11 or newer."]
     monkeypatch.setattr(cli_module, "_collect_runtime_diagnostics", lambda: report)
     result = runner.invoke(app, ["doctor", "--strict"])
+    assert result.exit_code == 2
+
+
+def test_doctor_strict_fails_when_smoke_test_fails(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        cli_module,
+        "_run_render_smoke_test",
+        lambda out_dir: {
+            "ok": False,
+            "engine": "algo",
+            "sample_rate": 24_000,
+            "input_frames": 1000,
+            "output_frames": 0,
+            "error": "simulated failure",
+        },
+    )
+    result = runner.invoke(app, ["doctor", "--render-smoke-test", "--strict"])
     assert result.exit_code == 2
 
 
@@ -173,6 +214,7 @@ def test_render_dry_run_validates_without_writing_audio(tmp_path: Path) -> None:
     assert "Render Dry-Run Plan" in text
     assert "audio_write" in text
     assert "skipped" in text
+    assert "estimated_output_size_mb" in text
     assert not outfile.exists()
     assert not Path(f"{outfile}.analysis.json").exists()
 
@@ -2492,6 +2534,41 @@ def test_render_validation_suggests_supported_output_extension(tmp_path: Path) -
     assert "Did you mean" in text
     assert ".wav" in text
     assert "Supported:" in text
+
+
+def test_render_writes_failure_report_when_pipeline_raises(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    audio = np.zeros((512, 1), dtype=np.float64)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    report_out = tmp_path / "failure_report.json"
+    sf.write(str(infile), audio, 48_000)
+
+    def _raise_pipeline(*args: object, **kwargs: object) -> object:
+        raise RuntimeError("simulated pipeline failure")
+
+    monkeypatch.setattr(cli_module, "run_render_pipeline", _raise_pipeline)
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--failure-report-out",
+            str(report_out),
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert report_out.exists()
+    payload = json.loads(report_out.read_text(encoding="utf-8"))
+    assert payload["schema"] == "render-failure-report-v1"
+    assert payload["error_type"] == "RuntimeError"
+    assert "simulated pipeline failure" in str(payload["error"])
 
 
 def test_ir_gen_validation_errors(tmp_path: Path) -> None:
