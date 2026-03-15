@@ -219,6 +219,33 @@ def test_render_dry_run_validates_without_writing_audio(tmp_path: Path) -> None:
     assert not Path(f"{outfile}.analysis.json").exists()
 
 
+def test_render_dry_run_accepts_extended_rt60_upper_bound(tmp_path: Path) -> None:
+    audio = np.zeros((256, 1), dtype=np.float64)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "3600",
+            "--dry-run",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "Render Dry-Run Plan" in text
+    assert not outfile.exists()
+    assert not Path(f"{outfile}.analysis.json").exists()
+
+
 def test_render_preset_applies_defaults_and_respects_cli_override(tmp_path: Path) -> None:
     audio = np.zeros((1600, 1), dtype=np.float64)
     audio[100:200, 0] = 0.5
@@ -2952,6 +2979,7 @@ def test_render_automation_points_drive_algo_engine_targets(tmp_path: Path) -> N
     x[0, 0] = 1.0
     infile = tmp_path / "algo_auto_in.wav"
     outfile = tmp_path / "algo_auto_out.wav"
+    trace_file = tmp_path / "algo_auto_trace.csv"
     sf.write(str(infile), x, sr)
 
     result = runner.invoke(
@@ -2967,19 +2995,29 @@ def test_render_automation_points_drive_algo_engine_targets(tmp_path: Path) -> N
             "--automation-point",
             "rt60:0.0:0.4:linear",
             "--automation-point",
-            "rt60:0.25:6.0:linear",
+            "rt60:0.25:1200.0:linear",
             "--automation-point",
             "damping:0.0:0.65:linear",
             "--automation-point",
             "room-size:0.0:0.8:linear",
             "--automation-point",
             "room-size:0.25:1.6:linear",
+            "--automation-trace-out",
+            str(trace_file),
             "--no-progress",
         ],
     )
     assert result.exit_code == 0, result.stdout
+    assert trace_file.exists()
     out, _ = sf.read(str(outfile), always_2d=True, dtype="float64")
     assert float(np.max(np.abs(out))) > 1e-6
+    rows = trace_file.read_text(encoding="utf-8").splitlines()
+    assert len(rows) > 2
+    header = rows[0].split(",")
+    assert "rt60" in header
+    rt60_col = header.index("rt60")
+    rt60_values = [float(row.split(",")[rt60_col]) for row in rows[1:] if row.strip() != ""]
+    assert max(rt60_values) > 1_000.0
 
     payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
     automation = payload["effective"]["automation"]

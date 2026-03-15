@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from typing import Literal
 
 ControlTargetDomain = Literal["post", "engine", "conv"]
+RT60_MIN_SECONDS = 0.1
+RT60_MAX_SECONDS = 3_600.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,7 +35,7 @@ _CONTROL_TARGET_SPECS: tuple[ControlTargetSpec, ...] = (
         24.0,
         aliases=("output-gain-db", "gain", "gaindb"),
     ),
-    ControlTargetSpec("rt60", "engine", 0.1, 300.0, aliases=("t60",)),
+    ControlTargetSpec("rt60", "engine", RT60_MIN_SECONDS, RT60_MAX_SECONDS, aliases=("t60",)),
     ControlTargetSpec("damping", "engine", 0.0, 1.0),
     ControlTargetSpec(
         "room-size",

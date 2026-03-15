@@ -91,6 +91,7 @@ from verbx.core.batch_scheduler import (
     order_jobs,
     run_parallel_batch,
 )
+from verbx.core.control_targets import RT60_MAX_SECONDS, RT60_MIN_SECONDS
 from verbx.core.fdn_capabilities import (
     FDN_GRAPH_TOPOLOGY_CHOICES,
     FDN_LINK_FILTER_CHOICES,
@@ -662,7 +663,7 @@ def render(
         ),
     ),
     engine: EngineName = typer.Option("auto", "--engine", help="Engine: conv, algo, or auto."),
-    rt60: float = typer.Option(60.0, "--rt60", min=0.1),
+    rt60: float = typer.Option(60.0, "--rt60", min=RT60_MIN_SECONDS, max=RT60_MAX_SECONDS),
     wet: float = typer.Option(0.8, "--wet", min=0.0, max=1.0),
     dry: float = typer.Option(0.2, "--dry", min=0.0, max=1.0),
     repeat: int = typer.Option(1, "--repeat", min=1),
@@ -828,19 +829,22 @@ def render(
     fdn_rt60_low: float | None = typer.Option(
         None,
         "--fdn-rt60-low",
-        min=0.1,
+        min=RT60_MIN_SECONDS,
+        max=RT60_MAX_SECONDS,
         help="Low-band RT60 target for multiband FDN decay shaping (seconds).",
     ),
     fdn_rt60_mid: float | None = typer.Option(
         None,
         "--fdn-rt60-mid",
-        min=0.1,
+        min=RT60_MIN_SECONDS,
+        max=RT60_MAX_SECONDS,
         help="Mid-band RT60 target for multiband FDN decay shaping (seconds).",
     ),
     fdn_rt60_high: float | None = typer.Option(
         None,
         "--fdn-rt60-high",
-        min=0.1,
+        min=RT60_MIN_SECONDS,
+        max=RT60_MAX_SECONDS,
         help="High-band RT60 target for multiband FDN decay shaping (seconds).",
     ),
     fdn_rt60_tilt: float = typer.Option(
@@ -1892,9 +1896,19 @@ def ir_gen(
     sr: int = typer.Option(48_000, "--sr", min=8_000),
     channels: int = typer.Option(2, "--channels", min=1),
     seed: int = typer.Option(0, "--seed"),
-    rt60: float | None = typer.Option(None, "--rt60", min=0.1),
-    rt60_low: float | None = typer.Option(None, "--rt60-low", min=0.1),
-    rt60_high: float | None = typer.Option(None, "--rt60-high", min=0.1),
+    rt60: float | None = typer.Option(None, "--rt60", min=RT60_MIN_SECONDS, max=RT60_MAX_SECONDS),
+    rt60_low: float | None = typer.Option(
+        None,
+        "--rt60-low",
+        min=RT60_MIN_SECONDS,
+        max=RT60_MAX_SECONDS,
+    ),
+    rt60_high: float | None = typer.Option(
+        None,
+        "--rt60-high",
+        min=RT60_MIN_SECONDS,
+        max=RT60_MAX_SECONDS,
+    ),
     damping: float = typer.Option(0.4, "--damping", min=0.0, max=1.0),
     lowcut: float | None = typer.Option(None, "--lowcut", min=10.0),
     highcut: float | None = typer.Option(None, "--highcut", min=10.0),
@@ -1990,19 +2004,22 @@ def ir_gen(
     fdn_rt60_low: float | None = typer.Option(
         None,
         "--fdn-rt60-low",
-        min=0.1,
+        min=RT60_MIN_SECONDS,
+        max=RT60_MAX_SECONDS,
         help="Low-band RT60 target for multiband FDN decay shaping (seconds).",
     ),
     fdn_rt60_mid: float | None = typer.Option(
         None,
         "--fdn-rt60-mid",
-        min=0.1,
+        min=RT60_MIN_SECONDS,
+        max=RT60_MAX_SECONDS,
         help="Mid-band RT60 target for multiband FDN decay shaping (seconds).",
     ),
     fdn_rt60_high: float | None = typer.Option(
         None,
         "--fdn-rt60-high",
-        min=0.1,
+        min=RT60_MIN_SECONDS,
+        max=RT60_MAX_SECONDS,
         help="High-band RT60 target for multiband FDN decay shaping (seconds).",
     ),
     fdn_rt60_tilt: float = typer.Option(

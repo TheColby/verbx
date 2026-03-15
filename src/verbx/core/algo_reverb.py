@@ -28,7 +28,12 @@ from typing import ClassVar, TypeVar
 import numpy as np
 import numpy.typing as npt
 
-from verbx.core.control_targets import ENGINE_CONTROL_TARGETS, normalize_control_target_name
+from verbx.core.control_targets import (
+    ENGINE_CONTROL_TARGETS,
+    RT60_MAX_SECONDS,
+    RT60_MIN_SECONDS,
+    normalize_control_target_name,
+)
 from verbx.core.engine_base import ReverbEngine
 from verbx.core.fdn_capabilities import (
     FDN_LINK_FILTER_CHOICES,
@@ -340,7 +345,7 @@ class AlgoReverbEngine(ReverbEngine):
         for target, curve in self._parameter_automation.items():
             vec = self._resample_curve(curve, n_samples)
             if target == "rt60":
-                vec = np.asarray(np.clip(vec, 0.1, 300.0), dtype=np.float64)
+                vec = np.asarray(np.clip(vec, RT60_MIN_SECONDS, RT60_MAX_SECONDS), dtype=np.float64)
             elif target == "damping":
                 vec = np.asarray(np.clip(vec, 0.0, 1.0), dtype=np.float64)
             elif target == "room-size":
@@ -1020,8 +1025,8 @@ class AlgoReverbEngine(ReverbEngine):
         )
         if abs(tilt) > 1e-9:
             ratio = float(np.power(2.0, 0.85 * tilt))
-            low = float(np.clip(low * ratio, 0.1, 300.0))
-            high = float(np.clip(high / ratio, 0.1, 300.0))
+            low = float(np.clip(low * ratio, RT60_MIN_SECONDS, RT60_MAX_SECONDS))
+            high = float(np.clip(high / ratio, RT60_MIN_SECONDS, RT60_MAX_SECONDS))
         return low, mid, high
 
     @classmethod
@@ -1436,7 +1441,9 @@ class AlgoReverbEngine(ReverbEngine):
                 rt60_effective = float(base_rt60)
                 damping_effective = float(base_damping)
                 if rt60_curve is not None:
-                    rt60_effective = float(np.clip(rt60_curve[n], 0.1, 300.0))
+                    rt60_effective = float(
+                        np.clip(rt60_curve[n], RT60_MIN_SECONDS, RT60_MAX_SECONDS)
+                    )
                 if damping_curve is not None:
                     damping_effective = float(np.clip(damping_curve[n], 0.0, 1.0))
                 room_size_macro_sample = room_size_macro_default

@@ -64,3 +64,24 @@ def test_multiband_rt60_resolver_accepts_runtime_track_c_controls() -> None:
     )
     assert float(low) > float(mid)
     assert float(mid) > float(high)
+
+
+def test_multiband_rt60_resolver_supports_long_decay_envelopes() -> None:
+    cfg = AlgoReverbConfig(
+        rt60=1_200.0,
+        fdn_rt60_low=1_200.0,
+        fdn_rt60_mid=1_200.0,
+        fdn_rt60_high=1_200.0,
+        fdn_rt60_tilt=0.0,
+        clarity_macro=0.0,
+        warmth_macro=0.0,
+    )
+    low, mid, high = AlgoReverbEngine.resolve_multiband_rt60(
+        cfg,
+        fdn_rt60_tilt=0.6,
+        clarity_macro=0.0,
+        warmth_macro=0.0,
+    )
+    assert float(low) > 300.0
+    assert float(high) > 300.0
+    assert float(mid) > 300.0
