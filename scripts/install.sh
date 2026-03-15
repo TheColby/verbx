@@ -114,10 +114,18 @@ PY
 
   if [[ "$INSTALL_MODE" == "editable" ]]; then
     echo "Installing verbx in editable mode..."
-    "$PYTHON_BIN" -m pip install "${PIP_ARGS[@]}" -e ".${EXTRA}"
+    if [[ "${#PIP_ARGS[@]}" -gt 0 ]]; then
+      "$PYTHON_BIN" -m pip install "${PIP_ARGS[@]}" -e ".${EXTRA}"
+    else
+      "$PYTHON_BIN" -m pip install -e ".${EXTRA}"
+    fi
   else
     echo "Installing verbx in wheel mode..."
-    "$PYTHON_BIN" -m pip install "${PIP_ARGS[@]}" ".${EXTRA}"
+    if [[ "${#PIP_ARGS[@]}" -gt 0 ]]; then
+      "$PYTHON_BIN" -m pip install "${PIP_ARGS[@]}" ".${EXTRA}"
+    else
+      "$PYTHON_BIN" -m pip install ".${EXTRA}"
+    fi
   fi
 else
   echo "Skipping Python package installation (--skip-python-install)."

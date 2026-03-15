@@ -6,8 +6,8 @@ _Last updated: 2026-03-15. Maintained with `README.md` and `CHANGELOG.md`._
 
 ## 1. Release Posture
 
-**Current release:** `v0.7.0`  
-**Status:** public alpha  
+**Current release:** `v0.7.0`
+**Status:** public alpha
 **Versioning policy:** semantic (`0.7.x` patch line during alpha)
 
 verbx is now feature-complete enough for public alpha distribution: dual-engine

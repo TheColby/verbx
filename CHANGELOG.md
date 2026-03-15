@@ -21,6 +21,8 @@ All notable changes to this project are documented in this file.
 ### Fixed
 - `batch augment` now pre-creates output/analysis directories before parallel
   rendering, so runs succeed even when `--copy-dry` is not enabled.
+- `scripts/install.sh` now handles empty pip-argument arrays correctly under
+  strict shell settings (notably Bash 3.2 on macOS runners).
 
 ## [0.7.0] - 2026-03-14
 
