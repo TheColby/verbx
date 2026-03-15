@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Raised RT60 upper bounds to 3600 seconds across control-target specs, runtime
+  automation clamps, and CLI validation for render/IR workflows.
+- Updated release docs and roadmap status for current public-alpha readiness.
+
+### Fixed
+- `batch augment` now pre-creates output/analysis directories before parallel
+  rendering, so runs succeed even when `--copy-dry` is not enabled.
+
 ## [0.7.0] - 2026-03-14
 
 _Public alpha release._

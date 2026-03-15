@@ -22,11 +22,11 @@ reproducibility tooling, and f64 internal DSP.
 - [ ] Verify install flows on macOS/Linux (`uv`, `pip+venv`, `install.sh`).
 - [ ] Confirm man pages install and render correctly (`man verbx`, `man verbx-render`).
 - [ ] Run release smoke matrix:
-  - [ ] Algorithmic render smoke test
-  - [ ] Convolution render smoke test
-  - [ ] IR generation + IR morph smoke test
-  - [ ] Batch augment smoke test
-  - [ ] Immersive handoff + QC smoke test
+  - [x] Algorithmic render smoke test
+  - [x] Convolution render smoke test
+  - [x] IR generation + IR morph smoke test
+  - [x] Batch augment smoke test
+  - [x] Immersive handoff + QC smoke test
 - [ ] Publish public-alpha notes with known limitations and support channels.
 - [ ] Pin demo commands and expected outputs for launch week reproducibility.
 
@@ -92,4 +92,3 @@ When a roadmap item is completed:
 1. Update this roadmap checkbox immediately.
 2. Update `CHANGELOG.md` under `Unreleased` (or release section if tagged).
 3. Update `README.md` command/docs references in the same change.
-

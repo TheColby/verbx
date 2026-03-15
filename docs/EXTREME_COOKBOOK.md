@@ -207,7 +207,7 @@ _What it sounds like:_ The source disappears completely. What remains is three m
 
 _DSP note:_ `--wet 1.0 --dry 0.0` eliminates the direct signal path entirely. Combined with a 180-second RT60 and beast-mode 12, the reverb network is operating at high feedback complexity with an enormous decay envelope. The output is essentially a synthetic texture derived from the input's early moments. On spectrally complex input, this is often beautiful. On input with strong low-frequency content, it will rumble and build in unexpected ways.
 
-> **Expert note:** At RT60 values this extreme, the reverb network is operating at the edge of stability. The internal feedback matrix is nominally convergent, but floating-point accumulation errors over very long tails can produce low-level artifacts that accumulate over the decay. These are generally inaudible but may appear in the noise floor of spectral analysis tools. This is not a bug; it is physics at the limit of single-precision arithmetic.
+> **Expert note:** At RT60 values this extreme, the reverb network is operating at the edge of stability. The internal feedback matrix is nominally convergent, but floating-point accumulation over very long tails can still produce low-level artifacts that surface in the noise floor of spectral analysis tools. In verbx this occurs in 64-bit (`float64`) internal DSP, which substantially lowers numerical drift versus single-precision paths.
 
 ---
 

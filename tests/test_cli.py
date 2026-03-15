@@ -2307,6 +2307,62 @@ def test_batch_augment_baseline_summary_emits_class_balance_delta(tmp_path: Path
     assert isinstance(delta.get("global_label_delta"), dict)
 
 
+def test_batch_augment_without_copy_dry_still_writes_outputs(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "voice.wav"
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[80:220, 0] = 0.42
+    sf.write(str(infile), audio, sr)
+
+    out_root = tmp_path / "augmented_data_no_dry"
+    manifest = tmp_path / "augment_manifest_no_dry.json"
+    payload = {
+        "version": "0.7",
+        "dataset_name": "research_set_no_dry",
+        "profile": "asr-reverb-v1",
+        "seed": 99,
+        "variants_per_input": 1,
+        "output_root": str(out_root),
+        "default_options": {
+            "engine": "algo",
+            "rt60": 0.24,
+            "wet": 0.28,
+            "dry": 0.88,
+            "repeat": 1,
+            "fdn_matrix": "hadamard",
+            "fdn_lines": 6,
+            "output_subtype": "float32",
+            "normalize_stage": "none",
+            "output_peak_norm": "input",
+        },
+        "jobs": [
+            {
+                "id": "src_voice_01",
+                "infile": str(infile),
+                "split": "train",
+                "label": "speaker_a",
+            }
+        ],
+    }
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            "augment",
+            str(manifest),
+            "--jobs",
+            "1",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    augmented = sorted((out_root / "train").glob("*__a*.wav"))
+    assert len(augmented) == 1
+    assert (out_root / "augmentation_manifest.jsonl").exists()
+    assert (out_root / "augmentation_summary.json").exists()
+
+
 def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
     sr = 16_000
     infile = tmp_path / "in.wav"

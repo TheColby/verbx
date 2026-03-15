@@ -4,7 +4,7 @@
 
 # verbx
 
-**Colossal bit audio reverberator, accelerated with CUDA and Metal.**
+**Colossal 64-bit audio reverberator, accelerated with CUDA and Metal.**
 
 `verbx` is a production-grade Python CLI for creating reverb effects that range from subtle room placement to cathedral-scale tails 3600 seconds long. It handles the complete reverb workflow: generating impulse responses, processing audio through two independent engines, controlling every parameter with time-varying automation, delivering loudness-targeted multichannel output, and producing reproducible analysis artifacts at every step.
 
@@ -110,7 +110,7 @@ export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc or ~/.bashrc
 
 ## Public Alpha Launch Notes
 
-Current public alpha target: **v0.7.0**.
+Current public alpha release: **v0.7.0**.
 
 - Confirm your environment with `verbx quickstart --verify --strict` and `verbx doctor`.
 - Verify one algorithmic render and one convolution render before batch usage.

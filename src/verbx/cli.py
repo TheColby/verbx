@@ -3490,6 +3490,7 @@ def batch_augment(
         _print_augmentation_dry_run(build=build, schedule=schedule)
         return
 
+    _prepare_augmentation_output_dirs(build=build)
     _copy_augmentation_dry_sources(build=build)
 
     prepared_jobs = [
@@ -4484,6 +4485,14 @@ def _copy_augmentation_dry_sources(*, build: AugmentationBuild) -> list[Path]:
         shutil.copy2(plan.infile, target)
         copied.append(target)
     return copied
+
+
+def _prepare_augmentation_output_dirs(*, build: AugmentationBuild) -> None:
+    """Ensure batch augment output directories exist before parallel rendering."""
+    for plan in build.plans:
+        plan.outfile.parent.mkdir(parents=True, exist_ok=True)
+        if plan.config.analysis_out is not None:
+            Path(plan.config.analysis_out).parent.mkdir(parents=True, exist_ok=True)
 
 
 def _build_augmentation_records(
