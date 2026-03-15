@@ -112,12 +112,30 @@ export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc or ~/.bashrc
 
 Rendered examples are included in [`examples/audio/`](examples/audio/). All files are stereo, 24 kHz, PCM16.
 
+### Extreme range demos
+
 | File | Description | Key settings |
 |------|-------------|--------------|
 | [`extreme_cathedral_drums.wav`](examples/audio/extreme_cathedral_drums.wav) | Drums → 8s Hadamard FDN cathedral | `--rt60 8.0 --fdn-lines 16 --fdn-matrix hadamard` |
 | [`extreme_shimmer_music.wav`](examples/audio/extreme_shimmer_music.wav) | Music → 6s reverb with octave shimmer | `--shimmer --shimmer-semitones 12 --shimmer-feedback 0.65` |
 | [`extreme_plate_speech.wav`](examples/audio/extreme_plate_speech.wav) | Speech → circulant FDN plate simulation | `--rt60 1.8 --fdn-matrix circulant --lowcut 200 --highcut 6000` |
 | [`extreme_frozen_music.wav`](examples/audio/extreme_frozen_music.wav) | Music → 30s near-infinite tail (32-line FDN) | `--rt60 30.0 --fdn-lines 32 --wet 0.95` |
+
+### Experimental music tradition demos
+
+Eight examples drawn from the experimental and avant-garde music tradition, each isolating a
+different reverb behavior or aesthetic.
+
+| File | Inspiration | What to listen for |
+|------|------------|-------------------|
+| [`lucier_sitting_room.wav`](examples/audio/lucier_sitting_room.wav) | Alvin Lucier — *I Am Sitting in a Room* | Speech run through the room 7× until only resonant frequencies survive |
+| [`eno_discreet_music.wav`](examples/audio/eno_discreet_music.wav) | Brian Eno — *Discreet Music* / Ambient series | 12s tail swallowing the source into a continuous wash |
+| [`oliveros_deep_listening.wav`](examples/audio/oliveros_deep_listening.wav) | Pauline Oliveros — *Deep Listening* | 18s cave-scale resonance, very low damping, 32-line FDN |
+| [`fripp_frippertronics.wav`](examples/audio/fripp_frippertronics.wav) | Robert Fripp — Frippertronics tape-loop | Octave shimmer with 0.78 feedback accumulating over 8s |
+| [`mbv_shoegaze.wav`](examples/audio/mbv_shoegaze.wav) | My Bloody Valentine — *Loveless* wall of sound | Dense shimmer wash (mix 0.55) through circulant FDN |
+| [`reich_phase_drums.wav`](examples/audio/reich_phase_drums.wav) | Steve Reich — phase minimalism | Tight 0.7s room on percussion, circulant diffusion |
+| [`radigue_drone.wav`](examples/audio/radigue_drone.wav) | Eliane Radigue — *ADNOS* / drone electronics | 45s near-infinite sustain, 32-line Hadamard, wet 0.97 |
+| [`feldman_sparse_room.wav`](examples/audio/feldman_sparse_room.wav) | Morton Feldman — late period | 3.8s room, low wet (0.52), allpass diffusion, contemplative space |
 
 Dry source files are in the same directory. See [`examples/audio/README.md`](examples/audio/README.md) for the full render commands.
 
@@ -770,59 +788,141 @@ verbx batch augment augment_manifest.json --profile asr-reverb-v1 \
 
 ### Experimental Recipes
 
-**Musical landmark examples (public alpha demo set):**
+Eight approaches from the experimental music tradition. Rendered demos for all of these are
+in [`examples/audio/`](examples/audio/).
 
-- Alvin Lucier / *I Am Sitting in a Room*
-- Brian Eno / *Discreet Music*
-- Pauline Oliveros / *Deep Listening*
-- Frippertronics-style tape-loop accumulation
-- Shoegaze reverse-wash freeze+shimmer textures
+---
 
-**Alvin Lucier room resonance accumulation** — inspired by "I Am Sitting in a Room":
+**Alvin Lucier — *I Am Sitting in a Room*** (iterative room resonance accumulation)
+
+Each pass imprints the room's modal resonances more deeply. After 12–20 passes, only the
+resonant frequencies of the virtual room survive — the original speech is gone.
+
 ```bash
-mkdir passes && cp input_voice.wav passes/pass_00.wav && current="passes/pass_00.wav"
+mkdir passes && cp voice.wav passes/pass_00.wav && current="passes/pass_00.wav"
 for i in $(seq 1 20); do
   next=$(printf "passes/pass_%02d.wav" "$i")
-  verbx render "$current" "$next" --engine algo --rt60 35 \
-    --wet 1.0 --dry 0.0 --repeat 1 --output-peak-norm input --no-progress
+  verbx render "$current" "$next" --engine algo --rt60 4.5 \
+    --wet 1.0 --dry 0.0 --fdn-lines 16 --fdn-matrix hadamard \
+    --lowcut 60 --no-progress
   current="$next"
 done
-```
-Each pass further imprints the room's modal character. After 12–20 passes, only the resonant frequencies of the virtual room survive.
-
-**Brian Eno ambient loopbed** — inspired by "Discreet Music":
-```bash
-verbx render input.wav ambient_eno.wav --engine algo --rt60 95 \
-  --wet 0.92 --dry 0.08 --damping 0.35 --width 1.25 \
-  --bloom 2.0 --tilt 0.8 --target-lufs -22 --target-peak-dbfs -2
+# Quick single-command version (7 passes baked in):
+verbx render voice.wav lucier_7pass.wav --engine algo --rt60 4.5 \
+  --wet 1.0 --dry 0.0 --repeat 7 --fdn-lines 16 --fdn-matrix hadamard --lowcut 60
 ```
 
-**Shoegaze reverse-wash** — frozen, shimmered guitar texture:
+---
+
+**Brian Eno — *Discreet Music* / Ambient series** (endless ambient tail)
+
+Decay so long the source dissolves. The wet signal becomes the room's breath.
+
 ```bash
-verbx render guitar.wav shoegaze.wav --engine algo \
-  --freeze --start 1.0 --end 2.4 \
-  --shimmer --shimmer-semitones 12 --shimmer-mix 0.4 \
-  --rt60 80 --wet 0.95 --dry 0.08 --width 1.4 --target-peak-dbfs -2
+verbx render input.wav eno_ambient.wav --engine algo --rt60 12.0 \
+  --wet 0.92 --dry 0.08 --damping 0.25 --pre-delay-ms 35 \
+  --fdn-lines 16 --fdn-matrix hadamard --lowcut 50 \
+  --target-lufs -22 --target-peak-dbfs -2
 ```
 
-**Deep Listening drone space** — inspired by Pauline Oliveros, 240-second IR:
+---
+
+**Pauline Oliveros — *Deep Listening*** (cave-scale resonance)
+
+Inspired by Oliveros's work in underground cisterns. Very low damping lets every frequency
+sustain; 32-line FDN produces the lateral complexity of stone architecture.
+
 ```bash
-verbx render drone.wav deep_space.wav --ir-gen --ir-gen-mode hybrid \
-  --ir-gen-length 240 --ir-gen-seed 108 --engine conv \
-  --wet 0.9 --dry 0.15 --tail-limit 180 \
+verbx render drone.wav deep_listening.wav --engine algo --rt60 18.0 \
+  --wet 0.95 --dry 0.10 --fdn-lines 32 --fdn-matrix hadamard \
+  --pre-delay-ms 55 --damping 0.15 --lowcut 30 \
   --target-lufs -24 --target-peak-dbfs -2
+# For a 240-second synthesized IR version:
+verbx render drone.wav deep_ir.wav --ir-gen --ir-gen-mode hybrid \
+  --ir-gen-length 240 --ir-gen-seed 108 --engine conv \
+  --wet 0.9 --dry 0.15 --target-lufs -24 --target-peak-dbfs -2
 ```
 
-**Frippertronics tape loop** — iterative loop with gradual timbral drift:
+---
+
+**Robert Fripp / Eno — Frippertronics tape-loop accumulation**
+
+Shimmer feedback builds over each block. At 0.78, the octave layer accumulates like a tape
+recirculation loop growing denser with each pass.
+
 ```bash
+verbx render guitar.wav frippertronics.wav --engine algo --rt60 8.0 \
+  --wet 0.82 --dry 0.28 --fdn-lines 16 --fdn-matrix hadamard \
+  --shimmer --shimmer-semitones 12 --shimmer-mix 0.45 --shimmer-feedback 0.78 \
+  --pre-delay-ms 25 --target-peak-dbfs -2
+# Iterative version — 12 passes with gradual timbral drift:
 mkdir fripp && cp guitar.wav fripp/pass_00.wav && current="fripp/pass_00.wav"
 for i in $(seq 1 12); do
   next=$(printf "fripp/pass_%02d.wav" "$i")
-  verbx render "$current" "$next" --engine algo --rt60 28 \
-    --wet 0.88 --dry 0.12 --repeat 1 --output-peak-norm input --no-progress
+  verbx render "$current" "$next" --engine algo --rt60 8.0 \
+    --wet 0.82 --dry 0.12 --shimmer --shimmer-semitones 12 \
+    --shimmer-feedback 0.78 --no-progress
   current="$next"
 done
 ```
+
+---
+
+**Shoegaze / My Bloody Valentine — wall of sound** (dense shimmer wash)
+
+Freeze a guitar sustain, then bury it in octave shimmer and a circulant FDN. The circulant
+matrix produces the smeared, tonally undifferentiated density that defines the genre.
+
+```bash
+verbx render guitar.wav shoegaze.wav --engine algo \
+  --freeze --start 1.0 --end 2.4 \
+  --shimmer --shimmer-semitones 12 --shimmer-mix 0.55 --shimmer-feedback 0.72 \
+  --rt60 5.0 --wet 0.88 --dry 0.22 --fdn-matrix circulant --lowcut 80 \
+  --width 1.4 --target-peak-dbfs -2
+```
+
+---
+
+**Steve Reich — phase minimalism** (tight rhythmic room)
+
+Short RT60 with a circulant diffusion matrix keeps individual hits distinct while adding
+spatial depth. The circulant matrix's circular delay structure creates subtle comb filtering
+that complements phase-shifted rhythmic material.
+
+```bash
+verbx render percussion.wav reich_room.wav --engine algo --rt60 0.7 \
+  --wet 0.55 --dry 0.50 --fdn-lines 8 --fdn-matrix circulant \
+  --pre-delay-ms 18 --damping 0.6 --lowcut 60
+```
+
+---
+
+**Eliane Radigue — *ADNOS* / drone electronics** (near-infinite sustain)
+
+At RT60=45s with wet=0.97, the dry signal is almost entirely subsumed. Radigue's aesthetic
+is about sound that has been in the room so long it has become the room.
+
+```bash
+verbx render drone.wav radigue.wav --engine algo --rt60 45.0 \
+  --wet 0.97 --dry 0.05 --fdn-lines 32 --fdn-matrix hadamard \
+  --damping 0.10 --lowcut 20 --target-lufs -28 --target-peak-dbfs -2
+```
+
+---
+
+**Morton Feldman — late period** (contemplative sparse space)
+
+Feldman's late works often feature long silences and isolated events in large, reflective
+spaces. Medium RT60, restrained wet level, allpass diffusion, no shimmer.
+
+```bash
+verbx render piano.wav feldman.wav --engine algo --rt60 3.8 \
+  --wet 0.52 --dry 0.52 --fdn-lines 8 --fdn-matrix circulant \
+  --pre-delay-ms 30 --damping 0.50 --allpass-stages 4 \
+  --target-lufs -26 --target-peak-dbfs -2
+```
+
+---
 
 **Self-convolution texture smear** — signal convolved with itself:
 ```bash

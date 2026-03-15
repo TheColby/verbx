@@ -1,139 +1,95 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 1120" role="img" aria-labelledby="title desc">
-  <title id="title">Supported FDN Topology Variants (verbx)</title>
-  <desc id="desc">Diagram showing currently supported FDN topology variants: render engine configurable-line Hadamard-derived core, and IR-generation output decorrelation variants Hadamard, Householder, and Random Orthogonal for multi-channel output.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 1160" role="img" aria-labelledby="title desc">
+  <title id="title">FDN Matrix Family Graph (verbx)</title>
+  <desc id="desc">Graph of selectable feedback matrix families for verbx FDN, showing static families and time-varying unitary mode.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f8fbff"/>
-      <stop offset="100%" stop-color="#edf4ff"/>
+      <stop offset="0%" stop-color="#f7fbff"/>
+      <stop offset="100%" stop-color="#edf4fd"/>
     </linearGradient>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-      <path d="M0,0 L10,5 L0,10 Z" fill="#2c415f"/>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M1,1 L11,6 L1,11 Z" fill="#294266"/>
     </marker>
     <style>
-      .panel { fill: #ffffff; stroke: #d2e0f5; stroke-width: 2; }
-      .card { fill: #fbfdff; stroke: #6f89ad; stroke-width: 2; rx: 14; }
-      .card-soft { fill: #f3f8ff; stroke: #7a93b7; stroke-width: 2; rx: 14; }
-      .line { stroke: #2c415f; stroke-width: 3; fill: none; marker-end: url(#arrow); }
-      .title { fill: #152844; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 35px; font-weight: 700; }
-      .subtitle { fill: #2f466c; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 21px; font-weight: 600; }
-      .h2 { fill: #1d3355; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 25px; font-weight: 700; }
-      .label { fill: #1f3558; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 21px; font-weight: 700; }
-      .small { fill: #36507b; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 17px; }
+      .panel { fill: #ffffff; stroke: #d4e2f4; stroke-width: 2.1; }
+      .card { fill: #fbfdff; stroke: #708aae; stroke-width: 2; }
+      .soft { fill: #f2f8ff; stroke: #6b87ad; stroke-width: 2; }
+      .line { fill: none; stroke: #294266; stroke-width: 3; marker-end: url(#arrow); }
+      .line-soft { fill: none; stroke: #5c7ca7; stroke-width: 2.4; marker-end: url(#arrow); }
+      .title { fill: #132842; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 35px; font-weight: 700; }
+      .subtitle { fill: #2d4d79; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 600; }
+      .h2 { fill: #173153; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 24px; font-weight: 700; }
+      .label { fill: #193457; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 20px; font-weight: 700; }
+      .small { fill: #34547f; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 15px; }
       .mono { font-family: "Menlo", "Consolas", monospace; }
-      .note { fill: #244167; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18px; }
-      .warn { fill: #7d2a2a; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 17px; font-weight: 700; }
+      .note { fill: #213f67; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 16px; }
     </style>
   </defs>
 
-  <rect x="0" y="0" width="1900" height="1120" fill="url(#bg)"/>
-  <rect class="panel" x="55" y="85" width="1790" height="980" rx="18"/>
+  <rect x="0" y="0" width="1900" height="1160" fill="url(#bg)"/>
+  <rect class="panel" x="52" y="72" width="1796" height="1040" rx="20"/>
 
-  <text class="title" x="92" y="145">Supported FDN Topologies in verbx (Current Behavior)</text>
-  <text class="subtitle" x="92" y="180">
-    <tspan x="92" dy="0">Graphs correspond to implemented code paths in</tspan>
-    <tspan x="92" dy="26"><tspan class="mono">AlgoReverbEngine</tspan> and <tspan class="mono">ir/modes_fdn.py</tspan>.</tspan>
-  </text>
+  <text class="title" x="92" y="132">FDN Matrix Family Selection Graph</text>
+  <text class="subtitle" x="92" y="166">Selectable via <tspan class="mono">--fdn-matrix</tspan> in render and <tspan class="mono">ir gen --mode fdn|hybrid</tspan></text>
 
-  <rect class="card-soft" x="92" y="220" width="820" height="790" rx="16"/>
-  <text class="h2" x="126" y="270">A) Render Path FDN Topology</text>
+  <rect class="soft" x="92" y="212" width="1716" height="396" rx="16"/>
+  <text class="h2" x="124" y="252">Static orthonormal families</text>
 
-  <rect class="card" x="126" y="320" width="160" height="78" rx="12"/>
-  <text class="label" x="206" y="368" text-anchor="middle">Input</text>
+  <rect class="card" x="140" y="302" width="226" height="100" rx="12"/>
+  <text class="label" x="253" y="358" text-anchor="middle">hadamard</text>
 
-  <rect class="card" x="352" y="320" width="170" height="78" rx="12"/>
-  <text class="label" x="437" y="352" text-anchor="middle">Pre-delay</text>
-  <text class="small" x="437" y="374" text-anchor="middle">
-    <tspan x="437" dy="0">Diffusion allpass</tspan>
-    <tspan x="437" dy="20">(default x6)</tspan>
-  </text>
+  <rect class="card" x="420" y="302" width="226" height="100" rx="12"/>
+  <text class="label" x="533" y="358" text-anchor="middle">householder</text>
 
-  <rect class="card" x="590" y="320" width="286" height="138" rx="12"/>
-  <text class="label" x="733" y="362" text-anchor="middle">N-line FDN Core</text>
-  <text class="small" x="733" y="389" text-anchor="middle">Hadamard feedback matrix</text>
-  <text class="small" x="733" y="410" text-anchor="middle">RT60 gain + damping</text>
-  <text class="small" x="733" y="431" text-anchor="middle">DC block in feedback loop</text>
+  <rect class="card" x="700" y="302" width="256" height="100" rx="12"/>
+  <text class="label" x="828" y="358" text-anchor="middle">random_orthogonal</text>
 
-  <rect class="card" x="590" y="520" width="286" height="90" rx="12"/>
-  <text class="label" x="733" y="575" text-anchor="middle">Wet / Dry Mix</text>
+  <rect class="card" x="1010" y="302" width="226" height="100" rx="12"/>
+  <text class="label" x="1123" y="358" text-anchor="middle">circulant</text>
 
-  <rect class="card" x="590" y="682" width="286" height="90" rx="12"/>
-  <text class="label" x="733" y="737" text-anchor="middle">Output</text>
+  <rect class="card" x="1290" y="302" width="226" height="100" rx="12"/>
+  <text class="label" x="1403" y="358" text-anchor="middle">elliptic</text>
 
-  <path class="line" d="M286,359 L352,359"/>
-  <path class="line" d="M522,359 L590,359"/>
-  <path class="line" d="M733,458 L733,520"/>
-  <path class="line" d="M206,398 L206,565 L590,565"/>
-  <path class="line" d="M733,610 L733,682"/>
+  <rect class="soft" x="1560" y="282" width="216" height="140" rx="12"/>
+  <text class="small" x="1668" y="332" text-anchor="middle">all static families are</text>
+  <text class="small" x="1668" y="355" text-anchor="middle">orthonormalized before</text>
+  <text class="small" x="1668" y="378" text-anchor="middle">feedback mixing</text>
 
-  <text class="note" x="126" y="838">
-    <tspan x="126" dy="0">Render defaults use 8 lines with Hadamard feedback.</tspan>
-    <tspan x="126" dy="23">Users can tune line count and delay lists from CLI.</tspan>
-  </text>
-  <text class="note" x="126" y="890">
-    <tspan x="126" dy="0">Spatial width/shimmer stages are post-FDN;</tspan>
-    <tspan x="126" dy="23">they do not change the core feedback topology.</tspan>
-  </text>
+  <path class="line" d="M253,402 L253,468 L950,468"/>
+  <path class="line" d="M533,402 L533,468"/>
+  <path class="line" d="M828,402 L828,468"/>
+  <path class="line" d="M1123,402 L1123,468"/>
+  <path class="line" d="M1403,402 L1403,468"/>
 
-  <rect class="card-soft" x="955" y="220" width="850" height="790" rx="16"/>
-  <text class="h2" x="990" y="270">B) IR Generation FDN Variant Graphs</text>
+  <rect class="card" x="876" y="468" width="244" height="92" rx="12"/>
+  <text class="label" x="998" y="520" text-anchor="middle">FDN Matrix M</text>
 
-  <rect class="card" x="990" y="316" width="780" height="160" rx="12"/>
-  <text class="label" x="1030" y="362">Variant 1: <tspan class="mono">hadamard</tspan> (default)</text>
-  <rect class="card" x="1030" y="386" width="130" height="56" rx="10"/>
-  <text class="small" x="1095" y="421" text-anchor="middle">Impulse</text>
-  <rect class="card" x="1225" y="382" width="190" height="72" rx="10"/>
-  <text class="small" x="1320" y="412" text-anchor="middle">
-    <tspan x="1320" dy="0">Shared configurable</tspan>
-    <tspan x="1320" dy="20">FDN core</tspan>
-  </text>
-  <rect class="card" x="1490" y="386" width="220" height="56" rx="10"/>
-  <text class="small" x="1600" y="410" text-anchor="middle">IR output channels</text>
-  <text class="small" x="1600" y="432" text-anchor="middle">(no extra matrix stage)</text>
-  <path class="line" d="M1160,418 L1225,418"/>
-  <path class="line" d="M1415,418 L1490,418"/>
+  <rect class="soft" x="92" y="642" width="1716" height="386" rx="16"/>
+  <text class="h2" x="124" y="682">Time-varying unitary family</text>
 
-  <rect class="card" x="990" y="516" width="780" height="160" rx="12"/>
-  <text class="label" x="1030" y="562">Variant 2: <tspan class="mono">householder</tspan> (ch &gt; 1)</text>
-  <rect class="card" x="1030" y="586" width="130" height="56" rx="10"/>
-  <text class="small" x="1095" y="621" text-anchor="middle">Impulse</text>
-  <rect class="card" x="1225" y="582" width="190" height="72" rx="10"/>
-  <text class="small" x="1320" y="612" text-anchor="middle">
-    <tspan x="1320" dy="0">Shared configurable</tspan>
-    <tspan x="1320" dy="20">FDN core</tspan>
-  </text>
-  <rect class="card-soft" x="1455" y="582" width="170" height="72" rx="10"/>
-  <text class="small" x="1540" y="612" text-anchor="middle">Householder</text>
-  <text class="small" x="1540" y="632" text-anchor="middle">matrix</text>
-  <rect class="card" x="1665" y="582" width="105" height="72" rx="10"/>
-  <text class="small" x="1718" y="622" text-anchor="middle">IR out</text>
-  <path class="line" d="M1160,618 L1225,618"/>
-  <path class="line" d="M1415,618 L1455,618"/>
-  <path class="line" d="M1625,618 L1665,618"/>
+  <rect class="card" x="140" y="736" width="252" height="100" rx="12"/>
+  <text class="label" x="266" y="792" text-anchor="middle">tv_unitary</text>
 
-  <rect class="card" x="990" y="716" width="780" height="160" rx="12"/>
-  <text class="label" x="1030" y="748">
-    <tspan x="1030" dy="0">Variant 3:</tspan>
-    <tspan x="1030" dy="26"><tspan class="mono">random_orthogonal</tspan> (ch &gt; 1)</tspan>
-  </text>
-  <rect class="card" x="1030" y="786" width="130" height="56" rx="10"/>
-  <text class="small" x="1095" y="821" text-anchor="middle">Impulse</text>
-  <rect class="card" x="1225" y="782" width="190" height="72" rx="10"/>
-  <text class="small" x="1320" y="812" text-anchor="middle">
-    <tspan x="1320" dy="0">Shared configurable</tspan>
-    <tspan x="1320" dy="20">FDN core</tspan>
-  </text>
-  <rect class="card-soft" x="1455" y="782" width="170" height="72" rx="10"/>
-  <text class="small" x="1540" y="812" text-anchor="middle">Seeded orthogonal</text>
-  <text class="small" x="1540" y="832" text-anchor="middle">Q matrix</text>
-  <rect class="card" x="1665" y="782" width="105" height="72" rx="10"/>
-  <text class="small" x="1718" y="822" text-anchor="middle">IR out</text>
-  <path class="line" d="M1160,818 L1225,818"/>
-  <path class="line" d="M1415,818 L1455,818"/>
-  <path class="line" d="M1625,818 L1665,818"/>
+  <rect class="card" x="442" y="736" width="320" height="100" rx="12"/>
+  <text class="small" x="602" y="782" text-anchor="middle">base matrix (Hadamard-derived)</text>
+  <text class="small" x="602" y="806" text-anchor="middle">target matrix (seeded random Q)</text>
 
-  <rect class="card-soft" x="990" y="904" width="780" height="76" rx="10"/>
-  <text class="warn" x="1015" y="935">
-    <tspan x="1015" dy="0">Note (IR generation): <tspan class="mono">--fdn-lines</tspan> is currently reserved.</tspan>
-    <tspan x="1015" dy="22">It does not change line count in the shared IR FDN core yet.</tspan>
-  </text>
+  <rect class="card" x="812" y="736" width="252" height="100" rx="12"/>
+  <text class="small" x="938" y="782" text-anchor="middle">blend by phase, rate, depth</text>
+  <text class="small" x="938" y="806" text-anchor="middle">then re-orthonormalize</text>
+
+  <rect class="card" x="1114" y="736" width="300" height="100" rx="12"/>
+  <text class="small" x="1264" y="782" text-anchor="middle"><tspan class="mono">--fdn-tv-rate-hz &gt; 0</tspan></text>
+  <text class="small" x="1264" y="806" text-anchor="middle"><tspan class="mono">--fdn-tv-depth &gt; 0</tspan></text>
+
+  <rect class="card" x="1474" y="736" width="286" height="100" rx="12"/>
+  <text class="label" x="1617" y="792" text-anchor="middle">M(t) in feedback loop</text>
+
+  <path class="line" d="M392,786 L442,786"/>
+  <path class="line" d="M762,786 L812,786"/>
+  <path class="line" d="M1064,786 L1114,786"/>
+  <path class="line" d="M1414,786 L1474,786"/>
+
+  <rect class="panel" x="130" y="884" width="1640" height="120" rx="12"/>
+  <text class="note" x="162" y="934">Alias support: <tspan class="mono">tv_unitary</tspan> and <tspan class="mono">tv-unitary</tspan> resolve to the same topology key.</text>
+  <text class="note" x="162" y="962">All families are applied in the same FDN render core; only the matrix construction/evolution changes.</text>
 </svg>

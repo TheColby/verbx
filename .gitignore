@@ -31,3 +31,14 @@ htmlcov/
 # Audio outputs and analysis artifacts
 *.analysis.json
 .verbx_cache/
+
+# direnv
+.envrc
+
+# Scratch audio files in project root
+/in.wav
+/out.wav
+/test*.wav
+
+# uv lockfile (not checked in for libraries)
+uv.lock

@@ -46,6 +46,57 @@ verbx render examples/audio/realistic_music_dry.wav examples/audio/extreme_froze
   --fdn-lines 32 --pre-delay-ms 60 --fdn-matrix hadamard
 ```
 
+Experimental music tradition example set — eight demos from the avant-garde/experimental canon:
+
+- `lucier_sitting_room.wav`: speech → 7-pass room resonance accumulation (Alvin Lucier)
+- `eno_discreet_music.wav`: music → 12s ambient tail, low damping (Brian Eno)
+- `oliveros_deep_listening.wav`: music → 18s cave-scale resonance, 32-line FDN (Pauline Oliveros)
+- `fripp_frippertronics.wav`: music → octave shimmer tape-loop, feedback=0.78 (Fripp/Eno)
+- `mbv_shoegaze.wav`: music → dense shimmer wash, circulant FDN (My Bloody Valentine)
+- `reich_phase_drums.wav`: drums → tight 0.7s room, circulant diffusion (Steve Reich)
+- `radigue_drone.wav`: music → 45s near-infinite sustain, wet=0.97 (Eliane Radigue)
+- `feldman_sparse_room.wav`: music → 3.8s room, allpass diffusion, low wet (Morton Feldman)
+
+Commands used to generate these (from repo root):
+
+```bash
+verbx render examples/audio/realistic_speech_dry.wav examples/audio/lucier_sitting_room.wav \
+  --engine algo --rt60 4.5 --wet 1.0 --dry 0.0 \
+  --fdn-lines 16 --fdn-matrix hadamard --repeat 7 --lowcut 60
+
+verbx render examples/audio/realistic_music_dry.wav examples/audio/eno_discreet_music.wav \
+  --engine algo --rt60 12.0 --wet 0.92 --dry 0.08 \
+  --fdn-lines 16 --fdn-matrix hadamard --pre-delay-ms 35 --damping 0.25 --lowcut 50
+
+verbx render examples/audio/realistic_music_dry.wav examples/audio/oliveros_deep_listening.wav \
+  --engine algo --rt60 18.0 --wet 0.95 --dry 0.10 \
+  --fdn-lines 32 --fdn-matrix hadamard --pre-delay-ms 55 --damping 0.15 --lowcut 30
+
+verbx render examples/audio/realistic_music_dry.wav examples/audio/fripp_frippertronics.wav \
+  --engine algo --rt60 8.0 --wet 0.82 --dry 0.28 \
+  --fdn-lines 16 --fdn-matrix hadamard \
+  --shimmer --shimmer-semitones 12 --shimmer-mix 0.45 --shimmer-feedback 0.78 \
+  --pre-delay-ms 25
+
+verbx render examples/audio/realistic_music_dry.wav examples/audio/mbv_shoegaze.wav \
+  --engine algo --rt60 5.0 --wet 0.88 --dry 0.22 \
+  --fdn-lines 16 --fdn-matrix circulant \
+  --shimmer --shimmer-semitones 12 --shimmer-mix 0.55 --shimmer-feedback 0.72 \
+  --pre-delay-ms 8 --lowcut 80
+
+verbx render examples/audio/realistic_drums_dry.wav examples/audio/reich_phase_drums.wav \
+  --engine algo --rt60 0.7 --wet 0.55 --dry 0.50 \
+  --fdn-lines 8 --fdn-matrix circulant --pre-delay-ms 18 --damping 0.6 --lowcut 60
+
+verbx render examples/audio/realistic_music_dry.wav examples/audio/radigue_drone.wav \
+  --engine algo --rt60 45.0 --wet 0.97 --dry 0.05 \
+  --fdn-lines 32 --fdn-matrix hadamard --damping 0.10 --lowcut 20
+
+verbx render examples/audio/realistic_music_dry.wav examples/audio/feldman_sparse_room.wav \
+  --engine algo --rt60 3.8 --wet 0.52 --dry 0.52 \
+  --fdn-lines 8 --fdn-matrix circulant --pre-delay-ms 30 --damping 0.50 --allpass-stages 4
+```
+
 ## Regenerate realistic examples
 
 From repo root:
