@@ -20,7 +20,15 @@ Or use the installer script:
 
 ## Quality gates
 
-Run these before opening a PR:
+Run these before opening a PR (mirrors CI exactly):
+
+```bash
+hatch run lint
+hatch run typecheck
+hatch run test
+```
+
+Or if you prefer uv directly:
 
 ```bash
 uv run ruff check .

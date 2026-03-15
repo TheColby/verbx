@@ -36,6 +36,10 @@ class IRGenConfig:
 
     The dataclass is used both for CLI config transport and cache-key hashing,
     so fields should remain JSON-serializable and deterministic.
+
+    # NOTE: JSON-serializability is load-bearing here — the cache key is built
+    # by hashing json.dumps(asdict(config)), so anything that breaks that (e.g.
+    # numpy scalars, non-serializable types) will silently produce a bad hash.
     """
 
     mode: IRMode = "hybrid"
@@ -226,6 +230,8 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
             rng=rng,
         )
 
+        # +11, +17, +23 are just arbitrary offsets so each mode gets a distinct RNG
+        # stream — nothing magic about those numbers, they just can't be 0 or equal.
         stoch = generate_stochastic_ir(
             length_samples=length_samples,
             sr=config.sr,
@@ -301,6 +307,7 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
         )
 
         # Weighting biases toward diffuse stochastic texture with tonal support.
+        # TODO: expose these blend weights as user-configurable fields in IRGenConfig
         ir = (0.55 * stoch) + (0.25 * modal) + (0.20 * fdn)
         early_len = min(early.shape[0], ir.shape[0])
         ir[:early_len, :] += early[:early_len, :]
@@ -345,7 +352,7 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
     )
 
     meta: dict[str, Any] = {
-        "version": "0.6.0",
+        "version": "0.06.0",
         "mode": config.mode,
         "seed": config.seed,
         "params": asdict(config),

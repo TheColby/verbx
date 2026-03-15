@@ -108,9 +108,24 @@ If `verbx` is not found after install, add `~/.local/bin` to your PATH:
 export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc or ~/.bashrc
 ```
 
+## Audio Examples
+
+Rendered examples are included in [`examples/audio/`](examples/audio/). All files are stereo, 24 kHz, PCM16.
+
+| File | Description | Key settings |
+|------|-------------|--------------|
+| [`extreme_cathedral_drums.wav`](examples/audio/extreme_cathedral_drums.wav) | Drums → 8s Hadamard FDN cathedral | `--rt60 8.0 --fdn-lines 16 --fdn-matrix hadamard` |
+| [`extreme_shimmer_music.wav`](examples/audio/extreme_shimmer_music.wav) | Music → 6s reverb with octave shimmer | `--shimmer --shimmer-semitones 12 --shimmer-feedback 0.65` |
+| [`extreme_plate_speech.wav`](examples/audio/extreme_plate_speech.wav) | Speech → circulant FDN plate simulation | `--rt60 1.8 --fdn-matrix circulant --lowcut 200 --highcut 6000` |
+| [`extreme_frozen_music.wav`](examples/audio/extreme_frozen_music.wav) | Music → 30s near-infinite tail (32-line FDN) | `--rt60 30.0 --fdn-lines 32 --wet 0.95` |
+
+Dry source files are in the same directory. See [`examples/audio/README.md`](examples/audio/README.md) for the full render commands.
+
+---
+
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.7.0**.
+Current public alpha release: **v0.07.0**.
 
 - Confirm your environment with `verbx quickstart --verify --strict` and `verbx doctor`.
 - Verify one algorithmic render and one convolution render before batch usage.

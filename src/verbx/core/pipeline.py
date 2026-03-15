@@ -204,7 +204,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
         if engine_name == "algo":
             # Algorithmic reverb produces tail from internal state, so we append
             # silence to give the network time to decay audibly.
-            tail_padding_seconds = _algo_tail_padding_seconds(runtime_config)
+            tail_padding_seconds = _algo_tail_padding_seconds(runtime_config, sr)
             input_for_engine = _append_tail_padding(
                 audio=input_for_engine,
                 sr=sr,
@@ -1147,10 +1147,32 @@ def _should_include_loudness(config: RenderConfig) -> bool:
     )
 
 
-def _algo_tail_padding_seconds(config: RenderConfig) -> float:
-    """Compute explicit tail render duration for algorithmic reverbs."""
+def _algo_tail_padding_seconds(config: RenderConfig, sr: int) -> float:
+    """Compute explicit tail render duration for algorithmic reverbs.
+
+    When shimmer is enabled with high feedback the feedback loop outlives the
+    reverb tail by a substantial margin.  The shimmer processor is called once
+    per block; each call multiplies the feedback state by `feedback`.  Decay to
+    threshold (1e-6) takes ``ceil(log(1e-6) / log(feedback))`` block calls.
+    We add that shimmer tail on top of the RT60 tail so ``_complete_tail_to_zero``
+    never needs to hard-clip an active signal.
+    """
     pre_delay = max(0.0, float(config.pre_delay_ms)) / 1000.0
-    return max(0.25, float(config.rt60) + pre_delay)
+    base_tail = max(0.25, float(config.rt60) + pre_delay)
+
+    if not config.shimmer:
+        return base_tail
+
+    feedback = float(np.clip(config.shimmer_feedback, 0.0, 0.98))
+    if feedback < 1e-9:
+        return base_tail
+
+    # block_size/sr = seconds per shimmer process() call
+    block_seconds = max(1, int(config.block_size)) / max(1.0, float(sr))
+    # blocks to decay below -120 dBFS (1e-6 linear)
+    blocks_to_silence = int(np.ceil(np.log(1e-6) / np.log(feedback)))
+    shimmer_tail = blocks_to_silence * block_seconds
+    return base_tail + shimmer_tail
 
 
 def _append_tail_padding(audio: AudioArray, sr: int, tail_seconds: float) -> AudioArray:

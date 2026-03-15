@@ -42,10 +42,11 @@ AudioArray = npt.NDArray[np.float64]
 
 
 class AudioAnalyzer:
-    """Analyze audio and return a dictionary of scalar metrics.
+    """Thin façade that runs all the audio metrics and hands back a flat dict.
 
-    Metrics are intentionally plain floats to simplify JSON serialization and
-    downstream tooling.
+    Kept as a class mostly so callers have a stable import path — the real work
+    is in the individual feature modules. Metrics come back as plain floats so
+    the result can be dropped straight into json.dumps() without any coercion.
     """
 
     def analyze(
@@ -105,7 +106,7 @@ class AudioAnalyzer:
         }
 
         if include_loudness:
-            # Loudness metrics are optional to keep default analysis fast.
+            # EBU R128 is slow (multi-pass gating) — skip unless the caller asked for it.
             result["integrated_lufs"] = integrated_lufs(audio, sr)
             result["true_peak_dbfs"] = true_peak_dbfs(audio, sr, oversample=4)
             result["lra"] = loudness_range_lu(audio, sr)
