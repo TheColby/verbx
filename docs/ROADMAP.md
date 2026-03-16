@@ -1,12 +1,12 @@
 # verbx Roadmap
 
-_Last updated: 2026-03-15. Maintained with `README.md` and `CHANGELOG.md`._
+_Last updated: 2026-03-16. Maintained with `README.md` and `CHANGELOG.md`._
 
 ---
 
 ## 1. Release Posture
 
-**Current release:** `v0.7.0`
+**Current release:** `v0.7.1`
 **Status:** public alpha
 **Versioning policy:** semantic (`0.7.x` patch line during alpha)
 
@@ -51,10 +51,10 @@ Launch deliverables should include short before/after clips for each workflow.
 
 ### 4.1 Stability and Diagnostics
 
-- [ ] Expand regression fixtures for long-tail renders (>120 s RT60).
-- [ ] Add deterministic golden tests for feature-vector lane behavior.
-- [ ] Add performance baseline report (`docs/benchmarks/`) for CI comparison.
-- [ ] Improve failure messaging for multichannel routing misconfiguration.
+- [x] Expand regression fixtures for long-tail renders (>120 s RT60).
+- [x] Add deterministic golden tests for feature-vector lane behavior.
+- [x] Add performance baseline report (`docs/benchmarks/`) for CI comparison.
+- [x] Improve failure messaging for multichannel routing misconfiguration.
 
 ### 4.2 API and Integration
 

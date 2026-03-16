@@ -6706,9 +6706,13 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
             and ir_channels > effective_in_channels
             and ir_channels % effective_in_channels == 0
         ):
+            resolved_out_channels = ir_channels // effective_in_channels
             msg = (
                 "Ambiguous matrix-packed IR layout detected. "
-                "Set --output-layout and/or --ir-route-map (for example: --ir-route-map full)."
+                f"Input channels={effective_in_channels}, IR channels={ir_channels}, "
+                f"resolved output channels={resolved_out_channels}. "
+                "Set --ir-route-map full and/or set --output-layout explicitly "
+                "(for example: --output-layout 7.1.2 --ir-route-map full)."
             )
             raise typer.BadParameter(msg)
 

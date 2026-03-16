@@ -143,7 +143,7 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.7.0**.
+Current public alpha release: **v0.7.1**.
 
 - Confirm your environment with `verbx quickstart --verify --strict` and `verbx doctor`.
 - Verify one algorithmic render and one convolution render before batch usage.
@@ -153,6 +153,8 @@ Current public alpha release: **v0.7.0**.
   [`docs/PUBLIC_ALPHA_NOTES.md`](docs/PUBLIC_ALPHA_NOTES.md)
 - Launch-week pinned demo commands and expected SHA256 outputs:
   [`docs/LAUNCH_WEEK_DEMO_PINS.md`](docs/LAUNCH_WEEK_DEMO_PINS.md)
+- PyPI publish auth setup for maintainers:
+  [`docs/PYPI_PUBLISH_SETUP.md`](docs/PYPI_PUBLISH_SETUP.md)
 
 ---
 
@@ -1090,6 +1092,7 @@ Additional guides in `docs/`:
 - [IR synthesis guide](docs/IR_SYNTHESIS.md) — complete parameter reference for all synthesis modes
 - [AI augmentation guide](docs/AI_AUGMENTATION.md) — dataset generation workflow documentation
 - [IR morph QA guide](docs/IR_MORPH_QA.md) — morph-sweep QA artifacts and CI integration
+- [Benchmark baseline guide](docs/benchmarks/README.md) — CI/runtime comparison workflow
 - [Extreme cookbook](docs/EXTREME_COOKBOOK.md) — 100 additional workflow examples
 
 ---
@@ -1098,4 +1101,4 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.7.0 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.7.1 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.

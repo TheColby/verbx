@@ -246,6 +246,41 @@ def test_render_dry_run_accepts_extended_rt60_upper_bound(tmp_path: Path) -> Non
     assert not Path(f"{outfile}.analysis.json").exists()
 
 
+def test_render_long_tail_regression_rt60_over_120_seconds(tmp_path: Path) -> None:
+    sr = 2_000
+    audio = np.zeros((1_000, 1), dtype=np.float64)
+    audio[0, 0] = 0.8
+    infile = tmp_path / "long_tail_in.wav"
+    outfile = tmp_path / "long_tail_out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "130",
+            "--fdn-lines",
+            "4",
+            "--allpass-stages",
+            "2",
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert outfile.exists()
+    y, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == sr
+    assert y.shape[0] >= int(130.0 * sr)
+    assert np.max(np.abs(y[: min(y.shape[0], 512), :])) > 0.0
+    assert np.max(np.abs(y[-max(1, sr // 100) :, :])) == 0.0
+
+
 def test_render_preset_applies_defaults_and_respects_cli_override(tmp_path: Path) -> None:
     audio = np.zeros((1600, 1), dtype=np.float64)
     audio[100:200, 0] = 0.5
@@ -1337,7 +1372,11 @@ def test_render_rejects_ambiguous_matrix_ir_without_route_hint(tmp_path: Path) -
         ],
     )
     assert bad.exit_code != 0
-    assert "Ambiguous matrix-packed IR layout detected" in bad.output
+    text = _combined_cli_output(bad)
+    assert "Ambiguous matrix-packed IR layout detected" in text
+    assert "Input channels=2," in text
+    assert "IR channels=4, resolved output channels=2." in text
+    assert "--ir-route-map full" in text
 
     good = runner.invoke(
         app,
@@ -1355,6 +1394,46 @@ def test_render_rejects_ambiguous_matrix_ir_without_route_hint(tmp_path: Path) -
         ],
     )
     assert good.exit_code == 0, good.stdout
+
+
+def test_render_layout_mismatch_error_reports_channel_math(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "layout_in.wav"
+    outfile = tmp_path / "layout_out.wav"
+    irfile = tmp_path / "layout_ir.wav"
+
+    x = np.zeros((512, 2), dtype=np.float64)
+    x[80:140, 0] = 0.5
+    x[80:140, 1] = -0.4
+    ir = np.zeros((96, 4), dtype=np.float64)
+    ir[0, 0] = 1.0
+    ir[0, 3] = 1.0
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--output-layout",
+            "7.1",
+            "--ir-route-map",
+            "full",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "Output layout '7.1' expects 8 channels" in text
+    assert "input_channels=2, ir_channels=4" in text
+    assert "matrix-packed IR channels = input_channels *" in text
+    assert "output_channels." in text
 
 
 def test_render_allpass_gain_count_mismatch_rejected(tmp_path: Path) -> None:

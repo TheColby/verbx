@@ -1,0 +1,18 @@
+{
+  "version": "0.7.1",
+  "notes": "Conservative alpha-era runtime baselines for CI comparison.",
+  "scenarios": {
+    "algo_short_room": {
+      "reference_seconds": 0.30,
+      "max_seconds": 2.50
+    },
+    "algo_long_tail_130s": {
+      "reference_seconds": 1.80,
+      "max_seconds": 12.00
+    },
+    "conv_matrix_stereo": {
+      "reference_seconds": 0.15,
+      "max_seconds": 2.00
+    }
+  }
+}

@@ -3,6 +3,10 @@
 All notable changes to this project are documented in this file.
 
 ## [Unreleased]
+### Added
+_No changes yet._
+
+## [0.7.1] - 2026-03-16
 
 ### Added
 - Cross-platform install verification workflow
@@ -11,12 +15,23 @@ All notable changes to this project are documented in this file.
 - Public-alpha support/limitations notes in `docs/PUBLIC_ALPHA_NOTES.md`.
 - Launch-week pinned demo command/hash matrix in
   `docs/LAUNCH_WEEK_DEMO_PINS.md`.
+- Long-tail regression coverage for algorithmic renders with `RT60 > 120s`.
+- Deterministic golden tests for feature-vector target-source lane behavior.
+- Benchmark reporting harness (`scripts/benchmark_render_baseline.py`) plus
+  baseline docs in `docs/benchmarks/`.
 
 ### Changed
 - Raised RT60 upper bounds to 3600 seconds across control-target specs, runtime
   automation clamps, and CLI validation for render/IR workflows.
 - Updated release docs and roadmap status for current public-alpha readiness.
 - Normalized version labeling to semantic `0.7.x` notation across package/docs.
+- Upgraded GitHub Actions workflows to current Node24-compatible action majors.
+- Hardened release publish flow with explicit auth mode resolution:
+  token, trusted publishing, or documented skip.
+- Improved multichannel routing error diagnostics with explicit channel math and
+  route/layout remediation hints.
+- Added CI `perf-baseline` job that publishes benchmark JSON artifacts for
+  comparison across runs.
 
 ### Fixed
 - `batch augment` now pre-creates output/analysis directories before parallel

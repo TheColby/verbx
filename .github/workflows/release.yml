@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -32,14 +32,14 @@ jobs:
         run: python -m twine check dist/*
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/*
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.6.0
         with:
           generate_release_notes: true
           files: |
@@ -50,24 +50,45 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
-    env:
-      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
     environment:
       name: pypi
       url: https://pypi.org/p/verbx
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist
 
-      - name: Skip publish when token is missing
-        if: env.PYPI_API_TOKEN == ''
-        run: echo "PYPI_API_TOKEN not configured; skipping PyPI publish."
+      - name: Resolve publish auth mode
+        id: auth
+        run: |
+          if [ -n "${{ secrets.PYPI_API_TOKEN }}" ]; then
+            echo "mode=token" >> "$GITHUB_OUTPUT"
+          elif [ "${{ vars.PYPI_TRUSTED_PUBLISHING }}" = "true" ]; then
+            echo "mode=trusted" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=skip" >> "$GITHUB_OUTPUT"
+          fi
+          echo "resolved_mode=$(cat "$GITHUB_OUTPUT" | tail -n1)" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Publish to PyPI
-        if: env.PYPI_API_TOKEN != ''
+      - name: Skip publish when auth is unconfigured
+        if: steps.auth.outputs.mode == 'skip'
+        run: |
+          {
+            echo "PyPI publish skipped: no auth configured."
+            echo "Configure one of:"
+            echo "  1) Repository secret: PYPI_API_TOKEN"
+            echo "  2) Repo variable: PYPI_TRUSTED_PUBLISHING=true with PyPI trusted publisher configured"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "PYPI publish skipped."
+
+      - name: Publish to PyPI (API token)
+        if: steps.auth.outputs.mode == 'token'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ env.PYPI_API_TOKEN }}
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Publish to PyPI (trusted publishing)
+        if: steps.auth.outputs.mode == 'trusted'
+        uses: pypa/gh-action-pypi-publish@release/v1

@@ -572,7 +572,7 @@ class ConvolutionReverbEngine(ReverbEngine):
                 "IR channel layout incompatible with input channels. "
                 f"Input channels={input_channels}, IR channels={ir_channels}. "
                 "Use mono IR, matching channel count IR, or matrix-packed IR with "
-                "channels divisible by input channels."
+                "channels divisible by input channels (plus --ir-route-map full or auto)."
             )
             raise ValueError(msg)
 
@@ -599,7 +599,10 @@ class ConvolutionReverbEngine(ReverbEngine):
             ):
                 msg = (
                     f"Output layout '{out_l}' expects {expected_out_ch} channels, "
-                    f"but IR resolves to {out_channels}."
+                    f"but IR resolves to {out_channels} "
+                    f"(input_channels={input_channels}, ir_channels={ir_channels}). "
+                    "Use --output-layout auto, choose a matching layout, or provide "
+                    "matrix-packed IR channels = input_channels * output_channels."
                 )
                 raise ValueError(msg)
             out_channels = expected_out_ch

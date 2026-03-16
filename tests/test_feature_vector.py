@@ -7,6 +7,7 @@ from verbx.core.feature_vector import (
     FeatureVectorBus,
     build_feature_vector_bus,
     render_feature_vector_lane,
+    render_feature_vector_lane_from_values,
 )
 
 
@@ -291,3 +292,54 @@ def test_feature_lane_fusion_trajectory_golden_signatures() -> None:
 
     assert stats["speech"]["mean"] > stats["percussive"]["mean"]
     assert stats["percussive"]["std"] > stats["music"]["std"] > stats["speech"]["std"]
+
+
+def test_feature_vector_target_source_golden_curve_values() -> None:
+    lane = {
+        "target": "wet",
+        "source": "target:rt60",
+        "weight": 0.7,
+        "bias": -0.1,
+        "curve": "smoothstep",
+        "curve_amount": 1.0,
+        "hysteresis_up": 0.0,
+        "hysteresis_down": 0.0,
+        "combine": "replace",
+    }
+    source_values = np.asarray([0.0, 0.25, 0.5, 0.75, 1.0], dtype=np.float64)
+    rendered = render_feature_vector_lane_from_values(
+        lane,
+        source_values=source_values,
+        source_kind="target",
+        sample_rate=48_000,
+        source_range=(0.0, 1.0),
+    )
+    expected = np.asarray(
+        [-0.1, 0.009375, 0.25, 0.490625, 0.6],
+        dtype=np.float64,
+    )
+    np.testing.assert_allclose(rendered, expected, atol=1e-12)
+
+
+def test_feature_vector_target_source_hysteresis_golden_values() -> None:
+    lane = {
+        "target": "wet",
+        "source": "target:room-size",
+        "weight": 1.0,
+        "bias": 0.0,
+        "curve": "linear",
+        "curve_amount": 1.0,
+        "hysteresis_up": 0.15,
+        "hysteresis_down": 0.15,
+        "combine": "replace",
+    }
+    source_values = np.asarray([0.0, 0.9, 0.8, 0.85, 0.6], dtype=np.float64)
+    rendered = render_feature_vector_lane_from_values(
+        lane,
+        source_values=source_values,
+        source_kind="target",
+        sample_rate=48_000,
+        source_range=(0.0, 1.0),
+    )
+    expected = np.asarray([0.0, 0.9, 0.9, 0.9, 0.6], dtype=np.float64)
+    np.testing.assert_allclose(rendered, expected, atol=1e-12)

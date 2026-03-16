@@ -1,8 +1,8 @@
-# Public Alpha Notes (v0.7.0)
+# Public Alpha Notes (v0.7.1)
 
-_Updated: 2026-03-15_
+_Updated: 2026-03-16_
 
-`verbx` v0.7.0 is a public alpha focused on robust offline rendering,
+`verbx` v0.7.1 is a public alpha focused on robust offline rendering,
 reproducibility, and production-oriented DSP control.
 
 ## Scope
