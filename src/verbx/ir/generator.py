@@ -352,7 +352,7 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
     )
 
     meta: dict[str, Any] = {
-        "version": "0.06.0",
+        "version": "0.6.0",
         "mode": config.mode,
         "seed": config.seed,
         "params": asdict(config),
