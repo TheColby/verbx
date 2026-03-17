@@ -19,6 +19,7 @@ import shutil
 import sys
 import tempfile
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
 from dataclasses import asdict
 from datetime import UTC, datetime
 from difflib import get_close_matches
@@ -33,6 +34,15 @@ import soundfile as sf
 import typer
 from click.core import ParameterSource
 from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TaskID,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.table import Table
 
 from verbx import __version__
@@ -247,6 +257,74 @@ immersive_app.add_typer(immersive_queue_app, name="queue")
 console = Console()
 
 
+@contextmanager
+def _processing_status(description: str, *, enabled: bool = True) -> Any:
+    """Render a single-task CLI status bar for one processing stage."""
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(bar_width=24),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+        disable=not enabled,
+    )
+    progress.start()
+    task = progress.add_task(str(description), total=1)
+    try:
+        yield progress
+        progress.update(task, completed=1)
+    finally:
+        progress.stop()
+
+
+class _BatchStatusBar:
+    """Compact progress/status bar for batch-style CLI workflows."""
+
+    __slots__ = ("_done", "_enabled", "_label", "_progress", "_task", "_total")
+
+    def __init__(self, *, total: int, label: str, enabled: bool = True) -> None:
+        self._total = max(1, int(total))
+        self._label = str(label)
+        self._enabled = bool(enabled)
+        self._done = 0
+        self._progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(bar_width=24),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True,
+            disable=not self._enabled,
+        )
+        self._task: TaskID | None = None
+
+    def __enter__(self) -> _BatchStatusBar:
+        self._progress.start()
+        self._task = self._progress.add_task(
+            f"{self._label} 0/{self._total}",
+            total=self._total,
+        )
+        return self
+
+    def advance(self, *, detail: str | None = None) -> None:
+        """Advance completed job count and refresh task description."""
+        self._done = min(self._total, self._done + 1)
+        if self._task is None:
+            return
+        suffix = "" if detail is None else f" ({detail})"
+        self._progress.update(
+            self._task,
+            completed=self._done,
+            description=f"{self._label} {self._done}/{self._total}{suffix}",
+        )
+
+    def __exit__(self, exc_type: object, exc: object, exc_tb: object) -> None:
+        self._progress.stop()
+
+
 @app.command()
 def version() -> None:
     """Print CLI/package version."""
@@ -318,7 +396,8 @@ def quickstart(
         report = _collect_runtime_diagnostics()
         _print_runtime_checks_table(report, title="verbx Quickstart Verify")
     if smoke_test:
-        smoke_report = _run_render_smoke_test(out_dir=smoke_out_dir)
+        with _processing_status("Quickstart render smoke test"):
+            smoke_report = _run_render_smoke_test(out_dir=smoke_out_dir)
         _print_render_smoke_test_table(smoke_report, title="verbx Quickstart Smoke Test")
 
     if json_out is not None:
@@ -415,7 +494,8 @@ def doctor(
 
     smoke_report: dict[str, Any] | None = None
     if render_smoke_test:
-        smoke_report = _run_render_smoke_test(out_dir=smoke_out_dir)
+        with _processing_status("Doctor render smoke test"):
+            smoke_report = _run_render_smoke_test(out_dir=smoke_out_dir)
         _print_render_smoke_test_table(smoke_report, title="verbx Doctor Smoke Test")
 
     if json_out is not None:
@@ -1647,31 +1727,41 @@ def render(
         seed = _resolve_lucky_seed(lucky_seed)
 
         lucky_rows: list[dict[str, str]] = []
-        for idx in range(lucky):
-            rng = np.random.default_rng(seed + idx)
-            lucky_config = _build_lucky_config(
-                base=config,
-                rng=rng,
-                input_duration_seconds=duration_seconds,
-            )
-            lucky_config.progress = config.progress
-            lucky_out = out_dir / f"{outfile.stem}.lucky_{idx + 1:03d}{outfile.suffix}"
+        with _BatchStatusBar(
+            total=lucky,
+            label="Lucky render batch",
+            enabled=bool(config.progress and not config.silent),
+        ) as status:
+            for idx in range(lucky):
+                rng = np.random.default_rng(seed + idx)
+                lucky_config = _build_lucky_config(
+                    base=config,
+                    rng=rng,
+                    input_duration_seconds=duration_seconds,
+                )
+                lucky_config.progress = config.progress
+                lucky_out = out_dir / f"{outfile.stem}.lucky_{idx + 1:03d}{outfile.suffix}"
 
-            try:
-                report = run_render_pipeline(infile=infile, outfile=lucky_out, config=lucky_config)
-            except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
-                raise typer.BadParameter(str(exc)) from exc
+                try:
+                    report = run_render_pipeline(
+                        infile=infile,
+                        outfile=lucky_out,
+                        config=lucky_config,
+                    )
+                except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+                    raise typer.BadParameter(str(exc)) from exc
 
-            lucky_rows.append(
-                {
-                    "index": str(idx + 1),
-                    "outfile": str(lucky_out),
-                    "engine": str(report.get("engine", "unknown")),
-                    "rt60": f"{float(lucky_config.rt60):.2f}",
-                    "repeat": str(int(lucky_config.repeat)),
-                    "beast": str(int(lucky_config.beast_mode)),
-                }
-            )
+                lucky_rows.append(
+                    {
+                        "index": str(idx + 1),
+                        "outfile": str(lucky_out),
+                        "engine": str(report.get("engine", "unknown")),
+                        "rt60": f"{float(lucky_config.rt60):.2f}",
+                        "repeat": str(int(lucky_config.repeat)),
+                        "beast": str(int(lucky_config.beast_mode)),
+                    }
+                )
+                status.advance(detail=lucky_out.name)
 
         if not config.silent and not quiet and verbosity > 0:
             summary = Table(title=f"Lucky Render Batch ({lucky} outputs)")
@@ -1702,7 +1792,11 @@ def render(
             )
 
     try:
-        report = run_render_pipeline(infile=infile, outfile=outfile, config=config)
+        with _processing_status(
+            "Render audio",
+            enabled=bool(config.progress and not config.silent),
+        ):
+            report = run_render_pipeline(infile=infile, outfile=outfile, config=config)
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         if failure_report_out is not None:
             try:
@@ -1789,18 +1883,19 @@ def analyze(
     """Analyze an audio file and print a summary table."""
     _validate_analyze_call(infile, json_out, frames_out)
     try:
-        validate_audio_path(str(infile))
-        audio, sr = read_audio(str(infile))
-        analyzer = AudioAnalyzer()
-        metrics = analyzer.analyze(
-            audio,
-            sr,
-            include_loudness=lufs,
-            include_edr=edr,
-            ambi_order=int(ambi_order) if int(ambi_order) > 0 else None,
-            ambi_normalization=str(ambi_normalization).strip().lower(),
-            ambi_channel_order=str(channel_order).strip().lower(),
-        )
+        with _processing_status("Analyze audio"):
+            validate_audio_path(str(infile))
+            audio, sr = read_audio(str(infile))
+            analyzer = AudioAnalyzer()
+            metrics = analyzer.analyze(
+                audio,
+                sr,
+                include_loudness=lufs,
+                include_edr=edr,
+                ambi_order=int(ambi_order) if int(ambi_order) > 0 else None,
+                ambi_normalization=str(ambi_normalization).strip().lower(),
+                ambi_channel_order=str(channel_order).strip().lower(),
+            )
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -1825,10 +1920,11 @@ def suggest(
 ) -> None:
     """Suggest practical render defaults from input analysis."""
     try:
-        validate_audio_path(str(infile))
-        audio, sr = read_audio(str(infile))
-        analyzer = AudioAnalyzer()
-        metrics = analyzer.analyze(audio, sr)
+        with _processing_status("Analyze for suggestions"):
+            validate_audio_path(str(infile))
+            audio, sr = read_audio(str(infile))
+            analyzer = AudioAnalyzer()
+            metrics = analyzer.analyze(audio, sr)
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -2360,39 +2456,45 @@ def ir_gen(
         seed_value = _resolve_lucky_seed(lucky_seed)
 
         rows: list[dict[str, str]] = []
-        for idx in range(lucky):
-            rng = np.random.default_rng(seed_value + idx)
-            lucky_cfg = _build_lucky_ir_gen_config(cfg, rng=rng)
-            lucky_out = (
-                out_dir / f"{resolved_out_ir.stem}.lucky_{idx + 1:03d}{resolved_out_ir.suffix}"
-            )
-            try:
-                audio, out_sr, meta, cache_path, cache_hit = generate_or_load_cached_ir(
-                    lucky_cfg,
-                    cache_dir=Path(cache_dir),
+        with _BatchStatusBar(
+            total=lucky,
+            label="Lucky IR generation",
+            enabled=not silent,
+        ) as status:
+            for idx in range(lucky):
+                rng = np.random.default_rng(seed_value + idx)
+                lucky_cfg = _build_lucky_ir_gen_config(cfg, rng=rng)
+                lucky_out = (
+                    out_dir / f"{resolved_out_ir.stem}.lucky_{idx + 1:03d}{resolved_out_ir.suffix}"
                 )
-                write_ir_artifacts(lucky_out, audio, out_sr, meta, silent=silent)
-            except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
-                raise typer.BadParameter(str(exc)) from exc
+                try:
+                    audio, out_sr, meta, cache_path, cache_hit = generate_or_load_cached_ir(
+                        lucky_cfg,
+                        cache_dir=Path(cache_dir),
+                    )
+                    write_ir_artifacts(lucky_out, audio, out_sr, meta, silent=silent)
+                except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+                    raise typer.BadParameter(str(exc)) from exc
 
-            rows.append(
-                {
-                    "index": str(idx + 1),
-                    "out_ir": str(lucky_out),
-                    "mode": lucky_cfg.mode,
-                    "length_s": f"{float(lucky_cfg.length):.2f}",
-                    "rt60": (
-                        f"{float(lucky_cfg.rt60):.2f}"
-                        if lucky_cfg.rt60 is not None
-                        else (
-                            f"{float(lucky_cfg.rt60_low or 0.0):.2f}-"
-                            f"{float(lucky_cfg.rt60_high or 0.0):.2f}"
-                        )
-                    ),
-                    "cache_hit": str(cache_hit),
-                    "cache_path": str(cache_path),
-                }
-            )
+                rows.append(
+                    {
+                        "index": str(idx + 1),
+                        "out_ir": str(lucky_out),
+                        "mode": lucky_cfg.mode,
+                        "length_s": f"{float(lucky_cfg.length):.2f}",
+                        "rt60": (
+                            f"{float(lucky_cfg.rt60):.2f}"
+                            if lucky_cfg.rt60 is not None
+                            else (
+                                f"{float(lucky_cfg.rt60_low or 0.0):.2f}-"
+                                f"{float(lucky_cfg.rt60_high or 0.0):.2f}"
+                            )
+                        ),
+                        "cache_hit": str(cache_hit),
+                        "cache_path": str(cache_path),
+                    }
+                )
+                status.advance(detail=f"seed={seed_value + idx}")
 
         if not silent:
             table = Table(title=f"Lucky IR Generation Batch ({lucky} outputs)")
@@ -2415,11 +2517,12 @@ def ir_gen(
         return
 
     try:
-        audio, out_sr, meta, cache_path, cache_hit = generate_or_load_cached_ir(
-            cfg,
-            cache_dir=Path(cache_dir),
-        )
-        write_ir_artifacts(resolved_out_ir, audio, out_sr, meta, silent=silent)
+        with _processing_status("Generate IR", enabled=not silent):
+            audio, out_sr, meta, cache_path, cache_hit = generate_or_load_cached_ir(
+                cfg,
+                cache_dir=Path(cache_dir),
+            )
+            write_ir_artifacts(resolved_out_ir, audio, out_sr, meta, silent=silent)
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -2462,8 +2565,9 @@ def ir_analyze(
     """Analyze an impulse response."""
     _validate_ir_analyze_call(ir_file, json_out)
     try:
-        audio, sr = sf.read(str(ir_file), always_2d=True, dtype="float64")
-        metrics = analyze_ir(np.asarray(audio, dtype=np.float64), int(sr))
+        with _processing_status("Analyze IR"):
+            audio, sr = sf.read(str(ir_file), always_2d=True, dtype="float64")
+            metrics = analyze_ir(np.asarray(audio, dtype=np.float64), int(sr))
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -2530,25 +2634,27 @@ def ir_process(
     _validate_ir_process_call(in_ir, out_ir)
     _validate_generic_lucky_call(lucky, lucky_out_dir)
     try:
-        audio, sr = sf.read(str(in_ir), always_2d=True, dtype="float64")
-        base_audio = np.asarray(audio, dtype=np.float64)
-        sr_i = int(sr)
+        with _processing_status("Load IR for processing", enabled=not silent):
+            audio, sr = sf.read(str(in_ir), always_2d=True, dtype="float64")
+            base_audio = np.asarray(audio, dtype=np.float64)
+            sr_i = int(sr)
         if lucky is None:
-            processed = apply_ir_shaping(
-                base_audio,
-                sr=sr_i,
-                damping=damping,
-                lowcut=lowcut,
-                highcut=highcut,
-                tilt=tilt,
-                normalize=normalize,
-                peak_dbfs=peak_dbfs,
-                target_lufs=target_lufs,
-                use_true_peak=true_peak,
-            )
+            with _processing_status("Process IR", enabled=not silent):
+                processed = apply_ir_shaping(
+                    base_audio,
+                    sr=sr_i,
+                    damping=damping,
+                    lowcut=lowcut,
+                    highcut=highcut,
+                    tilt=tilt,
+                    normalize=normalize,
+                    peak_dbfs=peak_dbfs,
+                    target_lufs=target_lufs,
+                    use_true_peak=true_peak,
+                )
 
-            meta = {"source": str(in_ir), "metrics": analyze_ir(processed, sr_i)}
-            write_ir_artifacts(out_ir, processed, sr_i, meta, silent=silent)
+                meta = {"source": str(in_ir), "metrics": analyze_ir(processed, sr_i)}
+                write_ir_artifacts(out_ir, processed, sr_i, meta, silent=silent)
             return
 
         out_dir = out_ir.parent if lucky_out_dir is None else lucky_out_dir
@@ -2556,54 +2662,60 @@ def ir_process(
         seed_value = _resolve_lucky_seed(lucky_seed)
 
         rows: list[dict[str, str]] = []
-        for idx in range(lucky):
-            rng = np.random.default_rng(seed_value + idx)
-            cfg = _build_lucky_ir_process_config(
-                damping=damping,
-                lowcut=lowcut,
-                highcut=highcut,
-                tilt=tilt,
-                normalize=normalize,
-                peak_dbfs=peak_dbfs,
-                target_lufs=target_lufs,
-                true_peak=true_peak,
-                rng=rng,
-                sr=sr_i,
-            )
-            lucky_out = out_dir / f"{out_ir.stem}.lucky_{idx + 1:03d}{out_ir.suffix}"
-            processed = apply_ir_shaping(
-                base_audio,
-                sr=sr_i,
-                damping=cfg["damping"],
-                lowcut=cfg["lowcut"],
-                highcut=cfg["highcut"],
-                tilt=cfg["tilt"],
-                normalize=cfg["normalize"],
-                peak_dbfs=cfg["peak_dbfs"],
-                target_lufs=cfg["target_lufs"],
-                use_true_peak=cfg["true_peak"],
-            )
+        with _BatchStatusBar(
+            total=lucky,
+            label="Lucky IR processing",
+            enabled=not silent,
+        ) as status:
+            for idx in range(lucky):
+                rng = np.random.default_rng(seed_value + idx)
+                cfg = _build_lucky_ir_process_config(
+                    damping=damping,
+                    lowcut=lowcut,
+                    highcut=highcut,
+                    tilt=tilt,
+                    normalize=normalize,
+                    peak_dbfs=peak_dbfs,
+                    target_lufs=target_lufs,
+                    true_peak=true_peak,
+                    rng=rng,
+                    sr=sr_i,
+                )
+                lucky_out = out_dir / f"{out_ir.stem}.lucky_{idx + 1:03d}{out_ir.suffix}"
+                processed = apply_ir_shaping(
+                    base_audio,
+                    sr=sr_i,
+                    damping=cfg["damping"],
+                    lowcut=cfg["lowcut"],
+                    highcut=cfg["highcut"],
+                    tilt=cfg["tilt"],
+                    normalize=cfg["normalize"],
+                    peak_dbfs=cfg["peak_dbfs"],
+                    target_lufs=cfg["target_lufs"],
+                    use_true_peak=cfg["true_peak"],
+                )
 
-            meta = {
-                "source": str(in_ir),
-                "lucky": {"index": idx + 1, **cfg},
-                "metrics": analyze_ir(processed, sr_i),
-            }
-            write_ir_artifacts(lucky_out, processed, sr_i, meta, silent=silent)
-            rows.append(
-                {
-                    "index": str(idx + 1),
-                    "out_ir": str(lucky_out),
-                    "normalize": cfg["normalize"],
-                    "tilt": f"{float(cfg['tilt']):.2f}",
-                    "damping": f"{float(cfg['damping']):.2f}",
-                    "target_lufs": (
-                        f"{float(cfg['target_lufs']):.2f}"
-                        if cfg["target_lufs"] is not None
-                        else "none"
-                    ),
+                meta = {
+                    "source": str(in_ir),
+                    "lucky": {"index": idx + 1, **cfg},
+                    "metrics": analyze_ir(processed, sr_i),
                 }
-            )
+                write_ir_artifacts(lucky_out, processed, sr_i, meta, silent=silent)
+                rows.append(
+                    {
+                        "index": str(idx + 1),
+                        "out_ir": str(lucky_out),
+                        "normalize": cfg["normalize"],
+                        "tilt": f"{float(cfg['tilt']):.2f}",
+                        "damping": f"{float(cfg['damping']):.2f}",
+                        "target_lufs": (
+                            f"{float(cfg['target_lufs']):.2f}"
+                            if cfg["target_lufs"] is not None
+                            else "none"
+                        ),
+                    }
+                )
+                status.advance(detail=f"seed={seed_value + idx}")
 
         if not silent:
             table = Table(title=f"Lucky IR Process Batch ({lucky} outputs)")
@@ -2725,14 +2837,15 @@ def ir_morph(
     )
 
     try:
-        audio, sr, meta, cache_path, cache_hit = generate_or_load_cached_morphed_ir(
-            ir_a_path=ir_a,
-            ir_b_path=ir_b,
-            config=cfg,
-            cache_dir=Path(cache_dir),
-            target_sr=None if target_sr is None else int(target_sr),
-        )
-        write_ir_artifacts(out_ir, audio, sr, meta, silent=silent)
+        with _processing_status("Morph IRs", enabled=not silent):
+            audio, sr, meta, cache_path, cache_hit = generate_or_load_cached_morphed_ir(
+                ir_a_path=ir_a,
+                ir_b_path=ir_b,
+                config=cfg,
+                cache_dir=Path(cache_dir),
+                target_sr=None if target_sr is None else int(target_sr),
+            )
+            write_ir_artifacts(out_ir, audio, sr, meta, silent=silent)
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -3006,18 +3119,29 @@ def ir_morph_sweep(
 
     run_error: str | None = None
     if prepared_jobs:
-        try:
-            run_parallel_batch(
-                jobs=prepared_jobs,
-                max_workers=max_workers,
-                schedule=schedule,
-                retries=retries,
-                continue_on_error=continue_on_error,
-                runner=runner,
-                on_result=on_result,
-            )
-        except RuntimeError as exc:
-            run_error = str(exc)
+        with _BatchStatusBar(
+            total=len(prepared_jobs),
+            label="IR morph sweep",
+            enabled=not silent,
+        ) as status:
+            original_on_result = on_result
+
+            def on_result_with_status(result: BatchJobResult) -> None:
+                original_on_result(result)
+                status.advance(detail=f"job={result.index}")
+
+            try:
+                run_parallel_batch(
+                    jobs=prepared_jobs,
+                    max_workers=max_workers,
+                    schedule=schedule,
+                    retries=retries,
+                    continue_on_error=continue_on_error,
+                    runner=runner,
+                    on_result=on_result_with_status,
+                )
+            except RuntimeError as exc:
+                run_error = str(exc)
 
     checkpoint_by_outfile: dict[str, dict[str, Any]] = {}
     for row in checkpoint_results:
@@ -3141,9 +3265,10 @@ def ir_fit(
     """Analyze source audio, score candidate IRs, and write top-k results."""
     _validate_output_audio_path(out_ir, "auto")
     try:
-        audio, sr = read_audio(str(infile))
-        analyzer = AudioAnalyzer()
-        metrics = analyzer.analyze(audio, sr)
+        with _processing_status("Analyze source for IR fit"):
+            audio, sr = read_audio(str(infile))
+            analyzer = AudioAnalyzer()
+            metrics = analyzer.analyze(audio, sr)
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -3179,6 +3304,7 @@ def ir_fit(
         target=target_profile,
         cache_dir=cache_root,
         fit_workers=fit_workers,
+        show_progress=True,
     )
 
     selected = sorted(
@@ -3188,28 +3314,32 @@ def ir_fit(
     )[:top_k]
 
     created: list[str] = []
-    for rank, item in enumerate(selected, start=1):
-        target_path = (
-            out_ir if top_k == 1 else out_ir.with_name(f"{out_ir.stem}_{rank:02d}{out_ir.suffix}")
-        )
-        meta = dict(item.meta)
-        meta["fit"] = {
-            "rank": rank,
-            "score": item.score.score,
-            "strategy": item.candidate.strategy,
-            "target": asdict(target_profile),
-            "errors": asdict(item.score),
-            "detail_metrics": item.detail_metrics,
-        }
-        cached_audio, _ = sf.read(str(item.cache_path), always_2d=True, dtype="float64")
-        write_ir_artifacts(
-            target_path,
-            np.asarray(cached_audio, dtype=np.float64),
-            item.sr,
-            meta,
-            silent=False,
-        )
-        created.append(str(target_path))
+    with _BatchStatusBar(total=len(selected), label="Write fitted IRs", enabled=True) as status:
+        for rank, item in enumerate(selected, start=1):
+            target_path = (
+                out_ir
+                if top_k == 1
+                else out_ir.with_name(f"{out_ir.stem}_{rank:02d}{out_ir.suffix}")
+            )
+            meta = dict(item.meta)
+            meta["fit"] = {
+                "rank": rank,
+                "score": item.score.score,
+                "strategy": item.candidate.strategy,
+                "target": asdict(target_profile),
+                "errors": asdict(item.score),
+                "detail_metrics": item.detail_metrics,
+            }
+            cached_audio, _ = sf.read(str(item.cache_path), always_2d=True, dtype="float64")
+            write_ir_artifacts(
+                target_path,
+                np.asarray(cached_audio, dtype=np.float64),
+                item.sr,
+                meta,
+                silent=False,
+            )
+            created.append(str(target_path))
+            status.advance(detail=f"rank={rank}")
 
     table = Table(title="IR Fit")
     table.add_column("Field", style="green")
@@ -3524,18 +3654,23 @@ def batch_augment(
                 f"(attempts={result.attempts}) {result.error}"
             )
 
-    try:
-        run_parallel_batch(
-            jobs=prepared_jobs,
-            max_workers=max_workers,
-            schedule=schedule,
-            retries=retries,
-            continue_on_error=continue_on_error,
-            runner=runner,
-            on_result=on_result,
-        )
-    except RuntimeError as exc:
-        raise typer.BadParameter(str(exc)) from exc
+    with _BatchStatusBar(total=len(prepared_jobs), label="Batch augment", enabled=True) as status:
+        def on_result_with_status(result: BatchJobResult) -> None:
+            on_result(result)
+            status.advance(detail=f"job={result.index}")
+
+        try:
+            run_parallel_batch(
+                jobs=prepared_jobs,
+                max_workers=max_workers,
+                schedule=schedule,
+                retries=retries,
+                continue_on_error=continue_on_error,
+                runner=runner,
+                on_result=on_result_with_status,
+            )
+        except RuntimeError as exc:
+            raise typer.BadParameter(str(exc)) from exc
 
     out_root = build.output_root
     out_root.mkdir(parents=True, exist_ok=True)
@@ -3822,18 +3957,23 @@ def batch_render(
                 f"(attempts={result.attempts}) {result.error}"
             )
 
-    try:
-        run_parallel_batch(
-            jobs=prepared_jobs,
-            max_workers=max_workers,
-            schedule=schedule,
-            retries=retries,
-            continue_on_error=continue_on_error,
-            runner=runner,
-            on_result=on_result,
-        )
-    except RuntimeError as exc:
-        raise typer.BadParameter(str(exc)) from exc
+    with _BatchStatusBar(total=len(prepared_jobs), label="Batch render", enabled=True) as status:
+        def on_result_with_status(result: BatchJobResult) -> None:
+            on_result(result)
+            status.advance(detail=f"job={result.index}")
+
+        try:
+            run_parallel_batch(
+                jobs=prepared_jobs,
+                max_workers=max_workers,
+                schedule=schedule,
+                retries=retries,
+                continue_on_error=continue_on_error,
+                runner=runner,
+                on_result=on_result_with_status,
+            )
+        except RuntimeError as exc:
+            raise typer.BadParameter(str(exc)) from exc
 
 
 @immersive_app.command("template")
@@ -3905,11 +4045,12 @@ def immersive_handoff(
         raise typer.BadParameter("Scene file must contain a JSON object.")
 
     try:
-        summary = generate_immersive_handoff_package(
-            scene=cast(dict[str, Any], payload),
-            out_dir=out_dir,
-            strict=strict,
-        )
+        with _processing_status("Build immersive handoff package"):
+            summary = generate_immersive_handoff_package(
+                scene=cast(dict[str, Any], payload),
+                out_dir=out_dir,
+                strict=strict,
+            )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -3982,28 +4123,29 @@ def immersive_qc(
     ),
 ) -> None:
     """Run immersive QC gates for loudness/true-peak/fold-down/occupancy."""
-    audio, sr = read_audio(str(infile))
     try:
-        resolved_layout = validate_layout_hint(layout)
+        with _processing_status("Run immersive QC"):
+            audio, sr = read_audio(str(infile))
+            resolved_layout = validate_layout_hint(layout)
+            gates = build_qc_gates(
+                {
+                    "target_lufs": target_lufs,
+                    "lufs_tolerance": lufs_tolerance,
+                    "max_true_peak_dbfs": max_true_peak_dbfs,
+                    "max_fold_down_delta_db": max_fold_down_delta_db,
+                    "min_channel_occupancy": min_channel_occupancy,
+                    "occupancy_threshold_dbfs": occupancy_threshold_dbfs,
+                }
+            )
+            report = evaluate_immersive_qc(
+                audio=audio,
+                sr=sr,
+                label=infile.stem,
+                layout=resolved_layout,
+                gates=gates,
+            )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
-    gates = build_qc_gates(
-        {
-            "target_lufs": target_lufs,
-            "lufs_tolerance": lufs_tolerance,
-            "max_true_peak_dbfs": max_true_peak_dbfs,
-            "max_fold_down_delta_db": max_fold_down_delta_db,
-            "min_channel_occupancy": min_channel_occupancy,
-            "occupancy_threshold_dbfs": occupancy_threshold_dbfs,
-        }
-    )
-    report = evaluate_immersive_qc(
-        audio=audio,
-        sr=sr,
-        label=infile.stem,
-        layout=resolved_layout,
-        gates=gates,
-    )
     metrics_raw = report.get("metrics", {})
     metrics = metrics_raw if isinstance(metrics_raw, dict) else {}
     passes_raw = report.get("passes", {})
@@ -4134,11 +4276,12 @@ def immersive_queue_worker(
         run_render_pipeline(infile=infile, outfile=outfile, config=render_config)
 
     try:
-        summary = run_file_queue_worker(
-            queue_path=queue_file,
-            runner=runner,
-            config=config,
-        )
+        with _processing_status("Run immersive queue worker"):
+            summary = run_file_queue_worker(
+                queue_path=queue_file,
+                runner=runner,
+                config=config,
+            )
     except (ValueError, RuntimeError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -5061,6 +5204,7 @@ def _score_fit_candidates(
     target: IRFitTarget,
     cache_dir: Path,
     fit_workers: int,
+    show_progress: bool = True,
 ) -> list[_ScoredFitCandidate]:
     """Evaluate IR-fit candidates serially or in parallel."""
     worker_count = int(os.cpu_count() or 1) if fit_workers == 0 else fit_workers
@@ -5082,15 +5226,30 @@ def _score_fit_candidates(
         )
 
     if worker_count == 1:
-        return [evaluate(candidate) for candidate in candidates]
+        scored_serial: list[_ScoredFitCandidate] = []
+        with _BatchStatusBar(
+            total=len(candidates),
+            label="IR fit candidates",
+            enabled=show_progress,
+        ) as status:
+            for candidate in candidates:
+                scored_serial.append(evaluate(candidate))
+                status.advance(detail="serial")
+        return scored_serial
 
     scored: list[_ScoredFitCandidate] = []
     with ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="verbx-fit") as pool:
-        futures: list[Future[_ScoredFitCandidate]] = [
-            pool.submit(evaluate, candidate) for candidate in candidates
-        ]
-        for fut in as_completed(futures):
-            scored.append(fut.result())
+        with _BatchStatusBar(
+            total=len(candidates),
+            label="IR fit candidates",
+            enabled=show_progress,
+        ) as status:
+            futures: list[Future[_ScoredFitCandidate]] = [
+                pool.submit(evaluate, candidate) for candidate in candidates
+            ]
+            for fut in as_completed(futures):
+                scored.append(fut.result())
+                status.advance(detail=f"workers={worker_count}")
     return scored
 
 
