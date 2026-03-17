@@ -95,3 +95,70 @@ jobs:
       - name: Publish to PyPI (trusted publishing)
         if: steps.auth.outputs.mode == 'trusted'
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  sync-homebrew-tap:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve Homebrew sync mode
+        id: brew_sync
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -n "${HOMEBREW_TAP_TOKEN}" ]; then
+            echo "mode=sync" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=skip" >> "$GITHUB_OUTPUT"
+          fi
+          echo "resolved_mode=$(cat "$GITHUB_OUTPUT" | tail -n1)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Skip Homebrew tap sync when token is unconfigured
+        if: steps.brew_sync.outputs.mode == 'skip'
+        run: |
+          {
+            echo "Homebrew tap sync skipped: no auth configured."
+            echo "Configure repository secret: HOMEBREW_TAP_TOKEN"
+            echo "Optional repo variable: HOMEBREW_TAP_REPO (default: TheColby/homebrew-verbx)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Homebrew tap sync skipped."
+
+      - name: Sync Homebrew formula to tap
+        if: steps.brew_sync.outputs.mode == 'sync'
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          HOMEBREW_TAP_REPO: ${{ vars.HOMEBREW_TAP_REPO }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          TAP_REPO="${HOMEBREW_TAP_REPO:-TheColby/homebrew-verbx}"
+          TAG="${GITHUB_REF_NAME}"
+          FORMULA_SOURCE="packaging/homebrew/verbx.rb"
+          FORMULA_TARGET="Formula/verbx.rb"
+
+          if ! grep -q "refs/tags/${TAG}.tar.gz" "${FORMULA_SOURCE}"; then
+            echo "Formula ${FORMULA_SOURCE} is not pinned to tag ${TAG}." >&2
+            echo "Please refresh formula before tagging release." >&2
+            exit 2
+          fi
+
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${TAP_REPO}.git" tap
+          mkdir -p "tap/Formula"
+          cp "${FORMULA_SOURCE}" "tap/${FORMULA_TARGET}"
+
+          cd tap
+          if git diff --quiet -- "${FORMULA_TARGET}"; then
+            echo "No Homebrew formula changes to publish." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${FORMULA_TARGET}"
+          git commit -m "chore: update verbx formula for ${TAG}"
+          git push
+          echo "Published Homebrew formula update to ${TAP_REPO} for ${TAG}." >> "$GITHUB_STEP_SUMMARY"

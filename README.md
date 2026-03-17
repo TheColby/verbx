@@ -100,7 +100,23 @@ pip install -e . && verbx --help
 verbx --help && man verbx-render
 ```
 
+**With Homebrew (macOS):**
+
+```bash
+brew tap TheColby/verbx
+brew install thecolby/verbx/verbx
+verbx version
+```
+
+If you prefer local formula install from this repository:
+
+```bash
+brew install --build-from-source ./packaging/homebrew/verbx.rb
+```
+
 **Requirements:** Python 3.11+, `libsndfile` on system path. Optional: `numba` (faster algorithmic path), `cupy` (CUDA convolution).
+
+Homebrew maintainer details: [`docs/HOMEBREW.md`](docs/HOMEBREW.md)
 
 If `verbx` is not found after install, add `~/.local/bin` to your PATH:
 

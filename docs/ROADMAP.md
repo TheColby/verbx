@@ -1,6 +1,6 @@
 # verbx Roadmap
 
-_Last updated: 2026-03-16. Maintained with `README.md` and `CHANGELOG.md`._
+_Last updated: 2026-03-17. Maintained with `README.md` and `CHANGELOG.md`._
 
 ---
 
@@ -29,6 +29,7 @@ reproducibility tooling, and f64 internal DSP.
   - [x] Immersive handoff + QC smoke test
 - [x] Publish public-alpha notes with known limitations and support channels.
 - [x] Pin demo commands and expected outputs for launch week reproducibility.
+- [x] Add Homebrew distribution path (formula + release-sync automation).
 
 ---
 

@@ -4,7 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 ### Added
-_No changes yet._
+- Homebrew formula artifact in-repo at `packaging/homebrew/verbx.rb`.
+- Homebrew maintainer guide (`docs/HOMEBREW.md`) and refresh helper script
+  (`scripts/refresh_homebrew_formula.sh`).
+- Optional release automation to sync formula updates to tap repo
+  (`sync-homebrew-tap` job in `.github/workflows/release.yml`).
+
+### Changed
+- README installation section now includes Homebrew install paths.
 
 ## [0.7.2] - 2026-03-17
 
