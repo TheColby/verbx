@@ -6,6 +6,19 @@ All notable changes to this project are documented in this file.
 ### Added
 _No changes yet._
 
+## [0.7.2] - 2026-03-17
+
+### Added
+- Command-level status bars now cover render execution paths, including standard
+  single renders and `--lucky` render batches.
+- `quickstart --smoke-test` and `doctor --render-smoke-test` now display
+  explicit status bars while processing.
+
+### Changed
+- Status reporting is now consistent across processing-oriented CLI commands,
+  making long-running tasks visibly active unless quiet/silent/progress-disabled
+  modes are selected.
+
 ## [0.7.1] - 2026-03-16
 
 ### Added

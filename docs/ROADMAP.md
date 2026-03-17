@@ -6,7 +6,7 @@ _Last updated: 2026-03-16. Maintained with `README.md` and `CHANGELOG.md`._
 
 ## 1. Release Posture
 
-**Current release:** `v0.7.1`
+**Current release:** `v0.7.2`
 **Status:** public alpha
 **Versioning policy:** semantic (`0.7.x` patch line during alpha)
 

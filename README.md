@@ -143,7 +143,7 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.7.1**.
+Current public alpha release: **v0.7.2**.
 
 - Confirm your environment with `verbx quickstart --verify --strict` and `verbx doctor`.
 - Verify one algorithmic render and one convolution render before batch usage.
@@ -1101,4 +1101,4 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.7.1 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.7.2 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
