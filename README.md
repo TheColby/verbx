@@ -187,6 +187,16 @@ Current public alpha release: **v0.7.2**.
 
 ---
 
+## Announcement Channels
+
+- Release announcements: [github.com/TheColby/verbx/releases](https://github.com/TheColby/verbx/releases)
+- Homebrew tap updates: [github.com/TheColby/homebrew-verbx](https://github.com/TheColby/homebrew-verbx)
+- Homebrew project news/blog: [brew.sh/blog](https://brew.sh/blog/)
+
+Note: Homebrew blog posts cover Homebrew project releases and ecosystem updates; third-party tap formula launches are announced by the tap/project maintainers.
+
+---
+
 ## What Is Reverb? (and Why Does verbx Sound Different)
 
 When sound leaves a source in a physical space, it arrives at a listener via multiple paths: the direct path, early reflections from nearby surfaces, and a dense late diffuse field that gradually decays as energy is absorbed by materials and air. The perceptual result — the sense of space — depends on the timing, density, and spectral character of that decay. A bathroom might have an RT60 around 0.5 seconds. A large concert hall is typically 1.5–2.5 seconds. A cathedral can reach 8–12 seconds. The human auditory system is acutely sensitive to these cues and uses them to infer room size, distance from source, and surface hardness. This is why reverb affects not just the sound of a recording, but the perceived physicality of it.
