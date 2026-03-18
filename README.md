@@ -49,6 +49,14 @@ verbx render input.wav output.wav --engine algo --rt60 2.5 --wet 0.3 --dry 0.7
 
 This applies a natural-sounding 2.5-second algorithmic reverb. Output is written to `output.wav`, with analysis at `output.wav.analysis.json`.
 
+If you need to install first on macOS:
+
+```bash
+brew tap thecolby/verbx
+brew install thecolby/verbx/verbx
+verbx quickstart
+```
+
 Need starting settings for your file?
 
 ```bash

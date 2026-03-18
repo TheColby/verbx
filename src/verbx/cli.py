@@ -364,10 +364,15 @@ def quickstart(
     """Print minimal copy/paste commands for first successful renders."""
     commands = [
         (
-            "Install + extreme algorithmic render",
-            "git clone https://github.com/TheColby/verbx.git && cd verbx && "
-            "./scripts/install.sh && "
+            "Homebrew install (macOS) + extreme render",
+            "brew tap thecolby/verbx && brew install thecolby/verbx/verbx && "
             "verbx render ../in.wav out.wav --engine algo --rt60 12 --wet 0.88 --dry 0.12",
+        ),
+        (
+            "Source install + extreme algorithmic render",
+            "git clone https://github.com/TheColby/verbx.git && cd verbx && "
+            "./scripts/install.sh && verbx render ../in.wav out.wav "
+            "--engine algo --rt60 12 --wet 0.88 --dry 0.12",
         ),
         (
             "Analyze then suggested settings",
