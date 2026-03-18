@@ -103,12 +103,14 @@ verbx --help && man verbx-render
 **With Homebrew (macOS):**
 
 ```bash
-brew tap TheColby/verbx
+brew tap thecolby/verbx
 brew install thecolby/verbx/verbx
 verbx version
 ```
 
-If you prefer local formula install from this repository:
+Official tap repository: `TheColby/homebrew-verbx`.
+
+For local maintainer testing, you can also install from the in-repo formula:
 
 ```bash
 brew install --build-from-source ./packaging/homebrew/verbx.rb
