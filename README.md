@@ -12,6 +12,8 @@ Under the hood, everything runs in 64-bit floating point. The algorithmic engine
 
 This is not a "set RT60 and go" tool. The parameter surface is wide by design. Most users start with three flags and expand from there.
 
+For AI workflows, `verbx` is also a strong command-line tool for deterministic audio data augmentation and voice-model robustness testing. You can generate reproducible reverberant variants for ASR/TTS/speaker pipelines, keep split-safe metadata, and batch large render sets from manifests.
+
 ```bash
 # A room that no physical building has ever had. RT60 = 120 seconds.
 verbx render voice.wav out.wav \
