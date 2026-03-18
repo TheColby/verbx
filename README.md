@@ -1080,6 +1080,13 @@ input audio
 
 ---
 
+## Contributors
+
+- Colby Leider (creator and maintainer)
+- Full contributors graph: [github.com/TheColby/verbx/graphs/contributors](https://github.com/TheColby/verbx/graphs/contributors)
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide. Quick start:
