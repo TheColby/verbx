@@ -132,6 +132,20 @@ brew install --build-from-source ./packaging/homebrew/verbx.rb
 
 Homebrew maintainer details: [`docs/HOMEBREW.md`](docs/HOMEBREW.md)
 
+## Stable Python API
+
+`verbx` now exposes a stable Python API surface for programmatic workflows:
+
+```python
+from verbx.api import analyze_file, generate_ir, render_file
+```
+
+- `render_file(infile, outfile, **render_config_options)`
+- `generate_ir(**ir_gen_config_options)`
+- `analyze_file(infile, include_loudness=False, include_edr=False)`
+
+This API is intended for notebook/research/integration use where shelling out to CLI is not ideal.
+
 If `verbx` is not found after install, add `~/.local/bin` to your PATH:
 
 ```bash
@@ -1139,6 +1153,7 @@ Key papers:
 Additional guides in `docs/`:
 - [IR synthesis guide](docs/IR_SYNTHESIS.md) — complete parameter reference for all synthesis modes
 - [AI augmentation guide](docs/AI_AUGMENTATION.md) — dataset generation workflow documentation
+- [Manifest + automation schemas](docs/SCHEMAS.md) — structured JSON contracts for batch and automation payloads
 - [IR morph QA guide](docs/IR_MORPH_QA.md) — morph-sweep QA artifacts and CI integration
 - [Benchmark baseline guide](docs/benchmarks/README.md) — CI/runtime comparison workflow
 - [Extreme cookbook](docs/EXTREME_COOKBOOK.md) — 100 additional workflow examples
