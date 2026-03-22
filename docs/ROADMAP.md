@@ -1,6 +1,6 @@
 # verbx Roadmap
 
-_Last updated: 2026-03-17. Maintained with `README.md` and `CHANGELOG.md`._
+_Last updated: 2026-03-22. Maintained with `README.md` and `CHANGELOG.md`._
 
 ---
 
@@ -86,7 +86,16 @@ Launch deliverables should include short before/after clips for each workflow.
 
 ---
 
-## 6. Maintenance Rule
+## 6. Next 30 Days Priorities (Snapshot)
+
+- Lock a first-pass `verbx.api` module and document stability guarantees.
+- Publish at least two notebook examples (`render`, `ir`, `analyze`).
+- Add immersive routing docs for `7.2.4` and `16.0` as baseline layouts.
+- Complete one end-to-end schema example for automation + manifest JSON.
+
+---
+
+## 7. Maintenance Rule
 
 When a roadmap item is completed:
 
