@@ -1021,6 +1021,31 @@ verbx render long_input.wav output.wav --engine algo --rt60 180 --fdn-lines 32 -
 # prints resolved config, estimated output duration, device selection — no audio written
 ```
 
+### Python API (`verbx.api`)
+
+`verbx` now exposes a stable Python surface for file-level workflows:
+
+- `verbx.api.render_file(infile, outfile, **render_options)`
+- `verbx.api.generate_ir(outfile, **ir_options)`
+- `verbx.api.analyze_file(infile, **analysis_options)`
+
+Minimal notebook examples:
+
+- `docs/notebooks/research_workflow.ipynb`
+- `docs/notebooks/dataset_workflow.ipynb`
+
+Structured schema docs for machine-generated payloads:
+
+- `docs/SCHEMAS.md` (batch manifest + automation schema references)
+
+```python
+from verbx.api import analyze_file, generate_ir, render_file
+
+ir = generate_ir("research_ir.wav", mode="hybrid", length=1.5, sr=48000, channels=1)
+metrics = analyze_file("dry.wav")
+report = render_file("dry.wav", "wet.wav", engine="conv", ir=ir["outfile"], wet=0.7, dry=0.3)
+```
+
 ---
 
 ## Performance and Acceleration
