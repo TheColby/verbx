@@ -529,6 +529,36 @@ Source syntax: `lfo:<shape>:<rate_hz>[:depth[:phase_deg]][*weight]` | `env[:atta
 
 ---
 
+## Python API (stable surface)
+
+For notebook/research pipelines, use `verbx.api` instead of shelling out to the
+CLI. The stable API surface includes:
+
+- `render_file(infile, outfile, config=RenderConfig(...), **overrides)`
+- `generate_ir(out_ir, config=IRGenConfig(...), write_metadata=True)`
+- `analyze_file(infile, include_loudness=False, include_edr=False, ...)`
+
+```python
+from verbx.api import analyze_file, generate_ir, render_file
+from verbx.config import RenderConfig
+from verbx.ir.generator import IRGenConfig
+
+render_report = render_file(
+    "in.wav",
+    "out.wav",
+    config=RenderConfig(engine="algo", rt60=2.5, progress=False, silent=True),
+)
+
+ir_report = generate_ir(
+    "ir.wav",
+    config=IRGenConfig(mode="stochastic", length=0.5, sr=48_000, channels=2),
+)
+
+analysis = analyze_file("out.wav", include_loudness=True, json_out="analysis.json")
+```
+
+---
+
 ## CLI Reference
 
 ### verbx render
