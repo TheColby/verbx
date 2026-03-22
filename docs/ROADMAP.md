@@ -59,7 +59,7 @@ Launch deliverables should include short before/after clips for each workflow.
 
 ### 4.2 API and Integration
 
-- [ ] Ship a stable `verbx.api` Python surface (`render_file`, `generate_ir`, `analyze_file`).
+- [x] Ship a stable `verbx.api` Python surface (`render_file`, `generate_ir`, `analyze_file`).
 - [ ] Add minimal notebook examples for research and dataset workflows.
 - [ ] Add structured JSON schema docs for manifests and automation files.
 

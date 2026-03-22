@@ -9,9 +9,12 @@ All notable changes to this project are documented in this file.
   (`scripts/refresh_homebrew_formula.sh`).
 - Optional release automation to sync formula updates to tap repo
   (`sync-homebrew-tap` job in `.github/workflows/release.yml`).
+- Stable Python API module `verbx.api` with `render_file`, `generate_ir`, and
+  `analyze_file` entrypoints for programmatic workflows.
 
 ### Changed
 - README installation section now includes Homebrew install paths.
+- Roadmap and README now document the stable Python API surface and usage.
 
 ## [0.7.2] - 2026-03-17
 
