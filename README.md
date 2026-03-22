@@ -1015,6 +1015,30 @@ verbx ir morph-sweep ir_a.wav ir_b.wav out/sweep \
 ./scripts/generate_ir_bank.py --out IRs/bank_25 --count 25 --sr 48000 --channels 2 --format flac
 ```
 
+**Python API (`verbx.api`) — stable one-shot surface:**
+```python
+from verbx.api import analyze_file, generate_ir, render_file
+
+render_report = render_file(
+    "in.wav",
+    "out.wav",
+    engine="algo",
+    rt60=4.5,
+    wet=0.85,
+    dry=0.15,
+)
+
+ir_report = generate_ir(
+    "custom_ir.wav",
+    mode="hybrid",
+    length=8.0,
+    sr=48_000,
+    channels=2,
+)
+
+metrics = analyze_file("out.wav", include_loudness=True)
+```
+
 **Pre-render validation — catch config errors before a long job:**
 ```bash
 verbx render long_input.wav output.wav --engine algo --rt60 180 --fdn-lines 32 --dry-run
