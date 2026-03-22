@@ -29,6 +29,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Literal, TypedDict, cast
 
+import librosa  # type: ignore[import-untyped]
 import numpy as np
 import soundfile as sf
 import typer
@@ -77,6 +78,7 @@ from verbx.core.accel import (
     resolve_device,
     resolve_device_for_engine,
 )
+from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
 from verbx.core.augmentation import (
     AugmentationBuild,
     augmentation_profile_names,
@@ -221,6 +223,7 @@ _IR_MORPH_MISMATCH_POLICY_CHOICES = {
     "coerce",
     "strict",
 }
+_CORPUS_AUDIO_EXTENSIONS = {".wav", ".flac", ".aif", ".aiff", ".ogg", ".caf"}
 
 
 class LuckyIRProcessConfig(TypedDict):
@@ -3766,6 +3769,235 @@ def batch_augment(
         raise typer.Exit(code=2)
 
 
+@batch_app.command("corpus-generate")
+def batch_corpus_generate(
+    source: Path = typer.Argument(
+        ...,
+        exists=True,
+        readable=True,
+        resolve_path=True,
+        help="Input audio file or folder to augment.",
+    ),
+    output_root: Path = typer.Option(
+        ...,
+        "--output-root",
+        resolve_path=True,
+        help="Output directory where generated variants are written.",
+    ),
+    variants_per_input: int = typer.Option(
+        16,
+        "--variants-per-input",
+        min=1,
+        help=(
+            "Number of generated variants per input file. No practical hard limit is imposed; "
+            "this can be set to very large values for massive corpus generation runs."
+        ),
+    ),
+    seed: int = typer.Option(
+        20260322,
+        "--seed",
+        help="Deterministic random seed for reproducible corpus generation.",
+    ),
+    recurse: bool = typer.Option(
+        True,
+        "--recurse/--no-recurse",
+        help="Recurse into nested folders when source is a directory.",
+    ),
+    time_shift_min_ms: float = typer.Option(
+        -80.0,
+        "--time-shift-min-ms",
+        help="Minimum time-shift in milliseconds (negative = earlier).",
+    ),
+    time_shift_max_ms: float = typer.Option(
+        80.0,
+        "--time-shift-max-ms",
+        help="Maximum time-shift in milliseconds.",
+    ),
+    pitch_shift_min_semitones: float = typer.Option(
+        -2.5,
+        "--pitch-shift-min-semitones",
+        help="Minimum pitch shift in semitones.",
+    ),
+    pitch_shift_max_semitones: float = typer.Option(
+        2.5,
+        "--pitch-shift-max-semitones",
+        help="Maximum pitch shift in semitones.",
+    ),
+    reverb_wet_min: float = typer.Option(
+        0.12,
+        "--reverb-wet-min",
+        min=0.0,
+        max=1.0,
+        help="Minimum sampled wet mix for algorithmic reverb.",
+    ),
+    reverb_wet_max: float = typer.Option(
+        0.48,
+        "--reverb-wet-max",
+        min=0.0,
+        max=1.0,
+        help="Maximum sampled wet mix for algorithmic reverb.",
+    ),
+    reverb_rt60_min: float = typer.Option(
+        0.25,
+        "--reverb-rt60-min",
+        min=0.05,
+        help="Minimum sampled algorithmic reverb RT60 in seconds.",
+    ),
+    reverb_rt60_max: float = typer.Option(
+        4.50,
+        "--reverb-rt60-max",
+        min=0.05,
+        help="Maximum sampled algorithmic reverb RT60 in seconds.",
+    ),
+    reverb_pre_delay_min_ms: float = typer.Option(
+        0.0,
+        "--reverb-pre-delay-min-ms",
+        help="Minimum sampled reverb pre-delay in milliseconds.",
+    ),
+    reverb_pre_delay_max_ms: float = typer.Option(
+        42.0,
+        "--reverb-pre-delay-max-ms",
+        help="Maximum sampled reverb pre-delay in milliseconds.",
+    ),
+    output_subtype: OutputSubtype = typer.Option(
+        "float32",
+        "--output-subtype",
+        help="Output subtype for generated corpus audio files.",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Only print generation plan and totals without rendering files.",
+    ),
+) -> None:
+    """Generate augmented audio corpora from one file or a directory of files."""
+    if source.is_file():
+        files = [source]
+    else:
+        pattern = "**/*" if recurse else "*"
+        files = [
+            path
+            for path in sorted(source.glob(pattern))
+            if path.is_file() and path.suffix.lower() in _CORPUS_AUDIO_EXTENSIONS
+        ]
+    if len(files) == 0:
+        raise typer.BadParameter(f"No audio files found under: {source}")
+
+    if time_shift_min_ms > time_shift_max_ms:
+        raise typer.BadParameter("--time-shift-min-ms must be <= --time-shift-max-ms.")
+    if pitch_shift_min_semitones > pitch_shift_max_semitones:
+        raise typer.BadParameter(
+            "--pitch-shift-min-semitones must be <= --pitch-shift-max-semitones."
+        )
+    if reverb_wet_min > reverb_wet_max:
+        raise typer.BadParameter("--reverb-wet-min must be <= --reverb-wet-max.")
+    if reverb_rt60_min > reverb_rt60_max:
+        raise typer.BadParameter("--reverb-rt60-min must be <= --reverb-rt60-max.")
+    if reverb_pre_delay_min_ms > reverb_pre_delay_max_ms:
+        raise typer.BadParameter(
+            "--reverb-pre-delay-min-ms must be <= --reverb-pre-delay-max-ms."
+        )
+
+    total_outputs = len(files) * int(variants_per_input)
+    output_root.mkdir(parents=True, exist_ok=True)
+    manifest_path = output_root / "corpus_generation_manifest.jsonl"
+    summary_path = output_root / "corpus_generation_summary.json"
+
+    if dry_run:
+        console.print(
+            "[dry-run] corpus-generate "
+            f"inputs={len(files)} variants_per_input={variants_per_input} outputs={total_outputs}"
+        )
+        return
+
+    rng = np.random.default_rng(seed)
+    manifest_rows: list[dict[str, Any]] = []
+    generated = 0
+
+    with _BatchStatusBar(total=total_outputs, label="Corpus generate", enabled=True) as status:
+        for file_index, infile in enumerate(files):
+            audio, sr = read_audio(str(infile))
+            rel_parent = infile.parent.relative_to(source) if source.is_dir() else Path("")
+            out_dir = (output_root / rel_parent / infile.stem).resolve()
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+            for variant_index in range(variants_per_input):
+                shift_ms = float(rng.uniform(time_shift_min_ms, time_shift_max_ms))
+                pitch_steps = float(
+                    rng.uniform(pitch_shift_min_semitones, pitch_shift_max_semitones)
+                )
+                rt60 = float(rng.uniform(reverb_rt60_min, reverb_rt60_max))
+                wet = float(rng.uniform(reverb_wet_min, reverb_wet_max))
+                pre_delay_ms = float(rng.uniform(reverb_pre_delay_min_ms, reverb_pre_delay_max_ms))
+                damping = float(rng.uniform(0.35, 0.82))
+                width = float(rng.uniform(0.90, 1.35))
+
+                shifted = _time_shift_audio(audio=audio, sr=sr, shift_ms=shift_ms)
+                pitched = _pitch_shift_audio(shifted, sr=sr, semitones=pitch_steps)
+                reverb = AlgoReverbEngine(
+                    AlgoReverbConfig(
+                        rt60=rt60,
+                        pre_delay_ms=pre_delay_ms,
+                        damping=damping,
+                        width=width,
+                        wet=wet,
+                        dry=max(0.0, 1.0 - wet),
+                    )
+                )
+                processed = reverb.process(pitched, sr)
+
+                outfile = out_dir / f"{infile.stem}.aug_{variant_index:08d}{infile.suffix.lower()}"
+                sf.write(
+                    str(outfile),
+                    processed,
+                    sr,
+                    subtype={
+                        "auto": None,
+                        "float32": "FLOAT",
+                        "float64": "DOUBLE",
+                        "pcm16": "PCM_16",
+                        "pcm24": "PCM_24",
+                        "pcm32": "PCM_32",
+                    }[str(output_subtype)],
+                )
+                generated += 1
+                status.advance(detail=f"{infile.name}#{variant_index}")
+                manifest_rows.append(
+                    {
+                        "source": str(infile),
+                        "output": str(outfile),
+                        "source_index": file_index,
+                        "variant_index": variant_index,
+                        "sample_rate": sr,
+                        "augment": {
+                            "time_shift_ms": shift_ms,
+                            "pitch_shift_semitones": pitch_steps,
+                            "reverb_rt60": rt60,
+                            "reverb_wet": wet,
+                            "reverb_pre_delay_ms": pre_delay_ms,
+                            "reverb_damping": damping,
+                            "reverb_width": width,
+                        },
+                    }
+                )
+
+    _write_jsonl_atomic(manifest_path, manifest_rows)
+    summary = {
+        "mode": "batch-corpus-generate",
+        "source": str(source),
+        "output_root": str(output_root),
+        "seed": int(seed),
+        "inputs": len(files),
+        "variants_per_input": int(variants_per_input),
+        "generated_outputs": int(generated),
+        "manifest_jsonl": str(manifest_path),
+    }
+    _write_json_atomic(summary_path, summary)
+    console.print(f"Generated {generated} files across {len(files)} inputs.")
+    console.print(f"Manifest: {manifest_path}")
+    console.print(f"Summary: {summary_path}")
+
+
 @batch_app.command("render")
 def batch_render(
     manifest: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
@@ -4407,6 +4639,41 @@ def _write_text_atomic(path: Path, text: str) -> None:
     tmp = path.with_suffix(f"{path.suffix}.tmp")
     tmp.write_text(text, encoding="utf-8")
     tmp.replace(path)
+
+
+def _time_shift_audio(*, audio: np.ndarray, sr: int, shift_ms: float) -> np.ndarray:
+    """Shift audio in time while preserving original shape."""
+    x = np.asarray(audio, dtype=np.float64)
+    shift_samples = round((shift_ms / 1000.0) * float(sr))
+    if shift_samples == 0 or x.shape[0] == 0:
+        return x.copy()
+
+    out = np.zeros_like(x, dtype=np.float64)
+    if shift_samples > 0:
+        if shift_samples >= x.shape[0]:
+            return out
+        out[shift_samples:, :] = x[:-shift_samples, :]
+        return out
+
+    abs_shift = abs(shift_samples)
+    if abs_shift >= x.shape[0]:
+        return out
+    out[:-abs_shift, :] = x[abs_shift:, :]
+    return out
+
+
+def _pitch_shift_audio(audio: np.ndarray, *, sr: int, semitones: float) -> np.ndarray:
+    """Pitch shift each channel while preserving signal length."""
+    x = np.asarray(audio, dtype=np.float64)
+    if abs(semitones) < 1e-9:
+        return x.copy()
+    out = np.zeros_like(x, dtype=np.float64)
+    for ch in range(x.shape[1]):
+        shifted = librosa.effects.pitch_shift(x[:, ch], sr=sr, n_steps=semitones)
+        if shifted.shape[0] != x.shape[0]:
+            shifted = librosa.util.fix_length(shifted, size=x.shape[0])
+        out[:, ch] = np.asarray(shifted, dtype=np.float64)
+    return out
 
 
 def _build_augmentation_metrics_rows(

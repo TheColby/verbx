@@ -701,11 +701,14 @@ verbx batch render manifest.json --jobs 8      # parallel render
 verbx batch augment-template > augment.json    # generate augmentation manifest
 verbx batch augment-profiles                   # list built-in profiles
 verbx batch augment augment.json --jobs 8      # generate training dataset
+verbx batch corpus-generate data/ --output-root out/ --variants-per-input 64
 ```
 
 **Batch render flags:** `--jobs`, `--schedule [fifo|shortest-first|longest-first]`, `--retries`, `--continue-on-error`, `--checkpoint-file`, `--resume`, `--dry-run`
 
 **Batch augment flags:** Built-in profiles `asr-reverb-v1`, `music-reverb-v1`, `drums-room-v1`. Key flags: `--copy-dry`, `--dataset-card-out`, `--metrics-csv-out`, `--qa-bundle-out`, `--provenance-hash`, `--verify-split-isolation`
+
+**Batch corpus-generate flags:** Generate processed corpora from one file or folder. Key flags: `--variants-per-input` (supports very large values), `--time-shift-min-ms/--time-shift-max-ms`, `--pitch-shift-min-semitones/--pitch-shift-max-semitones`, `--reverb-rt60-min/--reverb-rt60-max`, `--reverb-wet-min/--reverb-wet-max`, `--reverb-pre-delay-min-ms/--reverb-pre-delay-max-ms`, `--seed`, `--dry-run`
 
 ---
 
