@@ -61,9 +61,9 @@ Launch deliverables should include short before/after clips for each workflow.
 
 ### 4.2 API and Integration
 
-- [ ] Ship a stable `verbx.api` Python surface (`render_file`, `generate_ir`, `analyze_file`).
+- [x] Ship a stable `verbx.api` Python surface (`render_file`, `generate_ir`, `analyze_file`).
 - [ ] Add minimal notebook examples for research and dataset workflows.
-- [ ] Add structured JSON schema docs for manifests and automation files.
+- [x] Add structured JSON schema docs for manifests and automation files.
 
 ### 4.3 Spatial and Interop
 
@@ -73,7 +73,7 @@ Launch deliverables should include short before/after clips for each workflow.
 
 ### 4.4 Documentation Quality
 
-- [ ] Keep CLI tables in `README.md` synchronized with actual CLI help text.
+- [x] Keep CLI tables in `README.md` synchronized with actual CLI help text.
 - [ ] Keep equation formatting and variable definitions consistent in DSP sections.
 - [ ] Keep launch examples mirrored across README, man pages, and cookbook.
 

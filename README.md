@@ -68,6 +68,18 @@ verbx suggest input.wav
 verbx quickstart
 ```
 
+### Python API Quick Start
+
+`verbx` also exposes a small Python API surface for notebook/pipeline use:
+
+```python
+from verbx.api import render_file, analyze_file, generate_ir
+
+render_file("in.wav", "out.wav", engine="algo", rt60=2.5, wet=0.3, dry=0.7)
+metrics = analyze_file("out.wav", include_loudness=True)
+ir = generate_ir("ir.wav")
+```
+
 ### Five Runnable Examples
 
 ```bash
@@ -736,6 +748,7 @@ verbx presets             # list built-in presets
 verbx presets --show cathedral_extreme   # inspect preset parameters
 verbx quickstart          # copy-paste workflows for first-run scenarios
 verbx quickstart --verify --strict       # startup readiness check (useful before demos)
+verbx quickstart --smoke-test --json-out quickstart_smoke.json
 verbx doctor              # platform/acceleration diagnostics
 verbx doctor --json-out doctor.json      # machine-readable diagnostics for issue reports
 verbx version             # package version string
@@ -1160,6 +1173,7 @@ Additional guides in `docs/`:
 - [AI augmentation guide](docs/AI_AUGMENTATION.md) — dataset generation workflow documentation
 - [IR morph QA guide](docs/IR_MORPH_QA.md) — morph-sweep QA artifacts and CI integration
 - [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md) — platform/install channel support and CI coverage
+- [Schema contracts](docs/SCHEMAS.md) — manifest/automation JSON field reference
 - [Benchmark baseline guide](docs/benchmarks/README.md) — CI/runtime comparison workflow
 - [Extreme cookbook](docs/EXTREME_COOKBOOK.md) — 100 additional workflow examples
 

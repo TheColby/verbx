@@ -5,6 +5,8 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 ### Added
 - Compatibility matrix doc for install/runtime channels (`docs/COMPATIBILITY_MATRIX.md`).
+- Stable Python API wrappers in `verbx.api` (`render_file`, `generate_ir`, `analyze_file`).
+- Schema contract docs for batch manifests and automation payloads (`docs/SCHEMAS.md`).
 
 ### Changed
 - `batch corpus-generate` now reports throughput and retry metrics in summary output
@@ -12,6 +14,8 @@ All notable changes to this project are documented in this file.
 - `batch corpus-generate` adds `--retries` for per-variant retry ergonomics.
 - Install verification CI now exercises npm launcher onboarding flow.
 - `quickstart` includes npm onboarding + readiness command path.
+- Immersive QC now reports an explicit `layout_channels` gate and expected channel count.
+- Added docs-sync tests to keep key README command flags aligned with CLI help text.
 
 ## [0.7.3] - 2026-03-23
 
