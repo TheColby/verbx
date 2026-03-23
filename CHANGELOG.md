@@ -4,7 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 ### Added
-- (none yet)
+- Compatibility matrix doc for install/runtime channels (`docs/COMPATIBILITY_MATRIX.md`).
+
+### Changed
+- `batch corpus-generate` now reports throughput and retry metrics in summary output
+  (`elapsed_seconds`, `outputs_per_second`, `total_attempts`, retry stats).
+- `batch corpus-generate` adds `--retries` for per-variant retry ergonomics.
+- Install verification CI now exercises npm launcher onboarding flow.
+- `quickstart` includes npm onboarding + readiness command path.
 
 ## [0.7.3] - 2026-03-23
 

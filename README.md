@@ -724,7 +724,7 @@ verbx batch corpus-generate data/ --output-root out/ --variants-per-input 64
 
 **Batch augment flags:** Built-in profiles `asr-reverb-v1`, `music-reverb-v1`, `drums-room-v1`. Key flags: `--copy-dry`, `--dataset-card-out`, `--metrics-csv-out`, `--qa-bundle-out`, `--provenance-hash`, `--verify-split-isolation`
 
-**Batch corpus-generate flags:** Generate processed corpora from one file or folder. Key flags: `--variants-per-input` (supports very large values), `--jobs` (parallel workers), `--checkpoint-file`, `--resume`, `--num-shards`, `--shard-index`, `--time-shift-min-ms/--time-shift-max-ms`, `--pitch-shift-min-semitones/--pitch-shift-max-semitones`, `--reverb-rt60-min/--reverb-rt60-max`, `--reverb-wet-min/--reverb-wet-max`, `--reverb-pre-delay-min-ms/--reverb-pre-delay-max-ms`, `--seed`, `--dry-run`
+**Batch corpus-generate flags:** Generate processed corpora from one file or folder. Key flags: `--variants-per-input` (supports very large values), `--jobs` (parallel workers), `--retries` (failure retry ergonomics), `--checkpoint-file`, `--resume`, `--num-shards`, `--shard-index`, `--time-shift-min-ms/--time-shift-max-ms`, `--pitch-shift-min-semitones/--pitch-shift-max-semitones`, `--reverb-rt60-min/--reverb-rt60-max`, `--reverb-wet-min/--reverb-wet-max`, `--reverb-pre-delay-min-ms/--reverb-pre-delay-max-ms`, `--seed`, `--dry-run`. Summary output includes throughput metrics (`elapsed_seconds`, `outputs_per_second`, retries/attempt counts).
 
 ---
 
@@ -1159,6 +1159,7 @@ Additional guides in `docs/`:
 - [IR synthesis guide](docs/IR_SYNTHESIS.md) — complete parameter reference for all synthesis modes
 - [AI augmentation guide](docs/AI_AUGMENTATION.md) — dataset generation workflow documentation
 - [IR morph QA guide](docs/IR_MORPH_QA.md) — morph-sweep QA artifacts and CI integration
+- [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md) — platform/install channel support and CI coverage
 - [Benchmark baseline guide](docs/benchmarks/README.md) — CI/runtime comparison workflow
 - [Extreme cookbook](docs/EXTREME_COOKBOOK.md) — 100 additional workflow examples
 

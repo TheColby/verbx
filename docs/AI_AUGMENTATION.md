@@ -69,6 +69,8 @@ Use `--dry-run` first to validate total output counts before launching a large j
 For very large runs, use `--jobs` for parallel generation, and pair `--checkpoint-file ... --resume`
 for interruption-safe retries. For distributed workers, split workload with
 `--num-shards N --shard-index K`.
+Use `--retries` to auto-retry failed variants, then inspect summary throughput fields
+(`elapsed_seconds`, `outputs_per_second`, `total_attempts`) for capacity planning.
 
 ## Manifest format
 

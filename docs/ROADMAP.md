@@ -1,12 +1,12 @@
 # verbx Roadmap
 
-_Last updated: 2026-03-17. Maintained with `README.md` and `CHANGELOG.md`._
+_Last updated: 2026-03-23. Maintained with `README.md` and `CHANGELOG.md`._
 
 ---
 
 ## 1. Release Posture
 
-**Current release:** `v0.7.2`
+**Current release:** `v0.7.3`
 **Status:** public alpha
 **Versioning policy:** semantic (`0.7.x` patch line during alpha)
 
@@ -56,6 +56,8 @@ Launch deliverables should include short before/after clips for each workflow.
 - [x] Add deterministic golden tests for feature-vector lane behavior.
 - [x] Add performance baseline report (`docs/benchmarks/`) for CI comparison.
 - [x] Improve failure messaging for multichannel routing misconfiguration.
+- [x] Add compatibility matrix doc for install/runtime channels (`docs/COMPATIBILITY_MATRIX.md`).
+- [x] Expand install verification CI to cover npm launcher path.
 
 ### 4.2 API and Integration
 

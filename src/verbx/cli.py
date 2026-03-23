@@ -18,6 +18,7 @@ import platform
 import shutil
 import sys
 import tempfile
+import time
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from dataclasses import asdict
@@ -3875,6 +3876,12 @@ def batch_corpus_generate(
         min=1,
         help="Number of worker threads used per input file when generating variants.",
     ),
+    retries: int = typer.Option(
+        0,
+        "--retries",
+        min=0,
+        help="Retry attempts per failed output variant before marking it failed.",
+    ),
     checkpoint_file: Path | None = typer.Option(
         None,
         "--checkpoint-file",
@@ -3950,11 +3957,14 @@ def batch_corpus_generate(
         console.print(
             "[dry-run] corpus-generate "
             f"inputs={len(sharded_files)} variants_per_input={variants_per_input} "
-            f"outputs={total_outputs} shard={shard_index}/{num_shards}"
+            f"outputs={total_outputs} shard={shard_index}/{num_shards} "
+            f"jobs={jobs} retries={retries}"
         )
         return
 
     output_root.mkdir(parents=True, exist_ok=True)
+    started_at = datetime.now(UTC)
+    started_timer = time.perf_counter()
     resumed_outputs: set[str] = set()
     checkpoint_payload: dict[str, Any] = {"version": "0.1", "results": []}
     if checkpoint_path is not None and resume:
@@ -3971,6 +3981,8 @@ def batch_corpus_generate(
     generated = 0
     resumed_skipped = 0
     failed = 0
+    total_attempts = 0
+    retried_outputs = 0
 
     with manifest_path.open(manifest_mode, encoding="utf-8") as manifest_handle:
         with _BatchStatusBar(total=total_outputs, label="Corpus generate", enabled=True) as status:
@@ -4012,6 +4024,7 @@ def batch_corpus_generate(
                                 reverb_pre_delay_min_ms=reverb_pre_delay_min_ms,
                                 reverb_pre_delay_max_ms=reverb_pre_delay_max_ms,
                                 output_subtype=str(output_subtype),
+                                retries=int(retries),
                             )
                         ] = (variant_index, outfile)
                     for future in as_completed(futures):
@@ -4019,6 +4032,10 @@ def batch_corpus_generate(
                         try:
                             record = future.result()
                             generated += 1
+                            attempts = int(record.get("attempts", 1))
+                            total_attempts += attempts
+                            if attempts > 1:
+                                retried_outputs += 1
                             with manifest_lock:
                                 manifest_handle.write(f"{json.dumps(record, sort_keys=True)}\n")
                                 manifest_handle.flush()
@@ -4047,18 +4064,36 @@ def batch_corpus_generate(
                                     _write_json_atomic(checkpoint_path, checkpoint_payload)
                             status.advance(detail=f"{infile.name}#{variant_index} failed")
                             continue
-                        status.advance(detail=f"{infile.name}#{variant_index}")
+                        attempts = int(record.get("attempts", 1))
+                        retry_note = "" if attempts <= 1 else f" retries={attempts - 1}"
+                        status.advance(detail=f"{infile.name}#{variant_index}{retry_note}")
+    elapsed_seconds = max(1e-9, time.perf_counter() - started_timer)
+    outputs_per_second = float(generated) / elapsed_seconds
+    completed_total = generated + failed
+    attempts_per_output = (
+        float(total_attempts) / float(completed_total)
+        if completed_total > 0
+        else 0.0
+    )
     summary = {
         "mode": "batch-corpus-generate",
         "source": str(source),
         "output_root": str(output_root),
         "seed": int(seed),
+        "started_at_utc": started_at.isoformat(),
+        "finished_at_utc": datetime.now(UTC).isoformat(),
         "inputs": len(sharded_files),
         "variants_per_input": int(variants_per_input),
         "generated_outputs": int(generated),
         "resumed_skipped": int(resumed_skipped),
         "failed": int(failed),
         "jobs": int(jobs),
+        "retries": int(retries),
+        "total_attempts": int(total_attempts),
+        "retried_outputs": int(retried_outputs),
+        "attempts_per_output": float(attempts_per_output),
+        "elapsed_seconds": float(elapsed_seconds),
+        "outputs_per_second": float(outputs_per_second),
         "num_shards": int(num_shards),
         "shard_index": int(shard_index),
         "manifest_jsonl": str(manifest_path),
@@ -4070,6 +4105,15 @@ def batch_corpus_generate(
         f"Generated {generated} files across {len(sharded_files)} inputs "
         f"(resumed_skipped={resumed_skipped}, failed={failed})."
     )
+    rates_table = Table(title="Corpus Generation Throughput")
+    rates_table.add_column("Metric")
+    rates_table.add_column("Value")
+    rates_table.add_row("elapsed_seconds", f"{elapsed_seconds:.2f}")
+    rates_table.add_row("outputs_per_second", f"{outputs_per_second:.2f}")
+    rates_table.add_row("total_attempts", str(total_attempts))
+    rates_table.add_row("retried_outputs", str(retried_outputs))
+    rates_table.add_row("attempts_per_output", f"{attempts_per_output:.2f}")
+    console.print(rates_table)
     console.print(f"Manifest: {manifest_path}")
     console.print(f"Summary: {summary_path}")
 
@@ -4758,60 +4802,80 @@ def _generate_corpus_variant(
     reverb_pre_delay_min_ms: float,
     reverb_pre_delay_max_ms: float,
     output_subtype: str,
+    retries: int,
 ) -> dict[str, Any]:
     """Render one corpus variant and return its manifest metadata."""
-    seed_seq = np.random.SeedSequence([int(seed), int(source_index), int(variant_index)])
-    rng = np.random.default_rng(seed_seq)
-    shift_ms = float(rng.uniform(time_shift_min_ms, time_shift_max_ms))
-    pitch_steps = float(rng.uniform(pitch_shift_min_semitones, pitch_shift_max_semitones))
-    rt60 = float(rng.uniform(reverb_rt60_min, reverb_rt60_max))
-    wet = float(rng.uniform(reverb_wet_min, reverb_wet_max))
-    pre_delay_ms = float(rng.uniform(reverb_pre_delay_min_ms, reverb_pre_delay_max_ms))
-    damping = float(rng.uniform(0.35, 0.82))
-    width = float(rng.uniform(0.90, 1.35))
+    max_attempts = max(1, int(retries) + 1)
+    last_error: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            seed_seq = np.random.SeedSequence(
+                [int(seed), int(source_index), int(variant_index), int(attempt)]
+            )
+            rng = np.random.default_rng(seed_seq)
+            shift_ms = float(rng.uniform(time_shift_min_ms, time_shift_max_ms))
+            pitch_steps = float(rng.uniform(pitch_shift_min_semitones, pitch_shift_max_semitones))
+            rt60 = float(rng.uniform(reverb_rt60_min, reverb_rt60_max))
+            wet = float(rng.uniform(reverb_wet_min, reverb_wet_max))
+            pre_delay_ms = float(
+                rng.uniform(reverb_pre_delay_min_ms, reverb_pre_delay_max_ms)
+            )
+            damping = float(rng.uniform(0.35, 0.82))
+            width = float(rng.uniform(0.90, 1.35))
 
-    shifted = _time_shift_audio(audio=audio, sr=sr, shift_ms=shift_ms)
-    pitched = _pitch_shift_audio(shifted, sr=sr, semitones=pitch_steps)
-    reverb = AlgoReverbEngine(
-        AlgoReverbConfig(
-            rt60=rt60,
-            pre_delay_ms=pre_delay_ms,
-            damping=damping,
-            width=width,
-            wet=wet,
-            dry=max(0.0, 1.0 - wet),
-        )
-    )
-    processed = reverb.process(pitched, sr)
-    sf.write(
-        str(outfile),
-        processed,
-        sr,
-        subtype={
-            "auto": None,
-            "float32": "FLOAT",
-            "float64": "DOUBLE",
-            "pcm16": "PCM_16",
-            "pcm24": "PCM_24",
-            "pcm32": "PCM_32",
-        }[output_subtype],
-    )
-    return {
-        "source": str(infile),
-        "output": str(outfile),
-        "source_index": source_index,
-        "variant_index": variant_index,
-        "sample_rate": sr,
-        "augment": {
-            "time_shift_ms": shift_ms,
-            "pitch_shift_semitones": pitch_steps,
-            "reverb_rt60": rt60,
-            "reverb_wet": wet,
-            "reverb_pre_delay_ms": pre_delay_ms,
-            "reverb_damping": damping,
-            "reverb_width": width,
-        },
-    }
+            shifted = _time_shift_audio(audio=audio, sr=sr, shift_ms=shift_ms)
+            pitched = _pitch_shift_audio(shifted, sr=sr, semitones=pitch_steps)
+            reverb = AlgoReverbEngine(
+                AlgoReverbConfig(
+                    rt60=rt60,
+                    pre_delay_ms=pre_delay_ms,
+                    damping=damping,
+                    width=width,
+                    wet=wet,
+                    dry=max(0.0, 1.0 - wet),
+                )
+            )
+            processed = reverb.process(pitched, sr)
+            sf.write(
+                str(outfile),
+                processed,
+                sr,
+                subtype={
+                    "auto": None,
+                    "float32": "FLOAT",
+                    "float64": "DOUBLE",
+                    "pcm16": "PCM_16",
+                    "pcm24": "PCM_24",
+                    "pcm32": "PCM_32",
+                }[output_subtype],
+            )
+            return {
+                "source": str(infile),
+                "output": str(outfile),
+                "source_index": source_index,
+                "variant_index": variant_index,
+                "sample_rate": sr,
+                "attempts": int(attempt),
+                "augment": {
+                    "time_shift_ms": shift_ms,
+                    "pitch_shift_semitones": pitch_steps,
+                    "reverb_rt60": rt60,
+                    "reverb_wet": wet,
+                    "reverb_pre_delay_ms": pre_delay_ms,
+                    "reverb_damping": damping,
+                    "reverb_width": width,
+                },
+            }
+        except Exception as exc:
+            last_error = exc
+            if attempt >= max_attempts:
+                break
+            continue
+
+    assert last_error is not None
+    raise RuntimeError(
+        f"corpus variant failed after {max_attempts} attempts: {last_error}"
+    ) from last_error
 
 
 def _pitch_shift_audio(audio: np.ndarray, *, sr: int, semitones: float) -> np.ndarray:

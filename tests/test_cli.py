@@ -2221,6 +2221,9 @@ def test_batch_corpus_generate_writes_manifest_and_audio(tmp_path: Path) -> None
     assert manifest_path.exists()
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     assert summary["generated_outputs"] == 4
+    assert summary["retries"] == 0
+    assert summary["total_attempts"] == 4
+    assert float(summary["outputs_per_second"]) > 0.0
     generated_wavs = sorted(out_root.glob("**/*.wav"))
     assert len(generated_wavs) == 4
 
