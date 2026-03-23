@@ -58,6 +58,7 @@ def test_quickstart_command_prints_copyable_workflows() -> None:
     text = _combined_cli_output(result)
     assert "verbx Quickstart" in text
     assert "verbx render ../in.wav out.wav" in text
+    assert "npm install -g github:TheColby/verbx" in text
     assert "verbx analyze in.wav" in text
 
 
@@ -2125,6 +2126,159 @@ def test_batch_augment_profiles_lists_builtin_profiles() -> None:
     assert "music-reverb-v1" in payload
     assert "drums-room-v1" in payload
 
+
+def test_batch_corpus_generate_dry_run_reports_large_plan(tmp_path: Path) -> None:
+    infile = tmp_path / "in.wav"
+    audio = np.zeros((2048, 1), dtype=np.float64)
+    audio[50:120, 0] = 0.25
+    sf.write(str(infile), audio, 24_000)
+    out_root = tmp_path / "corpus_out"
+
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            "corpus-generate",
+            str(infile),
+            "--output-root",
+            str(out_root),
+            "--variants-per-input",
+            "1000000",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "corpus-generate" in text
+    assert "outputs=1000000" in text
+
+
+def test_batch_corpus_generate_dry_run_shard_metadata(tmp_path: Path) -> None:
+    in_dir = tmp_path / "inputs"
+    in_dir.mkdir()
+    for idx in range(3):
+        infile = in_dir / f"clip_{idx}.wav"
+        audio = np.zeros((1024, 1), dtype=np.float64)
+        audio[10:80, 0] = 0.3
+        sf.write(str(infile), audio, 16_000)
+
+    out_root = tmp_path / "corpus_out"
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            "corpus-generate",
+            str(in_dir),
+            "--output-root",
+            str(out_root),
+            "--variants-per-input",
+            "10",
+            "--num-shards",
+            "2",
+            "--shard-index",
+            "1",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "outputs=10" in text
+    assert "shard=1/2" in text
+
+
+def test_batch_corpus_generate_writes_manifest_and_audio(tmp_path: Path) -> None:
+    in_dir = tmp_path / "in"
+    in_dir.mkdir()
+    for idx in range(2):
+        infile = in_dir / f"utt_{idx:02d}.wav"
+        audio = np.zeros((4096, 1), dtype=np.float64)
+        audio[20 + idx * 10 : 90 + idx * 10, 0] = 0.35
+        sf.write(str(infile), audio, 16_000)
+
+    out_root = tmp_path / "generated"
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            "corpus-generate",
+            str(in_dir),
+            "--output-root",
+            str(out_root),
+            "--variants-per-input",
+            "2",
+            "--seed",
+            "123",
+            "--pitch-shift-min-semitones",
+            "0.0",
+            "--pitch-shift-max-semitones",
+            "0.0",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    summary_path = out_root / "corpus_generation_summary.json"
+    manifest_path = out_root / "corpus_generation_manifest.jsonl"
+    assert summary_path.exists()
+    assert manifest_path.exists()
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["generated_outputs"] == 4
+    assert summary["retries"] == 0
+    assert summary["total_attempts"] == 4
+    assert float(summary["outputs_per_second"]) > 0.0
+    generated_wavs = sorted(out_root.glob("**/*.wav"))
+    assert len(generated_wavs) == 4
+
+
+def test_batch_corpus_generate_resume_uses_checkpoint(tmp_path: Path) -> None:
+    infile = tmp_path / "voice.wav"
+    audio = np.zeros((2048, 1), dtype=np.float64)
+    audio[80:200, 0] = 0.35
+    sf.write(str(infile), audio, 24_000)
+    out_root = tmp_path / "generated"
+    checkpoint = tmp_path / "corpus_checkpoint.json"
+
+    first = runner.invoke(
+        app,
+        [
+            "batch",
+            "corpus-generate",
+            str(infile),
+            "--output-root",
+            str(out_root),
+            "--variants-per-input",
+            "2",
+            "--seed",
+            "17",
+            "--jobs",
+            "2",
+            "--checkpoint-file",
+            str(checkpoint),
+        ],
+    )
+    assert first.exit_code == 0, first.stdout
+
+    second = runner.invoke(
+        app,
+        [
+            "batch",
+            "corpus-generate",
+            str(infile),
+            "--output-root",
+            str(out_root),
+            "--variants-per-input",
+            "2",
+            "--seed",
+            "17",
+            "--jobs",
+            "2",
+            "--checkpoint-file",
+            str(checkpoint),
+            "--resume",
+        ],
+    )
+    assert second.exit_code == 0, second.stdout
+    summary = json.loads((out_root / "corpus_generation_summary.json").read_text(encoding="utf-8"))
+    assert int(summary["generated_outputs"]) == 0
+    assert int(summary["resumed_skipped"]) == 2
 
 def test_batch_augment_dry_run_plans_without_writing_audio(tmp_path: Path) -> None:
     sr = 16_000

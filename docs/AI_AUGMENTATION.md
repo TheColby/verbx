@@ -47,6 +47,31 @@ verbx batch augment augment_manifest.json \
 verbx batch augment augment_manifest.json --dry-run
 ```
 
+### 4) Direct corpus generation from file/folder
+
+Use this when you want fast audio corpus expansion without authoring a manifest first.
+Each variant applies randomized time shift, pitch shift, and algorithmic reverb inside
+user-provided limits.
+
+```bash
+verbx batch corpus-generate data/clean \
+  --output-root out/corpus \
+  --variants-per-input 128 \
+  --time-shift-min-ms -60 --time-shift-max-ms 60 \
+  --pitch-shift-min-semitones -2 --pitch-shift-max-semitones 2 \
+  --reverb-rt60-min 0.3 --reverb-rt60-max 3.8 \
+  --reverb-wet-min 0.1 --reverb-wet-max 0.5 \
+  --seed 20260322
+```
+
+Tip: `--variants-per-input` accepts very large values for long-running corpus generation.
+Use `--dry-run` first to validate total output counts before launching a large job.
+For very large runs, use `--jobs` for parallel generation, and pair `--checkpoint-file ... --resume`
+for interruption-safe retries. For distributed workers, split workload with
+`--num-shards N --shard-index K`.
+Use `--retries` to auto-retry failed variants, then inspect summary throughput fields
+(`elapsed_seconds`, `outputs_per_second`, `total_attempts`) for capacity planning.
+
 ## Manifest format
 
 ```json

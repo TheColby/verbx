@@ -4,6 +4,25 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 ### Added
+- Compatibility matrix doc for install/runtime channels (`docs/COMPATIBILITY_MATRIX.md`).
+- Stable Python API wrappers in `verbx.api` (`render_file`, `generate_ir`, `analyze_file`).
+- Schema contract docs for batch manifests and automation payloads (`docs/SCHEMAS.md`).
+- Minimal notebook examples for API/data workflows (`docs/notebooks/`).
+- SOFA feasibility assessment document (`docs/SOFA_FEASIBILITY.md`).
+
+### Changed
+- `batch corpus-generate` now reports throughput and retry metrics in summary output
+  (`elapsed_seconds`, `outputs_per_second`, `total_attempts`, retry stats).
+- `batch corpus-generate` adds `--retries` for per-variant retry ergonomics.
+- Install verification CI now exercises npm launcher onboarding flow.
+- `quickstart` includes npm onboarding + readiness command path.
+- Immersive QC now reports an explicit `layout_channels` gate and expected channel count.
+- Added docs-sync tests to keep key README command flags aligned with CLI help text.
+- Added explicit large-bus routing examples (`7.2.4`, `8.0`, `16.0`, `64.4`) in README.
+
+## [0.7.3] - 2026-03-23
+
+### Added
 - Homebrew formula artifact in-repo at `packaging/homebrew/verbx.rb`.
 - Homebrew maintainer guide (`docs/HOMEBREW.md`) and refresh helper script
   (`scripts/refresh_homebrew_formula.sh`).
@@ -12,6 +31,10 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 - README installation section now includes Homebrew install paths.
+- npm launcher now uses platform-native `PYTHONPATH` delimiter handling for
+  cross-platform execution.
+- `quickstart` now includes an npm installation + readiness verification
+  workflow (`quickstart --verify --strict` and `doctor --render-smoke-test`).
 
 ## [0.7.2] - 2026-03-17
 
