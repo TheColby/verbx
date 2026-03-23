@@ -1,0 +1,19 @@
+{
+  "name": "@thecolby/verbx",
+  "version": "0.7.3",
+  "description": "Node launcher for the verbx Python CLI.",
+  "license": "MIT",
+  "bin": {
+    "verbx": "npm/verbx.js"
+  },
+  "files": [
+    "npm",
+    "src",
+    "pyproject.toml",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
