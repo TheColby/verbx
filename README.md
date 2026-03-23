@@ -128,6 +128,19 @@ For local maintainer testing, you can also install from the in-repo formula:
 brew install --build-from-source ./packaging/homebrew/verbx.rb
 ```
 
+**With npm (Node launcher + Python backend):**
+
+```bash
+npm install -g github:TheColby/verbx
+verbx --help
+```
+
+Notes:
+- This installs a Node launcher that runs the Python CLI.
+- Python 3.11+ is still required.
+- On first run, if Python deps are missing, the launcher will attempt:
+  `python3 -m pip install --user <installed-verbx-path>`.
+
 **Requirements:** Python 3.11+, `libsndfile` on system path. Optional: `numba` (faster algorithmic path), `cupy` (CUDA convolution).
 
 Homebrew maintainer details: [`docs/HOMEBREW.md`](docs/HOMEBREW.md)
