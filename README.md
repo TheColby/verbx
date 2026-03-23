@@ -494,6 +494,22 @@ Use `--input-layout` and `--output-layout` to declare channel semantics explicit
 
 Other formats are also easy to support: the routing and DSP paths already operate on arbitrary channel counts, and new symbolic layout names are straightforward to add when you need explicit semantics.
 
+**Explicit routing examples for large buses:**
+
+```bash
+# 7.2.4 bed (13 ch)
+verbx render bed_7_2_4.wav out_7_2_4.wav --input-layout 7.2.4 --output-layout 7.2.4
+
+# 8.0 bed (8 ch, no dedicated LFE)
+verbx render bed_8_0.wav out_8_0.wav --input-layout 8.0 --output-layout 8.0
+
+# 16.0 large discrete bed
+verbx render bed_16_0.wav out_16_0.wav --input-layout 16.0 --output-layout 16.0
+
+# 64.4 high-density immersive layout
+verbx render bed_64_4.wav out_64_4.wav --input-layout 64.4 --output-layout 64.4
+```
+
 **Ambisonics:** verbx supports First-Order Ambisonics (FOA) with ACN channel ordering and SN3D/N3D/FuMa normalization. Use `--ambi-order 1` to declare FOA mode. `--ambi-encode-from stereo` encodes a stereo input into FOA before processing; `--ambi-decode-to stereo` decodes back out after. `--ambi-rotate-yaw-deg` applies rotation in the Ambisonics domain — useful for spatial orientation of the reverb field relative to a listener position. FUMA is FOA-only; ACN with SN3D is the standard workflow for most Ambisonics toolchains.
 
 **IR matrix routing for surround:** If your IR file contains $M \times N$ channels (for $M$ input and $N$ output channels), declare the packing order with `--ir-matrix-layout`. Output-major packing stores all inputs for output 0 first, then all inputs for output 1, etc. (channel index $oM + i$). Input-major stores all outputs for input 0 first (channel index $iN + o$). A 5.1 input to 5.1 output full-matrix IR has 36 channels; a diagonal (same IR per channel) has 6. The routing is explicit: verbx does not guess.
@@ -1174,6 +1190,8 @@ Additional guides in `docs/`:
 - [IR morph QA guide](docs/IR_MORPH_QA.md) — morph-sweep QA artifacts and CI integration
 - [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md) — platform/install channel support and CI coverage
 - [Schema contracts](docs/SCHEMAS.md) — manifest/automation JSON field reference
+- [Notebook examples](docs/notebooks/README.md) — API-driven research workflows
+- [SOFA feasibility](docs/SOFA_FEASIBILITY.md) — scope, constraints, and adoption plan
 - [Benchmark baseline guide](docs/benchmarks/README.md) — CI/runtime comparison workflow
 - [Extreme cookbook](docs/EXTREME_COOKBOOK.md) — 100 additional workflow examples
 

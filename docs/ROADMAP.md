@@ -62,14 +62,14 @@ Launch deliverables should include short before/after clips for each workflow.
 ### 4.2 API and Integration
 
 - [x] Ship a stable `verbx.api` Python surface (`render_file`, `generate_ir`, `analyze_file`).
-- [ ] Add minimal notebook examples for research and dataset workflows.
+- [x] Add minimal notebook examples for research and dataset workflows.
 - [x] Add structured JSON schema docs for manifests and automation files.
 
 ### 4.3 Spatial and Interop
 
-- [ ] Harden layout/route validation for large immersive buses.
-- [ ] Add explicit examples for `7.2.4`, `8.0`, `16.0`, and `64.4` routing.
-- [ ] Evaluate SOFA import path feasibility for a future `0.7.x` patch.
+- [x] Harden layout/route validation for large immersive buses.
+- [x] Add explicit examples for `7.2.4`, `8.0`, `16.0`, and `64.4` routing.
+- [x] Evaluate SOFA import path feasibility for a future `0.7.x` patch.
 
 ### 4.4 Documentation Quality
 

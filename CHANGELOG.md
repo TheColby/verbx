@@ -7,6 +7,8 @@ All notable changes to this project are documented in this file.
 - Compatibility matrix doc for install/runtime channels (`docs/COMPATIBILITY_MATRIX.md`).
 - Stable Python API wrappers in `verbx.api` (`render_file`, `generate_ir`, `analyze_file`).
 - Schema contract docs for batch manifests and automation payloads (`docs/SCHEMAS.md`).
+- Minimal notebook examples for API/data workflows (`docs/notebooks/`).
+- SOFA feasibility assessment document (`docs/SOFA_FEASIBILITY.md`).
 
 ### Changed
 - `batch corpus-generate` now reports throughput and retry metrics in summary output
@@ -16,6 +18,7 @@ All notable changes to this project are documented in this file.
 - `quickstart` includes npm onboarding + readiness command path.
 - Immersive QC now reports an explicit `layout_channels` gate and expected channel count.
 - Added docs-sync tests to keep key README command flags aligned with CLI help text.
+- Added explicit large-bus routing examples (`7.2.4`, `8.0`, `16.0`, `64.4`) in README.
 
 ## [0.7.3] - 2026-03-23
 
