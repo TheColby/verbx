@@ -68,6 +68,18 @@ verbx suggest input.wav
 verbx quickstart
 ```
 
+### Python API Quick Start
+
+`verbx` also exposes a small Python API surface for notebook/pipeline use:
+
+```python
+from verbx.api import render_file, analyze_file, generate_ir
+
+render_file("in.wav", "out.wav", engine="algo", rt60=2.5, wet=0.3, dry=0.7)
+metrics = analyze_file("out.wav", include_loudness=True)
+ir = generate_ir("ir.wav")
+```
+
 ### Five Runnable Examples
 
 ```bash
@@ -128,6 +140,22 @@ For local maintainer testing, you can also install from the in-repo formula:
 brew install --build-from-source ./packaging/homebrew/verbx.rb
 ```
 
+**With npm (Node launcher + Python backend):**
+
+```bash
+npm install -g github:TheColby/verbx
+verbx --help
+verbx quickstart --verify --strict
+verbx doctor --render-smoke-test
+```
+
+Notes:
+- This installs a Node launcher that runs the Python CLI.
+- Python 3.11+ is still required.
+- Launcher search order is: `$PYTHON`, then `python3`, then `python` (and `py` on Windows).
+- On first run, if Python deps are missing, the launcher attempts
+  `<selected-python> -m pip install --user <installed-verbx-path>`, then retries.
+
 **Requirements:** Python 3.11+, `libsndfile` on system path. Optional: `numba` (faster algorithmic path), `cupy` (CUDA convolution).
 
 Homebrew maintainer details: [`docs/HOMEBREW.md`](docs/HOMEBREW.md)
@@ -173,7 +201,7 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.7.2**.
+Current public alpha release: **v0.7.3**.
 
 - `verbx` is currently research-grade software (public alpha), not production-certified.
 - Confirm your environment with `verbx quickstart --verify --strict` and `verbx doctor`.
@@ -466,7 +494,23 @@ Use `--input-layout` and `--output-layout` to declare channel semantics explicit
 
 Other formats are also easy to support: the routing and DSP paths already operate on arbitrary channel counts, and new symbolic layout names are straightforward to add when you need explicit semantics.
 
-**Ambisonics:** verbx supports First-Order Ambisonics (FOA) with ACN channel ordering and SN3D/N3D/FuMa normalization. Use `--ambi-order 1` to declare FOA mode. `--ambi-encode-from stereo` encodes a stereo input into FOA before processing; `--ambi-decode-to stereo` decodes back out after. `--ambi-rotate-yaw-deg` applies rotation in the Ambisonics domain — useful for spatial orientation of the reverb field relative to a listener position. FUMA is FOA-only; ACN with SN3D is the standard workflow for most Ambisonics toolchains.
+**Explicit routing examples for large buses:**
+
+```bash
+# 7.2.4 bed (13 ch)
+verbx render bed_7_2_4.wav out_7_2_4.wav --input-layout 7.2.4 --output-layout 7.2.4
+
+# 8.0 bed (8 ch, no dedicated LFE)
+verbx render bed_8_0.wav out_8_0.wav --input-layout 8.0 --output-layout 8.0
+
+# 16.0 large discrete bed
+verbx render bed_16_0.wav out_16_0.wav --input-layout 16.0 --output-layout 16.0
+
+# 64.4 high-density immersive layout
+verbx render bed_64_4.wav out_64_4.wav --input-layout 64.4 --output-layout 64.4
+```
+
+**Ambisonics:** verbx supports FOA and HOA (`--ambi-order 1..7`) with ACN channel ordering and SN3D/N3D/FuMa normalization (FuMa remains FOA-only). Use `--ambi-order 1` plus `--ambi-encode-from stereo` to encode stereo into FOA before render. `--ambi-decode-to stereo` decodes Ambisonic output back to stereo after render. `--ambi-rotate-yaw-deg` applies listener yaw rotation in the Ambisonics domain.
 
 **IR matrix routing for surround:** If your IR file contains $M \times N$ channels (for $M$ input and $N$ output channels), declare the packing order with `--ir-matrix-layout`. Output-major packing stores all inputs for output 0 first, then all inputs for output 1, etc. (channel index $oM + i$). Input-major stores all outputs for input 0 first (channel index $iN + o$). A 5.1 input to 5.1 output full-matrix IR has 36 channels; a diagonal (same IR per channel) has 6. The routing is explicit: verbx does not guess.
 
@@ -667,6 +711,8 @@ verbx ir process IN_IR.wav OUT_IR.wav     # shape existing IR (EQ, normalize, ti
 verbx ir morph IR_A.wav IR_B.wav OUT.wav  # blend two IRs
 verbx ir morph-sweep IR_A.wav IR_B.wav OUT_DIR  # alpha-timeline sweep with QA artifacts
 verbx ir fit INFILE.wav OUT_IR.wav        # fit an IR to match source audio
+verbx ir sofa-inspect HRTF.sofa --json-out sofa_report.json
+verbx ir sofa-convert HRTF.sofa out_ir.wav --measurement-index 0
 ```
 
 **`ir gen` key flags:** `--mode [fdn|stochastic|modal|hybrid]`, `--length`, `--rt60`, `--damping`, `--seed`, `--sr`, `--channels`, `--er-count`, `--diffusion`, `--fdn-lines`, `--fdn-matrix`, `--resonator`, `--resonator-mix`, `--analyze-input`, `--harmonic-align-strength`, `--f0`
@@ -674,6 +720,8 @@ verbx ir fit INFILE.wav OUT_IR.wav        # fit an IR to match source audio
 **`ir morph` key flags:** `--mode [linear|equal-power|spectral|envelope-aware]`, `--alpha`, `--early-ms`, `--early-alpha`, `--late-alpha`, `--align-decay`, `--phase-coherence`, `--mismatch-policy [coerce|strict]`
 
 **`ir morph-sweep` key flags:** Same as morph plus `--alpha-start`, `--alpha-end`, `--alpha-steps`, `--workers`, `--retries`, `--checkpoint-file`, `--resume`, `--qa-json-out`, `--qa-csv-out`
+
+**`ir sofa-inspect` / `ir sofa-convert`:** SOFA Phase A/B utilities for metadata inspection and constrained `Data.IR` conversion to matrix WAV (`--measurement-index`, `--normalize-peak`, `--json-out`).
 
 ---
 
@@ -701,11 +749,14 @@ verbx batch render manifest.json --jobs 8      # parallel render
 verbx batch augment-template > augment.json    # generate augmentation manifest
 verbx batch augment-profiles                   # list built-in profiles
 verbx batch augment augment.json --jobs 8      # generate training dataset
+verbx batch corpus-generate data/ --output-root out/ --variants-per-input 64
 ```
 
 **Batch render flags:** `--jobs`, `--schedule [fifo|shortest-first|longest-first]`, `--retries`, `--continue-on-error`, `--checkpoint-file`, `--resume`, `--dry-run`
 
 **Batch augment flags:** Built-in profiles `asr-reverb-v1`, `music-reverb-v1`, `drums-room-v1`. Key flags: `--copy-dry`, `--dataset-card-out`, `--metrics-csv-out`, `--qa-bundle-out`, `--provenance-hash`, `--verify-split-isolation`
+
+**Batch corpus-generate flags:** Generate processed corpora from one file or folder. Key flags: `--variants-per-input` (supports very large values), `--execution-profile [auto|cpu-balanced|io-bound|max-throughput]`, `--jobs` (override worker count), `--retries` (failure retry ergonomics), `--checkpoint-file`, `--resume`, `--num-shards`, `--shard-index`, `--time-shift-min-ms/--time-shift-max-ms`, `--pitch-shift-min-semitones/--pitch-shift-max-semitones`, `--reverb-rt60-min/--reverb-rt60-max`, `--reverb-wet-min/--reverb-wet-max`, `--reverb-pre-delay-min-ms/--reverb-pre-delay-max-ms`, `--seed`, `--dry-run`. Summary output includes stage telemetry (`read_seconds`, `process_seconds`, `write_seconds`) and throughput/retry metrics.
 
 ---
 
@@ -717,6 +768,7 @@ verbx presets             # list built-in presets
 verbx presets --show cathedral_extreme   # inspect preset parameters
 verbx quickstart          # copy-paste workflows for first-run scenarios
 verbx quickstart --verify --strict       # startup readiness check (useful before demos)
+verbx quickstart --smoke-test --json-out quickstart_smoke.json
 verbx doctor              # platform/acceleration diagnostics
 verbx doctor --json-out doctor.json      # machine-readable diagnostics for issue reports
 verbx version             # package version string
@@ -1140,6 +1192,10 @@ Additional guides in `docs/`:
 - [IR synthesis guide](docs/IR_SYNTHESIS.md) — complete parameter reference for all synthesis modes
 - [AI augmentation guide](docs/AI_AUGMENTATION.md) — dataset generation workflow documentation
 - [IR morph QA guide](docs/IR_MORPH_QA.md) — morph-sweep QA artifacts and CI integration
+- [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md) — platform/install channel support and CI coverage
+- [Schema contracts](docs/SCHEMAS.md) — manifest/automation JSON field reference
+- [Notebook examples](docs/notebooks/README.md) — API-driven research workflows
+- [SOFA feasibility](docs/SOFA_FEASIBILITY.md) — scope, constraints, and adoption plan
 - [Benchmark baseline guide](docs/benchmarks/README.md) — CI/runtime comparison workflow
 - [Extreme cookbook](docs/EXTREME_COOKBOOK.md) — 100 additional workflow examples
 
@@ -1149,4 +1205,4 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.7.2 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.7.3 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
