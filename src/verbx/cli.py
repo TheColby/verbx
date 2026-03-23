@@ -378,6 +378,11 @@ def quickstart(
             "--engine algo --rt60 12 --wet 0.88 --dry 0.12",
         ),
         (
+            "npm launcher install + readiness check",
+            "npm install -g github:TheColby/verbx && "
+            "verbx quickstart --verify --strict && verbx doctor --render-smoke-test",
+        ),
+        (
             "Analyze then suggested settings",
             "verbx analyze in.wav --lufs --json-out analysis.json && verbx suggest in.wav",
         ),

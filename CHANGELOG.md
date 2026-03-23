@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 ### Added
+- (none yet)
+
+## [0.7.3] - 2026-03-23
+
+### Added
 - Homebrew formula artifact in-repo at `packaging/homebrew/verbx.rb`.
 - Homebrew maintainer guide (`docs/HOMEBREW.md`) and refresh helper script
   (`scripts/refresh_homebrew_formula.sh`).
@@ -12,6 +17,10 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 - README installation section now includes Homebrew install paths.
+- npm launcher now uses platform-native `PYTHONPATH` delimiter handling for
+  cross-platform execution.
+- `quickstart` now includes an npm installation + readiness verification
+  workflow (`quickstart --verify --strict` and `doctor --render-smoke-test`).
 
 ## [0.7.2] - 2026-03-17
 

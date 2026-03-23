@@ -31,7 +31,9 @@ function printCaptured(result) {
 
 function runCli(pythonExec) {
   const env = { ...process.env };
-  env.PYTHONPATH = env.PYTHONPATH ? `${srcDir}:${env.PYTHONPATH}` : srcDir;
+  env.PYTHONPATH = env.PYTHONPATH
+    ? `${srcDir}${path.delimiter}${env.PYTHONPATH}`
+    : srcDir;
   return spawnSync(
     pythonExec,
     ["-m", "verbx.cli", ...args],
