@@ -8,7 +8,7 @@
 ## User Install (macOS)
 
 ```bash
-brew tap TheColby/verbx
+brew tap thecolby/verbx
 brew install thecolby/verbx/verbx
 verbx version
 ```
@@ -25,14 +25,14 @@ brew install --build-from-source ./packaging/homebrew/verbx.rb
 1. Refresh formula pins for a new release tag:
 
 ```bash
-./scripts/refresh_homebrew_formula.sh 0.7.2
+./scripts/refresh_homebrew_formula.sh 0.7.3
 ```
 
 2. Commit formula changes in this repo:
 
 ```bash
 git add packaging/homebrew/verbx.rb scripts/refresh_homebrew_formula.sh docs/HOMEBREW.md
-git commit -m "chore(homebrew): refresh formula for v0.7.2"
+git commit -m "chore(homebrew): refresh formula for v0.7.3"
 ```
 
 3. Ensure tap repo formula is updated and pushed.
@@ -51,7 +51,8 @@ If token is missing, sync is skipped without failing the release.
 ## Compatibility Notes
 
 - Formula pins Python resources using `brew update-python-resources`.
-- `numba`/`llvmlite` are intentionally excluded from Homebrew resources to avoid
-  fragile compiler-bound builds in common macOS environments.
+- `numba`/`llvmlite`/`scikit-learn` are intentionally excluded from Homebrew
+  resources to avoid fragile compiler-bound builds in common macOS
+  environments.
 - Core DSP paths are unaffected; shimmer remains available with librosa and
   falls back gracefully when acceleration dependencies are absent.

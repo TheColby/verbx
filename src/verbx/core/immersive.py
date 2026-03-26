@@ -54,6 +54,16 @@ LAYOUT_CHANNEL_LABELS: dict[str, tuple[str, ...]] = {
     "7.1.4": ("L", "R", "C", "LFE", "Ls", "Rs", "Lrs", "Rrs", "Ltf", "Rtf", "Ltr", "Rtr"),
     "7.2.4": ("L", "R", "C", "LFE1", "LFE2", "Ls", "Rs", "Lrs", "Rrs", "Ltf", "Rtf", "Ltr", "Rtr"),
     "8.0": ("L", "R", "C", "Ls", "Rs", "Lrs", "Rrs", "Cs"),
+    # 16-channel speaker ring (generic immersive bus, no LFE)
+    "16.0": (
+        "L", "R", "C", "Ls", "Rs", "Lrs", "Rrs", "Cs",
+        "Ltf", "Rtf", "Ltr", "Rtr", "Lmf", "Rmf", "Lmr", "Rmr",
+    ),
+    # 64-bed + 4-LFE large-format immersive bus
+    "64.4": tuple(
+        [f"Sp{i:02d}" for i in range(1, 65)]
+        + ["LFE1", "LFE2", "LFE3", "LFE4"]
+    ),
 }
 
 POLICY_MODES = {"bed-safe", "object-safe", "balanced"}

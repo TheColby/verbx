@@ -1,12 +1,12 @@
 # verbx Roadmap
 
-_Last updated: 2026-03-17. Maintained with `README.md` and `CHANGELOG.md`._
+_Last updated: 2026-03-26. Maintained with `README.md` and `CHANGELOG.md`._
 
 ---
 
 ## 1. Release Posture
 
-**Current release:** `v0.7.2`
+**Current release:** `v0.7.3`
 **Status:** public alpha
 **Versioning policy:** semantic (`0.7.x` patch line during alpha)
 
@@ -59,14 +59,14 @@ Launch deliverables should include short before/after clips for each workflow.
 
 ### 4.2 API and Integration
 
-- [ ] Ship a stable `verbx.api` Python surface (`render_file`, `generate_ir`, `analyze_file`).
-- [ ] Add minimal notebook examples for research and dataset workflows.
-- [ ] Add structured JSON schema docs for manifests and automation files.
+- [x] Ship a stable `verbx.api` Python surface (`render_file`, `generate_ir`, `analyze_file`).
+- [x] Add minimal notebook examples for research and dataset workflows.
+- [x] Add structured JSON schema docs for manifests and automation files.
 
 ### 4.3 Spatial and Interop
 
 - [ ] Harden layout/route validation for large immersive buses.
-- [ ] Add explicit examples for `7.2.4`, `8.0`, `16.0`, and `64.4` routing.
+- [x] Add explicit examples for `7.2.4`, `8.0`, `16.0`, and `64.4` routing.
 - [ ] Evaluate SOFA import path feasibility for a future `0.7.x` patch.
 
 ### 4.4 Documentation Quality

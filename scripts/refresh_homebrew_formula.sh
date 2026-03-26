@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKSPACE_FORMULA="${ROOT_DIR}/packaging/homebrew/verbx.rb"
 TAP_NAME="${HOMEBREW_TAP:-thecolby/verbx}"
-EXCLUDE_PACKAGES="${HOMEBREW_EXCLUDE_PACKAGES:-numba,llvmlite}"
-EXTRA_PACKAGES="${HOMEBREW_EXTRA_PACKAGES:-numpy}"
+EXCLUDE_PACKAGES="${HOMEBREW_EXCLUDE_PACKAGES:-numba,llvmlite,scikit-learn}"
+EXTRA_PACKAGES="${HOMEBREW_EXTRA_PACKAGES:-numpy,scipy}"
 
 usage() {
   cat <<'EOF'
@@ -13,13 +13,14 @@ Usage:
   scripts/refresh_homebrew_formula.sh <version>
 
 Examples:
-  scripts/refresh_homebrew_formula.sh 0.7.2
-  HOMEBREW_TAP=thecolby/verbx scripts/refresh_homebrew_formula.sh 0.7.2
+  scripts/refresh_homebrew_formula.sh 0.7.3
+  HOMEBREW_TAP=thecolby/verbx scripts/refresh_homebrew_formula.sh 0.7.3
 
 Notes:
   - Requires Homebrew and `brew update-python-resources`.
   - Requires an existing local tap (e.g. `brew tap-new thecolby/homebrew-verbx`).
-  - Excludes numba/llvmlite to avoid fragile source builds in Homebrew environments.
+  - Excludes numba/llvmlite/scikit-learn to avoid fragile source builds in Homebrew
+    environments while preserving core runtime dependencies.
 EOF
 }
 

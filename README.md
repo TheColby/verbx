@@ -138,6 +138,20 @@ If `verbx` is not found after install, add `~/.local/bin` to your PATH:
 export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc or ~/.bashrc
 ```
 
+## Python API (Research Workflows)
+
+Use `verbx` as a library when you need notebook/pipeline integration:
+
+```python
+from verbx.api import analyze_file, generate_ir, render_file
+from verbx.config import RenderConfig
+from verbx.ir import IRGenConfig
+
+report = render_file("dry.wav", "wet.wav", RenderConfig(engine="algo", rt60=2.5, wet=0.7))
+ir_audio, ir_sr, ir_meta = generate_ir(IRGenConfig(mode="fdn", duration=3.0, sr=48000))
+metrics = analyze_file("wet.wav", include_loudness=True)
+```
+
 ## Audio Examples
 
 Rendered examples are included in [`examples/audio/`](examples/audio/). All files are stereo, 24 kHz, PCM16.
@@ -173,7 +187,7 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.7.2**.
+Current public alpha release: **v0.7.3**.
 
 - `verbx` is currently research-grade software (public alpha), not production-certified.
 - Confirm your environment with `verbx quickstart --verify --strict` and `verbx doctor`.
@@ -1139,6 +1153,8 @@ Key papers:
 Additional guides in `docs/`:
 - [IR synthesis guide](docs/IR_SYNTHESIS.md) — complete parameter reference for all synthesis modes
 - [AI augmentation guide](docs/AI_AUGMENTATION.md) — dataset generation workflow documentation
+- [Schema reference](docs/SCHEMA_REFERENCE.md) — JSON/CSV formats for manifests and automation
+- [Dataset augmentation notebook](examples/dataset_augmentation.ipynb) — Python API workflow for ML pipelines
 - [IR morph QA guide](docs/IR_MORPH_QA.md) — morph-sweep QA artifacts and CI integration
 - [Benchmark baseline guide](docs/benchmarks/README.md) — CI/runtime comparison workflow
 - [Extreme cookbook](docs/EXTREME_COOKBOOK.md) — 100 additional workflow examples
@@ -1149,4 +1165,4 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.7.2 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.7.3 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.

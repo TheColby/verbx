@@ -3,15 +3,25 @@
 All notable changes to this project are documented in this file.
 
 ## [Unreleased]
+
+## [0.7.3] - 2026-03-26
+
 ### Added
-- Homebrew formula artifact in-repo at `packaging/homebrew/verbx.rb`.
-- Homebrew maintainer guide (`docs/HOMEBREW.md`) and refresh helper script
-  (`scripts/refresh_homebrew_formula.sh`).
-- Optional release automation to sync formula updates to tap repo
-  (`sync-homebrew-tap` job in `.github/workflows/release.yml`).
+- Stable Python API surface at `verbx.api`
+  (`render_file`, `generate_ir`, `analyze_file`, `read_audio`, `write_audio`).
+- Package-level API re-exports via `verbx.__init__` for library workflows.
+- Immersive layout label support for large buses (`16.0` and `64.4`).
+- Structured schema reference documentation in `docs/SCHEMA_REFERENCE.md`.
+- Research notebook example for dataset workflows:
+  `examples/dataset_augmentation.ipynb`.
+- Public Homebrew tap repository published at `TheColby/homebrew-verbx`.
 
 ### Changed
-- README installation section now includes Homebrew install paths.
+- Bumped package/version metadata and release docs to `v0.7.3`.
+- Homebrew maintainer guidance now documents excluded fragile build dependencies
+  (`numba`, `llvmlite`, `scikit-learn`) and required runtime deps (`numpy`,
+  `scipy`).
+- Packaging metadata now consistently describes verbx as research-grade.
 
 ## [0.7.2] - 2026-03-17
 
