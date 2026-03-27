@@ -60,6 +60,8 @@ class RenderConfig:
             raise ValueError(f"block_size must be >= 1, got {self.block_size}")
         if self.partition_size < 1:
             raise ValueError(f"partition_size must be >= 1, got {self.partition_size}")
+        if self.target_sr is not None and int(self.target_sr) < 1:
+            raise ValueError(f"target_sr must be >= 1, got {self.target_sr}")
         if self.pre_delay_ms < 0.0:
             raise ValueError(f"pre_delay_ms must be >= 0, got {self.pre_delay_ms}")
         if not 0.0 <= self.damping <= 1.0:
@@ -182,6 +184,7 @@ class RenderConfig:
     threads: int | None = None
     device: DeviceName = "auto"
     partition_size: int = 16_384
+    target_sr: int | None = None
     ir_gen: bool = False
     ir_gen_mode: IRMode = "hybrid"
     ir_gen_length: float = 60.0

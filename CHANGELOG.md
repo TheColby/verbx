@@ -17,6 +17,9 @@ All notable changes to this project are documented in this file.
 ### Changed
 - CI now checks CLI reference freshness (`scripts/generate_cli_reference.py --check`).
 - CI now checks launch-example parity (`scripts/check_launch_examples.py --check`).
+- `verbx render` now supports `--target-sr` for integrated sample-rate
+  conversion during render (for example, rendering directly to 192 kHz output
+  without pre-resampling source audio).
 - Release workflow now enforces explicit publish/sync policy gates:
   - `RELEASE_REQUIRE_PYPI` (default `true`)
   - `RELEASE_REQUIRE_HOMEBREW` (default `true`)

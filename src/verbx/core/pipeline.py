@@ -12,6 +12,7 @@ This module ties together:
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
@@ -20,6 +21,7 @@ from typing import Any, cast
 import numpy as np
 import numpy.typing as npt
 import soundfile as sf
+from scipy.signal import resample_poly
 
 from verbx.analysis.analyzer import AudioAnalyzer
 from verbx.analysis.framewise import write_framewise_csv
@@ -81,10 +83,14 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
         input_sr = int(info.samplerate)
         input_channels = int(info.channels)
         input_duration_seconds = float(info.frames) / float(max(1, input_sr))
+        processing_sr = _resolve_processing_sample_rate(
+            input_sr=input_sr,
+            target_sr=config.target_sr,
+        )
 
         runtime_config, ir_runtime = _prepare_runtime_config(
             config,
-            input_sr,
+            processing_sr,
             input_channels,
             infile,
             input_duration_seconds,
@@ -105,7 +111,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
 
         # Streaming path is deliberately conservative and only enabled when
         # side processing would not require full in-memory post passes.
-        if _can_stream_convolution(runtime_config, engine_name, engine):
+        if _can_stream_convolution(runtime_config, engine_name, engine, input_sr=input_sr):
             progress.set_passes(1)
             stream_engine = engine
             assert isinstance(stream_engine, ConvolutionReverbEngine)
@@ -141,6 +147,12 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                     "beast_mode": runtime_config.beast_mode,
                     "tail_padding_seconds": 0.0,
                     "input_peak_linear": float(stream_stats["input_peak_linear"]),
+                    "input_sample_rate": input_sr,
+                    "processing_sample_rate": int(stream_stats["sample_rate"]),
+                    "sample_rate_action": _sample_rate_action(
+                        input_sr=input_sr,
+                        processing_sr=int(stream_stats["sample_rate"]),
+                    ),
                     "output_subtype": output_subtype if output_subtype is not None else "auto",
                     "output_peak_norm": runtime_config.output_peak_norm,
                     "output_peak_target_dbfs": runtime_config.output_peak_target_dbfs,
@@ -164,7 +176,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 )
                 report["output"] = analyzer.analyze(
                     audio_out,
-                    input_sr,
+                    processing_sr,
                     include_loudness=include_loudness,
                 )
                 track_c_diag = _build_track_c_calibration_diagnostics(
@@ -179,14 +191,19 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 report["analysis_path"] = str(analysis_path)
                 if runtime_config.frames_out is not None:
                     frames_path = Path(runtime_config.frames_out)
-                    write_framewise_csv(frames_path, audio_out, input_sr)
+                    write_framewise_csv(frames_path, audio_out, processing_sr)
                     report["frames_path"] = str(frames_path)
 
             progress.mark_analyze()
             return report
 
-        audio, sr = read_audio(str(infile))
-        input_peak_linear = float(np.max(np.abs(audio))) if audio.size > 0 else 0.0
+        audio_source, sr = read_audio(str(infile))
+        input_peak_linear = float(np.max(np.abs(audio_source))) if audio_source.size > 0 else 0.0
+        if sr != processing_sr:
+            audio = _resample_audio_polyphase(audio_source, src_sr=sr, dst_sr=processing_sr)
+            sr = processing_sr
+        else:
+            audio = np.asarray(audio_source, dtype=np.float64)
         progress.mark_read()
         progress.set_passes(max(1, config.repeat))
 
@@ -432,6 +449,9 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 "beast_mode": runtime_config.beast_mode,
                 "tail_padding_seconds": tail_padding_seconds,
                 "input_peak_linear": input_peak_linear,
+                "input_sample_rate": input_sr,
+                "processing_sample_rate": sr,
+                "sample_rate_action": _sample_rate_action(input_sr=input_sr, processing_sr=sr),
                 "output_subtype": output_subtype if output_subtype is not None else "auto",
                 "output_peak_norm": runtime_config.output_peak_norm,
                 "output_peak_target_dbfs": runtime_config.output_peak_target_dbfs,
@@ -448,7 +468,11 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
         if not runtime_config.silent:
             include_loudness = _should_include_loudness(runtime_config)
             analyzer = AudioAnalyzer()
-            report["input"] = analyzer.analyze(audio, sr, include_loudness=include_loudness)
+            report["input"] = analyzer.analyze(
+                audio_source,
+                input_sr,
+                include_loudness=include_loudness,
+            )
             report["output"] = analyzer.analyze(
                 rendered,
                 sr,
@@ -490,8 +514,41 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
     return report
 
 
-def _can_stream_convolution(config: RenderConfig, engine_name: str, engine: ReverbEngine) -> bool:
+def _resolve_processing_sample_rate(*, input_sr: int, target_sr: int | None) -> int:
+    """Return render/output sample-rate after optional target override."""
+    if target_sr is None:
+        return int(input_sr)
+    return int(max(1, target_sr))
+
+
+def _resample_audio_polyphase(audio: AudioArray, *, src_sr: int, dst_sr: int) -> AudioArray:
+    """Deterministically resample audio using rational polyphase filtering."""
+    if int(src_sr) == int(dst_sr):
+        return np.asarray(audio, dtype=np.float64)
+    gcd = math.gcd(int(src_sr), int(dst_sr))
+    up = int(dst_sr // gcd)
+    down = int(src_sr // gcd)
+    resampled = resample_poly(np.asarray(audio, dtype=np.float64), up=up, down=down, axis=0)
+    return np.asarray(resampled, dtype=np.float64)
+
+
+def _sample_rate_action(*, input_sr: int, processing_sr: int) -> str:
+    """Encode sample-rate conversion action for reproducibility metadata."""
+    if int(input_sr) == int(processing_sr):
+        return "none"
+    return f"resample:{int(input_sr)}->{int(processing_sr)}"
+
+
+def _can_stream_convolution(
+    config: RenderConfig,
+    engine_name: str,
+    engine: ReverbEngine,
+    *,
+    input_sr: int,
+) -> bool:
     """Return ``True`` when safe to use the low-RAM streaming convolution path."""
+    if config.target_sr is not None and int(config.target_sr) != int(input_sr):
+        return False
     if engine_name != "conv":
         return False
     if not isinstance(engine, ConvolutionReverbEngine):

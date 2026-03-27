@@ -540,6 +540,13 @@ Do not edit manually.
 │                                                            [default: auto]   │
 │ --partition-size                         INTEGER RANGE     [default: 16384]  │
 │                                          [x>=256]                            │
+│ --target-sr                              INTEGER RANGE     Optional          │
+│                                          [x>=1]            output/render     │
+│                                                            sample rate (Hz). │
+│                                                            Input is          │
+│                                                            resampled         │
+│                                                            internally if     │
+│                                                            needed.           │
 │ --ir-gen                                                                     │
 │ --ir-gen-mode                            [fdn|stochastic|  [default: hybrid] │
 │                                          modal|hybrid]                       │

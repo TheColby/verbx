@@ -692,6 +692,10 @@ curated quick-reference for common switches.
 | `--normalize-stage` | none/post/per-pass | When normalization applies |
 | `--output-peak-norm` | none/input/target/full-scale | Final peak fit |
 | `--out-subtype` | auto/float32/float64/pcm16/pcm24/pcm32 | Output file bit depth |
+| `--target-sr` | Hz | Optional render/output sample-rate conversion |
+
+When `--target-sr` differs from the input file rate, `verbx render` performs
+deterministic internal resampling and writes the output at the requested rate.
 
 #### Execution and Reporting
 

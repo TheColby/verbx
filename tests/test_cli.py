@@ -1635,6 +1635,49 @@ def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> N
     assert abs(target_peak - expected_target) <= 0.01
 
 
+def test_render_target_sample_rate_conversion_and_float32_output(tmp_path: Path) -> None:
+    sr_in = 48_000
+    sr_out = 192_000
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[0, 0] = 0.5
+
+    infile = tmp_path / "in_sr.wav"
+    irfile = tmp_path / "ir_sr.wav"
+    outfile = tmp_path / "out_sr.wav"
+    sf.write(str(infile), audio, sr_in)
+    sf.write(str(irfile), np.array([[1.0]], dtype=np.float64), sr_in)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--target-sr",
+            str(sr_out),
+            "--out-subtype",
+            "float32",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    info = sf.info(str(outfile))
+    assert info.samplerate == sr_out
+    assert info.subtype == "FLOAT"
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    assert payload["sample_rate"] == sr_out
+    assert payload["effective"]["streaming_mode"] is False
+    assert payload["effective"]["sample_rate_action"] == f"resample:{sr_in}->{sr_out}"
+
+
 def test_render_conv_streaming_mode(tmp_path: Path) -> None:
     sr = 48_000
     audio = np.zeros((8192, 2), dtype=np.float64)

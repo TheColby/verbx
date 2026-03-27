@@ -160,6 +160,9 @@ Normalization timing strategy.
 .B --out-subtype [auto|float32|float64|pcm16|pcm24|pcm32]
 Output subtype control.
 .TP
+.B --target-sr INT
+Optional render/output sample rate in Hz. Input is resampled internally when needed.
+.TP
 .B --output-peak-norm [none|input|target|full-scale]
 Final peak normalization mode.
 .SH LUCKY MODE
