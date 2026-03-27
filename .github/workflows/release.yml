@@ -40,15 +40,6 @@ jobs:
           name: dist
           path: dist/*
 
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2.6.0
-        with:
-          generate_release_notes: true
-          files: |
-            dist/*.whl
-            dist/*.tar.gz
-
   publish-pypi:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
@@ -65,24 +56,50 @@ jobs:
 
       - name: Resolve publish auth mode
         id: auth
+        env:
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          PYPI_TRUSTED_PUBLISHING: ${{ vars.PYPI_TRUSTED_PUBLISHING }}
+          RELEASE_REQUIRE_PYPI: ${{ vars.RELEASE_REQUIRE_PYPI }}
         run: |
-          if [ -n "${{ secrets.PYPI_API_TOKEN }}" ]; then
+          required="${RELEASE_REQUIRE_PYPI:-true}"
+          if [[ "${required}" != "true" && "${required}" != "false" ]]; then
+            echo "Invalid RELEASE_REQUIRE_PYPI='${required}'. Use true or false." >&2
+            exit 2
+          fi
+          echo "required=${required}" >> "$GITHUB_OUTPUT"
+
+          if [ -n "${PYPI_API_TOKEN}" ]; then
             echo "mode=token" >> "$GITHUB_OUTPUT"
-          elif [ "${{ vars.PYPI_TRUSTED_PUBLISHING }}" = "true" ]; then
+          elif [ "${PYPI_TRUSTED_PUBLISHING}" = "true" ]; then
             echo "mode=trusted" >> "$GITHUB_OUTPUT"
           else
             echo "mode=skip" >> "$GITHUB_OUTPUT"
           fi
           echo "resolved_mode=$(cat "$GITHUB_OUTPUT" | tail -n1)" >> "$GITHUB_STEP_SUMMARY"
+          echo "required=${required}" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Skip publish when auth is unconfigured
-        if: steps.auth.outputs.mode == 'skip'
+      - name: Fail when publish auth is unconfigured and publish is required
+        if: steps.auth.outputs.mode == 'skip' && steps.auth.outputs.required == 'true'
+        run: |
+          {
+            echo "PyPI publish REQUIRED but auth is unconfigured."
+            echo "Configure one of:"
+            echo "  1) Repository secret: PYPI_API_TOKEN"
+            echo "  2) Repo variable: PYPI_TRUSTED_PUBLISHING=true with PyPI trusted publisher configured"
+            echo "Or set RELEASE_REQUIRE_PYPI=false to allow skip."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "PyPI publish required but auth is missing." >&2
+          exit 2
+
+      - name: Skip publish when auth is unconfigured and publish is optional
+        if: steps.auth.outputs.mode == 'skip' && steps.auth.outputs.required != 'true'
         run: |
           {
             echo "PyPI publish skipped: no auth configured."
             echo "Configure one of:"
             echo "  1) Repository secret: PYPI_API_TOKEN"
             echo "  2) Repo variable: PYPI_TRUSTED_PUBLISHING=true with PyPI trusted publisher configured"
+            echo "Current policy: RELEASE_REQUIRE_PYPI=false"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "PYPI publish skipped."
 
@@ -108,21 +125,43 @@ jobs:
         id: brew_sync
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          RELEASE_REQUIRE_HOMEBREW: ${{ vars.RELEASE_REQUIRE_HOMEBREW }}
         run: |
+          required="${RELEASE_REQUIRE_HOMEBREW:-true}"
+          if [[ "${required}" != "true" && "${required}" != "false" ]]; then
+            echo "Invalid RELEASE_REQUIRE_HOMEBREW='${required}'. Use true or false." >&2
+            exit 2
+          fi
+          echo "required=${required}" >> "$GITHUB_OUTPUT"
+
           if [ -n "${HOMEBREW_TAP_TOKEN}" ]; then
             echo "mode=sync" >> "$GITHUB_OUTPUT"
           else
             echo "mode=skip" >> "$GITHUB_OUTPUT"
           fi
           echo "resolved_mode=$(cat "$GITHUB_OUTPUT" | tail -n1)" >> "$GITHUB_STEP_SUMMARY"
+          echo "required=${required}" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Skip Homebrew tap sync when token is unconfigured
-        if: steps.brew_sync.outputs.mode == 'skip'
+      - name: Fail when Homebrew tap sync is required but token is unconfigured
+        if: steps.brew_sync.outputs.mode == 'skip' && steps.brew_sync.outputs.required == 'true'
+        run: |
+          {
+            echo "Homebrew tap sync REQUIRED but auth is unconfigured."
+            echo "Configure repository secret: HOMEBREW_TAP_TOKEN"
+            echo "Optional repo variable: HOMEBREW_TAP_REPO (default: TheColby/homebrew-verbx)"
+            echo "Or set RELEASE_REQUIRE_HOMEBREW=false to allow skip."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Homebrew tap sync required but token is missing." >&2
+          exit 2
+
+      - name: Skip Homebrew tap sync when token is unconfigured and sync is optional
+        if: steps.brew_sync.outputs.mode == 'skip' && steps.brew_sync.outputs.required != 'true'
         run: |
           {
             echo "Homebrew tap sync skipped: no auth configured."
             echo "Configure repository secret: HOMEBREW_TAP_TOKEN"
             echo "Optional repo variable: HOMEBREW_TAP_REPO (default: TheColby/homebrew-verbx)"
+            echo "Current policy: RELEASE_REQUIRE_HOMEBREW=false"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "Homebrew tap sync skipped."
 
@@ -162,3 +201,22 @@ jobs:
           git commit -m "chore: update verbx formula for ${TAG}"
           git push
           echo "Published Homebrew formula update to ${TAP_REPO} for ${TAG}." >> "$GITHUB_STEP_SUMMARY"
+
+  release-github:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, publish-pypi, sync-homebrew-tap]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.6.0
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*.whl
+            dist/*.tar.gz

@@ -39,14 +39,18 @@ git commit -m "chore(homebrew): refresh formula for v0.7.3"
 
 ## Release Automation
 
-`.github/workflows/release.yml` includes optional tap sync:
+`.github/workflows/release.yml` includes gated tap sync:
 
 - Trigger: tag push (`v*`)
 - Job: `sync-homebrew-tap`
-- Requires secret: `HOMEBREW_TAP_TOKEN`
+- Requires secret: `HOMEBREW_TAP_TOKEN` (when sync required)
 - Optional variable: `HOMEBREW_TAP_REPO` (default `TheColby/homebrew-verbx`)
+- Policy variable: `RELEASE_REQUIRE_HOMEBREW` (`true` by default)
 
-If token is missing, sync is skipped without failing the release.
+Behavior:
+
+- `RELEASE_REQUIRE_HOMEBREW=true` (default): release fails if token is missing.
+- `RELEASE_REQUIRE_HOMEBREW=false`: sync is skipped when token is missing.
 
 ## Compatibility Notes
 

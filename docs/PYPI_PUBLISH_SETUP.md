@@ -5,8 +5,13 @@
 - **API token mode** (`PYPI_API_TOKEN` secret)
 - **Trusted publishing mode** (`PYPI_TRUSTED_PUBLISHING=true` repo variable + PyPI trusted publisher configuration)
 
-If neither is configured, the release workflow builds artifacts and creates the
-GitHub release, then skips PyPI upload with an explicit summary message.
+Release policy is explicit:
+
+- `RELEASE_REQUIRE_PYPI=true` (default) means release fails when publish auth is missing.
+- `RELEASE_REQUIRE_PYPI=false` allows skip mode.
+
+When required mode is enabled (default), GitHub Release publication is blocked
+until PyPI publication checks pass.
 
 ## Option 1: API token mode
 
@@ -33,4 +38,5 @@ gh variable set PYPI_TRUSTED_PUBLISHING --repo TheColby/verbx --body true
 ## Notes
 
 - `release.yml` resolves mode in this order: token -> trusted -> skip.
+- `RELEASE_REQUIRE_PYPI` accepts `true` or `false` only.
 - Keep `permissions.id-token: write` enabled for trusted publishing.

@@ -71,7 +71,7 @@ Launch deliverables should include short before/after clips for each workflow.
 
 ### 4.4 Documentation Quality
 
-- [ ] Keep CLI tables in `README.md` synchronized with actual CLI help text.
+- [x] Keep CLI tables in `README.md` synchronized with actual CLI help text.
 - [ ] Keep equation formatting and variable definitions consistent in DSP sections.
 - [ ] Keep launch examples mirrored across README, man pages, and cookbook.
 
