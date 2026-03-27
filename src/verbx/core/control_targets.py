@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 ControlTargetDomain = Literal["post", "engine", "conv"]
+RT60_DEFAULT_SECONDS = 60.0
 RT60_MIN_SECONDS = 0.1
 RT60_MAX_SECONDS = 3_600.0
 

@@ -44,6 +44,7 @@ from verbx.core.freeze import freeze_segment
 from verbx.core.loudness import apply_output_targets
 from verbx.core.modulation import apply_parameter_modulation, parse_mod_route_spec
 from verbx.core.repeat import repeat_process
+from verbx.core.schema_versions import TRACK_C_CALIBRATION_VERSION
 from verbx.core.spatial import (
     ambisonic_channel_count,
     convert_ambisonic_convention,
@@ -914,7 +915,7 @@ def _build_perceptual_macro_summary(
     for key in numeric_keys:
         delta[key] = float(getattr(resolved, key) - getattr(requested, key))
     return {
-        "calibration_version": "track-c-cal-v1",
+        "calibration_version": TRACK_C_CALIBRATION_VERSION,
         "input": input_macros,
         "resolved": resolved_values,
         "delta_from_requested": delta,
@@ -978,7 +979,7 @@ def _build_track_c_calibration_diagnostics(
             within_envelope = False
 
     return {
-        "version": "track-c-cal-v1",
+        "version": TRACK_C_CALIBRATION_VERSION,
         "targets": targets,
         "measured": measured,
         "errors": errors,

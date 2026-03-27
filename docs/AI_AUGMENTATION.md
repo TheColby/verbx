@@ -51,7 +51,7 @@ verbx batch augment augment_manifest.json --dry-run
 
 ```json
 {
-  "version": "0.7.1",
+  "version": "0.7",
   "dataset_name": "verbx_augmented_set",
   "profile": "asr-reverb-v1",
   "seed": 20260314,

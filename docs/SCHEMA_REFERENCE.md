@@ -56,16 +56,16 @@ One job object per line (no wrapping object, no `"jobs"` key):
 | Option | Type | Default | Range |
 |---|---|---|---|
 | `engine` | string | `"auto"` | `"algo"`, `"conv"`, `"auto"` |
-| `rt60` | number | `2.0` | `0.1` – `3600.0` |
+| `rt60` | number | `60.0` | `0.1` – `3600.0` |
 | `wet` | number | `0.8` | `0.0` – `1.0` |
 | `dry` | number | `0.2` | `0.0` – `1.0` |
-| `pre_delay_ms` | number | `0` | `0` – `500` |
+| `pre_delay_ms` | number | `20.0` | `0` – `500` |
 | `fdn_lines` | integer | `8` | `1` – `64` |
-| `fdn_matrix` | string | `"hadamard"` | `"hadamard"`, `"circulant"`, `"random_ortho"` |
+| `fdn_matrix` | string | `"hadamard"` | `"hadamard"`, `"householder"`, `"random_orthogonal"`, `"circulant"`, `"elliptic"`, `"tv_unitary"`, `"graph"`, `"sdn_hybrid"` |
 | `shimmer` | boolean | `false` | — |
 | `shimmer_semitones` | number | `12` | `-24` – `24` |
 | `shimmer_mix` | number | `0.25` | `0.0` – `1.0` |
-| `shimmer_feedback` | number | `0.65` | `0.0` – `0.98` |
+| `shimmer_feedback` | number | `0.35` | `0.0` – `0.98` |
 | `lowcut` | number | `null` | Hz; `null` = disabled |
 | `highcut` | number | `null` | Hz; `null` = disabled |
 | `repeat` | integer | `1` | `1` – `100` |

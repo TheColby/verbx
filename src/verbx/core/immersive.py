@@ -26,6 +26,10 @@ import numpy.typing as npt
 import soundfile as sf
 
 from verbx.core.loudness import integrated_lufs, true_peak_dbfs
+from verbx.core.schema_versions import (
+    IMMERSIVE_ADM_SIDECAR_SCHEMA,
+    IMMERSIVE_DELIVERABLE_VERSION,
+)
 from verbx.io.audio import read_audio
 
 AudioArray = npt.NDArray[np.float64]
@@ -555,12 +559,12 @@ def generate_immersive_handoff_package(
 
     out_dir.mkdir(parents=True, exist_ok=True)
     object_manifest = {
-        "version": "0.7",
+        "version": IMMERSIVE_DELIVERABLE_VERSION,
         "scene_name": str(scene.get("scene_name", scene_name)),
         "objects": object_entries,
     }
     qa_bundle = {
-        "version": "0.7",
+        "version": IMMERSIVE_DELIVERABLE_VERSION,
         "scene_name": str(scene.get("scene_name", scene_name)),
         "gates": {
             "target_lufs": gates.target_lufs,
@@ -587,7 +591,7 @@ def generate_immersive_handoff_package(
         },
     }
     adm_sidecar = {
-        "schema": "verbx.adm-bwf.sidecar.v0.7",
+        "schema": IMMERSIVE_ADM_SIDECAR_SCHEMA,
         "generated_utc": _iso_utc_now(),
         "scene_name": str(scene.get("scene_name", scene_name)),
         "sample_rate": int(declared_sample_rate),
@@ -635,7 +639,7 @@ def generate_immersive_handoff_package(
         outputs["qa_bundle"] = str(qa_path)
 
     deliverable_manifest = {
-        "version": "0.7",
+        "version": IMMERSIVE_DELIVERABLE_VERSION,
         "scene_name": str(scene.get("scene_name", scene_name)),
         "generated_utc": _iso_utc_now(),
         "scope_boundary": (

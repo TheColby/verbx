@@ -101,7 +101,7 @@ from verbx.core.batch_scheduler import (
     order_jobs,
     run_parallel_batch,
 )
-from verbx.core.control_targets import RT60_MAX_SECONDS, RT60_MIN_SECONDS
+from verbx.core.control_targets import RT60_DEFAULT_SECONDS, RT60_MAX_SECONDS, RT60_MIN_SECONDS
 from verbx.core.fdn_capabilities import (
     FDN_GRAPH_TOPOLOGY_CHOICES,
     FDN_LINK_FILTER_CHOICES,
@@ -130,6 +130,14 @@ from verbx.core.immersive import (
 )
 from verbx.core.modulation import parse_mod_route_spec, parse_mod_sources
 from verbx.core.pipeline import run_render_pipeline
+from verbx.core.schema_versions import (
+    AUGMENT_QA_BUNDLE_VERSION,
+    AUGMENT_SUMMARY_VERSION,
+    BATCH_CHECKPOINT_VERSION,
+    BATCH_MANIFEST_VERSION,
+    IMMERSIVE_QUEUE_VERSION,
+    IR_MORPH_SWEEP_VERSION,
+)
 from verbx.core.spatial import (
     ambisonic_channel_count,
     normalize_ambisonic_metadata,
@@ -748,7 +756,9 @@ def render(
         ),
     ),
     engine: EngineName = typer.Option("auto", "--engine", help="Engine: conv, algo, or auto."),
-    rt60: float = typer.Option(60.0, "--rt60", min=RT60_MIN_SECONDS, max=RT60_MAX_SECONDS),
+    rt60: float = typer.Option(
+        RT60_DEFAULT_SECONDS, "--rt60", min=RT60_MIN_SECONDS, max=RT60_MAX_SECONDS
+    ),
     wet: float = typer.Option(0.8, "--wet", min=0.0, max=1.0),
     dry: float = typer.Option(0.2, "--dry", min=0.0, max=1.0),
     repeat: int = typer.Option(1, "--repeat", min=1),
@@ -3028,7 +3038,7 @@ def ir_morph_sweep(
         alpha_by_index[idx] = float(alpha_value)
 
     checkpoint_payload: dict[str, Any] = {
-        "version": "0.7",
+        "version": IR_MORPH_SWEEP_VERSION,
         "mode": "ir-morph-sweep",
         "ir_a": str(ir_a.resolve()),
         "ir_b": str(ir_b.resolve()),
@@ -3203,7 +3213,7 @@ def ir_morph_sweep(
     success = int(sum(1 for row in qa_rows if bool(row.get("success", False))))
     failed = int(len(qa_rows) - success)
     summary_payload = {
-        "version": "0.7",
+        "version": IR_MORPH_SWEEP_VERSION,
         "mode": "ir-morph-sweep",
         "ir_a": str(ir_a.resolve()),
         "ir_b": str(ir_b.resolve()),
@@ -3410,7 +3420,7 @@ def cache_clear(
 def batch_template() -> None:
     """Print a batch manifest template as JSON."""
     template = {
-        "version": "0.5",
+        "version": BATCH_MANIFEST_VERSION,
         "jobs": [
             {
                 "infile": "input.wav",
@@ -3910,7 +3920,7 @@ def batch_render(
                     console.print(f"resuming batch: skipped {skipped} completed jobs")
         else:
             checkpoint_payload = {
-                "version": "0.5",
+                "version": BATCH_CHECKPOINT_VERSION,
                 "manifest": str(manifest.resolve()),
                 "results": [],
             }
@@ -4185,7 +4195,7 @@ def immersive_qc(
 def immersive_queue_template() -> None:
     """Print a file-backed immersive queue template as JSON."""
     template = {
-        "version": "0.7",
+        "version": IMMERSIVE_QUEUE_VERSION,
         "backend": "file",
         "jobs": [
             {
@@ -4325,13 +4335,13 @@ def _render_config_from_options(options: dict[str, Any]) -> RenderConfig:
 def _load_batch_checkpoint(path: Path) -> dict[str, Any]:
     """Load checkpoint payload with graceful fallback when missing/invalid."""
     if not path.exists():
-        return {"version": "0.5", "results": []}
+        return {"version": BATCH_CHECKPOINT_VERSION, "results": []}
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return {"version": "0.5", "results": []}
+        return {"version": BATCH_CHECKPOINT_VERSION, "results": []}
     if not isinstance(payload, dict):
-        return {"version": "0.5", "results": []}
+        return {"version": BATCH_CHECKPOINT_VERSION, "results": []}
     results = payload.get("results")
     if not isinstance(results, list):
         payload["results"] = []
@@ -4736,7 +4746,7 @@ def _build_augmentation_summary(
                     continue
                 tag_counts[token] = int(tag_counts.get(token, 0) + 1)
     return {
-        "version": "0.7",
+        "version": AUGMENT_SUMMARY_VERSION,
         "mode": "batch-augment",
         "dataset_name": build.dataset_name,
         "profile": build.profile,
@@ -4806,7 +4816,7 @@ def _build_augmentation_qa_bundle(
     )
 
     return {
-        "version": "augmentation-qa-v1",
+        "version": AUGMENT_QA_BUNDLE_VERSION,
         "mode": "batch-augment-qa",
         "dataset_name": build.dataset_name,
         "profile": build.profile,

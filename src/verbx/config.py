@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from verbx.core.control_targets import RT60_DEFAULT_SECONDS
+
 EngineName = Literal["conv", "algo", "auto"]
 IRNormalize = Literal["peak", "rms", "none"]
 NormalizeStage = Literal["none", "post", "per-pass"]
@@ -84,7 +86,7 @@ class RenderConfig:
             raise ValueError(f"fdn_sparse_degree must be >= 1, got {self.fdn_sparse_degree}")
 
     engine: EngineName = "auto"
-    rt60: float = 60.0
+    rt60: float = RT60_DEFAULT_SECONDS
     pre_delay_ms: float = 20.0
     damping: float = 0.45
     width: float = 1.0

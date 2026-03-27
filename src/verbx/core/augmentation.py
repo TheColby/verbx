@@ -14,6 +14,7 @@ from typing import Any
 import numpy as np
 
 from verbx.config import RenderConfig
+from verbx.core.schema_versions import AUGMENT_MANIFEST_VERSION
 from verbx.core.tempo import parse_pre_delay_ms
 
 _TOKEN_SAFE_RE = re.compile(r"[^a-zA-Z0-9._-]+")
@@ -218,7 +219,7 @@ def augmentation_profiles() -> dict[str, dict[str, Any]]:
 def build_augmentation_manifest_template() -> dict[str, Any]:
     """Return a JSON-serializable augmentation manifest template."""
     return {
-        "version": "0.7",
+        "version": AUGMENT_MANIFEST_VERSION,
         "dataset_name": "verbx_augmented_set",
         "profile": "asr-reverb-v1",
         "seed": 20260314,
