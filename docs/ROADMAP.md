@@ -1,6 +1,6 @@
 # verbx Roadmap
 
-_Last updated: 2026-03-26. Maintained with `README.md` and `CHANGELOG.md`._
+_Last updated: 2026-03-27. Maintained with `README.md` and `CHANGELOG.md`._
 
 ---
 
@@ -65,15 +65,15 @@ Launch deliverables should include short before/after clips for each workflow.
 
 ### 4.3 Spatial and Interop
 
-- [ ] Harden layout/route validation for large immersive buses.
+- [x] Harden layout/route validation for large immersive buses.
 - [x] Add explicit examples for `7.2.4`, `8.0`, `16.0`, and `64.4` routing.
-- [ ] Evaluate SOFA import path feasibility for a future `0.7.x` patch.
+- [x] Evaluate SOFA import path feasibility for a future `0.7.x` patch.
 
 ### 4.4 Documentation Quality
 
 - [x] Keep CLI tables in `README.md` synchronized with actual CLI help text.
-- [ ] Keep equation formatting and variable definitions consistent in DSP sections.
-- [ ] Keep launch examples mirrored across README, man pages, and cookbook.
+- [x] Keep equation formatting and variable definitions consistent in DSP sections.
+- [x] Keep launch examples mirrored across README, man pages, and cookbook.
 
 ---
 

@@ -526,6 +526,12 @@ class ConvolutionReverbEngine(ReverbEngine):
             raise ValueError(msg)
 
         in_l = expected_in_layout.lower()
+        if in_l not in {"auto", *LAYOUT_CHANNELS.keys()}:
+            msg = (
+                f"Unsupported input layout '{expected_in_layout}'. "
+                f"Supported: auto, {', '.join(sorted(LAYOUT_CHANNELS))}."
+            )
+            raise ValueError(msg)
         if in_l != "auto" and in_l in LAYOUT_CHANNELS:
             if input_channels != LAYOUT_CHANNELS[in_l]:
                 msg = (
@@ -534,7 +540,31 @@ class ConvolutionReverbEngine(ReverbEngine):
                 )
                 raise ValueError(msg)
 
+        out_l = expected_out_layout.lower()
+        if out_l not in {"auto", *LAYOUT_CHANNELS.keys()}:
+            msg = (
+                f"Unsupported output layout '{expected_out_layout}'. "
+                f"Supported: auto, {', '.join(sorted(LAYOUT_CHANNELS))}."
+            )
+            raise ValueError(msg)
+
         expected_out_ch = self._resolve_layout_channels(expected_out_layout)
+
+        if (
+            route == "auto"
+            and expected_out_ch is not None
+            and expected_out_ch >= 16
+            and ir_channels in {1, input_channels}
+        ):
+            msg = (
+                "Auto route-map is ambiguous for large output layouts when IR channels are "
+                "mono or equal to input channels. "
+                "Output layout="
+                f"{out_l}, input_channels={input_channels}, ir_channels={ir_channels}. "
+                "Set --ir-route-map explicitly (recommended: broadcast for mono/matched IR, "
+                "full for matrix-packed IR)."
+            )
+            raise ValueError(msg)
 
         if ir_channels == 1:
             out_channels = expected_out_ch if expected_out_ch is not None else input_channels
@@ -589,7 +619,6 @@ class ConvolutionReverbEngine(ReverbEngine):
             )
             raise ValueError(msg)
 
-        out_l = expected_out_layout.lower()
         if out_l != "auto" and out_l in LAYOUT_CHANNELS:
             expected_out_ch = LAYOUT_CHANNELS[out_l]
             if (
@@ -638,6 +667,12 @@ class ConvolutionReverbEngine(ReverbEngine):
         """Resolve usable layout name from user input or channel count."""
         normalized = layout.strip().lower()
         if normalized != "auto":
+            if normalized not in LAYOUT_CHANNELS:
+                msg = (
+                    f"Unsupported layout '{layout}'. "
+                    f"Supported: auto, {', '.join(sorted(LAYOUT_CHANNELS))}."
+                )
+                raise ValueError(msg)
             return normalized
         by_channels = {
             1: "mono",
@@ -764,19 +799,46 @@ class ConvolutionReverbEngine(ReverbEngine):
                 "left": 0,
                 "right": 1,
                 "center": 2,
-                "rear-left": 8,
-                "rear-right": 9,
+                "side-left": 3,
+                "side-right": 4,
+                "rear-left": 5,
+                "rear-right": 6,
+                "rear-center": 7,
+                "front-left": 0,
+                "front-right": 1,
+                "front-center": 2,
+                "top-front-left": 8,
+                "top-front-right": 9,
+                "top-rear-left": 10,
+                "top-rear-right": 11,
+                "top-left": 8,
+                "top-right": 9,
+                "mid-front-left": 12,
+                "mid-front-right": 13,
+                "mid-rear-left": 14,
+                "mid-rear-right": 15,
             }
         elif layout == "64.4":
             aliases = {
                 "left": 0,
                 "right": 1,
                 "center": 2,
+                "rear-left": 8,
+                "rear-right": 9,
+                "lfe": 64,
+                "lfe1": 64,
+                "lfe2": 65,
+                "lfe3": 66,
+                "lfe4": 67,
+                # Backward-compatible aliases retained for existing trajectories.
                 "top-front-left": 64,
                 "top-front-right": 65,
                 "top-rear-left": 66,
                 "top-rear-right": 67,
             }
+            for idx in range(64):
+                aliases[f"sp{idx + 1}"] = idx
+                aliases[f"bed{idx + 1}"] = idx
 
         if cleaned in aliases:
             return aliases[cleaned]

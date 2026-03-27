@@ -120,6 +120,9 @@ from verbx.core.feature_vector import (
     parse_feature_vector_lane_specs,
 )
 from verbx.core.immersive import (
+    LAYOUT_CHANNELS as IMMERSIVE_LAYOUT_CHANNELS,
+)
+from verbx.core.immersive import (
     QueueWorkerConfig,
     build_qc_gates,
     evaluate_immersive_qc,
@@ -219,6 +222,7 @@ _AUTOMATION_MODE_CHOICES = {
     "sample",
     "block",
 }
+_LAYOUT_CHANNELS = dict(IMMERSIVE_LAYOUT_CHANNELS)
 _IR_MORPH_MODE_CHOICES = {
     "linear",
     "equal-power",
@@ -6887,6 +6891,24 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
                 f"resolved output channels={resolved_out_channels}. "
                 "Set --ir-route-map full and/or set --output-layout explicitly "
                 "(for example: --output-layout 7.1.2 --ir-route-map full)."
+            )
+            raise typer.BadParameter(msg)
+
+        output_layout_name = str(config.output_layout).strip().lower()
+        output_layout_channels = _LAYOUT_CHANNELS.get(output_layout_name)
+        if (
+            config.ir_route_map == "auto"
+            and output_layout_channels is not None
+            and output_layout_channels >= 16
+            and ir_channels in {1, effective_in_channels}
+        ):
+            msg = (
+                "Auto route-map is ambiguous for large output layouts when IR channels are "
+                "mono or equal to input channels. "
+                f"Output layout={output_layout_name}, input_channels={effective_in_channels}, "
+                f"ir_channels={ir_channels}. "
+                "Set --ir-route-map explicitly (recommended: broadcast for mono/matched IR, "
+                "full for matrix-packed IR)."
             )
             raise typer.BadParameter(msg)
 

@@ -8,9 +8,15 @@ All notable changes to this project are documented in this file.
   `scripts/generate_cli_reference.py`.
 - Shared schema/version constants module at `src/verbx/core/schema_versions.py`
   to eliminate duplicated payload-version literals.
+- Launch-example parity checker (`scripts/check_launch_examples.py`) plus
+  canonical command source (`docs/LAUNCH_EXAMPLES_CANONICAL.txt`) and CI
+  enforcement.
+- SOFA interoperability feasibility note (`docs/SOFA_FEASIBILITY.md`) capturing
+  recommended `0.7.x` import/extract scope and constraints.
 
 ### Changed
 - CI now checks CLI reference freshness (`scripts/generate_cli_reference.py --check`).
+- CI now checks launch-example parity (`scripts/check_launch_examples.py --check`).
 - Release workflow now enforces explicit publish/sync policy gates:
   - `RELEASE_REQUIRE_PYPI` (default `true`)
   - `RELEASE_REQUIRE_HOMEBREW` (default `true`)
@@ -20,6 +26,17 @@ All notable changes to this project are documented in this file.
 - Schema/docs defaults were aligned with runtime behavior:
   `rt60=60.0`, `pre_delay_ms=20.0`, `shimmer_feedback=0.35`, and expanded
   `fdn_matrix` option set in `docs/SCHEMA_REFERENCE.md`.
+- Convolution route validation now hard-fails ambiguous large-bus auto-mapping
+  cases (`16.0`/`64.4` with mono/channel-matched IR) unless `--ir-route-map`
+  is explicitly set.
+- Convolution route aliases for `16.0` and `64.4` were expanded and
+  backward-compatible legacy aliases were retained.
+- Render CLI pre-validation now mirrors large-bus route-map ambiguity checks for
+  earlier actionable failure messages.
+- Man pages now advertise `verbx 0.7.3` metadata consistently and use
+  research-grade positioning text.
+- README DSP sections now include explicit variable definitions/notation for FDN
+  and partitioned-convolution equations.
 
 ## [0.7.3] - 2026-03-26
 

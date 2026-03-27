@@ -1218,6 +1218,69 @@ def test_render_convolution_accepts_extended_output_layout_token(tmp_path: Path)
     assert out.shape[1] == 13
 
 
+def test_render_convolution_large_layout_requires_explicit_route_map(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "mono_in_large.wav"
+    irfile = tmp_path / "mono_ir_large.wav"
+    outfile = tmp_path / "layout_out_large.wav"
+
+    x = np.zeros((sr // 4, 1), dtype=np.float64)
+    x[0, 0] = 1.0
+    ir = np.zeros((128, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    bad = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--input-layout",
+            "mono",
+            "--output-layout",
+            "16.0",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert bad.exit_code != 0
+    assert "Auto route-map is ambiguous for large output layouts" in _combined_cli_output(bad)
+    assert "--ir-route-map explicitly" in _combined_cli_output(bad)
+
+    good = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--input-layout",
+            "mono",
+            "--output-layout",
+            "16.0",
+            "--ir-route-map",
+            "broadcast",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert good.exit_code == 0, good.stdout
+    out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == sr
+    assert out.shape[1] == 16
+
+
 def test_render_convolution_ir_blend_generates_composite_ir_runtime(tmp_path: Path) -> None:
     sr = 16_000
     infile = tmp_path / "in.wav"

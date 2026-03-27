@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pytest
 import soundfile as sf
 
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
@@ -172,6 +173,7 @@ def test_convolution_engine_supports_extended_symbolic_layouts(tmp_path: Path) -
                 ir_normalize="none",
                 input_layout="mono",
                 output_layout=layout_name,
+                ir_route_map="broadcast",
                 partition_size=128,
                 threads=1,
                 device="cpu",
@@ -205,6 +207,7 @@ def test_convolution_route_aliases_for_extended_layouts(tmp_path: Path) -> None:
                 ir_normalize="none",
                 input_layout="mono",
                 output_layout=layout_name,
+                ir_route_map="broadcast",
                 route_start=start_token,
                 route_end=end_token,
                 route_curve="equal-power",
@@ -216,6 +219,35 @@ def test_convolution_route_aliases_for_extended_layouts(tmp_path: Path) -> None:
         out = engine.process(audio, sr=sr)
         assert out.shape[1] == expected_channels
         assert np.all(np.isfinite(out))
+
+
+def test_convolution_engine_requires_explicit_route_map_for_large_output_layouts(
+    tmp_path: Path,
+) -> None:
+    sr = 48_000
+    audio = np.zeros((256, 1), dtype=np.float64)
+    audio[0, 0] = 1.0
+    ir = np.zeros((64, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+    ir_path = tmp_path / "mono_large_layout_ir.wav"
+    sf.write(str(ir_path), ir, sr)
+
+    engine = ConvolutionReverbEngine(
+        ConvolutionReverbConfig(
+            wet=1.0,
+            dry=0.0,
+            ir_path=str(ir_path),
+            ir_normalize="none",
+            input_layout="mono",
+            output_layout="16.0",
+            ir_route_map="auto",
+            partition_size=128,
+            threads=1,
+            device="cpu",
+        )
+    )
+    with pytest.raises(ValueError, match="Auto route-map is ambiguous for large output layouts"):
+        _ = engine.process(audio, sr=sr)
 
 
 def test_algo_engine_matrix_families() -> None:

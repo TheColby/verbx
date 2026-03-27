@@ -198,6 +198,8 @@ Current public alpha release: **v0.7.3**.
   [`docs/PUBLIC_ALPHA_NOTES.md`](docs/PUBLIC_ALPHA_NOTES.md)
 - Launch-week pinned demo commands and expected SHA256 outputs:
   [`docs/LAUNCH_WEEK_DEMO_PINS.md`](docs/LAUNCH_WEEK_DEMO_PINS.md)
+- Canonical launch-example parity check:
+  `python scripts/check_launch_examples.py --check`
 - PyPI publish auth setup for maintainers:
   [`docs/PYPI_PUBLISH_SETUP.md`](docs/PYPI_PUBLISH_SETUP.md)
 
@@ -293,6 +295,8 @@ input
        └─ wet/dry mix → shimmer → bloom/tilt/EQ → loudness → output
 ```
 
+Delay notation: `z^-N` means an integer-sample delay of \(N\) samples.
+
 **FDN mechanics:** At each sample, the FDN reads from $N$ delay lines, applies per-line damping and DC blocking, multiplies by the gain diagonal $\mathbf{G}$, multiplies by the feedback matrix $\mathbf{M}$, adds the injected excitation from the diffusion stage, and writes back to the delays. The matrix $\mathbf{M}$ must be orthonormal (or nearly so) to preserve energy over long tails; verbx orthonormalizes all matrix families before use. The state update is:
 
 $$
@@ -303,7 +307,15 @@ $$
 \mathbf{x}_{\mathrm{fb}}[n+1] = \mathbf{G}\mathbf{M}\mathbf{y}[n] + \mathbf{u}[n]
 $$
 
-where $\mathbf{u}[n]$ is the post-diffusion injection vector.
+where:
+
+- \(n\) is the discrete-time sample index.
+- \(\mathbf{x}_{\mathrm{fb}}[n]\) is the feedback-state vector before loop conditioning.
+- \(\mathbf{y}[n]\) is the conditioned state after \(\mathbf{D}(\cdot)\).
+- \(\mathbf{D}(\cdot)\) is per-line loop conditioning (damping + DC blocking).
+- \(\mathbf{G}\) is the diagonal RT60 gain matrix with entries \(g_i\).
+- \(\mathbf{M}\) is the orthonormal feedback mixing matrix.
+- \(\mathbf{u}[n]\) is the post-diffusion excitation injected into the loop.
 
 **FDN gain calibration:** For delay line $i$ with period $d_i$ seconds and target decay $T_{60}$:
 
@@ -358,7 +370,16 @@ $$
 Y_k(\omega) = \sum_{p=0}^{P-1} X_{k-p}(\omega)\,H_p(\omega)
 $$
 
-where $X_{k-p}$ are stored input spectrum frames and $H_p$ are pre-transformed IR partitions. `--partition-size` controls the partition length: larger partitions reduce per-block FFT overhead but increase latency and peak memory. 16384–65536 samples is a practical range for offline rendering. With CuPy installed and `--device cuda`, the FFT multiply accumulation runs on GPU.
+where:
+
+- \(k\) is the current processing frame index.
+- \(\omega\) is frequency-bin index in the FFT domain.
+- \(P\) is the number of IR partitions.
+- \(X_{k-p}(\omega)\) is the stored input spectrum for frame \(k-p\).
+- \(H_p(\omega)\) is the precomputed spectrum of IR partition \(p\).
+- \(Y_k(\omega)\) is the accumulated output spectrum for frame \(k\).
+
+`--partition-size` controls the partition length: larger partitions reduce per-block FFT overhead but increase latency and peak memory. 16384–65536 samples is a practical range for offline rendering. With CuPy installed and `--device cuda`, the FFT multiply accumulation runs on GPU.
 
 **Streaming vs. in-memory:** verbx automatically uses streaming convolution (low peak RAM) when the render is simple: engine conv, no repeat, no freeze, no normalization stages, no post-processing effects. All other combinations fall back to full-buffer processing. If RAM is a concern for very long IRs, keep the render chain minimal.
 
@@ -367,6 +388,14 @@ where $X_{k-p}$ are stored input spectrum frames and $H_p$ are pre-transformed I
 $$
 y_o[n] = \sum_{i=0}^{M-1} \left(x_i * h_{i,o}\right)[n]
 $$
+
+where:
+
+- \(M\) is input-channel count and \(N\) is output-channel count.
+- \(x_i[n]\) is input channel \(i\).
+- \(h_{i,o}[n]\) is the IR from input channel \(i\) to output channel \(o\).
+- \(y_o[n]\) is output channel \(o\).
+- \(*\) denotes linear convolution.
 
 The IR file must contain $M \times N$ channels packed in output-major order (channel index $oM + i$) or input-major order ($iN + o$). Set `--ir-matrix-layout output-major` or `input-major` accordingly. Wrong packing order produces valid audio but semantically incorrect routing; verify with `verbx analyze` on the output.
 
@@ -477,6 +506,11 @@ For most uses, stereo output is all you need. Multichannel processing becomes re
 | `64.4` | 68 | High-density immersive bed + top layer |
 
 Use `--input-layout` and `--output-layout` to declare channel semantics explicitly. Without them, verbx uses channel count alone, which can produce ambiguous routing for formats above stereo.
+
+For large immersive outputs (`16.0`, `64.4`), set `--ir-route-map` explicitly when the IR is mono or channel-matched to the input. Recommended defaults:
+
+- `--ir-route-map broadcast` for mono/channel-matched IRs
+- `--ir-route-map full` for matrix-packed \(M \times N\) IRs
 
 Other formats are also easy to support: the routing and DSP paths already operate on arbitrary channel counts, and new symbolic layout names are straightforward to add when you need explicit semantics.
 
@@ -1103,6 +1137,9 @@ input audio
                       └─ analysis JSON + frames CSV
 ```
 
+Notation: `z^-N` denotes an integer-sample delay of \(N\) samples, \(K\) is
+allpass-stage count, and \(N\) (in `lines 1..N`) is FDN delay-line count.
+
 **Precision:** All DSP — FDN state updates, FFT operations, allpass filters, automation curves, feature vectors, analysis metrics — runs in `float64` internally. Output is downcast at write time according to `--out-subtype`. The default output subtype is derived from the input file format.
 
 **Key design decisions:**
@@ -1163,6 +1200,8 @@ Additional guides in `docs/`:
 - [IR morph QA guide](docs/IR_MORPH_QA.md) — morph-sweep QA artifacts and CI integration
 - [Benchmark baseline guide](docs/benchmarks/README.md) — CI/runtime comparison workflow
 - [Extreme cookbook](docs/EXTREME_COOKBOOK.md) — 100 additional workflow examples
+- [SOFA feasibility note](docs/SOFA_FEASIBILITY.md) — interoperability path and constraints for future SOFA import support
+- [Launch example parity checker](scripts/check_launch_examples.py) — verifies canonical launch commands stay mirrored across docs/man pages
 
 ---
 

@@ -68,37 +68,41 @@ do not drift.
 
 **1) Alvin Lucier / I Am Sitting in a Room (iterative room resonance)**
 ```bash
-mkdir -p out/lucier && cp in.wav out/lucier/pass_00.wav && current="out/lucier/pass_00.wav"
-for i in $(seq 1 20); do
-  next=$(printf "out/lucier/pass_%02d.wav" "$i")
-  verbx render "$current" "$next" --engine algo --rt60 35 --wet 1.0 --dry 0.0 --repeat 1 --output-peak-norm input --no-progress
-  current="$next"
-done
+verbx render voice.wav lucier_7pass.wav --engine algo --rt60 4.5 \
+  --wet 1.0 --dry 0.0 --repeat 7 --fdn-lines 16 --fdn-matrix hadamard --lowcut 60
 ```
 
 **2) Brian Eno / Discreet Music (ambient loopbed)**
 ```bash
-verbx render in.wav out/alpha_eno.wav --engine algo --rt60 95 --wet 0.92 --dry 0.08 --damping 0.35 --width 1.25 --bloom 2.0 --tilt 0.8 --target-lufs -22 --target-peak-dbfs -2
+verbx render input.wav eno_ambient.wav --engine algo --rt60 12.0 \
+  --wet 0.92 --dry 0.08 --damping 0.25 --pre-delay-ms 35 \
+  --fdn-lines 16 --fdn-matrix hadamard --lowcut 50 \
+  --target-lufs -22 --target-peak-dbfs -2
 ```
 
 **3) Pauline Oliveros / Deep Listening (extended drone-space)**
 ```bash
-verbx render in.wav out/alpha_deep_listening.wav --ir-gen --ir-gen-mode hybrid --ir-gen-length 240 --ir-gen-seed 108 --engine conv --wet 0.9 --dry 0.15 --tail-limit 180 --target-lufs -24 --target-peak-dbfs -2
+verbx render drone.wav deep_listening.wav --engine algo --rt60 18.0 \
+  --wet 0.95 --dry 0.10 --fdn-lines 32 --fdn-matrix hadamard \
+  --pre-delay-ms 55 --damping 0.15 --lowcut 30 \
+  --target-lufs -24 --target-peak-dbfs -2
 ```
 
 **4) Frippertronics-style tape-loop accumulation**
 ```bash
-mkdir -p out/fripp && cp in.wav out/fripp/pass_00.wav && current="out/fripp/pass_00.wav"
-for i in $(seq 1 12); do
-  next=$(printf "out/fripp/pass_%02d.wav" "$i")
-  verbx render "$current" "$next" --engine algo --rt60 28 --wet 0.88 --dry 0.12 --repeat 1 --output-peak-norm input --no-progress
-  current="$next"
-done
+verbx render guitar.wav frippertronics.wav --engine algo --rt60 8.0 \
+  --wet 0.82 --dry 0.28 --fdn-lines 16 --fdn-matrix hadamard \
+  --shimmer --shimmer-semitones 12 --shimmer-mix 0.45 --shimmer-feedback 0.78 \
+  --pre-delay-ms 25 --target-peak-dbfs -2
 ```
 
 **5) Shoegaze reverse-wash (freeze + shimmer)**
 ```bash
-verbx render in.wav out/alpha_shoegaze.wav --engine algo --freeze --start 1.0 --end 2.4 --shimmer --shimmer-semitones 12 --shimmer-mix 0.4 --rt60 80 --wet 0.95 --dry 0.08 --width 1.4 --target-peak-dbfs -2
+verbx render guitar.wav shoegaze.wav --engine algo \
+  --freeze --start 1.0 --end 2.4 \
+  --shimmer --shimmer-semitones 12 --shimmer-mix 0.55 --shimmer-feedback 0.72 \
+  --rt60 5.0 --wet 0.88 --dry 0.22 --fdn-matrix circulant --lowcut 80 \
+  --width 1.4 --target-peak-dbfs -2
 ```
 
 ---
