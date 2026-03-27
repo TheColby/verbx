@@ -2126,6 +2126,71 @@ def test_batch_augment_profiles_lists_builtin_profiles() -> None:
     assert "drums-room-v1" in payload
 
 
+def test_batch_corpus_generate_dry_run_reports_large_plan(tmp_path: Path) -> None:
+    infile = tmp_path / "in.wav"
+    audio = np.zeros((2048, 1), dtype=np.float64)
+    audio[50:120, 0] = 0.25
+    sf.write(str(infile), audio, 24_000)
+    out_root = tmp_path / "corpus_out"
+
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            "corpus-generate",
+            str(infile),
+            "--output-root",
+            str(out_root),
+            "--variants-per-input",
+            "1000000",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "corpus-generate" in text
+    assert "outputs=1000000" in text
+
+
+def test_batch_corpus_generate_writes_manifest_and_audio(tmp_path: Path) -> None:
+    in_dir = tmp_path / "in"
+    in_dir.mkdir()
+    for idx in range(2):
+        infile = in_dir / f"utt_{idx:02d}.wav"
+        audio = np.zeros((4096, 1), dtype=np.float64)
+        audio[20 + idx * 10 : 90 + idx * 10, 0] = 0.35
+        sf.write(str(infile), audio, 16_000)
+
+    out_root = tmp_path / "generated"
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            "corpus-generate",
+            str(in_dir),
+            "--output-root",
+            str(out_root),
+            "--variants-per-input",
+            "2",
+            "--seed",
+            "123",
+            "--pitch-shift-min-semitones",
+            "0.0",
+            "--pitch-shift-max-semitones",
+            "0.0",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    summary_path = out_root / "corpus_generation_summary.json"
+    manifest_path = out_root / "corpus_generation_manifest.jsonl"
+    assert summary_path.exists()
+    assert manifest_path.exists()
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["generated_outputs"] == 4
+    generated_wavs = sorted(out_root.glob("**/*.wav"))
+    assert len(generated_wavs) == 4
+
+
 def test_batch_augment_dry_run_plans_without_writing_audio(tmp_path: Path) -> None:
     sr = 16_000
     infile = tmp_path / "in.wav"

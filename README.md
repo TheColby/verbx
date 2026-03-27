@@ -128,6 +128,19 @@ For local maintainer testing, you can also install from the in-repo formula:
 brew install --build-from-source ./packaging/homebrew/verbx.rb
 ```
 
+**With npm (Node launcher + Python backend):**
+
+```bash
+npm install -g github:TheColby/verbx
+verbx --help
+```
+
+Notes:
+- This installs a Node launcher that runs the Python CLI.
+- Python 3.11+ is still required.
+- On first run, if Python deps are missing, the launcher will attempt:
+  `python3 -m pip install --user <installed-verbx-path>`.
+
 **Requirements:** Python 3.11+, `libsndfile` on system path. Optional: `numba` (faster algorithmic path), `cupy` (CUDA convolution).
 
 Homebrew maintainer details: [`docs/HOMEBREW.md`](docs/HOMEBREW.md)
@@ -715,11 +728,14 @@ verbx batch render manifest.json --jobs 8      # parallel render
 verbx batch augment-template > augment.json    # generate augmentation manifest
 verbx batch augment-profiles                   # list built-in profiles
 verbx batch augment augment.json --jobs 8      # generate training dataset
+verbx batch corpus-generate data/ --output-root out/ --variants-per-input 64
 ```
 
 **Batch render flags:** `--jobs`, `--schedule [fifo|shortest-first|longest-first]`, `--retries`, `--continue-on-error`, `--checkpoint-file`, `--resume`, `--dry-run`
 
 **Batch augment flags:** Built-in profiles `asr-reverb-v1`, `music-reverb-v1`, `drums-room-v1`. Key flags: `--copy-dry`, `--dataset-card-out`, `--metrics-csv-out`, `--qa-bundle-out`, `--provenance-hash`, `--verify-split-isolation`
+
+**Batch corpus-generate flags:** Generate processed corpora from one file or folder. Key flags: `--variants-per-input` (supports very large values), `--time-shift-min-ms/--time-shift-max-ms`, `--pitch-shift-min-semitones/--pitch-shift-max-semitones`, `--reverb-rt60-min/--reverb-rt60-max`, `--reverb-wet-min/--reverb-wet-max`, `--reverb-pre-delay-min-ms/--reverb-pre-delay-max-ms`, `--seed`, `--dry-run`
 
 ---
 
