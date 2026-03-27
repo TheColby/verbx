@@ -25,7 +25,9 @@ Used with `verbx batch render --manifest <file>`.
         "wet": 0.7,
         "dry": 0.3,
         "pre_delay_ms": 20,
-        "fdn_lines": 16
+        "fdn_lines": 16,
+        "target_sr": 192000,
+        "output_subtype": "float32"
       }
     }
   ]
@@ -66,6 +68,8 @@ One job object per line (no wrapping object, no `"jobs"` key):
 | `shimmer_semitones` | number | `12` | `-24` – `24` |
 | `shimmer_mix` | number | `0.25` | `0.0` – `1.0` |
 | `shimmer_feedback` | number | `0.35` | `0.0` – `0.98` |
+| `output_subtype` | string | `"auto"` | `"auto"`, `"float32"`, `"float64"`, `"pcm16"`, `"pcm24"`, `"pcm32"` |
+| `target_sr` | integer | `null` | `>= 1` (Hz; `null` uses input sample rate) |
 | `lowcut` | number | `null` | Hz; `null` = disabled |
 | `highcut` | number | `null` | Hz; `null` = disabled |
 | `repeat` | integer | `1` | `1` – `100` |

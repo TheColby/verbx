@@ -89,6 +89,12 @@ verbx render in.wav ambient.wav --engine algo --rt60 90 --wet 0.92 \
   --fdn-matrix tv_unitary --fdn-tv-rate-hz 0.08 --bloom 2.0 --tilt 0.8
 ```
 
+```bash
+# High-resolution float render — direct 192 kHz, 32-bit float output
+verbx render in.wav out_192k_f32.wav --engine conv --ir hall_ir.wav \
+  --target-sr 192000 --out-subtype float32
+```
+
 ## Full Installation Instructions
 
 **With uv (fastest):**

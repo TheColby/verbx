@@ -83,6 +83,8 @@ Launch deliverables should include short before/after clips for each workflow.
 - Long-tail renders are compute-heavy by design; throughput depends strongly on
   partition/block settings and hardware.
 - GPU acceleration currently targets convolution-heavy workloads.
+- Render-time sample-rate conversion is deterministic (`--target-sr`) but still
+  offline-oriented; plan throughput accordingly for very high rates (e.g. 192 kHz).
 
 ---
 

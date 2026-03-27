@@ -20,6 +20,9 @@ All notable changes to this project are documented in this file.
 - `verbx render` now supports `--target-sr` for integrated sample-rate
   conversion during render (for example, rendering directly to 192 kHz output
   without pre-resampling source audio).
+- Documentation sweep updated README, schema reference, AI augmentation guide,
+  cookbook, and man pages with `--target-sr` usage and high-resolution float
+  render examples.
 - Release workflow now enforces explicit publish/sync policy gates:
   - `RELEASE_REQUIRE_PYPI` (default `true`)
   - `RELEASE_REQUIRE_HOMEBREW` (default `true`)

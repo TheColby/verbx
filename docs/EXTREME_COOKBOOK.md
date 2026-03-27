@@ -24,7 +24,7 @@ mkdir -p out
 
 **What do the output files mean?**
 
-Each output file is named with a three-digit index and a short descriptor. The index matches the recipe number. The descriptor is a rough hint at what parameter dominated the result. Output files are standard WAV unless `--out-subtype` specifies otherwise. Loudness normalization is applied at the output stage unless you explicitly disable it.
+Each output file is named with a three-digit index and a short descriptor. The index matches the recipe number. The descriptor is a rough hint at what parameter dominated the result. Output files are standard WAV unless `--out-subtype` specifies otherwise. Use `--target-sr` when you need deterministic resampling to a fixed output sample rate. Loudness normalization is applied at the output stage unless you explicitly disable it.
 
 **A note on headphones vs. speakers**
 
@@ -745,11 +745,11 @@ _DSP note:_ The `--no-limiter` flag bypasses the output-stage limiter and leaves
 
 **Recipe 56**
 ```bash
-verbx render in.wav out/056_float32.wav --engine conv --ir hall.wav --out-subtype float32
+verbx render in.wav out/056_float32.wav --engine conv --ir hall.wav --target-sr 192000 --out-subtype float32
 ```
 _What it sounds like:_ Hall convolution rendered to 32-bit float WAV. Transparent and suitable for further processing.
 
-_DSP note:_ Float32 encoding provides approximately 24 bits of dynamic range at any given magnitude, with the advantage that the encoding range is not fixed — levels above 0 dBFS are representable without clipping. This makes float32 ideal for intermediate processing files. The cost is slightly larger files than PCM24 for equivalent audible quality.
+_DSP note:_ Float32 encoding provides approximately 24 bits of dynamic range at any given magnitude, with the advantage that the encoding range is not fixed — levels above 0 dBFS are representable without clipping. This makes float32 ideal for intermediate processing files. The cost is slightly larger files than PCM24 for equivalent audible quality. Here, `--target-sr 192000` performs deterministic internal sample-rate conversion during render.
 
 ---
 

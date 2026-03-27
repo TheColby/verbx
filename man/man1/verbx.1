@@ -51,6 +51,9 @@ Convolution render using external IR.
 .B verbx render in.wav out/lucky.wav --lucky 12 --lucky-out-dir out/lucky_set
 Generate 12 randomized "wild" variants in one output folder.
 .TP
+.B verbx render in.wav out_192k_f32.wav --engine conv --ir hall.wav --target-sr 192000 --out-subtype float32
+Direct high-resolution float render with integrated sample-rate conversion.
+.TP
 .B verbx render in.wav out_mod.wav --mod-target mix --mod-source lfo:sine:0.08*0.7 --mod-source env:20:350*0.4
 Layer multiple modulation sources to animate reverb depth over time.
 .TP

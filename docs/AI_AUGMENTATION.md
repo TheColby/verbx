@@ -61,6 +61,7 @@ verbx batch augment augment_manifest.json --dry-run
   "default_options": {
     "engine": "algo",
     "repeat": 1,
+    "target_sr": 48000,
     "output_subtype": "float32",
     "normalize_stage": "none",
     "output_peak_norm": "input"
@@ -112,6 +113,8 @@ verbx batch augment augment_manifest.json --dry-run
 - Identical manifest + seed + inputs => identical augmentation plans.
 - Use `--profile`, `--seed`, or `--variants-per-input` to override manifest values
   without editing files.
+- Set `default_options.target_sr` when you need a uniform output sample rate
+  across mixed-rate source corpora.
 - Default split guard enforces one source ID/input path per split. Use
   `--allow-split-overlap` only when intentional cross-split reuse is required.
 - Use `--baseline-summary <previous_summary.json>` to compare class-balance drift
