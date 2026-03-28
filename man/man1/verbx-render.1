@@ -1,4 +1,4 @@
-.TH VERBX-RENDER 1 "March 2026" "verbx 0.7.4" "User Commands"
+.TH VERBX-RENDER 1 "March 2026" "verbx 0.7.5" "User Commands"
 .SH NAME
 verbx-render \- render audio with extreme reverb processing
 .SH SYNOPSIS
@@ -75,6 +75,15 @@ Auto-generate and cache an IR before rendering.
 .B --beast-mode INT
 Scale key reverb parameters for denser, longer tails.
 .TP
+.B --auto-fit [none|speech|music|drums|ambient]
+Apply heuristic baseline parameter profile before explicit CLI overrides.
+.TP
+.B --fdn-matrix-morph-to NAME
+Optional target FDN matrix family for gradual morphing from --fdn-matrix.
+.TP
+.B --fdn-matrix-morph-seconds FLOAT
+Morph duration in seconds (requires --fdn-matrix-morph-to).
+.TP
 .B --fdn-rt60-tilt FLOAT
 Jot-style low/high RT skew around mid-band decay (\-1..1).
 .TP
@@ -146,6 +155,24 @@ target:min:max
 .TP
 .B --automation-trace-out PATH
 Write resolved sample-level automation curves to CSV.
+.TP
+.B --er-geometry
+Enable first-order image-source early-reflection pre-stage.
+.TP
+.B --er-room-dims-m L,W,H
+Room dimensions (meters) used by geometry-based early reflections.
+.TP
+.B --er-source-pos-m X,Y,Z
+Source position (meters) for geometry-based early reflections.
+.TP
+.B --er-listener-pos-m X,Y,Z
+Listener position (meters) for geometry-based early reflections.
+.TP
+.B --er-absorption FLOAT
+Wall absorption coefficient (0..0.99) for early-reflection stage.
+.TP
+.B --er-material NAME
+Material preset for absorption: anechoic, dead, studio, hall, or stone.
 .SH ADVANCED OUTPUT OPTIONS
 .TP
 .B --target-lufs FLOAT
@@ -163,8 +190,29 @@ Output subtype control.
 .B --target-sr INT
 Optional render/output sample rate in Hz. Input is resampled internally when needed.
 .TP
+.B --output-container [auto|wav|w64|rf64]
+Output container selection. Auto may promote large WAV payloads to W64.
+.TP
 .B --output-peak-norm [none|input|target|full-scale]
 Final peak normalization mode.
+.TP
+.B --tail-stop-threshold-db FLOAT
+Tail-completion threshold in dBFS used when finalizing exact-zero writeout.
+.TP
+.B --tail-stop-hold-ms FLOAT
+Trailing explicit zero-hold duration in milliseconds.
+.TP
+.B --tail-stop-metric [peak|rms]
+Tail detector metric used for completion checks.
+.TP
+.B --algo-stream
+Enable algorithmic proxy-IR streaming for long renders.
+.TP
+.B --algo-proxy-ir-max-seconds FLOAT
+Maximum proxy-IR duration used by --algo-stream.
+.TP
+.B --algo-gpu-proxy
+Route algorithmic proxy streaming through CUDA convolution backend.
 .SH LUCKY MODE
 .TP
 .B --lucky N
@@ -222,4 +270,5 @@ Shoegaze reverse-wash (freeze plus shimmer) texture.
 .SH SEE ALSO
 .BR verbx (1),
 .BR verbx-analyze (1),
+.BR verbx-dereverb (1),
 .BR verbx-ir (1)

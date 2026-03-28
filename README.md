@@ -6,7 +6,7 @@
 
 **Colossal 64-bit spatial audio reverberator, accelerated with CUDA and Metal.**
 
-`verbx` is a research-grade Python CLI for creating reverb effects that range from subtle room placement to cathedral-scale tails 3600 seconds long. It handles the complete reverb workflow: ingesting and generating impulse responses, processing audio through two independent engines, controlling every parameter with time-varying automation, delivering loudness-targeted multichannel output, and producing reproducible analysis artifacts at every step.
+`verbx` is a research-grade Python CLI for creating reverb effects that range from subtle room placement to cathedral-scale tails 3600 seconds long. It handles the complete reverb workflow: ingesting and generating impulse responses, processing audio through two independent engines, controlling every parameter with time-varying automation, delivering loudness-targeted multichannel output, reducing late-room smear with deterministic dereverberation, and producing reproducible analysis artifacts at every step.
 
 You can batch reverberate a directory of audio files to create lush Dolby Atmos beds. or use it as part of your corpus-augmentation workflow for audio AI projects. 
 
@@ -116,6 +116,7 @@ pip install -e . && verbx --help
 ```bash
 ./scripts/install.sh --prefix "$HOME/.local"
 verbx --help && man verbx-render
+man verbx-dereverb
 ```
 
 **With Homebrew (macOS):**
@@ -193,7 +194,7 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.7.4**.
+Current public alpha release: **v0.7.5**.
 
 - `verbx` is currently research-grade software (public alpha), not production-certified.
 - Confirm your environment with `verbx quickstart --verify --strict` and `verbx doctor`.
@@ -616,6 +617,8 @@ curated quick-reference for common switches.
 | `--fdn-matrix` | see table above | Feedback matrix family | |
 | `--fdn-tv-rate-hz` | 0–5 | TV-unitary update rate | `tv_unitary` only |
 | `--fdn-tv-depth` | 0–1 | TV-unitary blend depth | `tv_unitary` only |
+| `--fdn-matrix-morph-to` | matrix family | Target matrix for gradual morphing | Morphs from `--fdn-matrix` to target |
+| `--fdn-matrix-morph-seconds` | seconds | Matrix morph duration | Requires `--fdn-matrix-morph-to` |
 | `--fdn-dfm-delays-ms` | float | DFM micro-delay size | One value or one per line |
 | `--fdn-sparse` | flag | Sparse pair-mixing topology | Exclusive with `tv_unitary` and `graph` |
 | `--fdn-sparse-degree` | 1–8 | Pair-mixing stages | |
@@ -681,6 +684,9 @@ curated quick-reference for common switches.
 | `--shimmer-feedback` | 0–1.25 | Shimmer feedback (>0.85 = rising; >0.98 requires unsafe mode) |
 | `--unsafe-self-oscillate` | flag | UNSAFE: allow above-unity feedback in algorithmic mode |
 | `--unsafe-loop-gain` | 0.01–1.25 | UNSAFE algorithmic loop-gain scale (`>1.0` for self-oscillation) |
+| `--shimmer-spatial` | flag | Enable multichannel shimmer decorrelation | Useful for immersive beds |
+| `--shimmer-spread-cents` | cents | Per-channel shimmer detune spread | Used with `--shimmer-spatial` |
+| `--shimmer-decorrelation-ms` | ms | Per-channel shimmer delay spread | Used with `--shimmer-spatial` |
 | `--duck` | flag | Enable sidechain ducking |
 | `--duck-attack` | ms | Ducking attack time |
 | `--duck-release` | ms | Ducking release time |
@@ -705,6 +711,10 @@ curated quick-reference for common switches.
 | `--output-peak-norm` | none/input/target/full-scale | Final peak fit |
 | `--out-subtype` | auto/float32/float64/pcm16/pcm24/pcm32 | Output file bit depth |
 | `--target-sr` | Hz | Optional render/output sample-rate conversion |
+| `--output-container` | auto/wav/w64/rf64 | Output container selection | `auto` upgrades long WAV renders to W64 |
+| `--tail-stop-threshold-db` | dBFS | Tail detector threshold for write completion | Lower = longer retained tail |
+| `--tail-stop-hold-ms` | ms | Explicit final zero-hold duration | Guarantees hard-zero ending |
+| `--tail-stop-metric` | peak/rms | Tail detector metric | RMS is smoother, peak is stricter |
 
 When `--target-sr` differs from the input file rate, `verbx render` performs
 deterministic internal resampling and writes the output at the requested rate.
@@ -715,7 +725,11 @@ deterministic internal resampling and writes the output at the requested rate.
 |---|---|---|
 | `--device` | auto/cpu/cuda/mps | Compute backend |
 | `--threads` | int | CPU thread count hint |
+| `--algo-stream` | flag | Algorithmic proxy-IR streaming mode | Memory-friendly for very long renders |
+| `--algo-proxy-ir-max-seconds` | seconds | Maximum proxy-IR duration | Used with `--algo-stream` |
+| `--algo-gpu-proxy` | flag | Route algo proxy through CUDA convolution | Requires `--algo-stream --device cuda` |
 | `--dry-run` | flag | Validate config without writing audio |
+| `--auto-fit` | none/speech/music/drums/ambient | Apply profile-derived starting values | Respects explicit CLI overrides |
 | `--preset` | name | Apply named preset as baseline |
 | `--lucky N` | int | Generate N randomized variants |
 | `--frames-out` | path | Per-frame metrics CSV |
@@ -723,6 +737,19 @@ deterministic internal resampling and writes the output at the requested rate.
 | `--repro-bundle` | flag | Write reproducibility bundle |
 | `--quiet` | flag | Suppress console summary |
 | `--silent` | flag | Suppress all output including analysis JSON |
+
+---
+
+### Early Reflection Geometry (Render)
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--er-geometry` | flag | Enable first-order image-source early reflections before main engine |
+| `--er-room-dims-m` | `L,W,H` | Room dimensions (meters) |
+| `--er-source-pos-m` | `x,y,z` | Source position (meters) |
+| `--er-listener-pos-m` | `x,y,z` | Listener position (meters) |
+| `--er-absorption` | 0.0–0.99 | Wall absorption coefficient |
+| `--er-material` | anechoic/dead/studio/hall/stone | Preset absorption profile |
 
 ---
 
@@ -765,6 +792,27 @@ Outputs loudness, peak, spectral, and decay metrics. Key flags:
 
 ---
 
+### verbx dereverb
+
+`verbx dereverb INFILE OUTFILE [options]`
+
+Deterministic spectral late-tail suppression for existing recordings.
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--mode` | wiener/spectral_sub | Suppression algorithm |
+| `--strength` | 0–2 | Reverberant suppression amount |
+| `--floor` | 0–1 | Residual floor to reduce musical-noise artifacts |
+| `--window-ms` | ms | STFT analysis window |
+| `--hop-ms` | ms | STFT hop size (must be smaller than window) |
+| `--tail-ms` | ms | Late-field smoothing horizon |
+| `--pre-emphasis` | 0–0.98 | Optional HF emphasis before suppression |
+| `--mix` | 0–1 | Blend of processed output |
+| `--out-subtype` | auto/float32/float64/pcm16/pcm24/pcm32 | Output encoding |
+| `--json-out` | path | Write structured dereverb report |
+
+---
+
 ### verbx batch
 
 ```bash
@@ -785,6 +833,7 @@ verbx batch augment augment.json --jobs 8      # generate training dataset
 
 ```bash
 verbx suggest INFILE      # analysis-driven starter settings for your specific audio
+verbx dereverb INFILE OUTFILE   # suppress late reverberation from an existing recording
 verbx presets             # list built-in presets
 verbx presets --show cathedral_extreme   # inspect preset parameters
 verbx quickstart          # copy-paste workflows for first-run scenarios
@@ -1229,4 +1278,4 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.7.4 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.7.5 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.

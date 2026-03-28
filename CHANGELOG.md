@@ -4,11 +4,54 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+No entries yet.
+
+## [0.7.5] - 2026-03-28
+
 ### Added
+- New deterministic dereverberation command:
+  - `verbx dereverb INFILE OUTFILE`
+  with `wiener` and `spectral_sub` modes, configurable STFT/tail controls,
+  subtype selection, and optional JSON reporting.
+- Tail write-completion controls:
+  - `--tail-stop-threshold-db`
+  - `--tail-stop-hold-ms`
+  - `--tail-stop-metric`
+- Algorithmic long-render proxy streaming:
+  - `--algo-stream`
+  - `--algo-proxy-ir-max-seconds`
+  - `--algo-gpu-proxy` (CUDA path)
+- Output container controls:
+  - `--output-container auto|wav|w64|rf64`
+  including auto-upgrade logic for large outputs.
+- Matrix morph controls for algorithmic FDN:
+  - `--fdn-matrix-morph-to`
+  - `--fdn-matrix-morph-seconds`
+- New automation/control targets for multiband decay behavior:
+  - `fdn-rt60-low`, `fdn-rt60-mid`, `fdn-rt60-high`
+  - `fdn-xover-low-hz`, `fdn-xover-high-hz`
+- Geometry-based early-reflection pre-stage:
+  - `--er-geometry`
+  - `--er-room-dims-m`, `--er-source-pos-m`, `--er-listener-pos-m`
+  - `--er-absorption`, `--er-material`
+- Auto-fit heuristic profiles:
+  - `--auto-fit none|speech|music|drums|ambient`
+- Multichannel shimmer decorrelation controls:
+  - `--shimmer-spatial`
+  - `--shimmer-spread-cents`
+  - `--shimmer-decorrelation-ms`
+- Expanded regression coverage for new render/dereverb pathways and CLI
+  validation for `w64` output extension support.
 - Explicit unsafe oscillation controls for algorithmic renders:
   - `--unsafe-self-oscillate`
   - `--unsafe-loop-gain`
   including analysis metadata tagging via `compute_backend=...-unsafeosc`.
+
+### Changed
+- Version metadata, release docs, and roadmap updated to `v0.7.5`.
+- README CLI quick-reference expanded with new render and dereverb options.
+- Roadmap restructured around completed `v0.7.5` feature pack and remaining
+  `0.7.x` priorities.
 
 ### Fixed
 - Corrected `packaging/homebrew/verbx.rb` SHA256 to match the published

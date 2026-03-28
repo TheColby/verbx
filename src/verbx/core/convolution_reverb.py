@@ -172,6 +172,7 @@ class ConvolutionReverbEngine(ReverbEngine):
         infile: str,
         outfile: str,
         output_subtype: str | None = None,
+        output_format: str | None = None,
     ) -> dict[str, int | float]:
         """Process file via block streaming.
 
@@ -186,7 +187,7 @@ class ConvolutionReverbEngine(ReverbEngine):
             # is CPU-only for now.
             audio, sr = sf.read(infile, always_2d=True, dtype="float64")
             rendered = self.process(np.asarray(audio, dtype=np.float64), int(sr))
-            sf.write(outfile, rendered, int(sr), subtype=output_subtype)
+            sf.write(outfile, rendered, int(sr), subtype=output_subtype, format=output_format)
             peak = float(np.max(np.abs(audio))) if audio.size > 0 else 0.0
             return {
                 "sample_rate": int(sr),
@@ -240,6 +241,7 @@ class ConvolutionReverbEngine(ReverbEngine):
                 samplerate=sr,
                 channels=out_channels,
                 subtype=output_subtype,
+                format=output_format,
             ) as dst:
                 for block in src.blocks(
                     blocksize=partition_size,

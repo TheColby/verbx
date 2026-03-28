@@ -1,97 +1,60 @@
 # verbx Roadmap
 
-_Last updated: 2026-03-27. Maintained with `README.md` and `CHANGELOG.md`._
+_Last updated: 2026-03-28. Maintained with `README.md` and `CHANGELOG.md`._
 
 ---
 
 ## 1. Release Posture
 
-**Current release:** `v0.7.4`
-**Status:** public alpha
+**Current release:** `v0.7.5`  
+**Status:** public alpha (research-grade)  
 **Versioning policy:** semantic (`0.7.x` patch line during alpha)
 
-verbx is now feature-complete enough for public alpha distribution: dual-engine
-rendering, deterministic automation/feature control, immersive QC/handoff,
-reproducibility tooling, and f64 internal DSP.
+verbx currently ships dual-engine reverb, deterministic automation/feature
+control, immersive QC/handoff, reproducibility tooling, f64 internal DSP, and
+experimental dereverberation workflows.
 
 ---
 
-## 2. Public Alpha Launch Checklist (v0.7.0)
+## 2. v0.7.5 Feature Pack (Completed)
 
-- [x] Tag and publish `v0.7.0` release artifacts.
-- [x] Verify install flows on macOS/Linux (`uv`, `pip+venv`, `install.sh`).
-- [x] Confirm man pages install and render correctly (`man verbx`, `man verbx-render`).
-- [x] Run release smoke matrix:
-  - [x] Algorithmic render smoke test
-  - [x] Convolution render smoke test
-  - [x] IR generation + IR morph smoke test
-  - [x] Batch augment smoke test
-  - [x] Immersive handoff + QC smoke test
-- [x] Publish public-alpha notes with known limitations and support channels.
-- [x] Pin demo commands and expected outputs for launch week reproducibility.
-- [x] Add Homebrew distribution path (formula + release-sync automation).
+Requested feature set 1-10 is now implemented and tested:
 
----
-
-## 3. Musical Demo Set (Public Alpha)
-
-These artist-inspired workflows are part of launch-critical documentation and
-must remain in `README.md` recipe sections:
-
-- Alvin Lucier / **I Am Sitting in a Room** (iterative room resonance accumulation)
-- Brian Eno / **Discreet Music** (long-tail ambient loopbed)
-- Pauline Oliveros / **Deep Listening** (extended drone-space rendering)
-- Frippertronics-style tape-loop accumulation
-- Shoegaze reverse-wash (freeze + shimmer)
-
-Launch deliverables should include short before/after clips for each workflow.
+- [x] 1. Tail completion controls (`--tail-stop-threshold-db`, `--tail-stop-hold-ms`, `--tail-stop-metric`)
+- [x] 2. Algorithmic long-render proxy streaming path (`--algo-stream`)
+- [x] 3. Large-output container controls (`--output-container auto|wav|w64|rf64`)
+- [x] 4. Matrix morphing between FDN families (`--fdn-matrix-morph-to`, `--fdn-matrix-morph-seconds`)
+- [x] 5. Per-band control lanes for RT60 and crossovers (`fdn-rt60-*`, `fdn-xover-*-hz`)
+- [x] 6. Geometry-based early reflections (`--er-geometry` and room/source/listener controls)
+- [x] 7. Dedicated dereverberation command (`verbx dereverb`)
+- [x] 8. Auto-fit profile heuristics (`--auto-fit speech|music|drums|ambient`)
+- [x] 9. Multichannel shimmer spatial decorrelation (`--shimmer-spatial` + spread/delay controls)
+- [x] 10. Optional CUDA acceleration for algorithmic proxy path (`--algo-gpu-proxy --device cuda`)
 
 ---
 
-## 4. v0.7.x Tracks (Post-Launch Alpha Hardening)
+## 3. Remaining 0.7.x Priorities
 
-### 4.1 Stability and Diagnostics
-
-- [x] Expand regression fixtures for long-tail renders (>120 s RT60).
-- [x] Add deterministic golden tests for feature-vector lane behavior.
-- [x] Add performance baseline report (`docs/benchmarks/`) for CI comparison.
-- [x] Improve failure messaging for multichannel routing misconfiguration.
-
-### 4.2 API and Integration
-
-- [x] Ship a stable `verbx.api` Python surface (`render_file`, `generate_ir`, `analyze_file`).
-- [x] Add minimal notebook examples for research and dataset workflows.
-- [x] Add structured JSON schema docs for manifests and automation files.
-
-### 4.3 Spatial and Interop
-
-- [x] Harden layout/route validation for large immersive buses.
-- [x] Add explicit examples for `7.2.4`, `8.0`, `16.0`, and `64.4` routing.
-- [x] Evaluate SOFA import path feasibility for a future `0.7.x` patch.
-
-### 4.4 Documentation Quality
-
-- [x] Keep CLI tables in `README.md` synchronized with actual CLI help text.
-- [x] Keep equation formatting and variable definitions consistent in DSP sections.
-- [x] Keep launch examples mirrored across README, man pages, and cookbook.
+- [ ] Expand `verbx dereverb` objective quality validation (PESQ/STOI/ASR WER-style benchmark harness).
+- [ ] Broaden algorithmic proxy-stream eligibility while preserving deterministic parity checks.
+- [ ] Add CI/hardware coverage for CUDA and Apple Silicon acceleration paths.
+- [ ] Tighten public alpha packaging/release health checks across PyPI and Homebrew channels.
 
 ---
 
-## 5. Known Constraints (Alpha)
+## 4. Known Constraints (Alpha)
 
-- Batch/offline-first architecture; real-time plugin hosting is not in `0.7.x` scope.
-- Long-tail renders are compute-heavy by design; throughput depends strongly on
-  partition/block settings and hardware.
-- GPU acceleration currently targets convolution-heavy workloads.
-- Render-time sample-rate conversion is deterministic (`--target-sr`) but still
-  offline-oriented; plan throughput accordingly for very high rates (e.g. 192 kHz).
+- Offline-first architecture; real-time plugin hosting is not in `0.7.x` scope.
+- Very long tails remain compute-heavy; throughput depends on partition/block settings and hardware.
+- CUDA acceleration currently benefits convolution-heavy paths most.
+- Render-time sample-rate conversion is deterministic and offline-oriented.
 
 ---
 
-## 6. Maintenance Rule
+## 5. Maintenance Rule
 
 When a roadmap item is completed:
 
-1. Update this roadmap checkbox immediately.
-2. Update `CHANGELOG.md` under `Unreleased` (or release section if tagged).
+1. Update this roadmap immediately.
+2. Update `CHANGELOG.md` in the same change.
 3. Update `README.md` command/docs references in the same change.

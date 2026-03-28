@@ -1,4 +1,4 @@
-.TH VERBX 1 "March 2026" "verbx 0.7.4" "User Commands"
+.TH VERBX 1 "March 2026" "verbx 0.7.5" "User Commands"
 .SH NAME
 verbx \- extreme reverb command-line processor
 .SH SYNOPSIS
@@ -19,6 +19,9 @@ Render audio with algorithmic or convolution reverb.
 .TP
 .B analyze INFILE [OPTIONS]
 Compute analysis metrics, including optional loudness and EDR summaries.
+.TP
+.B dereverb INFILE OUTFILE [OPTIONS]
+Suppress late reverberation from existing recordings.
 .TP
 .B suggest INFILE
 Suggest practical render defaults inferred from analysis.
@@ -63,6 +66,9 @@ Assign different LFOs to different modulation targets.
 .B verbx analyze in.wav --lufs --edr --json-out report.json
 Analyze loudness and EDR metrics to JSON.
 .TP
+.B verbx dereverb wet.wav clearer.wav --mode wiener --strength 0.9 --tail-ms 180
+Run deterministic spectral dereverberation on an existing file.
+.TP
 .B verbx version
 Print installed version.
 .TP
@@ -84,6 +90,7 @@ Academic references curated for reverb DSP.
 .SH SEE ALSO
 .BR verbx-render (1),
 .BR verbx-analyze (1),
+.BR verbx-dereverb (1),
 .BR verbx-ir (1),
 .BR verbx-batch (1)
 .SH AUTHORS

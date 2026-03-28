@@ -14,6 +14,7 @@ IRMode = Literal["fdn", "stochastic", "modal", "hybrid"]
 IRMatrixLayout = Literal["output-major", "input-major"]
 DeviceName = Literal["auto", "cpu", "cuda", "mps"]
 OutputSubtype = Literal["auto", "float32", "float64", "pcm16", "pcm24", "pcm32"]
+OutputContainer = Literal["auto", "wav", "w64", "rf64"]
 ChannelLayout = Literal[
     "auto",
     "mono",
@@ -40,6 +41,8 @@ FeatureGuidePolicy = Literal["align", "strict"]
 IRMorphMismatchPolicy = Literal["coerce", "strict"]
 FDNSpatialCouplingMode = Literal["none", "adjacent", "front_rear", "bed_top", "all_to_all"]
 FDNNonlinearityMode = Literal["none", "tanh", "softclip"]
+TailStopMetric = Literal["peak", "rms"]
+AutoFitProfile = Literal["none", "speech", "music", "drums", "ambient"]
 
 
 @dataclass(slots=True)
@@ -62,6 +65,8 @@ class RenderConfig:
             raise ValueError(f"partition_size must be >= 1, got {self.partition_size}")
         if self.target_sr is not None and int(self.target_sr) < 1:
             raise ValueError(f"target_sr must be >= 1, got {self.target_sr}")
+        if self.tail_stop_hold_ms < 0.0:
+            raise ValueError(f"tail_stop_hold_ms must be >= 0, got {self.tail_stop_hold_ms}")
         if self.pre_delay_ms < 0.0:
             raise ValueError(f"pre_delay_ms must be >= 0, got {self.pre_delay_ms}")
         if not 0.0 <= self.damping <= 1.0:
@@ -89,6 +94,26 @@ class RenderConfig:
             )
         if self.unsafe_loop_gain <= 0.0:
             raise ValueError(f"unsafe_loop_gain must be > 0, got {self.unsafe_loop_gain}")
+        if self.algo_proxy_ir_max_seconds <= 0.0:
+            raise ValueError(
+                f"algo_proxy_ir_max_seconds must be > 0, got {self.algo_proxy_ir_max_seconds}"
+            )
+        if self.fdn_matrix_morph_seconds < 0.0:
+            raise ValueError(
+                f"fdn_matrix_morph_seconds must be >= 0, got {self.fdn_matrix_morph_seconds}"
+            )
+        if self.shimmer_spread_cents < 0.0:
+            raise ValueError(f"shimmer_spread_cents must be >= 0, got {self.shimmer_spread_cents}")
+        if self.shimmer_decorrelation_ms < 0.0:
+            raise ValueError(
+                f"shimmer_decorrelation_ms must be >= 0, got {self.shimmer_decorrelation_ms}"
+            )
+        if not 0.0 <= self.er_absorption <= 0.99:
+            raise ValueError(f"er_absorption must be 0..0.99, got {self.er_absorption}")
+        if any(dim <= 0.0 for dim in self.er_room_dims_m):
+            raise ValueError(
+                f"er_room_dims_m must be > 0 in all dimensions, got {self.er_room_dims_m}"
+            )
         if self.fdn_sparse_degree < 1:
             raise ValueError(f"fdn_sparse_degree must be >= 1, got {self.fdn_sparse_degree}")
 
@@ -137,6 +162,8 @@ class RenderConfig:
     fdn_graph_topology: str = "ring"
     fdn_graph_degree: int = 2
     fdn_graph_seed: int = 2026
+    fdn_matrix_morph_to: str | None = None
+    fdn_matrix_morph_seconds: float = 0.0
     fdn_spatial_coupling_mode: FDNSpatialCouplingMode = "none"
     fdn_spatial_coupling_strength: float = 0.0
     fdn_nonlinearity: FDNNonlinearityMode = "none"
@@ -186,8 +213,14 @@ class RenderConfig:
     ambi_decode_to: AmbiDecodeTo = "none"
     ambi_rotate_yaw_deg: float = 0.0
     tail_limit: float | None = None
+    tail_stop_threshold_db: float = -120.0
+    tail_stop_hold_ms: float = 10.0
+    tail_stop_metric: TailStopMetric = "peak"
     threads: int | None = None
     device: DeviceName = "auto"
+    algo_stream: bool = False
+    algo_proxy_ir_max_seconds: float = 120.0
+    algo_gpu_proxy: bool = False
     partition_size: int = 16_384
     target_sr: int | None = None
     ir_gen: bool = False
@@ -203,6 +236,7 @@ class RenderConfig:
     repeat_target_lufs: float | None = None
     repeat_target_peak_dbfs: float | None = None
     output_subtype: OutputSubtype = "auto"
+    output_container: OutputContainer = "auto"
     output_peak_norm: OutputPeakNorm = "none"
     output_peak_target_dbfs: float | None = None
     shimmer: bool = False
@@ -211,6 +245,16 @@ class RenderConfig:
     shimmer_feedback: float = 0.35
     shimmer_highcut: float | None = 10_000.0
     shimmer_lowcut: float | None = 300.0
+    shimmer_spatial: bool = False
+    shimmer_spread_cents: float = 8.0
+    shimmer_decorrelation_ms: float = 1.5
+    auto_fit: AutoFitProfile = "none"
+    er_geometry: bool = False
+    er_room_dims_m: tuple[float, float, float] = (10.0, 7.0, 3.0)
+    er_source_pos_m: tuple[float, float, float] = (2.0, 2.0, 1.5)
+    er_listener_pos_m: tuple[float, float, float] = (5.0, 3.5, 1.5)
+    er_absorption: float = 0.35
+    er_material: str = "studio"
     unsafe_self_oscillate: bool = False
     unsafe_loop_gain: float = 1.02
     duck: bool = False

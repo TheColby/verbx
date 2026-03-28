@@ -20,6 +20,7 @@ Do not edit manually.
 │ doctor      Print runtime diagnostics for launch-day troubleshooting.        │
 │ render      Render input audio with algorithmic or convolution reverb.       │
 │ analyze     Analyze an audio file and print a summary table.                 │
+│ dereverb    Suppress late reverberation from an existing audio recording.    │
 │ suggest     Suggest practical render defaults from input analysis.           │
 │ presets     Print available presets or one preset payload.                   │
 │ ir          Impulse response workflows.                                      │
@@ -49,6 +50,13 @@ Do not edit manually.
 │                                                            supplied CLI      │
 │                                                            options override  │
 │                                                            preset values.    │
+│ --auto-fit                               [none|speech|mus  Apply             │
+│                                          ic|drums|ambient  target-oriented   │
+│                                          ]                 heuristic         │
+│                                                            profile: none,    │
+│                                                            speech, music,    │
+│                                                            drums, ambient.   │
+│                                                            [default: none]   │
 │ --engine                                 [conv|algo|auto]  Engine: conv,     │
 │                                                            algo, or auto.    │
 │                                                            [default: auto]   │
@@ -298,6 +306,17 @@ Do not edit manually.
 │                                                            graph-structured  │
 │                                                            FDN pairings.     │
 │                                                            [default: 2026]   │
+│ --fdn-matrix-mor…                        TEXT              Optional target   │
+│                                                            matrix family for │
+│                                                            gradual           │
+│                                                            feedback-matrix   │
+│                                                            morphing.         │
+│ --fdn-matrix-mor…                        FLOAT RANGE       Duration          │
+│                                          [x>=0.0]          (seconds) for     │
+│                                                            matrix morph from │
+│                                                            --fdn-matrix to   │
+│                                                            --fdn-matrix-mor… │
+│                                                            [default: 0.0]    │
 │ --fdn-spatial-co…                        [none|adjacent|f  Directional       │
 │                                          ront_rear|bed_to  wet-bus coupling  │
 │                                          p|all_to_all]     mode: none,       │
@@ -531,6 +550,22 @@ Do not edit manually.
 │                                                            [default: 0.0]    │
 │ --tail-limit                             FLOAT RANGE                         │
 │                                          [x>=0.0]                            │
+│ --tail-stop-thre…                        FLOAT RANGE       Tail completion   │
+│                                          [-240.0<=x<=0.0]  threshold in dBFS │
+│                                                            used for final    │
+│                                                            zero-tail         │
+│                                                            writeout.         │
+│                                                            [default: -120.0] │
+│ --tail-stop-hold…                        FLOAT RANGE       Explicit          │
+│                                          [x>=0.0]          zero-hold         │
+│                                                            duration appended │
+│                                                            after tail        │
+│                                                            completion.       │
+│                                                            [default: 10.0]   │
+│ --tail-stop-metr…                        [peak|rms]        Tail stop         │
+│                                                            detector metric:  │
+│                                                            peak or rms.      │
+│                                                            [default: peak]   │
 │ --threads                                INTEGER RANGE                       │
 │                                          [x>=1]                              │
 │ --device                                 [auto|cpu|cuda|m  Compute device    │
@@ -538,6 +573,25 @@ Do not edit manually.
 │                                                            cpu, cuda, or mps │
 │                                                            (Apple Silicon).  │
 │                                                            [default: auto]   │
+│ --algo-stream        --no-algo-stream                      Use               │
+│                                                            algorithmic-to-c… │
+│                                                            proxy streaming   │
+│                                                            path for long     │
+│                                                            algorithmic       │
+│                                                            renders.          │
+│                                                            [default:         │
+│                                                            no-algo-stream]   │
+│ --algo-proxy-ir-…                        FLOAT RANGE       Maximum proxy-IR  │
+│                                          [x>=1.0]          duration used by  │
+│                                                            --algo-stream.    │
+│                                                            [default: 120.0]  │
+│ --algo-gpu-proxy     --no-algo-gpu-p…                      Route algorithmic │
+│                                                            render through    │
+│                                                            proxy convolution │
+│                                                            path to leverage  │
+│                                                            CUDA convolution. │
+│                                                            [default:         │
+│                                                            no-algo-gpu-prox… │
 │ --partition-size                         INTEGER RANGE     [default: 16384]  │
 │                                          [x>=256]                            │
 │ --target-sr                              INTEGER RANGE     Optional          │
@@ -578,6 +632,10 @@ Do not edit manually.
 │                                                            per delivery      │
 │                                                            needs.            │
 │                                                            [default: auto]   │
+│ --output-contain…                        [auto|wav|w64|rf  Output container  │
+│                                          64]               mode: auto, wav,  │
+│                                                            w64, or rf64.     │
+│                                                            [default: auto]   │
 │ --output-peak-no…                        [none|input|targ  Final peak        │
 │                                          et|full-scale]    normalization     │
 │                                                            mode: none, input │
@@ -600,6 +658,51 @@ Do not edit manually.
 │                                          [x>=10.0]         10000.0]          │
 │ --shimmer-lowcut                         FLOAT RANGE       [default: 300.0]  │
 │                                          [x>=10.0]                           │
+│ --shimmer-spatial    --no-shimmer-sp…                      Enable            │
+│                                                            multichannel      │
+│                                                            shimmer spatial   │
+│                                                            decorrelation.    │
+│                                                            [default:         │
+│                                                            no-shimmer-spati… │
+│ --shimmer-spread…                        FLOAT RANGE       Per-channel       │
+│                                          [x>=0.0]          shimmer detune    │
+│                                                            spread in cents   │
+│                                                            (multichannel).   │
+│                                                            [default: 8.0]    │
+│ --shimmer-decorr…                        FLOAT RANGE       Per-channel       │
+│                                          [x>=0.0]          shimmer delay     │
+│                                                            spread in         │
+│                                                            milliseconds.     │
+│                                                            [default: 1.5]    │
+│ --er-geometry        --no-er-geometry                      Enable            │
+│                                                            first-order       │
+│                                                            image-source      │
+│                                                            early-reflection  │
+│                                                            pre-stage.        │
+│                                                            [default:         │
+│                                                            no-er-geometry]   │
+│ --er-room-dims-m                         TEXT              Room dimensions   │
+│                                                            in meters: L,W,H  │
+│                                                            [default: 10,7,3] │
+│ --er-source-pos-m                        TEXT              Source position   │
+│                                                            in meters: x,y,z  │
+│                                                            [default:         │
+│                                                            2,2,1.5]          │
+│ --er-listener-po…                        TEXT              Listener position │
+│                                                            in meters: x,y,z  │
+│                                                            [default:         │
+│                                                            5,3.5,1.5]        │
+│ --er-absorption                          FLOAT RANGE       Wall absorption   │
+│                                          [0.0<=x<=0.99]    coefficient for   │
+│                                                            early-reflection  │
+│                                                            stage.            │
+│                                                            [default: 0.35]   │
+│ --er-material                            TEXT              Early-reflection  │
+│                                                            material preset:  │
+│                                                            anechoic, dead,   │
+│                                                            studio, hall,     │
+│                                                            stone, or custom. │
+│                                                            [default: studio] │
 │ --unsafe-self-os…    --safe-no-self-…                      UNSAFE: permit    │
 │                                                            feedback-path     │
 │                                                            gains above unity │

@@ -156,4 +156,5 @@ if [[ "$WITH_MAN" -eq 1 ]]; then
   echo "  man verbx"
   echo "  man verbx-render"
   echo "  man verbx-analyze"
+  echo "  man verbx-dereverb"
 fi

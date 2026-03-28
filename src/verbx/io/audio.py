@@ -26,14 +26,20 @@ def read_audio(path: str) -> tuple[AudioArray, int]:
     return array, int(sr)
 
 
-def write_audio(path: str, audio: AudioArray, sr: int, subtype: str | None = None) -> None:
+def write_audio(
+    path: str,
+    audio: AudioArray,
+    sr: int,
+    subtype: str | None = None,
+    format: str | None = None,
+) -> None:
     """Write audio with optional subtype override.
 
     The signal is always converted to float64 before writing to keep engine
     behavior deterministic across containers.
     """
     output = ensure_mono_or_stereo(audio).astype(np.float64, copy=False)
-    sf.write(file=path, data=output, samplerate=sr, subtype=subtype)
+    sf.write(file=path, data=output, samplerate=sr, subtype=subtype, format=format)
 
 
 def validate_audio_path(path: str) -> None:

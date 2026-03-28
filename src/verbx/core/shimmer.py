@@ -38,6 +38,9 @@ class ShimmerConfig:
     highcut: float | None = 10_000.0
     lowcut: float | None = 300.0
     unsafe_self_oscillate: bool = False
+    spatial: bool = False
+    spread_cents: float = 8.0
+    decorrelation_ms: float = 1.5
 
 
 class ShimmerProcessor:
@@ -63,6 +66,13 @@ class ShimmerProcessor:
 
         bandlimited = _bandlimit(x, sr, lowcut=self._cfg.lowcut, highcut=self._cfg.highcut)
         shifted = _pitch_shift_audio(bandlimited, sr, self._cfg.semitones)
+        shifted = _apply_spatial_decorrelation(
+            shifted,
+            sr=sr,
+            enabled=bool(self._cfg.spatial),
+            spread_cents=float(self._cfg.spread_cents),
+            decorrelation_ms=float(self._cfg.decorrelation_ms),
+        )
 
         if self._feedback_state is None or self._feedback_state.shape != shifted.shape:
             self._feedback_state = np.zeros_like(shifted)
@@ -155,3 +165,37 @@ def _bandlimit(
             out[:, ch] = filtered
 
     return np.asarray(out, dtype=np.float64)
+
+
+def _apply_spatial_decorrelation(
+    audio: AudioArray,
+    *,
+    sr: int,
+    enabled: bool,
+    spread_cents: float,
+    decorrelation_ms: float,
+) -> AudioArray:
+    """Apply lightweight multichannel shimmer decorrelation."""
+    x = ensure_mono_or_stereo(audio)
+    if not enabled or x.shape[1] <= 1:
+        return x
+
+    y = np.asarray(x, dtype=np.float64).copy()
+    spread = float(max(0.0, spread_cents))
+    max_delay = int(max(0, round(float(max(0.0, decorrelation_ms)) * float(sr) / 1000.0)))
+    if max_delay <= 0 and spread <= 0.0:
+        return y
+
+    # Deterministic per-channel offsets to avoid mono collapse in large beds.
+    channel_positions = np.linspace(-1.0, 1.0, y.shape[1], dtype=np.float64)
+    for ch in range(y.shape[1]):
+        cents = spread * float(channel_positions[ch])
+        gain = float(2.0 ** (cents / 1200.0))
+        delayed = y[:, ch]
+        if max_delay > 0:
+            delay = round(abs(float(channel_positions[ch])) * max_delay)
+            if delay > 0:
+                delayed = np.pad(delayed[:-delay], (delay, 0), mode="constant")
+        # Tiny deterministic variation; keep energy bounded.
+        y[:, ch] = np.asarray(0.92 * delayed * gain, dtype=np.float64)
+    return np.asarray(y, dtype=np.float64)

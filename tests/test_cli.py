@@ -35,6 +35,7 @@ def test_cli_boots() -> None:
     assert result.exit_code == 0
     assert "render" in result.stdout
     assert "analyze" in result.stdout
+    assert "dereverb" in result.stdout
     assert "quickstart" in result.stdout
     assert "doctor" in result.stdout
     assert "presets" in result.stdout
@@ -244,6 +245,131 @@ def test_render_dry_run_accepts_extended_rt60_upper_bound(tmp_path: Path) -> Non
     assert "Render Dry-Run Plan" in text
     assert not outfile.exists()
     assert not Path(f"{outfile}.analysis.json").exists()
+
+
+def test_render_dry_run_accepts_w64_extension(tmp_path: Path) -> None:
+    audio = np.zeros((256, 1), dtype=np.float64)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.w64"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--dry-run",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert not outfile.exists()
+
+
+def test_render_auto_fit_profile_applies_when_not_overridden(tmp_path: Path) -> None:
+    audio = np.zeros((4096, 1), dtype=np.float64)
+    audio[64:192, 0] = 0.4
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--auto-fit",
+            "speech",
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert abs(float(config["rt60"]) - 1.2) < 1e-6
+    assert abs(float(config["fdn_lines"]) - 8.0) < 1e-6
+    assert abs(float(config["pre_delay_ms"]) - 14.0) < 1e-6
+
+
+def test_render_algo_stream_proxy_path_reports_proxy_backend(tmp_path: Path) -> None:
+    sr = 12_000
+    audio = np.zeros((2048, 1), dtype=np.float64)
+    audio[0, 0] = 1.0
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--algo-stream",
+            "--mod-depth-ms",
+            "0",
+            "--mod-rate-hz",
+            "0",
+            "--normalize-stage",
+            "none",
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    effective = payload["effective"]
+    assert effective["engine_resolved"] == "algo_proxy_stream"
+    assert bool(effective["streaming_mode"])
+
+
+def test_render_matrix_morph_and_er_geometry_complete(tmp_path: Path) -> None:
+    sr = 16_000
+    audio = np.zeros((4096, 1), dtype=np.float64)
+    audio[80:220, 0] = 0.6
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-matrix",
+            "hadamard",
+            "--fdn-matrix-morph-to",
+            "householder",
+            "--fdn-matrix-morph-seconds",
+            "0.2",
+            "--er-geometry",
+            "--er-room-dims-m",
+            "9,7,3",
+            "--er-source-pos-m",
+            "1.5,2.0,1.4",
+            "--er-listener-pos-m",
+            "4.0,3.0,1.4",
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert outfile.exists()
+    out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == sr
+    assert out_audio.shape[1] == 1
 
 
 def test_render_long_tail_regression_rt60_over_120_seconds(tmp_path: Path) -> None:
@@ -1605,6 +1731,74 @@ def test_analyze_edr_mode(tmp_path: Path) -> None:
     result = runner.invoke(app, ["analyze", str(infile), "--edr"])
     assert result.exit_code == 0
     assert "edr_rt60_median_s" in result.stdout
+
+
+def test_dereverb_command_writes_output_and_json(tmp_path: Path) -> None:
+    sr = 16_000
+    n = sr
+    x = np.zeros((n, 1), dtype=np.float64)
+    x[64, 0] = 1.0
+    ir = np.exp(-np.arange(int(0.5 * sr), dtype=np.float64) / (0.16 * sr))
+    y = np.convolve(x[:, 0], ir, mode="full")[:n]
+    infile = tmp_path / "wet.wav"
+    outfile = tmp_path / "dryish.wav"
+    json_out = tmp_path / "dereverb.json"
+    sf.write(str(infile), y[:, None], sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "dereverb",
+            str(infile),
+            str(outfile),
+            "--mode",
+            "wiener",
+            "--strength",
+            "0.9",
+            "--window-ms",
+            "32",
+            "--hop-ms",
+            "8",
+            "--tail-ms",
+            "180",
+            "--json-out",
+            str(json_out),
+            "--quiet",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert outfile.exists()
+    out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == sr
+    assert out_audio.shape == (n, 1)
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["schema"] == "dereverb-report-v1"
+    assert payload["sample_rate"] == sr
+    assert payload["channels"] == 1
+    assert "rms_delta_db" in payload["metrics"]
+
+
+def test_dereverb_rejects_hop_ms_not_smaller_than_window(tmp_path: Path) -> None:
+    audio = np.zeros((512, 1), dtype=np.float64)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "dereverb",
+            str(infile),
+            str(outfile),
+            "--window-ms",
+            "10",
+            "--hop-ms",
+            "10",
+        ],
+    )
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "--hop-ms must be smaller than --window-ms." in text
 
 
 def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> None:

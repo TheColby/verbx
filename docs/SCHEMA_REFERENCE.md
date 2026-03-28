@@ -2,7 +2,7 @@
 
 JSON and CSV format specifications for batch manifests and automation files.
 
-_Current as of v0.7.4._
+_Current as of v0.7.5._
 
 ---
 
@@ -70,10 +70,29 @@ One job object per line (no wrapping object, no `"jobs"` key):
 | `shimmer_feedback` | number | `0.35` | `0.0` – `0.98` (safe), up to `1.25` with `unsafe_self_oscillate=true` |
 | `unsafe_self_oscillate` | boolean | `false` | Enables unsafe above-unity feedback path in algorithmic mode |
 | `unsafe_loop_gain` | number | `1.02` | `> 1.0` for intentional self-oscillation (`<= 1.25`) |
+| `auto_fit` | string | `"none"` | `"none"`, `"speech"`, `"music"`, `"drums"`, `"ambient"` |
+| `fdn_matrix_morph_to` | string/null | `null` | Optional matrix morph target family |
+| `fdn_matrix_morph_seconds` | number | `0.0` | `>= 0.0` |
+| `tail_stop_threshold_db` | number | `-120.0` | `-240.0` – `0.0` |
+| `tail_stop_hold_ms` | number | `10.0` | `>= 0.0` |
+| `tail_stop_metric` | string | `"peak"` | `"peak"`, `"rms"` |
+| `algo_stream` | boolean | `false` | Enable algorithmic proxy streaming path |
+| `algo_proxy_ir_max_seconds` | number | `120.0` | `> 0.0` |
+| `algo_gpu_proxy` | boolean | `false` | Use CUDA convolution backend for proxy streaming |
 | `output_subtype` | string | `"auto"` | `"auto"`, `"float32"`, `"float64"`, `"pcm16"`, `"pcm24"`, `"pcm32"` |
+| `output_container` | string | `"auto"` | `"auto"`, `"wav"`, `"w64"`, `"rf64"` |
 | `target_sr` | integer | `null` | `>= 1` (Hz; `null` uses input sample rate) |
 | `lowcut` | number | `null` | Hz; `null` = disabled |
 | `highcut` | number | `null` | Hz; `null` = disabled |
+| `shimmer_spatial` | boolean | `false` | Enable multichannel shimmer decorrelation |
+| `shimmer_spread_cents` | number | `8.0` | `>= 0.0` |
+| `shimmer_decorrelation_ms` | number | `1.5` | `>= 0.0` |
+| `er_geometry` | boolean | `false` | Enable first-order image-source early reflections |
+| `er_room_dims_m` | array[3] | `[10.0, 7.0, 3.0]` | Positive room dimensions (meters) |
+| `er_source_pos_m` | array[3] | `[2.0, 2.0, 1.5]` | Source position (meters) |
+| `er_listener_pos_m` | array[3] | `[5.0, 3.5, 1.5]` | Listener position (meters) |
+| `er_absorption` | number | `0.35` | `0.0` – `0.99` |
+| `er_material` | string | `"studio"` | Material preset name |
 | `repeat` | integer | `1` | `1` – `100` |
 
 Generate a template with: `verbx batch template`
@@ -216,6 +235,11 @@ Required columns: `target`, `time_s`, `value`. Optional: `interp`.
 | `warmth-macro` | engine | -1.0 – 1.0 | Warmth macro |
 | `envelopment-macro` | engine | -1.0 – 1.0 | Envelopment macro |
 | `fdn-rt60-tilt` | engine | -1.0 – 1.0 | FDN RT60 spectral tilt |
+| `fdn-rt60-low` | engine | 0.1 – 3600.0 | Low-band RT60 target |
+| `fdn-rt60-mid` | engine | 0.1 – 3600.0 | Mid-band RT60 target |
+| `fdn-rt60-high` | engine | 0.1 – 3600.0 | High-band RT60 target |
+| `fdn-xover-low-hz` | engine | 20.0 – 20000.0 | Low/mid crossover |
+| `fdn-xover-high-hz` | engine | 20.0 – 20000.0 | Mid/high crossover |
 | `fdn-tonal-correction-strength` | engine | 0.0 – 1.0 | Tonal correction amount |
 | `ir-blend-alpha` | conv | 0.0 – 1.0 | IR morph blend (convolution engine) |
 

@@ -1,0 +1,60 @@
+.TH VERBX-DEREVERB 1 "March 2026" "verbx 0.7.5" "User Commands"
+.SH NAME
+verbx-dereverb \- suppress late reverberation from existing audio files
+.SH SYNOPSIS
+.B verbx dereverb
+\fIINFILE\fR \fIOUTFILE\fR [\fIOPTIONS\fR]
+.SH DESCRIPTION
+\fBverbx dereverb\fR applies deterministic, offline spectral suppression to
+reduce late reverberant energy in a rendered or recorded signal.
+It is intended for research workflows and reproducible batch processing.
+.SH OPTIONS
+.TP
+.B --mode wiener|spectral_sub
+Select dereverberation algorithm (default: \fBwiener\fR).
+.TP
+.B --strength FLOAT
+Suppression intensity in the range \fB0.0..2.0\fR.
+.TP
+.B --floor FLOAT
+Residual floor in the range \fB0.0..1.0\fR to reduce musical-noise artifacts.
+.TP
+.B --window-ms FLOAT
+STFT analysis window size in milliseconds.
+.TP
+.B --hop-ms FLOAT
+STFT hop size in milliseconds. Must be smaller than \fB--window-ms\fR.
+.TP
+.B --tail-ms FLOAT
+Late-field smoothing horizon in milliseconds.
+.TP
+.B --pre-emphasis FLOAT
+Optional high-frequency emphasis (\fB0.0..0.98\fR) before suppression.
+.TP
+.B --mix FLOAT
+Processed/wet mix in the range \fB0.0..1.0\fR.
+.TP
+.B --out-subtype auto|float32|float64|pcm16|pcm24|pcm32
+Output encoding format.
+.TP
+.B --json-out PATH
+Write a structured dereverb metrics report.
+.TP
+.B --quiet
+Suppress console summary output.
+.SH EXAMPLES
+.TP
+.B verbx dereverb wet.wav dryish.wav --mode wiener --strength 0.9 --tail-ms 180
+Apply Wiener-style late-tail suppression.
+.TP
+.B verbx dereverb wet.wav dryish.wav --mode spectral_sub --strength 0.7 --floor 0.1
+Apply spectral-subtraction dereverberation with conservative floor protection.
+.TP
+.B verbx dereverb wet.wav dryish.wav --json-out dereverb_report.json
+Emit detailed machine-readable metrics report.
+.SH SEE ALSO
+.BR verbx (1),
+.BR verbx-render (1),
+.BR verbx-analyze (1)
+.SH AUTHORS
+verbx contributors.

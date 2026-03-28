@@ -53,6 +53,7 @@ from verbx.config import (
     AmbiDecodeTo,
     AmbiEncodeFrom,
     AmbiNormalization,
+    AutoFitProfile,
     AutomationMode,
     ChannelLayout,
     DeviceName,
@@ -67,9 +68,11 @@ from verbx.config import (
     ModCombine,
     ModTarget,
     NormalizeStage,
+    OutputContainer,
     OutputPeakNorm,
     OutputSubtype,
     RenderConfig,
+    TailStopMetric,
 )
 from verbx.core.accel import (
     cuda_available,
@@ -102,6 +105,7 @@ from verbx.core.batch_scheduler import (
     run_parallel_batch,
 )
 from verbx.core.control_targets import RT60_DEFAULT_SECONDS, RT60_MAX_SECONDS, RT60_MIN_SECONDS
+from verbx.core.dereverb import DereverbConfig, apply_dereverb
 from verbx.core.fdn_capabilities import (
     FDN_GRAPH_TOPOLOGY_CHOICES,
     FDN_LINK_FILTER_CHOICES,
@@ -146,7 +150,7 @@ from verbx.core.spatial import (
     normalize_ambisonic_metadata,
 )
 from verbx.core.tempo import parse_pre_delay_ms
-from verbx.io.audio import read_audio, validate_audio_path
+from verbx.io.audio import read_audio, validate_audio_path, write_audio
 from verbx.ir.fitting import (
     IRFitCandidate,
     IRFitScore,
@@ -760,6 +764,11 @@ def render(
             "override preset values."
         ),
     ),
+    auto_fit: AutoFitProfile = typer.Option(
+        "none",
+        "--auto-fit",
+        help="Apply target-oriented heuristic profile: none, speech, music, drums, ambient.",
+    ),
     engine: EngineName = typer.Option("auto", "--engine", help="Engine: conv, algo, or auto."),
     rt60: float = typer.Option(
         RT60_DEFAULT_SECONDS, "--rt60", min=RT60_MIN_SECONDS, max=RT60_MAX_SECONDS
@@ -1014,6 +1023,17 @@ def render(
         "--fdn-graph-seed",
         help="Deterministic seed used to build graph-structured FDN pairings.",
     ),
+    fdn_matrix_morph_to: str | None = typer.Option(
+        None,
+        "--fdn-matrix-morph-to",
+        help="Optional target matrix family for gradual feedback-matrix morphing.",
+    ),
+    fdn_matrix_morph_seconds: float = typer.Option(
+        0.0,
+        "--fdn-matrix-morph-seconds",
+        min=0.0,
+        help="Duration (seconds) for matrix morph from --fdn-matrix to --fdn-matrix-morph-to.",
+    ),
     fdn_spatial_coupling_mode: FDNSpatialCouplingMode = typer.Option(
         "none",
         "--fdn-spatial-coupling-mode",
@@ -1264,11 +1284,48 @@ def render(
         help="Algorithmic surround decorrelation variance for top channels.",
     ),
     tail_limit: float | None = typer.Option(None, "--tail-limit", min=0.0),
+    tail_stop_threshold_db: float = typer.Option(
+        -120.0,
+        "--tail-stop-threshold-db",
+        min=-240.0,
+        max=0.0,
+        help="Tail completion threshold in dBFS used for final zero-tail writeout.",
+    ),
+    tail_stop_hold_ms: float = typer.Option(
+        10.0,
+        "--tail-stop-hold-ms",
+        min=0.0,
+        help="Explicit zero-hold duration appended after tail completion.",
+    ),
+    tail_stop_metric: TailStopMetric = typer.Option(
+        "peak",
+        "--tail-stop-metric",
+        help="Tail stop detector metric: peak or rms.",
+    ),
     threads: int | None = typer.Option(None, "--threads", min=1),
     device: DeviceName = typer.Option(
         "auto",
         "--device",
         help="Compute device preference: auto, cpu, cuda, or mps (Apple Silicon).",
+    ),
+    algo_stream: bool = typer.Option(
+        False,
+        "--algo-stream/--no-algo-stream",
+        help="Use algorithmic-to-convolution proxy streaming path for long algorithmic renders.",
+    ),
+    algo_proxy_ir_max_seconds: float = typer.Option(
+        120.0,
+        "--algo-proxy-ir-max-seconds",
+        min=1.0,
+        help="Maximum proxy-IR duration used by --algo-stream.",
+    ),
+    algo_gpu_proxy: bool = typer.Option(
+        False,
+        "--algo-gpu-proxy/--no-algo-gpu-proxy",
+        help=(
+            "Route algorithmic render through proxy convolution path "
+            "to leverage CUDA convolution."
+        ),
     ),
     partition_size: int = typer.Option(16_384, "--partition-size", min=256),
     target_sr: int | None = typer.Option(
@@ -1298,6 +1355,11 @@ def render(
             "use float64/float32/PCM per delivery needs."
         ),
     ),
+    output_container: OutputContainer = typer.Option(
+        "auto",
+        "--output-container",
+        help="Output container mode: auto, wav, w64, or rf64.",
+    ),
     output_peak_norm: OutputPeakNorm = typer.Option(
         "none",
         "--output-peak-norm",
@@ -1316,6 +1378,55 @@ def render(
     shimmer_feedback: float = typer.Option(0.35, "--shimmer-feedback", min=0.0, max=1.25),
     shimmer_highcut: float | None = typer.Option(10_000.0, "--shimmer-highcut", min=10.0),
     shimmer_lowcut: float | None = typer.Option(300.0, "--shimmer-lowcut", min=10.0),
+    shimmer_spatial: bool = typer.Option(
+        False,
+        "--shimmer-spatial/--no-shimmer-spatial",
+        help="Enable multichannel shimmer spatial decorrelation.",
+    ),
+    shimmer_spread_cents: float = typer.Option(
+        8.0,
+        "--shimmer-spread-cents",
+        min=0.0,
+        help="Per-channel shimmer detune spread in cents (multichannel).",
+    ),
+    shimmer_decorrelation_ms: float = typer.Option(
+        1.5,
+        "--shimmer-decorrelation-ms",
+        min=0.0,
+        help="Per-channel shimmer delay spread in milliseconds.",
+    ),
+    er_geometry: bool = typer.Option(
+        False,
+        "--er-geometry/--no-er-geometry",
+        help="Enable first-order image-source early-reflection pre-stage.",
+    ),
+    er_room_dims_m: str = typer.Option(
+        "10,7,3",
+        "--er-room-dims-m",
+        help="Room dimensions in meters: L,W,H",
+    ),
+    er_source_pos_m: str = typer.Option(
+        "2,2,1.5",
+        "--er-source-pos-m",
+        help="Source position in meters: x,y,z",
+    ),
+    er_listener_pos_m: str = typer.Option(
+        "5,3.5,1.5",
+        "--er-listener-pos-m",
+        help="Listener position in meters: x,y,z",
+    ),
+    er_absorption: float = typer.Option(
+        0.35,
+        "--er-absorption",
+        min=0.0,
+        max=0.99,
+        help="Wall absorption coefficient for early-reflection stage.",
+    ),
+    er_material: str = typer.Option(
+        "studio",
+        "--er-material",
+        help="Early-reflection material preset: anechoic, dead, studio, hall, stone, or custom.",
+    ),
     unsafe_self_oscillate: bool = typer.Option(
         False,
         "--unsafe-self-oscillate/--safe-no-self-oscillate",
@@ -1536,9 +1647,13 @@ def render(
         fdn_dfm_delays_ms,
         option_name="--fdn-dfm-delays-ms",
     )
+    parsed_er_room_dims = _parse_vec3(er_room_dims_m, option_name="--er-room-dims-m")
+    parsed_er_source_pos = _parse_vec3(er_source_pos_m, option_name="--er-source-pos-m")
+    parsed_er_listener_pos = _parse_vec3(er_listener_pos_m, option_name="--er-listener-pos-m")
 
     config = RenderConfig(
         engine=engine,
+        auto_fit=auto_fit,
         rt60=rt60,
         pre_delay_ms=resolved_pre_delay_ms,
         pre_delay_note=pre_delay,
@@ -1588,6 +1703,12 @@ def render(
         fdn_graph_topology=_normalize_fdn_graph_topology_name(fdn_graph_topology),
         fdn_graph_degree=fdn_graph_degree,
         fdn_graph_seed=fdn_graph_seed,
+        fdn_matrix_morph_to=(
+            None
+            if fdn_matrix_morph_to is None
+            else _normalize_fdn_matrix_name(fdn_matrix_morph_to)
+        ),
+        fdn_matrix_morph_seconds=float(fdn_matrix_morph_seconds),
         fdn_spatial_coupling_mode=cast(
             FDNSpatialCouplingMode,
             str(fdn_spatial_coupling_mode).strip().lower().replace("-", "_"),
@@ -1647,8 +1768,14 @@ def render(
         ambi_decode_to=cast(AmbiDecodeTo, str(ambi_decode_to).strip().lower()),
         ambi_rotate_yaw_deg=float(ambi_rotate_yaw_deg),
         tail_limit=tail_limit,
+        tail_stop_threshold_db=float(tail_stop_threshold_db),
+        tail_stop_hold_ms=float(tail_stop_hold_ms),
+        tail_stop_metric=tail_stop_metric,
         threads=threads,
         device=device,
+        algo_stream=bool(algo_stream),
+        algo_proxy_ir_max_seconds=float(algo_proxy_ir_max_seconds),
+        algo_gpu_proxy=bool(algo_gpu_proxy),
         partition_size=partition_size,
         target_sr=target_sr,
         ir_gen=ir_gen,
@@ -1664,6 +1791,7 @@ def render(
         repeat_target_lufs=repeat_target_lufs,
         repeat_target_peak_dbfs=repeat_target_peak_dbfs,
         output_subtype=out_subtype,
+        output_container=output_container,
         output_peak_norm=output_peak_norm,
         output_peak_target_dbfs=output_peak_target_dbfs,
         shimmer=shimmer,
@@ -1672,6 +1800,15 @@ def render(
         shimmer_feedback=shimmer_feedback,
         shimmer_highcut=shimmer_highcut,
         shimmer_lowcut=shimmer_lowcut,
+        shimmer_spatial=bool(shimmer_spatial),
+        shimmer_spread_cents=float(shimmer_spread_cents),
+        shimmer_decorrelation_ms=float(shimmer_decorrelation_ms),
+        er_geometry=bool(er_geometry),
+        er_room_dims_m=parsed_er_room_dims,
+        er_source_pos_m=parsed_er_source_pos,
+        er_listener_pos_m=parsed_er_listener_pos,
+        er_absorption=float(er_absorption),
+        er_material=str(er_material),
         unsafe_self_oscillate=unsafe_self_oscillate,
         unsafe_loop_gain=unsafe_loop_gain,
         duck=duck,
@@ -1709,6 +1846,11 @@ def render(
         progress=progress,
     )
 
+    auto_fit_summary = _apply_auto_fit_profile(
+        ctx=ctx,
+        config=config,
+        profile=auto_fit,
+    )
     preset_summary: dict[str, Any] | None = None
     if preset is not None:
         try:
@@ -1755,7 +1897,7 @@ def render(
             config=config,
             lucky=lucky,
             lucky_out_dir=lucky_out_dir,
-            preset_summary=preset_summary,
+            preset_summary=preset_summary if preset_summary is not None else auto_fit_summary,
             repro_bundle_path=repro_bundle_path,
         )
         return
@@ -1959,6 +2101,184 @@ def analyze(
 
     if frames_out is not None:
         write_framewise_csv(frames_out, audio, sr)
+
+
+@app.command()
+def dereverb(
+    infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
+    outfile: Path = typer.Argument(..., resolve_path=True),
+    mode: Literal["wiener", "spectral_sub"] = typer.Option(
+        "wiener",
+        "--mode",
+        help="Dereverberation mode: wiener or spectral_sub.",
+    ),
+    strength: float = typer.Option(
+        0.65,
+        "--strength",
+        min=0.0,
+        max=2.0,
+        help="Suppression strength (higher removes more tail but can add artifacts).",
+    ),
+    floor: float = typer.Option(
+        0.08,
+        "--floor",
+        min=0.0,
+        max=1.0,
+        help="Spectral floor to preserve ambience and avoid musical noise.",
+    ),
+    window_ms: float = typer.Option(
+        42.67,
+        "--window-ms",
+        min=2.0,
+        help="STFT analysis window size in milliseconds.",
+    ),
+    hop_ms: float = typer.Option(
+        10.67,
+        "--hop-ms",
+        min=1.0,
+        help="STFT hop size in milliseconds.",
+    ),
+    tail_ms: float = typer.Option(
+        220.0,
+        "--tail-ms",
+        min=1.0,
+        help="Late-field smoothing horizon in milliseconds.",
+    ),
+    pre_emphasis: float = typer.Option(
+        0.0,
+        "--pre-emphasis",
+        min=0.0,
+        max=0.98,
+        help="Optional high-frequency emphasis before dereverberation.",
+    ),
+    mix: float = typer.Option(
+        1.0,
+        "--mix",
+        min=0.0,
+        max=1.0,
+        help="Wet mix of dereverberated output (1.0 = fully processed).",
+    ),
+    out_subtype: OutputSubtype = typer.Option(
+        "auto",
+        "--out-subtype",
+        help="Output subtype: auto, float32, float64, pcm16, pcm24, pcm32.",
+    ),
+    json_out: Path | None = typer.Option(
+        None,
+        "--json-out",
+        resolve_path=True,
+        help="Optional path for detailed dereverb metrics JSON.",
+    ),
+    quiet: bool = typer.Option(False, "--quiet", help="Suppress summary table output."),
+) -> None:
+    """Suppress late reverberation from an existing audio recording."""
+    _ensure_distinct_paths(infile, outfile, "INFILE", "OUTFILE")
+    _validate_output_audio_path(outfile, out_subtype)
+    if json_out is not None and infile.resolve() == json_out.resolve():
+        msg = "--json-out must be different from INFILE."
+        raise typer.BadParameter(msg)
+    if json_out is not None and outfile.resolve() == json_out.resolve():
+        msg = "--json-out must be different from OUTFILE."
+        raise typer.BadParameter(msg)
+    if hop_ms >= window_ms:
+        msg = "--hop-ms must be smaller than --window-ms."
+        raise typer.BadParameter(msg)
+
+    subtype_map = {
+        "auto": None,
+        "float32": "FLOAT",
+        "float64": "DOUBLE",
+        "pcm16": "PCM_16",
+        "pcm24": "PCM_24",
+        "pcm32": "PCM_32",
+    }
+    resolved_subtype = subtype_map[str(out_subtype)]
+    try:
+        with _processing_status("Dereverberate audio", enabled=not quiet):
+            validate_audio_path(str(infile))
+            audio, sr = read_audio(str(infile))
+            config = DereverbConfig(
+                mode=mode,
+                strength=float(strength),
+                floor=float(floor),
+                window_ms=float(window_ms),
+                hop_ms=float(hop_ms),
+                tail_ms=float(tail_ms),
+                pre_emphasis=float(pre_emphasis),
+                mix=float(mix),
+            )
+            processed = apply_dereverb(audio, sr, config)
+            write_audio(str(outfile), processed, sr, subtype=resolved_subtype)
+            analyzer = AudioAnalyzer()
+            input_metrics = analyzer.analyze(audio, sr, include_loudness=True)
+            output_metrics = analyzer.analyze(processed, sr, include_loudness=True)
+    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    suppression_db = float(
+        20.0
+        * np.log10(
+            (float(output_metrics.get("rms", 1e-12)) + 1e-12)
+            / (float(input_metrics.get("rms", 1e-12)) + 1e-12)
+        )
+    )
+    payload: dict[str, Any] = {
+        "schema": "dereverb-report-v1",
+        "input": str(infile),
+        "output": str(outfile),
+        "sample_rate": int(sr),
+        "channels": int(audio.shape[1]),
+        "config": {
+            "mode": mode,
+            "strength": float(strength),
+            "floor": float(floor),
+            "window_ms": float(window_ms),
+            "hop_ms": float(hop_ms),
+            "tail_ms": float(tail_ms),
+            "pre_emphasis": float(pre_emphasis),
+            "mix": float(mix),
+            "out_subtype": out_subtype,
+        },
+        "metrics": {
+            "input": input_metrics,
+            "output": output_metrics,
+            "rms_delta_db": suppression_db,
+        },
+    }
+    if json_out is not None:
+        _write_json_atomic(json_out.resolve(), payload)
+
+    if quiet:
+        return
+
+    table = Table(title=f"Dereverb: {infile.name} → {outfile.name}")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Input", justify="right")
+    table.add_column("Output", justify="right")
+    table.add_row(
+        "duration_s",
+        f"{input_metrics.get('duration', 0.0):.3f}",
+        f"{output_metrics.get('duration', 0.0):.3f}",
+    )
+    table.add_row(
+        "rms",
+        f"{input_metrics.get('rms', 0.0):.6f}",
+        f"{output_metrics.get('rms', 0.0):.6f}",
+    )
+    table.add_row(
+        "dynamic_range_db",
+        f"{input_metrics.get('dynamic_range', 0.0):.3f}",
+        f"{output_metrics.get('dynamic_range', 0.0):.3f}",
+    )
+    table.add_row(
+        "spectral_centroid_hz",
+        f"{input_metrics.get('spectral_centroid', 0.0):.2f}",
+        f"{output_metrics.get('spectral_centroid', 0.0):.2f}",
+    )
+    table.add_row("rms_delta_db", "-", f"{suppression_db:.3f}")
+    console.print(table)
+    if json_out is not None:
+        console.print(f"[dim]Detailed JSON written to {json_out.resolve()}[/dim]")
 
 
 @app.command()
@@ -6080,6 +6400,21 @@ def _parse_gain_list(
     return tuple(values)
 
 
+def _parse_vec3(raw: str, *, option_name: str) -> tuple[float, float, float]:
+    """Parse a 3D vector from comma-separated CLI text."""
+    cleaned = str(raw).strip()
+    parts = [part.strip() for part in cleaned.split(",") if part.strip() != ""]
+    if len(parts) != 3:
+        msg = f"{option_name} expects exactly 3 comma-separated values: x,y,z"
+        raise typer.BadParameter(msg)
+    try:
+        values = tuple(float(part) for part in parts)
+    except ValueError as exc:
+        msg = f"{option_name} expects float values: x,y,z"
+        raise typer.BadParameter(msg) from exc
+    return cast(tuple[float, float, float], values)
+
+
 def _did_you_mean(value: str, choices: set[str]) -> str | None:
     token = str(value).strip().lower()
     if token == "":
@@ -6133,6 +6468,80 @@ def _apply_render_preset(
 
     return {
         "name": resolved_name,
+        "applied": applied,
+        "skipped": tuple(skipped),
+    }
+
+
+def _apply_auto_fit_profile(
+    *,
+    ctx: typer.Context,
+    config: RenderConfig,
+    profile: AutoFitProfile,
+) -> dict[str, Any] | None:
+    """Apply heuristic reverb profile when parameters were not user-overridden."""
+    normalized = str(profile).strip().lower()
+    if normalized == "none":
+        return None
+
+    profiles: dict[str, dict[str, Any]] = {
+        "speech": {
+            "rt60": 1.2,
+            "damping": 0.58,
+            "pre_delay_ms": 14.0,
+            "wet": 0.45,
+            "dry": 0.85,
+            "fdn_lines": 8,
+            "width": 0.9,
+        },
+        "music": {
+            "rt60": 3.5,
+            "damping": 0.42,
+            "pre_delay_ms": 22.0,
+            "wet": 0.70,
+            "dry": 0.35,
+            "fdn_lines": 16,
+            "width": 1.2,
+        },
+        "drums": {
+            "rt60": 0.9,
+            "damping": 0.50,
+            "pre_delay_ms": 8.0,
+            "wet": 0.55,
+            "dry": 0.65,
+            "fdn_lines": 8,
+            "width": 1.05,
+        },
+        "ambient": {
+            "rt60": 18.0,
+            "damping": 0.30,
+            "pre_delay_ms": 45.0,
+            "wet": 0.90,
+            "dry": 0.18,
+            "fdn_lines": 24,
+            "width": 1.35,
+            "mod_depth_ms": 3.0,
+            "mod_rate_hz": 0.07,
+        },
+    }
+    payload = profiles.get(normalized)
+    if payload is None:
+        return None
+
+    applied: dict[str, Any] = {}
+    skipped: list[str] = []
+    fields = RenderConfig.__dataclass_fields__.keys()
+    for key, value in sorted(payload.items()):
+        if key not in fields:
+            continue
+        if not _param_is_default(ctx, key):
+            skipped.append(str(key))
+            continue
+        setattr(config, key, value)
+        applied[str(key)] = value
+
+    return {
+        "name": normalized,
         "applied": applied,
         "skipped": tuple(skipped),
     }
@@ -6995,6 +7404,29 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
         config.engine == "auto" and (config.ir is not None or config.ir_gen or config.self_convolve)
     )
     algo_enabled = not conv_enabled
+    if config.output_container not in {"auto", "wav", "w64", "rf64"}:
+        msg = "--output-container must be one of: auto, wav, w64, rf64."
+        raise typer.BadParameter(msg)
+    if config.algo_stream and not algo_enabled:
+        msg = "--algo-stream is only valid for algorithmic renders."
+        raise typer.BadParameter(msg)
+    if config.algo_gpu_proxy and not config.algo_stream:
+        msg = "--algo-gpu-proxy requires --algo-stream."
+        raise typer.BadParameter(msg)
+    if config.algo_gpu_proxy and str(config.device) != "cuda":
+        msg = "--algo-gpu-proxy requires --device cuda."
+        raise typer.BadParameter(msg)
+    if config.fdn_matrix_morph_to is None and config.fdn_matrix_morph_seconds > 0.0:
+        msg = "--fdn-matrix-morph-seconds requires --fdn-matrix-morph-to."
+        raise typer.BadParameter(msg)
+    if config.fdn_matrix_morph_to is not None and config.fdn_matrix_morph_seconds <= 0.0:
+        msg = "--fdn-matrix-morph-to requires --fdn-matrix-morph-seconds > 0."
+        raise typer.BadParameter(msg)
+    if config.fdn_matrix_morph_to is not None:
+        _validate_fdn_matrix_name(config.fdn_matrix_morph_to)
+        if config.fdn_matrix in {"graph"} or config.fdn_matrix_morph_to in {"graph"}:
+            msg = "Matrix morphing does not support graph matrix mode."
+            raise typer.BadParameter(msg)
     if config.unsafe_self_oscillate and not algo_enabled:
         msg = (
             "--unsafe-self-oscillate is only valid for algorithmic renders "
@@ -7545,6 +7977,8 @@ def _validate_output_audio_path(path: Path, out_subtype_mode: str) -> None:
 
     format_map = {
         "wav": "WAV",
+        "w64": "W64",
+        "rf64": "RF64",
         "flac": "FLAC",
         "aif": "AIFF",
         "aiff": "AIFF",

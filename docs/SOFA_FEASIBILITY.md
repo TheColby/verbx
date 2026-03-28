@@ -4,7 +4,7 @@ _Date: March 27, 2026_
 
 ## Status
 
-`v0.7.4` ships a narrow MVP:
+`v0.7.5` ships a narrow MVP:
 
 - `verbx ir sofa-info FILE.sofa`
 - `verbx ir sofa-extract FILE.sofa OUT.wav`

@@ -105,6 +105,8 @@ class AlgoReverbConfig:
     fdn_graph_topology: str = "ring"
     fdn_graph_degree: int = 2
     fdn_graph_seed: int = 2026
+    fdn_matrix_morph_to: str | None = None
+    fdn_matrix_morph_seconds: float = 0.0
     fdn_spatial_coupling_mode: str = "none"
     fdn_spatial_coupling_strength: float = 0.0
     fdn_nonlinearity: str = "none"
@@ -126,6 +128,9 @@ class AlgoReverbConfig:
     shimmer_feedback: float = 0.35
     shimmer_highcut: float | None = 10_000.0
     shimmer_lowcut: float | None = 300.0
+    shimmer_spatial: bool = False
+    shimmer_spread_cents: float = 8.0
+    shimmer_decorrelation_ms: float = 1.5
     unsafe_self_oscillate: bool = False
     unsafe_loop_gain: float = 1.02
     output_layout: str = "auto"
@@ -239,6 +244,24 @@ class AlgoReverbEngine(ReverbEngine):
             int(self._base_delay_ms.shape[0]),
             config.fdn_matrix,
         )
+        morph_to = None
+        if config.fdn_matrix_morph_to is not None and str(config.fdn_matrix_morph_to).strip() != "":
+            morph_to = self._normalize_matrix_type(config.fdn_matrix_morph_to)
+        self._matrix_morph_target = (
+            None
+            if morph_to is None
+            else self._build_fdn_matrix(
+                int(self._base_delay_ms.shape[0]),
+                morph_to,
+            )
+        )
+        self._matrix_morph_seconds = max(0.0, float(config.fdn_matrix_morph_seconds))
+        self._matrix_morph_enabled = (
+            self._matrix_morph_target is not None
+            and self._matrix_kind not in {"graph"}
+            and not self._sparse_enabled
+            and self._matrix_morph_seconds > 0.0
+        )
         if self._sparse_enabled:
             self._fdn_matrix = self._build_sparse_mix_matrix(
                 size=int(self._base_delay_ms.shape[0]),
@@ -299,6 +322,9 @@ class AlgoReverbEngine(ReverbEngine):
                 highcut=config.shimmer_highcut,
                 lowcut=config.shimmer_lowcut,
                 unsafe_self_oscillate=self._unsafe_self_oscillate,
+                spatial=bool(config.shimmer_spatial),
+                spread_cents=float(config.shimmer_spread_cents),
+                decorrelation_ms=float(config.shimmer_decorrelation_ms),
             )
         )
         self._parameter_automation: CurveMap = {}
@@ -333,6 +359,11 @@ class AlgoReverbEngine(ReverbEngine):
             target in curves
             for target in (
                 "fdn-rt60-tilt",
+                "fdn-rt60-low",
+                "fdn-rt60-mid",
+                "fdn-rt60-high",
+                "fdn-xover-low-hz",
+                "fdn-xover-high-hz",
                 "clarity-macro",
                 "warmth-macro",
                 "fdn-tonal-correction-strength",
@@ -372,6 +403,12 @@ class AlgoReverbEngine(ReverbEngine):
                 vec = np.asarray(np.clip(vec, -1.0, 1.0), dtype=np.float64)
             elif target == "fdn-tonal-correction-strength":
                 vec = np.asarray(np.clip(vec, 0.0, 1.0), dtype=np.float64)
+            elif target in {"fdn-rt60-low", "fdn-rt60-mid", "fdn-rt60-high"}:
+                vec = np.asarray(np.clip(vec, RT60_MIN_SECONDS, RT60_MAX_SECONDS), dtype=np.float64)
+            elif target == "fdn-xover-low-hz":
+                vec = np.asarray(np.clip(vec, 20.0, 20_000.0), dtype=np.float64)
+            elif target == "fdn-xover-high-hz":
+                vec = np.asarray(np.clip(vec, 20.0, 20_000.0), dtype=np.float64)
             resolved[target] = vec
         return resolved
 
@@ -572,6 +609,8 @@ class AlgoReverbEngine(ReverbEngine):
             suffixes.append("spatialcouple")
         if self._nonlinearity_enabled:
             suffixes.append("nonlinear")
+        if self._matrix_morph_enabled:
+            suffixes.append("matrixmorph")
         if self._unsafe_self_oscillate:
             suffixes.append("unsafeosc")
         if len(suffixes) == 0:
@@ -940,26 +979,41 @@ class AlgoReverbEngine(ReverbEngine):
         # "hadamard", "tv_unitary", and unknown values default here.
         return cls._build_hadamard_matrix(size=size)
 
-    def _current_block_matrix(self, sr: int, block_samples: int) -> npt.NDArray[np.float64]:
+    def _current_block_matrix(
+        self,
+        sr: int,
+        block_samples: int,
+        *,
+        block_start: int = 0,
+    ) -> npt.NDArray[np.float64]:
         """Return the active FDN matrix for one processing block."""
-        if not self._tv_matrix_enabled:
-            return self._fdn_matrix
-
-        block_seconds = float(block_samples) / float(max(1, sr))
-        phase_inc = np.float64((2.0 * np.pi * float(self._config.fdn_tv_rate_hz)) * block_seconds)
-        self._tv_phase += phase_inc
-        while self._tv_phase >= np.float64(2.0 * np.pi):
-            self._tv_phase -= np.float64(2.0 * np.pi)
-            seed = int(self._tv_rng.integers(0, 2_147_483_647))
-            self._tv_target_matrix = self._build_random_orthogonal_matrix(
-                size=int(self._fdn_matrix.shape[0]),
-                seed=seed,
+        base_matrix = self._fdn_matrix
+        if self._tv_matrix_enabled:
+            block_seconds = float(block_samples) / float(max(1, sr))
+            phase_inc = np.float64(
+                (2.0 * np.pi * float(self._config.fdn_tv_rate_hz)) * block_seconds
             )
+            self._tv_phase += phase_inc
+            while self._tv_phase >= np.float64(2.0 * np.pi):
+                self._tv_phase -= np.float64(2.0 * np.pi)
+                seed = int(self._tv_rng.integers(0, 2_147_483_647))
+                self._tv_target_matrix = self._build_random_orthogonal_matrix(
+                    size=int(self._fdn_matrix.shape[0]),
+                    seed=seed,
+                )
 
-        depth = float(np.clip(self._config.fdn_tv_depth, 0.0, 1.0))
-        blend = depth * (0.5 * (1.0 + np.sin(float(self._tv_phase))))
-        candidate = ((1.0 - blend) * self._fdn_matrix) + (blend * self._tv_target_matrix)
-        return self._orthonormalize(candidate.astype(np.float64))
+            depth = float(np.clip(self._config.fdn_tv_depth, 0.0, 1.0))
+            blend = depth * (0.5 * (1.0 + np.sin(float(self._tv_phase))))
+            candidate = ((1.0 - blend) * self._fdn_matrix) + (blend * self._tv_target_matrix)
+            base_matrix = self._orthonormalize(candidate.astype(np.float64))
+
+        if self._matrix_morph_enabled and self._matrix_morph_target is not None:
+            morph_samples = max(1.0, float(self._matrix_morph_seconds) * float(max(1, sr)))
+            alpha = float(np.clip(float(block_start) / morph_samples, 0.0, 1.0))
+            candidate = ((1.0 - alpha) * base_matrix) + (alpha * self._matrix_morph_target)
+            return self._orthonormalize(np.asarray(candidate, dtype=np.float64))
+
+        return np.asarray(base_matrix, dtype=np.float64)
 
     @classmethod
     def _resolve_fdn_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float64]:
@@ -1209,6 +1263,11 @@ class AlgoReverbEngine(ReverbEngine):
         envelopment_macro_curve = automation.get("envelopment-macro")
         fdn_rt60_tilt_curve = automation.get("fdn-rt60-tilt")
         tonal_correction_strength_curve = automation.get("fdn-tonal-correction-strength")
+        fdn_rt60_low_curve = automation.get("fdn-rt60-low")
+        fdn_rt60_mid_curve = automation.get("fdn-rt60-mid")
+        fdn_rt60_high_curve = automation.get("fdn-rt60-high")
+        fdn_xover_low_hz_curve = automation.get("fdn-xover-low-hz")
+        fdn_xover_high_hz_curve = automation.get("fdn-xover-high-hz")
         multiband_active = self._multiband_enabled or self._automation_requires_multiband(
             automation
         )
@@ -1222,6 +1281,11 @@ class AlgoReverbEngine(ReverbEngine):
             or envelopment_macro_curve is not None
             or fdn_rt60_tilt_curve is not None
             or tonal_correction_strength_curve is not None
+            or fdn_rt60_low_curve is not None
+            or fdn_rt60_mid_curve is not None
+            or fdn_rt60_high_curve is not None
+            or fdn_xover_low_hz_curve is not None
+            or fdn_xover_high_hz_curve is not None
         )
         if self._use_numba and not has_dynamic_params:
             return _process_channel_kernel(
@@ -1340,6 +1404,8 @@ class AlgoReverbEngine(ReverbEngine):
             xover_low = max(20.0, xover_high * 0.25)
         lp_alpha_low = self._one_pole_alpha(xover_low, sr)
         lp_alpha_high = self._one_pole_alpha(xover_high, sr)
+        xover_low_current = float(xover_low)
+        xover_high_current = float(xover_high)
         mb_lp_low_state = np.zeros(num_lines, dtype=np.float64)
         mb_lp_high_state = np.zeros(num_lines, dtype=np.float64)
         link_filter_alpha = self._one_pole_alpha(float(self._config.fdn_link_filter_hz), sr)
@@ -1468,6 +1534,7 @@ class AlgoReverbEngine(ReverbEngine):
                 block_matrix = self._current_block_matrix(
                     sr=sr,
                     block_samples=max(1, block_end - block_start),
+                    block_start=block_start,
                 )
             for n in range(block_start, block_end):
                 rt60_effective = float(base_rt60)
@@ -1484,6 +1551,8 @@ class AlgoReverbEngine(ReverbEngine):
                 envelopment_macro_sample = envelopment_macro_default
                 fdn_rt60_tilt_sample = fdn_rt60_tilt_default
                 tonal_correction_strength_sample = tonal_correction_strength_default
+                xover_low_sample = xover_low_current
+                xover_high_sample = xover_high_current
                 if room_size_macro_curve is not None:
                     room_size_macro_sample = float(np.clip(room_size_macro_curve[n], -1.0, 1.0))
                 if clarity_macro_curve is not None:
@@ -1500,6 +1569,25 @@ class AlgoReverbEngine(ReverbEngine):
                     tonal_correction_strength_sample = float(
                         np.clip(tonal_correction_strength_curve[n], 0.0, 1.0)
                     )
+                if fdn_xover_low_hz_curve is not None:
+                    xover_low_sample = float(
+                        np.clip(fdn_xover_low_hz_curve[n], 20.0, nyquist_guard)
+                    )
+                if fdn_xover_high_hz_curve is not None:
+                    xover_high_sample = float(
+                        np.clip(fdn_xover_high_hz_curve[n], 20.0, nyquist_guard)
+                    )
+                if xover_low_sample >= xover_high_sample:
+                    xover_low_sample = max(20.0, xover_high_sample * 0.25)
+
+                if (
+                    abs(xover_low_sample - xover_low_current) > macro_eps
+                    or abs(xover_high_sample - xover_high_current) > macro_eps
+                ):
+                    xover_low_current = xover_low_sample
+                    xover_high_current = xover_high_sample
+                    lp_alpha_low = self._one_pole_alpha(xover_low_current, sr)
+                    lp_alpha_high = self._one_pole_alpha(xover_high_current, sr)
 
                 room_size_changed = abs(room_size_macro_sample - room_size_macro) > macro_eps
                 clarity_changed = abs(clarity_macro_sample - clarity_macro) > macro_eps
@@ -1575,6 +1663,9 @@ class AlgoReverbEngine(ReverbEngine):
                         fdn_tilt_changed
                         or clarity_changed
                         or warmth_changed
+                        or fdn_rt60_low_curve is not None
+                        or fdn_rt60_mid_curve is not None
+                        or fdn_rt60_high_curve is not None
                     )
                 )
                 if rt60_changed:
@@ -1601,6 +1692,18 @@ class AlgoReverbEngine(ReverbEngine):
                         warmth_macro=warmth_macro,
                         fdn_rt60_tilt=fdn_rt60_tilt,
                     )
+                    if fdn_rt60_low_curve is not None:
+                        rt60_low = float(
+                            np.clip(fdn_rt60_low_curve[n], RT60_MIN_SECONDS, RT60_MAX_SECONDS)
+                        )
+                    if fdn_rt60_mid_curve is not None:
+                        rt60_mid = float(
+                            np.clip(fdn_rt60_mid_curve[n], RT60_MIN_SECONDS, RT60_MAX_SECONDS)
+                        )
+                    if fdn_rt60_high_curve is not None:
+                        rt60_high = float(
+                            np.clip(fdn_rt60_high_curve[n], RT60_MIN_SECONDS, RT60_MAX_SECONDS)
+                        )
                     ratio = max(0.05, rt60_effective / max(base_rt60, 0.1))
                     rt60_low_eff = max(0.1, float(rt60_low) * ratio)
                     rt60_mid_eff = max(0.1, float(rt60_mid) * ratio)
