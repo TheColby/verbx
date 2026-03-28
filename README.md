@@ -428,6 +428,11 @@ The IR file must contain $M \times N$ channels packed in output-major order (cha
 
 verbx generates its own IRs in four synthesis modes. The complete parameter reference is in [docs/IR_SYNTHESIS.md](docs/IR_SYNTHESIS.md). The IR toolchain is accessible via `verbx ir gen`, or triggered inline during render with `--ir-gen`.
 
+A larger curated IR set is available in [`IRs/library/`](IRs/library/) with
+folder-sorted buckets by length (`tiny`, `short`, `medium`, `long`) and mode
+(`fdn`, `stochastic`, `modal`, `hybrid`), plus deterministic metadata in
+`IRs/library/manifest.json`.
+
 **Synthesis modes:**
 
 | Mode | Character | Best for |
@@ -1134,6 +1139,12 @@ verbx ir morph-sweep ir_a.wav ir_b.wav out/sweep \
 ./scripts/generate_ir_bank.sh IRs/bank_25 25 flac
 # or with explicit Python control:
 ./scripts/generate_ir_bank.py --out IRs/bank_25 --count 25 --sr 48000 --channels 2 --format flac
+```
+
+**Generate a large folder-sorted IR library (varying lengths):**
+```bash
+uv run python scripts/generate_ir_library.py \
+  --out IRs/library --sr 12000 --channels 2 --format flac --seeds-per-shape 1
 ```
 
 **Pre-render validation — catch config errors before a long job:**

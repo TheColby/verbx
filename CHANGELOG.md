@@ -13,6 +13,10 @@ All notable changes to this project are documented in this file.
 ### Added
 - Tail completion regression tests for in-memory and streaming write paths
   (`tests/test_tail_completion.py`).
+- Large curated IR library generator (`scripts/generate_ir_library.py`) and
+  generated folder-sorted library under `IRs/library/` (varying lengths across
+  tiny/short/medium/long buckets, all four synthesis modes, deterministic
+  manifest and metadata sidecars).
 
 ## [0.7.5] - 2026-03-28
 
