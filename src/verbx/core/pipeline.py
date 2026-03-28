@@ -771,7 +771,10 @@ def _apply_beast_mode(config: RenderConfig, input_duration_seconds: float) -> Re
     scaled.repeat = int(np.clip(round(scaled.repeat * np.sqrt(factor)), 1, 32))
 
     scaled.shimmer_mix = float(np.clip(scaled.shimmer_mix * factor, 0.0, 1.0))
-    scaled.shimmer_feedback = float(np.clip(scaled.shimmer_feedback * factor, 0.0, 0.98))
+    shimmer_feedback_max = 1.25 if scaled.unsafe_self_oscillate else 0.98
+    scaled.shimmer_feedback = float(
+        np.clip(scaled.shimmer_feedback * factor, 0.0, shimmer_feedback_max)
+    )
     scaled.bloom = max(0.0, scaled.bloom * factor)
 
     if scaled.tail_limit is not None:
@@ -1139,6 +1142,8 @@ def _resolve_engine(
                 shimmer_feedback=config.shimmer_feedback,
                 shimmer_highcut=config.shimmer_highcut,
                 shimmer_lowcut=config.shimmer_lowcut,
+                unsafe_self_oscillate=config.unsafe_self_oscillate,
+                unsafe_loop_gain=config.unsafe_loop_gain,
                 output_layout=config.output_layout,
                 device=algo_device,
             )

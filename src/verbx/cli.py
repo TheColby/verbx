@@ -1313,9 +1313,27 @@ def render(
     shimmer: bool = typer.Option(False, "--shimmer"),
     shimmer_semitones: float = typer.Option(12.0, "--shimmer-semitones"),
     shimmer_mix: float = typer.Option(0.25, "--shimmer-mix", min=0.0, max=1.0),
-    shimmer_feedback: float = typer.Option(0.35, "--shimmer-feedback", min=0.0, max=0.98),
+    shimmer_feedback: float = typer.Option(0.35, "--shimmer-feedback", min=0.0, max=1.25),
     shimmer_highcut: float | None = typer.Option(10_000.0, "--shimmer-highcut", min=10.0),
     shimmer_lowcut: float | None = typer.Option(300.0, "--shimmer-lowcut", min=10.0),
+    unsafe_self_oscillate: bool = typer.Option(
+        False,
+        "--unsafe-self-oscillate/--safe-no-self-oscillate",
+        help=(
+            "UNSAFE: permit feedback-path gains above unity in algorithmic mode for "
+            "self-oscillating tails."
+        ),
+    ),
+    unsafe_loop_gain: float = typer.Option(
+        1.02,
+        "--unsafe-loop-gain",
+        min=0.01,
+        max=1.25,
+        help=(
+            "UNSAFE loop-gain scale used with --unsafe-self-oscillate. "
+            "Values >1.0 encourage self-oscillation."
+        ),
+    ),
     duck: bool = typer.Option(False, "--duck"),
     duck_attack: float = typer.Option(20.0, "--duck-attack", min=0.1),
     duck_release: float = typer.Option(350.0, "--duck-release", min=0.1),
@@ -1654,6 +1672,8 @@ def render(
         shimmer_feedback=shimmer_feedback,
         shimmer_highcut=shimmer_highcut,
         shimmer_lowcut=shimmer_lowcut,
+        unsafe_self_oscillate=unsafe_self_oscillate,
+        unsafe_loop_gain=unsafe_loop_gain,
         duck=duck,
         duck_attack=duck_attack,
         duck_release=duck_release,
@@ -6974,6 +6994,25 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
     conv_enabled = config.engine == "conv" or (
         config.engine == "auto" and (config.ir is not None or config.ir_gen or config.self_convolve)
     )
+    algo_enabled = not conv_enabled
+    if config.unsafe_self_oscillate and not algo_enabled:
+        msg = (
+            "--unsafe-self-oscillate is only valid for algorithmic renders "
+            "(--engine algo or auto without convolution inputs)."
+        )
+        raise typer.BadParameter(msg)
+    if not config.unsafe_self_oscillate and config.shimmer_feedback > 0.98:
+        msg = (
+            "--shimmer-feedback above 0.98 requires --unsafe-self-oscillate. "
+            "Default safe range is 0.0..0.98."
+        )
+        raise typer.BadParameter(msg)
+    if not config.unsafe_self_oscillate and abs(float(config.unsafe_loop_gain) - 1.02) > 1e-9:
+        msg = "--unsafe-loop-gain requires --unsafe-self-oscillate."
+        raise typer.BadParameter(msg)
+    if config.unsafe_self_oscillate and config.unsafe_loop_gain <= 1.0:
+        msg = "--unsafe-loop-gain must be > 1.0 when --unsafe-self-oscillate is enabled."
+        raise typer.BadParameter(msg)
     if (
         config.conv_route_start is not None or config.conv_route_end is not None
     ) and not conv_enabled:

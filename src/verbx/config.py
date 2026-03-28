@@ -82,8 +82,13 @@ class RenderConfig:
             raise ValueError(f"ambi_order must be >= 0, got {self.ambi_order}")
         if not 0.0 <= self.shimmer_mix <= 1.0:
             raise ValueError(f"shimmer_mix must be 0-1, got {self.shimmer_mix}")
-        if not 0.0 <= self.shimmer_feedback <= 0.98:
-            raise ValueError(f"shimmer_feedback must be 0-0.98, got {self.shimmer_feedback}")
+        shimmer_feedback_max = 1.25 if self.unsafe_self_oscillate else 0.98
+        if not 0.0 <= self.shimmer_feedback <= shimmer_feedback_max:
+            raise ValueError(
+                f"shimmer_feedback must be 0-{shimmer_feedback_max}, got {self.shimmer_feedback}"
+            )
+        if self.unsafe_loop_gain <= 0.0:
+            raise ValueError(f"unsafe_loop_gain must be > 0, got {self.unsafe_loop_gain}")
         if self.fdn_sparse_degree < 1:
             raise ValueError(f"fdn_sparse_degree must be >= 1, got {self.fdn_sparse_degree}")
 
@@ -206,6 +211,8 @@ class RenderConfig:
     shimmer_feedback: float = 0.35
     shimmer_highcut: float | None = 10_000.0
     shimmer_lowcut: float | None = 300.0
+    unsafe_self_oscillate: bool = False
+    unsafe_loop_gain: float = 1.02
     duck: bool = False
     duck_attack: float = 20.0
     duck_release: float = 350.0

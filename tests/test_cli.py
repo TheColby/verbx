@@ -926,6 +926,63 @@ def test_render_rejects_cascade_with_single_line_fdn(tmp_path: Path) -> None:
     assert "--fdn-cascade requires at least 2 FDN lines." in _combined_cli_output(result)
 
 
+def test_render_rejects_unsafe_loop_gain_without_unsafe_mode(tmp_path: Path) -> None:
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--unsafe-loop-gain",
+            "1.05",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--unsafe-loop-gain requires --unsafe-self-oscillate." in _combined_cli_output(result)
+
+
+def test_render_accepts_unsafe_self_oscillation_settings_in_dry_run(tmp_path: Path) -> None:
+    audio = np.zeros((1400, 1), dtype=np.float64)
+    audio[30:140, 0] = 0.4
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "0.35",
+            "--shimmer",
+            "--shimmer-semitones",
+            "0",
+            "--shimmer-feedback",
+            "1.05",
+            "--unsafe-self-oscillate",
+            "--unsafe-loop-gain",
+            "1.04",
+            "--dry-run",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "Render Dry-Run Plan" in text
+
+
 def test_render_multiband_fdn_switches_are_applied(tmp_path: Path) -> None:
     audio = np.zeros((1400, 1), dtype=np.float64)
     audio[40:170, 0] = 0.3

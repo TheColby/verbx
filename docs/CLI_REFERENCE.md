@@ -595,11 +595,27 @@ Do not edit manually.
 │ --shimmer-mix                            FLOAT RANGE       [default: 0.25]   │
 │                                          [0.0<=x<=1.0]                       │
 │ --shimmer-feedba…                        FLOAT RANGE       [default: 0.35]   │
-│                                          [0.0<=x<=0.98]                      │
+│                                          [0.0<=x<=1.25]                      │
 │ --shimmer-highcut                        FLOAT RANGE       [default:         │
 │                                          [x>=10.0]         10000.0]          │
 │ --shimmer-lowcut                         FLOAT RANGE       [default: 300.0]  │
 │                                          [x>=10.0]                           │
+│ --unsafe-self-os…    --safe-no-self-…                      UNSAFE: permit    │
+│                                                            feedback-path     │
+│                                                            gains above unity │
+│                                                            in algorithmic    │
+│                                                            mode for          │
+│                                                            self-oscillating  │
+│                                                            tails.            │
+│                                                            [default:         │
+│                                                            safe-no-self-osc… │
+│ --unsafe-loop-ga…                        FLOAT RANGE       UNSAFE loop-gain  │
+│                                          [0.01<=x<=1.25]   scale used with   │
+│                                                            --unsafe-self-os… │
+│                                                            Values >1.0       │
+│                                                            encourage         │
+│                                                            self-oscillation. │
+│                                                            [default: 1.02]   │
 │ --duck                                                                       │
 │ --duck-attack                            FLOAT RANGE       [default: 20.0]   │
 │                                          [x>=0.1]                            │

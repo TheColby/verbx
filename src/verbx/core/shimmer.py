@@ -37,6 +37,7 @@ class ShimmerConfig:
     feedback: float = 0.35
     highcut: float | None = 10_000.0
     lowcut: float | None = 300.0
+    unsafe_self_oscillate: bool = False
 
 
 class ShimmerProcessor:
@@ -55,7 +56,8 @@ class ShimmerProcessor:
             return x
 
         mix = float(np.clip(self._cfg.mix, 0.0, 1.0))
-        feedback = float(np.clip(self._cfg.feedback, 0.0, 0.98))
+        feedback_cap = 1.25 if self._cfg.unsafe_self_oscillate else 0.98
+        feedback = float(np.clip(self._cfg.feedback, 0.0, feedback_cap))
         if mix <= 0.0:
             return x
 

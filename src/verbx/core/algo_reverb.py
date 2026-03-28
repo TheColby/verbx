@@ -126,6 +126,8 @@ class AlgoReverbConfig:
     shimmer_feedback: float = 0.35
     shimmer_highcut: float | None = 10_000.0
     shimmer_lowcut: float | None = 300.0
+    unsafe_self_oscillate: bool = False
+    unsafe_loop_gain: float = 1.02
     output_layout: str = "auto"
     device: str = "cpu"
 
@@ -167,6 +169,14 @@ class AlgoReverbEngine(ReverbEngine):
 
     def __init__(self, config: AlgoReverbConfig) -> None:
         self._config = config
+        self._unsafe_self_oscillate = bool(config.unsafe_self_oscillate)
+        self._feedback_gain_ceiling = 1.25 if self._unsafe_self_oscillate else 0.995
+        unsafe_loop_gain = float(config.unsafe_loop_gain)
+        if self._unsafe_self_oscillate and unsafe_loop_gain <= 1.0:
+            unsafe_loop_gain = 1.02
+        self._feedback_gain_scale = unsafe_loop_gain if self._unsafe_self_oscillate else 1.0
+        self._state_guard_peak = 1e12 if self._unsafe_self_oscillate else 64.0
+        self._state_guard_scale = np.float64(0.25 if self._unsafe_self_oscillate else 0.5)
         self._base_delay_ms = self._resolve_fdn_delay_ms(config)
         self._diffusion_delay_ms = self._resolve_diffusion_delay_ms(config)
         self._dfm_delay_ms = self._resolve_dfm_delay_ms(config, int(self._base_delay_ms.shape[0]))
@@ -267,6 +277,7 @@ class AlgoReverbEngine(ReverbEngine):
         self._use_numba = (
             _numba_available
             and config.device != "cuda"
+            and not self._unsafe_self_oscillate
             and not self._tv_matrix_enabled
             and not self._graph_enabled
             and not self._dfm_enabled
@@ -287,6 +298,7 @@ class AlgoReverbEngine(ReverbEngine):
                 feedback=config.shimmer_feedback,
                 highcut=config.shimmer_highcut,
                 lowcut=config.shimmer_lowcut,
+                unsafe_self_oscillate=self._unsafe_self_oscillate,
             )
         )
         self._parameter_automation: CurveMap = {}
@@ -560,6 +572,8 @@ class AlgoReverbEngine(ReverbEngine):
             suffixes.append("spatialcouple")
         if self._nonlinearity_enabled:
             suffixes.append("nonlinear")
+        if self._unsafe_self_oscillate:
+            suffixes.append("unsafeosc")
         if len(suffixes) == 0:
             return base
         return f"{base}-{'-'.join(suffixes)}"
@@ -1270,8 +1284,10 @@ class AlgoReverbEngine(ReverbEngine):
         warmth_macro_default = float(np.clip(self._config.warmth_macro, -1.0, 1.0))
         envelopment_macro_default = float(np.clip(self._config.envelopment_macro, -1.0, 1.0))
         delays_sec = line_delays.astype(np.float64) / float(sr)
+        feedback_gain_ceiling = np.float64(self._feedback_gain_ceiling)
+        feedback_gain_scale = np.float64(self._feedback_gain_scale)
         feedback_gain = np.power(10.0, (-3.0 * delays_sec) / base_rt60).astype(np.float64)
-        feedback_gain = np.clip(feedback_gain, 0.0, 0.995)
+        feedback_gain = np.clip(feedback_gain * feedback_gain_scale, 0.0, feedback_gain_ceiling)
         fdn_rt60_tilt_default = float(np.clip(self._config.fdn_rt60_tilt, -1.0, 1.0))
         fdn_rt60_tilt = fdn_rt60_tilt_default
         rt60_low, rt60_mid, rt60_high = self._resolve_multiband_rt60(
@@ -1283,9 +1299,21 @@ class AlgoReverbEngine(ReverbEngine):
         feedback_gain_low = np.power(10.0, (-3.0 * delays_sec) / rt60_low).astype(np.float64)
         feedback_gain_mid = np.power(10.0, (-3.0 * delays_sec) / rt60_mid).astype(np.float64)
         feedback_gain_high = np.power(10.0, (-3.0 * delays_sec) / rt60_high).astype(np.float64)
-        feedback_gain_low = np.clip(feedback_gain_low, 0.0, 0.995)
-        feedback_gain_mid = np.clip(feedback_gain_mid, 0.0, 0.995)
-        feedback_gain_high = np.clip(feedback_gain_high, 0.0, 0.995)
+        feedback_gain_low = np.clip(
+            feedback_gain_low * feedback_gain_scale,
+            0.0,
+            feedback_gain_ceiling,
+        )
+        feedback_gain_mid = np.clip(
+            feedback_gain_mid * feedback_gain_scale,
+            0.0,
+            feedback_gain_ceiling,
+        )
+        feedback_gain_high = np.clip(
+            feedback_gain_high * feedback_gain_scale,
+            0.0,
+            feedback_gain_ceiling,
+        )
         tonal_correction_strength_default = float(
             np.clip(self._config.fdn_tonal_correction_strength, 0.0, 1.0)
         )
@@ -1386,7 +1414,11 @@ class AlgoReverbEngine(ReverbEngine):
             cascade_base_gain = np.power(10.0, (-3.0 * cascade_delays_sec) / cascade_rt60).astype(
                 np.float64
             )
-            cascade_base_gain = np.clip(cascade_base_gain, 0.0, 0.995)
+            cascade_base_gain = np.clip(
+                cascade_base_gain * feedback_gain_scale,
+                0.0,
+                feedback_gain_ceiling,
+            )
             cascade_inv_sqrt_lines = np.float64(1.0 / np.sqrt(np.float64(cascade_num_lines)))
 
         macro_eps = self._TRACK_C_UPDATE_EPS
@@ -1547,16 +1579,18 @@ class AlgoReverbEngine(ReverbEngine):
                 )
                 if rt60_changed:
                     feedback_gain[:] = np.clip(
-                        np.power(10.0, (-3.0 * delays_sec) / max(rt60_effective, 0.1)),
+                        np.power(10.0, (-3.0 * delays_sec) / max(rt60_effective, 0.1))
+                        * feedback_gain_scale,
                         0.0,
-                        0.995,
+                        feedback_gain_ceiling,
                     ).astype(np.float64)
                     if cascade_enabled and cascade_base_gain.size > 0:
                         cascade_rt60_eff = max(0.1, rt60_effective * self._cascade_rt60_ratio)
                         cascade_base_gain[:] = np.clip(
-                            np.power(10.0, (-3.0 * cascade_delays_sec) / cascade_rt60_eff),
+                            np.power(10.0, (-3.0 * cascade_delays_sec) / cascade_rt60_eff)
+                            * feedback_gain_scale,
                             0.0,
-                            0.995,
+                            feedback_gain_ceiling,
                         ).astype(np.float64)
                     last_rt60_effective = float(rt60_effective)
 
@@ -1572,19 +1606,20 @@ class AlgoReverbEngine(ReverbEngine):
                     rt60_mid_eff = max(0.1, float(rt60_mid) * ratio)
                     rt60_high_eff = max(0.1, float(rt60_high) * ratio)
                     feedback_gain_low[:] = np.clip(
-                        np.power(10.0, (-3.0 * delays_sec) / rt60_low_eff),
+                        np.power(10.0, (-3.0 * delays_sec) / rt60_low_eff) * feedback_gain_scale,
                         0.0,
-                        0.995,
+                        feedback_gain_ceiling,
                     ).astype(np.float64)
                     feedback_gain_mid[:] = np.clip(
-                        np.power(10.0, (-3.0 * delays_sec) / rt60_mid_eff),
+                        np.power(10.0, (-3.0 * delays_sec) / rt60_mid_eff) * feedback_gain_scale,
                         0.0,
-                        0.995,
+                        feedback_gain_ceiling,
                     ).astype(np.float64)
                     feedback_gain_high[:] = np.clip(
-                        np.power(10.0, (-3.0 * delays_sec) / rt60_high_eff),
+                        np.power(10.0, (-3.0 * delays_sec) / rt60_high_eff)
+                        * feedback_gain_scale,
                         0.0,
-                        0.995,
+                        feedback_gain_ceiling,
                     ).astype(np.float64)
 
                 if multiband_active and (
@@ -1754,25 +1789,102 @@ class AlgoReverbEngine(ReverbEngine):
                 state_peak = float(np.max(np.abs(fdn_out)))
                 if cascade_enabled and cascade_fdn_out.size > 0:
                     state_peak = max(state_peak, float(np.max(np.abs(cascade_fdn_out))))
-                if state_peak > 64.0:
+                if self._unsafe_self_oscillate:
+                    guard_needed = not np.isfinite(state_peak)
+                else:
+                    guard_needed = (
+                        not np.isfinite(state_peak)
+                    ) or state_peak > self._state_guard_peak
+                if guard_needed:
+                    guard_scale = (
+                        np.float64(0.0)
+                        if not np.isfinite(state_peak)
+                        else self._state_guard_scale
+                    )
                     for i in range(num_lines):
-                        delay_buffers[i] *= np.float64(0.5)
-                        lp_state[i] *= np.float64(0.5)
-                        dc_prev_in[i] *= np.float64(0.5)
-                        dc_prev_out[i] *= np.float64(0.5)
+                        delay_buffers[i] = np.asarray(
+                            np.nan_to_num(delay_buffers[i], nan=0.0, posinf=0.0, neginf=0.0),
+                            dtype=np.float64,
+                        )
+                        delay_buffers[i] *= guard_scale
+                        lp_state[i] = np.nan_to_num(lp_state[i], nan=0.0, posinf=0.0, neginf=0.0)
+                        lp_state[i] *= guard_scale
+                        dc_prev_in[i] = np.nan_to_num(
+                            dc_prev_in[i],
+                            nan=0.0,
+                            posinf=0.0,
+                            neginf=0.0,
+                        )
+                        dc_prev_in[i] *= guard_scale
+                        dc_prev_out[i] = np.nan_to_num(
+                            dc_prev_out[i],
+                            nan=0.0,
+                            posinf=0.0,
+                            neginf=0.0,
+                        )
+                        dc_prev_out[i] *= guard_scale
                         if self._dfm_enabled:
-                            dfm_buffers[i] *= np.float64(0.5)
+                            dfm_buffers[i] = np.asarray(
+                                np.nan_to_num(dfm_buffers[i], nan=0.0, posinf=0.0, neginf=0.0),
+                                dtype=np.float64,
+                            )
+                            dfm_buffers[i] *= guard_scale
                         if multiband_active:
-                            mb_lp_low_state[i] *= np.float64(0.5)
-                            mb_lp_high_state[i] *= np.float64(0.5)
+                            mb_lp_low_state[i] = np.nan_to_num(
+                                mb_lp_low_state[i],
+                                nan=0.0,
+                                posinf=0.0,
+                                neginf=0.0,
+                            )
+                            mb_lp_low_state[i] *= guard_scale
+                            mb_lp_high_state[i] = np.nan_to_num(
+                                mb_lp_high_state[i],
+                                nan=0.0,
+                                posinf=0.0,
+                                neginf=0.0,
+                            )
+                            mb_lp_high_state[i] *= guard_scale
                         if self._link_filter_enabled:
-                            link_filter_state[i] *= np.float64(0.5)
+                            link_filter_state[i] = np.nan_to_num(
+                                link_filter_state[i],
+                                nan=0.0,
+                                posinf=0.0,
+                                neginf=0.0,
+                            )
+                            link_filter_state[i] *= guard_scale
                     if cascade_enabled:
                         for i in range(cascade_fdn_out.shape[0]):
-                            cascade_delay_buffers[i] *= np.float64(0.5)
-                            cascade_lp_state[i] *= np.float64(0.5)
-                            cascade_dc_prev_in[i] *= np.float64(0.5)
-                            cascade_dc_prev_out[i] *= np.float64(0.5)
+                            cascade_delay_buffers[i] = np.asarray(
+                                np.nan_to_num(
+                                    cascade_delay_buffers[i],
+                                    nan=0.0,
+                                    posinf=0.0,
+                                    neginf=0.0,
+                                ),
+                                dtype=np.float64,
+                            )
+                            cascade_delay_buffers[i] *= guard_scale
+                            cascade_lp_state[i] = np.nan_to_num(
+                                cascade_lp_state[i],
+                                nan=0.0,
+                                posinf=0.0,
+                                neginf=0.0,
+                            )
+                            cascade_lp_state[i] *= guard_scale
+                            cascade_dc_prev_in[i] = np.nan_to_num(
+                                cascade_dc_prev_in[i],
+                                nan=0.0,
+                                posinf=0.0,
+                                neginf=0.0,
+                            )
+                            cascade_dc_prev_in[i] *= guard_scale
+                            cascade_dc_prev_out[i] = np.nan_to_num(
+                                cascade_dc_prev_out[i],
+                                nan=0.0,
+                                posinf=0.0,
+                                neginf=0.0,
+                            )
+                            cascade_dc_prev_out[i] *= guard_scale
 
         return output
 

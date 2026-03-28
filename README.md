@@ -361,6 +361,8 @@ Shorter delay lines require gains closer to 1.0. This is computed per line so di
 | `--width` | 0–2 | Stereo spread | Increases decorrelation between channels |
 | `--fdn-sparse` | flag | Sparse pair-mixing topology | Higher apparent order at lower compute cost |
 | `--fdn-cascade` | flag | Nested FDN injection | Secondary network feeds early density into primary |
+| `--unsafe-self-oscillate` | flag | UNSAFE above-unity feedback mode | Algorithmic engine only; for intentional self-oscillation |
+| `--unsafe-loop-gain` | 0.01–1.25 | UNSAFE feedback gain scale | Use `>1.0` to drive oscillation |
 
 ---
 
@@ -459,6 +461,8 @@ verbx ir morph space_A.wav space_B.wav blended.wav --mode equal-power --alpha 0.
 ### Shimmer
 
 Shimmer pitch-shifts the reverb tail (typically up an octave) and blends it back into the wet signal. The result is a bright, harmonically rich coloration that works well on pads, sustained notes, and ambient textures. The `--shimmer-feedback` parameter is the one most people get wrong: above around 0.85, the feedback loop builds exponentially. This is not a bug — it is the intended mechanism for extreme infinite-rise textures — but it requires either a tail limit, loudness targeting, or deliberate management to avoid runaway gain.
+
+Safe mode clamps `--shimmer-feedback` to `0.98`. For intentional self-oscillation in the algorithmic path, enable `--unsafe-self-oscillate` and use `--unsafe-loop-gain > 1.0` (for example `1.03`).
 
 ```bash
 --shimmer --shimmer-semitones 12 --shimmer-mix 0.35 --shimmer-feedback 0.70
@@ -674,7 +678,9 @@ curated quick-reference for common switches.
 | `--shimmer` | flag | Enable shimmer (pitch-shifted reverb coloration) |
 | `--shimmer-semitones` | semitones | Pitch shift amount |
 | `--shimmer-mix` | 0–1 | Shimmer blend |
-| `--shimmer-feedback` | 0–0.99 | Shimmer feedback (>0.85 = rising) |
+| `--shimmer-feedback` | 0–1.25 | Shimmer feedback (>0.85 = rising; >0.98 requires unsafe mode) |
+| `--unsafe-self-oscillate` | flag | UNSAFE: allow above-unity feedback in algorithmic mode |
+| `--unsafe-loop-gain` | 0.01–1.25 | UNSAFE algorithmic loop-gain scale (`>1.0` for self-oscillation) |
 | `--duck` | flag | Enable sidechain ducking |
 | `--duck-attack` | ms | Ducking attack time |
 | `--duck-release` | ms | Ducking release time |

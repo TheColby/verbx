@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Explicit unsafe oscillation controls for algorithmic renders:
+  - `--unsafe-self-oscillate`
+  - `--unsafe-loop-gain`
+  including analysis metadata tagging via `compute_backend=...-unsafeosc`.
+
 ### Fixed
 - Corrected `packaging/homebrew/verbx.rb` SHA256 to match the published
   `v0.7.4` GitHub source tarball.
