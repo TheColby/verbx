@@ -272,18 +272,24 @@ app.add_typer(immersive_app, name="immersive")
 immersive_app.add_typer(immersive_queue_app, name="queue")
 
 console = Console()
+progress_console = Console(force_terminal=True, color_system="truecolor")
 
 
 @contextmanager
 def _processing_status(description: str, *, enabled: bool = True) -> Any:
     """Render a single-task CLI status bar for one processing stage."""
     progress = Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(bar_width=24),
+        SpinnerColumn(style="bold cyan"),
+        TextColumn("[bold cyan]{task.description}"),
+        BarColumn(
+            bar_width=24,
+            complete_style="bright_green",
+            finished_style="green",
+            pulse_style="bright_blue",
+        ),
         MofNCompleteColumn(),
         TimeElapsedColumn(),
-        console=console,
+        console=progress_console,
         transient=True,
         disable=not enabled,
     )
@@ -307,12 +313,17 @@ class _BatchStatusBar:
         self._enabled = bool(enabled)
         self._done = 0
         self._progress = Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(bar_width=24),
+            SpinnerColumn(style="bold cyan"),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(
+                bar_width=24,
+                complete_style="bright_green",
+                finished_style="green",
+                pulse_style="bright_blue",
+            ),
             MofNCompleteColumn(),
             TimeElapsedColumn(),
-            console=console,
+            console=progress_console,
             transient=True,
             disable=not self._enabled,
         )
@@ -2194,7 +2205,7 @@ def dereverb(
     }
     resolved_subtype = subtype_map[str(out_subtype)]
     try:
-        with _processing_status("Dereverberate audio", enabled=not quiet):
+        with _processing_status("Dereverberate audio", enabled=True):
             validate_audio_path(str(infile))
             audio, sr = read_audio(str(infile))
             config = DereverbConfig(
