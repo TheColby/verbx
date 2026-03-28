@@ -713,7 +713,7 @@ curated quick-reference for common switches.
 | `--target-sr` | Hz | Optional render/output sample-rate conversion |
 | `--output-container` | auto/wav/w64/rf64 | Output container selection | `auto` upgrades long WAV renders to W64 |
 | `--tail-stop-threshold-db` | dBFS | Tail detector threshold for write completion | Lower = longer retained tail |
-| `--tail-stop-hold-ms` | ms | Explicit final zero-hold duration | Guarantees hard-zero ending |
+| `--tail-stop-hold-ms` | ms | Explicit final zero-hold duration | Click-safe fade-out plus hard-zero ending |
 | `--tail-stop-metric` | peak/rms | Tail detector metric | RMS is smoother, peak is stricter |
 
 When `--target-sr` differs from the input file rate, `verbx render` performs

@@ -149,6 +149,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 threshold=_tail_threshold_linear(runtime_config.tail_stop_threshold_db),
                 hold_ms=runtime_config.tail_stop_hold_ms,
                 metric=runtime_config.tail_stop_metric,
+                min_frames=int(stream_stats["input_samples"]),
             )
             stream_tmp_out.replace(outfile)
             progress.mark_read()
@@ -239,6 +240,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 threshold=_tail_threshold_linear(runtime_config.tail_stop_threshold_db),
                 hold_ms=runtime_config.tail_stop_hold_ms,
                 metric=runtime_config.tail_stop_metric,
+                min_frames=int(stream_stats["input_samples"]),
             )
             stream_tmp_out.replace(outfile)
             progress.mark_read()
@@ -349,6 +351,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 mode="loop",
                 xfade_ms=100.0,
             )
+        base_output_floor_samples = int(input_for_engine.shape[0])
 
         tail_padding_seconds = 0.0
         if engine_name == "algo":
@@ -562,6 +565,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             threshold=_tail_threshold_linear(runtime_config.tail_stop_threshold_db),
             hold_ms=runtime_config.tail_stop_hold_ms,
             metric=runtime_config.tail_stop_metric,
+            min_samples=base_output_floor_samples,
         )
 
         output_subtype = _resolve_output_subtype(runtime_config.output_subtype)
@@ -1522,6 +1526,29 @@ def _tail_zero_hold_samples(sr: int, hold_ms: float) -> int:
     return max(1, round(float(sr) * (max(0.0, float(hold_ms)) / 1000.0)))
 
 
+def _tail_fade_samples(sr: int, fade_ms: float = 3.0) -> int:
+    """Return click-safe fade-out sample count used before hard-zero tail."""
+    return max(1, round(float(sr) * (max(0.0, float(fade_ms)) / 1000.0)))
+
+
+def _resolve_tail_fade_samples(sr: int, first_zero_frame: int) -> int:
+    """Choose fade length that is short and cannot dominate short clips."""
+    if first_zero_frame <= 1:
+        return 1
+    base = _tail_fade_samples(sr)
+    local_cap = max(1, first_zero_frame // 4)
+    return min(base, local_cap)
+
+
+def _tail_fade_envelope(length: int) -> npt.NDArray[np.float64]:
+    """Raised-cosine fade envelope from 1.0 to 0.0."""
+    n = max(1, int(length))
+    if n == 1:
+        return np.zeros((1,), dtype=np.float64)
+    phase = np.linspace(0.0, np.pi, n, dtype=np.float64)
+    return np.asarray(0.5 * (1.0 + np.cos(phase)), dtype=np.float64)
+
+
 def _tail_threshold_linear(threshold_db: float) -> float:
     """Convert tail stop threshold in dBFS to linear amplitude."""
     db = float(np.clip(threshold_db, -240.0, 0.0))
@@ -1534,6 +1561,7 @@ def _complete_stream_file_tail_to_zero(
     threshold: float = 1e-6,
     hold_ms: float = 10.0,
     metric: str = "peak",
+    min_frames: int = 0,
     scan_block_frames: int = 65536,
     write_block_frames: int = 65536,
 ) -> int:
@@ -1575,13 +1603,36 @@ def _complete_stream_file_tail_to_zero(
             cursor = start
 
         first_zero_frame = last_active + 1 if last_active >= 0 else 0
-        target_frames = max(total_frames, first_zero_frame + hold_samples)
+        if last_active >= 0:
+            target_frames = max(int(min_frames), first_zero_frame + hold_samples)
+        else:
+            target_frames = max(total_frames, int(min_frames), hold_samples)
 
-        tail_existing = max(0, total_frames - first_zero_frame)
-        if tail_existing > 0:
+        # Apply a short fade-out before hard-zero tail to avoid end clicks.
+        if last_active >= 0 and first_zero_frame > 0:
+            fade_samples = _resolve_tail_fade_samples(
+                int(stream_file.samplerate),
+                first_zero_frame,
+            )
+            fade_start = first_zero_frame - fade_samples
+            stream_file.seek(fade_start, whence=sf.SEEK_SET)
+            fade_region = np.asarray(
+                stream_file.read(fade_samples, dtype="float64", always_2d=True),
+                dtype=np.float64,
+            )
+            if fade_region.shape[0] > 0:
+                env = _tail_fade_envelope(fade_region.shape[0])[:, np.newaxis]
+                stream_file.seek(fade_start, whence=sf.SEEK_SET)
+                stream_file.write(np.asarray(fade_region * env, dtype=np.float64))
+
+        # Force exact zeros from first_zero_frame onward up to target length.
+        zero_start = first_zero_frame
+        zero_end = min(total_frames, target_frames)
+        zero_existing = max(0, zero_end - zero_start)
+        if zero_existing > 0:
             zero_block = np.zeros((write_frames, channels), dtype=np.float64)
-            write_cursor = first_zero_frame
-            remaining = tail_existing
+            write_cursor = zero_start
+            remaining = zero_existing
             while remaining > 0:
                 frames = min(write_frames, remaining)
                 stream_file.seek(write_cursor, whence=sf.SEEK_SET)
@@ -1598,8 +1649,32 @@ def _complete_stream_file_tail_to_zero(
                 frames = min(write_frames, remaining)
                 stream_file.write(zero_block[:frames, :])
                 remaining -= frames
+        elif target_frames < total_frames:
+            stream_file.truncate(target_frames)
 
     return target_frames
+
+
+def complete_stream_file_tail_to_zero(
+    path: Path,
+    *,
+    threshold: float = 1e-6,
+    hold_ms: float = 10.0,
+    metric: str = "peak",
+    min_frames: int = 0,
+    scan_block_frames: int = 65536,
+    write_block_frames: int = 65536,
+) -> int:
+    """Public wrapper for streamed tail completion with click-safe trimming."""
+    return _complete_stream_file_tail_to_zero(
+        path,
+        threshold=threshold,
+        hold_ms=hold_ms,
+        metric=metric,
+        min_frames=min_frames,
+        scan_block_frames=scan_block_frames,
+        write_block_frames=write_block_frames,
+    )
 
 
 def _complete_tail_to_zero(
@@ -1609,6 +1684,7 @@ def _complete_tail_to_zero(
     threshold: float = 1e-6,
     hold_ms: float = 10.0,
     metric: str = "peak",
+    min_samples: int = 0,
 ) -> AudioArray:
     """Ensure rendered output ends with exact zeros after tail decay."""
     x = np.asarray(audio, dtype=np.float64)
@@ -1622,17 +1698,43 @@ def _complete_tail_to_zero(
         envelope = np.max(np.abs(x), axis=1)
     active = np.flatnonzero(envelope > float(max(0.0, threshold)))
     if active.size == 0:
-        target_len = max(int(x.shape[0]), hold_samples)
+        target_len = max(int(x.shape[0]), int(min_samples), hold_samples)
         out = np.zeros((target_len, x.shape[1]), dtype=np.float64)
         return out
 
     last_active = int(active[-1])
-    target_len = max(int(x.shape[0]), last_active + 1 + hold_samples)
+    first_zero_frame = last_active + 1
+    target_len = max(1, int(min_samples), first_zero_frame + hold_samples)
     out = np.zeros((target_len, x.shape[1]), dtype=np.float64)
-    out[: x.shape[0], :] = x
-    if last_active + 1 < target_len:
-        out[last_active + 1 :, :] = 0.0
+    fade_samples = _resolve_tail_fade_samples(sr, first_zero_frame)
+    fade_start = first_zero_frame - fade_samples
+    if fade_start > 0:
+        out[:fade_start, :] = x[:fade_start, :]
+    if fade_samples > 0:
+        fade_region = x[fade_start:first_zero_frame, :]
+        env = _tail_fade_envelope(fade_region.shape[0])[:, np.newaxis]
+        out[fade_start:first_zero_frame, :] = np.asarray(fade_region * env, dtype=np.float64)
     return np.asarray(out, dtype=np.float64)
+
+
+def complete_tail_to_zero(
+    audio: AudioArray,
+    sr: int,
+    *,
+    threshold: float = 1e-6,
+    hold_ms: float = 10.0,
+    metric: str = "peak",
+    min_samples: int = 0,
+) -> AudioArray:
+    """Public wrapper for click-safe tail completion on in-memory audio."""
+    return _complete_tail_to_zero(
+        audio,
+        sr,
+        threshold=threshold,
+        hold_ms=hold_ms,
+        metric=metric,
+        min_samples=min_samples,
+    )
 
 
 def _prepare_spatial_input(audio: AudioArray, config: RenderConfig) -> AudioArray:

@@ -4,7 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-No entries yet.
+### Changed
+- Tail completion now trims excess post-decay silence instead of preserving full
+  padded render length.
+- Tail finalization now applies a short click-safe raised-cosine fade before the
+  hard-zero hold segment to avoid end-of-file clicks.
+
+### Added
+- Tail completion regression tests for in-memory and streaming write paths
+  (`tests/test_tail_completion.py`).
 
 ## [0.7.5] - 2026-03-28
 
