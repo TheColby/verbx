@@ -222,6 +222,16 @@ _AMBI_DECODE_CHOICES = {
     "none",
     "stereo",
 }
+_OUTPUT_QUALITY_PRESET_CHOICES = {
+    "sd",
+    "md",
+    "hd",
+}
+_OUTPUT_QUALITY_PRESET_VALUES: dict[str, tuple[int, OutputSubtype]] = {
+    "sd": (44_100, "pcm16"),
+    "md": (48_000, "pcm24"),
+    "hd": (192_000, "float32"),
+}
 _AUTOMATION_MODE_CHOICES = {
     "auto",
     "sample",
@@ -1339,6 +1349,14 @@ def render(
         ),
     ),
     partition_size: int = typer.Option(16_384, "--partition-size", min=256),
+    quality_preset: str = typer.Option(
+        "hd",
+        "--quality-preset",
+        help=(
+            "Output-definition preset: sd=44.1 kHz PCM16, md=48 kHz PCM24, "
+            "hd=192 kHz float32 (default). Explicit --target-sr/--out-subtype override."
+        ),
+    ),
     target_sr: int | None = typer.Option(
         None,
         "--target-sr",
@@ -1661,6 +1679,12 @@ def render(
     parsed_er_room_dims = _parse_vec3(er_room_dims_m, option_name="--er-room-dims-m")
     parsed_er_source_pos = _parse_vec3(er_source_pos_m, option_name="--er-source-pos-m")
     parsed_er_listener_pos = _parse_vec3(er_listener_pos_m, option_name="--er-listener-pos-m")
+    resolved_target_sr, resolved_out_subtype = _resolve_render_output_quality_settings(
+        ctx=ctx,
+        quality_preset=quality_preset,
+        target_sr=target_sr,
+        out_subtype=out_subtype,
+    )
 
     config = RenderConfig(
         engine=engine,
@@ -1788,7 +1812,7 @@ def render(
         algo_proxy_ir_max_seconds=float(algo_proxy_ir_max_seconds),
         algo_gpu_proxy=bool(algo_gpu_proxy),
         partition_size=partition_size,
-        target_sr=target_sr,
+        target_sr=resolved_target_sr,
         ir_gen=ir_gen,
         ir_gen_mode=ir_gen_mode,
         ir_gen_length=ir_gen_length,
@@ -1801,7 +1825,7 @@ def render(
         normalize_stage=normalize_stage,
         repeat_target_lufs=repeat_target_lufs,
         repeat_target_peak_dbfs=repeat_target_peak_dbfs,
-        output_subtype=out_subtype,
+        output_subtype=resolved_out_subtype,
         output_container=output_container,
         output_peak_norm=output_peak_norm,
         output_peak_target_dbfs=output_peak_target_dbfs,
@@ -6454,6 +6478,37 @@ def _param_is_default(ctx: typer.Context, param_name: str) -> bool:
     except Exception:
         return True
     return source in {None, ParameterSource.DEFAULT}
+
+
+def _normalize_output_quality_preset_name(value: str) -> str:
+    normalized = str(value).strip().lower()
+    if normalized in _OUTPUT_QUALITY_PRESET_CHOICES:
+        return normalized
+    raise typer.BadParameter(
+        _choice_error(
+            "--quality-preset",
+            _OUTPUT_QUALITY_PRESET_CHOICES,
+            normalized if normalized != "" else str(value),
+        )
+    )
+
+
+def _resolve_render_output_quality_settings(
+    *,
+    ctx: typer.Context,
+    quality_preset: str,
+    target_sr: int | None,
+    out_subtype: OutputSubtype,
+) -> tuple[int, OutputSubtype]:
+    """Resolve output format defaults with explicit CLI overrides respected."""
+    preset = _normalize_output_quality_preset_name(quality_preset)
+    preset_sr, preset_subtype = _OUTPUT_QUALITY_PRESET_VALUES[preset]
+    if _param_is_default(ctx, "target_sr"):
+        resolved_target_sr = int(preset_sr)
+    else:
+        resolved_target_sr = int(preset_sr if target_sr is None else target_sr)
+    resolved_out_subtype = preset_subtype if _param_is_default(ctx, "out_subtype") else out_subtype
+    return resolved_target_sr, resolved_out_subtype
 
 
 def _apply_render_preset(

@@ -17,6 +17,7 @@ from verbx.core import accel
 
 runner = CliRunner()
 _ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+_DEFAULT_RENDER_SR = 192_000
 
 
 def _combined_cli_output(result: ClickResult) -> str:
@@ -321,6 +322,8 @@ def test_render_algo_stream_proxy_path_reports_proxy_backend(tmp_path: Path) -> 
             "0",
             "--normalize-stage",
             "none",
+            "--target-sr",
+            str(sr),
             "--quiet",
             "--no-progress",
         ],
@@ -368,7 +371,7 @@ def test_render_matrix_morph_and_er_geometry_complete(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
     assert outfile.exists()
     out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
-    assert out_sr == sr
+    assert out_sr == _DEFAULT_RENDER_SR
     assert out_audio.shape[1] == 1
 
 
@@ -394,6 +397,8 @@ def test_render_long_tail_regression_rt60_over_120_seconds(tmp_path: Path) -> No
             "4",
             "--allpass-stages",
             "2",
+            "--target-sr",
+            str(sr),
             "--tail-stop-threshold-db",
             "-240",
             "--quiet",
@@ -495,7 +500,7 @@ def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
 
     out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
-    assert out_sr == 48_000
+    assert out_sr == _DEFAULT_RENDER_SR
     assert out_audio.shape[0] > audio.shape[0]
     assert out_audio.shape[1] == audio.shape[1]
     tail_zero_window = min(64, out_audio.shape[0])
@@ -1355,7 +1360,7 @@ def test_render_convolution_route_map_and_trajectory(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
 
     out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
-    assert out_sr == sr
+    assert out_sr == _DEFAULT_RENDER_SR
     assert out.shape[1] == 2
     q = max(8, out.shape[0] // 4)
     early_left = float(np.mean(np.abs(out[:q, 0])))
@@ -1401,7 +1406,7 @@ def test_render_convolution_accepts_extended_output_layout_token(tmp_path: Path)
     assert result.exit_code == 0, result.stdout
 
     out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
-    assert out_sr == sr
+    assert out_sr == _DEFAULT_RENDER_SR
     assert out.shape[1] == 13
 
 
@@ -1464,7 +1469,7 @@ def test_render_convolution_large_layout_requires_explicit_route_map(tmp_path: P
     )
     assert good.exit_code == 0, good.stdout
     out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
-    assert out_sr == sr
+    assert out_sr == _DEFAULT_RENDER_SR
     assert out.shape[1] == 16
 
 
@@ -1890,6 +1895,100 @@ def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> N
     assert abs(target_peak - expected_target) <= 0.01
 
 
+def test_render_defaults_to_hd_output_definition(tmp_path: Path) -> None:
+    sr_in = 48_000
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[16, 0] = 0.6
+
+    infile = tmp_path / "in_hd.wav"
+    irfile = tmp_path / "ir_hd.wav"
+    outfile = tmp_path / "out_hd.wav"
+    sf.write(str(infile), audio, sr_in)
+    sf.write(str(irfile), np.array([[1.0]], dtype=np.float64), sr_in)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    info = sf.info(str(outfile))
+    assert info.samplerate == _DEFAULT_RENDER_SR
+    assert info.subtype == "FLOAT"
+
+
+def test_render_quality_preset_sd_and_explicit_override_precedence(tmp_path: Path) -> None:
+    sr_in = 48_000
+    audio = np.zeros((512, 1), dtype=np.float64)
+    audio[0, 0] = 0.7
+
+    infile = tmp_path / "in_quality.wav"
+    irfile = tmp_path / "ir_quality.wav"
+    sd_out = tmp_path / "out_sd.wav"
+    override_out = tmp_path / "out_override.wav"
+    sf.write(str(infile), audio, sr_in)
+    sf.write(str(irfile), np.array([[1.0]], dtype=np.float64), sr_in)
+
+    sd_result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(sd_out),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--quality-preset",
+            "sd",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert sd_result.exit_code == 0, sd_result.stdout
+    sd_info = sf.info(str(sd_out))
+    assert sd_info.samplerate == 44_100
+    assert sd_info.subtype == "PCM_16"
+
+    override_result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(override_out),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--quality-preset",
+            "sd",
+            "--target-sr",
+            "96000",
+            "--out-subtype",
+            "float64",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert override_result.exit_code == 0, override_result.stdout
+    override_info = sf.info(str(override_out))
+    assert override_info.samplerate == 96_000
+    assert override_info.subtype == "DOUBLE"
+
+
 def test_render_target_sample_rate_conversion_and_float32_output(tmp_path: Path) -> None:
     sr_in = 48_000
     sr_out = 192_000
@@ -1959,6 +2058,8 @@ def test_render_conv_streaming_mode(tmp_path: Path) -> None:
             str(irfile),
             "--normalize-stage",
             "none",
+            "--target-sr",
+            str(sr),
             "--no-progress",
         ],
     )
@@ -2002,7 +2103,7 @@ def test_render_self_convolve(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
 
     out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
-    assert out_sr == sr
+    assert out_sr == _DEFAULT_RENDER_SR
     assert out_audio.shape[0] > audio.shape[0]
     assert out_audio.shape[1] == 1
     assert np.any(np.abs(out_audio) > 1e-7)
@@ -3187,7 +3288,7 @@ def test_render_ambisonics_encode_rotate_decode(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
 
     out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
-    assert out_sr == sr
+    assert out_sr == _DEFAULT_RENDER_SR
     assert out.shape[1] == 2
     payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
     assert int(payload["config"]["ambi_order"]) == 1

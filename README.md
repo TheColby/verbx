@@ -90,9 +90,10 @@ verbx render in.wav ambient.wav --engine algo --rt60 90 --wet 0.92 \
 ```
 
 ```bash
-# High-resolution float render — direct 192 kHz, 32-bit float output
-verbx render in.wav out_192k_f32.wav --engine conv --ir hall_ir.wav \
-  --target-sr 192000 --out-subtype float32
+# Output-definition presets (default is HD)
+verbx render in.wav out_hd.wav --engine conv --ir hall_ir.wav
+verbx render in.wav out_md.wav --engine conv --ir hall_ir.wav --quality-preset md
+verbx render in.wav out_sd.wav --engine conv --ir hall_ir.wav --quality-preset sd
 ```
 
 ## Full Installation Instructions
@@ -714,8 +715,9 @@ curated quick-reference for common switches.
 | `--limiter` / `--no-limiter` | flag | Final safety limiter |
 | `--normalize-stage` | none/post/per-pass | When normalization applies |
 | `--output-peak-norm` | none/input/target/full-scale | Final peak fit |
-| `--out-subtype` | auto/float32/float64/pcm16/pcm24/pcm32 | Output file bit depth |
-| `--target-sr` | Hz | Optional render/output sample-rate conversion |
+| `--quality-preset` | sd/md/hd | Output-definition preset (`sd`=44.1 kHz PCM16, `md`=48 kHz PCM24, `hd`=192 kHz float32 default) |
+| `--out-subtype` | auto/float32/float64/pcm16/pcm24/pcm32 | Output file bit depth (overrides preset subtype) |
+| `--target-sr` | Hz | Render/output sample-rate conversion (overrides preset sample rate) |
 | `--output-container` | auto/wav/w64/rf64 | Output container selection | `auto` upgrades long WAV renders to W64 |
 | `--tail-stop-threshold-db` | dBFS | Tail detector threshold for write completion | Lower = longer retained tail |
 | `--tail-stop-hold-ms` | ms | Explicit final zero-hold duration | Click-safe fade-out plus hard-zero ending |
@@ -1220,7 +1222,7 @@ input audio
 Notation: `z^-N` denotes an integer-sample delay of \(N\) samples, \(K\) is
 allpass-stage count, and \(N\) (in `lines 1..N`) is FDN delay-line count.
 
-**Precision:** All DSP — FDN state updates, FFT operations, allpass filters, automation curves, feature vectors, analysis metrics — runs in `float64` internally. Output is downcast at write time according to `--out-subtype`. The default output subtype is derived from the input file format.
+**Precision:** All DSP — FDN state updates, FFT operations, allpass filters, automation curves, feature vectors, analysis metrics — runs in `float64` internally. Output is downcast at write time according to `--out-subtype`. `verbx render` defaults to HD output (`192000 Hz`, `float32`) unless overridden by `--quality-preset`, `--target-sr`, or `--out-subtype`.
 
 **Key design decisions:**
 - Per-line gain calibration (not global feedback gain) lets all delay lines, regardless of length, track the same RT60 target. This is essential for stable long tails.

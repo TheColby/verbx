@@ -24,7 +24,7 @@ mkdir -p out
 
 **What do the output files mean?**
 
-Each output file is named with a three-digit index and a short descriptor. The index matches the recipe number. The descriptor is a rough hint at what parameter dominated the result. Output files are standard WAV unless `--out-subtype` specifies otherwise. Use `--target-sr` when you need deterministic resampling to a fixed output sample rate. Loudness normalization is applied at the output stage unless you explicitly disable it.
+Each output file is named with a three-digit index and a short descriptor. The index matches the recipe number. The descriptor is a rough hint at what parameter dominated the result. `verbx render` defaults to HD output (`192000 Hz`, `float32` WAV) unless overridden. Use `--quality-preset sd|md|hd`, `--target-sr`, and/or `--out-subtype` to set delivery format explicitly. Loudness normalization is applied at the output stage unless you explicitly disable it.
 
 **A note on headphones vs. speakers**
 
