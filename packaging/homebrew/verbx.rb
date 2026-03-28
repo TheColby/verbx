@@ -4,7 +4,7 @@ class Verbx < Formula
   desc "Research-grade CLI for extreme reverb processing and analysis"
   homepage "https://github.com/TheColby/verbx"
   url "https://github.com/TheColby/verbx/archive/refs/tags/v0.7.4.tar.gz"
-  sha256 "a583162ab1100aa0706ff2bf16281c4558ac2780220ff11caad2539f6d107177"
+  sha256 "46c5d24c7d446aa8d29921e9814c8497200ff0db2aff0d2dd8628d193bf4d95f"
   license "MIT"
 
   depends_on "libsndfile"
