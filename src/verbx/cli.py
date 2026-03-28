@@ -167,6 +167,7 @@ from verbx.ir.morph import (
     validate_ir_morph_mode_name,
 )
 from verbx.ir.shaping import apply_ir_shaping
+from verbx.ir.sofa import extract_sofa_ir, read_sofa_info
 from verbx.ir.tuning import analyze_audio_for_tuning, parse_frequency_hz
 from verbx.logging import configure_logging
 from verbx.presets.default_presets import preset_names, resolve_preset
@@ -2619,6 +2620,131 @@ def ir_analyze(
     if json_out is not None:
         payload = {"file": str(ir_file), "sample_rate": int(sr), "metrics": metrics}
         json_out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+@ir_app.command("sofa-info")
+def ir_sofa_info(
+    sofa_file: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
+    json_out: Path | None = typer.Option(None, "--json-out", resolve_path=True),
+    silent: bool = typer.Option(False, "--silent"),
+) -> None:
+    """Inspect SOFA metadata and dimensions."""
+    try:
+        with _processing_status("Read SOFA metadata", enabled=not silent):
+            info = read_sofa_info(sofa_file)
+    except (ValueError, RuntimeError, OSError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    payload = {
+        "path": info.path,
+        "conventions": info.conventions,
+        "version": info.version,
+        "data_ir_shape": list(info.data_ir_shape),
+        "sample_rate_hz": int(info.sample_rate_hz),
+        "source_position_shape": (
+            None if info.source_position_shape is None else list(info.source_position_shape)
+        ),
+        "listener_position_shape": (
+            None if info.listener_position_shape is None else list(info.listener_position_shape)
+        ),
+        "receiver_position_shape": (
+            None if info.receiver_position_shape is None else list(info.receiver_position_shape)
+        ),
+        "emitter_position_shape": (
+            None if info.emitter_position_shape is None else list(info.emitter_position_shape)
+        ),
+        "dimension_labels": list(info.dimension_labels),
+    }
+
+    if not silent:
+        table = Table(title=f"SOFA Info: {Path(info.path).name}")
+        table.add_column("Field", style="cyan")
+        table.add_column("Value", style="white")
+        table.add_row("conventions", info.conventions)
+        table.add_row("version", info.version)
+        table.add_row("sample_rate_hz", str(int(info.sample_rate_hz)))
+        table.add_row("data_ir_shape", str(info.data_ir_shape))
+        if len(info.dimension_labels) > 0:
+            table.add_row("dimension_labels", ", ".join(info.dimension_labels))
+        if info.source_position_shape is not None:
+            table.add_row("source_position_shape", str(info.source_position_shape))
+        if info.listener_position_shape is not None:
+            table.add_row("listener_position_shape", str(info.listener_position_shape))
+        if info.receiver_position_shape is not None:
+            table.add_row("receiver_position_shape", str(info.receiver_position_shape))
+        if info.emitter_position_shape is not None:
+            table.add_row("emitter_position_shape", str(info.emitter_position_shape))
+        console.print(table)
+
+    if json_out is not None:
+        json_out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+@ir_app.command("sofa-extract")
+def ir_sofa_extract(
+    sofa_file: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
+    out_ir: Path = typer.Argument(..., resolve_path=True),
+    measurement_index: int = typer.Option(
+        0,
+        "--measurement-index",
+        min=0,
+        help="Measurement index for SOFA Data/IR extraction (first axis in strict modes).",
+    ),
+    emitter_index: int = typer.Option(
+        0,
+        "--emitter-index",
+        min=0,
+        help="Emitter index for rank-4 Data/IR extraction (strict mode).",
+    ),
+    target_sr: int | None = typer.Option(
+        None,
+        "--target-sr",
+        min=1,
+        help="Optional output sample rate target for extracted IR.",
+    ),
+    normalize: Literal["none", "peak", "rms"] = typer.Option(
+        "peak",
+        "--normalize",
+        help="Normalization for extracted IR matrix.",
+    ),
+    strict: bool = typer.Option(
+        False,
+        "--strict/--best-effort",
+        help="Strict expects Data/IR rank 3 (M,R,N) or 4 (M,R,E,N).",
+    ),
+    silent: bool = typer.Option(False, "--silent"),
+) -> None:
+    """Extract SOFA FIR data to a WAV matrix for convolution workflows."""
+    _validate_output_audio_path(out_ir, "auto")
+    try:
+        with _processing_status("Extract SOFA IR", enabled=not silent):
+            audio, sr, meta = extract_sofa_ir(
+                sofa_file,
+                measurement_index=int(measurement_index),
+                emitter_index=int(emitter_index),
+                target_sr=None if target_sr is None else int(target_sr),
+                normalize=str(normalize),
+                strict=bool(strict),
+            )
+            write_ir_artifacts(out_ir, audio, sr, meta, silent=silent)
+    except (ValueError, RuntimeError, OSError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if silent:
+        return
+
+    table = Table(title=f"SOFA Extract: {out_ir.name}")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="white")
+    table.add_row("source", str(sofa_file))
+    table.add_row("out_ir", str(out_ir))
+    table.add_row("sample_rate_hz", str(int(sr)))
+    table.add_row("shape", str(tuple(int(v) for v in audio.shape)))
+    table.add_row("normalize", str(normalize))
+    table.add_row("strict", str(bool(strict)))
+    sample_rate_action = str(meta.get("sample_rate_action", "none"))
+    table.add_row("sample_rate_action", sample_rate_action)
+    console.print(table)
 
 
 @ir_app.command("process")

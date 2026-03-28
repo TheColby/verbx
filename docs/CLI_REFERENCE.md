@@ -902,13 +902,16 @@ Do not edit manually.
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ gen          Generate an IR file with deterministic caching.                 │
-│ analyze      Analyze an impulse response.                                    │
-│ process      Process an existing IR through shaping/targeting chain.         │
-│ morph        Morph two IR files with cache-backed Track D processing.        │
-│ morph-sweep  Run an alpha timeline sweep and emit Track D QA artifacts.      │
-│ fit          Analyze source audio, score candidate IRs, and write top-k      │
-│              results.                                                        │
+│ gen           Generate an IR file with deterministic caching.                │
+│ analyze       Analyze an impulse response.                                   │
+│ sofa-info     Inspect SOFA metadata and dimensions.                          │
+│ sofa-extract  Extract SOFA FIR data to a WAV matrix for convolution          │
+│               workflows.                                                     │
+│ process       Process an existing IR through shaping/targeting chain.        │
+│ morph         Morph two IR files with cache-backed Track D processing.       │
+│ morph-sweep   Run an alpha timeline sweep and emit Track D QA artifacts.     │
+│ fit           Analyze source audio, score candidate IRs, and write top-k     │
+│               results.                                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

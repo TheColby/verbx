@@ -161,6 +161,51 @@ def _scenario_conv_matrix(tmp: Path) -> ScenarioResult:
     )
 
 
+def _scenario_conv_target_sr_192k(tmp: Path) -> ScenarioResult:
+    sr_in = 48_000
+    sr_out = 192_000
+    n = int(0.3 * sr_in)
+    t = np.arange(n, dtype=np.float64) / float(sr_in)
+    x = (0.2 * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float64)[:, np.newaxis]
+    x[400:900, 0] += 0.12
+
+    ir = np.zeros((96, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+    ir[18, 0] = 0.4
+
+    infile = tmp / "conv_192k_in.wav"
+    irfile = tmp / "conv_192k_ir.wav"
+    outfile = tmp / "conv_192k_out.wav"
+    _write_wav(infile, x, sr_in)
+    _write_wav(irfile, ir, sr_in)
+
+    config = RenderConfig(
+        engine="conv",
+        ir=str(irfile),
+        wet=1.0,
+        dry=0.0,
+        target_sr=sr_out,
+        silent=True,
+        progress=False,
+        normalize_stage="none",
+        output_peak_norm="none",
+    )
+    start = time.perf_counter()
+    report = run_render_pipeline(infile=infile, outfile=outfile, config=config)
+    elapsed = max(1e-9, time.perf_counter() - start)
+    out_samples = int(report.get("output_samples", 0))
+    out_channels = int(report.get("channels", 0))
+    out_seconds = float(out_samples) / float(sr_out)
+    return ScenarioResult(
+        name="conv_target_sr_192k",
+        elapsed_seconds=float(elapsed),
+        output_seconds=out_seconds,
+        realtime_factor=out_seconds / float(elapsed),
+        output_channels=out_channels,
+        output_samples=out_samples,
+    )
+
+
 def _load_baseline(path: Path | None) -> dict[str, Any]:
     if path is None or not path.exists():
         return {}
@@ -286,6 +331,7 @@ def main() -> int:
             _scenario_algo_short(tmp),
             _scenario_algo_long_tail(tmp),
             _scenario_conv_matrix(tmp),
+            _scenario_conv_target_sr_192k(tmp),
         ]
 
     evaluated, has_regression = _evaluate(

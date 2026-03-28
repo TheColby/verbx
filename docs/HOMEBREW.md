@@ -25,14 +25,14 @@ brew install --build-from-source ./packaging/homebrew/verbx.rb
 1. Refresh formula pins for a new release tag:
 
 ```bash
-./scripts/refresh_homebrew_formula.sh 0.7.3
+./scripts/refresh_homebrew_formula.sh 0.7.4
 ```
 
 2. Commit formula changes in this repo:
 
 ```bash
 git add packaging/homebrew/verbx.rb scripts/refresh_homebrew_formula.sh docs/HOMEBREW.md
-git commit -m "chore(homebrew): refresh formula for v0.7.3"
+git commit -m "chore(homebrew): refresh formula for v0.7.4"
 ```
 
 3. Ensure tap repo formula is updated and pushed.

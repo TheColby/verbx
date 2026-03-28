@@ -13,8 +13,8 @@ Usage:
   scripts/refresh_homebrew_formula.sh <version>
 
 Examples:
-  scripts/refresh_homebrew_formula.sh 0.7.3
-  HOMEBREW_TAP=thecolby/verbx scripts/refresh_homebrew_formula.sh 0.7.3
+  scripts/refresh_homebrew_formula.sh 0.7.4
+  HOMEBREW_TAP=thecolby/verbx scripts/refresh_homebrew_formula.sh 0.7.4
 
 Notes:
   - Requires Homebrew and `brew update-python-resources`.

@@ -4,11 +4,13 @@ This directory tracks a small deterministic benchmark suite for CI comparison.
 
 ## What it measures
 
-`scripts/benchmark_render_baseline.py` runs three representative scenarios:
+`scripts/benchmark_render_baseline.py` runs four representative scenarios:
 
 - `algo_short_room`: short algorithmic render (production-style room settings).
 - `algo_long_tail_130s`: long-tail algorithmic regression fixture (`RT60=130s`).
 - `conv_matrix_stereo`: matrix-routed stereo convolution regression fixture.
+- `conv_target_sr_192k`: convolution render with integrated `--target-sr 192000`
+  sample-rate conversion path.
 
 The benchmark emits:
 

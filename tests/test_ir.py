@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 from pathlib import Path
 
 import numpy as np
+import pytest
 import soundfile as sf
 from click.testing import Result as ClickResult
 from typer.testing import CliRunner
@@ -14,6 +16,7 @@ from verbx.core.convolution_reverb import ConvolutionReverbConfig, ConvolutionRe
 from verbx.core.tempo import parse_note_duration_seconds, parse_pre_delay_ms
 from verbx.ir.fitting import IRFitTarget, build_ir_fit_candidates
 from verbx.ir.generator import IRGenConfig, generate_or_load_cached_ir
+from verbx.ir.sofa import extract_sofa_ir_matrix_from_array
 
 runner = CliRunner()
 _ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
@@ -518,6 +521,57 @@ def test_ir_gen_supports_filter_feedback_controls(tmp_path: Path) -> None:
     assert params["fdn_link_filter"] == "lowpass"
     assert abs(float(params["fdn_link_filter_hz"]) - 1800.0) < 1e-6
     assert abs(float(params["fdn_link_filter_mix"]) - 0.8) < 1e-6
+
+
+def test_sofa_extract_matrix_from_rank3_common_layout() -> None:
+    # Shape convention for strict rank-3 extraction: [M, R, N].
+    data_ir = np.zeros((2, 3, 8), dtype=np.float64)
+    data_ir[1, 0, 0] = 1.0
+    data_ir[1, 2, 4] = 0.5
+
+    out = extract_sofa_ir_matrix_from_array(data_ir, measurement_index=1, strict=True)
+
+    assert out.shape == (8, 3)
+    assert np.isclose(out[0, 0], 1.0)
+    assert np.isclose(out[4, 2], 0.5)
+
+
+def test_sofa_extract_matrix_from_rank4_with_emitter_index() -> None:
+    # Shape convention for strict rank-4 extraction: [M, R, E, N].
+    data_ir = np.zeros((1, 2, 3, 6), dtype=np.float64)
+    data_ir[0, 1, 2, 3] = 0.75
+
+    out = extract_sofa_ir_matrix_from_array(
+        data_ir,
+        measurement_index=0,
+        emitter_index=2,
+        strict=True,
+    )
+
+    assert out.shape == (6, 2)
+    assert np.isclose(out[3, 1], 0.75)
+
+
+def test_sofa_extract_strict_rejects_unsupported_rank() -> None:
+    data_ir = np.zeros((4, 6, 8, 10, 12), dtype=np.float64)
+    with pytest.raises(ValueError, match="Supported strict ranks"):
+        _ = extract_sofa_ir_matrix_from_array(data_ir, strict=True)
+
+
+def test_ir_sofa_info_reports_optional_dependency_when_h5py_missing(tmp_path: Path) -> None:
+    if importlib.util.find_spec("h5py") is not None:
+        pytest.skip(
+            "h5py is installed in this environment; "
+            "missing-dependency path not applicable."
+        )
+
+    sofa_path = tmp_path / "dummy.sofa"
+    sofa_path.write_bytes(b"not-a-valid-hdf5")
+
+    result = runner.invoke(app, ["ir", "sofa-info", str(sofa_path)])
+    assert result.exit_code != 0
+    text = _combined_cli_output(result).lower()
+    assert "sofa support requires optional dependency 'h5py'" in text
 
 
 def test_ir_gen_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:

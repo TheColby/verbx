@@ -1,4 +1,4 @@
-.TH VERBX-IR 1 "March 2026" "verbx 0.7.3" "User Commands"
+.TH VERBX-IR 1 "March 2026" "verbx 0.7.4" "User Commands"
 .SH NAME
 verbx-ir \- impulse response generation and processing commands
 .SH SYNOPSIS
@@ -23,6 +23,12 @@ Morph two IRs with cache-backed Track D blending modes.
 .TP
 .B fit INFILE OUT_IR
 Analyze source, generate/scoring candidate IRs, and export top results.
+.TP
+.B sofa-info FILE.sofa
+Inspect SOFA conventions, dimensions, and sample-rate metadata.
+.TP
+.B sofa-extract FILE.sofa OUT_IR
+Extract SOFA FIR data as WAV matrix for convolution rendering.
 .SH COMMON gen OPTIONS
 .TP
 .B --mode [fdn|stochastic|modal|hybrid]
@@ -94,6 +100,22 @@ Optional output sample rate target.
 .TP
 .B --cache-dir PATH
 Cache directory for morphed IR artifacts and metadata.
+.SH COMMON sofa-extract OPTIONS
+.TP
+.B --measurement-index INT
+Measurement index for SOFA Data/IR extraction.
+.TP
+.B --emitter-index INT
+Emitter index for rank-4 SOFA Data/IR extraction.
+.TP
+.B --target-sr INT
+Optional output sample rate target.
+.TP
+.B --normalize [none|peak|rms]
+Normalization mode for extracted IR.
+.TP
+.B --strict / --best-effort
+Strict mode accepts rank-3 (M,R,N) and rank-4 (M,R,E,N) SOFA IR tensors only.
 .SH EXAMPLES
 .TP
 .B verbx ir gen out_ir.wav --mode hybrid --length 120 --seed 7
@@ -110,6 +132,12 @@ Morph two IRs with early/late-aware Track D controls.
 .TP
 .B verbx ir fit in.wav fit_ir.wav --top-k 3
 Fit IR candidates from source analysis.
+.TP
+.B verbx ir sofa-info room.sofa --json-out room.sofa.json
+Inspect SOFA metadata.
+.TP
+.B verbx ir sofa-extract room.sofa room_ir.wav --measurement-index 0 --target-sr 48000
+Extract SOFA FIR matrix to WAV for \fBverbx render --engine conv\fR.
 .SH SEE ALSO
 .BR verbx (1),
 .BR verbx-render (1)

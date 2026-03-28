@@ -13,6 +13,10 @@
     "conv_matrix_stereo": {
       "reference_seconds": 0.15,
       "max_seconds": 2.00
+    },
+    "conv_target_sr_192k": {
+      "reference_seconds": 0.60,
+      "max_seconds": 4.00
     }
   }
 }

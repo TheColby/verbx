@@ -1,6 +1,6 @@
 # IR Synthesis — A Dual-Layer Reference
 
-> Version: v0.7.3 (public alpha)
+> Version: v0.7.4 (public alpha)
 
 This document is written for two readers at once. The plain-English sections
 give you enough to use the tool effectively without reading source code. The
@@ -712,7 +712,7 @@ extra channels as mono sum / ch, which is not proper ambisonic or surround
 panning. Do not use verbx-synthesized IRs for surround production without
 verifying the channel assignments match your downstream decoder expectations.
 
-### Roadmap Alignment (v0.7.3)
+### Roadmap Alignment (v0.7.4)
 
 From the R3 milestones:
 

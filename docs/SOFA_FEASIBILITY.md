@@ -2,6 +2,17 @@
 
 _Date: March 27, 2026_
 
+## Status
+
+`v0.7.4` ships a narrow MVP:
+
+- `verbx ir sofa-info FILE.sofa`
+- `verbx ir sofa-extract FILE.sofa OUT.wav`
+
+This implements the recommended first step from this feasibility analysis:
+deterministic extraction of SOFA FIR data into explicit WAV matrices for the
+existing convolution engine.
+
 ## Summary
 
 SOFA import is technically feasible in `verbx`, but should land as a scoped

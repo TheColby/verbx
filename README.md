@@ -134,7 +134,7 @@ For local maintainer testing, you can also install from the in-repo formula:
 brew install --build-from-source ./packaging/homebrew/verbx.rb
 ```
 
-**Requirements:** Python 3.11+, `libsndfile` on system path. Optional: `numba` (faster algorithmic path), `cupy` (CUDA convolution).
+**Requirements:** Python 3.11+, `libsndfile` on system path. Optional: `numba` (faster algorithmic path), `cupy` (CUDA convolution), `h5py` (SOFA import/extract via `verbx ir sofa-*`).
 
 Homebrew maintainer details: [`docs/HOMEBREW.md`](docs/HOMEBREW.md)
 
@@ -193,7 +193,7 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.7.3**.
+Current public alpha release: **v0.7.4**.
 
 - `verbx` is currently research-grade software (public alpha), not production-certified.
 - Confirm your environment with `verbx quickstart --verify --strict` and `verbx doctor`.
@@ -729,6 +729,8 @@ verbx ir process IN_IR.wav OUT_IR.wav     # shape existing IR (EQ, normalize, ti
 verbx ir morph IR_A.wav IR_B.wav OUT.wav  # blend two IRs
 verbx ir morph-sweep IR_A.wav IR_B.wav OUT_DIR  # alpha-timeline sweep with QA artifacts
 verbx ir fit INFILE.wav OUT_IR.wav        # fit an IR to match source audio
+verbx ir sofa-info FILE.sofa              # inspect SOFA conventions/dimensions
+verbx ir sofa-extract FILE.sofa OUT.wav   # extract FIR matrix for convolution renders
 ```
 
 **`ir gen` key flags:** `--mode [fdn|stochastic|modal|hybrid]`, `--length`, `--rt60`, `--damping`, `--seed`, `--sr`, `--channels`, `--er-count`, `--diffusion`, `--fdn-lines`, `--fdn-matrix`, `--resonator`, `--resonator-mix`, `--analyze-input`, `--harmonic-align-strength`, `--f0`
@@ -736,6 +738,8 @@ verbx ir fit INFILE.wav OUT_IR.wav        # fit an IR to match source audio
 **`ir morph` key flags:** `--mode [linear|equal-power|spectral|envelope-aware]`, `--alpha`, `--early-ms`, `--early-alpha`, `--late-alpha`, `--align-decay`, `--phase-coherence`, `--mismatch-policy [coerce|strict]`
 
 **`ir morph-sweep` key flags:** Same as morph plus `--alpha-start`, `--alpha-end`, `--alpha-steps`, `--workers`, `--retries`, `--checkpoint-file`, `--resume`, `--qa-json-out`, `--qa-csv-out`
+
+**`ir sofa-extract` key flags:** `--measurement-index`, `--emitter-index`, `--target-sr`, `--normalize [none|peak|rms]`, `--strict`
 
 ---
 
@@ -1210,7 +1214,7 @@ Additional guides in `docs/`:
 - [IR morph QA guide](docs/IR_MORPH_QA.md) — morph-sweep QA artifacts and CI integration
 - [Benchmark baseline guide](docs/benchmarks/README.md) — CI/runtime comparison workflow
 - [Extreme cookbook](docs/EXTREME_COOKBOOK.md) — 100 additional workflow examples
-- [SOFA feasibility note](docs/SOFA_FEASIBILITY.md) — interoperability path and constraints for future SOFA import support
+- [SOFA interoperability note](docs/SOFA_FEASIBILITY.md) — shipped `sofa-info` / `sofa-extract` workflow and current constraints
 - [Launch example parity checker](scripts/check_launch_examples.py) — verifies canonical launch commands stay mirrored across docs/man pages
 
 ---
@@ -1219,4 +1223,4 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.7.3 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.7.4 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
