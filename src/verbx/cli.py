@@ -105,7 +105,7 @@ from verbx.core.batch_scheduler import (
     run_parallel_batch,
 )
 from verbx.core.control_targets import RT60_DEFAULT_SECONDS, RT60_MAX_SECONDS, RT60_MIN_SECONDS
-from verbx.core.dereverb import DereverbConfig, apply_dereverb
+from verbx.core.dereverb import DereverbConfig, apply_dereverb, run_dereverb_benchmark
 from verbx.core.fdn_capabilities import (
     FDN_GRAPH_TOPOLOGY_CHOICES,
     FDN_LINK_FILTER_CHOICES,
@@ -1655,6 +1655,12 @@ def render(
         help="Optional JSON report path populated when render execution fails.",
     ),
     progress: bool = typer.Option(True, "--progress/--no-progress"),
+    json_out: Path | None = typer.Option(
+        None,
+        "--json-out",
+        resolve_path=True,
+        help="Optional path to write the full render report as JSON.",
+    ),
 ) -> None:
     """Render input audio with algorithmic or convolution reverb."""
     resolved_pre_delay_ms = parse_pre_delay_ms(pre_delay, bpm, pre_delay_ms)
@@ -2061,6 +2067,13 @@ def render(
             raise typer.BadParameter(f"Failed to write repro bundle: {exc}") from exc
         report["repro_bundle_path"] = str(repro_bundle_path.resolve())
 
+    if json_out is not None:
+        try:
+            json_out.parent.mkdir(parents=True, exist_ok=True)
+            _write_json_atomic(json_out.resolve(), report)
+        except (OSError, RuntimeError, ValueError) as exc:
+            raise typer.BadParameter(f"Failed to write --json-out: {exc}") from exc
+
     if config.silent or quiet:
         return
 
@@ -2073,6 +2086,8 @@ def render(
             else str(preset_summary.get("name", "")).strip() or None
         ),
     )
+    if json_out is not None:
+        console.print(f"[dim]Render report written to {json_out.resolve()}[/dim]")
 
 
 @app.command()
@@ -2136,6 +2151,77 @@ def analyze(
 
     if frames_out is not None:
         write_framewise_csv(frames_out, audio, sr)
+
+
+@app.command()
+def compare(
+    file_a: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
+    file_b: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
+    json_out: Path | None = typer.Option(
+        None,
+        "--json-out",
+        resolve_path=True,
+        help="Optional path to write the comparison report as JSON.",
+    ),
+    lufs: bool = typer.Option(False, "--lufs", help="Include LUFS/true-peak/LRA metrics."),
+) -> None:
+    """Side-by-side comparison of two audio files."""
+    try:
+        with _processing_status("Compare audio files"):
+            validate_audio_path(str(file_a))
+            validate_audio_path(str(file_b))
+            audio_a, sr_a = read_audio(str(file_a))
+            audio_b, sr_b = read_audio(str(file_b))
+            analyzer = AudioAnalyzer()
+            metrics_a = analyzer.analyze(audio_a, sr_a, include_loudness=lufs)
+            metrics_b = analyzer.analyze(audio_b, sr_b, include_loudness=lufs)
+    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    all_keys = sorted(set(metrics_a) | set(metrics_b))
+    table = Table(title=f"Compare: {file_a.name} vs {file_b.name}")
+    table.add_column("Metric", style="cyan")
+    table.add_column(file_a.name, justify="right")
+    table.add_column(file_b.name, justify="right")
+    table.add_column("Δ (B − A)", justify="right", style="yellow")
+    for key in all_keys:
+        val_a = metrics_a.get(key)
+        val_b = metrics_b.get(key)
+        str_a = f"{val_a:.6f}" if val_a is not None else "—"
+        str_b = f"{val_b:.6f}" if val_b is not None else "—"
+        if val_a is not None and val_b is not None:
+            delta = val_b - val_a
+            str_delta = f"{delta:+.6f}"
+        else:
+            str_delta = "—"
+        table.add_row(key, str_a, str_b, str_delta)
+    console.print(table)
+    if sr_a != sr_b:
+        console.print(
+            f"[yellow]Warning:[/yellow] sample rates differ: "
+            f"{file_a.name}={sr_a} Hz, {file_b.name}={sr_b} Hz"
+        )
+
+    if json_out is not None:
+        payload: dict[str, Any] = {
+            "schema": "compare-report-v1",
+            "file_a": str(file_a),
+            "file_b": str(file_b),
+            "sample_rate_a": int(sr_a),
+            "sample_rate_b": int(sr_b),
+            "channels_a": int(audio_a.shape[1]),
+            "channels_b": int(audio_b.shape[1]),
+            "metrics_a": metrics_a,
+            "metrics_b": metrics_b,
+            "delta": {k: metrics_b[k] - metrics_a[k]
+                      for k in all_keys if k in metrics_a and k in metrics_b},
+        }
+        try:
+            json_out.parent.mkdir(parents=True, exist_ok=True)
+            _write_json_atomic(json_out.resolve(), payload)
+            console.print(f"[dim]Comparison report written to {json_out.resolve()}[/dim]")
+        except (OSError, RuntimeError, ValueError) as exc:
+            raise typer.BadParameter(f"Failed to write --json-out: {exc}") from exc
 
 
 @app.command()
@@ -2205,8 +2291,74 @@ def dereverb(
         help="Optional path for detailed dereverb metrics JSON.",
     ),
     quiet: bool = typer.Option(False, "--quiet", help="Suppress summary table output."),
+    benchmark: bool = typer.Option(
+        False,
+        "--benchmark",
+        help=(
+            "Run a synthetic quality benchmark (SNR, spectral distance) without processing "
+            "any files. --json-out writes the benchmark report when provided."
+        ),
+    ),
+    benchmark_rt60: float = typer.Option(
+        1.2,
+        "--benchmark-rt60",
+        min=0.1,
+        max=60.0,
+        help="Simulated RT60 in seconds for the synthetic benchmark IR.",
+    ),
+    benchmark_sr: int = typer.Option(
+        24000,
+        "--benchmark-sr",
+        min=8000,
+        help="Sample rate for synthetic benchmark signal.",
+    ),
 ) -> None:
     """Suppress late reverberation from an existing audio recording."""
+    if benchmark:
+        configs = [
+            DereverbConfig(mode="wiener", strength=float(strength), floor=float(floor),
+                           window_ms=float(window_ms), hop_ms=float(hop_ms),
+                           tail_ms=float(tail_ms)),
+            DereverbConfig(mode="spectral_sub", strength=float(strength), floor=float(floor),
+                           window_ms=float(window_ms), hop_ms=float(hop_ms),
+                           tail_ms=float(tail_ms)),
+        ]
+        with _processing_status("Run dereverb benchmark", enabled=not quiet):
+            report = run_dereverb_benchmark(
+                sr=int(benchmark_sr),
+                rt60=float(benchmark_rt60),
+                configs=configs,
+            )
+        if json_out is not None:
+            try:
+                json_out.parent.mkdir(parents=True, exist_ok=True)
+                _write_json_atomic(json_out.resolve(), report)
+            except (OSError, RuntimeError, ValueError) as exc:
+                raise typer.BadParameter(f"Failed to write --json-out: {exc}") from exc
+        if not quiet:
+            table = Table(title=f"Dereverb Benchmark (RT60={benchmark_rt60}s, SR={benchmark_sr})")
+            table.add_column("Mode", style="cyan")
+            table.add_column("SNR (dB)", justify="right")
+            table.add_column("SNR Δ (dB)", justify="right")
+            table.add_column("Spectral Dist (Hz)", justify="right")
+            table.add_column("RMS Δ (dB)", justify="right")
+            for r in report.get("results", []):
+                table.add_row(
+                    str(r["mode"]),
+                    f"{r['snr_db']:.2f}",
+                    f"{r['snr_improvement_db']:+.2f}",
+                    f"{r['spectral_dist_hz']:.1f}",
+                    f"{r['rms_delta_db']:+.2f}",
+                )
+            console.print(table)
+            console.print(
+                f"[dim]Baseline SNR (reverberant vs clean): "
+                f"{report['snr_reverberant_db']:.2f} dB[/dim]"
+            )
+            if json_out is not None:
+                console.print(f"[dim]Benchmark report written to {json_out.resolve()}[/dim]")
+        return
+
     _ensure_distinct_paths(infile, outfile, "INFILE", "OUTFILE")
     _validate_output_audio_path(outfile, out_subtype)
     if json_out is not None and infile.resolve() == json_out.resolve():
@@ -2319,6 +2471,12 @@ def dereverb(
 @app.command()
 def suggest(
     infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
+    pin: Path | None = typer.Option(
+        None,
+        "--pin",
+        resolve_path=True,
+        help="Write suggested parameters as a JSON preset file.",
+    ),
 ) -> None:
     """Suggest practical render defaults from input analysis."""
     try:
@@ -2354,6 +2512,26 @@ def suggest(
     table.add_row("duck", "off")
     console.print(table)
 
+    if pin is not None:
+        pinned: dict[str, Any] = {
+            "engine": suggested_engine,
+            "rt60": round(suggested_rt60, 4),
+            "wet": round(suggested_wet, 4),
+            "dry": round(suggested_dry, 4),
+            "repeat": 2 if duration < 15.0 else 1,
+            "target_lufs": -18.0,
+            "target_peak_dbfs": -1.0,
+            "normalize_stage": "post",
+            "shimmer": False,
+            "duck": False,
+        }
+        try:
+            pin.parent.mkdir(parents=True, exist_ok=True)
+            _write_json_atomic(pin.resolve(), pinned)
+            console.print(f"[dim]Preset pinned to {pin.resolve()}[/dim]")
+        except (OSError, RuntimeError, ValueError) as exc:
+            raise typer.BadParameter(f"Failed to write --pin: {exc}") from exc
+
 
 @app.command(name="presets")
 def list_presets(
@@ -2362,8 +2540,48 @@ def list_presets(
         "--show",
         help="Show resolved values for one preset.",
     ),
+    validate: str | None = typer.Option(
+        None,
+        "--validate",
+        help="Validate a preset's fields against RenderConfig and report any errors.",
+    ),
 ) -> None:
     """Print available presets or one preset payload."""
+    if validate is not None:
+        try:
+            resolved_name, payload = resolve_preset(validate)
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+        from verbx.config import RenderConfig  # noqa: PLC0415
+        errors: list[str] = []
+        warnings: list[str] = []
+        try:
+            RenderConfig(**{k: v for k, v in payload.items() if hasattr(RenderConfig, k) or k in RenderConfig.__dataclass_fields__})  # type: ignore[attr-defined]
+        except (TypeError, ValueError) as exc:
+            errors.append(str(exc))
+        # Check for unknown fields
+        try:
+            known = set(RenderConfig.__dataclass_fields__.keys())  # type: ignore[attr-defined]
+        except AttributeError:
+            known = set()
+        unknown = [k for k in payload if k not in known]
+        for k in unknown:
+            warnings.append(f"unknown field '{k}' (not in RenderConfig)")
+
+        table = Table(title=f"Preset Validation: {resolved_name}")
+        table.add_column("Status", style="cyan")
+        table.add_column("Detail", style="white")
+        if not errors and not warnings:
+            table.add_row("[green]PASS[/green]", f"All {len(payload)} fields are valid")
+        for err in errors:
+            table.add_row("[red]ERROR[/red]", err)
+        for warn in warnings:
+            table.add_row("[yellow]WARN[/yellow]", warn)
+        console.print(table)
+        if errors:
+            raise typer.Exit(code=1)
+        return
+
     if show is not None:
         try:
             resolved_name, payload = resolve_preset(show)
@@ -4328,6 +4546,15 @@ def batch_render(
         "--lucky-seed",
         help="Optional deterministic seed for --lucky batch generation.",
     ),
+    progress_json: Path | None = typer.Option(
+        None,
+        "--progress-json",
+        resolve_path=True,
+        help=(
+            "Append one JSONL line per completed job to this file. "
+            "Each line contains index, outfile, success, duration_seconds, and error."
+        ),
+    ),
 ) -> None:
     """Render jobs from manifest.json."""
     if resume and checkpoint_file is None:
@@ -4457,6 +4684,12 @@ def batch_render(
     def runner(job: BatchJobSpec) -> None:
         run_render_pipeline(infile=job.infile, outfile=job.outfile, config=job.config)
 
+    if progress_json is not None:
+        try:
+            progress_json.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise typer.BadParameter(f"Cannot create --progress-json parent: {exc}") from exc
+
     def on_result(result: BatchJobResult) -> None:
         if checkpoint_file is not None and checkpoint_payload is not None:
             checkpoint_payload.setdefault("results", [])
@@ -4473,6 +4706,21 @@ def batch_render(
                 }
             )
             _write_json_atomic(checkpoint_file, checkpoint_payload)
+        if progress_json is not None:
+            line = json.dumps(
+                {
+                    "index": int(result.index),
+                    "outfile": str(result.outfile.resolve()),
+                    "success": bool(result.success),
+                    "duration_seconds": float(result.duration_seconds),
+                    "error": result.error,
+                }
+            )
+            try:
+                with progress_json.open("a", encoding="utf-8") as fh:
+                    fh.write(line + "\n")
+            except OSError:
+                pass  # progress reporting is best-effort
         if result.success:
             console.print(
                 f"rendered job {result.index}: {result.outfile} "
