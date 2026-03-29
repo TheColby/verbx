@@ -4,11 +4,19 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.6] - 2026-03-29
+
 ### Changed
 - Tail completion now trims excess post-decay silence instead of preserving full
   padded render length.
 - Tail finalization now applies a short click-safe raised-cosine fade before the
   hard-zero hold segment to avoid end-of-file clicks.
+- **Algorithmic proxy-stream eligibility broadened**: `--algo-stream` now works
+  with `--target-sr` (sample-rate conversion handled via pre-resampling to a
+  temp file) and with `--lowcut` / `--highcut` / `--tilt` (EQ applied as a
+  deterministic post-stream pass).  All time-varying controls (modulation,
+  shimmer, FDN time-variance, matrix morphing) remain on the standard path.
+  Parity verified against the in-memory render path.
 
 ### Added
 - Tail completion regression tests for in-memory and streaming write paths
@@ -17,6 +25,23 @@ All notable changes to this project are documented in this file.
   generated folder-sorted library under `IRs/library/` (varying lengths across
   tiny/short/medium/long buckets, all four synthesis modes, deterministic
   manifest and metadata sidecars).
+- **Dereverb objective quality benchmark harness** (`scripts/benchmark_dereverb_quality.py`):
+  multi-scenario CLI tool with PESQ-inspired Bark-weighted SNR, STOI
+  approximation, and mel-cepstral distortion (MCD / ASR WER proxy) metrics,
+  JSON output, and configurable pass/fail thresholds.
+- Three new objective quality metrics in `verbx.core.dereverb`:
+  `_bark_weighted_snr_db` (PESQ-style), `_stoi_approx` (intelligibility proxy),
+  `_mcd_db` (mel-cepstral distortion / ASR WER proxy). All reported in
+  `run_dereverb_benchmark()` results (schema bumped to `dereverb-benchmark-v2`).
+- **CI hardware coverage**: `ci-gpu.yml` now runs automatically on push to
+  `main` and weekly (cron), uses `macos-14` (guaranteed Apple Silicon / M1) for
+  MPS tests, adds a Python 3.12 matrix entry, and runs the full core test suite
+  on Apple Silicon. `ci.yml` adds a `test-macos` job on `macos-14`.
+- **Release health checks** (`scripts/check_release_health.py`): pre-release
+  script verifying version tag / `pyproject.toml` consistency, CHANGELOG entry
+  presence, and Homebrew formula pin. Integrated into `release.yml` before and
+  after the build step, plus a `verify-pypi-install` job that smoke-tests the
+  published package from PyPI after upload.
 
 ## [0.7.5] - 2026-03-28
 

@@ -30,7 +30,7 @@ from verbx.analysis.framewise import write_framewise_csv
 from verbx.config import NormalizeStage, RenderConfig
 from verbx.core.accel import configure_cpu_threads, resolve_device_for_engine
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
-from verbx.core.ambient import apply_ambient_processing
+from verbx.core.ambient import apply_ambient_processing, apply_tilt_eq
 from verbx.core.automation import (
     CONV_AUTOMATION_TARGETS,
     ENGINE_AUTOMATION_TARGETS,
@@ -121,6 +121,21 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 estimated_bytes=None,
             )
             conv_device = "cuda" if runtime_config.algo_gpu_proxy else "cpu"
+
+            # Pre-SRC: when target_sr differs from input_sr, resample input to a
+            # temp file so the convolution engine and proxy IR share the same rate.
+            _needs_src = input_sr != processing_sr
+            _src_tmp: Path | None = None
+            _stream_infile = infile
+            if _needs_src:
+                _src_audio, _ = read_audio(str(infile))
+                _src_resampled = _resample_audio_polyphase(
+                    _src_audio, src_sr=input_sr, dst_sr=processing_sr
+                )
+                _src_tmp = infile.with_name(f"{infile.stem}.proxy_src_tmp{infile.suffix}")
+                write_audio(str(_src_tmp), _src_resampled, processing_sr, subtype="DOUBLE")
+                _stream_infile = _src_tmp
+
             proxy_ir_path, _ = _render_algo_proxy_ir(
                 config=runtime_config,
                 sr=processing_sr,
@@ -136,13 +151,15 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                     )
                 )
                 stream_stats = conv_engine.process_streaming_file(
-                    infile=str(infile),
+                    infile=str(_stream_infile),
                     outfile=str(stream_tmp_out),
                     output_subtype=output_subtype,
                     output_format=output_format,
                 )
             finally:
                 proxy_ir_path.unlink(missing_ok=True)
+                if _src_tmp is not None:
+                    _src_tmp.unlink(missing_ok=True)
 
             output_samples = _complete_stream_file_tail_to_zero(
                 stream_tmp_out,
@@ -152,6 +169,26 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 min_frames=int(stream_stats["input_samples"]),
             )
             stream_tmp_out.replace(outfile)
+
+            # Post-EQ: apply tilt/lowcut/highcut as a load-and-filter pass when
+            # any EQ setting is active.  Duck and bloom are still blocked upstream,
+            # so only the stateless EQ branch of apply_ambient_processing fires.
+            _needs_eq = (
+                runtime_config.lowcut is not None
+                or runtime_config.highcut is not None
+                or abs(float(runtime_config.tilt)) > 1e-4
+            )
+            if _needs_eq:
+                _eq_audio, _ = read_audio(str(outfile))
+                _eq_out = apply_tilt_eq(
+                    _eq_audio,
+                    processing_sr,
+                    tilt_db=float(runtime_config.tilt),
+                    lowcut=runtime_config.lowcut,
+                    highcut=runtime_config.highcut,
+                )
+                write_audio(str(outfile), _eq_out, processing_sr, subtype=output_subtype)
+
             progress.mark_read()
             progress.mark_process_pass(1)
             progress.mark_write()
@@ -759,12 +796,18 @@ def _can_stream_algo_proxy(
     *,
     input_sr: int,
 ) -> bool:
-    """Return ``True`` when algorithmic proxy streaming is allowed."""
+    """Return ``True`` when algorithmic proxy streaming is allowed.
+
+    Sample-rate conversion (``target_sr``) and post-render EQ (``lowcut``,
+    ``highcut``, ``tilt``) are handled within the proxy-stream execution path
+    as a pre-resample pass and a post-EQ pass respectively, so they no longer
+    block eligibility.  All time-varying controls (modulation, shimmer, FDN
+    time-variance, matrix morphing) remain incompatible with a static proxy IR
+    and continue to force the standard in-memory path.
+    """
     if engine_name != "algo":
         return False
     if not config.algo_stream:
-        return False
-    if config.target_sr is not None and int(config.target_sr) != int(input_sr):
         return False
     if config.repeat != 1 or config.freeze:
         return False
@@ -783,8 +826,6 @@ def _can_stream_algo_proxy(
     ):
         return False
     if config.duck or config.bloom > 0.0:
-        return False
-    if config.lowcut is not None or config.highcut is not None or config.tilt != 0.0:
         return False
     if config.mod_target != "none" and len(config.mod_sources) > 0:
         return False

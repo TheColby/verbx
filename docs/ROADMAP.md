@@ -1,13 +1,13 @@
 # verbx Roadmap
 
-_Last updated: 2026-03-28. Maintained with `README.md` and `CHANGELOG.md`._
+_Last updated: 2026-03-29. Maintained with `README.md` and `CHANGELOG.md`._
 
 ---
 
 ## 1. Release Posture
 
-**Current release:** `v0.7.5`  
-**Status:** public alpha (research-grade)  
+**Current release:** `v0.7.6`
+**Status:** public alpha (research-grade)
 **Versioning policy:** semantic (`0.7.x` patch line during alpha)
 
 verbx currently ships dual-engine reverb, deterministic automation/feature
@@ -35,10 +35,10 @@ Requested feature set 1-10 is now implemented and tested:
 
 ## 3. Remaining 0.7.x Priorities
 
-- [ ] Expand `verbx dereverb` objective quality validation (PESQ/STOI/ASR WER-style benchmark harness).
-- [ ] Broaden algorithmic proxy-stream eligibility while preserving deterministic parity checks.
-- [ ] Add CI/hardware coverage for CUDA and Apple Silicon acceleration paths.
-- [ ] Tighten public alpha packaging/release health checks across PyPI and Homebrew channels.
+- [x] Expand `verbx dereverb` objective quality validation (PESQ/STOI/ASR WER-style benchmark harness).
+- [x] Broaden algorithmic proxy-stream eligibility while preserving deterministic parity checks.
+- [x] Add CI/hardware coverage for CUDA and Apple Silicon acceleration paths.
+- [x] Tighten public alpha packaging/release health checks across PyPI and Homebrew channels.
 
 ---
 

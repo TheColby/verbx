@@ -28,11 +28,25 @@ jobs:
       - name: Install build tooling
         run: python -m pip install --upgrade pip build twine
 
+      - name: Release health checks (version, CHANGELOG, formula pin)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          python scripts/check_release_health.py \
+            --tag "${{ github.ref_name }}" \
+            --skip-twine
+
       - name: Build sdist and wheel
         run: python -m build
 
-      - name: Validate artifacts
-        run: python -m twine check dist/*
+      - name: Validate artifacts with twine
+        run: python -m twine check --strict dist/*
+
+      - name: Release health check — built artifacts
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          python scripts/check_release_health.py \
+            --tag "${{ github.ref_name }}" \
+            --dist-dir dist/
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
@@ -201,6 +215,35 @@ jobs:
           git commit -m "chore: update verbx formula for ${TAG}"
           git push
           echo "Published Homebrew formula update to ${TAP_REPO} for ${TAG}." >> "$GITHUB_STEP_SUMMARY"
+
+  verify-pypi-install:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Wait for PyPI index propagation
+        run: sleep 60
+
+      - name: Install published package from PyPI and smoke-test
+        env:
+          VERBX_VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${VERBX_VERSION#v}"
+          python -m pip install --upgrade pip
+          # Retry up to 3 times to handle index propagation lag
+          for attempt in 1 2 3; do
+            python -m pip install "verbx==${VERSION}" && break
+            echo "Attempt ${attempt} failed — retrying in 30s..."
+            sleep 30
+          done
+          verbx --version
+          python -c "import verbx; print('import OK')"
 
   release-github:
     if: startsWith(github.ref, 'refs/tags/v')
