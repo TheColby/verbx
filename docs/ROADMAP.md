@@ -22,7 +22,8 @@ Current patch-line status:
 
 - [x] Runtime/package metadata aligned to `v0.7.6`.
 - [x] Tail completion, proxy streaming, dereverb QA, release-health tooling, and IR library work shipped in `v0.7.6`.
-- [ ] Land the next focused `0.7.x` patch feature set and promote it from `Unreleased` into `CHANGELOG.md`.
+- [x] Land the next focused `0.7.x` patch feature set and promote it from `Unreleased` into `CHANGELOG.md`.
+- [x] Room size estimator integrated into analysis engine (`verbx analyze --room`, `verbx compare --room`, `AudioAnalyzer.analyze(include_room=True)`).
 
 ## 3. v0.7.5 Feature Pack (Completed)
 

@@ -10,6 +10,7 @@ import numpy as np
 import numpy.typing as npt
 
 from verbx.analysis.edr import edr_summary
+from verbx.analysis.room_size import estimate_room_size
 from verbx.analysis.features_spectral import (
     spectral_bandwidth,
     spectral_centroid,
@@ -55,10 +56,11 @@ class AudioAnalyzer:
         sr: int,
         include_loudness: bool = False,
         include_edr: bool = False,
+        include_room: bool = False,
         ambi_order: int | None = None,
         ambi_normalization: str = "auto",
         ambi_channel_order: str = "auto",
-    ) -> dict[str, float]:
+    ) -> dict[str, float | str]:
         """Return analysis metrics for CLI consumption.
 
         Parameters
@@ -71,12 +73,19 @@ class AudioAnalyzer:
             Enables slower EBU-R128 style metrics (LUFS, true-peak, LRA).
         include_edr:
             Enables frequency-dependent EDR summary metrics.
+        include_room:
+            Enables room size and acoustic property estimation from the
+            reverberant decay characteristics of the signal.  Produces a set
+            of ``room_*`` prefixed keys including volume, dimensions,
+            absorption, critical distance, room class, and confidence rating.
+            Implicitly runs EDR analysis internally (fast; does not enable the
+            full ``include_edr`` key set unless that flag is also set).
         ambi_order:
             Optional Ambisonics order for spherical-energy/directionality metrics.
         """
         channel_rms = np.sqrt(np.mean(np.square(audio), axis=0, dtype=np.float64))
 
-        result: dict[str, float] = {
+        result: dict[str, float | str] = {
             "duration": duration_seconds(audio, sr),
             "samples": float(audio.shape[0]),
             "channels": float(audio.shape[1]),
@@ -113,6 +122,11 @@ class AudioAnalyzer:
 
         if include_edr:
             result.update(edr_summary(audio, sr))
+
+        if include_room:
+            room = estimate_room_size(audio, sr)
+            for k, v in room.items():
+                result[k] = float(v) if isinstance(v, (int, float)) else str(v)
 
         if ambi_order is not None and int(ambi_order) > 0:
             result.update(

@@ -247,6 +247,131 @@ Required columns: `target`, `time_s`, `value`. Optional: `interp`.
 
 ---
 
+## Analysis Output (`verbx analyze --json-out`)
+
+JSON produced by `verbx analyze --json-out <file>`.
+
+```json
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "metrics": {
+    "duration": 5.032,
+    "rms": 0.1234,
+    "peak": 0.876,
+    "...": "..."
+  }
+}
+```
+
+All `metrics` values are floats unless `--room` is also passed, in which case
+the room-estimate string fields (`room_class`, `room_confidence`,
+`room_estimation_method`) appear as strings.
+
+---
+
+## Room Size Estimate (`--room` flag on `verbx analyze` / `verbx compare`)
+
+When `--room` is passed the analysis output includes the following additional
+keys (all prefixed `room_`):
+
+### Numeric fields (float)
+
+| Key | Unit | Description |
+|---|---|---|
+| `room_rt60_s` | s | Best RT60 estimate used as sizing input (mid-band preferred) |
+| `room_rt60_low_s` | s | EDR RT60 estimate for the low band (20–250 Hz) |
+| `room_rt60_mid_s` | s | EDR RT60 estimate for the mid band (250–2 000 Hz) |
+| `room_rt60_high_s` | s | EDR RT60 estimate for the high band (2 000 Hz+) |
+| `room_volume_m3` | m³ | Primary volume estimate (Sabine/Eyring blend) |
+| `room_volume_m3_sabine` | m³ | Sabine-only volume estimate |
+| `room_volume_m3_eyring` | m³ | Eyring-only volume estimate |
+| `room_volume_m3_low` | m³ | Conservative lower bound (−30 %) |
+| `room_volume_m3_high` | m³ | Conservative upper bound (+30 %) |
+| `room_dim_width_m` | m | Estimated room width (shortest horizontal dimension) |
+| `room_dim_depth_m` | m | Estimated room depth (1.25 × width) |
+| `room_dim_height_m` | m | Estimated room height (0.62 × width) |
+| `room_surface_area_m2` | m² | Total surface area of the estimated rectangular box |
+| `room_mean_absorption` | — | Estimated mean absorption coefficient [0, 1] |
+| `room_critical_distance_m` | m | Schroeder critical distance (direct = reverberant field) |
+| `room_confidence_score` | — | Numeric confidence rating [0, 1] |
+
+### String fields
+
+| Key | Values | Description |
+|---|---|---|
+| `room_class` | `"closet"` `"small"` `"medium"` `"large"` `"very_large"` `"cathedral"` `"unknown"` | Qualitative room size label |
+| `room_estimation_method` | `"sabine"` `"eyring"` `"none"` | Formula used for primary volume |
+| `room_confidence` | `"high"` `"medium"` `"low"` | Qualitative confidence rating |
+
+### Room class thresholds
+
+| Class | Approx. volume | Approx. RT60 |
+|---|---|---|
+| `closet` | < 8 m³ | < 0.12 s |
+| `small` | 8–50 m³ | 0.12–0.35 s |
+| `medium` | 50–250 m³ | 0.35–0.80 s |
+| `large` | 250–1 500 m³ | 0.80–2.0 s |
+| `very_large` | 1 500–10 000 m³ | 2.0–5.0 s |
+| `cathedral` | > 10 000 m³ | > 5.0 s |
+
+### Example
+
+```bash
+verbx analyze my_reverb.wav --room --json-out room_report.json
+```
+
+```json
+{
+  "sample_rate": 48000,
+  "channels": 2,
+  "metrics": {
+    "room_rt60_s": 1.42,
+    "room_volume_m3": 320.5,
+    "room_volume_m3_low": 224.4,
+    "room_volume_m3_high": 416.7,
+    "room_dim_width_m": 7.38,
+    "room_dim_depth_m": 9.22,
+    "room_dim_height_m": 4.58,
+    "room_surface_area_m2": 271.2,
+    "room_mean_absorption": 0.175,
+    "room_critical_distance_m": 1.94,
+    "room_class": "large",
+    "room_estimation_method": "sabine",
+    "room_confidence": "high",
+    "room_confidence_score": 0.8,
+    "...": "..."
+  }
+}
+```
+
+---
+
+## Compare Report (`verbx compare --json-out`)
+
+JSON produced by `verbx compare FILE_A FILE_B --json-out <file>`.
+
+```json
+{
+  "schema": "compare-report-v1",
+  "file_a": "/path/to/dry.wav",
+  "file_b": "/path/to/wet.wav",
+  "sample_rate_a": 48000,
+  "sample_rate_b": 48000,
+  "channels_a": 2,
+  "channels_b": 2,
+  "metrics_a": { "rms": 0.12, "..." : "..." },
+  "metrics_b": { "rms": 0.18, "...": "..." },
+  "delta": { "rms": 0.06, "...": "..." }
+}
+```
+
+`delta` only includes keys whose values are numeric (`float`) in both files —
+string-valued fields like `room_class` are present in `metrics_a`/`metrics_b`
+but omitted from `delta`.
+
+---
+
 ## Inline automation (`--automation-point`)
 
 For simple one-off control points without a file:

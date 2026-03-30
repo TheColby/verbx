@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Room size estimator** (`verbx.analysis.room_size`): estimates room volume,
+  dimensions, mean absorption, critical distance, and acoustic class from any
+  reverberant recording or rendered IR.  Uses Sabine/Eyring reverberation
+  formulas with EDR-derived RT60 measurements and automatic absorption inference
+  from the spectral decay shape.  Exposed via:
+  - `AudioAnalyzer.analyze(include_room=True)` — adds `room_*` prefixed keys
+    to the flat metrics dict
+  - `verbx analyze --room` — prints room metrics in the analysis table and
+    includes them in `--json-out` output
+  - `verbx compare --room` — shows room metrics side-by-side with string-valued
+    fields (class, method, confidence) displayed as labels and numeric fields
+    shown with delta
+
+### Previously added
 - Began the `v0.8` native executable track with a standalone C11 scaffold under
   `native/verbx_c/`.
 - Added a functional native `verbx-c` render path with mono/stereo WAV

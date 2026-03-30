@@ -2118,6 +2118,15 @@ def analyze(
         "--channel-order",
         help="Ambisonics channel order convention for analysis mode.",
     ),
+    room: bool = typer.Option(
+        False,
+        "--room",
+        help=(
+            "Estimate room size, dimensions, absorption, critical distance, "
+            "and class from the signal's reverberant decay characteristics. "
+            "Works best on reverberant recordings or rendered impulse responses."
+        ),
+    ),
 ) -> None:
     """Analyze an audio file and print a summary table."""
     _validate_analyze_call(infile, json_out, frames_out)
@@ -2131,6 +2140,7 @@ def analyze(
                 sr,
                 include_loudness=lufs,
                 include_edr=edr,
+                include_room=room,
                 ambi_order=int(ambi_order) if int(ambi_order) > 0 else None,
                 ambi_normalization=str(ambi_normalization).strip().lower(),
                 ambi_channel_order=str(channel_order).strip().lower(),
@@ -2142,7 +2152,8 @@ def analyze(
     table.add_column("Metric", style="cyan")
     table.add_column("Value", justify="right")
     for key in sorted(metrics):
-        table.add_row(key, f"{metrics[key]:.6f}")
+        val = metrics[key]
+        table.add_row(key, f"{val:.6f}" if isinstance(val, float) else str(val))
     console.print(table)
 
     if json_out is not None:
@@ -2164,6 +2175,11 @@ def compare(
         help="Optional path to write the comparison report as JSON.",
     ),
     lufs: bool = typer.Option(False, "--lufs", help="Include LUFS/true-peak/LRA metrics."),
+    room: bool = typer.Option(
+        False,
+        "--room",
+        help="Include room size and acoustic property estimates for both files.",
+    ),
 ) -> None:
     """Side-by-side comparison of two audio files."""
     try:
@@ -2173,8 +2189,8 @@ def compare(
             audio_a, sr_a = read_audio(str(file_a))
             audio_b, sr_b = read_audio(str(file_b))
             analyzer = AudioAnalyzer()
-            metrics_a = analyzer.analyze(audio_a, sr_a, include_loudness=lufs)
-            metrics_b = analyzer.analyze(audio_b, sr_b, include_loudness=lufs)
+            metrics_a = analyzer.analyze(audio_a, sr_a, include_loudness=lufs, include_room=room)
+            metrics_b = analyzer.analyze(audio_b, sr_b, include_loudness=lufs, include_room=room)
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -2187,11 +2203,12 @@ def compare(
     for key in all_keys:
         val_a = metrics_a.get(key)
         val_b = metrics_b.get(key)
-        str_a = f"{val_a:.6f}" if val_a is not None else "—"
-        str_b = f"{val_b:.6f}" if val_b is not None else "—"
-        if val_a is not None and val_b is not None:
-            delta = val_b - val_a
-            str_delta = f"{delta:+.6f}"
+        str_a = (f"{val_a:.6f}" if isinstance(val_a, float) else str(val_a)) if val_a is not None else "—"
+        str_b = (f"{val_b:.6f}" if isinstance(val_b, float) else str(val_b)) if val_b is not None else "—"
+        if isinstance(val_a, float) and isinstance(val_b, float):
+            str_delta = f"{val_b - val_a:+.6f}"
+        elif val_a is not None and val_b is not None:
+            str_delta = "—"  # string metrics (e.g. room_class) have no numeric delta
         else:
             str_delta = "—"
         table.add_row(key, str_a, str_b, str_delta)
@@ -2213,8 +2230,12 @@ def compare(
             "channels_b": int(audio_b.shape[1]),
             "metrics_a": metrics_a,
             "metrics_b": metrics_b,
-            "delta": {k: metrics_b[k] - metrics_a[k]
-                      for k in all_keys if k in metrics_a and k in metrics_b},
+            "delta": {
+                k: metrics_b[k] - metrics_a[k]  # type: ignore[operator]
+                for k in all_keys
+                if k in metrics_a and k in metrics_b
+                and isinstance(metrics_a[k], float) and isinstance(metrics_b[k], float)
+            },
         }
         try:
             json_out.parent.mkdir(parents=True, exist_ok=True)
