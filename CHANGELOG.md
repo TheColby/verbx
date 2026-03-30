@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.7.7] - 2026-03-30
+
+_Patch line started. Items will be promoted from Unreleased as they land._
+
 ### Added
 - **Room size estimator** (`verbx.analysis.room_size`): estimates room volume,
   dimensions, mean absorption, critical distance, and acoustic class from any

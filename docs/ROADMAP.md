@@ -6,19 +6,33 @@ _Last updated: 2026-03-30. Maintained with `README.md` and `CHANGELOG.md`._
 
 ## 1. Release Posture
 
-**Current release:** `v0.7.6`
+**Current release:** `v0.7.7`
 **Status:** public alpha (research-grade)
 **Versioning policy:** semantic (`0.7.x` patch line during alpha)
 
 verbx currently ships dual-engine reverb, deterministic automation/feature
-control, immersive QC/handoff, reproducibility tooling, f64 internal DSP, and
-experimental dereverberation workflows.
+control, immersive QC/handoff, reproducibility tooling, f64 internal DSP,
+experimental dereverberation workflows, and a room size estimator.
 
 ---
 
-## 2. v0.7.6 Current Patch Line
+## 2. v0.7.7 Current Patch Line
 
-Current patch-line status:
+Patch line opened 2026-03-30. Items below are the active focus.
+
+- [x] Runtime/package metadata aligned to `v0.7.7`.
+- [ ] Decompose `cli.py` (8 376 lines) into per-command submodules under `src/verbx/commands/`.
+- [ ] Decompose `RenderConfig` (162 fields) into composed sub-configs (`FDNConfig`, `AutomationConfig`, `SpatialConfig`, `StreamingConfig`).
+- [ ] Replace `dict[str, Any]` report returns in `pipeline.py` with typed `RenderReport` dataclass / TypedDicts.
+- [ ] Decompose `run_render_pipeline` (~640 lines) into explicit pipeline stages.
+- [ ] Add dedicated unit tests for `automation.py`, `convolution_reverb.py`, `feature_vector.py`, `immersive.py`.
+- [ ] Wire benchmark scripts into CI as blocking quality-regression gates.
+- [ ] Enforce streaming/in-memory parity at the test level (extend `test_proxy_stream_parity.py` to cover convolution path).
+- [ ] Decompose `algo_reverb.py` (2 185 lines) — separate FDN topology, matrix ops, and modulation into sub-modules.
+- [ ] Decompose `estimate_room_size` into explicit pipeline stages (EDR → absorption → volume → dims → confidence).
+- [ ] Reduce pyright suppressions in `pyproject.toml` to the minimum necessary set.
+
+## 2a. v0.7.6 Patch Line (Completed)
 
 - [x] Runtime/package metadata aligned to `v0.7.6`.
 - [x] Tail completion, proxy streaming, dereverb QA, release-health tooling, and IR library work shipped in `v0.7.6`.
