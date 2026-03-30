@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Began the `v0.8` native executable track with a standalone C11 scaffold under
+  `native/verbx_c/`.
+- Added an experimental `verbx-c` target with `help`, `version`, and `doctor`
+  commands plus a deliberate `render` placeholder while the DSP/runtime port is
+  being designed.
+- Added `scripts/build_verbx_c.sh` for one-command native builds and
+  `tests/test_native_scaffold.py` as a compile-and-version smoke test.
+
 ## [0.7.6] - 2026-03-29
 
 ### Changed

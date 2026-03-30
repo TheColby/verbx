@@ -41,7 +41,38 @@ Requested feature set 1-10 is implemented and tested:
 
 ---
 
-## 4. Remaining 0.7.x Priorities
+## 4. v0.8 Native Executable Program
+
+`v0.8` is the native C executable line. The Python implementation remains the
+released/public-alpha tool during the transition.
+
+### 4.1 Foundation
+
+- [x] Land native source tree and build entrypoint (`native/verbx_c/`, `scripts/build_verbx_c.sh`).
+- [x] Establish standalone executable identity (`verbx-c`) and minimal CLI surface.
+- [ ] Define native error model, logging model, and deterministic offline process contract.
+
+### 4.2 Audio Runtime
+
+- [ ] Implement float64 WAV read/write in C for mono/stereo first.
+- [ ] Port analysis-free offline render lifecycle: read -> process -> tail finalize -> write.
+- [ ] Mirror current tail-stop semantics and sample-rate policy deterministically.
+
+### 4.3 DSP Port
+
+- [ ] Port algorithmic late-field core first (delays, allpass diffusion, FDN loop).
+- [ ] Port damping, width, pre-delay, freeze, repeat, and normalization in controlled phases.
+- [ ] Define parity corpus against `v0.7.x` Python outputs before feature expansion.
+
+### 4.4 Productization
+
+- [ ] Decide whether `verbx-c` remains a transition binary or replaces `verbx` at release.
+- [ ] Add native packaging/release flow (install script, Homebrew, man pages, CI).
+- [ ] Document feature parity and feature gaps continuously during the migration.
+
+---
+
+## 5. Remaining 0.7.x Priorities
 
 - [x] Expand `verbx dereverb` objective quality validation (PESQ/STOI/ASR WER-style benchmark harness).
 - [x] Broaden algorithmic proxy-stream eligibility while preserving deterministic parity checks.
@@ -50,7 +81,7 @@ Requested feature set 1-10 is implemented and tested:
 
 ---
 
-## 4. Known Constraints (Alpha)
+## 6. Known Constraints (Alpha)
 
 - Offline-first architecture; real-time plugin hosting is not in `0.7.x` scope.
 - Very long tails remain compute-heavy; throughput depends on partition/block settings and hardware.
@@ -59,7 +90,7 @@ Requested feature set 1-10 is implemented and tested:
 
 ---
 
-## 5. Maintenance Rule
+## 7. Maintenance Rule
 
 When a roadmap item is completed:
 

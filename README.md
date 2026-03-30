@@ -213,6 +213,28 @@ Current public alpha release: **v0.7.6**.
 
 ---
 
+## v0.8 Native Track
+
+`v0.8` is the planned native C executable line. The released tool remains the
+Python implementation in `v0.7.x`, but the native rewrite has now started with
+an executable scaffold under [`native/verbx_c/README.md`](native/verbx_c/README.md).
+
+Current native status:
+
+- standalone `verbx-c` executable target
+- portable C11 build path via `scripts/build_verbx_c.sh`
+- implemented commands: `help`, `version`, `doctor`
+- `render` intentionally stubbed while WAV I/O and DSP parity architecture are designed
+
+Quick check:
+
+```bash
+./scripts/build_verbx_c.sh
+./build/native/verbx_c/verbx-c doctor
+```
+
+---
+
 ## Announcement Channels
 
 - Release announcements: [github.com/TheColby/verbx/releases](https://github.com/TheColby/verbx/releases)
