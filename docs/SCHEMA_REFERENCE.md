@@ -2,7 +2,7 @@
 
 JSON and CSV format specifications for batch manifests and automation files.
 
-_Current as of v0.7.5._
+_Current as of v0.7.6._
 
 ---
 

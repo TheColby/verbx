@@ -1,6 +1,6 @@
 # verbx Roadmap
 
-_Last updated: 2026-03-29. Maintained with `README.md` and `CHANGELOG.md`._
+_Last updated: 2026-03-30. Maintained with `README.md` and `CHANGELOG.md`._
 
 ---
 
@@ -16,9 +16,17 @@ experimental dereverberation workflows.
 
 ---
 
-## 2. v0.7.5 Feature Pack (Completed)
+## 2. v0.7.6 Current Patch Line
 
-Requested feature set 1-10 is now implemented and tested:
+Current patch-line status:
+
+- [x] Runtime/package metadata aligned to `v0.7.6`.
+- [x] Tail completion, proxy streaming, dereverb QA, release-health tooling, and IR library work shipped in `v0.7.6`.
+- [ ] Land the next focused `0.7.x` patch feature set and promote it from `Unreleased` into `CHANGELOG.md`.
+
+## 3. v0.7.5 Feature Pack (Completed)
+
+Requested feature set 1-10 is implemented and tested:
 
 - [x] 1. Tail completion controls (`--tail-stop-threshold-db`, `--tail-stop-hold-ms`, `--tail-stop-metric`)
 - [x] 2. Algorithmic long-render proxy streaming path (`--algo-stream`)
@@ -33,7 +41,7 @@ Requested feature set 1-10 is now implemented and tested:
 
 ---
 
-## 3. Remaining 0.7.x Priorities
+## 4. Remaining 0.7.x Priorities
 
 - [x] Expand `verbx dereverb` objective quality validation (PESQ/STOI/ASR WER-style benchmark harness).
 - [x] Broaden algorithmic proxy-stream eligibility while preserving deterministic parity checks.

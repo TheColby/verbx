@@ -1,6 +1,6 @@
 # IR Synthesis — A Dual-Layer Reference
 
-> Version: v0.7.5 (public alpha)
+> Version: v0.7.6 (public alpha)
 
 This document is written for two readers at once. The plain-English sections
 give you enough to use the tool effectively without reading source code. The
