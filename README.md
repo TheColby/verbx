@@ -223,14 +223,18 @@ Current native status:
 
 - standalone `verbx-c` executable target
 - portable C11 build path via `scripts/build_verbx_c.sh`
-- implemented commands: `help`, `version`, `doctor`
-- `render` intentionally stubbed while WAV I/O and DSP parity architecture are designed
+- implemented commands: `help`, `version`, `doctor`, `render`
+- mono/stereo WAV input: PCM16/24/32 and float32/float64
+- mono/stereo WAV output: `pcm16`, `float32`, `float64`
+- deterministic offline render lifecycle in C: read -> process -> tail-finalize -> write
+- foundational native algorithmic reverb core with float64 internal processing
 
-Quick check:
+Example native smoke test:
 
 ```bash
 ./scripts/build_verbx_c.sh
 ./build/native/verbx_c/verbx-c doctor
+./build/native/verbx_c/verbx-c render in.wav out.wav --rt60 3.5 --out-format float32
 ```
 
 ---

@@ -8,6 +8,10 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 add_executable(
   verbx-c
+  src/audio.c
+  src/algo_reverb.c
+  src/render.c
+  src/wav_io.c
   src/main.c
   src/cli.c
 )

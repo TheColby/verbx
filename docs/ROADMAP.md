@@ -54,13 +54,15 @@ released/public-alpha tool during the transition.
 
 ### 4.2 Audio Runtime
 
-- [ ] Implement float64 WAV read/write in C for mono/stereo first.
-- [ ] Port analysis-free offline render lifecycle: read -> process -> tail finalize -> write.
-- [ ] Mirror current tail-stop semantics and sample-rate policy deterministically.
+- [x] Implement mono/stereo WAV read in C with float64 decode for PCM16/24/32 and float32/float64 inputs.
+- [x] Implement native WAV write for `pcm16`, `float32`, and `float64`.
+- [x] Port analysis-free offline render lifecycle: read -> process -> tail finalize -> write.
+- [ ] Mirror current Python tail-stop semantics and sample-rate policy deterministically.
 
 ### 4.3 DSP Port
 
-- [ ] Port algorithmic late-field core first (delays, allpass diffusion, FDN loop).
+- [x] Port a first native offline late-field core (pre-delay, combs, allpass diffusion, tail finalization).
+- [ ] Replace the foundational Schroeder/Moorer core with the higher-order FDN loop used by `v0.7.x`.
 - [ ] Port damping, width, pre-delay, freeze, repeat, and normalization in controlled phases.
 - [ ] Define parity corpus against `v0.7.x` Python outputs before feature expansion.
 
