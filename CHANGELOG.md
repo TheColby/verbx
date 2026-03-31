@@ -4,9 +4,31 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-## [0.7.7] - 2026-03-30
+## [0.7.7] - 2026-03-31
 
-_Patch line started. Items will be promoted from Unreleased as they land._
+### Changed
+- **`room_size.py` decomposed into six public pipeline stages**: `extract_edr_rt60`,
+  `infer_absorption`, `estimate_volume`, `project_dimensions`, `score_confidence`,
+  `classify_room` — each independently callable, testable, and replaceable.
+  `estimate_room_size` is now a thin orchestrator that calls them in sequence.
+- **FDN matrix operations extracted to `src/verbx/core/fdn_matrix.py`**: all
+  `build_*` matrix builders (`hadamard`, `random_orthogonal`, `circulant`,
+  `elliptic`, `sdn_hybrid`, `householder`), graph topology helpers
+  (`build_graph_edges`, `build_graph_pairings`, `build_sparse_pairings`), and
+  `apply_sparse_pair_mix` / `build_sparse_mix_matrix` are now module-level
+  functions importable without instantiating `AlgoReverbEngine`.
+- **Pyright suppressions documented**: all six suppressions in `pyproject.toml`
+  now carry rationale comments; `reportUnknownLambdaType` removed; remaining
+  four carry explicit TODO markers for narrowing to per-file scope once
+  `pipeline.py` report types are strengthened.
+
+### Added
+- **Roadmap sections 6–8**: physically modelled room acoustics track (ISM full
+  response, SDN engine, geometry-to-FDN parameter derivation, material library),
+  AI/neural architecture track (DDSP FDN, grey-box neural FDN, neural
+  dereverberation, perceptual evaluation infrastructure — informed by Steinmetz
+  et al. MERL TR2025-116 JAES 2025), and Valhalla-inspired algorithm research
+  track (diffusion density, per-line crossover filters, room mode resonances).
 
 ### Added
 - **Room size estimator** (`verbx.analysis.room_size`): estimates room volume,

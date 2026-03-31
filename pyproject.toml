@@ -78,12 +78,25 @@ typeCheckingMode = "strict"
 include = ["src", "tests"]
 venvPath = "."
 venv = ".venv"
+
+# reportMissingTypeStubs: legitimate — librosa, soundfile, pyloudnorm, numba
+# ship no type stubs and upstream stubs are incomplete / absent.
 reportMissingTypeStubs = "none"
+
+# reportUntypedFunctionDecorator: legitimate — typer @app.command() decorators
+# and the optional @numba.njit decorator are not typed in their libraries.
 reportUntypedFunctionDecorator = "none"
+
+# reportUnknownMemberType / reportUnknownVariableType / reportUnknownArgumentType:
+# These are suppressed project-wide because numpy typing (NDArray[float64],
+# ufunc return types) and scipy's stubs produce cascading "Unknown" inference
+# across DSP code.  The goal for 0.7.7 is to shrink these to per-file
+# suppressions once the dict[str, Any] report contracts in pipeline.py are
+# replaced by typed dataclasses (roadmap item 3).
+# TODO(0.7.7): move to per-file pyright: ignore after pipeline.py RenderReport
 reportUnknownMemberType = "none"
 reportUnknownVariableType = "none"
 reportUnknownArgumentType = "none"
-reportUnknownLambdaType = "none"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
