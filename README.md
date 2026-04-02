@@ -277,7 +277,7 @@ When sound leaves a source in a physical space, it arrives at a listener via mul
 
 In digital audio production, reverb is synthesized one of two ways. Algorithmic reverbs construct the room response from digital signal processing structures — delay networks, filters, and feedback topologies — shaped to produce the statistical properties of a real room without simulating any specific one. Convolution reverbs play back a recorded or synthesized impulse response, which captures everything about a real space in a single linear filter. Each approach has genuine advantages: algorithmic is controllable, computationally efficient at extreme lengths, and creates spaces that do not physically exist; convolution is realistic and reproducible from measured spaces.
 
-Most reverb tools top out at RT60 values between 10 and 30 seconds. verbx is designed for extreme decay lengths — up to 3600 seconds — without the numerical instability that typically kills long algorithmic tails. The key is the Feedback Delay Network design: 64-bit internal precision everywhere, per-line gain calibration from the exact RT60-to-gain formula, and a choice of eight feedback matrix families that let you control tail diffusion and decay coloration independently from decay time. At 120 seconds of RT60, you are not simulating any physical space — you are synthesizing a temporal dimension that does not exist acoustically. That's the point. Beyond the algorithmic side, the convolution engine supports true $M \times N$ matrix routing for multichannel spaces, and the IR synthesis toolchain generates IRs up to 3600 seconds in four modes with deterministic caching so the same seed always produces the same space.
+Most reverb tools top out at RT60 values between 10 and 30 seconds. verbx is designed for extreme decay lengths — up to 3600 seconds — without the numerical instability that typically kills long algorithmic tails. The key is the Feedback Delay Network design: 64-bit internal precision everywhere, per-line gain calibration from the exact RT60-to-gain formula, and a choice of eight feedback matrix families that let you control tail diffusion and decay coloration independently from decay time. At 120 seconds of RT60, you are not simulating any physical space — you are synthesizing a temporal dimension that does not exist acoustically. That's the point. Beyond the algorithmic side, the convolution engine supports true `M x N` matrix routing for multichannel spaces, and the IR synthesis toolchain generates IRs up to 3600 seconds in four modes with deterministic caching so the same seed always produces the same space.
 
 The Schroeder frequency is often approximated as:
 
@@ -285,7 +285,7 @@ $$
 f_s \approx 2000\sqrt{\frac{T_{60}}{V}}
 $$
 
-where $f_s$ is in hertz, $T_{60}$ is RT60 in seconds, and $V$ is room volume in $\mathrm{m}^3$. This is the threshold below which modal behavior dominates over diffuse statistics. For very long tails and large virtual spaces, this boundary sits low in the frequency range, meaning the modal structure of the FDN matters more, not less, than in short-room design. verbx exposes direct control over that structure: matrix type, delay line count, per-band RT60 targets, and time-varying decorrelation rates, so you can design long tails that remain spectrally coherent rather than metallic or ringing.
+where $f_s$ is in hertz, $T_{60}$ is RT60 in seconds, and $V$ is room volume in `m^3`. This is the threshold below which modal behavior dominates over diffuse statistics. For very long tails and large virtual spaces, this boundary sits low in the frequency range, meaning the modal structure of the FDN matters more, not less, than in short-room design. verbx exposes direct control over that structure: matrix type, delay line count, per-band RT60 targets, and time-varying decorrelation rates, so you can design long tails that remain spectrally coherent rather than metallic or ringing.
 
 ---
 
@@ -351,7 +351,7 @@ input
        └─ wet/dry mix → shimmer → bloom/tilt/EQ → loudness → output
 ```
 
-Delay notation: `z^-N` means an integer-sample delay of \(N\) samples.
+Delay notation: `z^-N` means an integer-sample delay of $N$ samples.
 
 **FDN mechanics:** At each sample, the FDN reads from $N$ delay lines, applies per-line damping and DC blocking, multiplies by the gain diagonal $\mathbf{G}$, multiplies by the feedback matrix $\mathbf{M}$, adds the injected excitation from the diffusion stage, and writes back to the delays. The matrix $\mathbf{M}$ must be orthonormal (or nearly so) to preserve energy over long tails; verbx orthonormalizes all matrix families before use. The state update is:
 
@@ -365,13 +365,13 @@ $$
 
 where:
 
-- \(n\) is the discrete-time sample index.
-- \(\mathbf{x}_{\mathrm{fb}}[n]\) is the feedback-state vector before loop conditioning.
-- \(\mathbf{y}[n]\) is the conditioned state after \(\mathbf{D}(\cdot)\).
-- \(\mathbf{D}(\cdot)\) is per-line loop conditioning (damping + DC blocking).
-- \(\mathbf{G}\) is the diagonal RT60 gain matrix with entries \(g_i\).
-- \(\mathbf{M}\) is the orthonormal feedback mixing matrix.
-- \(\mathbf{u}[n]\) is the post-diffusion excitation injected into the loop.
+- $n$ is the discrete-time sample index.
+- $\mathbf{x}_{\mathrm{fb}}[n]$ is the feedback-state vector before loop conditioning.
+- $\mathbf{y}[n]$ is the conditioned state after $\mathbf{D}(\cdot)$.
+- $\mathbf{D}(\cdot)$ is per-line loop conditioning (damping + DC blocking).
+- $\mathbf{G}$ is the diagonal RT60 gain matrix with entries $g_i$.
+- $\mathbf{M}$ is the orthonormal feedback mixing matrix.
+- $\mathbf{u}[n]$ is the post-diffusion excitation injected into the loop.
 
 **FDN gain calibration:** For delay line $i$ with period $d_i$ seconds and target decay $T_{60}$:
 
@@ -385,7 +385,7 @@ Shorter delay lines require gains closer to 1.0. This is computed per line so di
 
 | Matrix | Sound character | Math note |
 |---|---|---|
-| `hadamard` | Even, neutral density | $N \times N$ Walsh-Hadamard; valid for power-of-2 line counts |
+| `hadamard` | Even, neutral density | `N x N` Walsh-Hadamard; valid for power-of-2 line counts |
 | `householder` | Similar to Hadamard, slightly more uniform | Householder reflection matrix |
 | `random_orthogonal` | Unpredictable coloration | QR decomposition of random normal matrix |
 | `circulant` | Periodic, regular resonance | Diagonalized by DFT; controlled frequency-domain structure |
@@ -398,7 +398,7 @@ Shorter delay lines require gains closer to 1.0. This is computed per line so di
 
 | Parameter | Range | What it does | Expert note |
 |---|---|---|---|
-| `--rt60` | 0.1–3600 | Decay time target (seconds) | Drives per-line gain via $g_i = 10^{-3d_i/T_{60}}$ |
+| `--rt60` | 0.1–3600 | Decay time target (seconds) | Drives per-line gain via `g_i = 10^(-3 d_i / T60)` |
 | `--fdn-lines` | 2–64 | Number of delay lines | Higher line counts increase tail density; above 32 the returns diminish |
 | `--fdn-matrix` | see above | Feedback mixing topology | Controls tail texture and energy diffusion pattern |
 | `--allpass-stages` | 0–16 | Early diffusion stages | 4–10 is typical; 0 disables diffusion entirely |
@@ -430,12 +430,12 @@ $$
 
 where:
 
-- \(k\) is the current processing frame index.
-- \(\omega\) is frequency-bin index in the FFT domain.
-- \(P\) is the number of IR partitions.
-- \(X_{k-p}(\omega)\) is the stored input spectrum for frame \(k-p\).
-- \(H_p(\omega)\) is the precomputed spectrum of IR partition \(p\).
-- \(Y_k(\omega)\) is the accumulated output spectrum for frame \(k\).
+- $k$ is the current processing frame index.
+- $\omega$ is frequency-bin index in the FFT domain.
+- $P$ is the number of IR partitions.
+- $X_{k-p}(\omega)$ is the stored input spectrum for frame $k-p$.
+- $H_p(\omega)$ is the precomputed spectrum of IR partition $p$.
+- $Y_k(\omega)$ is the accumulated output spectrum for frame $k$.
 
 `--partition-size` controls the partition length: larger partitions reduce per-block FFT overhead but increase latency and peak memory. 16384–65536 samples is a practical range for offline rendering. With CuPy installed and `--device cuda`, the FFT multiply accumulation runs on GPU.
 
@@ -449,11 +449,11 @@ $$
 
 where:
 
-- \(M\) is input-channel count and \(N\) is output-channel count.
-- \(x_i[n]\) is input channel \(i\).
-- \(h_{i,o}[n]\) is the IR from input channel \(i\) to output channel \(o\).
-- \(y_o[n]\) is output channel \(o\).
-- \(*\) denotes linear convolution.
+- $M$ is input-channel count and $N$ is output-channel count.
+- $x_i[n]$ is input channel $i$.
+- $h_{i,o}[n]$ is the IR from input channel $i$ to output channel $o$.
+- $y_o[n]$ is output channel $o$.
+- $*$ denotes linear convolution.
 
 The IR file must contain $M \times N$ channels packed in output-major order (channel index $oM + i$) or input-major order ($iN + o$). Set `--ir-matrix-layout output-major` or `input-major` accordingly. Wrong packing order produces valid audio but semantically incorrect routing; verify with `verbx analyze` on the output.
 
@@ -575,13 +575,13 @@ Use `--input-layout` and `--output-layout` to declare channel semantics explicit
 For large immersive outputs (`16.0`, `64.4`), set `--ir-route-map` explicitly when the IR is mono or channel-matched to the input. Recommended defaults:
 
 - `--ir-route-map broadcast` for mono/channel-matched IRs
-- `--ir-route-map full` for matrix-packed \(M \times N\) IRs
+- `--ir-route-map full` for matrix-packed `M x N` IRs
 
 Other formats are also easy to support: the routing and DSP paths already operate on arbitrary channel counts, and new symbolic layout names are straightforward to add when you need explicit semantics.
 
 **Ambisonics:** verbx supports First-Order Ambisonics (FOA) with ACN channel ordering and SN3D/N3D/FuMa normalization. Use `--ambi-order 1` to declare FOA mode. `--ambi-encode-from stereo` encodes a stereo input into FOA before processing; `--ambi-decode-to stereo` decodes back out after. `--ambi-rotate-yaw-deg` applies rotation in the Ambisonics domain — useful for spatial orientation of the reverb field relative to a listener position. FUMA is FOA-only; ACN with SN3D is the standard workflow for most Ambisonics toolchains.
 
-**IR matrix routing for surround:** If your IR file contains $M \times N$ channels (for $M$ input and $N$ output channels), declare the packing order with `--ir-matrix-layout`. Output-major packing stores all inputs for output 0 first, then all inputs for output 1, etc. (channel index $oM + i$). Input-major stores all outputs for input 0 first (channel index $iN + o$). A 5.1 input to 5.1 output full-matrix IR has 36 channels; a diagonal (same IR per channel) has 6. The routing is explicit: verbx does not guess.
+**IR matrix routing for surround:** If your IR file contains `M x N` channels (for $M$ input and $N$ output channels), declare the packing order with `--ir-matrix-layout`. Output-major packing stores all inputs for output 0 first, then all inputs for output 1, etc. (channel index $oM + i$). Input-major stores all outputs for input 0 first (channel index $iN + o$). A 5.1 input to 5.1 output full-matrix IR has 36 channels; a diagonal (same IR per channel) has 6. The routing is explicit: verbx does not guess.
 
 ---
 
@@ -657,7 +657,7 @@ curated quick-reference for common switches.
 | Switch | Range | What it does | Expert note |
 |---|---|---|---|
 | `--engine` | algo/conv/auto | Reverb engine | `auto` picks `conv` if IR present, else `algo` |
-| `--rt60` | 0.1–3600 | Decay time (seconds) | Per-line gain via $g_i = 10^{-3d_i/T_{60}}$ |
+| `--rt60` | 0.1–3600 | Decay time (seconds) | Per-line gain via `g_i = 10^(-3 d_i / T60)` |
 | `--wet` | 0–∞ | Wet signal level | Values >1.0 overdrive wet bus intentionally |
 | `--dry` | 0–1 | Dry signal level | |
 | `--pre-delay-ms` | 0–500 | Reverb onset delay (ms) | |
@@ -1267,8 +1267,8 @@ input audio
                       └─ analysis JSON + frames CSV
 ```
 
-Notation: `z^-N` denotes an integer-sample delay of \(N\) samples, \(K\) is
-allpass-stage count, and \(N\) (in `lines 1..N`) is FDN delay-line count.
+Notation: `z^-N` denotes an integer-sample delay of $N$ samples, $K$ is
+allpass-stage count, and $N$ (in `lines 1..N`) is FDN delay-line count.
 
 **Precision:** All DSP — FDN state updates, FFT operations, allpass filters, automation curves, feature vectors, analysis metrics — runs in `float64` internally. Output is downcast at write time according to `--out-subtype`. `verbx render` defaults to HD output (`192000 Hz`, `float32`) unless overridden by `--quality-preset`, `--target-sr`, or `--out-subtype`.
 
