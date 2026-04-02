@@ -171,29 +171,29 @@ links below open each asset directly in the browser's native media player with o
 
 | File | Play | Description |
 |------|------|-------------|
-| [`dry_click.wav`](examples/audio/dry_click.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/dry_click.wav) | One-shot dry click reference for sanity checks |
-| [`dry_click_reverbed.wav`](examples/audio/dry_click_reverbed.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/dry_click_reverbed.wav) | Reverberated click for immediate A/B verification |
-| [`hybrid_ir_short.wav`](examples/audio/hybrid_ir_short.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/hybrid_ir_short.wav) | Short hybrid IR asset used in quick convolution demos |
+| [`dry_click.wav`](examples/audio/dry_click.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/dry_click.wav) | One-shot dry click reference for sanity checks |
+| [`dry_click_reverbed.wav`](examples/audio/dry_click_reverbed.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/dry_click_reverbed.wav) | Reverberated click for immediate A/B verification |
+| [`hybrid_ir_short.wav`](examples/audio/hybrid_ir_short.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/hybrid_ir_short.wav) | Short hybrid IR asset used in quick convolution demos |
 
 ### Realistic dry/wet example pairs
 
 | File | Play | Description |
 |------|------|-------------|
-| [`realistic_speech_dry.wav`](examples/audio/realistic_speech_dry.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/realistic_speech_dry.wav) | Dry speech source used for room and plate examples |
-| [`realistic_speech_room.wav`](examples/audio/realistic_speech_room.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/realistic_speech_room.wav) | Natural speech room render |
-| [`realistic_music_dry.wav`](examples/audio/realistic_music_dry.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/realistic_music_dry.wav) | Dry music source used for ambient and shimmer examples |
-| [`realistic_music_hall.wav`](examples/audio/realistic_music_hall.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/realistic_music_hall.wav) | Natural concert-hall style music render |
-| [`realistic_drums_dry.wav`](examples/audio/realistic_drums_dry.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/realistic_drums_dry.wav) | Dry drum source used for room and cathedral examples |
-| [`realistic_drums_room.wav`](examples/audio/realistic_drums_room.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/realistic_drums_room.wav) | Natural drum room render |
+| [`realistic_speech_dry.wav`](examples/audio/realistic_speech_dry.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_speech_dry.wav) | Dry speech source used for room and plate examples |
+| [`realistic_speech_room.wav`](examples/audio/realistic_speech_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_speech_room.wav) | Natural speech room render |
+| [`realistic_music_dry.wav`](examples/audio/realistic_music_dry.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_music_dry.wav) | Dry music source used for ambient and shimmer examples |
+| [`realistic_music_hall.wav`](examples/audio/realistic_music_hall.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_music_hall.wav) | Natural concert-hall style music render |
+| [`realistic_drums_dry.wav`](examples/audio/realistic_drums_dry.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_drums_dry.wav) | Dry drum source used for room and cathedral examples |
+| [`realistic_drums_room.wav`](examples/audio/realistic_drums_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_drums_room.wav) | Natural drum room render |
 
 ### Extreme range demos
 
 | File | Play | Description | Key settings |
 |------|------|-------------|--------------|
-| [`extreme_cathedral_drums.wav`](examples/audio/extreme_cathedral_drums.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/extreme_cathedral_drums.wav) | Drums → 8s Hadamard FDN cathedral | `--rt60 8.0 --fdn-lines 16 --fdn-matrix hadamard` |
-| [`extreme_shimmer_music.wav`](examples/audio/extreme_shimmer_music.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/extreme_shimmer_music.wav) | Music → 6s reverb with octave shimmer | `--shimmer --shimmer-semitones 12 --shimmer-feedback 0.65` |
-| [`extreme_plate_speech.wav`](examples/audio/extreme_plate_speech.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/extreme_plate_speech.wav) | Speech → circulant FDN plate simulation | `--rt60 1.8 --fdn-matrix circulant --lowcut 200 --highcut 6000` |
-| [`extreme_frozen_music.wav`](examples/audio/extreme_frozen_music.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/extreme_frozen_music.wav) | Music → 30s near-infinite tail (32-line FDN) | `--rt60 30.0 --fdn-lines 32 --wet 0.95` |
+| [`extreme_cathedral_drums.wav`](examples/audio/extreme_cathedral_drums.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/extreme_cathedral_drums.wav) | Drums → 8s Hadamard FDN cathedral | `--rt60 8.0 --fdn-lines 16 --fdn-matrix hadamard` |
+| [`extreme_shimmer_music.wav`](examples/audio/extreme_shimmer_music.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/extreme_shimmer_music.wav) | Music → 6s reverb with octave shimmer | `--shimmer --shimmer-semitones 12 --shimmer-feedback 0.65` |
+| [`extreme_plate_speech.wav`](examples/audio/extreme_plate_speech.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/extreme_plate_speech.wav) | Speech → circulant FDN plate simulation | `--rt60 1.8 --fdn-matrix circulant --lowcut 200 --highcut 6000` |
+| [`extreme_frozen_music.wav`](examples/audio/extreme_frozen_music.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/extreme_frozen_music.wav) | Music → 30s near-infinite tail (32-line FDN) | `--rt60 30.0 --fdn-lines 32 --wet 0.95` |
 
 ### Experimental music tradition demos
 
@@ -202,14 +202,14 @@ different reverb behavior or aesthetic.
 
 | File | Play | Inspiration | What to listen for |
 |------|------|-------------|-------------------|
-| [`lucier_sitting_room.wav`](examples/audio/lucier_sitting_room.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/lucier_sitting_room.wav) | Alvin Lucier — *I Am Sitting in a Room* | Speech run through the room 7× until only resonant frequencies survive |
-| [`eno_discreet_music.wav`](examples/audio/eno_discreet_music.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/eno_discreet_music.wav) | Brian Eno — *Discreet Music* / Ambient series | 12s tail swallowing the source into a continuous wash |
-| [`oliveros_deep_listening.wav`](examples/audio/oliveros_deep_listening.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/oliveros_deep_listening.wav) | Pauline Oliveros — *Deep Listening* | 18s cave-scale resonance, very low damping, 32-line FDN |
-| [`fripp_frippertronics.wav`](examples/audio/fripp_frippertronics.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/fripp_frippertronics.wav) | Robert Fripp — Frippertronics tape-loop | Octave shimmer with 0.78 feedback accumulating over 8s |
-| [`mbv_shoegaze.wav`](examples/audio/mbv_shoegaze.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/mbv_shoegaze.wav) | My Bloody Valentine — *Loveless* wall of sound | Dense shimmer wash (mix 0.55) through circulant FDN |
-| [`reich_phase_drums.wav`](examples/audio/reich_phase_drums.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/reich_phase_drums.wav) | Steve Reich — phase minimalism | Tight 0.7s room on percussion, circulant diffusion |
-| [`radigue_drone.wav`](examples/audio/radigue_drone.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/radigue_drone.wav) | Eliane Radigue — *ADNOS* / drone electronics | 45s near-infinite sustain, 32-line Hadamard, wet 0.97 |
-| [`feldman_sparse_room.wav`](examples/audio/feldman_sparse_room.wav) | [Play](https://github.com/TheColby/verbx/raw/main/examples/audio/feldman_sparse_room.wav) | Morton Feldman — late period | 3.8s room, low wet (0.52), allpass diffusion, contemplative space |
+| [`lucier_sitting_room.wav`](examples/audio/lucier_sitting_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/lucier_sitting_room.wav) | Alvin Lucier — *I Am Sitting in a Room* | Speech run through the room 7× until only resonant frequencies survive |
+| [`eno_discreet_music.wav`](examples/audio/eno_discreet_music.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/eno_discreet_music.wav) | Brian Eno — *Discreet Music* / Ambient series | 12s tail swallowing the source into a continuous wash |
+| [`oliveros_deep_listening.wav`](examples/audio/oliveros_deep_listening.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/oliveros_deep_listening.wav) | Pauline Oliveros — *Deep Listening* | 18s cave-scale resonance, very low damping, 32-line FDN |
+| [`fripp_frippertronics.wav`](examples/audio/fripp_frippertronics.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/fripp_frippertronics.wav) | Robert Fripp — Frippertronics tape-loop | Octave shimmer with 0.78 feedback accumulating over 8s |
+| [`mbv_shoegaze.wav`](examples/audio/mbv_shoegaze.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/mbv_shoegaze.wav) | My Bloody Valentine — *Loveless* wall of sound | Dense shimmer wash (mix 0.55) through circulant FDN |
+| [`reich_phase_drums.wav`](examples/audio/reich_phase_drums.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/reich_phase_drums.wav) | Steve Reich — phase minimalism | Tight 0.7s room on percussion, circulant diffusion |
+| [`radigue_drone.wav`](examples/audio/radigue_drone.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/radigue_drone.wav) | Eliane Radigue — *ADNOS* / drone electronics | 45s near-infinite sustain, 32-line Hadamard, wet 0.97 |
+| [`feldman_sparse_room.wav`](examples/audio/feldman_sparse_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/feldman_sparse_room.wav) | Morton Feldman — late period | 3.8s room, low wet (0.52), allpass diffusion, contemplative space |
 
 Dry source files are in the same directory. See [`examples/audio/README.md`](examples/audio/README.md) for the full render commands.
 
