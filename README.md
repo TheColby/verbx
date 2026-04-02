@@ -162,7 +162,7 @@ metrics = analyze_file("wet.wav", include_loudness=True)
 
 ## Audio Examples
 
-Rendered examples are included in [`examples/audio/`](examples/audio/). All files are stereo, 24 kHz, PCM16.
+Rendered examples are included in [`examples/audio/`](examples/audio/). The pack is now delivered at 48 kHz, PCM24. Most examples are stereo; the utility click and short hybrid IR files are mono. The shimmer-heavy examples were re-rendered at this higher rate specifically to remove the grit from the older 24 kHz / PCM16 pack.
 
 GitHub repository README pages do not provide reliable inline audio controls. The `Play`
 links below open each asset directly in the browser's native media player with one click.

@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
-"""Generate realistic-ish demo program material and reverb examples.
+"""Generate the full verbx audio example pack.
 
-This script creates three dry sources:
-- speech-like
-- harmonic music-like
-- drum-loop-like
+This script creates deterministic dry sources plus the rendered example assets used
+throughout the README and docs. The delivery spec is intentionally fixed at a
+higher-quality format than the original launch pack:
 
-It then renders reverb versions using verbx so docs can link to concrete,
-audible examples without requiring users to source input content first.
+- 48 kHz sample rate
+- 24-bit PCM WAV
+
+The original script only covered the "realistic" subset. It now owns the whole
+example pack so the repo has one canonical regeneration path instead of a pile
+of hand-tweaked artifacts.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from dataclasses import asdict
 from pathlib import Path
@@ -21,8 +25,18 @@ from typing import Any
 import numpy as np
 import soundfile as sf
 
+from verbx.api import generate_ir
 from verbx.config import RenderConfig
 from verbx.core.pipeline import run_render_pipeline
+from verbx.ir.generator import IRGenConfig
+
+OUTPUT_SUBTYPES = {
+    "pcm16": "PCM_16",
+    "pcm24": "PCM_24",
+    "pcm32": "PCM_32",
+    "float32": "FLOAT",
+    "float64": "DOUBLE",
+}
 
 
 def _parse_args() -> argparse.Namespace:
@@ -36,14 +50,14 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--sample-rate",
         type=int,
-        default=24_000,
-        help="Sample rate for synthesized dry material.",
+        default=48_000,
+        help="Output sample rate for the example pack.",
     )
     parser.add_argument(
         "--duration-s",
         type=float,
         default=5.5,
-        help="Duration in seconds for each dry example.",
+        help="Duration in seconds for each synthesized dry example.",
     )
     parser.add_argument(
         "--seed",
@@ -52,9 +66,21 @@ def _parse_args() -> argparse.Namespace:
         help="Deterministic RNG seed.",
     )
     parser.add_argument(
+        "--output-subtype",
+        choices=sorted(OUTPUT_SUBTYPES.keys()),
+        default="pcm24",
+        help="Output subtype for the written examples.",
+    )
+    parser.add_argument(
+        "--peak-target-dbfs",
+        type=float,
+        default=-2.0,
+        help="Target sample-peak normalization applied to rendered wet examples.",
+    )
+    parser.add_argument(
         "--skip-renders",
         action="store_true",
-        help="Only write dry source examples and metadata.",
+        help="Only write dry source examples, utility files, IR, and metadata scaffolding.",
     )
     return parser.parse_args()
 
@@ -68,116 +94,399 @@ def _main() -> int:
     sr = int(max(8_000, args.sample_rate))
     duration_s = float(max(1.0, args.duration_s))
     seed = int(args.seed)
+    output_subtype = str(args.output_subtype)
+    peak_target_dbfs = float(args.peak_target_dbfs)
     rng = np.random.default_rng(seed)
 
     dry_sources: dict[str, np.ndarray] = {
+        "dry_click.wav": _synth_dry_click(sr=sr, seconds=2.0),
         "realistic_speech_dry.wav": _synth_speech_like(sr=sr, seconds=duration_s, rng=rng),
         "realistic_music_dry.wav": _synth_music_like(sr=sr, seconds=duration_s, rng=rng),
         "realistic_drums_dry.wav": _synth_drums_like(sr=sr, seconds=duration_s, rng=rng),
     }
-
     for filename, audio in dry_sources.items():
-        _write_wav(out_dir / filename, audio, sr)
+        _write_audio_file(out_dir / filename, audio, sr, output_subtype)
 
-    wet_assets: list[dict[str, Any]] = []
+    ir_audio, ir_sr, ir_meta = generate_ir(
+        IRGenConfig(
+            mode="hybrid",
+            length=1.5,
+            sr=sr,
+            channels=1,
+            seed=seed + 17,
+            rt60=1.1,
+            damping=0.5,
+            diffusion=0.6,
+            normalize="peak",
+            peak_dbfs=peak_target_dbfs,
+        )
+    )
+    _write_audio_file(out_dir / "hybrid_ir_short.wav", ir_audio, ir_sr, output_subtype)
+
+    render_events: list[dict[str, Any]] = []
     if not bool(args.skip_renders):
-        render_plan = [
-            (
-                out_dir / "realistic_speech_room.wav",
-                out_dir / "realistic_speech_dry.wav",
-                RenderConfig(
-                    engine="algo",
-                    rt60=2.1,
-                    wet=0.46,
-                    dry=0.84,
-                    pre_delay_ms=22.0,
-                    damping=0.52,
-                    width=1.15,
-                    fdn_matrix="hadamard",
-                    output_subtype="pcm16",
-                    normalize_stage="none",
-                    output_peak_norm="input",
-                    silent=True,
-                    progress=False,
-                ),
-            ),
-            (
-                out_dir / "realistic_music_hall.wav",
-                out_dir / "realistic_music_dry.wav",
-                RenderConfig(
-                    engine="conv",
-                    ir=str((repo_root / "IRs/ir_hybrid_60s.flac").resolve()),
-                    wet=0.58,
-                    dry=0.74,
-                    tail_limit=3.5,
-                    partition_size=8192,
-                    output_subtype="pcm16",
-                    normalize_stage="none",
-                    output_peak_norm="input",
-                    silent=True,
-                    progress=False,
-                ),
-            ),
-            (
-                out_dir / "realistic_drums_room.wav",
-                out_dir / "realistic_drums_dry.wav",
-                RenderConfig(
-                    engine="algo",
-                    rt60=1.05,
-                    wet=0.34,
-                    dry=0.92,
-                    pre_delay_ms=9.0,
-                    damping=0.63,
-                    width=1.02,
-                    fdn_matrix="householder",
-                    output_subtype="pcm16",
-                    normalize_stage="none",
-                    output_peak_norm="input",
-                    silent=True,
-                    progress=False,
-                ),
-            ),
-        ]
-        for outfile, infile, config in render_plan:
+        for outfile_name, infile_name, config in _render_plan(
+            repo_root=repo_root,
+            sr=sr,
+            output_subtype=output_subtype,
+            peak_target_dbfs=peak_target_dbfs,
+        ):
+            outfile = out_dir / outfile_name
+            infile = out_dir / infile_name
             run_render_pipeline(infile=infile, outfile=outfile, config=config)
-            wet_assets.append(
+            render_events.append(
                 {
-                    "file": outfile.name,
-                    "source": infile.name,
-                    "engine": config.engine,
+                    "file": outfile_name,
+                    "source": infile_name,
                     "config": _render_config_snapshot(config),
                 }
             )
 
-    metadata = {
+    full_manifest = {
         "generated_by": "scripts/generate_realistic_audio_examples.py",
         "seed": seed,
         "sample_rate": sr,
+        "output_subtype": output_subtype,
+        "peak_target_dbfs": peak_target_dbfs,
         "duration_seconds": duration_s,
         "dry_assets": sorted(dry_sources.keys()),
-        "wet_assets": wet_assets,
+        "utility_assets": ["hybrid_ir_short.wav"],
+        "rendered_assets": render_events,
+        "files": _collect_audio_metadata(out_dir),
+        "hybrid_ir": {
+            "file": "hybrid_ir_short.wav",
+            "meta": ir_meta,
+        },
     }
-    (out_dir / "realistic_examples.meta.json").write_text(
-        json.dumps(metadata, indent=2),
+    (out_dir / "example_pack.meta.json").write_text(
+        json.dumps(full_manifest, indent=2),
         encoding="utf-8",
     )
-    print(f"Wrote realistic audio examples to: {out_dir}")
+
+    realistic_manifest = {
+        "generated_by": "scripts/generate_realistic_audio_examples.py",
+        "seed": seed,
+        "sample_rate": sr,
+        "output_subtype": output_subtype,
+        "peak_target_dbfs": peak_target_dbfs,
+        "duration_seconds": duration_s,
+        "dry_assets": [
+            "realistic_drums_dry.wav",
+            "realistic_music_dry.wav",
+            "realistic_speech_dry.wav",
+        ],
+        "wet_assets": [
+            event
+            for event in render_events
+            if event["file"]
+            in {
+                "realistic_speech_room.wav",
+                "realistic_music_hall.wav",
+                "realistic_drums_room.wav",
+            }
+        ],
+    }
+    (out_dir / "realistic_examples.meta.json").write_text(
+        json.dumps(realistic_manifest, indent=2),
+        encoding="utf-8",
+    )
+
+    print(f"Wrote audio example pack to: {out_dir}")
     return 0
 
 
-def _write_wav(path: Path, audio: np.ndarray, sr: int) -> None:
+def _render_plan(
+    *,
+    repo_root: Path,
+    sr: int,
+    output_subtype: str,
+    peak_target_dbfs: float,
+) -> list[tuple[str, str, RenderConfig]]:
+    base: dict[str, Any] = {
+        "target_sr": sr,
+        "output_subtype": output_subtype,
+        "normalize_stage": "none",
+        "output_peak_norm": "target",
+        "output_peak_target_dbfs": peak_target_dbfs,
+        "silent": True,
+        "progress": False,
+    }
+    return [
+        (
+            "dry_click_reverbed.wav",
+            "dry_click.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=1.35,
+                wet=1.0,
+                dry=0.0,
+                pre_delay_ms=0.0,
+                damping=0.58,
+                width=0.0,
+                fdn_lines=8,
+                fdn_matrix="hadamard",
+                **base,
+            ),
+        ),
+        (
+            "realistic_speech_room.wav",
+            "realistic_speech_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=2.1,
+                wet=0.46,
+                dry=0.84,
+                pre_delay_ms=22.0,
+                damping=0.52,
+                width=1.15,
+                fdn_matrix="hadamard",
+                **base,
+            ),
+        ),
+        (
+            "realistic_music_hall.wav",
+            "realistic_music_dry.wav",
+            RenderConfig(
+                engine="conv",
+                ir=str((repo_root / "IRs/ir_hybrid_60s.flac").resolve()),
+                wet=0.58,
+                dry=0.74,
+                tail_limit=3.5,
+                partition_size=8192,
+                **base,
+            ),
+        ),
+        (
+            "realistic_drums_room.wav",
+            "realistic_drums_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=1.05,
+                wet=0.34,
+                dry=0.92,
+                pre_delay_ms=9.0,
+                damping=0.63,
+                width=1.02,
+                fdn_matrix="householder",
+                **base,
+            ),
+        ),
+        (
+            "extreme_cathedral_drums.wav",
+            "realistic_drums_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=8.0,
+                wet=0.85,
+                dry=0.25,
+                pre_delay_ms=45.0,
+                fdn_lines=16,
+                fdn_matrix="hadamard",
+                lowcut=80.0,
+                highcut=12_000.0,
+                **base,
+            ),
+        ),
+        (
+            "extreme_shimmer_music.wav",
+            "realistic_music_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=6.0,
+                wet=0.8,
+                dry=0.3,
+                shimmer=True,
+                shimmer_semitones=12.0,
+                shimmer_mix=0.35,
+                shimmer_feedback=0.65,
+                pre_delay_ms=30.0,
+                fdn_lines=16,
+                **base,
+            ),
+        ),
+        (
+            "extreme_plate_speech.wav",
+            "realistic_speech_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=1.8,
+                wet=0.7,
+                dry=0.4,
+                fdn_matrix="circulant",
+                lowcut=200.0,
+                highcut=6_000.0,
+                pre_delay_ms=12.0,
+                **base,
+            ),
+        ),
+        (
+            "extreme_frozen_music.wav",
+            "realistic_music_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=30.0,
+                wet=0.95,
+                dry=0.1,
+                fdn_lines=32,
+                pre_delay_ms=60.0,
+                fdn_matrix="hadamard",
+                **base,
+            ),
+        ),
+        (
+            "lucier_sitting_room.wav",
+            "realistic_speech_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=4.5,
+                wet=1.0,
+                dry=0.0,
+                fdn_lines=16,
+                fdn_matrix="hadamard",
+                repeat=7,
+                lowcut=60.0,
+                **base,
+            ),
+        ),
+        (
+            "eno_discreet_music.wav",
+            "realistic_music_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=12.0,
+                wet=0.92,
+                dry=0.08,
+                fdn_lines=16,
+                fdn_matrix="hadamard",
+                pre_delay_ms=35.0,
+                damping=0.25,
+                lowcut=50.0,
+                **base,
+            ),
+        ),
+        (
+            "oliveros_deep_listening.wav",
+            "realistic_music_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=18.0,
+                wet=0.95,
+                dry=0.10,
+                fdn_lines=32,
+                fdn_matrix="hadamard",
+                pre_delay_ms=55.0,
+                damping=0.15,
+                lowcut=30.0,
+                **base,
+            ),
+        ),
+        (
+            "fripp_frippertronics.wav",
+            "realistic_music_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=8.0,
+                wet=0.82,
+                dry=0.28,
+                fdn_lines=16,
+                fdn_matrix="hadamard",
+                shimmer=True,
+                shimmer_semitones=12.0,
+                shimmer_mix=0.45,
+                shimmer_feedback=0.78,
+                pre_delay_ms=25.0,
+                **base,
+            ),
+        ),
+        (
+            "mbv_shoegaze.wav",
+            "realistic_music_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=5.0,
+                wet=0.88,
+                dry=0.22,
+                fdn_lines=16,
+                fdn_matrix="circulant",
+                shimmer=True,
+                shimmer_semitones=12.0,
+                shimmer_mix=0.55,
+                shimmer_feedback=0.72,
+                pre_delay_ms=8.0,
+                lowcut=80.0,
+                **base,
+            ),
+        ),
+        (
+            "reich_phase_drums.wav",
+            "realistic_drums_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=0.7,
+                wet=0.55,
+                dry=0.50,
+                fdn_lines=8,
+                fdn_matrix="circulant",
+                pre_delay_ms=18.0,
+                damping=0.6,
+                lowcut=60.0,
+                **base,
+            ),
+        ),
+        (
+            "radigue_drone.wav",
+            "realistic_music_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=45.0,
+                wet=0.97,
+                dry=0.05,
+                fdn_lines=32,
+                fdn_matrix="hadamard",
+                damping=0.10,
+                lowcut=20.0,
+                **base,
+            ),
+        ),
+        (
+            "feldman_sparse_room.wav",
+            "realistic_music_dry.wav",
+            RenderConfig(
+                engine="algo",
+                rt60=3.8,
+                wet=0.52,
+                dry=0.52,
+                fdn_lines=8,
+                fdn_matrix="circulant",
+                pre_delay_ms=30.0,
+                damping=0.50,
+                allpass_stages=4,
+                **base,
+            ),
+        ),
+    ]
+
+
+def _write_audio_file(path: Path, audio: np.ndarray, sr: int, subtype_mode: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    subtype = _resolve_sf_subtype(subtype_mode)
     sf.write(
         str(path),
         np.asarray(audio, dtype=np.float64),
         int(sr),
-        subtype="PCM_16",
+        subtype=subtype,
     )
+
+
+def _resolve_sf_subtype(mode: str) -> str:
+    try:
+        return OUTPUT_SUBTYPES[mode]
+    except KeyError as exc:  # pragma: no cover - argparse keeps this honest.
+        raise ValueError(f"unsupported output subtype mode: {mode}") from exc
 
 
 def _render_config_snapshot(config: RenderConfig) -> dict[str, Any]:
     payload = asdict(config)
-    # Keep metadata compact and useful; no one needs 100 fields for demo provenance.
     keys = (
         "engine",
         "rt60",
@@ -186,12 +495,47 @@ def _render_config_snapshot(config: RenderConfig) -> dict[str, Any]:
         "pre_delay_ms",
         "damping",
         "width",
+        "fdn_lines",
         "fdn_matrix",
+        "shimmer",
+        "shimmer_mix",
+        "shimmer_feedback",
+        "lowcut",
+        "highcut",
         "ir",
         "tail_limit",
         "partition_size",
+        "target_sr",
+        "output_subtype",
+        "output_peak_norm",
+        "output_peak_target_dbfs",
     )
     return {key: payload.get(key) for key in keys}
+
+
+def _collect_audio_metadata(out_dir: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for path in sorted(out_dir.glob("*.wav")):
+        info = sf.info(str(path))
+        rows.append(
+            {
+                "file": path.name,
+                "sample_rate": int(info.samplerate),
+                "channels": int(info.channels),
+                "subtype": str(info.subtype),
+                "seconds": float(info.duration),
+                "sha256": _sha256_file(path),
+            }
+        )
+    return rows
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _safe_normalize(audio: np.ndarray, target_peak: float = 0.90) -> np.ndarray:
@@ -200,6 +544,13 @@ def _safe_normalize(audio: np.ndarray, target_peak: float = 0.90) -> np.ndarray:
     if peak <= 1e-12:
         return np.zeros_like(x, dtype=np.float64)
     return np.asarray((target_peak / peak) * x, dtype=np.float64)
+
+
+def _synth_dry_click(*, sr: int, seconds: float) -> np.ndarray:
+    n = max(8, int(sr * seconds))
+    click = np.zeros(n, dtype=np.float64)
+    click[0] = 0.80
+    return click
 
 
 def _synth_speech_like(
@@ -215,11 +566,11 @@ def _synth_speech_like(
 
     vowels = np.asarray(
         [
-            [730.0, 1090.0, 2440.0],  # /a/
-            [530.0, 1840.0, 2480.0],  # /e/
-            [300.0, 2200.0, 3000.0],  # /i/
-            [570.0, 840.0, 2410.0],  # /o/
-            [440.0, 1020.0, 2240.0],  # /u/
+            [730.0, 1090.0, 2440.0],
+            [530.0, 1840.0, 2480.0],
+            [300.0, 2200.0, 3000.0],
+            [570.0, 840.0, 2410.0],
+            [440.0, 1020.0, 2240.0],
         ],
         dtype=np.float64,
     )
@@ -272,7 +623,6 @@ def _synth_music_like(
     def midi_to_hz(midi: float) -> float:
         return float(440.0 * np.power(2.0, (midi - 69.0) / 12.0))
 
-    # Four-chord loop with gentle inversions for a realistic pad/pluck hybrid vibe.
     progression = [
         (0.00, [57, 60, 64, 67]),
         (1.35, [55, 59, 62, 67]),

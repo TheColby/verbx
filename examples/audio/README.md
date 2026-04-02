@@ -2,13 +2,20 @@
 
 This folder contains tiny demo assets for quick listening and verification.
 
+Delivery spec for the current pack:
+
+- 48 kHz sample rate
+- 24-bit PCM WAV
+- most files stereo; `dry_click.wav`, `dry_click_reverbed.wav`, and `hybrid_ir_short.wav` are mono
+- rendered wet examples normalized to `-2 dBFS` peak to avoid the crusty edge of the older launch pack
+
 ## Included files
 
 - `dry_click.wav`: one-shot dry click reference.
 - `dry_click_reverbed.wav`: click rendered with reverb for sanity-check playback.
 - `hybrid_ir_short.wav`: short IR asset used in quick convolution demos.
 
-Realistic example set (all stereo, 24 kHz, PCM16):
+Realistic example set:
 
 - `realistic_speech_dry.wav`
 - `realistic_speech_room.wav`
@@ -17,6 +24,7 @@ Realistic example set (all stereo, 24 kHz, PCM16):
 - `realistic_drums_dry.wav`
 - `realistic_drums_room.wav`
 - `realistic_examples.meta.json` (generation parameters and render snapshots)
+- `example_pack.meta.json` (full-pack file list, subtype/sample-rate info, SHA256s)
 
 Extreme example set — showcasing verbx's signature sound design range:
 
@@ -26,6 +34,12 @@ Extreme example set — showcasing verbx's signature sound design range:
 - `extreme_frozen_music.wav`: music through 30s Hadamard FDN with near-infinite tail (32-line, 60ms pre-delay)
 
 Commands used to generate these (from repo root):
+
+All rendered examples below were generated with this delivery suffix in addition to the effect-specific flags shown:
+
+```bash
+--target-sr 48000 --out-subtype pcm24 --output-peak-norm target --output-peak-target-dbfs -2
+```
 
 ```bash
 verbx render examples/audio/realistic_drums_dry.wav examples/audio/extreme_cathedral_drums.wav \
@@ -97,7 +111,7 @@ verbx render examples/audio/realistic_music_dry.wav examples/audio/feldman_spars
   --fdn-lines 8 --fdn-matrix circulant --pre-delay-ms 30 --damping 0.50 --allpass-stages 4
 ```
 
-## Regenerate realistic examples
+## Regenerate the example pack
 
 From repo root:
 

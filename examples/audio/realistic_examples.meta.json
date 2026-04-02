@@ -1,7 +1,9 @@
 {
   "generated_by": "scripts/generate_realistic_audio_examples.py",
   "seed": 20260314,
-  "sample_rate": 24000,
+  "sample_rate": 48000,
+  "output_subtype": "pcm24",
+  "peak_target_dbfs": -2.0,
   "duration_seconds": 5.5,
   "dry_assets": [
     "realistic_drums_dry.wav",
@@ -12,7 +14,6 @@
     {
       "file": "realistic_speech_room.wav",
       "source": "realistic_speech_dry.wav",
-      "engine": "algo",
       "config": {
         "engine": "algo",
         "rt60": 2.1,
@@ -21,16 +22,25 @@
         "pre_delay_ms": 22.0,
         "damping": 0.52,
         "width": 1.15,
+        "fdn_lines": 8,
         "fdn_matrix": "hadamard",
+        "shimmer": false,
+        "shimmer_mix": 0.25,
+        "shimmer_feedback": 0.35,
+        "lowcut": null,
+        "highcut": null,
         "ir": null,
         "tail_limit": null,
-        "partition_size": 16384
+        "partition_size": 16384,
+        "target_sr": 48000,
+        "output_subtype": "pcm24",
+        "output_peak_norm": "target",
+        "output_peak_target_dbfs": -2.0
       }
     },
     {
       "file": "realistic_music_hall.wav",
       "source": "realistic_music_dry.wav",
-      "engine": "conv",
       "config": {
         "engine": "conv",
         "rt60": 60.0,
@@ -39,16 +49,25 @@
         "pre_delay_ms": 20.0,
         "damping": 0.45,
         "width": 1.0,
+        "fdn_lines": 8,
         "fdn_matrix": "hadamard",
+        "shimmer": false,
+        "shimmer_mix": 0.25,
+        "shimmer_feedback": 0.35,
+        "lowcut": null,
+        "highcut": null,
         "ir": "/Users/cleider/dev/verbx/IRs/ir_hybrid_60s.flac",
         "tail_limit": 3.5,
-        "partition_size": 8192
+        "partition_size": 8192,
+        "target_sr": 48000,
+        "output_subtype": "pcm24",
+        "output_peak_norm": "target",
+        "output_peak_target_dbfs": -2.0
       }
     },
     {
       "file": "realistic_drums_room.wav",
       "source": "realistic_drums_dry.wav",
-      "engine": "algo",
       "config": {
         "engine": "algo",
         "rt60": 1.05,
@@ -57,10 +76,20 @@
         "pre_delay_ms": 9.0,
         "damping": 0.63,
         "width": 1.02,
+        "fdn_lines": 8,
         "fdn_matrix": "householder",
+        "shimmer": false,
+        "shimmer_mix": 0.25,
+        "shimmer_feedback": 0.35,
+        "lowcut": null,
+        "highcut": null,
         "ir": null,
         "tail_limit": null,
-        "partition_size": 16384
+        "partition_size": 16384,
+        "target_sr": 48000,
+        "output_subtype": "pcm24",
+        "output_peak_norm": "target",
+        "output_peak_target_dbfs": -2.0
       }
     }
   ]
