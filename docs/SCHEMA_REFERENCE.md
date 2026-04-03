@@ -2,7 +2,15 @@
 
 JSON and CSV format specifications for batch manifests and automation files.
 
-_Current as of v0.7.6._
+_Current as of v0.7.7._
+
+Notes for `v0.7.7`:
+
+- Batch manifests map to the offline `verbx render` surface.
+- Realtime device selection (`verbx realtime`, `--input-device`, `--output-device`)
+  is CLI/session state and is not represented in these schemas.
+- Render reports are produced internally by a typed `RenderReport` object, but
+  the written JSON remains backward-compatible dictionary-style output.
 
 ---
 

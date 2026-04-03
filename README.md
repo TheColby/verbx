@@ -241,11 +241,12 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.7.6**.
+Current public alpha release: **v0.7.7**.
 
 - `verbx` is currently research-grade software (public alpha), not production-certified.
 - Confirm your environment with `verbx quickstart --verify --strict` and `verbx doctor`.
 - Verify one algorithmic render and one convolution render before batch usage.
+- For live monitoring, verify `verbx realtime --list-devices` before relying on realtime auditioning.
 - For reproducible reports and bug submissions, attach `--repro-bundle` outputs and `verbx doctor --json-out doctor.json`.
 - For demo-ready outputs, keep `--true-peak --target-peak-dbfs -1` enabled when files will be transcoded.
 - Public alpha scope, known limitations, and support paths:
@@ -1411,4 +1412,4 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.7.6 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.7.7 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.

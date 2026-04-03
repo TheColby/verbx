@@ -1,6 +1,6 @@
 # verbx Roadmap
 
-_Last updated: 2026-04-02. Maintained with `README.md` and `CHANGELOG.md`._
+_Last updated: 2026-04-03. Maintained with `README.md` and `CHANGELOG.md`._
 
 ---
 
@@ -12,7 +12,8 @@ _Last updated: 2026-04-02. Maintained with `README.md` and `CHANGELOG.md`._
 
 verbx currently ships dual-engine reverb, deterministic automation/feature
 control, immersive QC/handoff, reproducibility tooling, f64 internal DSP,
-experimental dereverberation workflows, and a room size estimator.
+experimental dereverberation workflows, a room size estimator, and initial
+CLI-selectable realtime duplex auditioning.
 
 ---
 
@@ -28,6 +29,7 @@ Patch line opened 2026-03-30. Items below are the active focus.
 - [x] Extract algorithmic proxy IR generation into `src/verbx/core/algo_proxy.py` so offline streaming and realtime monitoring share one implementation.
 - [x] Add an initial command-module split under `src/verbx/commands/` with `realtime.py` as the first standalone command surface.
 - [x] Add initial realtime duplex monitoring with CLI-selectable input/output devices and algorithmic-proxy or convolution live engines.
+- [x] Update README, CLI reference, and release/support docs for the refactor and realtime command surface.
 - [ ] Decompose `cli.py` (8 376 lines) into per-command submodules under `src/verbx/commands/`.
 - [ ] Decompose `RenderConfig` (162 fields) into composed sub-configs (`FDNConfig`, `AutomationConfig`, `SpatialConfig`, `StreamingConfig`).
 - [ ] Decompose `run_render_pipeline` (~640 lines) into explicit pipeline stages.
@@ -70,6 +72,7 @@ released/public-alpha tool during the transition.
 - [x] Land native source tree and build entrypoint (`native/verbx_c/`, `scripts/build_verbx_c.sh`).
 - [x] Establish standalone executable identity (`verbx-c`) and minimal CLI surface.
 - [ ] Define native error model, logging model, and deterministic offline process contract.
+- [ ] Decide whether realtime audio belongs in the native line immediately or remains Python-only during transition.
 
 ### 4.2 Audio Runtime
 
