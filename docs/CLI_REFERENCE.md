@@ -938,11 +938,21 @@ Do not edit manually.
 │                                                       Defaults to mono or    │
 │                                                       stereo depending on    │
 │                                                       device.                │
+│ --input-channel-map           TEXT                    Comma-separated        │
+│                                                       1-based hardware input │
+│                                                       channels to feed the   │
+│                                                       processor, for example │
+│                                                       1,3 or 1,3,5,7.        │
 │ --output-channels             INTEGER RANGE [x>=1]    Requested live output  │
 │                                                       channel count.         │
 │                                                       Defaults to the        │
 │                                                       processor's natural    │
 │                                                       output width.          │
+│ --output-channel-map          TEXT                    Comma-separated        │
+│                                                       1-based hardware       │
+│                                                       output channels that   │
+│                                                       receive processor      │
+│                                                       outputs, in order.     │
 │ --duration                    FLOAT RANGE [x>=0.0]    Optional duration in   │
 │                                                       seconds. Omit to run   │
 │                                                       until Ctrl-C.          │

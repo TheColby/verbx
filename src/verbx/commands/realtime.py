@@ -29,6 +29,7 @@ from verbx.io.realtime import (
     RealtimeDeviceInfo,
     RealtimeSessionSummary,
     list_audio_devices,
+    parse_channel_map,
     resolve_audio_device,
     run_realtime_duplex,
 )
@@ -150,6 +151,14 @@ def realtime(
         min=1,
         help="Requested live input channel count. Defaults to mono or stereo depending on device.",
     ),
+    input_channel_map: str | None = typer.Option(
+        None,
+        "--input-channel-map",
+        help=(
+            "Comma-separated 1-based hardware input channels to feed the processor, "
+            "for example 1,3 or 1,3,5,7."
+        ),
+    ),
     output_channels: int | None = typer.Option(
         None,
         "--output-channels",
@@ -157,6 +166,14 @@ def realtime(
         help=(
             "Requested live output channel count. Defaults to the processor's "
             "natural output width."
+        ),
+    ),
+    output_channel_map: str | None = typer.Option(
+        None,
+        "--output-channel-map",
+        help=(
+            "Comma-separated 1-based hardware output channels that receive processor "
+            "outputs, in order."
         ),
     ),
     duration: float | None = typer.Option(
@@ -348,6 +365,17 @@ def realtime(
         output_info = resolve_audio_device(selector=output_device, kind="output", devices=devices)
     except (RuntimeError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
+    try:
+        parsed_input_channel_map = parse_channel_map(
+            input_channel_map,
+            option_name="--input-channel-map",
+        )
+        parsed_output_channel_map = parse_channel_map(
+            output_channel_map,
+            option_name="--output-channel-map",
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
     parsed_allpass_delays = _parse_delay_list_ms(
         allpass_delays_ms,
@@ -367,7 +395,11 @@ def realtime(
         fdn_dfm_delays_ms,
         option_name="--fdn-dfm-delays-ms",
     )
-    resolved_input_channels = _resolve_input_channels(input_channels, input_info)
+    resolved_input_channels = _resolve_input_channels(
+        requested=input_channels,
+        requested_map=parsed_input_channel_map,
+        device=input_info,
+    )
     realtime_config = RenderConfig(
         engine=engine,
         rt60=float(rt60),
@@ -460,6 +492,7 @@ def realtime(
     )
     resolved_output_channels = _resolve_output_channels(
         requested=output_channels,
+        requested_map=parsed_output_channel_map,
         output_device=output_info,
         processor_channels=int(processor.output_channels),
     )
@@ -472,6 +505,8 @@ def realtime(
             block_size=int(block_size),
             input_channels=resolved_input_channels,
             output_channels=resolved_output_channels,
+            input_channel_map=parsed_input_channel_map,
+            output_channel_map=parsed_output_channel_map,
             engine_summary=engine_summary,
             duration=duration,
         )
@@ -485,6 +520,8 @@ def realtime(
             output_device=output_info,
             input_channels=resolved_input_channels,
             output_channels=resolved_output_channels,
+            input_channel_map=parsed_input_channel_map,
+            output_channel_map=parsed_output_channel_map,
             duration_seconds=duration,
         )
     finally:
@@ -578,11 +615,28 @@ def _build_live_processor(
     return processor, summary
 
 
-def _resolve_input_channels(requested: int | None, device: RealtimeDeviceInfo) -> int:
+def _resolve_input_channels(
+    *,
+    requested: int | None,
+    requested_map: tuple[int, ...],
+    device: RealtimeDeviceInfo,
+) -> int:
     """Choose an input width that the selected device can actually supply."""
     available = int(device.max_input_channels)
     if available <= 0:
         raise typer.BadParameter(f"Input device '{device.name}' has no input channels.")
+    if len(requested_map) > 0:
+        highest = max(int(ch) for ch in requested_map)
+        if highest > available:
+            raise typer.BadParameter(
+                f"Input channel map references channel {highest}, but '{device.name}' "
+                f"only exposes {available} input channels."
+            )
+        if requested is not None and requested != len(requested_map):
+            raise typer.BadParameter(
+                "--input-channels must match the number of entries in --input-channel-map."
+            )
+        return len(requested_map)
     if requested is None:
         return 2 if available >= 2 else 1
     if requested > available:
@@ -595,6 +649,7 @@ def _resolve_input_channels(requested: int | None, device: RealtimeDeviceInfo) -
 def _resolve_output_channels(
     *,
     requested: int | None,
+    requested_map: tuple[int, ...],
     output_device: RealtimeDeviceInfo,
     processor_channels: int,
 ) -> int:
@@ -602,6 +657,24 @@ def _resolve_output_channels(
     available = int(output_device.max_output_channels)
     if available <= 0:
         raise typer.BadParameter(f"Output device '{output_device.name}' has no output channels.")
+    if len(requested_map) > 0:
+        highest = max(int(ch) for ch in requested_map)
+        if highest > available:
+            raise typer.BadParameter(
+                f"Output channel map references channel {highest}, but '{output_device.name}' "
+                f"only exposes {available} output channels."
+            )
+        mapped_channels = len(requested_map)
+        if requested is not None and requested != mapped_channels:
+            raise typer.BadParameter(
+                "--output-channels must match the number of entries in --output-channel-map."
+            )
+        if mapped_channels > int(processor_channels):
+            raise typer.BadParameter(
+                f"Realtime processor exposes {processor_channels} output channels, "
+                f"not {mapped_channels}."
+            )
+        return mapped_channels
     if requested is not None:
         if requested > available:
             raise typer.BadParameter(
@@ -640,6 +713,8 @@ def _print_realtime_start_table(
     block_size: int,
     input_channels: int,
     output_channels: int,
+    input_channel_map: tuple[int, ...],
+    output_channel_map: tuple[int, ...],
     engine_summary: dict[str, object],
     duration: float | None,
 ) -> None:
@@ -654,6 +729,8 @@ def _print_realtime_start_table(
     table.add_row("output_device", output_device.name)
     table.add_row("input_channels", str(input_channels))
     table.add_row("output_channels", str(output_channels))
+    table.add_row("input_map", _format_channel_map(input_channels, input_channel_map))
+    table.add_row("output_map", _format_channel_map(output_channels, output_channel_map))
     table.add_row("duration", "until Ctrl-C" if duration is None else f"{duration:.2f}s")
     if str(engine_summary.get("engine_resolved", "")) == "algo_proxy_live":
         rt60_value = engine_summary.get("rt60", 0.0)
@@ -682,10 +759,24 @@ def _print_realtime_end_table(summary: RealtimeSessionSummary) -> None:
     table.add_row("input_device", str(summary.input_device))
     table.add_row("output_device", str(summary.output_device))
     table.add_row("sample_rate", str(summary.sample_rate))
+    table.add_row(
+        "input_map",
+        _format_channel_map(summary.input_channels, summary.input_channel_map),
+    )
+    table.add_row(
+        "output_map",
+        _format_channel_map(summary.output_channels, summary.output_channel_map),
+    )
     table.add_row("processed_blocks", str(summary.processed_blocks))
     table.add_row("processed_seconds", f"{summary.processed_seconds:.3f}")
     table.add_row("clipped_blocks", str(summary.clipped_blocks))
     console.print(table)
+
+
+def _format_channel_map(channels: int, mapping: tuple[int, ...]) -> str:
+    """Format a channel map for console summaries."""
+    resolved = mapping if len(mapping) > 0 else tuple(range(1, int(channels) + 1))
+    return ",".join(str(ch) for ch in resolved)
 
 
 def _parse_delay_list_ms(raw: str | None, *, option_name: str) -> tuple[float, ...]:

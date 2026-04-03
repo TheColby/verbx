@@ -39,9 +39,40 @@ class RealtimeSessionSummary:
     output_channels: int
     input_device: str
     output_device: str
+    input_channel_map: tuple[int, ...]
+    output_channel_map: tuple[int, ...]
     processed_blocks: int
     processed_seconds: float
     clipped_blocks: int
+
+
+def parse_channel_map(raw: str | None, *, option_name: str) -> tuple[int, ...]:
+    """Parse a user-facing 1-based channel map like ``1,3,4``."""
+    if raw is None:
+        return ()
+    cleaned = raw.strip()
+    if cleaned == "":
+        return ()
+    values: list[int] = []
+    seen: set[int] = set()
+    for token in cleaned.split(","):
+        part = token.strip()
+        if part == "":
+            continue
+        try:
+            channel = int(part)
+        except ValueError as exc:
+            msg = f"{option_name} expects a comma-separated list of 1-based channel numbers."
+            raise ValueError(msg) from exc
+        if channel < 1:
+            raise ValueError(f"{option_name} values must be >= 1.")
+        if channel in seen:
+            raise ValueError(f"{option_name} cannot repeat channel {channel}.")
+        values.append(channel)
+        seen.add(channel)
+    if len(values) == 0:
+        raise ValueError(f"{option_name} must include at least one channel number.")
+    return tuple(values)
 
 
 def require_sounddevice() -> Any:
@@ -138,11 +169,20 @@ def run_realtime_duplex(
     output_device: RealtimeDeviceInfo,
     input_channels: int,
     output_channels: int,
+    input_channel_map: tuple[int, ...] | None = None,
+    output_channel_map: tuple[int, ...] | None = None,
     duration_seconds: float | None = None,
 ) -> RealtimeSessionSummary:
     """Run a duplex realtime session until Ctrl-C or ``duration_seconds`` expires."""
     sd = require_sounddevice()
     stop_event = threading.Event()
+    default_input_map = tuple(range(1, int(input_channels) + 1))
+    resolved_input_map = tuple(int(ch) for ch in (input_channel_map or default_input_map))
+    resolved_output_map = tuple(
+        int(ch) for ch in (output_channel_map or tuple(range(1, output_channels + 1)))
+    )
+    stream_input_channels = max(resolved_input_map, default=max(1, int(input_channels)))
+    stream_output_channels = max(resolved_output_map, default=max(1, int(output_channels)))
     stats = {
         "processed_blocks": 0,
         "processed_frames": 0,
@@ -157,12 +197,20 @@ def run_realtime_duplex(
             outdata.fill(0.0)
             stats["clipped_blocks"] += 1
             return
-        input_block = np.asarray(indata, dtype=np.float64)
+        raw_input = np.asarray(indata, dtype=np.float64)
+        input_block = np.zeros((frames, int(input_channels)), dtype=np.float64)
+        for idx, hardware_ch in enumerate(resolved_input_map[: int(input_channels)]):
+            src = int(hardware_ch) - 1
+            if 0 <= src < int(raw_input.shape[1]):
+                input_block[:, idx] = raw_input[:, src]
         rendered = processor.process_block(input_block)
         rendered = np.asarray(rendered, dtype=np.float32)
         outdata.fill(0.0)
-        copy_channels = min(int(outdata.shape[1]), int(rendered.shape[1]))
-        outdata[:, :copy_channels] = rendered[:, :copy_channels]
+        copy_channels = min(len(resolved_output_map), int(rendered.shape[1]))
+        for idx in range(copy_channels):
+            dst = int(resolved_output_map[idx]) - 1
+            if 0 <= dst < int(outdata.shape[1]):
+                outdata[:, dst] = rendered[:, idx]
         if np.max(np.abs(rendered)) > 0.999:
             stats["clipped_blocks"] += 1
         stats["processed_blocks"] += 1
@@ -175,7 +223,7 @@ def run_realtime_duplex(
             samplerate=float(sample_rate),
             blocksize=int(block_size),
             device=(int(input_device.index), int(output_device.index)),
-            channels=(int(input_channels), int(output_channels)),
+            channels=(int(stream_input_channels), int(stream_output_channels)),
             dtype="float32",
             callback=callback,
         ):
@@ -195,6 +243,8 @@ def run_realtime_duplex(
         output_channels=int(output_channels),
         input_device=input_device.name,
         output_device=output_device.name,
+        input_channel_map=resolved_input_map,
+        output_channel_map=resolved_output_map,
         processed_blocks=int(stats["processed_blocks"]),
         processed_seconds=float(stats["processed_frames"]) / float(max(1, sample_rate)),
         clipped_blocks=int(stats["clipped_blocks"]),

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
+import numpy as np
 from click.testing import Result as ClickResult
 from pytest import MonkeyPatch
 from typer.testing import CliRunner
@@ -156,6 +158,8 @@ def test_realtime_algo_accepts_extended_proxy_options(
             output_channels=2,
             input_device="Mic",
             output_device="Speakers",
+            input_channel_map=(1, 2),
+            output_channel_map=(1, 2),
             processed_blocks=2,
             processed_seconds=0.01,
             clipped_blocks=0,
@@ -349,6 +353,228 @@ def test_realtime_conv_rejects_algo_only_switches(
     assert "only apply to realtime --engine algo" in combined
     assert "--rt60" in combined
     assert "--freeze" in combined
+
+
+def test_realtime_channel_map_sets_processor_widths(monkeypatch: MonkeyPatch) -> None:
+    fake_devices = [
+        realtime_io.RealtimeDeviceInfo(
+            index=0,
+            name="Mic",
+            max_input_channels=8,
+            max_output_channels=0,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+        realtime_io.RealtimeDeviceInfo(
+            index=1,
+            name="Speakers",
+            max_input_channels=0,
+            max_output_channels=8,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+    ]
+    captured: dict[str, object] = {}
+
+    class _FakeProcessor:
+        output_channels = 4
+
+    def fake_build_live_processor(
+        *,
+        config: RenderConfig,
+        sample_rate: int,
+        input_channels: int,
+    ) -> tuple[_FakeProcessor, dict[str, object]]:
+        captured["input_channels"] = input_channels
+        return _FakeProcessor(), {
+            "engine_resolved": "algo_proxy_live",
+            "compute_backend": "cpu",
+            "rt60": config.rt60,
+            "fdn_matrix": config.fdn_matrix,
+            "fdn_lines": config.fdn_lines,
+            "freeze": config.freeze,
+            "shimmer": config.shimmer,
+            "tv": False,
+            "proxy_eq": "flat",
+        }
+
+    def fake_run_realtime_duplex(**kwargs: object) -> realtime_io.RealtimeSessionSummary:
+        captured.update(kwargs)
+        return realtime_io.RealtimeSessionSummary(
+            sample_rate=48_000,
+            block_size=256,
+            input_channels=2,
+            output_channels=4,
+            input_device="Mic",
+            output_device="Speakers",
+            input_channel_map=(1, 3),
+            output_channel_map=(1, 2, 5, 6),
+            processed_blocks=1,
+            processed_seconds=0.01,
+            clipped_blocks=0,
+        )
+
+    monkeypatch.setattr(realtime_cmd, "list_audio_devices", lambda: fake_devices)
+    monkeypatch.setattr(realtime_cmd, "_build_live_processor", fake_build_live_processor)
+    monkeypatch.setattr(realtime_cmd, "run_realtime_duplex", fake_run_realtime_duplex)
+
+    result = runner.invoke(
+        app,
+        [
+            "realtime",
+            "--engine",
+            "algo",
+            "--duration",
+            "0.01",
+            "--input-channel-map",
+            "1,3",
+            "--output-channel-map",
+            "1,2,5,6",
+        ],
+    )
+    assert result.exit_code == 0, _combined_output(result)
+    assert captured["input_channels"] == 2
+    assert captured["output_channels"] == 4
+    assert captured["input_channel_map"] == (1, 3)
+    assert captured["output_channel_map"] == (1, 2, 5, 6)
+    assert "input_map" in result.stdout
+    assert "1,3" in result.stdout
+    assert "1,2,5,6" in result.stdout
+
+
+def test_realtime_channel_map_rejects_count_mismatch(monkeypatch: MonkeyPatch) -> None:
+    fake_devices = [
+        realtime_io.RealtimeDeviceInfo(
+            index=0,
+            name="Mic",
+            max_input_channels=8,
+            max_output_channels=0,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+        realtime_io.RealtimeDeviceInfo(
+            index=1,
+            name="Speakers",
+            max_input_channels=0,
+            max_output_channels=8,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+    ]
+    monkeypatch.setattr(realtime_cmd, "list_audio_devices", lambda: fake_devices)
+
+    result = runner.invoke(
+        app,
+        [
+            "realtime",
+            "--engine",
+            "algo",
+            "--duration",
+            "0.01",
+            "--input-channels",
+            "2",
+            "--input-channel-map",
+            "1,3,5",
+        ],
+    )
+    assert result.exit_code != 0
+    combined = _combined_output(result)
+    assert "must match the number of entries in" in combined
+    assert "--input-channel-map" in combined
+
+
+def test_run_realtime_duplex_applies_explicit_channel_maps(monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    class _FakeProcessor:
+        def __init__(self) -> None:
+            self.output_channels = 2
+
+        def process_block(self, input_block: np.ndarray) -> np.ndarray:
+            captured["input_block"] = np.array(input_block, copy=True)
+            output = np.zeros((input_block.shape[0], 2), dtype=np.float64)
+            output[:, 0] = input_block[:, 0] + 10.0
+            output[:, 1] = input_block[:, 1] + 20.0
+            return output
+
+    class _FakeCallbackError(Exception):
+        pass
+
+    class _FakeStream:
+        def __init__(self, **kwargs: object) -> None:
+            captured["stream_kwargs"] = kwargs
+            self._callback: Any = kwargs["callback"]
+
+        def __enter__(self) -> _FakeStream:
+            indata = np.array(
+                [
+                    [1.0, 2.0, 3.0, 4.0],
+                    [5.0, 6.0, 7.0, 8.0],
+                ],
+                dtype=np.float32,
+            )
+            outdata = np.full((2, 6), -99.0, dtype=np.float32)
+            try:
+                self._callback(indata, outdata, 2, None, None)
+            except _FakeCallbackError:
+                pass
+            captured["outdata"] = np.array(outdata, copy=True)
+            raise KeyboardInterrupt
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> bool:
+            return False
+
+    class _FakeSoundDevice:
+        CallbackStop = _FakeCallbackError
+
+        def __init__(self) -> None:
+            self.Stream = _stream_factory
+
+    def _stream_factory(**kwargs: object) -> _FakeStream:
+        return _FakeStream(**kwargs)
+
+    fake_sounddevice = _FakeSoundDevice()
+    monkeypatch.setattr(realtime_io, "require_sounddevice", lambda: fake_sounddevice)
+
+    summary = realtime_io.run_realtime_duplex(
+        processor=_FakeProcessor(),  # type: ignore[arg-type]
+        sample_rate=48_000,
+        block_size=2,
+        input_device=realtime_io.RealtimeDeviceInfo(
+            index=0,
+            name="Mic",
+            max_input_channels=4,
+            max_output_channels=0,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+        output_device=realtime_io.RealtimeDeviceInfo(
+            index=1,
+            name="Speakers",
+            max_input_channels=0,
+            max_output_channels=6,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+        input_channels=2,
+        output_channels=2,
+        input_channel_map=(1, 3),
+        output_channel_map=(2, 5),
+        duration_seconds=0.01,
+    )
+    input_block = captured["input_block"]
+    assert isinstance(input_block, np.ndarray)
+    np.testing.assert_allclose(input_block, np.array([[1.0, 3.0], [5.0, 7.0]]))
+    outdata = captured["outdata"]
+    assert isinstance(outdata, np.ndarray)
+    np.testing.assert_allclose(outdata[:, 1], np.array([11.0, 15.0], dtype=np.float32))
+    np.testing.assert_allclose(outdata[:, 4], np.array([23.0, 27.0], dtype=np.float32))
+    np.testing.assert_allclose(outdata[:, 0], np.zeros(2, dtype=np.float32))
+    np.testing.assert_allclose(outdata[:, 2], np.zeros(2, dtype=np.float32))
+    np.testing.assert_allclose(outdata[:, 3], np.zeros(2, dtype=np.float32))
+    np.testing.assert_allclose(outdata[:, 5], np.zeros(2, dtype=np.float32))
+    assert summary.input_channel_map == (1, 3)
+    assert summary.output_channel_map == (2, 5)
 
 
 def test_apply_realtime_freeze_proxy_uses_safe_defaults() -> None:
