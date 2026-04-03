@@ -1,6 +1,6 @@
 # verbx Roadmap
 
-_Last updated: 2026-03-31. Maintained with `README.md` and `CHANGELOG.md`._
+_Last updated: 2026-04-02. Maintained with `README.md` and `CHANGELOG.md`._
 
 ---
 
@@ -24,9 +24,12 @@ Patch line opened 2026-03-30. Items below are the active focus.
 - [x] `estimate_room_size` decomposed into six public pipeline stages (`extract_edr_rt60`, `infer_absorption`, `estimate_volume`, `project_dimensions`, `score_confidence`, `classify_room`).
 - [x] FDN matrix operations extracted to `src/verbx/core/fdn_matrix.py` (all `build_*` and `apply_sparse_pair_mix` functions now independently importable and testable).
 - [x] Pyright suppressions documented with rationale; `reportUnknownLambdaType` removed; remaining suppressions scoped with TODO for `0.7.7` follow-up.
+- [x] Replace `dict[str, Any]` render reports in `pipeline.py` with typed `RenderReport` mapping objects while preserving CLI/test compatibility.
+- [x] Extract algorithmic proxy IR generation into `src/verbx/core/algo_proxy.py` so offline streaming and realtime monitoring share one implementation.
+- [x] Add an initial command-module split under `src/verbx/commands/` with `realtime.py` as the first standalone command surface.
+- [x] Add initial realtime duplex monitoring with CLI-selectable input/output devices and algorithmic-proxy or convolution live engines.
 - [ ] Decompose `cli.py` (8 376 lines) into per-command submodules under `src/verbx/commands/`.
 - [ ] Decompose `RenderConfig` (162 fields) into composed sub-configs (`FDNConfig`, `AutomationConfig`, `SpatialConfig`, `StreamingConfig`).
-- [ ] Replace `dict[str, Any]` report returns in `pipeline.py` with typed `RenderReport` dataclass / TypedDicts.
 - [ ] Decompose `run_render_pipeline` (~640 lines) into explicit pipeline stages.
 - [ ] Add dedicated unit tests for `automation.py`, `convolution_reverb.py`, `feature_vector.py`, `immersive.py`.
 - [ ] Wire benchmark scripts into CI as blocking quality-regression gates.

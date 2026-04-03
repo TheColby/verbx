@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
-import tempfile
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
@@ -29,6 +27,7 @@ from verbx.analysis.analyzer import AudioAnalyzer
 from verbx.analysis.framewise import write_framewise_csv
 from verbx.config import NormalizeStage, RenderConfig
 from verbx.core.accel import configure_cpu_threads, resolve_device_for_engine
+from verbx.core.algo_proxy import render_algo_proxy_ir
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
 from verbx.core.ambient import apply_ambient_processing, apply_tilt_eq
 from verbx.core.automation import (
@@ -48,6 +47,7 @@ from verbx.core.engine_base import ReverbEngine
 from verbx.core.freeze import freeze_segment
 from verbx.core.loudness import apply_output_targets
 from verbx.core.modulation import apply_parameter_modulation, parse_mod_route_spec
+from verbx.core.render_report import RenderReport
 from verbx.core.repeat import repeat_process
 from verbx.core.schema_versions import TRACK_C_CALIBRATION_VERSION
 from verbx.core.spatial import (
@@ -77,8 +77,8 @@ AudioArray = npt.NDArray[np.float64]
 PassProcessor = Callable[[AudioArray, int, int], AudioArray]
 
 
-def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> dict[str, Any]:
-    """Run one end-to-end render and return a structured report dictionary."""
+def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> RenderReport:
+    """Run one end-to-end render and return a structured render report."""
     validate_audio_path(str(infile))
 
     with RenderProgress(enabled=(config.progress and not config.silent)) as progress:
@@ -121,6 +121,11 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 estimated_bytes=None,
             )
             conv_device = "cuda" if runtime_config.algo_gpu_proxy else "cpu"
+            proxy_tail_padding_seconds = _algo_tail_padding_seconds(runtime_config, processing_sr)
+            proxy_hold_frames = _tail_zero_hold_samples(
+                processing_sr,
+                runtime_config.tail_stop_hold_ms,
+            )
 
             # Pre-SRC: when target_sr differs from input_sr, resample input to a
             # temp file so the convolution engine and proxy IR share the same rate.
@@ -136,19 +141,23 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 write_audio(str(_src_tmp), _src_resampled, processing_sr, subtype="DOUBLE")
                 _stream_infile = _src_tmp
 
-            proxy_ir_path, _ = _render_algo_proxy_ir(
+            proxy_ir_path, _ = render_algo_proxy_ir(
                 config=runtime_config,
                 sr=processing_sr,
                 input_channels=input_channels,
             )
             stream_tmp_out = outfile.with_name(f"{outfile.stem}.stream_tmp{outfile.suffix}")
             try:
+                proxy_conv_config = _build_convolution_config(
+                    runtime_config,
+                    ir_path=str(proxy_ir_path),
+                    device=conv_device,
+                )
+                # Proxy IRs already encode the exact algorithmic wet response.
+                # Normalizing them here destroys parity with the offline path.
+                proxy_conv_config.ir_normalize = "none"
                 conv_engine = ConvolutionReverbEngine(
-                    _build_convolution_config(
-                        runtime_config,
-                        ir_path=str(proxy_ir_path),
-                        device=conv_device,
-                    )
+                    proxy_conv_config
                 )
                 stream_stats = conv_engine.process_streaming_file(
                     infile=str(_stream_infile),
@@ -166,7 +175,9 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 threshold=_tail_threshold_linear(runtime_config.tail_stop_threshold_db),
                 hold_ms=runtime_config.tail_stop_hold_ms,
                 metric=runtime_config.tail_stop_metric,
-                min_frames=int(stream_stats["input_samples"]),
+                min_frames=int(stream_stats["input_samples"])
+                + int(np.ceil(proxy_tail_padding_seconds * float(processing_sr)))
+                + int(proxy_hold_frames),
             )
             stream_tmp_out.replace(outfile)
 
@@ -188,19 +199,31 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                     highcut=runtime_config.highcut,
                 )
                 write_audio(str(outfile), _eq_out, processing_sr, subtype=output_subtype)
+                # Post-EQ IIR filtering can smear low-level energy back into the
+                # zero-hold region we just finalized, so run tail completion once
+                # more to restore the same exact-stop contract as the in-memory path.
+                output_samples = _complete_stream_file_tail_to_zero(
+                    outfile,
+                    threshold=_tail_threshold_linear(runtime_config.tail_stop_threshold_db),
+                    hold_ms=runtime_config.tail_stop_hold_ms,
+                    metric=runtime_config.tail_stop_metric,
+                    min_frames=int(stream_stats["input_samples"])
+                    + int(np.ceil(proxy_tail_padding_seconds * float(processing_sr)))
+                    + int(proxy_hold_frames),
+                )
 
             progress.mark_read()
             progress.mark_process_pass(1)
             progress.mark_write()
 
-            report: dict[str, Any] = {
-                "engine": "algo",
-                "sample_rate": int(stream_stats["sample_rate"]),
-                "input_samples": int(stream_stats["input_samples"]),
-                "output_samples": output_samples,
-                "channels": int(stream_stats["channels"]),
-                "config": asdict(runtime_config),
-                "effective": {
+            report = _build_render_report(
+                engine="algo",
+                sample_rate=int(stream_stats["sample_rate"]),
+                input_samples=int(stream_stats["input_samples"]),
+                output_samples=output_samples,
+                channels=int(stream_stats["channels"]),
+                runtime_config=runtime_config,
+                effective={
                     "engine_requested": config.engine,
                     "engine_resolved": "algo_proxy_stream",
                     "device_requested": config.device,
@@ -227,29 +250,21 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                     "perceptual_macros": perceptual_macro_summary,
                     "non_default_settings": _non_default_settings(runtime_config),
                 },
-            }
-            if not runtime_config.silent:
-                include_loudness = _should_include_loudness(runtime_config)
-                analyzer = AudioAnalyzer()
-                audio_in, _ = read_audio(str(infile))
-                audio_out, _ = read_audio(str(outfile))
-                report["input"] = analyzer.analyze(
-                    audio_in,
-                    input_sr,
-                    include_loudness=include_loudness,
-                )
-                report["output"] = analyzer.analyze(
-                    audio_out,
-                    processing_sr,
-                    include_loudness=include_loudness,
-                )
-                analysis_path = _resolve_analysis_path(outfile, runtime_config.analysis_out)
-                analysis_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
-                report["analysis_path"] = str(analysis_path)
-                if runtime_config.frames_out is not None:
-                    frames_path = Path(runtime_config.frames_out)
-                    write_framewise_csv(frames_path, audio_out, processing_sr)
-                    report["frames_path"] = str(frames_path)
+            )
+            _maybe_attach_analysis_report(
+                report=report,
+                infile=infile,
+                outfile=outfile,
+                runtime_config=runtime_config,
+                input_audio_path=infile,
+                output_audio_path=outfile,
+                input_audio=None,
+                output_audio=None,
+                input_sr=input_sr,
+                output_sr=processing_sr,
+                perceptual_macros=perceptual_macro_summary,
+                include_ambisonic_metadata=False,
+            )
             progress.mark_analyze()
             return report
 
@@ -284,14 +299,14 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
             progress.mark_process_pass(1)
             progress.mark_write()
 
-            report: dict[str, Any] = {
-                "engine": engine_name,
-                "sample_rate": int(stream_stats["sample_rate"]),
-                "input_samples": int(stream_stats["input_samples"]),
-                "output_samples": output_samples,
-                "channels": int(stream_stats["channels"]),
-                "config": asdict(runtime_config),
-                "effective": {
+            report = _build_render_report(
+                engine=engine_name,
+                sample_rate=int(stream_stats["sample_rate"]),
+                input_samples=int(stream_stats["input_samples"]),
+                output_samples=output_samples,
+                channels=int(stream_stats["channels"]),
+                runtime_config=runtime_config,
+                effective={
                     "engine_requested": config.engine,
                     "engine_resolved": engine_name,
                     "device_requested": config.device,
@@ -317,39 +332,22 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                     "perceptual_macros": perceptual_macro_summary,
                     "non_default_settings": _non_default_settings(runtime_config),
                 },
-            }
-            if ir_runtime is not None:
-                report["ir_runtime"] = ir_runtime
-
-            if not runtime_config.silent:
-                include_loudness = _should_include_loudness(runtime_config)
-                analyzer = AudioAnalyzer()
-                audio_in, _ = read_audio(str(infile))
-                audio_out, _ = read_audio(str(outfile))
-                report["input"] = analyzer.analyze(
-                    audio_in,
-                    input_sr,
-                    include_loudness=include_loudness,
-                )
-                report["output"] = analyzer.analyze(
-                    audio_out,
-                    processing_sr,
-                    include_loudness=include_loudness,
-                )
-                track_c_diag = _build_track_c_calibration_diagnostics(
-                    perceptual_macros=perceptual_macro_summary,
-                    input_metrics=cast(dict[str, Any], report.get("input")),
-                    output_metrics=cast(dict[str, Any], report.get("output")),
-                )
-                if track_c_diag is not None:
-                    report["effective"]["track_c_calibration"] = track_c_diag
-                analysis_path = _resolve_analysis_path(outfile, runtime_config.analysis_out)
-                analysis_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
-                report["analysis_path"] = str(analysis_path)
-                if runtime_config.frames_out is not None:
-                    frames_path = Path(runtime_config.frames_out)
-                    write_framewise_csv(frames_path, audio_out, processing_sr)
-                    report["frames_path"] = str(frames_path)
+                ir_runtime=ir_runtime,
+            )
+            _maybe_attach_analysis_report(
+                report=report,
+                infile=infile,
+                outfile=outfile,
+                runtime_config=runtime_config,
+                input_audio_path=infile,
+                output_audio_path=outfile,
+                input_audio=None,
+                output_audio=None,
+                input_sr=input_sr,
+                output_sr=processing_sr,
+                perceptual_macros=perceptual_macro_summary,
+                include_ambisonic_metadata=False,
+            )
 
             progress.mark_analyze()
             return report
@@ -629,14 +627,14 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
         )
         progress.mark_write()
 
-        report: dict[str, Any] = {
-            "engine": engine_name,
-            "sample_rate": sr,
-            "input_samples": int(audio.shape[0]),
-            "output_samples": int(rendered.shape[0]),
-            "channels": int(rendered.shape[1]),
-            "config": asdict(runtime_config),
-            "effective": {
+        report = _build_render_report(
+            engine=engine_name,
+            sample_rate=sr,
+            input_samples=int(audio.shape[0]),
+            output_samples=int(rendered.shape[0]),
+            channels=int(rendered.shape[1]),
+            runtime_config=runtime_config,
+            effective={
                 "engine_requested": config.engine,
                 "engine_resolved": engine_name,
                 "device_requested": config.device,
@@ -661,57 +659,136 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> di
                 "perceptual_macros": perceptual_macro_summary,
                 "non_default_settings": _non_default_settings(runtime_config),
             },
-        }
-        if ir_runtime is not None:
-            report["ir_runtime"] = ir_runtime
-
-        if not runtime_config.silent:
-            include_loudness = _should_include_loudness(runtime_config)
-            analyzer = AudioAnalyzer()
-            report["input"] = analyzer.analyze(
-                audio_source,
-                input_sr,
-                include_loudness=include_loudness,
-            )
-            report["output"] = analyzer.analyze(
-                rendered,
-                sr,
-                include_loudness=include_loudness,
-                ambi_order=(
-                    runtime_config.ambi_order
-                    if runtime_config.ambi_order > 0 and runtime_config.ambi_decode_to == "none"
-                    else None
-                ),
-                ambi_normalization=runtime_config.ambi_normalization,
-                ambi_channel_order=runtime_config.channel_order,
-            )
-            track_c_diag = _build_track_c_calibration_diagnostics(
-                perceptual_macros=perceptual_macro_summary,
-                input_metrics=cast(dict[str, Any], report.get("input")),
-                output_metrics=cast(dict[str, Any], report.get("output")),
-            )
-            if track_c_diag is not None:
-                report["effective"]["track_c_calibration"] = track_c_diag
-            analysis_path = _resolve_analysis_path(outfile, runtime_config.analysis_out)
-            analysis_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
-            report["analysis_path"] = str(analysis_path)
-            if runtime_config.frames_out is not None:
-                frames_path = Path(runtime_config.frames_out)
-                write_framewise_csv(frames_path, rendered, sr)
-                report["frames_path"] = str(frames_path)
-            if runtime_config.automation_trace_out is not None and automation_summary is not None:
-                report["automation_trace_path"] = str(Path(runtime_config.automation_trace_out))
-            if (
-                runtime_config.feature_vector_trace_out is not None
-                and automation_summary is not None
-            ):
-                report["feature_vector_trace_path"] = str(
-                    Path(runtime_config.feature_vector_trace_out)
-                )
+            ir_runtime=ir_runtime,
+        )
+        _maybe_attach_analysis_report(
+            report=report,
+            infile=infile,
+            outfile=outfile,
+            runtime_config=runtime_config,
+            input_audio_path=None,
+            output_audio_path=None,
+            input_audio=audio_source,
+            output_audio=rendered,
+            input_sr=input_sr,
+            output_sr=sr,
+            perceptual_macros=perceptual_macro_summary,
+            include_ambisonic_metadata=True,
+        )
 
         progress.mark_analyze()
 
     return report
+
+
+def _build_render_report(
+    *,
+    engine: str,
+    sample_rate: int,
+    input_samples: int,
+    output_samples: int,
+    channels: int,
+    runtime_config: RenderConfig,
+    effective: dict[str, Any],
+    ir_runtime: dict[str, Any] | None = None,
+) -> RenderReport:
+    """Create the canonical typed render report payload."""
+    return RenderReport(
+        engine=engine,
+        sample_rate=int(sample_rate),
+        input_samples=int(input_samples),
+        output_samples=int(output_samples),
+        channels=int(channels),
+        config=asdict(runtime_config),
+        effective=effective,
+        ir_runtime=ir_runtime,
+    )
+
+
+def _maybe_attach_analysis_report(
+    *,
+    report: RenderReport,
+    infile: Path,
+    outfile: Path,
+    runtime_config: RenderConfig,
+    input_audio_path: Path | None,
+    output_audio_path: Path | None,
+    input_audio: AudioArray | None,
+    output_audio: AudioArray | None,
+    input_sr: int,
+    output_sr: int,
+    perceptual_macros: dict[str, Any] | None,
+    include_ambisonic_metadata: bool,
+) -> None:
+    """Attach analyzer outputs and persist artifact paths when enabled."""
+    if runtime_config.silent:
+        return
+
+    include_loudness = _should_include_loudness(runtime_config)
+    analyzer = AudioAnalyzer()
+
+    if input_audio is None:
+        if input_audio_path is None:
+            msg = "input_audio_path is required when input_audio is not provided"
+            raise ValueError(msg)
+        input_audio, _ = read_audio(str(input_audio_path))
+    if output_audio is None:
+        if output_audio_path is None:
+            msg = "output_audio_path is required when output_audio is not provided"
+            raise ValueError(msg)
+        output_audio, _ = read_audio(str(output_audio_path))
+
+    report.input = analyzer.analyze(
+        input_audio,
+        input_sr,
+        include_loudness=include_loudness,
+    )
+    if include_ambisonic_metadata:
+        report.output = analyzer.analyze(
+            output_audio,
+            output_sr,
+            include_loudness=include_loudness,
+            ambi_order=(
+                runtime_config.ambi_order
+                if runtime_config.ambi_order > 0 and runtime_config.ambi_decode_to == "none"
+                else None
+            ),
+            ambi_normalization=runtime_config.ambi_normalization,
+            ambi_channel_order=runtime_config.channel_order,
+        )
+    else:
+        report.output = analyzer.analyze(
+            output_audio,
+            output_sr,
+            include_loudness=include_loudness,
+        )
+
+    track_c_diag = _build_track_c_calibration_diagnostics(
+        perceptual_macros=perceptual_macros,
+        input_metrics=report.input,
+        output_metrics=report.output,
+    )
+    if track_c_diag is not None:
+        report.effective["track_c_calibration"] = track_c_diag
+
+    analysis_path = _resolve_analysis_path(outfile, runtime_config.analysis_out)
+    analysis_path.write_text(json.dumps(report.to_dict(), indent=2), encoding="utf-8")
+    report.analysis_path = str(analysis_path)
+
+    if runtime_config.frames_out is not None:
+        frames_path = Path(runtime_config.frames_out)
+        write_framewise_csv(frames_path, output_audio, output_sr)
+        report.frames_path = str(frames_path)
+    if (
+        runtime_config.automation_trace_out is not None
+        and report.effective.get("automation") is not None
+    ):
+        report.automation_trace_path = str(Path(runtime_config.automation_trace_out))
+    if (
+        runtime_config.feature_vector_trace_out is not None
+        and report.effective.get("automation") is not None
+    ):
+        report.feature_vector_trace_path = str(Path(runtime_config.feature_vector_trace_out))
 
 
 def _resolve_processing_sample_rate(*, input_sr: int, target_sr: int | None) -> int:
@@ -757,7 +834,7 @@ def _can_stream_convolution(
         return False
     if config.repeat != 1 or config.freeze:
         return False
-    if config.normalize_stage != "none":
+    if config.normalize_stage == "per-pass":
         return False
     if config.output_peak_norm != "none":
         return False
@@ -811,7 +888,7 @@ def _can_stream_algo_proxy(
         return False
     if config.repeat != 1 or config.freeze:
         return False
-    if config.normalize_stage != "none":
+    if config.normalize_stage == "per-pass":
         return False
     if config.output_peak_norm != "none":
         return False
@@ -850,54 +927,6 @@ def _can_stream_algo_proxy(
     if config.ambi_order > 0:
         return False
     return True
-
-
-def _render_algo_proxy_ir(
-    *,
-    config: RenderConfig,
-    sr: int,
-    input_channels: int,
-) -> tuple[Path, int]:
-    """Render algorithmic impulse responses into a matrix IR temp file."""
-    tail_seconds = min(
-        float(config.algo_proxy_ir_max_seconds),
-        float(_algo_tail_padding_seconds(config, sr)),
-    )
-    ir_samples = max(64, int(np.ceil(max(0.1, tail_seconds) * float(sr))))
-    if ir_samples <= 0:
-        ir_samples = 64
-
-    proxy_config = RenderConfig(**asdict(config))
-    proxy_config.engine = "algo"
-    proxy_config.wet = 1.0
-    proxy_config.dry = 0.0
-    proxy_config.device = "cpu"
-    proxy_config.algo_stream = False
-    proxy_config.algo_gpu_proxy = False
-
-    responses: list[AudioArray] = []
-    output_channels = input_channels
-    for in_ch in range(max(1, int(input_channels))):
-        impulse = np.zeros((ir_samples, input_channels), dtype=np.float64)
-        impulse[0, in_ch] = 1.0
-        _, proxy_engine, _ = _resolve_engine(proxy_config, "cpu", engine_name="algo")
-        assert isinstance(proxy_engine, AlgoReverbEngine)
-        response = proxy_engine.process(impulse, sr)
-        output_channels = int(response.shape[1])
-        responses.append(np.asarray(response, dtype=np.float64))
-
-    ir_matrix = np.zeros((ir_samples, output_channels * input_channels), dtype=np.float64)
-    for in_ch, response in enumerate(responses):
-        for out_ch in range(output_channels):
-            packed_ch = (out_ch * input_channels) + in_ch
-            ir_matrix[:, packed_ch] = response[:, out_ch]
-
-    fd, raw_path = tempfile.mkstemp(prefix="verbx_algo_proxy_ir_", suffix=".wav")
-    os.close(fd)
-    Path(raw_path).unlink(missing_ok=True)
-    ir_path = Path(raw_path)
-    write_audio(str(ir_path), ir_matrix, sr, subtype="DOUBLE")
-    return ir_path, output_channels
 
 
 def _prepare_runtime_config(
@@ -1502,14 +1531,11 @@ def _build_per_pass_processor(config: RenderConfig, sr: int) -> PassProcessor:
 
         return processor
 
-    def safety_processor(audio: AudioArray, pass_idx: int, total_passes: int) -> AudioArray:
+    def passthrough(audio: AudioArray, pass_idx: int, total_passes: int) -> AudioArray:
         _ = pass_idx, total_passes
-        if not config.limiter:
-            return audio
-        limited = soft_limiter(audio, threshold_dbfs=-1.0, knee_db=6.0)
-        return peak_normalize(limited, target_dbfs=-1.0)
+        return np.asarray(audio, dtype=np.float64)
 
-    return safety_processor
+    return passthrough
 
 
 def _should_include_loudness(config: RenderConfig) -> bool:

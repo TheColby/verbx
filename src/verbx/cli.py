@@ -48,6 +48,7 @@ from rich.table import Table
 from verbx import __version__
 from verbx.analysis.analyzer import AudioAnalyzer
 from verbx.analysis.framewise import write_framewise_csv
+from verbx.commands.realtime import realtime as realtime_command
 from verbx.config import (
     AmbiChannelOrder,
     AmbiDecodeTo,
@@ -283,6 +284,7 @@ immersive_app.add_typer(immersive_queue_app, name="queue")
 
 console = Console()
 progress_console = Console(force_terminal=True, color_system="truecolor")
+app.command(name="realtime")(realtime_command)
 
 
 @contextmanager
@@ -2054,7 +2056,7 @@ def render(
             repro_payload = _build_render_repro_bundle(
                 infile=infile,
                 outfile=outfile,
-                report=report,
+                report=report.to_dict(),
                 config=config,
                 preset_name=(
                     None
@@ -2070,7 +2072,7 @@ def render(
     if json_out is not None:
         try:
             json_out.parent.mkdir(parents=True, exist_ok=True)
-            _write_json_atomic(json_out.resolve(), report)
+            _write_json_atomic(json_out.resolve(), report.to_dict())
         except (OSError, RuntimeError, ValueError) as exc:
             raise typer.BadParameter(f"Failed to write --json-out: {exc}") from exc
 
@@ -2078,7 +2080,7 @@ def render(
         return
 
     _print_render_summary(
-        report,
+        report.to_dict(),
         verbosity=verbosity,
         preset_name=(
             None
@@ -2363,14 +2365,16 @@ def dereverb(
             table.add_column("SNR Δ (dB)", justify="right")
             table.add_column("Spectral Dist (Hz)", justify="right")
             table.add_column("RMS Δ (dB)", justify="right")
-            for r in report.get("results", []):
-                table.add_row(
-                    str(r["mode"]),
-                    f"{r['snr_db']:.2f}",
-                    f"{r['snr_improvement_db']:+.2f}",
-                    f"{r['spectral_dist_hz']:.1f}",
-                    f"{r['rms_delta_db']:+.2f}",
-                )
+            results = report.get("results", [])
+            if isinstance(results, list):
+                for r in results:
+                    table.add_row(
+                        str(r["mode"]),
+                        f"{r['snr_db']:.2f}",
+                        f"{r['snr_improvement_db']:+.2f}",
+                        f"{r['spectral_dist_hz']:.1f}",
+                        f"{r['rms_delta_db']:+.2f}",
+                    )
             console.print(table)
             console.print(
                 f"[dim]Baseline SNR (reverberant vs clean): "
@@ -2509,9 +2513,9 @@ def suggest(
     except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
-    duration = metrics["duration"]
-    dynamic = metrics["dynamic_range"]
-    flatness = metrics["spectral_flatness"]
+    duration = float(metrics.get("duration", 0.0))
+    dynamic = float(metrics.get("dynamic_range", 0.0))
+    flatness = float(metrics.get("spectral_flatness", 0.0))
 
     suggested_rt60 = float(np.clip(duration * 1.8, 25.0, 120.0))
     suggested_wet = float(np.clip(0.55 + (dynamic / 60.0), 0.4, 0.95))
@@ -4039,7 +4043,12 @@ def ir_fit(
         raise typer.BadParameter(str(exc)) from exc
 
     pool_size = max(top_k, candidate_pool)
-    target_profile = derive_ir_fit_target(metrics, sr)
+    numeric_metrics = {
+        key: float(value)
+        for key, value in metrics.items()
+        if isinstance(value, (int, float))
+    }
+    target_profile = derive_ir_fit_target(numeric_metrics, sr)
 
     f0_hz: float | None = None
     harmonics: tuple[float, ...] = ()

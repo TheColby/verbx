@@ -22,6 +22,7 @@ ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 HELP_COMMANDS: tuple[tuple[str, ...], ...] = (
     (),
     ("render",),
+    ("realtime",),
     ("analyze",),
     ("suggest",),
     ("quickstart",),

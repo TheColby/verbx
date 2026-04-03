@@ -35,6 +35,7 @@ def test_cli_boots() -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
     assert "render" in result.stdout
+    assert "realtime" in result.stdout
     assert "analyze" in result.stdout
     assert "dereverb" in result.stdout
     assert "quickstart" in result.stdout
@@ -150,17 +151,21 @@ def test_doctor_strict_fails_when_checks_fail(monkeypatch: MonkeyPatch) -> None:
 
 
 def test_doctor_strict_fails_when_smoke_test_fails(monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        cli_module,
-        "_run_render_smoke_test",
-        lambda out_dir: {
+    def _fake_smoke_report(out_dir: Path) -> dict[str, object]:
+        _ = out_dir
+        return {
             "ok": False,
             "engine": "algo",
             "sample_rate": 24_000,
             "input_frames": 1000,
             "output_frames": 0,
             "error": "simulated failure",
-        },
+        }
+
+    monkeypatch.setattr(
+        cli_module,
+        "_run_render_smoke_test",
+        _fake_smoke_report,
     )
     result = runner.invoke(app, ["doctor", "--render-smoke-test", "--strict"])
     assert result.exit_code == 2

@@ -16,14 +16,14 @@ Sabine:
     → V  = RT60 * A / 0.161
 
 Eyring (more accurate at mean absorption > 0.3):
-    RT60 = -0.161 * V / (S * ln(1 - α))
-    → α  = 1 - exp(-0.161 * V / (S * RT60))
+    RT60 = -0.161 * V / (S * ln(1 - a))
+    -> a  = 1 - exp(-0.161 * V / (S * RT60))
 
 Critical distance (omnidirectional source):
     Dc = sqrt(A / (16π))
 
-Where V = volume (m³), A = total absorption (m²·Sabine = α·S),
-S = total surface area (m²), α = mean absorption coefficient [0, 1].
+Where V = volume (m^3), A = total absorption (m^2 Sabine = a*S),
+S = total surface area (m^2), a = mean absorption coefficient [0, 1].
 
 Room dimension aspect ratios
 ----------------------------
@@ -37,7 +37,7 @@ The estimation process is split into independently callable stages so that
 each can be tested, replaced, or called in isolation:
 
 1. ``extract_edr_rt60(audio, sr)``     — derive RT60 values from audio via EDR
-2. ``infer_absorption(...)``           — estimate mean α from spectral RT60 shape
+2. ``infer_absorption(...)``           — estimate mean absorption from spectral RT60 shape
 3. ``estimate_volume(rt60, alpha)``    — Sabine + Eyring + blended volume
 4. ``project_dimensions(volume_m3)``  — W / D / H / SA from aspect ratios
 5. ``score_confidence(...)``           — composite quality score for the estimate
@@ -110,6 +110,14 @@ def extract_edr_rt60(audio: AudioArray, sr: int) -> dict[str, float]:
 
     # Use mid-band RT60 as the primary sizing input; fall back to median
     rt60 = rt60_mid if rt60_mid > 0.0 else rt60_median
+    if rt60 <= 0.0:
+        rt60 = _fallback_rt60_from_envelope(audio, sr)
+    if rt60_mid <= 0.0:
+        rt60_mid = rt60
+    if rt60_low <= 0.0:
+        rt60_low = rt60
+    if rt60_high <= 0.0:
+        rt60_high = rt60
 
     # Derive basic signal properties needed for confidence scoring
     mono = np.mean(audio, axis=1)
@@ -127,6 +135,37 @@ def extract_edr_rt60(audio: AudioArray, sr: int) -> dict[str, float]:
         "duration_s": duration_s,
         "silence_ratio": silence_ratio,
     }
+
+
+def _fallback_rt60_from_envelope(audio: AudioArray, sr: int) -> float:
+    """Estimate RT60 from broadband decay when EDR band fitting fails.
+
+    This is intentionally simple and conservative. It exists so short synthetic
+    IRs and low-information regression fixtures still return a nonzero estimate
+    instead of collapsing to an empty result.
+    """
+    if int(sr) <= 0 or int(audio.shape[0]) < 16:
+        return 0.0
+    mono = np.mean(np.asarray(audio, dtype=np.float64), axis=1)
+    energy = np.square(mono)
+    if not np.any(energy > 0.0):
+        return 0.0
+
+    edc = np.cumsum(energy[::-1], dtype=np.float64)[::-1]
+    edc /= max(float(edc[0]), 1e-12)
+    edc_db = 10.0 * np.log10(np.maximum(edc, 1e-12))
+    times = np.arange(edc_db.shape[0], dtype=np.float64) / float(sr)
+
+    fit_mask = (edc_db <= -5.0) & (edc_db >= -35.0)
+    if int(np.count_nonzero(fit_mask)) < 8:
+        fit_mask = (edc_db <= -1.0) & (edc_db >= -25.0)
+    if int(np.count_nonzero(fit_mask)) < 8:
+        return 0.0
+
+    slope, _ = np.polyfit(times[fit_mask], edc_db[fit_mask], 1)
+    if slope >= -1e-9:
+        return 0.0
+    return float(np.clip(-60.0 / slope, 0.01, 3600.0))
 
 
 # ---------------------------------------------------------------------------
@@ -212,8 +251,8 @@ def estimate_volume(rt60: float, alpha: float) -> dict[str, float]:
     alpha_c = float(np.clip(alpha, 0.01, 0.99))
 
     # Sabine: solve for V given aspect-ratio geometry
-    # V = RT60 * α * S / K, with S = _ASPECT_SA_COEF * W² and V = _ASPECT_VOLUME * W³
-    # → V^(1/3) = RT60 * α * (_ASPECT_SA_COEF / _ASPECT_VOLUME^(2/3)) / K
+    # V = RT60 * a * S / K, with S = _ASPECT_SA_COEF * W^2 and V = _ASPECT_VOLUME * W^3
+    # -> V^(1/3) = RT60 * a * (_ASPECT_SA_COEF / _ASPECT_VOLUME^(2/3)) / K
     sa_v23 = _ASPECT_SA_COEF / (_ASPECT_VOLUME ** (2.0 / 3.0))
     v_cube_root = (rt60 * alpha_c * sa_v23) / _SABINE_K
     v_sabine = max(0.0, v_cube_root ** 3.0)
@@ -444,7 +483,7 @@ def estimate_room_size(
     sa = dims["surface_area_m2"]
 
     # Compute mean absorption output and critical distance from volume
-    a_total = _SABINE_K * v_primary / rt60  # A = α·S
+    a_total = _SABINE_K * v_primary / rt60  # A = a*S
     alpha_out = float(np.clip(a_total / max(sa, 1e-3), 0.01, 0.99))
     dc = math.sqrt(a_total / (16.0 * math.pi)) if a_total > 0.0 else 0.0
 

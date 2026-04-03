@@ -6,7 +6,7 @@
 
 **Colossal 64-bit spatial audio reverberator, accelerated with CUDA and Metal.**
 
-`verbx` is a research-grade Python CLI for creating reverb effects that range from subtle room placement to cathedral-scale tails 3600 seconds long. It handles the complete reverb workflow: ingesting and generating impulse responses, processing audio through two independent engines, controlling every parameter with time-varying automation, delivering loudness-targeted multichannel output, reducing late-room smear with deterministic dereverberation, and producing reproducible analysis artifacts at every step.
+`verbx` is a research-grade Python CLI for creating reverb effects that range from subtle room placement to cathedral-scale tails 3600 seconds long. It handles the complete reverb workflow: ingesting and generating impulse responses, processing audio through two independent engines, controlling every parameter with time-varying automation, delivering loudness-targeted multichannel output, reducing late-room smear with deterministic dereverberation, producing reproducible analysis artifacts at every step, and now previewing spaces in realtime from CLI-selectable audio devices.
 
 You can batch reverberate a directory of audio files to create lush Dolby Atmos beds. or use it as part of your corpus-augmentation workflow for audio AI projects. 
 
@@ -52,6 +52,18 @@ verbx render input.wav output.wav --engine algo --rt60 2.5 --wet 0.3 --dry 0.7
 ```
 
 This applies a natural-sounding 2.5-second algorithmic reverb. Output is written to `output.wav`, with analysis at `output.wav.analysis.json`.
+
+Need a live preview instead of an offline bounce?
+
+```bash
+verbx realtime --engine algo --input-device "Built-in Microphone" \
+  --output-device "Headphones" --rt60 4.0 --duration 10
+```
+
+Initial realtime mode runs either direct convolution from `--ir` or an
+algorithmic proxy IR rendered once and monitored through the streaming
+convolver. It is meant for auditioning spaces and tails, not yet for the full
+automation/freeze/batch feature set.
 
 If you need to install first on macOS:
 
@@ -105,11 +117,23 @@ git clone https://github.com/TheColby/verbx.git && cd verbx
 uv sync && uv run verbx --help
 ```
 
+For realtime audio device support:
+
+```bash
+uv sync --extra realtime
+```
+
 **With pip + venv:**
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e . && verbx --help
+```
+
+For realtime audio device support:
+
+```bash
+pip install -e ".[realtime]"
 ```
 
 **With the install script (installs man pages too):**
@@ -136,7 +160,7 @@ For local maintainer testing, you can also install from the in-repo formula:
 brew install --build-from-source ./packaging/homebrew/verbx.rb
 ```
 
-**Requirements:** Python 3.11+, `libsndfile` on system path. Optional: `numba` (faster algorithmic path), `cupy` (CUDA convolution), `h5py` (SOFA import/extract via `verbx ir sofa-*`).
+**Requirements:** Python 3.11+, `libsndfile` on system path. Optional: `numba` (faster algorithmic path), `cupy` (CUDA convolution), `h5py` (SOFA import/extract via `verbx ir sofa-*`), `sounddevice` (realtime input/output via `verbx realtime`).
 
 Homebrew maintainer details: [`docs/HOMEBREW.md`](docs/HOMEBREW.md)
 
@@ -831,6 +855,52 @@ verbx ir sofa-extract FILE.sofa OUT.wav   # extract FIR matrix for convolution r
 
 ---
 
+### verbx realtime
+
+`verbx realtime [options]`
+
+Realtime mode is currently a preview/audition path. `--engine conv` streams a
+real IR directly; `--engine algo` renders a static proxy IR once, then runs the
+live monitor through the streaming convolution engine. That means you get live
+device routing and stable tails today, without pretending the full offline
+automation surface is callback-safe yet.
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--engine` | auto/conv/algo | Live engine mode. `auto` chooses convolution when `--ir` is present, else algorithmic proxy |
+| `--ir` | file path | IR source for realtime convolution |
+| `--input-device` | index or substring | Select live input device |
+| `--output-device` | index or substring | Select live output device |
+| `--list-devices` | flag | Print available realtime devices and exit |
+| `--sample-rate` | Hz | Live stream sample rate |
+| `--block-size` | samples | Driver callback block size |
+| `--partition-size` | samples | Convolution partition size used in the live processor |
+| `--input-channels` | int | Requested input width |
+| `--output-channels` | int | Requested output width |
+| `--duration` | seconds | Stop automatically after N seconds; omit for Ctrl-C run |
+| `--wet` | 0–1 | Wet mix |
+| `--dry` | 0–1 | Dry mix |
+| `--rt60` | seconds | Algorithmic proxy RT60 |
+| `--pre-delay-ms` | ms | Algorithmic proxy pre-delay |
+| `--damping` | 0–1 | Algorithmic proxy damping |
+| `--width` | 0–2 | Algorithmic proxy stereo width |
+| `--fdn-lines` | 1–64 | Algorithmic proxy FDN line count |
+| `--fdn-matrix` | matrix family | Algorithmic proxy matrix family |
+| `--allpass-stages` | 0–64 | Algorithmic proxy diffusion stages |
+| `--allpass-gain` | -0.99–0.99 | Algorithmic proxy allpass coefficient |
+| `--quiet` | flag | Reduce console output |
+
+Example:
+
+```bash
+verbx realtime --engine conv --ir hall.wav \
+  --input-device "Built-in Microphone" \
+  --output-device "Headphones" \
+  --sample-rate 48000 --block-size 512
+```
+
+---
+
 ### verbx analyze
 
 `verbx analyze INFILE [options]`
@@ -888,6 +958,8 @@ verbx batch augment augment.json --jobs 8      # generate training dataset
 
 ```bash
 verbx suggest INFILE      # analysis-driven starter settings for your specific audio
+verbx realtime --list-devices   # list selectable live audio devices
+verbx realtime --engine algo --input-device 0 --output-device 3   # live preview
 verbx dereverb INFILE OUTFILE   # suppress late reverberation from an existing recording
 verbx presets             # list built-in presets
 verbx presets --show cathedral_extreme   # inspect preset parameters

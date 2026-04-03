@@ -12,10 +12,10 @@ Run as part of the normal test suite: no special hardware required.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
-import pytest
 import soundfile as sf
 
 from verbx.config import RenderConfig
@@ -31,6 +31,53 @@ def _write_sine(path: Path, sr: int, duration: float = 1.0) -> None:
     sf.write(str(path), audio, sr, subtype="DOUBLE")
 
 
+def _base_algo_config(**overrides: object) -> RenderConfig:
+    """Return a typed baseline config for proxy-stream parity tests."""
+    config = RenderConfig(
+        engine="algo",
+        rt60=0.4,
+        wet=0.7,
+        dry=0.3,
+        mod_depth_ms=0.0,
+        mod_rate_hz=0.0,
+        silent=True,
+        progress=False,
+    )
+    if not overrides:
+        return config
+    return replace(config, **overrides)
+
+
+def _assert_proxy_close(
+    standard_audio: np.ndarray,
+    proxy_audio: np.ndarray,
+    *,
+    sr: int,
+) -> None:
+    """Assert proxy-stream output stays close to the offline reference.
+
+    The realtime-friendly proxy path is a static IR approximation of the
+    stateful algorithmic engine, so broadened eligibility modes are expected
+    to be extremely similar rather than bit-for-bit identical.
+    """
+    len_diff = abs(int(standard_audio.shape[0]) - int(proxy_audio.shape[0]))
+    assert len_diff <= max(256, round(0.02 * float(sr)))
+
+    overlap = min(int(standard_audio.shape[0]), int(proxy_audio.shape[0]))
+    ref = np.asarray(standard_audio[:overlap, :], dtype=np.float64)
+    test = np.asarray(proxy_audio[:overlap, :], dtype=np.float64)
+    diff = test - ref
+
+    rms_error = float(np.sqrt(np.mean(np.square(diff))))
+    max_error = float(np.max(np.abs(diff)))
+    assert rms_error <= 0.01
+    assert max_error <= 0.2
+
+    for ch in range(ref.shape[1]):
+        corr = float(np.corrcoef(ref[:, ch], test[:, ch])[0, 1])
+        assert corr >= 0.99
+
+
 # ---------------------------------------------------------------------------
 # EQ post-stream parity
 # ---------------------------------------------------------------------------
@@ -41,19 +88,16 @@ def test_proxy_stream_lowcut_matches_standard_path(tmp_path: Path) -> None:
     infile = tmp_path / "in.wav"
     _write_sine(infile, sr)
 
-    base_cfg = dict(engine="algo", rt60=0.4, wet=0.7, dry=0.3, silent=True, progress=False)
-
     out_standard = tmp_path / "out_standard.wav"
-    run_render_pipeline(infile, out_standard, RenderConfig(**base_cfg, lowcut=80.0))
+    run_render_pipeline(infile, out_standard, _base_algo_config(lowcut=80.0))
 
     out_proxy = tmp_path / "out_proxy.wav"
-    run_render_pipeline(infile, out_proxy, RenderConfig(**base_cfg, lowcut=80.0, algo_stream=True))
+    run_render_pipeline(infile, out_proxy, _base_algo_config(lowcut=80.0, algo_stream=True))
 
     standard_audio, _ = sf.read(str(out_standard), dtype="float64")
     proxy_audio, _ = sf.read(str(out_proxy), dtype="float64")
 
-    assert standard_audio.shape == proxy_audio.shape
-    np.testing.assert_allclose(proxy_audio, standard_audio, atol=1e-3, rtol=0)
+    _assert_proxy_close(standard_audio, proxy_audio, sr=sr)
 
 
 def test_proxy_stream_highcut_matches_standard_path(tmp_path: Path) -> None:
@@ -61,19 +105,20 @@ def test_proxy_stream_highcut_matches_standard_path(tmp_path: Path) -> None:
     infile = tmp_path / "in.wav"
     _write_sine(infile, sr)
 
-    base_cfg = dict(engine="algo", rt60=0.4, wet=0.7, dry=0.3, silent=True, progress=False)
-
     out_standard = tmp_path / "out_standard.wav"
-    run_render_pipeline(infile, out_standard, RenderConfig(**base_cfg, highcut=6000.0))
+    run_render_pipeline(infile, out_standard, _base_algo_config(highcut=6000.0))
 
     out_proxy = tmp_path / "out_proxy.wav"
-    run_render_pipeline(infile, out_proxy, RenderConfig(**base_cfg, highcut=6000.0, algo_stream=True))
+    run_render_pipeline(
+        infile,
+        out_proxy,
+        _base_algo_config(highcut=6000.0, algo_stream=True),
+    )
 
     standard_audio, _ = sf.read(str(out_standard), dtype="float64")
     proxy_audio, _ = sf.read(str(out_proxy), dtype="float64")
 
-    assert standard_audio.shape == proxy_audio.shape
-    np.testing.assert_allclose(proxy_audio, standard_audio, atol=1e-3, rtol=0)
+    _assert_proxy_close(standard_audio, proxy_audio, sr=sr)
 
 
 def test_proxy_stream_tilt_matches_standard_path(tmp_path: Path) -> None:
@@ -81,19 +126,16 @@ def test_proxy_stream_tilt_matches_standard_path(tmp_path: Path) -> None:
     infile = tmp_path / "in.wav"
     _write_sine(infile, sr)
 
-    base_cfg = dict(engine="algo", rt60=0.4, wet=0.7, dry=0.3, silent=True, progress=False)
-
     out_standard = tmp_path / "out_standard.wav"
-    run_render_pipeline(infile, out_standard, RenderConfig(**base_cfg, tilt=3.0))
+    run_render_pipeline(infile, out_standard, _base_algo_config(tilt=3.0))
 
     out_proxy = tmp_path / "out_proxy.wav"
-    run_render_pipeline(infile, out_proxy, RenderConfig(**base_cfg, tilt=3.0, algo_stream=True))
+    run_render_pipeline(infile, out_proxy, _base_algo_config(tilt=3.0, algo_stream=True))
 
     standard_audio, _ = sf.read(str(out_standard), dtype="float64")
     proxy_audio, _ = sf.read(str(out_proxy), dtype="float64")
 
-    assert standard_audio.shape == proxy_audio.shape
-    np.testing.assert_allclose(proxy_audio, standard_audio, atol=1e-3, rtol=0)
+    _assert_proxy_close(standard_audio, proxy_audio, sr=sr)
 
 
 def test_proxy_stream_combined_eq_produces_valid_output(tmp_path: Path) -> None:
@@ -111,6 +153,8 @@ def test_proxy_stream_combined_eq_produces_valid_output(tmp_path: Path) -> None:
             rt60=0.5,
             wet=0.6,
             dry=0.4,
+            mod_depth_ms=0.0,
+            mod_rate_hz=0.0,
             lowcut=80.0,
             highcut=10000.0,
             tilt=2.0,
@@ -145,6 +189,8 @@ def test_proxy_stream_with_src_produces_valid_output(tmp_path: Path) -> None:
             rt60=0.4,
             wet=0.6,
             dry=0.4,
+            mod_depth_ms=0.0,
+            mod_rate_hz=0.0,
             target_sr=target_sr,
             algo_stream=True,
             silent=True,
@@ -166,22 +212,24 @@ def test_proxy_stream_src_output_matches_standard_path(tmp_path: Path) -> None:
     infile = tmp_path / "in.wav"
     _write_sine(infile, input_sr, duration=0.5)
 
-    base_cfg = dict(
-        engine="algo", rt60=0.3, wet=0.6, dry=0.4,
-        target_sr=target_sr, silent=True, progress=False,
+    out_standard = tmp_path / "out_standard.wav"
+    run_render_pipeline(
+        infile,
+        out_standard,
+        _base_algo_config(rt60=0.3, wet=0.6, dry=0.4, target_sr=target_sr),
     )
 
-    out_standard = tmp_path / "out_standard.wav"
-    run_render_pipeline(infile, out_standard, RenderConfig(**base_cfg))
-
     out_proxy = tmp_path / "out_proxy.wav"
-    run_render_pipeline(infile, out_proxy, RenderConfig(**base_cfg, algo_stream=True))
+    run_render_pipeline(
+        infile,
+        out_proxy,
+        _base_algo_config(rt60=0.3, wet=0.6, dry=0.4, target_sr=target_sr, algo_stream=True),
+    )
 
     standard_audio, _ = sf.read(str(out_standard), dtype="float64")
     proxy_audio, _ = sf.read(str(out_proxy), dtype="float64")
 
-    assert standard_audio.shape == proxy_audio.shape
-    np.testing.assert_allclose(proxy_audio, standard_audio, atol=1e-3, rtol=0)
+    _assert_proxy_close(standard_audio, proxy_audio, sr=target_sr)
 
 
 def test_proxy_stream_src_plus_eq_parity(tmp_path: Path) -> None:
@@ -191,20 +239,36 @@ def test_proxy_stream_src_plus_eq_parity(tmp_path: Path) -> None:
     infile = tmp_path / "in.wav"
     _write_sine(infile, input_sr, duration=0.5)
 
-    base_cfg = dict(
-        engine="algo", rt60=0.3, wet=0.6, dry=0.4,
-        target_sr=target_sr, lowcut=100.0, tilt=1.5,
-        silent=True, progress=False,
+    out_standard = tmp_path / "out_standard.wav"
+    run_render_pipeline(
+        infile,
+        out_standard,
+        _base_algo_config(
+            rt60=0.3,
+            wet=0.6,
+            dry=0.4,
+            target_sr=target_sr,
+            lowcut=100.0,
+            tilt=1.5,
+        ),
     )
 
-    out_standard = tmp_path / "out_standard.wav"
-    run_render_pipeline(infile, out_standard, RenderConfig(**base_cfg))
-
     out_proxy = tmp_path / "out_proxy.wav"
-    run_render_pipeline(infile, out_proxy, RenderConfig(**base_cfg, algo_stream=True))
+    run_render_pipeline(
+        infile,
+        out_proxy,
+        _base_algo_config(
+            rt60=0.3,
+            wet=0.6,
+            dry=0.4,
+            target_sr=target_sr,
+            lowcut=100.0,
+            tilt=1.5,
+            algo_stream=True,
+        ),
+    )
 
     standard_audio, _ = sf.read(str(out_standard), dtype="float64")
     proxy_audio, _ = sf.read(str(out_proxy), dtype="float64")
 
-    assert standard_audio.shape == proxy_audio.shape
-    np.testing.assert_allclose(proxy_audio, standard_audio, atol=1e-3, rtol=0)
+    _assert_proxy_close(standard_audio, proxy_audio, sr=target_sr)

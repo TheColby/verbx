@@ -1,6 +1,6 @@
 """HOA (Higher-Order Ambisonics) validation tests.
 
-Verifies correctness of HOA processing paths for orders 1–3.
+Verifies correctness of HOA processing paths for orders 1-3.
 
 Status as of v0.7.7:
 - FOA (order 1): fully validated — all tests pass deterministically.
@@ -16,7 +16,7 @@ marker with a positive assertion against a reference decoder.
 
 from __future__ import annotations
 
-import math
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -45,7 +45,10 @@ def _hoa_signal(order: int, n_samples: int = 2048) -> np.ndarray:
 
 hoa_unvalidated = pytest.mark.xfail(
     strict=False,
-    reason="HOA order >1 path exists but absolute numerical correctness not yet externally validated",
+    reason=(
+        "HOA order >1 path exists but absolute numerical correctness "
+        "is not yet externally validated"
+    ),
 )
 
 # ---------------------------------------------------------------------------
@@ -125,7 +128,7 @@ def test_foa_yaw_rotation_preserves_w_channel() -> None:
 
 
 def test_foa_yaw_rotation_90_swaps_x_y() -> None:
-    """Yaw by 90 degrees: new X ≈ original Y, new Y ≈ −original X."""
+    """Yaw by 90 degrees: new X ~= original Y, new Y ~= -original X."""
     from verbx.core.spatial import rotate_ambisonic_yaw
     audio = _acn_sn3d_foa()
     rotated = rotate_ambisonic_yaw(audio, order=1, yaw_degrees=90.0,
@@ -276,7 +279,6 @@ def test_convention_conversion_preserves_energy() -> None:
                                         source_channel_order="acn",
                                         target_normalization="fuma",
                                         target_channel_order="fuma")
-    energy_in = float(np.sum(np.square(audio)))
     energy_out = float(np.sum(np.square(fuma)))
     # Energy may differ slightly due to normalization scale factors
     # but the ratio must be consistent (SN3D W = 1.0, FuMa W = 1/sqrt(2))
@@ -287,12 +289,14 @@ def test_convention_conversion_preserves_energy() -> None:
 # CLI warning for HOA > 1
 # ---------------------------------------------------------------------------
 
-def test_hoa_cli_warning_for_order_above_1(tmp_path: pytest.TempPathFactory, capsys: pytest.CaptureFixture) -> None:
+def test_hoa_cli_warning_for_order_above_1(
+    tmp_path: Path,
+) -> None:
     """CLI must emit a warning when ambi_order > 1 is requested."""
-    from pathlib import Path
-    from verbx.core.spatial import ambisonic_channel_count
-    import soundfile as sf as _sf
+    import soundfile as _sf
+
     from verbx.config import RenderConfig
+    from verbx.core.spatial import ambisonic_channel_count
 
     order = 2
     n_ch = ambisonic_channel_count(order)

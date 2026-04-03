@@ -15,11 +15,15 @@ Do not edit manually.
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ realtime    Run realtime duplex monitoring with selectable input/output      │
+│             devices.                                                         │
 │ version     Print CLI/package version.                                       │
 │ quickstart  Print minimal copy/paste commands for first successful renders.  │
 │ doctor      Print runtime diagnostics for launch-day troubleshooting.        │
 │ render      Render input audio with algorithmic or convolution reverb.       │
 │ analyze     Analyze an audio file and print a summary table.                 │
+│ compare     Side-by-side comparison of two audio files.                      │
+│ dereverb    Suppress late reverberation from an existing audio recording.    │
 │ suggest     Suggest practical render defaults from input analysis.           │
 │ presets     Print available presets or one preset payload.                   │
 │ ir          Impulse response workflows.                                      │
@@ -49,6 +53,13 @@ Do not edit manually.
 │                                                            supplied CLI      │
 │                                                            options override  │
 │                                                            preset values.    │
+│ --auto-fit                               [none|speech|mus  Apply             │
+│                                          ic|drums|ambient  target-oriented   │
+│                                          ]                 heuristic         │
+│                                                            profile: none,    │
+│                                                            speech, music,    │
+│                                                            drums, ambient.   │
+│                                                            [default: none]   │
 │ --engine                                 [conv|algo|auto]  Engine: conv,     │
 │                                                            algo, or auto.    │
 │                                                            [default: auto]   │
@@ -298,6 +309,17 @@ Do not edit manually.
 │                                                            graph-structured  │
 │                                                            FDN pairings.     │
 │                                                            [default: 2026]   │
+│ --fdn-matrix-mor…                        TEXT              Optional target   │
+│                                                            matrix family for │
+│                                                            gradual           │
+│                                                            feedback-matrix   │
+│                                                            morphing.         │
+│ --fdn-matrix-mor…                        FLOAT RANGE       Duration          │
+│                                          [x>=0.0]          (seconds) for     │
+│                                                            matrix morph from │
+│                                                            --fdn-matrix to   │
+│                                                            --fdn-matrix-mor… │
+│                                                            [default: 0.0]    │
 │ --fdn-spatial-co…                        [none|adjacent|f  Directional       │
 │                                          ront_rear|bed_to  wet-bus coupling  │
 │                                          p|all_to_all]     mode: none,       │
@@ -531,6 +553,22 @@ Do not edit manually.
 │                                                            [default: 0.0]    │
 │ --tail-limit                             FLOAT RANGE                         │
 │                                          [x>=0.0]                            │
+│ --tail-stop-thre…                        FLOAT RANGE       Tail completion   │
+│                                          [-240.0<=x<=0.0]  threshold in dBFS │
+│                                                            used for final    │
+│                                                            zero-tail         │
+│                                                            writeout.         │
+│                                                            [default: -120.0] │
+│ --tail-stop-hold…                        FLOAT RANGE       Explicit          │
+│                                          [x>=0.0]          zero-hold         │
+│                                                            duration appended │
+│                                                            after tail        │
+│                                                            completion.       │
+│                                                            [default: 10.0]   │
+│ --tail-stop-metr…                        [peak|rms]        Tail stop         │
+│                                                            detector metric:  │
+│                                                            peak or rms.      │
+│                                                            [default: peak]   │
 │ --threads                                INTEGER RANGE                       │
 │                                          [x>=1]                              │
 │ --device                                 [auto|cpu|cuda|m  Compute device    │
@@ -538,8 +576,44 @@ Do not edit manually.
 │                                                            cpu, cuda, or mps │
 │                                                            (Apple Silicon).  │
 │                                                            [default: auto]   │
+│ --algo-stream        --no-algo-stream                      Use               │
+│                                                            algorithmic-to-c… │
+│                                                            proxy streaming   │
+│                                                            path for long     │
+│                                                            algorithmic       │
+│                                                            renders.          │
+│                                                            [default:         │
+│                                                            no-algo-stream]   │
+│ --algo-proxy-ir-…                        FLOAT RANGE       Maximum proxy-IR  │
+│                                          [x>=1.0]          duration used by  │
+│                                                            --algo-stream.    │
+│                                                            [default: 120.0]  │
+│ --algo-gpu-proxy     --no-algo-gpu-p…                      Route algorithmic │
+│                                                            render through    │
+│                                                            proxy convolution │
+│                                                            path to leverage  │
+│                                                            CUDA convolution. │
+│                                                            [default:         │
+│                                                            no-algo-gpu-prox… │
 │ --partition-size                         INTEGER RANGE     [default: 16384]  │
 │                                          [x>=256]                            │
+│ --quality-preset                         TEXT              Output-definition │
+│                                                            preset: sd=44.1   │
+│                                                            kHz PCM16, md=48  │
+│                                                            kHz PCM24, hd=192 │
+│                                                            kHz float32       │
+│                                                            (default).        │
+│                                                            Explicit          │
+│                                                            --target-sr/--ou… │
+│                                                            override.         │
+│                                                            [default: hd]     │
+│ --target-sr                              INTEGER RANGE     Optional          │
+│                                          [x>=1]            output/render     │
+│                                                            sample rate (Hz). │
+│                                                            Input is          │
+│                                                            resampled         │
+│                                                            internally if     │
+│                                                            needed.           │
 │ --ir-gen                                                                     │
 │ --ir-gen-mode                            [fdn|stochastic|  [default: hybrid] │
 │                                          modal|hybrid]                       │
@@ -571,6 +645,10 @@ Do not edit manually.
 │                                                            per delivery      │
 │                                                            needs.            │
 │                                                            [default: auto]   │
+│ --output-contain…                        [auto|wav|w64|rf  Output container  │
+│                                          64]               mode: auto, wav,  │
+│                                                            w64, or rf64.     │
+│                                                            [default: auto]   │
 │ --output-peak-no…                        [none|input|targ  Final peak        │
 │                                          et|full-scale]    normalization     │
 │                                                            mode: none, input │
@@ -588,11 +666,72 @@ Do not edit manually.
 │ --shimmer-mix                            FLOAT RANGE       [default: 0.25]   │
 │                                          [0.0<=x<=1.0]                       │
 │ --shimmer-feedba…                        FLOAT RANGE       [default: 0.35]   │
-│                                          [0.0<=x<=0.98]                      │
+│                                          [0.0<=x<=1.25]                      │
 │ --shimmer-highcut                        FLOAT RANGE       [default:         │
 │                                          [x>=10.0]         10000.0]          │
 │ --shimmer-lowcut                         FLOAT RANGE       [default: 300.0]  │
 │                                          [x>=10.0]                           │
+│ --shimmer-spatial    --no-shimmer-sp…                      Enable            │
+│                                                            multichannel      │
+│                                                            shimmer spatial   │
+│                                                            decorrelation.    │
+│                                                            [default:         │
+│                                                            no-shimmer-spati… │
+│ --shimmer-spread…                        FLOAT RANGE       Per-channel       │
+│                                          [x>=0.0]          shimmer detune    │
+│                                                            spread in cents   │
+│                                                            (multichannel).   │
+│                                                            [default: 8.0]    │
+│ --shimmer-decorr…                        FLOAT RANGE       Per-channel       │
+│                                          [x>=0.0]          shimmer delay     │
+│                                                            spread in         │
+│                                                            milliseconds.     │
+│                                                            [default: 1.5]    │
+│ --er-geometry        --no-er-geometry                      Enable            │
+│                                                            first-order       │
+│                                                            image-source      │
+│                                                            early-reflection  │
+│                                                            pre-stage.        │
+│                                                            [default:         │
+│                                                            no-er-geometry]   │
+│ --er-room-dims-m                         TEXT              Room dimensions   │
+│                                                            in meters: L,W,H  │
+│                                                            [default: 10,7,3] │
+│ --er-source-pos-m                        TEXT              Source position   │
+│                                                            in meters: x,y,z  │
+│                                                            [default:         │
+│                                                            2,2,1.5]          │
+│ --er-listener-po…                        TEXT              Listener position │
+│                                                            in meters: x,y,z  │
+│                                                            [default:         │
+│                                                            5,3.5,1.5]        │
+│ --er-absorption                          FLOAT RANGE       Wall absorption   │
+│                                          [0.0<=x<=0.99]    coefficient for   │
+│                                                            early-reflection  │
+│                                                            stage.            │
+│                                                            [default: 0.35]   │
+│ --er-material                            TEXT              Early-reflection  │
+│                                                            material preset:  │
+│                                                            anechoic, dead,   │
+│                                                            studio, hall,     │
+│                                                            stone, or custom. │
+│                                                            [default: studio] │
+│ --unsafe-self-os…    --safe-no-self-…                      UNSAFE: permit    │
+│                                                            feedback-path     │
+│                                                            gains above unity │
+│                                                            in algorithmic    │
+│                                                            mode for          │
+│                                                            self-oscillating  │
+│                                                            tails.            │
+│                                                            [default:         │
+│                                                            safe-no-self-osc… │
+│ --unsafe-loop-ga…                        FLOAT RANGE       UNSAFE loop-gain  │
+│                                          [0.01<=x<=1.25]   scale used with   │
+│                                                            --unsafe-self-os… │
+│                                                            Values >1.0       │
+│                                                            encourage         │
+│                                                            self-oscillation. │
+│                                                            [default: 1.02]   │
 │ --duck                                                                       │
 │ --duck-attack                            FLOAT RANGE       [default: 20.0]   │
 │                                          [x>=0.1]                            │
@@ -754,8 +893,76 @@ Do not edit manually.
 │                                                            fails.            │
 │ --progress           --no-progress                         [default:         │
 │                                                            progress]         │
+│ --json-out                               PATH              Optional path to  │
+│                                                            write the full    │
+│                                                            render report as  │
+│                                                            JSON.             │
 │ --help                                                     Show this message │
 │                                                            and exit.         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## `verbx realtime --help`
+
+```text
+                                                                                
+ Usage: root realtime [OPTIONS]                                                 
+                                                                                
+ Run realtime duplex monitoring with selectable input/output devices.           
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --engine                 [auto|conv|algo]          Realtime engine:          │
+│                                                    convolution IR, or        │
+│                                                    algorithmic proxy         │
+│                                                    rendered into a live      │
+│                                                    convolver.                │
+│                                                    [default: auto]           │
+│ --ir                     PATH                      Impulse response path for │
+│                                                    realtime convolution      │
+│                                                    mode.                     │
+│ --input-device           TEXT                      Input device index or     │
+│                                                    case-insensitive name     │
+│                                                    substring.                │
+│ --output-device          TEXT                      Output device index or    │
+│                                                    case-insensitive name     │
+│                                                    substring.                │
+│ --list-devices                                     List available realtime   │
+│                                                    audio devices and exit.   │
+│ --sample-rate            INTEGER RANGE [x>=8000]   [default: 48000]          │
+│ --block-size             INTEGER RANGE [x>=64]     [default: 512]            │
+│ --partition-size         INTEGER RANGE [x>=256]    [default: 2048]           │
+│ --input-channels         INTEGER RANGE [x>=1]      Requested live input      │
+│                                                    channel count. Defaults   │
+│                                                    to mono or stereo         │
+│                                                    depending on device.      │
+│ --output-channels        INTEGER RANGE [x>=1]      Requested live output     │
+│                                                    channel count. Defaults   │
+│                                                    to the processor's        │
+│                                                    natural output width.     │
+│ --duration               FLOAT RANGE [x>=0.0]      Optional duration in      │
+│                                                    seconds. Omit to run      │
+│                                                    until Ctrl-C.             │
+│ --wet                    FLOAT RANGE               [default: 0.8]            │
+│                          [0.0<=x<=1.0]                                       │
+│ --dry                    FLOAT RANGE               [default: 0.2]            │
+│                          [0.0<=x<=1.0]                                       │
+│ --rt60                   FLOAT RANGE [x>=0.1]      [default: 6.0]            │
+│ --pre-delay-ms           FLOAT RANGE [x>=0.0]      [default: 20.0]           │
+│ --damping                FLOAT RANGE               [default: 0.45]           │
+│                          [0.0<=x<=1.0]                                       │
+│ --width                  FLOAT RANGE               [default: 1.0]            │
+│                          [0.0<=x<=2.0]                                       │
+│ --fdn-lines              INTEGER RANGE [1<=x<=64]  [default: 8]              │
+│ --fdn-matrix             TEXT                      Algorithmic proxy matrix  │
+│                                                    for realtime --engine     │
+│                                                    algo.                     │
+│                                                    [default: hadamard]       │
+│ --allpass-stages         INTEGER RANGE [0<=x<=64]  [default: 6]              │
+│ --allpass-gain           FLOAT RANGE               [default: 0.7]            │
+│                          [-0.99<=x<=0.99]                                    │
+│ --quiet                                            Reduce console output.    │
+│ --help                                             Show this message and     │
+│                                                    exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -792,6 +999,15 @@ Do not edit manually.
 │                                                      order convention for    │
 │                                                      analysis mode.          │
 │                                                      [default: auto]         │
+│ --room                                               Estimate room size,     │
+│                                                      dimensions, absorption, │
+│                                                      critical distance, and  │
+│                                                      class from the signal's │
+│                                                      reverberant decay       │
+│                                                      characteristics. Works  │
+│                                                      best on reverberant     │
+│                                                      recordings or rendered  │
+│                                                      impulse responses.      │
 │ --help                                               Show this message and   │
 │                                                      exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -809,7 +1025,8 @@ Do not edit manually.
 │ *    infile      PATH  [required]                                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help          Show this message and exit.                                  │
+│ --pin         PATH  Write suggested parameters as a JSON preset file.        │
+│ --help              Show this message and exit.                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -865,8 +1082,10 @@ Do not edit manually.
  Print available presets or one preset payload.                                 
                                                                                 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --show        TEXT  Show resolved values for one preset.                     │
-│ --help              Show this message and exit.                              │
+│ --show            TEXT  Show resolved values for one preset.                 │
+│ --validate        TEXT  Validate a preset's fields against RenderConfig and  │
+│                         report any errors.                                   │
+│ --help                  Show this message and exit.                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -895,13 +1114,16 @@ Do not edit manually.
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ gen          Generate an IR file with deterministic caching.                 │
-│ analyze      Analyze an impulse response.                                    │
-│ process      Process an existing IR through shaping/targeting chain.         │
-│ morph        Morph two IR files with cache-backed Track D processing.        │
-│ morph-sweep  Run an alpha timeline sweep and emit Track D QA artifacts.      │
-│ fit          Analyze source audio, score candidate IRs, and write top-k      │
-│              results.                                                        │
+│ gen           Generate an IR file with deterministic caching.                │
+│ analyze       Analyze an impulse response.                                   │
+│ sofa-info     Inspect SOFA metadata and dimensions.                          │
+│ sofa-extract  Extract SOFA FIR data to a WAV matrix for convolution          │
+│               workflows.                                                     │
+│ process       Process an existing IR through shaping/targeting chain.        │
+│ morph         Morph two IR files with cache-backed Track D processing.       │
+│ morph-sweep   Run an alpha timeline sweep and emit Track D QA artifacts.     │
+│ fit           Analyze source audio, score candidate IRs, and write top-k     │
+│               results.                                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1713,6 +1935,14 @@ Do not edit manually.
 │                                                           deterministic seed │
 │                                                           for --lucky batch  │
 │                                                           generation.        │
+│ --progress-json                       PATH                Append one JSONL   │
+│                                                           line per completed │
+│                                                           job to this file.  │
+│                                                           Each line contains │
+│                                                           index, outfile,    │
+│                                                           success,           │
+│                                                           duration_seconds,  │
+│                                                           and error.         │
 │ --help                                                    Show this message  │
 │                                                           and exit.          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
