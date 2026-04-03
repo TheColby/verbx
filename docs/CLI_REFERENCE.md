@@ -911,58 +911,165 @@ Do not edit manually.
  Run realtime duplex monitoring with selectable input/output devices.           
                                                                                 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --engine                 [auto|conv|algo]          Realtime engine:          │
-│                                                    convolution IR, or        │
-│                                                    algorithmic proxy         │
-│                                                    rendered into a live      │
-│                                                    convolver.                │
-│                                                    [default: auto]           │
-│ --ir                     PATH                      Impulse response path for │
-│                                                    realtime convolution      │
-│                                                    mode.                     │
-│ --input-device           TEXT                      Input device index or     │
-│                                                    case-insensitive name     │
-│                                                    substring.                │
-│ --output-device          TEXT                      Output device index or    │
-│                                                    case-insensitive name     │
-│                                                    substring.                │
-│ --list-devices                                     List available realtime   │
-│                                                    audio devices and exit.   │
-│ --sample-rate            INTEGER RANGE [x>=8000]   [default: 48000]          │
-│ --block-size             INTEGER RANGE [x>=64]     [default: 512]            │
-│ --partition-size         INTEGER RANGE [x>=256]    [default: 2048]           │
-│ --input-channels         INTEGER RANGE [x>=1]      Requested live input      │
-│                                                    channel count. Defaults   │
-│                                                    to mono or stereo         │
-│                                                    depending on device.      │
-│ --output-channels        INTEGER RANGE [x>=1]      Requested live output     │
-│                                                    channel count. Defaults   │
-│                                                    to the processor's        │
-│                                                    natural output width.     │
-│ --duration               FLOAT RANGE [x>=0.0]      Optional duration in      │
-│                                                    seconds. Omit to run      │
-│                                                    until Ctrl-C.             │
-│ --wet                    FLOAT RANGE               [default: 0.8]            │
-│                          [0.0<=x<=1.0]                                       │
-│ --dry                    FLOAT RANGE               [default: 0.2]            │
-│                          [0.0<=x<=1.0]                                       │
-│ --rt60                   FLOAT RANGE [x>=0.1]      [default: 6.0]            │
-│ --pre-delay-ms           FLOAT RANGE [x>=0.0]      [default: 20.0]           │
-│ --damping                FLOAT RANGE               [default: 0.45]           │
-│                          [0.0<=x<=1.0]                                       │
-│ --width                  FLOAT RANGE               [default: 1.0]            │
-│                          [0.0<=x<=2.0]                                       │
-│ --fdn-lines              INTEGER RANGE [1<=x<=64]  [default: 8]              │
-│ --fdn-matrix             TEXT                      Algorithmic proxy matrix  │
-│                                                    for realtime --engine     │
-│                                                    algo.                     │
-│                                                    [default: hadamard]       │
-│ --allpass-stages         INTEGER RANGE [0<=x<=64]  [default: 6]              │
-│ --allpass-gain           FLOAT RANGE               [default: 0.7]            │
-│                          [-0.99<=x<=0.99]                                    │
-│ --quiet                                            Reduce console output.    │
-│ --help                                             Show this message and     │
-│                                                    exit.                     │
+│ --engine                      [auto|conv|algo]        Realtime engine:       │
+│                                                       convolution IR, or     │
+│                                                       algorithmic proxy      │
+│                                                       rendered into a live   │
+│                                                       convolver.             │
+│                                                       [default: auto]        │
+│ --ir                          PATH                    Impulse response path  │
+│                                                       for realtime           │
+│                                                       convolution mode.      │
+│ --input-device                TEXT                    Input device index or  │
+│                                                       case-insensitive name  │
+│                                                       substring.             │
+│ --output-device               TEXT                    Output device index or │
+│                                                       case-insensitive name  │
+│                                                       substring.             │
+│ --list-devices                                        List available         │
+│                                                       realtime audio devices │
+│                                                       and exit.              │
+│ --sample-rate                 INTEGER RANGE           [default: 48000]       │
+│                               [x>=8000]                                      │
+│ --block-size                  INTEGER RANGE [x>=64]   [default: 512]         │
+│ --partition-size              INTEGER RANGE [x>=256]  [default: 2048]        │
+│ --input-channels              INTEGER RANGE [x>=1]    Requested live input   │
+│                                                       channel count.         │
+│                                                       Defaults to mono or    │
+│                                                       stereo depending on    │
+│                                                       device.                │
+│ --output-channels             INTEGER RANGE [x>=1]    Requested live output  │
+│                                                       channel count.         │
+│                                                       Defaults to the        │
+│                                                       processor's natural    │
+│                                                       output width.          │
+│ --duration                    FLOAT RANGE [x>=0.0]    Optional duration in   │
+│                                                       seconds. Omit to run   │
+│                                                       until Ctrl-C.          │
+│ --wet                         FLOAT RANGE             [default: 0.8]         │
+│                               [0.0<=x<=1.0]                                  │
+│ --dry                         FLOAT RANGE             [default: 0.2]         │
+│                               [0.0<=x<=1.0]                                  │
+│ --rt60                        FLOAT RANGE [x>=0.1]    [default: 6.0]         │
+│ --pre-delay-ms                FLOAT RANGE [x>=0.0]    [default: 20.0]        │
+│ --damping                     FLOAT RANGE             [default: 0.45]        │
+│                               [0.0<=x<=1.0]                                  │
+│ --width                       FLOAT RANGE             [default: 1.0]         │
+│                               [0.0<=x<=2.0]                                  │
+│ --mod-depth-ms                FLOAT RANGE [x>=0.0]    [default: 2.0]         │
+│ --mod-rate-hz                 FLOAT RANGE [x>=0.0]    [default: 0.1]         │
+│ --fdn-lines                   INTEGER RANGE           [default: 8]           │
+│                               [1<=x<=64]                                     │
+│ --fdn-matrix                  TEXT                    Algorithmic proxy      │
+│                                                       matrix for realtime    │
+│                                                       --engine algo.         │
+│                                                       [default: hadamard]    │
+│ --fdn-tv-rate-hz              FLOAT RANGE [x>=0.0]    [default: 0.0]         │
+│ --fdn-tv-depth                FLOAT RANGE [x>=0.0]    [default: 0.0]         │
+│ --fdn-dfm-delays-ms           TEXT                    Comma-separated        │
+│                                                       delay-feedback         │
+│                                                       modulation taps in     │
+│                                                       milliseconds.          │
+│ --fdn-sparse                                                                 │
+│ --fdn-sparse-degree           INTEGER RANGE           [default: 2]           │
+│                               [1<=x<=16]                                     │
+│ --fdn-cascade                                                                │
+│ --fdn-cascade-mix             FLOAT RANGE             [default: 0.35]        │
+│                               [0.0<=x<=1.0]                                  │
+│ --fdn-cascade-delay-s…        FLOAT RANGE             [default: 0.5]         │
+│                               [0.2<=x<=1.0]                                  │
+│ --fdn-cascade-rt60-ra…        FLOAT RANGE             [default: 0.55]        │
+│                               [0.1<=x<=1.0]                                  │
+│ --fdn-rt60-low                FLOAT RANGE [x>=0.1]                           │
+│ --fdn-rt60-mid                FLOAT RANGE [x>=0.1]                           │
+│ --fdn-rt60-high               FLOAT RANGE [x>=0.1]                           │
+│ --fdn-rt60-tilt               FLOAT RANGE             [default: 0.0]         │
+│                               [-1.0<=x<=1.0]                                 │
+│ --fdn-tonal-correctio…        FLOAT RANGE             [default: 0.0]         │
+│                               [0.0<=x<=1.0]                                  │
+│ --fdn-xover-low-hz            FLOAT RANGE [x>=10.0]   [default: 250.0]       │
+│ --fdn-xover-high-hz           FLOAT RANGE [x>=10.0]   [default: 4000.0]      │
+│ --fdn-link-filter             [none|lowpass|highpass  [default: none]        │
+│                               ]                                              │
+│ --fdn-link-filter-hz          FLOAT RANGE [x>=10.0]   [default: 2500.0]      │
+│ --fdn-link-filter-mix         FLOAT RANGE             [default: 1.0]         │
+│                               [0.0<=x<=1.0]                                  │
+│ --fdn-graph-topology          [ring|path|star|random  [default: ring]        │
+│                               ]                                              │
+│ --fdn-graph-degree            INTEGER RANGE           [default: 2]           │
+│                               [1<=x<=16]                                     │
+│ --fdn-graph-seed              INTEGER                 [default: 2026]        │
+│ --fdn-matrix-morph-to         TEXT                    Optional second FDN    │
+│                                                       matrix family for      │
+│                                                       gradual morphing.      │
+│ --fdn-matrix-morph-se…        FLOAT RANGE [x>=0.0]    [default: 0.0]         │
+│ --fdn-spatial-couplin…        [none|adjacent|front_r  [default: none]        │
+│                               ear|bed_top|all_to_all                         │
+│                               ]                                              │
+│ --fdn-spatial-couplin…        FLOAT RANGE             [default: 0.0]         │
+│                               [0.0<=x<=1.0]                                  │
+│ --fdn-nonlinearity            [none|tanh|softclip]    [default: none]        │
+│ --fdn-nonlinearity-am…        FLOAT RANGE             [default: 0.0]         │
+│                               [0.0<=x<=1.0]                                  │
+│ --fdn-nonlinearity-dr…        FLOAT RANGE             [default: 1.0]         │
+│                               [0.1<=x<=8.0]                                  │
+│ --room-size-macro             FLOAT RANGE             [default: 0.0]         │
+│                               [-1.0<=x<=1.0]                                 │
+│ --clarity-macro               FLOAT RANGE             [default: 0.0]         │
+│                               [-1.0<=x<=1.0]                                 │
+│ --warmth-macro                FLOAT RANGE             [default: 0.0]         │
+│                               [-1.0<=x<=1.0]                                 │
+│ --envelopment-macro           FLOAT RANGE             [default: 0.0]         │
+│                               [-1.0<=x<=1.0]                                 │
+│ --algo-decorrelation-…        FLOAT RANGE             [default: 0.0]         │
+│                               [0.0<=x<=1.0]                                  │
+│ --algo-decorrelation-…        FLOAT RANGE             [default: 0.0]         │
+│                               [0.0<=x<=1.0]                                  │
+│ --algo-decorrelation-…        FLOAT RANGE             [default: 0.0]         │
+│                               [0.0<=x<=1.0]                                  │
+│ --allpass-stages              INTEGER RANGE           [default: 6]           │
+│                               [0<=x<=64]                                     │
+│ --allpass-gain                TEXT                    Single allpass gain or │
+│                                                       comma-separated        │
+│                                                       per-stage gains.       │
+│                                                       [default: 0.7]         │
+│ --allpass-delays-ms           TEXT                    Comma-separated        │
+│                                                       diffusion delays in    │
+│                                                       milliseconds.          │
+│ --comb-delays-ms              TEXT                    Comma-separated        │
+│                                                       FDN/comb delay taps in │
+│                                                       milliseconds.          │
+│ --freeze                                              Realtime algo only:    │
+│                                                       approximate a          │
+│                                                       frozen-space sustain   │
+│                                                       by forcing a long      │
+│                                                       near-infinite proxy    │
+│                                                       tail.                  │
+│ --shimmer                                                                    │
+│ --shimmer-semitones           FLOAT                   [default: 12.0]        │
+│ --shimmer-mix                 FLOAT RANGE             [default: 0.25]        │
+│                               [0.0<=x<=1.0]                                  │
+│ --shimmer-feedback            FLOAT RANGE             [default: 0.35]        │
+│                               [0.0<=x<=1.25]                                 │
+│ --shimmer-highcut             FLOAT RANGE [x>=10.0]                          │
+│ --shimmer-lowcut              FLOAT RANGE [x>=10.0]                          │
+│ --shimmer-spatial                                                            │
+│ --shimmer-spread-cents        FLOAT RANGE [x>=0.0]    [default: 8.0]         │
+│ --shimmer-decorrelati…        FLOAT RANGE [x>=0.0]    [default: 1.5]         │
+│ --unsafe-self-oscilla…                                                       │
+│ --unsafe-loop-gain            FLOAT RANGE [x>=0.001]  [default: 1.02]        │
+│ --algo-proxy-ir-max-s…        FLOAT RANGE [x>=0.1]    Maximum rendered proxy │
+│                                                       IR duration used by    │
+│                                                       realtime --engine      │
+│                                                       algo.                  │
+│                                                       [default: 120.0]       │
+│ --lowcut                      FLOAT RANGE [x>=10.0]                          │
+│ --highcut                     FLOAT RANGE [x>=10.0]                          │
+│ --tilt                        FLOAT RANGE             [default: 0.0]         │
+│                               [-18.0<=x<=18.0]                               │
+│ --quiet                                               Reduce console output. │
+│ --help                                                Show this message and  │
+│                                                       exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

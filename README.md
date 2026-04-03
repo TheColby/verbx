@@ -57,13 +57,17 @@ Need a live preview instead of an offline bounce?
 
 ```bash
 verbx realtime --engine algo --input-device "Built-in Microphone" \
-  --output-device "Headphones" --rt60 4.0 --duration 10
+  --output-device "Headphones" --rt60 20 --freeze --shimmer \
+  --fdn-matrix tv-unitary --fdn-tv-rate-hz 0.35 --fdn-tv-depth 0.12 \
+  --lowcut 120 --highcut 9000 --tilt 1.5 --duration 10
 ```
 
 Initial realtime mode runs either direct convolution from `--ir` or an
 algorithmic proxy IR rendered once and monitored through the streaming
 convolver. It is meant for auditioning spaces and tails, not yet for the full
-automation/freeze/batch feature set.
+automation/batch feature set. Realtime `--freeze` is an honest approximation:
+it renders a long self-sustaining proxy tail for live auditioning rather than
+reusing the offline segment-freeze operator.
 
 If you need to install first on macOS:
 
@@ -864,7 +868,11 @@ Realtime mode is currently a preview/audition path. `--engine conv` streams a
 real IR directly; `--engine algo` renders a static proxy IR once, then runs the
 live monitor through the streaming convolution engine. That means you get live
 device routing and stable tails today, without pretending the full offline
-automation surface is callback-safe yet.
+automation surface is callback-safe yet. In other words: convolution settings
+act live, while algorithmic settings shape the startup proxy IR that the live
+convolver uses for the session.
+
+**Transport and device routing**
 
 | Switch | Values | What it does |
 |---|---|---|
@@ -879,25 +887,70 @@ automation surface is callback-safe yet.
 | `--input-channels` | int | Requested input width |
 | `--output-channels` | int | Requested output width |
 | `--duration` | seconds | Stop automatically after N seconds; omit for Ctrl-C run |
-| `--wet` | 0–1 | Wet mix |
-| `--dry` | 0–1 | Dry mix |
-| `--rt60` | seconds | Algorithmic proxy RT60 |
+| `--quiet` | flag | Reduce console output |
+
+**Realtime mix and proxy-room controls**
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--wet` / `--dry` | 0–1 | Live wet/dry mix in the convolver |
+| `--rt60` | seconds | Algorithmic proxy decay time |
 | `--pre-delay-ms` | ms | Algorithmic proxy pre-delay |
 | `--damping` | 0–1 | Algorithmic proxy damping |
 | `--width` | 0–2 | Algorithmic proxy stereo width |
-| `--fdn-lines` | 1–64 | Algorithmic proxy FDN line count |
-| `--fdn-matrix` | matrix family | Algorithmic proxy matrix family |
-| `--allpass-stages` | 0–64 | Algorithmic proxy diffusion stages |
-| `--allpass-gain` | -0.99–0.99 | Algorithmic proxy allpass coefficient |
-| `--quiet` | flag | Reduce console output |
+| `--mod-depth-ms` / `--mod-rate-hz` | ms / Hz | Proxy delay modulation depth and rate |
+| `--freeze` | flag | Realtime algo only: approximate infinite sustain via a long self-sustaining proxy tail |
+| `--algo-proxy-ir-max-seconds` | seconds | Upper bound on startup proxy IR render length |
+| `--lowcut` / `--highcut` / `--tilt` | Hz / dB tilt | Shape the startup proxy IR spectrum before live convolution |
+
+**FDN topology and feedback options**
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--fdn-lines` | 1–64 | Proxy FDN line count |
+| `--fdn-matrix` | hadamard/householder/random_orthogonal/circulant/elliptic/tv_unitary/graph/sdn_hybrid | Proxy matrix family |
+| `--fdn-tv-rate-hz` / `--fdn-tv-depth` | Hz / amount | Time-varying matrix motion for supported FDNs |
+| `--fdn-dfm-delays-ms` | comma-separated ms | Delay-feedback modulation taps |
+| `--fdn-sparse` / `--fdn-sparse-degree` | flag / int | Sparse feedback wiring and degree |
+| `--fdn-cascade` and friends | flag / scalars | Enable cascaded/nested FDN behavior |
+| `--fdn-rt60-low` / `--mid` / `--high` | seconds | Multiband RT60 targets |
+| `--fdn-rt60-tilt` | -1 to 1 | Tilt the decay profile across bands |
+| `--fdn-link-filter*` | mode / Hz / mix | Filter energy in the feedback links |
+| `--fdn-graph-topology` / `--fdn-graph-degree` / `--fdn-graph-seed` | topology / int / int | Graph-based FDN layout controls |
+| `--fdn-matrix-morph-to` / `--fdn-matrix-morph-seconds` | matrix / seconds | Morph between matrix families during proxy synthesis |
+| `--fdn-spatial-coupling-mode` / `--strength` | mode / 0–1 | Immersive cross-cluster coupling |
+| `--fdn-nonlinearity*` | mode / amount / drive | Nonlinear feedback coloration |
+
+**Diffusion, shimmer, and perceptual macros**
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--allpass-stages` | 0–64 | Diffusion depth |
+| `--allpass-gain` | float or comma-separated list | Shared or per-stage diffusion coefficient(s) |
+| `--allpass-delays-ms` | comma-separated ms | Custom allpass delay times |
+| `--comb-delays-ms` | comma-separated ms | Custom FDN/comb delay times |
+| `--shimmer` and `--shimmer-*` | flag / scalars | Startup proxy shimmer block with pitch, mix, feedback, filters, spatial spread |
+| `--room-size-macro` / `--clarity-macro` / `--warmth-macro` / `--envelopment-macro` | -1 to 1 | Jot-inspired perceptual macro controls |
+| `--algo-decorrelation-front` / `--rear` / `--top` | 0–1 | Extra proxy decorrelation for immersive layouts |
+| `--unsafe-self-oscillate` / `--unsafe-loop-gain` | flag / scalar | Deliberately allow runaway feedback behavior when you really mean it |
+
+Notes:
+
+- When `--engine conv` is used with `--ir`, algorithmic proxy flags are rejected instead of being silently ignored.
+- Realtime `--freeze` is not the offline segment-freeze processor. It is a live-preview approximation built on a long self-sustaining proxy IR.
+- The autogenerated exhaustive help for every switch lives in [`docs/CLI_REFERENCE.md`](docs/CLI_REFERENCE.md).
 
 Example:
 
 ```bash
-verbx realtime --engine conv --ir hall.wav \
+verbx realtime --engine algo \
   --input-device "Built-in Microphone" \
   --output-device "Headphones" \
-  --sample-rate 48000 --block-size 512
+  --sample-rate 48000 --block-size 256 \
+  --rt60 24 --freeze --shimmer \
+  --fdn-matrix tv-unitary --fdn-tv-rate-hz 0.35 --fdn-tv-depth 0.12 \
+  --fdn-graph-topology star --fdn-sparse --fdn-cascade \
+  --lowcut 120 --highcut 9000 --tilt 1.5
 ```
 
 ---

@@ -12,6 +12,7 @@ import numpy.typing as npt
 
 from verbx.config import RenderConfig
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
+from verbx.core.ambient import apply_tilt_eq
 from verbx.io.audio import write_audio
 
 AudioArray = npt.NDArray[np.float64]
@@ -60,6 +61,19 @@ def render_algo_proxy_ir(
         for out_ch in range(output_channels):
             packed_ch = (out_ch * input_channels) + in_ch
             ir_matrix[:, packed_ch] = response[:, out_ch]
+
+    if (
+        config.lowcut is not None
+        or config.highcut is not None
+        or abs(float(config.tilt)) > 1e-4
+    ):
+        ir_matrix = apply_tilt_eq(
+            ir_matrix,
+            sr=sr,
+            tilt_db=float(config.tilt),
+            lowcut=config.lowcut,
+            highcut=config.highcut,
+        )
 
     fd, raw_path = tempfile.mkstemp(prefix="verbx_algo_proxy_ir_", suffix=".wav")
     os.close(fd)
