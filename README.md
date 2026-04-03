@@ -821,7 +821,7 @@ deterministic internal resampling and writes the output at the requested rate.
 | `--algo-gpu-proxy` | flag | Route algo proxy through CUDA convolution | Requires `--algo-stream --device cuda` |
 | `--dry-run` | flag | Validate config without writing audio |
 | `--auto-fit` | none/speech/music/drums/ambient | Apply profile-derived starting values | Respects explicit CLI overrides |
-| `--preset` | name | Apply named preset as baseline |
+| `--preset` | name or `room:WxDxH/material` | Apply named preset or geometry-derived room baseline |
 | `--lucky N` | int | Generate N randomized variants |
 | `--frames-out` | path | Per-frame metrics CSV |
 | `--analysis-out` | path | JSON analysis report path |
@@ -996,6 +996,13 @@ infers one from RT60 plus an absorption/material assumption. It reports volume,
 surface area, direct-path pre-delay, aspect ratios, Bolt-style proportion
 warnings, and writes JSON when requested.
 
+If you already know the dimensions and want to jump straight to a render, you
+can skip the inspection step and use the matching render shorthand:
+
+```bash
+verbx render in.wav out.wav --preset room:6x8x3/hall
+```
+
 | Switch | Values | What it does |
 |---|---|---|
 | `--dims-m` | `width,depth,height` | Inspect an explicit rectangular room |
@@ -1051,6 +1058,7 @@ verbx batch augment augment.json --jobs 8      # generate training dataset
 verbx suggest INFILE      # analysis-driven starter settings for your specific audio
 verbx realtime --list-devices   # list selectable live audio devices
 verbx realtime --engine algo --input-device 0 --output-device 3   # live preview
+verbx render in.wav out.wav --preset room:6x8x3/hall   # geometry-derived room baseline
 verbx room-model --rt60 1.8 --material hall   # infer a plausible room geometry
 verbx dereverb INFILE OUTFILE   # suppress late reverberation from an existing recording
 verbx presets             # list built-in presets

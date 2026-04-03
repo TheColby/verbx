@@ -17,14 +17,11 @@ import os
 import platform
 import shutil
 import sys
-import tempfile
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from dataclasses import asdict
 from datetime import UTC, datetime
 from difflib import get_close_matches
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as pkg_version
 from pathlib import Path
 from threading import Lock
 from typing import Any, Literal, TypedDict, cast
@@ -50,6 +47,10 @@ from verbx.analysis.analyzer import AudioAnalyzer
 from verbx.analysis.framewise import write_framewise_csv
 from verbx.commands.realtime import realtime as realtime_command
 from verbx.commands.room_model import room_model as room_model_command
+from verbx.commands.system import collect_runtime_diagnostics
+from verbx.commands.system import doctor as doctor_command
+from verbx.commands.system import quickstart as quickstart_command
+from verbx.commands.system import version as version_command
 from verbx.config import (
     AmbiChannelOrder,
     AmbiDecodeTo,
@@ -75,12 +76,6 @@ from verbx.config import (
     OutputSubtype,
     RenderConfig,
     TailStopMetric,
-)
-from verbx.core.accel import (
-    cuda_available,
-    is_apple_silicon,
-    resolve_device,
-    resolve_device_for_engine,
 )
 from verbx.core.augmentation import (
     AugmentationBuild,
@@ -177,6 +172,7 @@ from verbx.ir.sofa import extract_sofa_ir, read_sofa_info
 from verbx.ir.tuning import analyze_audio_for_tuning, parse_frequency_hz
 from verbx.logging import configure_logging
 from verbx.presets.default_presets import preset_names, resolve_preset
+from verbx.presets.room_presets import is_room_preset_name, resolve_room_preset
 
 IRFileFormat = Literal["auto", "wav", "flac", "aiff", "aif", "ogg", "caf"]
 _FDN_MATRIX_CHOICES = set(FDN_MATRIX_CHOICES)
@@ -287,6 +283,9 @@ console = Console()
 progress_console = Console(force_terminal=True, color_system="truecolor")
 app.command(name="realtime")(realtime_command)
 app.command(name="room-model")(room_model_command)
+app.command(name="version")(version_command)
+app.command(name="quickstart")(quickstart_command)
+app.command(name="doctor")(doctor_command)
 
 
 @contextmanager
@@ -366,416 +365,6 @@ class _BatchStatusBar:
     def __exit__(self, exc_type: object, exc: object, exc_tb: object) -> None:
         self._progress.stop()
 
-
-@app.command()
-def version() -> None:
-    """Print CLI/package version."""
-    console.print(f"verbx {__version__}")
-
-
-@app.command()
-def quickstart(
-    verify: bool = typer.Option(
-        False,
-        "--verify",
-        help="Run startup readiness checks for first-run confidence.",
-    ),
-    strict: bool = typer.Option(
-        False,
-        "--strict",
-        help="Exit non-zero when --verify finds one or more failed checks.",
-    ),
-    json_out: Path | None = typer.Option(
-        None,
-        "--json-out",
-        resolve_path=True,
-        help="Optional path to write quickstart verification/smoke JSON.",
-    ),
-    smoke_test: bool = typer.Option(
-        False,
-        "--smoke-test",
-        help="Run a tiny end-to-end render smoke test with synthetic input audio.",
-    ),
-    smoke_out_dir: Path | None = typer.Option(
-        None,
-        "--smoke-out-dir",
-        resolve_path=True,
-        help="Optional output directory for smoke-test artifacts.",
-    ),
-) -> None:
-    """Print minimal copy/paste commands for first successful renders."""
-    commands = [
-        (
-            "Homebrew install (macOS) + extreme render",
-            "brew tap thecolby/verbx && brew install thecolby/verbx/verbx && "
-            "verbx render ../in.wav out.wav --engine algo --rt60 12 --wet 0.88 --dry 0.12",
-        ),
-        (
-            "Source install + extreme algorithmic render",
-            "git clone https://github.com/TheColby/verbx.git && cd verbx && "
-            "./scripts/install.sh && verbx render ../in.wav out.wav "
-            "--engine algo --rt60 12 --wet 0.88 --dry 0.12",
-        ),
-        (
-            "Analyze then suggested settings",
-            "verbx analyze in.wav --lufs --json-out analysis.json && verbx suggest in.wav",
-        ),
-        (
-            "Convolution render with IR",
-            "verbx render in.wav out_conv.wav --engine conv --ir hall.wav --wet 0.75 --dry 0.25",
-        ),
-    ]
-    table = Table(title="verbx Quickstart")
-    table.add_column("Workflow", style="cyan")
-    table.add_column("Command", style="white")
-    for name, cmd in commands:
-        table.add_row(name, cmd)
-    console.print(table)
-
-    if strict and not verify and not smoke_test:
-        raise typer.BadParameter("--strict requires --verify and/or --smoke-test.")
-    if json_out is not None and not verify and not smoke_test:
-        raise typer.BadParameter("--json-out requires --verify and/or --smoke-test.")
-
-    report: dict[str, Any] | None = None
-    smoke_report: dict[str, Any] | None = None
-    if verify:
-        report = _collect_runtime_diagnostics()
-        _print_runtime_checks_table(report, title="verbx Quickstart Verify")
-    if smoke_test:
-        with _processing_status("Quickstart render smoke test"):
-            smoke_report = _run_render_smoke_test(out_dir=smoke_out_dir)
-        _print_render_smoke_test_table(smoke_report, title="verbx Quickstart Smoke Test")
-
-    if json_out is not None:
-        if verify and not smoke_test:
-            payload = report if report is not None else {}
-        elif smoke_test and not verify:
-            payload = {
-                "schema": "quickstart-smoke-v1",
-                "smoke_test": smoke_report,
-                "ready": bool(smoke_report is not None and smoke_report.get("ok", False)),
-            }
-        else:
-            payload = {
-                "schema": "quickstart-verify-smoke-v1",
-                "diagnostics": report,
-                "smoke_test": smoke_report,
-                "ready": bool(
-                    report is not None
-                    and report.get("ready", False)
-                    and smoke_report is not None
-                    and smoke_report.get("ok", False)
-                ),
-            }
-        _write_json_atomic(json_out.resolve(), cast(dict[str, Any], payload))
-
-    if strict:
-        verify_ok = True if report is None else bool(report.get("ready", False))
-        smoke_ok = True if smoke_report is None else bool(smoke_report.get("ok", False))
-        if not verify_ok or not smoke_ok:
-            raise typer.Exit(code=2)
-
-
-@app.command()
-def doctor(
-    json_out: Path | None = typer.Option(
-        None,
-        "--json-out",
-        resolve_path=True,
-        help="Optional path to write machine-readable diagnostics JSON.",
-    ),
-    strict: bool = typer.Option(
-        False,
-        "--strict",
-        help="Exit non-zero when startup checks fail.",
-    ),
-    render_smoke_test: bool = typer.Option(
-        False,
-        "--render-smoke-test",
-        help="Run a tiny end-to-end render smoke test after diagnostics.",
-    ),
-    smoke_out_dir: Path | None = typer.Option(
-        None,
-        "--smoke-out-dir",
-        resolve_path=True,
-        help="Optional output directory for doctor smoke-test artifacts.",
-    ),
-) -> None:
-    """Print runtime diagnostics for launch-day troubleshooting."""
-    report = _collect_runtime_diagnostics()
-
-    table = Table(title="verbx Doctor")
-    table.add_column("Key", style="cyan")
-    table.add_column("Value", style="white")
-    table.add_row("verbx_version", str(report["verbx_version"]))
-    table.add_row("python_version", str(report["python_version"]))
-    table.add_row("platform", str(report["platform"]))
-    table.add_row("machine", str(report["machine"]))
-    table.add_row("cpu_count", str(report["cpu_count"]))
-    table.add_row("apple_silicon", str(report["apple_silicon"]))
-    table.add_row("cuda_available", str(report["cuda_available"]))
-    table.add_row("device_auto", str(report["device_auto"]))
-    table.add_row(
-        "auto_algo_device",
-        str(report["engine_auto_resolution"]["algo"]["engine_device"]),
-    )
-    table.add_row(
-        "auto_conv_device",
-        str(report["engine_auto_resolution"]["conv"]["engine_device"]),
-    )
-    table.add_row("cupy_version", str(report["dependencies"].get("cupy")))
-    table.add_row("status", str(report.get("status", "")))
-    table.add_row("checks_total", str(report.get("checks_total", 0)))
-    table.add_row("checks_failed", str(report.get("failed_checks", 0)))
-    console.print(table)
-    _print_runtime_checks_table(report, title="verbx Doctor Checks")
-    recommendations = report.get("recommendations", [])
-    if isinstance(recommendations, list) and len(recommendations) > 0:
-        rec_table = Table(title="verbx Doctor Recommendations")
-        rec_table.add_column("#", style="cyan", justify="right")
-        rec_table.add_column("Recommendation", style="white")
-        for idx, text in enumerate(recommendations, start=1):
-            rec_table.add_row(str(idx), str(text))
-        console.print(rec_table)
-
-    smoke_report: dict[str, Any] | None = None
-    if render_smoke_test:
-        with _processing_status("Doctor render smoke test"):
-            smoke_report = _run_render_smoke_test(out_dir=smoke_out_dir)
-        _print_render_smoke_test_table(smoke_report, title="verbx Doctor Smoke Test")
-
-    if json_out is not None:
-        if smoke_report is None:
-            _write_json_atomic(json_out.resolve(), report)
-        else:
-            payload = dict(report)
-            payload["render_smoke_test"] = smoke_report
-            payload["ready"] = bool(payload.get("ready", False) and smoke_report.get("ok", False))
-            _write_json_atomic(json_out.resolve(), payload)
-    if strict and (
-        int(report.get("failed_checks", 0)) > 0
-        or (smoke_report is not None and not bool(smoke_report.get("ok", False)))
-    ):
-        raise typer.Exit(code=2)
-
-
-def _dependency_versions() -> dict[str, str | None]:
-    """Return optional dependency versions used by doctor/quickstart checks."""
-    deps: dict[str, str | None] = {}
-    try:
-        for package_name in ("numpy", "soundfile", "rich", "typer", "cupy"):
-            try:
-                deps[package_name] = str(pkg_version(package_name))
-            except PackageNotFoundError:
-                deps[package_name] = None
-    except Exception:
-        deps = {"numpy": None, "soundfile": None, "rich": None, "typer": None, "cupy": None}
-    return deps
-
-
-def _collect_runtime_diagnostics() -> dict[str, Any]:
-    """Build a runtime diagnostics payload with startup readiness checks."""
-    report: dict[str, Any] = {
-        "verbx_version": __version__,
-        "python_version": sys.version.split()[0],
-        "platform": platform.platform(),
-        "system": platform.system(),
-        "machine": platform.machine(),
-        "cpu_count": os.cpu_count(),
-        "apple_silicon": bool(is_apple_silicon()),
-        "cuda_available": bool(cuda_available()),
-        "device_auto": str(resolve_device("auto")),
-    }
-    algo_device, algo_platform = resolve_device_for_engine("auto", "algo")
-    conv_device, conv_platform = resolve_device_for_engine("auto", "conv")
-    report["engine_auto_resolution"] = {
-        "algo": {"engine_device": str(algo_device), "platform_device": str(algo_platform)},
-        "conv": {"engine_device": str(conv_device), "platform_device": str(conv_platform)},
-    }
-    report["dependencies"] = _dependency_versions()
-    checks = _runtime_checks(report)
-    failed_checks = [item for item in checks if not bool(item.get("ok", False))]
-    report["checks"] = checks
-    report["checks_total"] = len(checks)
-    report["failed_checks"] = len(failed_checks)
-    report["issues"] = failed_checks
-    report["ready"] = len(failed_checks) == 0
-    report["status"] = "ok" if len(failed_checks) == 0 else "warn"
-    report["recommendations"] = _runtime_recommendations(report)
-    return report
-
-
-def _runtime_checks(report: dict[str, Any]) -> list[dict[str, Any]]:
-    """Compute actionable startup checks for first-run readiness."""
-    dependencies = report.get("dependencies", {})
-    deps = dependencies if isinstance(dependencies, dict) else {}
-    auto_device = str(report.get("device_auto", "cpu"))
-
-    return [
-        {
-            "id": "python_min",
-            "name": "Python >= 3.11",
-            "ok": bool(sys.version_info >= (3, 11)),
-            "value": str(report.get("python_version", "")),
-            "hint": "Use Python 3.11 or newer.",
-        },
-        {
-            "id": "numpy_present",
-            "name": "numpy installed",
-            "ok": deps.get("numpy") is not None,
-            "value": str(deps.get("numpy")),
-            "hint": "Install dependencies with ./scripts/install.sh.",
-        },
-        {
-            "id": "soundfile_present",
-            "name": "soundfile installed",
-            "ok": deps.get("soundfile") is not None,
-            "value": str(deps.get("soundfile")),
-            "hint": "Install dependencies with ./scripts/install.sh.",
-        },
-        {
-            "id": "wav_write",
-            "name": "WAV write support",
-            "ok": bool(sf.check_format("WAV")),
-            "value": "WAV",
-            "hint": "Install/repair libsndfile for local WAV I/O.",
-        },
-        {
-            "id": "auto_device",
-            "name": "auto device resolves",
-            "ok": auto_device in {"cpu", "mps", "cuda"},
-            "value": auto_device,
-            "hint": "Run `verbx doctor --json-out doctor.json` and check accelerator settings.",
-        },
-    ]
-
-
-def _runtime_recommendations(report: dict[str, Any]) -> list[str]:
-    """Derive concise recommendations from diagnostics payload."""
-    recs: list[str] = []
-    failed = report.get("issues", [])
-    if isinstance(failed, list):
-        for item in failed:
-            if not isinstance(item, dict):
-                continue
-            hint = str(item.get("hint", "")).strip()
-            if hint != "" and hint not in recs:
-                recs.append(hint)
-
-    dependencies = report.get("dependencies", {})
-    deps = dependencies if isinstance(dependencies, dict) else {}
-    if bool(report.get("cuda_available", False)) and deps.get("cupy") is None:
-        recs.append("CUDA is available; install CuPy to enable accelerated convolution.")
-    if bool(report.get("apple_silicon", False)) and str(report.get("device_auto", "")) == "cpu":
-        recs.append(
-            "Apple Silicon host is falling back to CPU; verify MPS support in your runtime."
-        )
-    if len(recs) == 0:
-        recs.append(
-            "Runtime checks are clean. Run `verbx quickstart --verify --strict` before demos."
-        )
-    return recs
-
-
-def _run_render_smoke_test(*, out_dir: Path | None) -> dict[str, Any]:
-    """Run a tiny end-to-end render to validate practical startup readiness."""
-    temp_dir: tempfile.TemporaryDirectory[str] | None = None
-    root: Path
-    if out_dir is None:
-        temp_dir = tempfile.TemporaryDirectory(prefix="verbx_smoke_")
-        root = Path(temp_dir.name).resolve()
-    else:
-        root = out_dir.resolve()
-        root.mkdir(parents=True, exist_ok=True)
-
-    infile = root / "smoke_in.wav"
-    outfile = root / "smoke_out.wav"
-    sr = 24_000
-    num_samples = round(0.35 * float(sr))
-    timeline = np.arange(num_samples, dtype=np.float64) / float(sr)
-    audio = (0.2 * np.sin(2.0 * np.pi * 220.0 * timeline)).reshape(-1, 1).astype(np.float64)
-    try:
-        sf.write(str(infile), audio, sr, subtype="DOUBLE")
-        config = RenderConfig(
-            engine="algo",
-            rt60=0.8,
-            wet=0.35,
-            dry=0.65,
-            repeat=1,
-            output_subtype="float64",
-            silent=True,
-            progress=False,
-        )
-        report = run_render_pipeline(infile=infile, outfile=outfile, config=config)
-        info = sf.info(str(outfile))
-        output_frames = int(info.frames)
-        ok = bool(outfile.exists() and output_frames > num_samples)
-        return {
-            "ok": ok,
-            "infile": str(infile),
-            "outfile": str(outfile),
-            "sample_rate": int(info.samplerate),
-            "input_frames": int(num_samples),
-            "output_frames": int(output_frames),
-            "engine": str(report.get("engine", "")),
-            "error": "",
-        }
-    except (OSError, RuntimeError, ValueError, sf.LibsndfileError) as exc:
-        return {
-            "ok": False,
-            "infile": str(infile),
-            "outfile": str(outfile),
-            "sample_rate": int(sr),
-            "input_frames": int(num_samples),
-            "output_frames": 0,
-            "engine": "algo",
-            "error": str(exc),
-        }
-    finally:
-        if temp_dir is not None:
-            temp_dir.cleanup()
-
-
-def _print_render_smoke_test_table(report: dict[str, Any], *, title: str) -> None:
-    """Print smoke-test status table for quickstart/doctor output."""
-    table = Table(title=title)
-    table.add_column("Key", style="cyan")
-    table.add_column("Value", style="white")
-    table.add_row("status", "PASS" if bool(report.get("ok", False)) else "FAIL")
-    table.add_row("engine", str(report.get("engine", "")))
-    table.add_row("sample_rate", str(report.get("sample_rate", "")))
-    table.add_row("input_frames", str(report.get("input_frames", "")))
-    table.add_row("output_frames", str(report.get("output_frames", "")))
-    table.add_row("infile", str(report.get("infile", "")))
-    table.add_row("outfile", str(report.get("outfile", "")))
-    error_text = str(report.get("error", "")).strip()
-    if error_text != "":
-        table.add_row("error", error_text)
-    console.print(table)
-
-
-def _print_runtime_checks_table(report: dict[str, Any], *, title: str) -> None:
-    """Render startup checks table used by quickstart and doctor."""
-    checks = report.get("checks", [])
-    if not isinstance(checks, list):
-        return
-    table = Table(title=title)
-    table.add_column("Check", style="cyan")
-    table.add_column("Status", style="white")
-    table.add_column("Value", style="white")
-    for item in checks:
-        if not isinstance(item, dict):
-            continue
-        status = "PASS" if bool(item.get("ok", False)) else "FAIL"
-        table.add_row(
-            str(item.get("name", "")),
-            status,
-            str(item.get("value", "")),
-        )
-    console.print(table)
-
-
 @app.command()
 def render(
     ctx: typer.Context,
@@ -785,8 +374,9 @@ def render(
         None,
         "--preset",
         help=(
-            "Named preset baseline (see `verbx presets`). Explicitly supplied CLI options "
-            "override preset values."
+            "Named preset baseline (see `verbx presets`) or dynamic room shorthand "
+            "`room:<width>x<depth>x<height>/<material>`. Explicitly supplied CLI "
+            "options override preset values."
         ),
     ),
     auto_fit: AutoFitProfile = typer.Option(
@@ -2203,18 +1793,22 @@ def compare(
     table.add_column("Metric", style="cyan")
     table.add_column(file_a.name, justify="right")
     table.add_column(file_b.name, justify="right")
-    table.add_column("Δ (B − A)", justify="right", style="yellow")
+    table.add_column("Delta (B - A)", justify="right", style="yellow")
     for key in all_keys:
         val_a = metrics_a.get(key)
         val_b = metrics_b.get(key)
-        str_a = (f"{val_a:.6f}" if isinstance(val_a, float) else str(val_a)) if val_a is not None else "—"
-        str_b = (f"{val_b:.6f}" if isinstance(val_b, float) else str(val_b)) if val_b is not None else "—"
+        str_a = (
+            f"{val_a:.6f}" if isinstance(val_a, float) else str(val_a)
+        ) if val_a is not None else "-"
+        str_b = (
+            f"{val_b:.6f}" if isinstance(val_b, float) else str(val_b)
+        ) if val_b is not None else "-"
         if isinstance(val_a, float) and isinstance(val_b, float):
             str_delta = f"{val_b - val_a:+.6f}"
         elif val_a is not None and val_b is not None:
-            str_delta = "—"  # string metrics (e.g. room_class) have no numeric delta
+            str_delta = "-"  # string metrics (e.g. room_class) have no numeric delta
         else:
-            str_delta = "—"
+            str_delta = "-"
         table.add_row(key, str_a, str_b, str_delta)
     console.print(table)
     if sr_a != sr_b:
@@ -2576,19 +2170,23 @@ def list_presets(
     """Print available presets or one preset payload."""
     if validate is not None:
         try:
-            resolved_name, payload = resolve_preset(validate)
+            if is_room_preset_name(validate):
+                resolved_name, payload = resolve_room_preset(validate)
+            else:
+                resolved_name, payload = resolve_preset(validate)
         except ValueError as exc:
             raise typer.BadParameter(str(exc)) from exc
-        from verbx.config import RenderConfig  # noqa: PLC0415
         errors: list[str] = []
         warnings: list[str] = []
         try:
-            RenderConfig(**{k: v for k, v in payload.items() if hasattr(RenderConfig, k) or k in RenderConfig.__dataclass_fields__})  # type: ignore[attr-defined]
+            known_fields = set(RenderConfig.__dataclass_fields__.keys())
+            filtered_payload = {k: v for k, v in payload.items() if k in known_fields}
+            RenderConfig(**cast(dict[str, Any], filtered_payload))
         except (TypeError, ValueError) as exc:
             errors.append(str(exc))
         # Check for unknown fields
         try:
-            known = set(RenderConfig.__dataclass_fields__.keys())  # type: ignore[attr-defined]
+            known = set(RenderConfig.__dataclass_fields__.keys())
         except AttributeError:
             known = set()
         unknown = [k for k in payload if k not in known]
@@ -2611,7 +2209,10 @@ def list_presets(
 
     if show is not None:
         try:
-            resolved_name, payload = resolve_preset(show)
+            if is_room_preset_name(show):
+                resolved_name, payload = resolve_room_preset(show)
+            else:
+                resolved_name, payload = resolve_preset(show)
         except ValueError as exc:
             raise typer.BadParameter(str(exc)) from exc
         table = Table(title=f"Preset: {resolved_name}")
@@ -2627,6 +2228,7 @@ def list_presets(
     table.add_column("Preset", style="green")
     for name in names:
         table.add_row(name)
+    table.add_row("room:<width>x<depth>x<height>/<material>")
     console.print(table)
 
 
@@ -5866,7 +5468,7 @@ def _build_render_failure_report(
     error: Exception,
 ) -> dict[str, Any]:
     """Build structured failure report payload for render support workflows."""
-    diagnostics = _collect_runtime_diagnostics()
+    diagnostics = collect_runtime_diagnostics()
     return {
         "schema": "render-failure-report-v1",
         "created_utc": datetime.now(UTC).replace(microsecond=0).isoformat(),
@@ -6798,7 +6400,10 @@ def _apply_render_preset(
     preset_name: str,
 ) -> dict[str, Any]:
     """Apply preset values only where user did not explicitly provide a CLI override."""
-    resolved_name, preset_values = resolve_preset(preset_name)
+    if is_room_preset_name(preset_name):
+        resolved_name, preset_values = resolve_room_preset(preset_name)
+    else:
+        resolved_name, preset_values = resolve_preset(preset_name)
     applied: dict[str, Any] = {}
     skipped: list[str] = []
     fields = RenderConfig.__dataclass_fields__.keys()

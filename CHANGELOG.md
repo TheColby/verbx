@@ -16,6 +16,11 @@ All notable changes to this project are documented in this file.
 - `verbx room-model`, a new CLI sub-command for inspecting explicit room
   geometry or inferring a plausible rectangular room from RT60 plus an
   absorption/material assumption.
+- Dynamic room-derived render presets via
+  `--preset room:<width>x<depth>x<height>/<material>`, which apply a geometry
+  baseline (`er_geometry`, direct-path pre-delay, absorption/material, room-size
+  macro, and size-scaled FDN density) without taking away explicit CLI
+  overrides.
 - Native `verbx-c` process-contract reporting and tail metric selection:
   `verbx-c doctor` now surfaces the deterministic offline lifecycle and exit
   contract, and `verbx-c render` supports `--tail-metric peak|rms`.

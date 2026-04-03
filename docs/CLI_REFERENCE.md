@@ -49,7 +49,10 @@ Do not edit manually.
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --preset                                 TEXT              Named preset      │
 │                                                            baseline (see     │
-│                                                            `verbx presets`). │
+│                                                            `verbx presets`)  │
+│                                                            or dynamic room   │
+│                                                            shorthand         │
+│                                                            `room:<width>x<d… │
 │                                                            Explicitly        │
 │                                                            supplied CLI      │
 │                                                            options override  │

@@ -28,6 +28,7 @@ Patch line opened 2026-03-30. Items below are the active focus.
 - [x] Replace `dict[str, Any]` render reports in `pipeline.py` with typed `RenderReport` mapping objects while preserving CLI/test compatibility.
 - [x] Extract algorithmic proxy IR generation into `src/verbx/core/algo_proxy.py` so offline streaming and realtime monitoring share one implementation.
 - [x] Add an initial command-module split under `src/verbx/commands/` with `realtime.py` as the first standalone command surface.
+- [x] Continue command-module split by moving onboarding/diagnostic commands into `src/verbx/commands/system.py`.
 - [x] Add initial realtime duplex monitoring with CLI-selectable input/output devices and algorithmic-proxy or convolution live engines.
 - [x] Update README, CLI reference, and release/support docs for the refactor and realtime command surface.
 - [ ] Decompose `cli.py` (8 376 lines) into per-command submodules under `src/verbx/commands/`.
@@ -162,7 +163,7 @@ parameter choices:
   frequency-dependent absorption from material library.
 - [ ] Auto-derive pre-delay from direct-path travel time (source → listener
   distance at speed of sound).
-- [ ] Expose as `--preset room:<L>x<W>x<H>/<material>` shorthand.
+- [x] Expose as `--preset room:<L>x<W>x<H>/<material>` shorthand.
 
 ### 6.5 Room Acoustics Material Library
 

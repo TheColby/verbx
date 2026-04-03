@@ -11,6 +11,7 @@ from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
 import verbx.cli as cli_module
+import verbx.commands.system as system_commands
 from verbx import __version__
 from verbx.cli import app
 from verbx.core import accel
@@ -170,7 +171,7 @@ def test_doctor_strict_fails_when_checks_fail(monkeypatch: MonkeyPatch) -> None:
     report["ready"] = False
     report["status"] = "warn"
     report["recommendations"] = ["Use Python 3.11 or newer."]
-    monkeypatch.setattr(cli_module, "_collect_runtime_diagnostics", lambda: report)
+    monkeypatch.setattr(system_commands, "collect_runtime_diagnostics", lambda: report)
     result = runner.invoke(app, ["doctor", "--strict"])
     assert result.exit_code == 2
 
@@ -187,13 +188,39 @@ def test_doctor_strict_fails_when_smoke_test_fails(monkeypatch: MonkeyPatch) -> 
             "error": "simulated failure",
         }
 
-    monkeypatch.setattr(
-        cli_module,
-        "_run_render_smoke_test",
-        _fake_smoke_report,
-    )
+    monkeypatch.setattr(system_commands, "run_render_smoke_test", _fake_smoke_report)
     result = runner.invoke(app, ["doctor", "--render-smoke-test", "--strict"])
     assert result.exit_code == 2
+
+
+def test_render_room_preset_derives_geometry_defaults(tmp_path: Path) -> None:
+    audio = np.zeros((1200, 1), dtype=np.float64)
+    audio[32:96, 0] = 0.4
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--preset",
+            "room:6x8x3/hall",
+            "--engine",
+            "algo",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert bool(config["er_geometry"])
+    assert config["er_material"] == "hall"
+    assert tuple(config["er_room_dims_m"]) == (6.0, 8.0, 3.0)
+    assert float(config["rt60"]) > 0.05
+    assert float(config["pre_delay_ms"]) > 0.0
 
 
 def test_presets_show_displays_resolved_values() -> None:
