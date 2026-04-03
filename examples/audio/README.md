@@ -8,6 +8,7 @@ Delivery spec for the current pack:
 - 24-bit PCM WAV
 - most files stereo; `dry_click.wav`, `dry_click_reverbed.wav`, and `hybrid_ir_short.wav` are mono
 - rendered wet examples normalized to `-2 dBFS` peak to avoid the crusty edge of the older launch pack
+- `realistic_music_hall.wav` now uses a tuned algorithmic hall recipe; the older hybrid-IR version sounded too congested and brittle
 
 ## Included files
 

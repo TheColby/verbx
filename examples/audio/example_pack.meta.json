@@ -73,23 +73,23 @@
       "file": "realistic_music_hall.wav",
       "source": "realistic_music_dry.wav",
       "config": {
-        "engine": "conv",
-        "rt60": 60.0,
-        "wet": 0.58,
-        "dry": 0.74,
-        "pre_delay_ms": 20.0,
-        "damping": 0.45,
-        "width": 1.0,
-        "fdn_lines": 8,
+        "engine": "algo",
+        "rt60": 2.6,
+        "wet": 0.34,
+        "dry": 0.88,
+        "pre_delay_ms": 24.0,
+        "damping": 0.48,
+        "width": 1.16,
+        "fdn_lines": 16,
         "fdn_matrix": "hadamard",
         "shimmer": false,
         "shimmer_mix": 0.25,
         "shimmer_feedback": 0.35,
-        "lowcut": null,
-        "highcut": null,
-        "ir": "/Users/cleider/dev/verbx/IRs/ir_hybrid_60s.flac",
-        "tail_limit": 3.5,
-        "partition_size": 8192,
+        "lowcut": 45.0,
+        "highcut": 12000.0,
+        "ir": null,
+        "tail_limit": null,
+        "partition_size": 16384,
         "target_sr": 48000,
         "output_subtype": "pcm24",
         "output_peak_norm": "target",
@@ -471,7 +471,7 @@
       "channels": 2,
       "subtype": "PCM_24",
       "seconds": 17.545,
-      "sha256": "dffd66336a4582113225c02a56e26084092d7ca897b935bad013241b7184e818"
+      "sha256": "fea9ac49bab7bf682907b6b834c053aa9fcf16bcb876721e86de712fe0158133"
     },
     {
       "file": "extreme_cathedral_drums.wav",
@@ -495,7 +495,7 @@
       "channels": 2,
       "subtype": "PCM_24",
       "seconds": 7.321375,
-      "sha256": "1b193f61dde112fdfe49e44e359936356701a802d47ad2a3100e6f0f0d8ade1b"
+      "sha256": "6d91eb4c70c571b1c9842d401c71c36833eaff962b35ff747897d92a049a82f8"
     },
     {
       "file": "extreme_shimmer_music.wav",
@@ -542,8 +542,8 @@
       "sample_rate": 48000,
       "channels": 2,
       "subtype": "PCM_24",
-      "seconds": 12.411041666666666,
-      "sha256": "2520637fe3592cf5a4a6c9f2ce81a43448f1cbf725dbced0874eb53f5e3734f4"
+      "seconds": 12.4230625,
+      "sha256": "e3e7e1400a82ff4cc4987e79abdde00cd68c2cf1741004e70f8ebb5eabf5a40c"
     },
     {
       "file": "oliveros_deep_listening.wav",
@@ -551,7 +551,7 @@
       "channels": 2,
       "subtype": "PCM_24",
       "seconds": 23.565,
-      "sha256": "2083c42ce8150ea883f35396f4f3ae32697497033fce4cb3a49855aea414e0ef"
+      "sha256": "7389ad00f199005c571251a40e9690912115c06d8dce76924bbfbc1034f7d7ba"
     },
     {
       "file": "radigue_drone.wav",
@@ -559,7 +559,7 @@
       "channels": 2,
       "subtype": "PCM_24",
       "seconds": 50.53,
-      "sha256": "9e389a2347a552c87f97c6105739cf5e9f58512c5d336dbf3b12c02d7125b633"
+      "sha256": "d99f9fa6c680897488a9262c059b75fe029b385bfbfaf4a08e69143206ee53a8"
     },
     {
       "file": "realistic_drums_dry.wav",
@@ -590,8 +590,8 @@
       "sample_rate": 48000,
       "channels": 2,
       "subtype": "PCM_24",
-      "seconds": 9.01,
-      "sha256": "cc850f0cd2f336694d0237195eea7c25f5c7fb900d247ba34ffccb65fac8d9a7"
+      "seconds": 8.133645833333333,
+      "sha256": "257e618c9fab08d2a638c27a97576827c781d6c92f9e5495795a5f6b24cc4257"
     },
     {
       "file": "realistic_speech_dry.wav",
@@ -615,7 +615,7 @@
       "channels": 2,
       "subtype": "PCM_24",
       "seconds": 6.2277708333333335,
-      "sha256": "c9aaa47105f57ba8e47c1dab08c96051bf20d8d00781e3b0dc3e7c40d408a370"
+      "sha256": "54ecdb3c1ca7192b0d4c3c81cb3cfb6e81e93a33e9af4e9eb510942526c23db2"
     }
   ],
   "hybrid_ir": {

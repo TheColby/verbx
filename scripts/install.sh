@@ -2,13 +2,21 @@
 set -euo pipefail
 
 usage() {
-  cat <<'EOF'
+  local invocation
+  invocation="$(basename "$0")"
+  if [[ "${invocation}" == "install.sh" ]]; then
+    invocation="./install.sh"
+  else
+    invocation="scripts/install.sh"
+  fi
+
+  cat <<EOF
 verbx install helper
 
 Installs the Python package and man pages from this repository.
 
 Usage:
-  scripts/install.sh [options]
+  ${invocation} [options]
 
 Options:
   --prefix PATH       Install prefix for man pages (default: ~/.local)
@@ -23,10 +31,10 @@ Options:
   -h, --help          Show this help and exit
 
 Examples:
-  scripts/install.sh
-  scripts/install.sh --dev --prefix "$HOME/.local"
-  scripts/install.sh --skip-python-install --prefix "$HOME/.local"
-  scripts/install.sh --wheel --no-man
+  ${invocation}
+  ${invocation} --dev --prefix "\$HOME/.local"
+  ${invocation} --skip-python-install --prefix "\$HOME/.local"
+  ${invocation} --wheel --no-man
 EOF
 }
 

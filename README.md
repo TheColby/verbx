@@ -33,7 +33,7 @@ If you want immediate results with minimal decision-making, run this:
 
 ```bash
 git clone https://github.com/TheColby/verbx.git && cd verbx && \
-./scripts/install.sh --prefix "$HOME/.local" && \
+./install.sh --prefix "$HOME/.local" && \
 verbx render ../in.wav out.wav --engine algo --rt60 120 --wet 0.99 --dry 0.01
 ```
 
@@ -139,7 +139,7 @@ pip install -e ".[realtime]"
 **With the install script (installs man pages too):**
 
 ```bash
-./scripts/install.sh --prefix "$HOME/.local"
+./install.sh --prefix "$HOME/.local"
 verbx --help && man verbx-render
 man verbx-dereverb
 ```
@@ -206,7 +206,7 @@ links below open each asset directly in the browser's native media player with o
 | [`realistic_speech_dry.wav`](examples/audio/realistic_speech_dry.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_speech_dry.wav) | Dry speech source used for room and plate examples |
 | [`realistic_speech_room.wav`](examples/audio/realistic_speech_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_speech_room.wav) | Natural speech room render |
 | [`realistic_music_dry.wav`](examples/audio/realistic_music_dry.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_music_dry.wav) | Dry music source used for ambient and shimmer examples |
-| [`realistic_music_hall.wav`](examples/audio/realistic_music_hall.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_music_hall.wav) | Natural concert-hall style music render |
+| [`realistic_music_hall.wav`](examples/audio/realistic_music_hall.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_music_hall.wav) | Natural concert-hall style music render, re-tuned for a cleaner less congested tail |
 | [`realistic_drums_dry.wav`](examples/audio/realistic_drums_dry.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_drums_dry.wav) | Dry drum source used for room and cathedral examples |
 | [`realistic_drums_room.wav`](examples/audio/realistic_drums_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_drums_room.wav) | Natural drum room render |
 
