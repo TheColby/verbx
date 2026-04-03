@@ -49,6 +49,7 @@ from verbx import __version__
 from verbx.analysis.analyzer import AudioAnalyzer
 from verbx.analysis.framewise import write_framewise_csv
 from verbx.commands.realtime import realtime as realtime_command
+from verbx.commands.room_model import room_model as room_model_command
 from verbx.config import (
     AmbiChannelOrder,
     AmbiDecodeTo,
@@ -285,6 +286,7 @@ immersive_app.add_typer(immersive_queue_app, name="queue")
 console = Console()
 progress_console = Console(force_terminal=True, color_system="truecolor")
 app.command(name="realtime")(realtime_command)
+app.command(name="room-model")(room_model_command)
 
 
 @contextmanager

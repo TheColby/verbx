@@ -32,7 +32,7 @@ Patch line opened 2026-03-30. Items below are the active focus.
 - [x] Update README, CLI reference, and release/support docs for the refactor and realtime command surface.
 - [ ] Decompose `cli.py` (8 376 lines) into per-command submodules under `src/verbx/commands/`.
 - [ ] Decompose `RenderConfig` (162 fields) into composed sub-configs (`FDNConfig`, `AutomationConfig`, `SpatialConfig`, `StreamingConfig`).
-- [ ] Decompose `run_render_pipeline` (~640 lines) into explicit pipeline stages.
+- [x] Decompose `run_render_pipeline` (~640 lines) into explicit pipeline stages.
 - [ ] Add dedicated unit tests for `automation.py`, `convolution_reverb.py`, `feature_vector.py`, `immersive.py`.
 - [ ] Wire benchmark scripts into CI as blocking quality-regression gates.
 - [ ] Enforce streaming/in-memory parity at the test level (extend `test_proxy_stream_parity.py` to cover convolution path).
@@ -71,7 +71,7 @@ released/public-alpha tool during the transition.
 
 - [x] Land native source tree and build entrypoint (`native/verbx_c/`, `scripts/build_verbx_c.sh`).
 - [x] Establish standalone executable identity (`verbx-c`) and minimal CLI surface.
-- [ ] Define native error model, logging model, and deterministic offline process contract.
+- [x] Define native error model, logging model, and deterministic offline process contract.
 - [ ] Decide whether realtime audio belongs in the native line immediately or remains Python-only during transition.
 
 ### 4.2 Audio Runtime
@@ -115,12 +115,12 @@ section tracks the work needed to add first-class physics-driven simulation.
 
 ### 6.1 Foundation — Room Geometry Model
 
-- [ ] Define `RoomGeometry` dataclass: dimensions (L × W × H), wall materials
+- [x] Define `RoomGeometry` dataclass: dimensions (L × W × H), wall materials
   per face, source and listener positions (mirrors existing `--er-geometry`
   arguments but made first-class and reusable across engines).
-- [ ] Validate geometry against Bolt region criteria; emit warnings for
+- [x] Validate geometry against Bolt region criteria; emit warnings for
   pathological aspect ratios.
-- [ ] Add `verbx room-model` sub-command for geometry inspection and
+- [x] Add `verbx room-model` sub-command for geometry inspection and
   dimension-from-RT60 inversion (wraps existing `room_size.py` stages).
 
 ### 6.2 Image Source Method (ISM) — Full Response

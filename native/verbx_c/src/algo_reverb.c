@@ -182,7 +182,8 @@ static void apply_tail_fade_and_zero(
     const verbx_audio_buffer *rendered,
     verbx_audio_buffer *out,
     double threshold_db,
-    double hold_ms
+    double hold_ms,
+    verbx_tail_metric tail_metric
 ) {
     size_t frame;
     size_t channel;
@@ -196,14 +197,19 @@ static void apply_tail_fade_and_zero(
     size_t fade_start;
 
     for (frame = 0U; frame < rendered->frames; ++frame) {
-        double peak = 0.0;
+        double metric_value = 0.0;
         for (channel = 0U; channel < rendered->channels; ++channel) {
             double value = fabs(rendered->samples[(frame * rendered->channels) + channel]);
-            if (value > peak) {
-                peak = value;
+            if (tail_metric == VERBX_TAIL_METRIC_RMS) {
+                metric_value += value * value;
+            } else if (value > metric_value) {
+                metric_value = value;
             }
         }
-        if (peak > threshold) {
+        if (tail_metric == VERBX_TAIL_METRIC_RMS) {
+            metric_value = sqrt(metric_value / (double)rendered->channels);
+        }
+        if (metric_value > threshold) {
             last_active = frame;
             active_found = 1;
         }
@@ -354,7 +360,13 @@ int verbx_algo_render(
         }
     }
 
-    apply_tail_fade_and_zero(&rendered, output, options->tail_threshold_db, options->tail_hold_ms);
+    apply_tail_fade_and_zero(
+        &rendered,
+        output,
+        options->tail_threshold_db,
+        options->tail_hold_ms,
+        options->tail_metric
+    );
     if (output->samples == NULL) {
         set_error(error_message, error_message_size, "failed to finalize native tail completion");
         goto cleanup;

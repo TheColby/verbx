@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- `run_render_pipeline()` is now split into explicit streaming and in-memory
+  stage helpers, reducing the amount of orchestration living in a single branchy
+  function.
+
+### Added
+- `src/verbx/core/room_geometry.py` with a reusable `RoomGeometry` dataclass,
+  direct-path/pre-delay metrics, aspect-ratio analysis, and Bolt-style warnings
+  for physically grounded room workflows.
+- `verbx room-model`, a new CLI sub-command for inspecting explicit room
+  geometry or inferring a plausible rectangular room from RT60 plus an
+  absorption/material assumption.
+- Native `verbx-c` process-contract reporting and tail metric selection:
+  `verbx-c doctor` now surfaces the deterministic offline lifecycle and exit
+  contract, and `verbx-c render` supports `--tail-metric peak|rms`.
+
 ## [0.7.7] - 2026-03-31
 
 ### Changed

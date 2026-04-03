@@ -23,6 +23,7 @@ HELP_COMMANDS: tuple[tuple[str, ...], ...] = (
     (),
     ("render",),
     ("realtime",),
+    ("room-model",),
     ("analyze",),
     ("suggest",),
     ("quickstart",),

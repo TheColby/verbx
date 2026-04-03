@@ -82,6 +82,8 @@ def test_native_render_mono_wav_round_trip(tmp_path: Path) -> None:
             "-70",
             "--tail-hold-ms",
             "5",
+            "--tail-metric",
+            "rms",
             "--out-format",
             "float32",
         ],
@@ -98,6 +100,23 @@ def test_native_render_mono_wav_round_trip(tmp_path: Path) -> None:
     assert np.max(np.abs(rendered)) > 1e-6
     assert np.max(np.abs(rendered[-8:, :])) == 0.0
     assert "render complete" in result.stdout
+    assert "tail_metric: rms" in result.stdout
+    assert "status: ok" in result.stdout
+
+
+def test_native_doctor_reports_process_contract(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    exe = _build_native_executable(tmp_path)
+
+    result = subprocess.run(
+        [str(exe), "doctor"],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    assert "process_contract:" in result.stdout
+    assert "error_contract:" in result.stdout
 
 
 def test_native_render_stereo_pcm16_output(tmp_path: Path) -> None:

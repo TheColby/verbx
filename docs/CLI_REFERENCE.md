@@ -17,6 +17,7 @@ Do not edit manually.
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ realtime    Run realtime duplex monitoring with selectable input/output      │
 │             devices.                                                         │
+│ room-model  Inspect a room geometry or infer one from RT60 and absorption.   │
 │ version     Print CLI/package version.                                       │
 │ quickstart  Print minimal copy/paste commands for first successful renders.  │
 │ doctor      Print runtime diagnostics for launch-day troubleshooting.        │
@@ -1080,6 +1081,44 @@ Do not edit manually.
 │ --quiet                                               Reduce console output. │
 │ --help                                                Show this message and  │
 │                                                       exit.                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## `verbx room-model --help`
+
+```text
+                                                                                
+ Usage: root room-model [OPTIONS]                                               
+                                                                                
+ Inspect a room geometry or infer one from RT60 and absorption.                 
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --dims-m                TEXT                       Explicit room dimensions  │
+│                                                    as width,depth,height in  │
+│                                                    meters.                   │
+│ --rt60                  FLOAT RANGE [x>=0.05]      Infer a rectangular room  │
+│                                                    from RT60 plus            │
+│                                                    absorption/material       │
+│                                                    assumptions.              │
+│ --absorption            FLOAT RANGE                Mean absorption           │
+│                         [0.01<=x<=0.99]            coefficient used with     │
+│                                                    --rt60 inference.         │
+│ --material              TEXT                       Material preset for wall  │
+│                                                    absorption when           │
+│                                                    --absorption is not       │
+│                                                    given.                    │
+│                                                    [default: studio]         │
+│ --source-pos-m          TEXT                       Source position as x,y,z  │
+│                                                    in meters.                │
+│                                                    [default: 2.0,2.0,1.5]    │
+│ --listener-pos-m        TEXT                       Listener position as      │
+│                                                    x,y,z in meters.          │
+│                                                    [default: 5.0,3.5,1.5]    │
+│ --json-out              PATH                       Optional path to write    │
+│                                                    the full room-model       │
+│                                                    payload as JSON.          │
+│ --help                                             Show this message and     │
+│                                                    exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

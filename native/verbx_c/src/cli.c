@@ -26,7 +26,11 @@ static void print_usage(FILE *stream) {
     );
     fprintf(
         stream,
-        "           [--tail-hold-ms MS] [--out-format pcm16|float32|float64]\n"
+        "           [--tail-hold-ms MS] [--tail-metric peak|rms]\n"
+    );
+    fprintf(
+        stream,
+        "           [--out-format pcm16|float32|float64]\n"
     );
     fprintf(stream, "\n");
     fprintf(stream, "Status:\n");
@@ -44,6 +48,8 @@ static void print_doctor(void) {
     printf("status: native-render-foundation\n");
     printf("dsp_core: algorithmic offline core (foundational subset)\n");
     printf("wav_io: mono/stereo PCM + IEEE float WAV\n");
+    printf("process_contract: read -> render -> tail_stop -> write (deterministic)\n");
+    printf("error_contract: exit 0=ok, 1=render failure, 2=cli usage error\n");
     printf("compiler: ");
 #if defined(__clang__)
     printf("clang %s\n", __clang_version__);
@@ -93,6 +99,24 @@ static int parse_out_format(const char *value_text, verbx_wav_format *out_format
     return -1;
 }
 
+static int parse_tail_metric(const char *value_text, verbx_tail_metric *out_metric) {
+    if (strcmp(value_text, "peak") == 0) {
+        *out_metric = VERBX_TAIL_METRIC_PEAK;
+        return 0;
+    }
+    if (strcmp(value_text, "rms") == 0) {
+        *out_metric = VERBX_TAIL_METRIC_RMS;
+        return 0;
+    }
+    fprintf(
+        stderr,
+        "%s: unsupported --tail-metric value '%s' (use peak or rms)\n",
+        VERBX_C_PROJECT_NAME,
+        value_text
+    );
+    return -1;
+}
+
 static int handle_render(int argc, char **argv) {
     const char *input_path;
     const char *output_path;
@@ -104,6 +128,7 @@ static int handle_render(int argc, char **argv) {
         .pre_delay_ms = 20.0,
         .tail_threshold_db = -120.0,
         .tail_hold_ms = 10.0,
+        .tail_metric = VERBX_TAIL_METRIC_PEAK,
         .out_format = VERBX_WAV_FORMAT_FLOAT32
     };
     verbx_render_report report = {0};
@@ -148,6 +173,10 @@ static int handle_render(int argc, char **argv) {
             if (parse_double_option("--tail-hold-ms", argv[++index], &options.tail_hold_ms) != 0) {
                 return 2;
             }
+        } else if ((strcmp(arg, "--tail-metric") == 0) && (index + 1 < argc)) {
+            if (parse_tail_metric(argv[++index], &options.tail_metric) != 0) {
+                return 2;
+            }
         } else if ((strcmp(arg, "--out-format") == 0) && (index + 1 < argc)) {
             if (parse_out_format(argv[++index], &options.out_format) != 0) {
                 return 2;
@@ -163,13 +192,15 @@ static int handle_render(int argc, char **argv) {
         return 1;
     }
     printf(
-        "%s render complete\nsample_rate: %u\nchannels: %u\ninput_frames: %zu\noutput_frames: %zu\nout_format: %s\n",
+        "%s render complete\nsample_rate: %u\nchannels: %u\ninput_frames: %zu\noutput_frames: %zu\nout_format: %s\ntail_metric: %s\nstatus: %s\n",
         VERBX_C_PROJECT_NAME,
         report.sample_rate,
         report.channels,
         report.input_frames,
         report.output_frames,
-        verbx_wav_format_name(report.out_format)
+        verbx_wav_format_name(report.out_format),
+        verbx_tail_metric_name(report.tail_metric),
+        verbx_status_code_name(report.status_code)
     );
     return 0;
 }

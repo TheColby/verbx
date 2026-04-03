@@ -36,6 +36,7 @@ def test_cli_boots() -> None:
     assert result.exit_code == 0
     assert "render" in result.stdout
     assert "realtime" in result.stdout
+    assert "room-model" in result.stdout
     assert "analyze" in result.stdout
     assert "dereverb" in result.stdout
     assert "quickstart" in result.stdout
@@ -53,6 +54,30 @@ def test_version_command_reports_package_version() -> None:
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
     assert f"verbx {__version__}" in result.stdout
+
+
+def test_room_model_command_infers_geometry_and_writes_json(tmp_path: Path) -> None:
+    json_out = tmp_path / "room_model.json"
+    result = runner.invoke(
+        app,
+        [
+            "room-model",
+            "--rt60",
+            "1.2",
+            "--material",
+            "hall",
+            "--json-out",
+            str(json_out),
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "Room Model" in text
+    assert "infer-rt60" in text
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["mode"] == "infer-rt60"
+    assert payload["material"] == "hall"
+    assert float(payload["geometry"]["volume_m3"]) > 0.0
 
 
 def test_quickstart_command_prints_copyable_workflows() -> None:

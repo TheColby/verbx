@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Callable
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, cast
 
@@ -77,6 +77,27 @@ AudioArray = npt.NDArray[np.float64]
 PassProcessor = Callable[[AudioArray, int, int], AudioArray]
 
 
+@dataclass(slots=True)
+class _PipelineContext:
+    """Resolved execution context shared across pipeline stages."""
+
+    infile: Path
+    outfile: Path
+    config: RenderConfig
+    progress: RenderProgress
+    input_sr: int
+    input_channels: int
+    input_duration_seconds: float
+    processing_sr: int
+    runtime_config: RenderConfig
+    ir_runtime: dict[str, Any] | None
+    perceptual_macro_summary: dict[str, Any] | None
+    engine_name: str
+    engine: ReverbEngine
+    engine_device: str
+    platform_device: str
+
+
 def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> RenderReport:
     """Run one end-to-end render and return a structured render report."""
     validate_audio_path(str(infile))
@@ -111,573 +132,600 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> Re
         )
         if engine_device in {"cpu", "mps"}:
             configure_cpu_threads(runtime_config.threads)
-
-        if _can_stream_algo_proxy(runtime_config, engine_name, input_sr=input_sr):
-            progress.set_passes(1)
-            output_subtype = _resolve_output_subtype(runtime_config.output_subtype)
-            output_format = _resolve_output_format(
-                mode=runtime_config.output_container,
-                outfile=outfile,
-                estimated_bytes=None,
-            )
-            conv_device = "cuda" if runtime_config.algo_gpu_proxy else "cpu"
-            proxy_tail_padding_seconds = _algo_tail_padding_seconds(runtime_config, processing_sr)
-            proxy_hold_frames = _tail_zero_hold_samples(
-                processing_sr,
-                runtime_config.tail_stop_hold_ms,
-            )
-
-            # Pre-SRC: when target_sr differs from input_sr, resample input to a
-            # temp file so the convolution engine and proxy IR share the same rate.
-            _needs_src = input_sr != processing_sr
-            _src_tmp: Path | None = None
-            _stream_infile = infile
-            if _needs_src:
-                _src_audio, _ = read_audio(str(infile))
-                _src_resampled = _resample_audio_polyphase(
-                    _src_audio, src_sr=input_sr, dst_sr=processing_sr
-                )
-                _src_tmp = infile.with_name(f"{infile.stem}.proxy_src_tmp{infile.suffix}")
-                write_audio(str(_src_tmp), _src_resampled, processing_sr, subtype="DOUBLE")
-                _stream_infile = _src_tmp
-
-            proxy_ir_path, _ = render_algo_proxy_ir(
-                config=runtime_config,
-                sr=processing_sr,
-                input_channels=input_channels,
-            )
-            stream_tmp_out = outfile.with_name(f"{outfile.stem}.stream_tmp{outfile.suffix}")
-            try:
-                proxy_conv_config = _build_convolution_config(
-                    runtime_config,
-                    ir_path=str(proxy_ir_path),
-                    device=conv_device,
-                )
-                # Proxy IRs already encode the exact algorithmic wet response.
-                # Normalizing them here destroys parity with the offline path.
-                proxy_conv_config.ir_normalize = "none"
-                conv_engine = ConvolutionReverbEngine(
-                    proxy_conv_config
-                )
-                stream_stats = conv_engine.process_streaming_file(
-                    infile=str(_stream_infile),
-                    outfile=str(stream_tmp_out),
-                    output_subtype=output_subtype,
-                    output_format=output_format,
-                )
-            finally:
-                proxy_ir_path.unlink(missing_ok=True)
-                if _src_tmp is not None:
-                    _src_tmp.unlink(missing_ok=True)
-
-            output_samples = _complete_stream_file_tail_to_zero(
-                stream_tmp_out,
-                threshold=_tail_threshold_linear(runtime_config.tail_stop_threshold_db),
-                hold_ms=runtime_config.tail_stop_hold_ms,
-                metric=runtime_config.tail_stop_metric,
-                min_frames=int(stream_stats["input_samples"])
-                + int(np.ceil(proxy_tail_padding_seconds * float(processing_sr)))
-                + int(proxy_hold_frames),
-            )
-            stream_tmp_out.replace(outfile)
-
-            # Post-EQ: apply tilt/lowcut/highcut as a load-and-filter pass when
-            # any EQ setting is active.  Duck and bloom are still blocked upstream,
-            # so only the stateless EQ branch of apply_ambient_processing fires.
-            _needs_eq = (
-                runtime_config.lowcut is not None
-                or runtime_config.highcut is not None
-                or abs(float(runtime_config.tilt)) > 1e-4
-            )
-            if _needs_eq:
-                _eq_audio, _ = read_audio(str(outfile))
-                _eq_out = apply_tilt_eq(
-                    _eq_audio,
-                    processing_sr,
-                    tilt_db=float(runtime_config.tilt),
-                    lowcut=runtime_config.lowcut,
-                    highcut=runtime_config.highcut,
-                )
-                write_audio(str(outfile), _eq_out, processing_sr, subtype=output_subtype)
-                # Post-EQ IIR filtering can smear low-level energy back into the
-                # zero-hold region we just finalized, so run tail completion once
-                # more to restore the same exact-stop contract as the in-memory path.
-                output_samples = _complete_stream_file_tail_to_zero(
-                    outfile,
-                    threshold=_tail_threshold_linear(runtime_config.tail_stop_threshold_db),
-                    hold_ms=runtime_config.tail_stop_hold_ms,
-                    metric=runtime_config.tail_stop_metric,
-                    min_frames=int(stream_stats["input_samples"])
-                    + int(np.ceil(proxy_tail_padding_seconds * float(processing_sr)))
-                    + int(proxy_hold_frames),
-                )
-
-            progress.mark_read()
-            progress.mark_process_pass(1)
-            progress.mark_write()
-
-            report = _build_render_report(
-                engine="algo",
-                sample_rate=int(stream_stats["sample_rate"]),
-                input_samples=int(stream_stats["input_samples"]),
-                output_samples=output_samples,
-                channels=int(stream_stats["channels"]),
-                runtime_config=runtime_config,
-                effective={
-                    "engine_requested": config.engine,
-                    "engine_resolved": "algo_proxy_stream",
-                    "device_requested": config.device,
-                    "device_resolved": conv_device,
-                    "device_platform_resolved": platform_device,
-                    "compute_backend": f"algo-proxy-{conv_engine.backend_name()}",
-                    "ir_used": "algo_proxy_ir",
-                    "self_convolve": False,
-                    "beast_mode": runtime_config.beast_mode,
-                    "tail_padding_seconds": 0.0,
-                    "input_peak_linear": float(stream_stats["input_peak_linear"]),
-                    "input_sample_rate": input_sr,
-                    "processing_sample_rate": int(stream_stats["sample_rate"]),
-                    "sample_rate_action": _sample_rate_action(
-                        input_sr=input_sr,
-                        processing_sr=int(stream_stats["sample_rate"]),
-                    ),
-                    "output_subtype": output_subtype if output_subtype is not None else "auto",
-                    "output_container": runtime_config.output_container,
-                    "output_peak_norm": runtime_config.output_peak_norm,
-                    "output_peak_target_dbfs": runtime_config.output_peak_target_dbfs,
-                    "streaming_mode": True,
-                    "streaming_algorithmic_proxy": True,
-                    "perceptual_macros": perceptual_macro_summary,
-                    "non_default_settings": _non_default_settings(runtime_config),
-                },
-            )
-            _maybe_attach_analysis_report(
-                report=report,
-                infile=infile,
-                outfile=outfile,
-                runtime_config=runtime_config,
-                input_audio_path=infile,
-                output_audio_path=outfile,
-                input_audio=None,
-                output_audio=None,
-                input_sr=input_sr,
-                output_sr=processing_sr,
-                perceptual_macros=perceptual_macro_summary,
-                include_ambisonic_metadata=False,
-            )
-            progress.mark_analyze()
-            return report
-
-        # Streaming path is deliberately conservative and only enabled when
-        # side processing would not require full in-memory post passes.
-        if _can_stream_convolution(runtime_config, engine_name, engine, input_sr=input_sr):
-            progress.set_passes(1)
-            stream_engine = engine
-            assert isinstance(stream_engine, ConvolutionReverbEngine)
-            output_subtype = _resolve_output_subtype(runtime_config.output_subtype)
-            output_format = _resolve_output_format(
-                mode=runtime_config.output_container,
-                outfile=outfile,
-                estimated_bytes=None,
-            )
-            stream_tmp_out = outfile.with_name(f"{outfile.stem}.stream_tmp{outfile.suffix}")
-            stream_stats = stream_engine.process_streaming_file(
-                infile=str(infile),
-                outfile=str(stream_tmp_out),
-                output_subtype=output_subtype,
-                output_format=output_format,
-            )
-            output_samples = _complete_stream_file_tail_to_zero(
-                stream_tmp_out,
-                threshold=_tail_threshold_linear(runtime_config.tail_stop_threshold_db),
-                hold_ms=runtime_config.tail_stop_hold_ms,
-                metric=runtime_config.tail_stop_metric,
-                min_frames=int(stream_stats["input_samples"]),
-            )
-            stream_tmp_out.replace(outfile)
-            progress.mark_read()
-            progress.mark_process_pass(1)
-            progress.mark_write()
-
-            report = _build_render_report(
-                engine=engine_name,
-                sample_rate=int(stream_stats["sample_rate"]),
-                input_samples=int(stream_stats["input_samples"]),
-                output_samples=output_samples,
-                channels=int(stream_stats["channels"]),
-                runtime_config=runtime_config,
-                effective={
-                    "engine_requested": config.engine,
-                    "engine_resolved": engine_name,
-                    "device_requested": config.device,
-                    "device_resolved": engine_device,
-                    "device_platform_resolved": platform_device,
-                    "compute_backend": engine.backend_name(),
-                    "ir_used": runtime_config.ir,
-                    "self_convolve": runtime_config.self_convolve,
-                    "beast_mode": runtime_config.beast_mode,
-                    "tail_padding_seconds": 0.0,
-                    "input_peak_linear": float(stream_stats["input_peak_linear"]),
-                    "input_sample_rate": input_sr,
-                    "processing_sample_rate": int(stream_stats["sample_rate"]),
-                    "sample_rate_action": _sample_rate_action(
-                        input_sr=input_sr,
-                        processing_sr=int(stream_stats["sample_rate"]),
-                    ),
-                    "output_subtype": output_subtype if output_subtype is not None else "auto",
-                    "output_container": runtime_config.output_container,
-                    "output_peak_norm": runtime_config.output_peak_norm,
-                    "output_peak_target_dbfs": runtime_config.output_peak_target_dbfs,
-                    "streaming_mode": True,
-                    "perceptual_macros": perceptual_macro_summary,
-                    "non_default_settings": _non_default_settings(runtime_config),
-                },
-                ir_runtime=ir_runtime,
-            )
-            _maybe_attach_analysis_report(
-                report=report,
-                infile=infile,
-                outfile=outfile,
-                runtime_config=runtime_config,
-                input_audio_path=infile,
-                output_audio_path=outfile,
-                input_audio=None,
-                output_audio=None,
-                input_sr=input_sr,
-                output_sr=processing_sr,
-                perceptual_macros=perceptual_macro_summary,
-                include_ambisonic_metadata=False,
-            )
-
-            progress.mark_analyze()
-            return report
-
-        audio_source, sr = read_audio(str(infile))
-        input_peak_linear = float(np.max(np.abs(audio_source))) if audio_source.size > 0 else 0.0
-        if sr != processing_sr:
-            audio = _resample_audio_polyphase(audio_source, src_sr=sr, dst_sr=processing_sr)
-            sr = processing_sr
-        else:
-            audio = np.asarray(audio_source, dtype=np.float64)
-        progress.mark_read()
-        progress.set_passes(max(1, config.repeat))
-
-        if runtime_config.er_geometry:
-            absorption = material_absorption(
-                runtime_config.er_material,
-                float(runtime_config.er_absorption),
-            )
-            audio = apply_image_source_early_reflections(
-                audio,
-                sr=sr,
-                room_dims_m=runtime_config.er_room_dims_m,
-                source_pos_m=runtime_config.er_source_pos_m,
-                listener_pos_m=runtime_config.er_listener_pos_m,
-                absorption=absorption,
-            )
-
-        input_for_engine = _prepare_spatial_input(audio, runtime_config)
-        if runtime_config.freeze:
-            input_for_engine = freeze_segment(
-                audio=input_for_engine,
-                sr=sr,
-                start=runtime_config.start,
-                end=runtime_config.end,
-                mode="loop",
-                xfade_ms=100.0,
-            )
-        base_output_floor_samples = int(input_for_engine.shape[0])
-
-        tail_padding_seconds = 0.0
-        if engine_name == "algo":
-            # Algorithmic reverb produces tail from internal state, so we append
-            # silence to give the network time to decay audibly.
-            tail_padding_seconds = _algo_tail_padding_seconds(runtime_config, sr)
-            input_for_engine = _append_tail_padding(
-                audio=input_for_engine,
-                sr=sr,
-                tail_seconds=tail_padding_seconds,
-            )
-
-        has_automation_source = (
-            runtime_config.automation_file is not None
-            or len(runtime_config.automation_points) > 0
-            or len(runtime_config.feature_vector_lanes) > 0
-        )
-        clamp_overrides = (
-            parse_automation_clamp_overrides(runtime_config.automation_clamp)
-            if has_automation_source
-            else None
-        )
-        preloaded_automation_bundle: AutomationBundle | None = None
-        if has_automation_source and engine_name == "algo":
-            preloaded_automation_bundle = _load_runtime_automation_bundle(
-                config=runtime_config,
-                sr=sr,
-                num_samples=int(input_for_engine.shape[0]),
-                clamp_overrides=clamp_overrides,
-                feature_audio=input_for_engine,
-            )
-            if isinstance(engine, AlgoReverbEngine):
-                engine.set_parameter_automation(preloaded_automation_bundle.curves)
-
-        repeat_post_processor = _build_per_pass_processor(runtime_config, sr)
-
-        rendered = repeat_process(
+        context = _PipelineContext(
+            infile=infile,
+            outfile=outfile,
+            config=config,
+            progress=progress,
+            input_sr=input_sr,
+            input_channels=input_channels,
+            input_duration_seconds=input_duration_seconds,
+            processing_sr=processing_sr,
+            runtime_config=runtime_config,
+            ir_runtime=ir_runtime,
+            perceptual_macro_summary=perceptual_macro_summary,
+            engine_name=engine_name,
             engine=engine,
-            audio=input_for_engine,
-            sr=sr,
-            n=runtime_config.repeat,
-            post_pass_processor=repeat_post_processor,
-            progress_callback=lambda idx, total: progress.mark_process_pass(idx),
+            engine_device=engine_device,
+            platform_device=platform_device,
         )
+        streaming_report = _run_streaming_pipeline_if_eligible(context)
+        if streaming_report is not None:
+            return streaming_report
+        return _run_in_memory_pipeline(context)
 
-        conv_target_summary: dict[str, Any] | None = None
-        if has_automation_source:
-            if (
-                preloaded_automation_bundle is None
-                or int(preloaded_automation_bundle.num_samples) != int(rendered.shape[0])
-            ):
-                preloaded_automation_bundle = _load_runtime_automation_bundle(
-                    config=runtime_config,
-                    sr=sr,
-                    num_samples=int(rendered.shape[0]),
-                    clamp_overrides=clamp_overrides,
-                    feature_audio=input_for_engine,
-                )
-            assert preloaded_automation_bundle is not None
-            _validate_automation_target_domains_for_engine(
-                engine_name=engine_name,
-                bundle=preloaded_automation_bundle,
-            )
-            if engine_name == "conv":
-                rendered, conv_target_summary = _apply_convolution_automation_targets(
-                    rendered=rendered,
-                    input_for_engine=input_for_engine,
-                    sr=sr,
-                    config=runtime_config,
-                    bundle=preloaded_automation_bundle,
-                    engine_device=engine_device,
-                    repeat_post_processor=repeat_post_processor,
-                )
 
-        # Ambient post stage is applied after repeat-chain rendering to shape
-        # the final wet field.
-        rendered = apply_ambient_processing(
-            wet=rendered,
-            dry_reference=input_for_engine,
-            sr=sr,
-            duck=runtime_config.duck,
-            duck_attack=runtime_config.duck_attack,
-            duck_release=runtime_config.duck_release,
-            bloom=runtime_config.bloom,
+def _run_streaming_pipeline_if_eligible(context: _PipelineContext) -> RenderReport | None:
+    """Run a conservative streaming path when the render contract allows it."""
+    runtime_config = context.runtime_config
+    if _can_stream_algo_proxy(runtime_config, context.engine_name, input_sr=context.input_sr):
+        return _run_algo_proxy_streaming_pipeline(context)
+    if _can_stream_convolution(
+        runtime_config,
+        context.engine_name,
+        context.engine,
+        input_sr=context.input_sr,
+    ):
+        return _run_convolution_streaming_pipeline(context)
+    return None
+
+
+def _run_algo_proxy_streaming_pipeline(context: _PipelineContext) -> RenderReport:
+    """Execute the algorithmic proxy streaming fast path."""
+    runtime_config = context.runtime_config
+    progress = context.progress
+    progress.set_passes(1)
+    output_subtype = _resolve_output_subtype(runtime_config.output_subtype)
+    output_format = _resolve_output_format(
+        mode=runtime_config.output_container,
+        outfile=context.outfile,
+        estimated_bytes=None,
+    )
+    conv_device = "cuda" if runtime_config.algo_gpu_proxy else "cpu"
+    proxy_tail_padding_seconds = _algo_tail_padding_seconds(runtime_config, context.processing_sr)
+    proxy_hold_frames = _tail_zero_hold_samples(
+        context.processing_sr,
+        runtime_config.tail_stop_hold_ms,
+    )
+
+    needs_src = context.input_sr != context.processing_sr
+    src_tmp: Path | None = None
+    stream_infile = context.infile
+    if needs_src:
+        src_audio, _ = read_audio(str(context.infile))
+        src_resampled = _resample_audio_polyphase(
+            src_audio,
+            src_sr=context.input_sr,
+            dst_sr=context.processing_sr,
+        )
+        src_tmp = context.infile.with_name(
+            f"{context.infile.stem}.proxy_src_tmp{context.infile.suffix}"
+        )
+        write_audio(str(src_tmp), src_resampled, context.processing_sr, subtype="DOUBLE")
+        stream_infile = src_tmp
+
+    proxy_ir_path, _ = render_algo_proxy_ir(
+        config=runtime_config,
+        sr=context.processing_sr,
+        input_channels=context.input_channels,
+    )
+    stream_tmp_out = context.outfile.with_name(
+        f"{context.outfile.stem}.stream_tmp{context.outfile.suffix}"
+    )
+    try:
+        proxy_conv_config = _build_convolution_config(
+            runtime_config,
+            ir_path=str(proxy_ir_path),
+            device=conv_device,
+        )
+        proxy_conv_config.ir_normalize = "none"
+        conv_engine = ConvolutionReverbEngine(proxy_conv_config)
+        stream_stats = conv_engine.process_streaming_file(
+            infile=str(stream_infile),
+            outfile=str(stream_tmp_out),
+            output_subtype=output_subtype,
+            output_format=output_format,
+        )
+    finally:
+        proxy_ir_path.unlink(missing_ok=True)
+        if src_tmp is not None:
+            src_tmp.unlink(missing_ok=True)
+
+    output_samples = _complete_stream_file_tail_to_zero(
+        stream_tmp_out,
+        threshold=_tail_threshold_linear(runtime_config.tail_stop_threshold_db),
+        hold_ms=runtime_config.tail_stop_hold_ms,
+        metric=runtime_config.tail_stop_metric,
+        min_frames=int(stream_stats["input_samples"])
+        + int(np.ceil(proxy_tail_padding_seconds * float(context.processing_sr)))
+        + int(proxy_hold_frames),
+    )
+    stream_tmp_out.replace(context.outfile)
+
+    needs_eq = (
+        runtime_config.lowcut is not None
+        or runtime_config.highcut is not None
+        or abs(float(runtime_config.tilt)) > 1e-4
+    )
+    if needs_eq:
+        eq_audio, _ = read_audio(str(context.outfile))
+        eq_out = apply_tilt_eq(
+            eq_audio,
+            context.processing_sr,
+            tilt_db=float(runtime_config.tilt),
             lowcut=runtime_config.lowcut,
             highcut=runtime_config.highcut,
-            tilt=runtime_config.tilt,
         )
-
-        modulation_summaries: list[dict[str, Any]] = []
-        if runtime_config.mod_target != "none" and len(runtime_config.mod_sources) > 0:
-            rendered, modulation_summary = apply_parameter_modulation(
-                audio=rendered,
-                dry_reference=input_for_engine,
-                sr=sr,
-                target=runtime_config.mod_target,
-                source_specs=runtime_config.mod_sources,
-                value_min=runtime_config.mod_min,
-                value_max=runtime_config.mod_max,
-                combine=runtime_config.mod_combine,
-                smooth_ms=runtime_config.mod_smooth_ms,
-            )
-            if modulation_summary is not None:
-                modulation_summary["route_kind"] = "base"
-                modulation_summaries.append(modulation_summary)
-
-        for route_idx, route_spec in enumerate(runtime_config.mod_routes, start=1):
-            route = parse_mod_route_spec(route_spec)
-            rendered, route_summary = apply_parameter_modulation(
-                audio=rendered,
-                dry_reference=input_for_engine,
-                sr=sr,
-                target=route.target,
-                source_specs=route.source_specs,
-                value_min=route.value_min,
-                value_max=route.value_max,
-                combine=route.combine,
-                smooth_ms=route.smooth_ms,
-            )
-            if route_summary is not None:
-                route_summary["route_kind"] = "route"
-                route_summary["route_index"] = route_idx
-                route_summary["route_spec"] = route_spec
-                modulation_summaries.append(route_summary)
-
-        automation_summary: dict[str, Any] | None = None
-        if has_automation_source:
-            bundle = preloaded_automation_bundle
-            if bundle is None or int(bundle.num_samples) != int(rendered.shape[0]):
-                bundle = _load_runtime_automation_bundle(
-                    config=runtime_config,
-                    sr=sr,
-                    num_samples=int(rendered.shape[0]),
-                    clamp_overrides=clamp_overrides,
-                    feature_audio=input_for_engine,
-                )
-            assert bundle is not None
-            _validate_automation_target_domains_for_engine(
-                engine_name=engine_name,
-                bundle=bundle,
-            )
-            dry_reference = _build_dry_reference_for_automation(
-                engine_name=engine_name,
-                input_for_engine=input_for_engine,
-                rendered=rendered,
-                config=runtime_config,
-            )
-            rendered, automation_summary = apply_render_automation(
-                rendered=rendered,
-                dry_reference=dry_reference,
-                base_wet=float(runtime_config.wet),
-                base_dry=float(runtime_config.dry),
-                bundle=bundle,
-            )
-            targets = set(bundle.curves.keys())
-            automation_summary["engine_targets"] = sorted(
-                target for target in targets if target in ENGINE_AUTOMATION_TARGETS
-            )
-            automation_summary["post_targets"] = sorted(
-                target for target in targets if target in POST_RENDER_AUTOMATION_TARGETS
-            )
-            automation_summary["conv_targets"] = sorted(
-                target for target in targets if target in CONV_AUTOMATION_TARGETS
-            )
-            if conv_target_summary is not None:
-                automation_summary["conv_summary"] = conv_target_summary
-            if runtime_config.automation_trace_out is not None:
-                trace_path = Path(runtime_config.automation_trace_out)
-                write_automation_trace(trace_path, bundle)
-            if runtime_config.feature_vector_trace_out is not None:
-                feature_trace_path = Path(runtime_config.feature_vector_trace_out)
-                write_feature_vector_trace(feature_trace_path, bundle)
-
-        rendered = _apply_spatial_output_transform(rendered, runtime_config)
-
-        modulation_payload: dict[str, Any] | None
-        if len(modulation_summaries) == 0:
-            modulation_payload = None
-        elif len(modulation_summaries) == 1:
-            modulation_payload = modulation_summaries[0]
-        else:
-            modulation_payload = {
-                "count": len(modulation_summaries),
-                "routes": modulation_summaries,
-            }
-
-        # Normalize/limit strategy can be applied per-pass (inside repeat),
-        # post-render, or skipped entirely.
-        if runtime_config.normalize_stage == "post":
-            rendered = apply_output_targets(
-                rendered,
-                sr,
-                target_lufs=runtime_config.target_lufs,
-                target_peak_dbfs=runtime_config.target_peak_dbfs,
-                limiter=runtime_config.limiter,
-                use_true_peak=runtime_config.use_true_peak,
-            )
-        elif runtime_config.normalize_stage == "none" and runtime_config.limiter:
-            rendered = soft_limiter(rendered, threshold_dbfs=-1.0, knee_db=6.0)
-            rendered = peak_normalize(rendered, target_dbfs=-1.0)
-
-        rendered = _apply_final_peak_normalization(
-            rendered,
-            mode=runtime_config.output_peak_norm,
-            input_peak_linear=input_peak_linear,
-            target_dbfs=runtime_config.output_peak_target_dbfs,
-        )
-        rendered = _complete_tail_to_zero(
-            rendered,
-            sr,
+        write_audio(str(context.outfile), eq_out, context.processing_sr, subtype=output_subtype)
+        output_samples = _complete_stream_file_tail_to_zero(
+            context.outfile,
             threshold=_tail_threshold_linear(runtime_config.tail_stop_threshold_db),
             hold_ms=runtime_config.tail_stop_hold_ms,
             metric=runtime_config.tail_stop_metric,
-            min_samples=base_output_floor_samples,
+            min_frames=int(stream_stats["input_samples"])
+            + int(np.ceil(proxy_tail_padding_seconds * float(context.processing_sr)))
+            + int(proxy_hold_frames),
         )
 
-        output_subtype = _resolve_output_subtype(runtime_config.output_subtype)
-        bytes_per_sample = {
-            None: 8,
-            "PCM_16": 2,
-            "PCM_24": 3,
-            "PCM_32": 4,
-            "FLOAT": 4,
-            "DOUBLE": 8,
-        }.get(output_subtype, 8)
-        estimated_bytes = int(rendered.shape[0]) * int(rendered.shape[1]) * int(bytes_per_sample)
-        output_format = _resolve_output_format(
-            mode=runtime_config.output_container,
-            outfile=outfile,
-            estimated_bytes=estimated_bytes,
+    progress.mark_read()
+    progress.mark_process_pass(1)
+    progress.mark_write()
+
+    report = _build_render_report(
+        engine="algo",
+        sample_rate=int(stream_stats["sample_rate"]),
+        input_samples=int(stream_stats["input_samples"]),
+        output_samples=output_samples,
+        channels=int(stream_stats["channels"]),
+        runtime_config=runtime_config,
+        effective={
+            "engine_requested": context.config.engine,
+            "engine_resolved": "algo_proxy_stream",
+            "device_requested": context.config.device,
+            "device_resolved": conv_device,
+            "device_platform_resolved": context.platform_device,
+            "compute_backend": f"algo-proxy-{conv_engine.backend_name()}",
+            "ir_used": "algo_proxy_ir",
+            "self_convolve": False,
+            "beast_mode": runtime_config.beast_mode,
+            "tail_padding_seconds": 0.0,
+            "input_peak_linear": float(stream_stats["input_peak_linear"]),
+            "input_sample_rate": context.input_sr,
+            "processing_sample_rate": int(stream_stats["sample_rate"]),
+            "sample_rate_action": _sample_rate_action(
+                input_sr=context.input_sr,
+                processing_sr=int(stream_stats["sample_rate"]),
+            ),
+            "output_subtype": output_subtype if output_subtype is not None else "auto",
+            "output_container": runtime_config.output_container,
+            "output_peak_norm": runtime_config.output_peak_norm,
+            "output_peak_target_dbfs": runtime_config.output_peak_target_dbfs,
+            "streaming_mode": True,
+            "streaming_algorithmic_proxy": True,
+            "perceptual_macros": context.perceptual_macro_summary,
+            "non_default_settings": _non_default_settings(runtime_config),
+        },
+    )
+    _maybe_attach_analysis_report(
+        report=report,
+        infile=context.infile,
+        outfile=context.outfile,
+        runtime_config=runtime_config,
+        input_audio_path=context.infile,
+        output_audio_path=context.outfile,
+        input_audio=None,
+        output_audio=None,
+        input_sr=context.input_sr,
+        output_sr=context.processing_sr,
+        perceptual_macros=context.perceptual_macro_summary,
+        include_ambisonic_metadata=False,
+    )
+    progress.mark_analyze()
+    return report
+
+
+def _run_convolution_streaming_pipeline(context: _PipelineContext) -> RenderReport:
+    """Execute the direct convolution streaming fast path."""
+    runtime_config = context.runtime_config
+    progress = context.progress
+    progress.set_passes(1)
+    stream_engine = context.engine
+    assert isinstance(stream_engine, ConvolutionReverbEngine)
+    output_subtype = _resolve_output_subtype(runtime_config.output_subtype)
+    output_format = _resolve_output_format(
+        mode=runtime_config.output_container,
+        outfile=context.outfile,
+        estimated_bytes=None,
+    )
+    stream_tmp_out = context.outfile.with_name(
+        f"{context.outfile.stem}.stream_tmp{context.outfile.suffix}"
+    )
+    stream_stats = stream_engine.process_streaming_file(
+        infile=str(context.infile),
+        outfile=str(stream_tmp_out),
+        output_subtype=output_subtype,
+        output_format=output_format,
+    )
+    output_samples = _complete_stream_file_tail_to_zero(
+        stream_tmp_out,
+        threshold=_tail_threshold_linear(runtime_config.tail_stop_threshold_db),
+        hold_ms=runtime_config.tail_stop_hold_ms,
+        metric=runtime_config.tail_stop_metric,
+        min_frames=int(stream_stats["input_samples"]),
+    )
+    stream_tmp_out.replace(context.outfile)
+    progress.mark_read()
+    progress.mark_process_pass(1)
+    progress.mark_write()
+
+    report = _build_render_report(
+        engine=context.engine_name,
+        sample_rate=int(stream_stats["sample_rate"]),
+        input_samples=int(stream_stats["input_samples"]),
+        output_samples=output_samples,
+        channels=int(stream_stats["channels"]),
+        runtime_config=runtime_config,
+        effective={
+            "engine_requested": context.config.engine,
+            "engine_resolved": context.engine_name,
+            "device_requested": context.config.device,
+            "device_resolved": context.engine_device,
+            "device_platform_resolved": context.platform_device,
+            "compute_backend": context.engine.backend_name(),
+            "ir_used": runtime_config.ir,
+            "self_convolve": runtime_config.self_convolve,
+            "beast_mode": runtime_config.beast_mode,
+            "tail_padding_seconds": 0.0,
+            "input_peak_linear": float(stream_stats["input_peak_linear"]),
+            "input_sample_rate": context.input_sr,
+            "processing_sample_rate": int(stream_stats["sample_rate"]),
+            "sample_rate_action": _sample_rate_action(
+                input_sr=context.input_sr,
+                processing_sr=int(stream_stats["sample_rate"]),
+            ),
+            "output_subtype": output_subtype if output_subtype is not None else "auto",
+            "output_container": runtime_config.output_container,
+            "output_peak_norm": runtime_config.output_peak_norm,
+            "output_peak_target_dbfs": runtime_config.output_peak_target_dbfs,
+            "streaming_mode": True,
+            "perceptual_macros": context.perceptual_macro_summary,
+            "non_default_settings": _non_default_settings(runtime_config),
+        },
+        ir_runtime=context.ir_runtime,
+    )
+    _maybe_attach_analysis_report(
+        report=report,
+        infile=context.infile,
+        outfile=context.outfile,
+        runtime_config=runtime_config,
+        input_audio_path=context.infile,
+        output_audio_path=context.outfile,
+        input_audio=None,
+        output_audio=None,
+        input_sr=context.input_sr,
+        output_sr=context.processing_sr,
+        perceptual_macros=context.perceptual_macro_summary,
+        include_ambisonic_metadata=False,
+    )
+    progress.mark_analyze()
+    return report
+
+
+def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
+    """Execute the full in-memory render path with all post stages."""
+    runtime_config = context.runtime_config
+    progress = context.progress
+    audio_source, sr = read_audio(str(context.infile))
+    input_peak_linear = float(np.max(np.abs(audio_source))) if audio_source.size > 0 else 0.0
+    if sr != context.processing_sr:
+        audio = _resample_audio_polyphase(audio_source, src_sr=sr, dst_sr=context.processing_sr)
+        sr = context.processing_sr
+    else:
+        audio = np.asarray(audio_source, dtype=np.float64)
+    progress.mark_read()
+    progress.set_passes(max(1, context.config.repeat))
+
+    if runtime_config.er_geometry:
+        absorption = material_absorption(
+            runtime_config.er_material,
+            float(runtime_config.er_absorption),
         )
-        write_audio(
-            str(outfile),
+        audio = apply_image_source_early_reflections(
+            audio,
+            sr=sr,
+            room_dims_m=runtime_config.er_room_dims_m,
+            source_pos_m=runtime_config.er_source_pos_m,
+            listener_pos_m=runtime_config.er_listener_pos_m,
+            absorption=absorption,
+        )
+
+    input_for_engine = _prepare_spatial_input(audio, runtime_config)
+    if runtime_config.freeze:
+        input_for_engine = freeze_segment(
+            audio=input_for_engine,
+            sr=sr,
+            start=runtime_config.start,
+            end=runtime_config.end,
+            mode="loop",
+            xfade_ms=100.0,
+        )
+    base_output_floor_samples = int(input_for_engine.shape[0])
+
+    tail_padding_seconds = 0.0
+    if context.engine_name == "algo":
+        tail_padding_seconds = _algo_tail_padding_seconds(runtime_config, sr)
+        input_for_engine = _append_tail_padding(
+            audio=input_for_engine,
+            sr=sr,
+            tail_seconds=tail_padding_seconds,
+        )
+
+    has_automation_source = (
+        runtime_config.automation_file is not None
+        or len(runtime_config.automation_points) > 0
+        or len(runtime_config.feature_vector_lanes) > 0
+    )
+    clamp_overrides = (
+        parse_automation_clamp_overrides(runtime_config.automation_clamp)
+        if has_automation_source
+        else None
+    )
+    preloaded_automation_bundle: AutomationBundle | None = None
+    if has_automation_source and context.engine_name == "algo":
+        preloaded_automation_bundle = _load_runtime_automation_bundle(
+            config=runtime_config,
+            sr=sr,
+            num_samples=int(input_for_engine.shape[0]),
+            clamp_overrides=clamp_overrides,
+            feature_audio=input_for_engine,
+        )
+        if isinstance(context.engine, AlgoReverbEngine):
+            context.engine.set_parameter_automation(preloaded_automation_bundle.curves)
+
+    repeat_post_processor = _build_per_pass_processor(runtime_config, sr)
+    rendered = repeat_process(
+        engine=context.engine,
+        audio=input_for_engine,
+        sr=sr,
+        n=runtime_config.repeat,
+        post_pass_processor=repeat_post_processor,
+        progress_callback=lambda idx, total: progress.mark_process_pass(idx),
+    )
+
+    conv_target_summary: dict[str, Any] | None = None
+    if has_automation_source:
+        if (
+            preloaded_automation_bundle is None
+            or int(preloaded_automation_bundle.num_samples) != int(rendered.shape[0])
+        ):
+            preloaded_automation_bundle = _load_runtime_automation_bundle(
+                config=runtime_config,
+                sr=sr,
+                num_samples=int(rendered.shape[0]),
+                clamp_overrides=clamp_overrides,
+                feature_audio=input_for_engine,
+            )
+        assert preloaded_automation_bundle is not None
+        _validate_automation_target_domains_for_engine(
+            engine_name=context.engine_name,
+            bundle=preloaded_automation_bundle,
+        )
+        if context.engine_name == "conv":
+            rendered, conv_target_summary = _apply_convolution_automation_targets(
+                rendered=rendered,
+                input_for_engine=input_for_engine,
+                sr=sr,
+                config=runtime_config,
+                bundle=preloaded_automation_bundle,
+                engine_device=context.engine_device,
+                repeat_post_processor=repeat_post_processor,
+            )
+
+    rendered = apply_ambient_processing(
+        wet=rendered,
+        dry_reference=input_for_engine,
+        sr=sr,
+        duck=runtime_config.duck,
+        duck_attack=runtime_config.duck_attack,
+        duck_release=runtime_config.duck_release,
+        bloom=runtime_config.bloom,
+        lowcut=runtime_config.lowcut,
+        highcut=runtime_config.highcut,
+        tilt=runtime_config.tilt,
+    )
+
+    modulation_summaries: list[dict[str, Any]] = []
+    if runtime_config.mod_target != "none" and len(runtime_config.mod_sources) > 0:
+        rendered, modulation_summary = apply_parameter_modulation(
+            audio=rendered,
+            dry_reference=input_for_engine,
+            sr=sr,
+            target=runtime_config.mod_target,
+            source_specs=runtime_config.mod_sources,
+            value_min=runtime_config.mod_min,
+            value_max=runtime_config.mod_max,
+            combine=runtime_config.mod_combine,
+            smooth_ms=runtime_config.mod_smooth_ms,
+        )
+        if modulation_summary is not None:
+            modulation_summary["route_kind"] = "base"
+            modulation_summaries.append(modulation_summary)
+
+    for route_idx, route_spec in enumerate(runtime_config.mod_routes, start=1):
+        route = parse_mod_route_spec(route_spec)
+        rendered, route_summary = apply_parameter_modulation(
+            audio=rendered,
+            dry_reference=input_for_engine,
+            sr=sr,
+            target=route.target,
+            source_specs=route.source_specs,
+            value_min=route.value_min,
+            value_max=route.value_max,
+            combine=route.combine,
+            smooth_ms=route.smooth_ms,
+        )
+        if route_summary is not None:
+            route_summary["route_kind"] = "route"
+            route_summary["route_index"] = route_idx
+            route_summary["route_spec"] = route_spec
+            modulation_summaries.append(route_summary)
+
+    automation_summary: dict[str, Any] | None = None
+    if has_automation_source:
+        bundle = preloaded_automation_bundle
+        if bundle is None or int(bundle.num_samples) != int(rendered.shape[0]):
+            bundle = _load_runtime_automation_bundle(
+                config=runtime_config,
+                sr=sr,
+                num_samples=int(rendered.shape[0]),
+                clamp_overrides=clamp_overrides,
+                feature_audio=input_for_engine,
+            )
+        assert bundle is not None
+        _validate_automation_target_domains_for_engine(
+            engine_name=context.engine_name,
+            bundle=bundle,
+        )
+        dry_reference = _build_dry_reference_for_automation(
+            engine_name=context.engine_name,
+            input_for_engine=input_for_engine,
+            rendered=rendered,
+            config=runtime_config,
+        )
+        rendered, automation_summary = apply_render_automation(
+            rendered=rendered,
+            dry_reference=dry_reference,
+            base_wet=float(runtime_config.wet),
+            base_dry=float(runtime_config.dry),
+            bundle=bundle,
+        )
+        targets = set(bundle.curves.keys())
+        automation_summary["engine_targets"] = sorted(
+            target for target in targets if target in ENGINE_AUTOMATION_TARGETS
+        )
+        automation_summary["post_targets"] = sorted(
+            target for target in targets if target in POST_RENDER_AUTOMATION_TARGETS
+        )
+        automation_summary["conv_targets"] = sorted(
+            target for target in targets if target in CONV_AUTOMATION_TARGETS
+        )
+        if conv_target_summary is not None:
+            automation_summary["conv_summary"] = conv_target_summary
+        if runtime_config.automation_trace_out is not None:
+            write_automation_trace(Path(runtime_config.automation_trace_out), bundle)
+        if runtime_config.feature_vector_trace_out is not None:
+            write_feature_vector_trace(Path(runtime_config.feature_vector_trace_out), bundle)
+
+    rendered = _apply_spatial_output_transform(rendered, runtime_config)
+    modulation_payload: dict[str, Any] | None
+    if len(modulation_summaries) == 0:
+        modulation_payload = None
+    elif len(modulation_summaries) == 1:
+        modulation_payload = modulation_summaries[0]
+    else:
+        modulation_payload = {"count": len(modulation_summaries), "routes": modulation_summaries}
+
+    if runtime_config.normalize_stage == "post":
+        rendered = apply_output_targets(
             rendered,
             sr,
-            subtype=output_subtype,
-            format=output_format,
+            target_lufs=runtime_config.target_lufs,
+            target_peak_dbfs=runtime_config.target_peak_dbfs,
+            limiter=runtime_config.limiter,
+            use_true_peak=runtime_config.use_true_peak,
         )
-        progress.mark_write()
+    elif runtime_config.normalize_stage == "none" and runtime_config.limiter:
+        rendered = soft_limiter(rendered, threshold_dbfs=-1.0, knee_db=6.0)
+        rendered = peak_normalize(rendered, target_dbfs=-1.0)
 
-        report = _build_render_report(
-            engine=engine_name,
-            sample_rate=sr,
-            input_samples=int(audio.shape[0]),
-            output_samples=int(rendered.shape[0]),
-            channels=int(rendered.shape[1]),
-            runtime_config=runtime_config,
-            effective={
-                "engine_requested": config.engine,
-                "engine_resolved": engine_name,
-                "device_requested": config.device,
-                "device_resolved": engine_device,
-                "device_platform_resolved": platform_device,
-                "compute_backend": engine.backend_name(),
-                "ir_used": runtime_config.ir,
-                "self_convolve": runtime_config.self_convolve,
-                "beast_mode": runtime_config.beast_mode,
-                "tail_padding_seconds": tail_padding_seconds,
-                "input_peak_linear": input_peak_linear,
-                "input_sample_rate": input_sr,
-                "processing_sample_rate": sr,
-                "sample_rate_action": _sample_rate_action(input_sr=input_sr, processing_sr=sr),
-                "output_subtype": output_subtype if output_subtype is not None else "auto",
-                "output_container": runtime_config.output_container,
-                "output_peak_norm": runtime_config.output_peak_norm,
-                "output_peak_target_dbfs": runtime_config.output_peak_target_dbfs,
-                "streaming_mode": False,
-                "modulation": modulation_payload,
-                "automation": automation_summary,
-                "perceptual_macros": perceptual_macro_summary,
-                "non_default_settings": _non_default_settings(runtime_config),
-            },
-            ir_runtime=ir_runtime,
-        )
-        _maybe_attach_analysis_report(
-            report=report,
-            infile=infile,
-            outfile=outfile,
-            runtime_config=runtime_config,
-            input_audio_path=None,
-            output_audio_path=None,
-            input_audio=audio_source,
-            output_audio=rendered,
-            input_sr=input_sr,
-            output_sr=sr,
-            perceptual_macros=perceptual_macro_summary,
-            include_ambisonic_metadata=True,
-        )
+    rendered = _apply_final_peak_normalization(
+        rendered,
+        mode=runtime_config.output_peak_norm,
+        input_peak_linear=input_peak_linear,
+        target_dbfs=runtime_config.output_peak_target_dbfs,
+    )
+    rendered = _complete_tail_to_zero(
+        rendered,
+        sr,
+        threshold=_tail_threshold_linear(runtime_config.tail_stop_threshold_db),
+        hold_ms=runtime_config.tail_stop_hold_ms,
+        metric=runtime_config.tail_stop_metric,
+        min_samples=base_output_floor_samples,
+    )
 
-        progress.mark_analyze()
+    output_subtype = _resolve_output_subtype(runtime_config.output_subtype)
+    bytes_per_sample = {
+        None: 8,
+        "PCM_16": 2,
+        "PCM_24": 3,
+        "PCM_32": 4,
+        "FLOAT": 4,
+        "DOUBLE": 8,
+    }.get(output_subtype, 8)
+    estimated_bytes = int(rendered.shape[0]) * int(rendered.shape[1]) * int(bytes_per_sample)
+    output_format = _resolve_output_format(
+        mode=runtime_config.output_container,
+        outfile=context.outfile,
+        estimated_bytes=estimated_bytes,
+    )
+    write_audio(
+        str(context.outfile),
+        rendered,
+        sr,
+        subtype=output_subtype,
+        format=output_format,
+    )
+    progress.mark_write()
 
+    report = _build_render_report(
+        engine=context.engine_name,
+        sample_rate=sr,
+        input_samples=int(audio.shape[0]),
+        output_samples=int(rendered.shape[0]),
+        channels=int(rendered.shape[1]),
+        runtime_config=runtime_config,
+        effective={
+            "engine_requested": context.config.engine,
+            "engine_resolved": context.engine_name,
+            "device_requested": context.config.device,
+            "device_resolved": context.engine_device,
+            "device_platform_resolved": context.platform_device,
+            "compute_backend": context.engine.backend_name(),
+            "ir_used": runtime_config.ir,
+            "self_convolve": runtime_config.self_convolve,
+            "beast_mode": runtime_config.beast_mode,
+            "tail_padding_seconds": tail_padding_seconds,
+            "input_peak_linear": input_peak_linear,
+            "input_sample_rate": context.input_sr,
+            "processing_sample_rate": sr,
+            "sample_rate_action": _sample_rate_action(input_sr=context.input_sr, processing_sr=sr),
+            "output_subtype": output_subtype if output_subtype is not None else "auto",
+            "output_container": runtime_config.output_container,
+            "output_peak_norm": runtime_config.output_peak_norm,
+            "output_peak_target_dbfs": runtime_config.output_peak_target_dbfs,
+            "streaming_mode": False,
+            "modulation": modulation_payload,
+            "automation": automation_summary,
+            "perceptual_macros": context.perceptual_macro_summary,
+            "non_default_settings": _non_default_settings(runtime_config),
+        },
+        ir_runtime=context.ir_runtime,
+    )
+    _maybe_attach_analysis_report(
+        report=report,
+        infile=context.infile,
+        outfile=context.outfile,
+        runtime_config=runtime_config,
+        input_audio_path=None,
+        output_audio_path=None,
+        input_audio=audio_source,
+        output_audio=rendered,
+        input_sr=context.input_sr,
+        output_sr=sr,
+        perceptual_macros=context.perceptual_macro_summary,
+        include_ambisonic_metadata=True,
+    )
+    progress.mark_analyze()
     return report
 
 

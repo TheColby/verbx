@@ -12,6 +12,11 @@ You can batch reverberate a directory of audio files to create lush Dolby Atmos 
 
 Under the hood, everything runs in 64-bit floating point. The algorithmic engine is built around a configurable Feedback Delay Network with eight matrix families, multiband decay, and optional time-varying behavior. The convolution engine uses partitioned FFT with optional CUDA acceleration and full M-input-to-N-output matrix routing. Both engines share the same diffusion, shimmer, ducking, freeze, loudness, and spatial controls.
 
+The latest `v0.7.7` work also starts to bridge pure parametric design with
+explicit acoustics. There is now a reusable room-geometry model for dimensions,
+materials, source/listener placement, Bolt-style proportion warnings, and RT60
+to rectangular-room inversion via `verbx room-model`.
+
 This is not a "set RT60 and go" tool. The parameter surface is wide by design. Most users start with three flags and expand from there.
 
 For AI workflows, `verbx` is also a strong command-line tool for deterministic audio data augmentation and voice-model robustness testing. You can generate reproducible reverberant variants for ASR/TTS/speaker pipelines, keep split-safe metadata, and batch large render sets from manifests.
@@ -278,6 +283,8 @@ Current native status:
 - mono/stereo WAV input: PCM16/24/32 and float32/float64
 - mono/stereo WAV output: `pcm16`, `float32`, `float64`
 - deterministic offline render lifecycle in C: read -> process -> tail-finalize -> write
+- explicit native process/error contract surfaced in `verbx-c doctor`
+- native tail-stop metric selection: `--tail-metric peak|rms`
 - foundational native algorithmic reverb core with float64 internal processing
 
 Example native smoke test:
@@ -976,6 +983,31 @@ Outputs loudness, peak, spectral, and decay metrics. Key flags:
 
 ---
 
+### verbx room-model
+
+```bash
+verbx room-model --dims-m 6,8,3
+verbx room-model --rt60 1.6 --material hall --json-out room.json
+```
+
+Use this when you want a physically grounded sanity check before rendering.
+`verbx room-model` either inspects an explicit rectangular room geometry or
+infers one from RT60 plus an absorption/material assumption. It reports volume,
+surface area, direct-path pre-delay, aspect ratios, Bolt-style proportion
+warnings, and writes JSON when requested.
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--dims-m` | `width,depth,height` | Inspect an explicit rectangular room |
+| `--rt60` | seconds | Infer room dimensions from RT60 plus absorption |
+| `--absorption` | 0.01–0.99 | Override the mean absorption used for RT60 inversion |
+| `--material` | preset name | Use a wall material preset when `--absorption` is omitted |
+| `--source-pos-m` | `x,y,z` meters | Source position inside the room |
+| `--listener-pos-m` | `x,y,z` meters | Listener position inside the room |
+| `--json-out` | path | Write the full geometry payload as JSON |
+
+---
+
 ### verbx dereverb
 
 `verbx dereverb INFILE OUTFILE [options]`
@@ -1019,6 +1051,7 @@ verbx batch augment augment.json --jobs 8      # generate training dataset
 verbx suggest INFILE      # analysis-driven starter settings for your specific audio
 verbx realtime --list-devices   # list selectable live audio devices
 verbx realtime --engine algo --input-device 0 --output-device 3   # live preview
+verbx room-model --rt60 1.8 --material hall   # infer a plausible room geometry
 verbx dereverb INFILE OUTFILE   # suppress late reverberation from an existing recording
 verbx presets             # list built-in presets
 verbx presets --show cathedral_extreme   # inspect preset parameters
