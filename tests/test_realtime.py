@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 from verbx.cli import app
 from verbx.commands import realtime as realtime_cmd
 from verbx.config import RenderConfig
+from verbx.core.dereverb import LiveDereverbConfig, create_live_dereverb_processor
 from verbx.io import realtime as realtime_io
 
 runner = CliRunner()
@@ -483,6 +484,216 @@ def test_realtime_channel_map_rejects_count_mismatch(monkeypatch: MonkeyPatch) -
     assert "--input-channel-map" in combined
 
 
+def test_realtime_dereverb_accepts_extended_options(monkeypatch: MonkeyPatch) -> None:
+    fake_devices = [
+        realtime_io.RealtimeDeviceInfo(
+            index=0,
+            name="Mic",
+            max_input_channels=2,
+            max_output_channels=0,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+        realtime_io.RealtimeDeviceInfo(
+            index=1,
+            name="Speakers",
+            max_input_channels=0,
+            max_output_channels=2,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+    ]
+    captured: dict[str, object] = {}
+
+    class _FakeProcessor:
+        input_channels = 2
+        output_channels = 2
+
+        def process_block(self, block: np.ndarray) -> np.ndarray:
+            return np.asarray(block, dtype=np.float64)
+
+    def fake_build_live_dereverb_processor(
+        *,
+        config: LiveDereverbConfig,
+        sample_rate: int,
+        block_size: int,
+        input_channels: int,
+    ) -> tuple[_FakeProcessor, dict[str, object]]:
+        captured["config"] = config
+        captured["sample_rate"] = sample_rate
+        captured["block_size"] = block_size
+        captured["input_channels"] = input_channels
+        return _FakeProcessor(), {
+            "engine_resolved": "dereverb_live",
+            "compute_backend": "stft_cpu",
+            "dereverb_mode": config.mode,
+            "dereverb_window_type": config.analysis_window,
+            "dereverb_synthesis_window_type": (
+                config.analysis_window
+                if config.synthesis_window is None
+                else config.synthesis_window
+            ),
+            "dereverb_window_ms": config.window_ms,
+            "dereverb_hop_ms": config.hop_ms,
+            "dereverb_tail_ms": config.tail_ms,
+            "dereverb_mix": config.mix,
+            "dereverb_stereo_link": config.stereo_link,
+            "dereverb_latency_ms": 24.0,
+        }
+
+    def fake_run_realtime_duplex(**_: object) -> realtime_io.RealtimeSessionSummary:
+        return realtime_io.RealtimeSessionSummary(
+            sample_rate=48_000,
+            block_size=384,
+            input_channels=2,
+            output_channels=2,
+            input_device="Mic",
+            output_device="Speakers",
+            input_channel_map=(1, 2),
+            output_channel_map=(1, 2),
+            processed_blocks=2,
+            processed_seconds=0.02,
+            clipped_blocks=0,
+        )
+
+    monkeypatch.setattr(realtime_cmd, "list_audio_devices", lambda: fake_devices)
+    monkeypatch.setattr(
+        realtime_cmd,
+        "_build_live_dereverb_processor",
+        fake_build_live_dereverb_processor,
+    )
+    monkeypatch.setattr(realtime_cmd, "run_realtime_duplex", fake_run_realtime_duplex)
+
+    result = runner.invoke(
+        app,
+        [
+            "realtime",
+            "--live-mode",
+            "dereverb",
+            "--duration",
+            "0.01",
+            "--block-size",
+            "384",
+            "--dereverb-mode",
+            "spectral_sub",
+            "--dereverb-strength",
+            "0.9",
+            "--dereverb-floor",
+            "0.05",
+            "--dereverb-window-ms",
+            "12",
+            "--dereverb-hop-ms",
+            "4",
+            "--dereverb-tail-ms",
+            "90",
+            "--dereverb-pre-emphasis",
+            "0.25",
+            "--dereverb-mix",
+            "0.85",
+            "--dereverb-max-atten-db",
+            "21",
+            "--no-dereverb-stereo-link",
+            "--dereverb-input-gain-db",
+            "3",
+            "--dereverb-output-gain-db",
+            "-2",
+            "--dereverb-window-type",
+            "kaiser",
+            "--dereverb-synthesis-window-type",
+            "tukey",
+            "--dereverb-window-beta",
+            "9",
+            "--dereverb-window-alpha",
+            "0.3",
+            "--dereverb-window-std",
+            "2.1",
+            "--dereverb-window-power",
+            "1.7",
+            "--dereverb-window-atten-db",
+            "85",
+            "--dereverb-window-nbar",
+            "5",
+            "--dereverb-window-nw",
+            "3.1",
+            "--dereverb-window-tau",
+            "2.8",
+            "--dereverb-window-weights",
+            "0.42,0.5,0.08",
+        ],
+    )
+    assert result.exit_code == 0, _combined_output(result)
+    config = captured["config"]
+    assert isinstance(config, LiveDereverbConfig)
+    assert config.mode == "spectral_sub"
+    assert config.strength == 0.9
+    assert config.floor == 0.05
+    assert config.window_ms == 12.0
+    assert config.hop_ms == 4.0
+    assert config.tail_ms == 90.0
+    assert config.pre_emphasis == 0.25
+    assert config.mix == 0.85
+    assert config.max_atten_db == 21.0
+    assert config.stereo_link is False
+    assert config.input_gain_db == 3.0
+    assert config.output_gain_db == -2.0
+    assert config.analysis_window == "kaiser"
+    assert config.synthesis_window == "tukey"
+    assert config.window_beta == 9.0
+    assert config.window_alpha == 0.3
+    assert config.window_std == 2.1
+    assert config.window_power == 1.7
+    assert config.window_atten_db == 85.0
+    assert config.window_nbar == 5
+    assert config.window_nw == 3.1
+    assert config.window_tau == 2.8
+    assert config.window_weights == (0.42, 0.5, 0.08)
+    assert "dereverb_mode" in result.stdout
+    assert "block_latency" in result.stdout
+    assert "dereverb_latency" in result.stdout
+    assert "software_latency_est" in result.stdout
+    assert "end_to_end_est" in result.stdout
+    assert "dereverb_windows" in result.stdout
+
+
+def test_realtime_dereverb_rejects_block_size_hop_mismatch(monkeypatch: MonkeyPatch) -> None:
+    fake_devices = [
+        realtime_io.RealtimeDeviceInfo(
+            index=0,
+            name="Mic",
+            max_input_channels=2,
+            max_output_channels=0,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+        realtime_io.RealtimeDeviceInfo(
+            index=1,
+            name="Speakers",
+            max_input_channels=0,
+            max_output_channels=2,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+    ]
+    monkeypatch.setattr(realtime_cmd, "list_audio_devices", lambda: fake_devices)
+
+    result = runner.invoke(
+        app,
+        [
+            "realtime",
+            "--live-mode",
+            "dereverb",
+            "--duration",
+            "0.01",
+            "--block-size",
+            "256",
+            "--dereverb-hop-ms",
+            "5",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "divisible by the resolved hop size" in _combined_output(result)
+
+
 def test_run_realtime_duplex_applies_explicit_channel_maps(monkeypatch: MonkeyPatch) -> None:
     captured: dict[str, object] = {}
 
@@ -577,6 +788,89 @@ def test_run_realtime_duplex_applies_explicit_channel_maps(monkeypatch: MonkeyPa
     assert summary.output_channel_map == (2, 5)
 
 
+def test_run_realtime_duplex_reports_stream_latency(monkeypatch: MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    class _FakeProcessor:
+        output_channels = 1
+
+        def process_block(self, input_block: np.ndarray) -> np.ndarray:
+            return np.asarray(input_block, dtype=np.float64)
+
+    class _FakeCallbackError(Exception):
+        pass
+
+    class _FakeStream:
+        latency = (0.006, 0.009)
+
+        def __init__(self, **kwargs: object) -> None:
+            captured["stream_kwargs"] = kwargs
+            self._callback: Any = kwargs["callback"]
+
+        def __enter__(self) -> _FakeStream:
+            indata = np.array([[0.25]], dtype=np.float32)
+            outdata = np.zeros((1, 1), dtype=np.float32)
+            try:
+                self._callback(indata, outdata, 1, None, None)
+            except _FakeCallbackError:
+                pass
+            captured["outdata"] = np.array(outdata, copy=True)
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> bool:
+            return False
+
+    class _FakeSoundDevice:
+        CallbackStop = _FakeCallbackError
+
+        def __init__(self) -> None:
+            self.Stream = _stream_factory
+
+    def _stream_factory(**kwargs: object) -> _FakeStream:
+        return _FakeStream(**kwargs)
+
+    def _interrupt_sleep(seconds: float) -> None:
+        _ = seconds
+        raise KeyboardInterrupt
+
+    fake_sounddevice = _FakeSoundDevice()
+    monkeypatch.setattr(realtime_io, "require_sounddevice", lambda: fake_sounddevice)
+    monkeypatch.setattr(realtime_io.time, "sleep", _interrupt_sleep)
+
+    started: list[tuple[float | None, float | None]] = []
+    summary = realtime_io.run_realtime_duplex(
+        processor=_FakeProcessor(),  # type: ignore[arg-type]
+        sample_rate=48_000,
+        block_size=1,
+        input_device=realtime_io.RealtimeDeviceInfo(
+            index=0,
+            name="Mic",
+            max_input_channels=1,
+            max_output_channels=0,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+        output_device=realtime_io.RealtimeDeviceInfo(
+            index=1,
+            name="Speakers",
+            max_input_channels=0,
+            max_output_channels=1,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+        input_channels=1,
+        output_channels=1,
+        duration_seconds=0.01,
+        on_stream_started=lambda input_latency, output_latency: started.append(
+            (input_latency, output_latency)
+        ),
+    )
+
+    assert started == [(0.006, 0.009)]
+    assert summary.reported_input_latency_seconds == 0.006
+    assert summary.reported_output_latency_seconds == 0.009
+
+
 def test_apply_realtime_freeze_proxy_uses_safe_defaults() -> None:
     config = RenderConfig(freeze=True, rt60=12.0)
     freeze_proxy = realtime_cmd._apply_realtime_freeze_proxy  # pyright: ignore[reportPrivateUsage]
@@ -584,3 +878,30 @@ def test_apply_realtime_freeze_proxy_uses_safe_defaults() -> None:
     assert frozen.unsafe_self_oscillate is True
     assert frozen.unsafe_loop_gain == 1.002
     assert frozen.algo_proxy_ir_max_seconds >= 120.0
+
+
+def test_live_dereverb_processor_preserves_shape_and_state() -> None:
+    processor = create_live_dereverb_processor(
+        sample_rate=48_000,
+        input_channels=1,
+        config=LiveDereverbConfig(
+            mode="wiener",
+            window_ms=8.0,
+            hop_ms=4.0,
+            tail_ms=80.0,
+            mix=1.0,
+        ),
+    )
+    hop = int(processor.hop_samples)
+    t = np.linspace(0.0, 1.0, hop * 2, endpoint=False)
+    block_a = np.asarray((0.2 * np.sin(2.0 * np.pi * 220.0 * t)).reshape(-1, 1), dtype=np.float64)
+    block_b = np.asarray((0.2 * np.sin(2.0 * np.pi * 330.0 * t)).reshape(-1, 1), dtype=np.float64)
+
+    out_a = processor.process_block(block_a)
+    out_b = processor.process_block(block_b)
+
+    assert out_a.shape == block_a.shape
+    assert out_b.shape == block_b.shape
+    assert np.isfinite(out_a).all()
+    assert np.isfinite(out_b).all()
+    assert processor.frame_cursor == int(block_a.shape[0] + block_b.shape[0])

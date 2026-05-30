@@ -43,6 +43,8 @@ FDNSpatialCouplingMode = Literal["none", "adjacent", "front_rear", "bed_top", "a
 FDNNonlinearityMode = Literal["none", "tanh", "softclip"]
 TailStopMetric = Literal["peak", "rms"]
 AutoFitProfile = Literal["none", "speech", "music", "drums", "ambient"]
+LimiterMode = Literal["tanh", "arctan", "softsign", "hard"]
+LimiterDetect = Literal["peak", "rms"]
 
 
 @dataclass(slots=True)
@@ -83,6 +85,14 @@ class RenderConfig:
             raise ValueError(f"allpass_gain must be 0-1, got {self.allpass_gain}")
         if self.beast_mode < 1:
             raise ValueError(f"beast_mode must be >= 1, got {self.beast_mode}")
+        if self.comb_cloud_count < 1:
+            raise ValueError(f"comb_cloud_count must be >= 1, got {self.comb_cloud_count}")
+        if not 0.0 <= self.comb_cloud_feedback <= 0.95:
+            raise ValueError(
+                f"comb_cloud_feedback must be 0-0.95, got {self.comb_cloud_feedback}"
+            )
+        if not 0.0 <= self.comb_cloud_mix <= 1.0:
+            raise ValueError(f"comb_cloud_mix must be 0-1, got {self.comb_cloud_mix}")
         if self.ambi_order < 0:
             raise ValueError(f"ambi_order must be >= 0, got {self.ambi_order}")
         if not 0.0 <= self.shimmer_mix <= 1.0:
@@ -98,6 +108,22 @@ class RenderConfig:
             raise ValueError(
                 f"algo_proxy_ir_max_seconds must be > 0, got {self.algo_proxy_ir_max_seconds}"
             )
+        if self.limiter_knee_db < 0.0:
+            raise ValueError(f"limiter_knee_db must be >= 0, got {self.limiter_knee_db}")
+        if self.limiter_drive <= 0.0:
+            raise ValueError(f"limiter_drive must be > 0, got {self.limiter_drive}")
+        if not 0.0 <= self.limiter_mix <= 1.0:
+            raise ValueError(f"limiter_mix must be 0-1, got {self.limiter_mix}")
+        if self.limiter_attack_ms < 0.0:
+            raise ValueError(f"limiter_attack_ms must be >= 0, got {self.limiter_attack_ms}")
+        if self.limiter_release_ms < 0.0:
+            raise ValueError(f"limiter_release_ms must be >= 0, got {self.limiter_release_ms}")
+        if self.limiter_lookahead_ms < 0.0:
+            raise ValueError(
+                f"limiter_lookahead_ms must be >= 0, got {self.limiter_lookahead_ms}"
+            )
+        if self.limiter_oversample < 1:
+            raise ValueError(f"limiter_oversample must be >= 1, got {self.limiter_oversample}")
         if self.fdn_matrix_morph_seconds < 0.0:
             raise ValueError(
                 f"fdn_matrix_morph_seconds must be >= 0, got {self.fdn_matrix_morph_seconds}"
@@ -116,6 +142,18 @@ class RenderConfig:
             )
         if self.fdn_sparse_degree < 1:
             raise ValueError(f"fdn_sparse_degree must be >= 1, got {self.fdn_sparse_degree}")
+        if not 0.0 <= self.duck_strength <= 1.0:
+            raise ValueError(f"duck_strength must be 0-1, got {self.duck_strength}")
+        if not 0.0 <= self.duck_floor <= 1.0:
+            raise ValueError(f"duck_floor must be 0-1, got {self.duck_floor}")
+        if self.bloom_mix is not None and not 0.0 <= self.bloom_mix <= 1.0:
+            raise ValueError(f"bloom_mix must be 0-1, got {self.bloom_mix}")
+        if self.tilt_pivot_hz <= 0.0:
+            raise ValueError(f"tilt_pivot_hz must be > 0, got {self.tilt_pivot_hz}")
+        if self.lowcut_order < 1:
+            raise ValueError(f"lowcut_order must be >= 1, got {self.lowcut_order}")
+        if self.highcut_order < 1:
+            raise ValueError(f"highcut_order must be >= 1, got {self.highcut_order}")
 
     engine: EngineName = "auto"
     rt60: float = RT60_DEFAULT_SECONDS
@@ -137,6 +175,12 @@ class RenderConfig:
     allpass_gains: tuple[float, ...] = ()
     allpass_delays_ms: tuple[float, ...] = ()
     comb_delays_ms: tuple[float, ...] = ()
+    comb_cloud: bool = False
+    comb_cloud_count: int = 24
+    comb_cloud_feedback: float = 0.35
+    comb_cloud_mix: float = 0.25
+    comb_cloud_delays_ms: tuple[float, ...] = ()
+    comb_cloud_seed: int = 2026
     fdn_lines: int = 8
     fdn_matrix: str = "hadamard"
     fdn_tv_rate_hz: float = 0.0
@@ -232,6 +276,21 @@ class RenderConfig:
     target_peak_dbfs: float | None = None
     use_true_peak: bool = True
     limiter: bool = True
+    limiter_mode: LimiterMode = "tanh"
+    limiter_detect: LimiterDetect = "peak"
+    limiter_threshold_dbfs: float | None = None
+    limiter_ceiling_dbfs: float | None = None
+    limiter_knee_db: float = 6.0
+    limiter_drive: float = 1.0
+    limiter_mix: float = 1.0
+    limiter_attack_ms: float = 0.5
+    limiter_release_ms: float = 80.0
+    limiter_lookahead_ms: float = 1.5
+    limiter_stereo_link: bool = True
+    limiter_oversample: int = 2
+    limiter_pre_gain_db: float = 0.0
+    limiter_post_gain_db: float = 0.0
+    limiter_dc_block: bool = False
     normalize_stage: NormalizeStage = "post"
     repeat_target_lufs: float | None = None
     repeat_target_peak_dbfs: float | None = None
@@ -260,10 +319,16 @@ class RenderConfig:
     duck: bool = False
     duck_attack: float = 20.0
     duck_release: float = 350.0
+    duck_strength: float = 0.75
+    duck_floor: float = 0.0
     bloom: float = 0.0
+    bloom_mix: float | None = None
     lowcut: float | None = None
+    lowcut_order: int = 2
     highcut: float | None = None
+    highcut_order: int = 2
     tilt: float = 0.0
+    tilt_pivot_hz: float = 1_000.0
     bpm: float | None = None
     pre_delay_note: str | None = None
     frames_out: str | None = None

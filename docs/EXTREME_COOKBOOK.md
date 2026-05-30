@@ -575,11 +575,23 @@ _DSP note:_ Beast-mode 40 is at the edge of numerical stability for most input s
 
 ---
 
-## Section 5: Shimmer, Ducking, Bloom, and Tilt (Recipes 41-50)
+## Section 5: Shimmer, Comb Cloud, Ducking, Bloom, and Tilt (Recipes 41-50)
 
-These four tools are the texture controls. Shimmer adds. Duck subtracts. Bloom delays and builds. Tilt tilts. Each has a clear sonic function that can be grasped immediately, but the interesting work happens at the intersections — when shimmer feeds into a bloomed reverb, or when duck is combined with slow attack times and long tails.
+These five tools are the texture controls. Shimmer adds pitched content. Comb cloud adds time-domain metallic density. Duck subtracts. Bloom delays and builds. Tilt tilts. Each has a clear sonic function that can be grasped immediately, but the interesting work happens at the intersections — when comb cloud roughens a pristine FDN tail, when shimmer feeds into a bloomed reverb, or when duck is combined with slow attack times and long tails.
 
-In film scoring, shimmer is used to signal memory, transcendence, or altered states. Duck is ubiquitous in dialogue-heavy mixes where reverb would otherwise obscure speech. Bloom simulates the acoustic behavior of large spaces where diffuse reflections arrive after the direct sound. Tilt shapes the perceived brightness of a space to match the scene.
+In film scoring, shimmer is used to signal memory, transcendence, or altered states. Comb cloud is good for synthetic chambers, haunted-metal interiors, and any space that should feel a little unstable before the late field smooths out. Duck is ubiquitous in dialogue-heavy mixes where reverb would otherwise obscure speech. Bloom simulates the acoustic behavior of large spaces where diffuse reflections arrive after the direct sound. Tilt shapes the perceived brightness of a space to match the scene.
+
+Quick comb-cloud starter:
+
+```bash
+verbx render in.wav out/comb_cloud_plate.wav --engine algo --rt60 4.5 \
+  --comb-cloud --comb-cloud-count 28 --comb-cloud-feedback 0.38 --comb-cloud-mix 0.24 \
+  --fdn-lines 12 --fdn-matrix hadamard
+```
+
+_What it sounds like:_ A slightly metallic, plate-adjacent haze ahead of the main tail.
+
+_DSP note:_ Comb cloud sits before the late FDN. It changes the excitation entering the network rather than replacing the FDN itself, so you get extra grain and density without throwing away the core RT60 calibration and matrix behavior.
 
 ---
 

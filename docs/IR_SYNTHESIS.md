@@ -33,7 +33,9 @@ from the same seed.
 An impulse response h[n] completely characterizes a linear time-invariant (LTI)
 system. In the context of room acoustics, convolution reverb computes:
 
-    y[n] = (x * h)[n] = sum_k x[k] * h[n - k]
+$$
+y[n] = (x * h)[n] = \sum_k x[k]\,h[n-k]
+$$
 
 which in practice is implemented as OLA or OLS partitioned convolution to keep
 block latency manageable. verbx's IR synthesis produces h[n] directly, bypassing
@@ -49,9 +51,11 @@ RT60 is defined in the Sabine sense: the time for the sound pressure level to
 decay by 60 dB. Internally verbx resolves RT60 into per-mode envelope time
 constants via:
 
-    tau = RT60 / ln(10^6) = RT60 / 13.816
+$$
+\tau = \frac{RT60}{\ln(10^6)} = \frac{RT60}{13.816}
+$$
 
-which gives the exponential decay envelope e^(-t/tau) used across modes.
+which gives the exponential decay envelope $e^{-t/\tau}$ used across modes.
 
 ---
 
@@ -71,8 +75,12 @@ modulation options add subtle pitch shimmer that keeps it from sounding static.
 The FDN is the workhorse of algorithmic reverb. The architecture is a set of N
 delay lines connected in a feedback loop through a mixing matrix M:
 
-    s[n] = M * s[n - d] + b * x[n]
-    y[n] = c^T * s[n]
+$$
+\begin{aligned}
+s[n] &= M\,s[n-d] + b\,x[n] \\
+y[n] &= c^T s[n]
+\end{aligned}
+$$
 
 where d is the vector of delay lengths (in samples), b is the input gains, and
 c is the output tap weights. For the loop to be stable and lossless, M must be
@@ -138,9 +146,11 @@ The implementation generates a Gaussian noise vector of the full IR length,
 applies a per-channel decorrelation (different seed offsets per channel), then
 multiplies by an RT60 envelope:
 
-    h[n] = noise[n] * e^(-n / (sr * tau))
+$$
+h[n] = \operatorname{noise}[n] \, e^{-n/(sr \cdot \tau)}
+$$
 
-where tau = RT60 / ln(10^6). The `diffusion` parameter controls a frequency-
+where $\tau = \frac{RT60}{\ln(10^6)}$. The `diffusion` parameter controls a frequency-
 domain shaping pass: values above 0.5 increasingly smooth the spectral envelope
 toward white (flat), while lower values allow more spectral irregularity to
 persist, giving a slightly colored tail that can sound more like a real room.
@@ -172,12 +182,16 @@ have harmonic relationship to the source.
 
 Each mode is an exponentially decaying sinusoid:
 
-    h_k[n] = A_k * sin(2*pi*f_k*n/sr + phi_k) * e^(-n/tau_k)
+$$
+h_k[n] = A_k \sin\!\left(2\pi f_k n/sr + \phi_k\right) e^{-n/\tau_k}
+$$
 
 with amplitude A_k, frequency f_k, phase phi_k, and time constant tau_k. The
 bank sums N such modes:
 
-    h[n] = (1/sqrt(N)) * sum_{k=1}^{N} h_k[n] + epsilon * noise_bed[n]
+$$
+h[n] = \frac{1}{\sqrt{N}} \sum_{k=1}^{N} h_k[n] + \epsilon \,\operatorname{noise\_bed}[n]
+$$
 
 The 1/sqrt(N) normalization keeps total energy approximately constant regardless
 of modal count, which is the right thing to do (amplitude does not add linearly
@@ -185,7 +199,9 @@ for uncorrelated modes — RMS does).
 
 Frequencies are sampled log-uniformly between `modal_low_hz` and `modal_high_hz`:
 
-    f_k = exp(U[log(f_low), log(f_high)])
+$$
+f_k = \exp\!\left(U[\log(f_{\mathrm{low}}), \log(f_{\mathrm{high}})]\right)
+$$
 
 This is the correct distribution for musical pitch perception — equal intervals
 on a log scale correspond to equal musical intervals. Linear uniform sampling
@@ -193,12 +209,18 @@ would cluster modes near `modal_high_hz` perceptually.
 
 The Q-to-tau relationship follows standard resonator theory:
 
-    tau_q = Q / (pi * f_k)
+$$
+\tau_q = \frac{Q}{\pi f_k}
+$$
 
 but verbx blends this with the global RT60 target:
 
-    tau_rt = RT60 / 6.91
-    tau_k = min(max(tau_q, 0.01), max(2 * tau_rt, 0.03))
+$$
+\begin{aligned}
+\tau_{rt} &= \frac{RT60}{6.91} \\
+\tau_k &= \min\!\left(\max(\tau_q, 0.01), \max(2\tau_{rt}, 0.03)\right)
+\end{aligned}
+$$
 
 This clipping prevents individual modes from ringing dramatically longer than
 the RT60 budget, which would otherwise create audible individual tones at the
@@ -250,7 +272,9 @@ Hybrid generation follows a four-step pipeline:
    modal (seed + 17, half the modal count), FDN (seed + 23)
 3. Blend the three tails with fixed weights:
 
-       ir_tail = 0.55 * stoch + 0.25 * modal + 0.20 * fdn
+$$
+\mathrm{ir}_{\mathrm{tail}} = 0.55\,\mathrm{stoch} + 0.25\,\mathrm{modal} + 0.20\,\mathrm{fdn}
+$$
 
 4. Add early reflections by overlap-add into the first er_max_delay_ms samples
 
@@ -293,13 +317,19 @@ The generator (`generate_early_reflections`) places `er_count` taps into a
 buffer of length `er_max_delay_ms` samples. Each tap's delay is sampled uniformly
 over [1, max_delay_samples]:
 
-    delay_k ~ U[1, floor((er_max_delay_ms / 1000) * sr)]
+$$
+\mathrm{delay}_k \sim U\!\left[1, \left\lfloor \left(\frac{er\_max\_delay\_ms}{1000}\right) sr \right\rfloor \right]
+$$
 
 Amplitude follows one of three decay laws indexed by `er_decay_shape`:
 
-    linear:  amp = 1 - (delay / max_delay)
-    sqrt:    amp = sqrt(max(1e-6, 1 - delay / max_delay))
-    exp:     amp = exp(-3.2 * delay / max_delay)
+$$
+\begin{aligned}
+\text{linear:}\quad & amp = 1 - \left(\frac{\mathrm{delay}}{\mathrm{max\_delay}}\right) \\
+\text{sqrt:}\quad & amp = \sqrt{\max\!\left(10^{-6}, 1 - \frac{\mathrm{delay}}{\mathrm{max\_delay}}\right)} \\
+\text{exp:}\quad & amp = \exp\!\left(-3.2 \frac{\mathrm{delay}}{\mathrm{max\_delay}}\right)
+\end{aligned}
+$$
 
 The exponential law (default) corresponds to a room with absorption coefficient
 around 0.2 uniformly distributed, which is plausible for a moderately live space.
@@ -309,7 +339,9 @@ like stairwells. Linear is rarely what you want but is there for completeness.
 The raw decay amplitude is then multiplied by a uniform random jitter in
 [0.35, 1.0] and by `er_room` (clipped to [0.1, 3.0]):
 
-    amp_k = decay(delay_k) * er_room * U[0.35, 1.0]
+$$
+amp_k = \mathrm{decay}(\mathrm{delay}_k) \cdot er\_room \cdot U[0.35, 1.0]
+$$
 
 The `er_room` parameter is loosely a room-size proxy: values > 1.0 increase
 reflection amplitude, making the space feel more reverberant; values < 1.0
@@ -320,8 +352,12 @@ scaled by `er_stereo_width`. Left/right amplitudes use a simple linear pan law
 (not equal-power) because the taps are sparse enough that the distinction
 matters less than in dense diffuse material:
 
-    L_k = amp_k * 0.5 * (2 - max(0, pan_k))
-    R_k = amp_k * 0.5 * (2 + min(0, pan_k))
+$$
+\begin{aligned}
+L_k &= amp_k \cdot 0.5 \cdot \left(2 - \max(0, pan_k)\right) \\
+R_k &= amp_k \cdot 0.5 \cdot \left(2 + \min(0, pan_k)\right)
+\end{aligned}
+$$
 
 For er_stereo_width = 0.0, all taps are center-panned (mono ER). For 1.0,
 full ±1.0 pan range. For 2.0, panning can exceed the unit range, intentionally
@@ -358,7 +394,9 @@ Three blend modes are available via `--mode`:
 
 Simple time-domain weighted sum:
 
-    h_out[n] = (1 - alpha) * h_A[n] + alpha * h_B[n]
+$$
+h_{\mathrm{out}}[n] = (1-\alpha) h_A[n] + \alpha h_B[n]
+$$
 
 Fast but acoustically naive. If A and B have different RT60 values, the
 crossfaded IR will have a decay shape that is neither A's nor B's — it will
@@ -372,7 +410,9 @@ or > 0.8) this is usually fine.
 
 Blend in the frequency domain:
 
-    H_out[k] = (1 - alpha) * H_A[k] + alpha * H_B[k]
+$$
+H_{\mathrm{out}}[k] = (1-\alpha) H_A[k] + \alpha H_B[k]
+$$
 
 where H_A, H_B are the FFTs of the respective IRs (zero-padded to avoid
 circular convolution artifacts on the way back). This preserves the spectral
@@ -398,7 +438,12 @@ Specifically:
 1. Compute short-time energy envelope E_A[t] and E_B[t] via squared Hilbert
    analytic signal or RMS-over-window (current implementation uses the latter
    at 10ms windows for speed)
-2. Interpolate envelopes: E_out[t] = (1-alpha)*E_A[t] + alpha*E_B[t]
+2. Interpolate envelopes:
+
+   $$
+   E_{\mathrm{out}}[t] = (1-\alpha) E_A[t] + \alpha E_B[t]
+   $$
+
 3. Generate late tail by blending at the spectral level with envelope correction:
    scale H_out[k] such that the resulting time-domain signal matches E_out
 

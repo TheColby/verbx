@@ -17,8 +17,8 @@ import os
 import platform
 import shutil
 import sys
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
-from contextlib import contextmanager
 from dataclasses import asdict
 from datetime import UTC, datetime
 from difflib import get_close_matches
@@ -44,9 +44,93 @@ from rich.table import Table
 
 from verbx import __version__
 from verbx.analysis.analyzer import AudioAnalyzer
-from verbx.analysis.framewise import write_framewise_csv
+from verbx.commands.analyze import analyze as analyze_command
+from verbx.commands.batch import (
+    batch_augment as batch_augment_command,
+)
+from verbx.commands.batch import (
+    batch_augment_profiles as batch_augment_profiles_command,
+)
+from verbx.commands.batch import (
+    batch_augment_template as batch_augment_template_command,
+)
+from verbx.commands.batch import (
+    batch_render as batch_render_command,
+)
+from verbx.commands.batch import (
+    batch_template as batch_template_command,
+)
+from verbx.commands.cache import cache_clear as cache_clear_command
+from verbx.commands.cache import cache_info as cache_info_command
+from verbx.commands.common import processing_status as _processing_status
+from verbx.commands.common import write_json_atomic as _write_json_atomic
+from verbx.commands.compare import compare as compare_command
+from verbx.commands.dereverb import dereverb as dereverb_command
+from verbx.commands.immersive import (
+    immersive_handoff as immersive_handoff_command,
+)
+from verbx.commands.immersive import (
+    immersive_qc as immersive_qc_command,
+)
+from verbx.commands.immersive import (
+    immersive_queue_status as immersive_queue_status_command,
+)
+from verbx.commands.immersive import (
+    immersive_queue_template as immersive_queue_template_command,
+)
+from verbx.commands.immersive import (
+    immersive_queue_worker as immersive_queue_worker_command,
+)
+from verbx.commands.immersive import (
+    immersive_template as immersive_template_command,
+)
+from verbx.commands.ir import (
+    ir_analyze as ir_analyze_command,
+)
+from verbx.commands.ir import (
+    ir_fit as ir_fit_command,
+)
+from verbx.commands.ir import (
+    ir_gen as ir_gen_command,
+)
+from verbx.commands.ir import (
+    ir_morph as ir_morph_command,
+)
+from verbx.commands.ir import (
+    ir_morph_sweep as ir_morph_sweep_command,
+)
+from verbx.commands.ir import (
+    ir_process as ir_process_command,
+)
+from verbx.commands.ir import (
+    ir_sofa_extract as ir_sofa_extract_command,
+)
+from verbx.commands.ir import (
+    ir_sofa_info as ir_sofa_info_command,
+)
+from verbx.commands.ir_impl import (
+    ir_analyze_impl as _ir_analyze_impl,
+)
+from verbx.commands.ir_impl import (
+    ir_fit_impl as _ir_fit_impl,
+)
+from verbx.commands.ir_impl import (
+    ir_morph_impl as _ir_morph_impl,
+)
+from verbx.commands.ir_impl import (
+    ir_process_impl as _ir_process_impl,
+)
+from verbx.commands.ir_impl import (
+    ir_sofa_extract_impl as _ir_sofa_extract_impl,
+)
+from verbx.commands.ir_impl import (
+    ir_sofa_info_impl as _ir_sofa_info_impl,
+)
+from verbx.commands.presets import list_presets as list_presets_command
 from verbx.commands.realtime import realtime as realtime_command
+from verbx.commands.render import render as render_command
 from verbx.commands.room_model import room_model as room_model_command
+from verbx.commands.suggest import suggest as suggest_command
 from verbx.commands.system import collect_runtime_diagnostics
 from verbx.commands.system import doctor as doctor_command
 from verbx.commands.system import quickstart as quickstart_command
@@ -68,6 +152,8 @@ from verbx.config import (
     IRMode,
     IRMorphMismatchPolicy,
     IRNormalize,
+    LimiterDetect,
+    LimiterMode,
     ModCombine,
     ModTarget,
     NormalizeStage,
@@ -102,7 +188,12 @@ from verbx.core.batch_scheduler import (
     run_parallel_batch,
 )
 from verbx.core.control_targets import RT60_DEFAULT_SECONDS, RT60_MAX_SECONDS, RT60_MIN_SECONDS
-from verbx.core.dereverb import DereverbConfig, apply_dereverb, run_dereverb_benchmark
+from verbx.core.dereverb import (
+    DereverbConfig,
+    apply_dereverb,
+    parse_dereverb_window_weights,
+    run_dereverb_benchmark,
+)
 from verbx.core.fdn_capabilities import (
     FDN_GRAPH_TOPOLOGY_CHOICES,
     FDN_LINK_FILTER_CHOICES,
@@ -152,12 +243,9 @@ from verbx.ir.fitting import (
     IRFitCandidate,
     IRFitScore,
     IRFitTarget,
-    build_ir_fit_candidates,
-    derive_ir_fit_target,
     score_ir_candidate,
 )
 from verbx.ir.generator import IRGenConfig, generate_or_load_cached_ir, write_ir_artifacts
-from verbx.ir.metrics import analyze_ir
 from verbx.ir.morph import (
     IRMorphConfig,
     generate_or_load_cached_morphed_ir,
@@ -167,11 +255,9 @@ from verbx.ir.morph import (
     validate_ir_morph_mismatch_policy_name,
     validate_ir_morph_mode_name,
 )
-from verbx.ir.shaping import apply_ir_shaping
-from verbx.ir.sofa import extract_sofa_ir, read_sofa_info
 from verbx.ir.tuning import analyze_audio_for_tuning, parse_frequency_hz
 from verbx.logging import configure_logging
-from verbx.presets.default_presets import preset_names, resolve_preset
+from verbx.presets.default_presets import resolve_preset
 from verbx.presets.room_presets import is_room_preset_name, resolve_room_preset
 
 IRFileFormat = Literal["auto", "wav", "flac", "aiff", "aif", "ogg", "caf"]
@@ -286,33 +372,33 @@ app.command(name="room-model")(room_model_command)
 app.command(name="version")(version_command)
 app.command(name="quickstart")(quickstart_command)
 app.command(name="doctor")(doctor_command)
-
-
-@contextmanager
-def _processing_status(description: str, *, enabled: bool = True) -> Any:
-    """Render a single-task CLI status bar for one processing stage."""
-    progress = Progress(
-        SpinnerColumn(style="bold cyan"),
-        TextColumn("[bold cyan]{task.description}"),
-        BarColumn(
-            bar_width=24,
-            complete_style="bright_green",
-            finished_style="green",
-            pulse_style="bright_blue",
-        ),
-        MofNCompleteColumn(),
-        TimeElapsedColumn(),
-        console=progress_console,
-        transient=True,
-        disable=not enabled,
-    )
-    progress.start()
-    task = progress.add_task(str(description), total=1)
-    try:
-        yield progress
-        progress.update(task, completed=1)
-    finally:
-        progress.stop()
+app.command(name="analyze")(analyze_command)
+app.command(name="compare")(compare_command)
+app.command(name="presets")(list_presets_command)
+app.command(name="suggest")(suggest_command)
+cache_app.command("info")(cache_info_command)
+cache_app.command("clear")(cache_clear_command)
+app.command(name="render")(render_command)
+app.command(name="dereverb")(dereverb_command)
+ir_app.command("gen")(ir_gen_command)
+ir_app.command("analyze")(ir_analyze_command)
+ir_app.command("sofa-info")(ir_sofa_info_command)
+ir_app.command("sofa-extract")(ir_sofa_extract_command)
+ir_app.command("process")(ir_process_command)
+ir_app.command("morph")(ir_morph_command)
+ir_app.command("morph-sweep")(ir_morph_sweep_command)
+ir_app.command("fit")(ir_fit_command)
+batch_app.command("template")(batch_template_command)
+batch_app.command("augment-template")(batch_augment_template_command)
+batch_app.command("augment-profiles")(batch_augment_profiles_command)
+batch_app.command("augment")(batch_augment_command)
+batch_app.command("render")(batch_render_command)
+immersive_app.command("template")(immersive_template_command)
+immersive_app.command("handoff")(immersive_handoff_command)
+immersive_app.command("qc")(immersive_qc_command)
+immersive_queue_app.command("template")(immersive_queue_template_command)
+immersive_queue_app.command("status")(immersive_queue_status_command)
+immersive_queue_app.command("worker")(immersive_queue_worker_command)
 
 
 class _BatchStatusBar:
@@ -365,8 +451,7 @@ class _BatchStatusBar:
     def __exit__(self, exc_type: object, exc: object, exc_tb: object) -> None:
         self._progress.stop()
 
-@app.command()
-def render(
+def _render_impl(
     ctx: typer.Context,
     infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
     outfile: Path = typer.Argument(..., resolve_path=True),
@@ -474,6 +559,45 @@ def render(
             "Optional comma-separated FDN comb-like delay list in milliseconds. "
             "Example: 31,37,41,43,47,53,59,67"
         ),
+    ),
+    comb_cloud: bool = typer.Option(
+        False,
+        "--comb-cloud/--no-comb-cloud",
+        help="Enable an optional pre-FDN cloud of decorrelated feedback comb filters.",
+    ),
+    comb_cloud_count: int = typer.Option(
+        24,
+        "--comb-cloud-count",
+        min=1,
+        max=128,
+        help="Number of comb filters generated for the optional comb cloud.",
+    ),
+    comb_cloud_feedback: float = typer.Option(
+        0.35,
+        "--comb-cloud-feedback",
+        min=0.0,
+        max=0.95,
+        help="Feedback amount used by the optional comb cloud (0..0.95).",
+    ),
+    comb_cloud_mix: float = typer.Option(
+        0.25,
+        "--comb-cloud-mix",
+        min=0.0,
+        max=1.0,
+        help="Blend from diffusion output into comb-cloud color output (0..1).",
+    ),
+    comb_cloud_delays_ms: str | None = typer.Option(
+        None,
+        "--comb-cloud-delays-ms",
+        help=(
+            "Optional comma-separated delay list in milliseconds for the comb cloud. "
+            "Providing this auto-enables the mode."
+        ),
+    ),
+    comb_cloud_seed: int = typer.Option(
+        2026,
+        "--comb-cloud-seed",
+        help="Deterministic seed used when generating the optional comb cloud.",
     ),
     fdn_lines: int = typer.Option(
         8,
@@ -967,6 +1091,55 @@ def render(
     target_peak_dbfs: float | None = typer.Option(None, "--target-peak-dbfs"),
     true_peak: bool = typer.Option(True, "--true-peak/--sample-peak"),
     limiter: bool = typer.Option(True, "--limiter/--no-limiter"),
+    limiter_mode: LimiterMode = typer.Option(
+        "tanh",
+        "--limiter-mode",
+        help="Limiter transfer curve: tanh, arctan, softsign, or hard.",
+    ),
+    limiter_detect: LimiterDetect = typer.Option(
+        "peak",
+        "--limiter-detect",
+        help="Limiter detector mode: peak or rms.",
+    ),
+    limiter_threshold_dbfs: float | None = typer.Option(
+        None,
+        "--limiter-threshold-dbfs",
+        help="Limiter onset threshold in dBFS. Defaults to the active peak target/ceiling.",
+    ),
+    limiter_ceiling_dbfs: float | None = typer.Option(
+        None,
+        "--limiter-ceiling-dbfs",
+        help="Limiter output ceiling in dBFS. Defaults to the active peak target or -1 dBFS.",
+    ),
+    limiter_knee_db: float = typer.Option(6.0, "--limiter-knee-db", min=0.0),
+    limiter_drive: float = typer.Option(1.0, "--limiter-drive", min=1e-6),
+    limiter_mix: float = typer.Option(1.0, "--limiter-mix", min=0.0, max=1.0),
+    limiter_attack_ms: float = typer.Option(0.5, "--limiter-attack-ms", min=0.0),
+    limiter_release_ms: float = typer.Option(80.0, "--limiter-release-ms", min=0.0),
+    limiter_lookahead_ms: float = typer.Option(1.5, "--limiter-lookahead-ms", min=0.0),
+    limiter_stereo_link: bool = typer.Option(
+        True,
+        "--limiter-stereo-link/--no-limiter-stereo-link",
+        help="Link channels in the limiter detector to preserve stereo image.",
+    ),
+    limiter_oversample: int = typer.Option(2, "--limiter-oversample", min=1, max=16),
+    limiter_pre_gain_db: float = typer.Option(
+        0.0,
+        "--limiter-pre-gain-db",
+        min=-48.0,
+        max=48.0,
+    ),
+    limiter_post_gain_db: float = typer.Option(
+        0.0,
+        "--limiter-post-gain-db",
+        min=-48.0,
+        max=48.0,
+    ),
+    limiter_dc_block: bool = typer.Option(
+        False,
+        "--limiter-dc-block/--no-limiter-dc-block",
+        help="Apply a gentle DC blocker before limiter detection.",
+    ),
     normalize_stage: NormalizeStage = typer.Option("post", "--normalize-stage"),
     repeat_target_lufs: float | None = typer.Option(None, "--repeat-target-lufs"),
     repeat_target_peak_dbfs: float | None = typer.Option(None, "--repeat-target-peak-dbfs"),
@@ -1071,10 +1244,16 @@ def render(
     duck: bool = typer.Option(False, "--duck"),
     duck_attack: float = typer.Option(20.0, "--duck-attack", min=0.1),
     duck_release: float = typer.Option(350.0, "--duck-release", min=0.1),
+    duck_strength: float = typer.Option(0.75, "--duck-strength", min=0.0, max=1.0),
+    duck_floor: float = typer.Option(0.0, "--duck-floor", min=0.0, max=1.0),
     bloom: float = typer.Option(0.0, "--bloom", min=0.0),
+    bloom_mix: float | None = typer.Option(None, "--bloom-mix", min=0.0, max=1.0),
     lowcut: float | None = typer.Option(None, "--lowcut", min=10.0),
+    lowcut_order: int = typer.Option(2, "--lowcut-order", min=1, max=8),
     highcut: float | None = typer.Option(None, "--highcut", min=10.0),
+    highcut_order: int = typer.Option(2, "--highcut-order", min=1, max=8),
     tilt: float = typer.Option(0.0, "--tilt"),
+    tilt_pivot_hz: float = typer.Option(1_000.0, "--tilt-pivot-hz", min=20.0),
     automation_file: Path | None = typer.Option(
         None,
         "--automation-file",
@@ -1272,6 +1451,10 @@ def render(
         comb_delays_ms,
         option_name="--comb-delays-ms",
     )
+    parsed_comb_cloud_delays = _parse_delay_list_ms(
+        comb_cloud_delays_ms,
+        option_name="--comb-cloud-delays-ms",
+    )
     parsed_dfm_delays = _parse_delay_list_ms(
         fdn_dfm_delays_ms,
         option_name="--fdn-dfm-delays-ms",
@@ -1309,6 +1492,12 @@ def render(
         allpass_gains=parsed_allpass_gain_values if len(parsed_allpass_gain_values) > 1 else (),
         allpass_delays_ms=parsed_allpass_delays,
         comb_delays_ms=parsed_comb_delays,
+        comb_cloud=bool(comb_cloud or len(parsed_comb_cloud_delays) > 0),
+        comb_cloud_count=comb_cloud_count,
+        comb_cloud_feedback=comb_cloud_feedback,
+        comb_cloud_mix=comb_cloud_mix,
+        comb_cloud_delays_ms=parsed_comb_cloud_delays,
+        comb_cloud_seed=comb_cloud_seed,
         fdn_lines=fdn_lines,
         fdn_matrix=(
             "hadamard"
@@ -1422,6 +1611,21 @@ def render(
         target_peak_dbfs=target_peak_dbfs,
         use_true_peak=true_peak,
         limiter=limiter,
+        limiter_mode=limiter_mode,
+        limiter_detect=limiter_detect,
+        limiter_threshold_dbfs=limiter_threshold_dbfs,
+        limiter_ceiling_dbfs=limiter_ceiling_dbfs,
+        limiter_knee_db=float(limiter_knee_db),
+        limiter_drive=float(limiter_drive),
+        limiter_mix=float(limiter_mix),
+        limiter_attack_ms=float(limiter_attack_ms),
+        limiter_release_ms=float(limiter_release_ms),
+        limiter_lookahead_ms=float(limiter_lookahead_ms),
+        limiter_stereo_link=bool(limiter_stereo_link),
+        limiter_oversample=int(limiter_oversample),
+        limiter_pre_gain_db=float(limiter_pre_gain_db),
+        limiter_post_gain_db=float(limiter_post_gain_db),
+        limiter_dc_block=bool(limiter_dc_block),
         normalize_stage=normalize_stage,
         repeat_target_lufs=repeat_target_lufs,
         repeat_target_peak_dbfs=repeat_target_peak_dbfs,
@@ -1449,10 +1653,16 @@ def render(
         duck=duck,
         duck_attack=duck_attack,
         duck_release=duck_release,
+        duck_strength=float(duck_strength),
+        duck_floor=float(duck_floor),
         bloom=bloom,
+        bloom_mix=None if bloom_mix is None else float(bloom_mix),
         lowcut=lowcut,
+        lowcut_order=int(lowcut_order),
         highcut=highcut,
+        highcut_order=int(highcut_order),
         tilt=tilt,
+        tilt_pivot_hz=float(tilt_pivot_hz),
         automation_file=None if automation_file is None else str(automation_file),
         automation_mode=cast(AutomationMode, str(automation_mode).strip().lower()),
         automation_block_ms=float(automation_block_ms),
@@ -1684,167 +1894,7 @@ def render(
         console.print(f"[dim]Render report written to {json_out.resolve()}[/dim]")
 
 
-@app.command()
-def analyze(
-    infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
-    json_out: Path | None = typer.Option(None, "--json-out", resolve_path=True),
-    lufs: bool = typer.Option(False, "--lufs", help="Include LUFS/true-peak/LRA metrics."),
-    edr: bool = typer.Option(
-        False,
-        "--edr",
-        help="Include EDR (Energy Decay Relief) summary metrics.",
-    ),
-    frames_out: Path | None = typer.Option(None, "--frames-out", resolve_path=True),
-    ambi_order: int = typer.Option(
-        0,
-        "--ambi-order",
-        min=0,
-        max=7,
-        help="Enable Ambisonics spatial metrics for the given order.",
-    ),
-    ambi_normalization: AmbiNormalization = typer.Option(
-        "auto",
-        "--ambi-normalization",
-        help="Ambisonics normalization convention for analysis mode.",
-    ),
-    channel_order: AmbiChannelOrder = typer.Option(
-        "auto",
-        "--channel-order",
-        help="Ambisonics channel order convention for analysis mode.",
-    ),
-    room: bool = typer.Option(
-        False,
-        "--room",
-        help=(
-            "Estimate room size, dimensions, absorption, critical distance, "
-            "and class from the signal's reverberant decay characteristics. "
-            "Works best on reverberant recordings or rendered impulse responses."
-        ),
-    ),
-) -> None:
-    """Analyze an audio file and print a summary table."""
-    _validate_analyze_call(infile, json_out, frames_out)
-    try:
-        with _processing_status("Analyze audio"):
-            validate_audio_path(str(infile))
-            audio, sr = read_audio(str(infile))
-            analyzer = AudioAnalyzer()
-            metrics = analyzer.analyze(
-                audio,
-                sr,
-                include_loudness=lufs,
-                include_edr=edr,
-                include_room=room,
-                ambi_order=int(ambi_order) if int(ambi_order) > 0 else None,
-                ambi_normalization=str(ambi_normalization).strip().lower(),
-                ambi_channel_order=str(channel_order).strip().lower(),
-            )
-    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-
-    table = Table(title=f"Analysis: {infile.name}")
-    table.add_column("Metric", style="cyan")
-    table.add_column("Value", justify="right")
-    for key in sorted(metrics):
-        val = metrics[key]
-        table.add_row(key, f"{val:.6f}" if isinstance(val, float) else str(val))
-    console.print(table)
-
-    if json_out is not None:
-        payload = {"sample_rate": sr, "channels": audio.shape[1], "metrics": metrics}
-        json_out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-
-    if frames_out is not None:
-        write_framewise_csv(frames_out, audio, sr)
-
-
-@app.command()
-def compare(
-    file_a: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
-    file_b: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
-    json_out: Path | None = typer.Option(
-        None,
-        "--json-out",
-        resolve_path=True,
-        help="Optional path to write the comparison report as JSON.",
-    ),
-    lufs: bool = typer.Option(False, "--lufs", help="Include LUFS/true-peak/LRA metrics."),
-    room: bool = typer.Option(
-        False,
-        "--room",
-        help="Include room size and acoustic property estimates for both files.",
-    ),
-) -> None:
-    """Side-by-side comparison of two audio files."""
-    try:
-        with _processing_status("Compare audio files"):
-            validate_audio_path(str(file_a))
-            validate_audio_path(str(file_b))
-            audio_a, sr_a = read_audio(str(file_a))
-            audio_b, sr_b = read_audio(str(file_b))
-            analyzer = AudioAnalyzer()
-            metrics_a = analyzer.analyze(audio_a, sr_a, include_loudness=lufs, include_room=room)
-            metrics_b = analyzer.analyze(audio_b, sr_b, include_loudness=lufs, include_room=room)
-    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-
-    all_keys = sorted(set(metrics_a) | set(metrics_b))
-    table = Table(title=f"Compare: {file_a.name} vs {file_b.name}")
-    table.add_column("Metric", style="cyan")
-    table.add_column(file_a.name, justify="right")
-    table.add_column(file_b.name, justify="right")
-    table.add_column("Delta (B - A)", justify="right", style="yellow")
-    for key in all_keys:
-        val_a = metrics_a.get(key)
-        val_b = metrics_b.get(key)
-        str_a = (
-            f"{val_a:.6f}" if isinstance(val_a, float) else str(val_a)
-        ) if val_a is not None else "-"
-        str_b = (
-            f"{val_b:.6f}" if isinstance(val_b, float) else str(val_b)
-        ) if val_b is not None else "-"
-        if isinstance(val_a, float) and isinstance(val_b, float):
-            str_delta = f"{val_b - val_a:+.6f}"
-        elif val_a is not None and val_b is not None:
-            str_delta = "-"  # string metrics (e.g. room_class) have no numeric delta
-        else:
-            str_delta = "-"
-        table.add_row(key, str_a, str_b, str_delta)
-    console.print(table)
-    if sr_a != sr_b:
-        console.print(
-            f"[yellow]Warning:[/yellow] sample rates differ: "
-            f"{file_a.name}={sr_a} Hz, {file_b.name}={sr_b} Hz"
-        )
-
-    if json_out is not None:
-        payload: dict[str, Any] = {
-            "schema": "compare-report-v1",
-            "file_a": str(file_a),
-            "file_b": str(file_b),
-            "sample_rate_a": int(sr_a),
-            "sample_rate_b": int(sr_b),
-            "channels_a": int(audio_a.shape[1]),
-            "channels_b": int(audio_b.shape[1]),
-            "metrics_a": metrics_a,
-            "metrics_b": metrics_b,
-            "delta": {
-                k: metrics_b[k] - metrics_a[k]  # type: ignore[operator]
-                for k in all_keys
-                if k in metrics_a and k in metrics_b
-                and isinstance(metrics_a[k], float) and isinstance(metrics_b[k], float)
-            },
-        }
-        try:
-            json_out.parent.mkdir(parents=True, exist_ok=True)
-            _write_json_atomic(json_out.resolve(), payload)
-            console.print(f"[dim]Comparison report written to {json_out.resolve()}[/dim]")
-        except (OSError, RuntimeError, ValueError) as exc:
-            raise typer.BadParameter(f"Failed to write --json-out: {exc}") from exc
-
-
-@app.command()
-def dereverb(
+def _dereverb_impl(
     infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
     outfile: Path = typer.Argument(..., resolve_path=True),
     mode: Literal["wiener", "spectral_sub"] = typer.Option(
@@ -1898,6 +1948,37 @@ def dereverb(
         max=1.0,
         help="Wet mix of dereverberated output (1.0 = fully processed).",
     ),
+    window_type: str = typer.Option(
+        "hann",
+        "--window-type",
+        help=(
+            "Analysis window family "
+            "(hann, hamming, blackman, kaiser, dpss, tukey, chebwin, and many more)."
+        ),
+    ),
+    synthesis_window_type: str | None = typer.Option(
+        None,
+        "--synthesis-window-type",
+        help="Optional synthesis window family. Defaults to --window-type.",
+    ),
+    window_symmetric: bool = typer.Option(
+        False,
+        "--window-symmetric/--window-periodic",
+        help="Use symmetric windows instead of periodic STFT windows.",
+    ),
+    window_alpha: float = typer.Option(0.5, "--window-alpha", min=0.0),
+    window_beta: float = typer.Option(14.0, "--window-beta", min=0.0),
+    window_std: float = typer.Option(2.5, "--window-std", min=1e-6),
+    window_power: float = typer.Option(1.5, "--window-power", min=1e-6),
+    window_atten_db: float = typer.Option(100.0, "--window-atten-db", min=1e-3),
+    window_nbar: int = typer.Option(4, "--window-nbar", min=2),
+    window_nw: float = typer.Option(2.5, "--window-nw", min=1e-3),
+    window_tau: float = typer.Option(3.0, "--window-tau", min=1e-6),
+    window_weights: str | None = typer.Option(
+        None,
+        "--window-weights",
+        help="Optional comma-separated weights for general_cosine windows.",
+    ),
     out_subtype: OutputSubtype = typer.Option(
         "auto",
         "--out-subtype",
@@ -1933,14 +2014,52 @@ def dereverb(
     ),
 ) -> None:
     """Suppress late reverberation from an existing audio recording."""
+    try:
+        parsed_window_weights = parse_dereverb_window_weights(window_weights)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     if benchmark:
         configs = [
-            DereverbConfig(mode="wiener", strength=float(strength), floor=float(floor),
-                           window_ms=float(window_ms), hop_ms=float(hop_ms),
-                           tail_ms=float(tail_ms)),
-            DereverbConfig(mode="spectral_sub", strength=float(strength), floor=float(floor),
-                           window_ms=float(window_ms), hop_ms=float(hop_ms),
-                           tail_ms=float(tail_ms)),
+            DereverbConfig(
+                mode="wiener",
+                strength=float(strength),
+                floor=float(floor),
+                window_ms=float(window_ms),
+                hop_ms=float(hop_ms),
+                tail_ms=float(tail_ms),
+                analysis_window=str(window_type),
+                synthesis_window=synthesis_window_type,
+                window_symmetric=bool(window_symmetric),
+                window_alpha=float(window_alpha),
+                window_beta=float(window_beta),
+                window_std=float(window_std),
+                window_power=float(window_power),
+                window_atten_db=float(window_atten_db),
+                window_nbar=int(window_nbar),
+                window_nw=float(window_nw),
+                window_tau=float(window_tau),
+                window_weights=parsed_window_weights,
+            ),
+            DereverbConfig(
+                mode="spectral_sub",
+                strength=float(strength),
+                floor=float(floor),
+                window_ms=float(window_ms),
+                hop_ms=float(hop_ms),
+                tail_ms=float(tail_ms),
+                analysis_window=str(window_type),
+                synthesis_window=synthesis_window_type,
+                window_symmetric=bool(window_symmetric),
+                window_alpha=float(window_alpha),
+                window_beta=float(window_beta),
+                window_std=float(window_std),
+                window_power=float(window_power),
+                window_atten_db=float(window_atten_db),
+                window_nbar=int(window_nbar),
+                window_nw=float(window_nw),
+                window_tau=float(window_tau),
+                window_weights=parsed_window_weights,
+            ),
         ]
         with _processing_status("Run dereverb benchmark", enabled=not quiet):
             report = run_dereverb_benchmark(
@@ -2014,6 +2133,18 @@ def dereverb(
                 tail_ms=float(tail_ms),
                 pre_emphasis=float(pre_emphasis),
                 mix=float(mix),
+                analysis_window=str(window_type),
+                synthesis_window=synthesis_window_type,
+                window_symmetric=bool(window_symmetric),
+                window_alpha=float(window_alpha),
+                window_beta=float(window_beta),
+                window_std=float(window_std),
+                window_power=float(window_power),
+                window_atten_db=float(window_atten_db),
+                window_nbar=int(window_nbar),
+                window_nw=float(window_nw),
+                window_tau=float(window_tau),
+                window_weights=parsed_window_weights,
             )
             processed = apply_dereverb(audio, sr, config)
             write_audio(str(outfile), processed, sr, subtype=resolved_subtype)
@@ -2045,6 +2176,18 @@ def dereverb(
             "tail_ms": float(tail_ms),
             "pre_emphasis": float(pre_emphasis),
             "mix": float(mix),
+            "window_type": str(window_type),
+            "synthesis_window_type": synthesis_window_type,
+            "window_symmetric": bool(window_symmetric),
+            "window_alpha": float(window_alpha),
+            "window_beta": float(window_beta),
+            "window_std": float(window_std),
+            "window_power": float(window_power),
+            "window_atten_db": float(window_atten_db),
+            "window_nbar": int(window_nbar),
+            "window_nw": float(window_nw),
+            "window_tau": float(window_tau),
+            "window_weights": list(parsed_window_weights),
             "out_subtype": out_subtype,
         },
         "metrics": {
@@ -2089,151 +2232,7 @@ def dereverb(
         console.print(f"[dim]Detailed JSON written to {json_out.resolve()}[/dim]")
 
 
-@app.command()
-def suggest(
-    infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
-    pin: Path | None = typer.Option(
-        None,
-        "--pin",
-        resolve_path=True,
-        help="Write suggested parameters as a JSON preset file.",
-    ),
-) -> None:
-    """Suggest practical render defaults from input analysis."""
-    try:
-        with _processing_status("Analyze for suggestions"):
-            validate_audio_path(str(infile))
-            audio, sr = read_audio(str(infile))
-            analyzer = AudioAnalyzer()
-            metrics = analyzer.analyze(audio, sr)
-    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-
-    duration = float(metrics.get("duration", 0.0))
-    dynamic = float(metrics.get("dynamic_range", 0.0))
-    flatness = float(metrics.get("spectral_flatness", 0.0))
-
-    suggested_rt60 = float(np.clip(duration * 1.8, 25.0, 120.0))
-    suggested_wet = float(np.clip(0.55 + (dynamic / 60.0), 0.4, 0.95))
-    suggested_dry = float(np.clip(1.0 - (suggested_wet * 0.85), 0.05, 0.85))
-    suggested_engine = "conv" if flatness < 0.12 else "algo"
-
-    table = Table(title=f"Suggested Parameters: {infile.name}")
-    table.add_column("Parameter", style="green")
-    table.add_column("Suggested Value", style="white")
-    table.add_row("engine", suggested_engine)
-    table.add_row("rt60", f"{suggested_rt60:.2f}")
-    table.add_row("wet", f"{suggested_wet:.3f}")
-    table.add_row("dry", f"{suggested_dry:.3f}")
-    table.add_row("repeat", "2" if duration < 15.0 else "1")
-    table.add_row("target-lufs", "-18.0")
-    table.add_row("target-peak-dbfs", "-1.0")
-    table.add_row("normalize-stage", "post")
-    table.add_row("shimmer", "off")
-    table.add_row("duck", "off")
-    console.print(table)
-
-    if pin is not None:
-        pinned: dict[str, Any] = {
-            "engine": suggested_engine,
-            "rt60": round(suggested_rt60, 4),
-            "wet": round(suggested_wet, 4),
-            "dry": round(suggested_dry, 4),
-            "repeat": 2 if duration < 15.0 else 1,
-            "target_lufs": -18.0,
-            "target_peak_dbfs": -1.0,
-            "normalize_stage": "post",
-            "shimmer": False,
-            "duck": False,
-        }
-        try:
-            pin.parent.mkdir(parents=True, exist_ok=True)
-            _write_json_atomic(pin.resolve(), pinned)
-            console.print(f"[dim]Preset pinned to {pin.resolve()}[/dim]")
-        except (OSError, RuntimeError, ValueError) as exc:
-            raise typer.BadParameter(f"Failed to write --pin: {exc}") from exc
-
-
-@app.command(name="presets")
-def list_presets(
-    show: str | None = typer.Option(
-        None,
-        "--show",
-        help="Show resolved values for one preset.",
-    ),
-    validate: str | None = typer.Option(
-        None,
-        "--validate",
-        help="Validate a preset's fields against RenderConfig and report any errors.",
-    ),
-) -> None:
-    """Print available presets or one preset payload."""
-    if validate is not None:
-        try:
-            if is_room_preset_name(validate):
-                resolved_name, payload = resolve_room_preset(validate)
-            else:
-                resolved_name, payload = resolve_preset(validate)
-        except ValueError as exc:
-            raise typer.BadParameter(str(exc)) from exc
-        errors: list[str] = []
-        warnings: list[str] = []
-        try:
-            known_fields = set(RenderConfig.__dataclass_fields__.keys())
-            filtered_payload = {k: v for k, v in payload.items() if k in known_fields}
-            RenderConfig(**cast(dict[str, Any], filtered_payload))
-        except (TypeError, ValueError) as exc:
-            errors.append(str(exc))
-        # Check for unknown fields
-        try:
-            known = set(RenderConfig.__dataclass_fields__.keys())
-        except AttributeError:
-            known = set()
-        unknown = [k for k in payload if k not in known]
-        for k in unknown:
-            warnings.append(f"unknown field '{k}' (not in RenderConfig)")
-
-        table = Table(title=f"Preset Validation: {resolved_name}")
-        table.add_column("Status", style="cyan")
-        table.add_column("Detail", style="white")
-        if not errors and not warnings:
-            table.add_row("[green]PASS[/green]", f"All {len(payload)} fields are valid")
-        for err in errors:
-            table.add_row("[red]ERROR[/red]", err)
-        for warn in warnings:
-            table.add_row("[yellow]WARN[/yellow]", warn)
-        console.print(table)
-        if errors:
-            raise typer.Exit(code=1)
-        return
-
-    if show is not None:
-        try:
-            if is_room_preset_name(show):
-                resolved_name, payload = resolve_room_preset(show)
-            else:
-                resolved_name, payload = resolve_preset(show)
-        except ValueError as exc:
-            raise typer.BadParameter(str(exc)) from exc
-        table = Table(title=f"Preset: {resolved_name}")
-        table.add_column("Parameter", style="cyan")
-        table.add_column("Value", style="white")
-        for key in sorted(payload.keys()):
-            table.add_row(key, str(payload[key]))
-        console.print(table)
-        return
-
-    names = preset_names()
-    table = Table(title="Available Presets")
-    table.add_column("Preset", style="green")
-    for name in names:
-        table.add_row(name)
-    table.add_row("room:<width>x<depth>x<height>/<material>")
-    console.print(table)
-
-
-@ir_app.command("gen")
-def ir_gen(
+def _ir_gen_impl(
     out_ir: Path = typer.Argument(..., resolve_path=True),
     out_format: IRFileFormat = typer.Option("auto", "--format"),
     mode: IRMode = typer.Option("hybrid", "--mode"),
@@ -2806,452 +2805,7 @@ def ir_gen(
     console.print(table)
 
 
-@ir_app.command("analyze")
-def ir_analyze(
-    ir_file: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
-    json_out: Path | None = typer.Option(None, "--json-out", resolve_path=True),
-) -> None:
-    """Analyze an impulse response."""
-    _validate_ir_analyze_call(ir_file, json_out)
-    try:
-        with _processing_status("Analyze IR"):
-            audio, sr = sf.read(str(ir_file), always_2d=True, dtype="float64")
-            metrics = analyze_ir(np.asarray(audio, dtype=np.float64), int(sr))
-    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-
-    table = Table(title=f"IR Analysis: {ir_file.name}")
-    table.add_column("Metric", style="cyan")
-    table.add_column("Value", style="white")
-    for key in [
-        "duration_seconds",
-        "peak_dbfs",
-        "rms_dbfs",
-        "rt60_estimate_seconds",
-        "early_late_ratio_db",
-        "stereo_coherence",
-    ]:
-        value = metrics.get(key)
-        if isinstance(value, float):
-            table.add_row(key, f"{value:.6f}")
-    decay_points = metrics.get("decay_curve_db", [])
-    point_count = len(decay_points) if isinstance(decay_points, list) else 0
-    table.add_row("decay_curve_points", str(point_count))
-    console.print(table)
-
-    if json_out is not None:
-        payload = {"file": str(ir_file), "sample_rate": int(sr), "metrics": metrics}
-        json_out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-
-
-@ir_app.command("sofa-info")
-def ir_sofa_info(
-    sofa_file: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
-    json_out: Path | None = typer.Option(None, "--json-out", resolve_path=True),
-    silent: bool = typer.Option(False, "--silent"),
-) -> None:
-    """Inspect SOFA metadata and dimensions."""
-    try:
-        with _processing_status("Read SOFA metadata", enabled=not silent):
-            info = read_sofa_info(sofa_file)
-    except (ValueError, RuntimeError, OSError) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-
-    payload = {
-        "path": info.path,
-        "conventions": info.conventions,
-        "version": info.version,
-        "data_ir_shape": list(info.data_ir_shape),
-        "sample_rate_hz": int(info.sample_rate_hz),
-        "source_position_shape": (
-            None if info.source_position_shape is None else list(info.source_position_shape)
-        ),
-        "listener_position_shape": (
-            None if info.listener_position_shape is None else list(info.listener_position_shape)
-        ),
-        "receiver_position_shape": (
-            None if info.receiver_position_shape is None else list(info.receiver_position_shape)
-        ),
-        "emitter_position_shape": (
-            None if info.emitter_position_shape is None else list(info.emitter_position_shape)
-        ),
-        "dimension_labels": list(info.dimension_labels),
-    }
-
-    if not silent:
-        table = Table(title=f"SOFA Info: {Path(info.path).name}")
-        table.add_column("Field", style="cyan")
-        table.add_column("Value", style="white")
-        table.add_row("conventions", info.conventions)
-        table.add_row("version", info.version)
-        table.add_row("sample_rate_hz", str(int(info.sample_rate_hz)))
-        table.add_row("data_ir_shape", str(info.data_ir_shape))
-        if len(info.dimension_labels) > 0:
-            table.add_row("dimension_labels", ", ".join(info.dimension_labels))
-        if info.source_position_shape is not None:
-            table.add_row("source_position_shape", str(info.source_position_shape))
-        if info.listener_position_shape is not None:
-            table.add_row("listener_position_shape", str(info.listener_position_shape))
-        if info.receiver_position_shape is not None:
-            table.add_row("receiver_position_shape", str(info.receiver_position_shape))
-        if info.emitter_position_shape is not None:
-            table.add_row("emitter_position_shape", str(info.emitter_position_shape))
-        console.print(table)
-
-    if json_out is not None:
-        json_out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-
-
-@ir_app.command("sofa-extract")
-def ir_sofa_extract(
-    sofa_file: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
-    out_ir: Path = typer.Argument(..., resolve_path=True),
-    measurement_index: int = typer.Option(
-        0,
-        "--measurement-index",
-        min=0,
-        help="Measurement index for SOFA Data/IR extraction (first axis in strict modes).",
-    ),
-    emitter_index: int = typer.Option(
-        0,
-        "--emitter-index",
-        min=0,
-        help="Emitter index for rank-4 Data/IR extraction (strict mode).",
-    ),
-    target_sr: int | None = typer.Option(
-        None,
-        "--target-sr",
-        min=1,
-        help="Optional output sample rate target for extracted IR.",
-    ),
-    normalize: Literal["none", "peak", "rms"] = typer.Option(
-        "peak",
-        "--normalize",
-        help="Normalization for extracted IR matrix.",
-    ),
-    strict: bool = typer.Option(
-        False,
-        "--strict/--best-effort",
-        help="Strict expects Data/IR rank 3 (M,R,N) or 4 (M,R,E,N).",
-    ),
-    silent: bool = typer.Option(False, "--silent"),
-) -> None:
-    """Extract SOFA FIR data to a WAV matrix for convolution workflows."""
-    _validate_output_audio_path(out_ir, "auto")
-    try:
-        with _processing_status("Extract SOFA IR", enabled=not silent):
-            audio, sr, meta = extract_sofa_ir(
-                sofa_file,
-                measurement_index=int(measurement_index),
-                emitter_index=int(emitter_index),
-                target_sr=None if target_sr is None else int(target_sr),
-                normalize=str(normalize),
-                strict=bool(strict),
-            )
-            write_ir_artifacts(out_ir, audio, sr, meta, silent=silent)
-    except (ValueError, RuntimeError, OSError) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-
-    if silent:
-        return
-
-    table = Table(title=f"SOFA Extract: {out_ir.name}")
-    table.add_column("Field", style="cyan")
-    table.add_column("Value", style="white")
-    table.add_row("source", str(sofa_file))
-    table.add_row("out_ir", str(out_ir))
-    table.add_row("sample_rate_hz", str(int(sr)))
-    table.add_row("shape", str(tuple(int(v) for v in audio.shape)))
-    table.add_row("normalize", str(normalize))
-    table.add_row("strict", str(bool(strict)))
-    sample_rate_action = str(meta.get("sample_rate_action", "none"))
-    table.add_row("sample_rate_action", sample_rate_action)
-    console.print(table)
-
-
-@ir_app.command("process")
-def ir_process(
-    in_ir: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
-    out_ir: Path = typer.Argument(..., resolve_path=True),
-    damping: float = typer.Option(0.4, "--damping", min=0.0, max=1.0),
-    lowcut: float | None = typer.Option(None, "--lowcut", min=10.0),
-    highcut: float | None = typer.Option(None, "--highcut", min=10.0),
-    tilt: float = typer.Option(0.0, "--tilt"),
-    normalize: Literal["none", "peak", "rms"] = typer.Option("peak", "--normalize"),
-    peak_dbfs: float = typer.Option(-1.0, "--peak-dbfs"),
-    target_lufs: float | None = typer.Option(None, "--target-lufs"),
-    true_peak: bool = typer.Option(True, "--true-peak/--sample-peak"),
-    lucky: int | None = typer.Option(
-        None,
-        "--lucky",
-        min=1,
-        max=500,
-        help=(
-            "Generate N randomized processed IR files from one input IR. "
-            "Outputs are written to --lucky-out-dir (or OUT_IR parent by default)."
-        ),
-    ),
-    lucky_out_dir: Path | None = typer.Option(
-        None,
-        "--lucky-out-dir",
-        resolve_path=True,
-        help="Output directory used when --lucky is enabled.",
-    ),
-    lucky_seed: int | None = typer.Option(
-        None,
-        "--lucky-seed",
-        help="Optional deterministic seed for --lucky IR processing.",
-    ),
-    silent: bool = typer.Option(False, "--silent"),
-) -> None:
-    """Process an existing IR through shaping/targeting chain."""
-    _validate_ir_process_call(in_ir, out_ir)
-    _validate_generic_lucky_call(lucky, lucky_out_dir)
-    try:
-        with _processing_status("Load IR for processing", enabled=not silent):
-            audio, sr = sf.read(str(in_ir), always_2d=True, dtype="float64")
-            base_audio = np.asarray(audio, dtype=np.float64)
-            sr_i = int(sr)
-        if lucky is None:
-            with _processing_status("Process IR", enabled=not silent):
-                processed = apply_ir_shaping(
-                    base_audio,
-                    sr=sr_i,
-                    damping=damping,
-                    lowcut=lowcut,
-                    highcut=highcut,
-                    tilt=tilt,
-                    normalize=normalize,
-                    peak_dbfs=peak_dbfs,
-                    target_lufs=target_lufs,
-                    use_true_peak=true_peak,
-                )
-
-                meta = {"source": str(in_ir), "metrics": analyze_ir(processed, sr_i)}
-                write_ir_artifacts(out_ir, processed, sr_i, meta, silent=silent)
-            return
-
-        out_dir = out_ir.parent if lucky_out_dir is None else lucky_out_dir
-        out_dir.mkdir(parents=True, exist_ok=True)
-        seed_value = _resolve_lucky_seed(lucky_seed)
-
-        rows: list[dict[str, str]] = []
-        with _BatchStatusBar(
-            total=lucky,
-            label="Lucky IR processing",
-            enabled=not silent,
-        ) as status:
-            for idx in range(lucky):
-                rng = np.random.default_rng(seed_value + idx)
-                cfg = _build_lucky_ir_process_config(
-                    damping=damping,
-                    lowcut=lowcut,
-                    highcut=highcut,
-                    tilt=tilt,
-                    normalize=normalize,
-                    peak_dbfs=peak_dbfs,
-                    target_lufs=target_lufs,
-                    true_peak=true_peak,
-                    rng=rng,
-                    sr=sr_i,
-                )
-                lucky_out = out_dir / f"{out_ir.stem}.lucky_{idx + 1:03d}{out_ir.suffix}"
-                processed = apply_ir_shaping(
-                    base_audio,
-                    sr=sr_i,
-                    damping=cfg["damping"],
-                    lowcut=cfg["lowcut"],
-                    highcut=cfg["highcut"],
-                    tilt=cfg["tilt"],
-                    normalize=cfg["normalize"],
-                    peak_dbfs=cfg["peak_dbfs"],
-                    target_lufs=cfg["target_lufs"],
-                    use_true_peak=cfg["true_peak"],
-                )
-
-                meta = {
-                    "source": str(in_ir),
-                    "lucky": {"index": idx + 1, **cfg},
-                    "metrics": analyze_ir(processed, sr_i),
-                }
-                write_ir_artifacts(lucky_out, processed, sr_i, meta, silent=silent)
-                rows.append(
-                    {
-                        "index": str(idx + 1),
-                        "out_ir": str(lucky_out),
-                        "normalize": cfg["normalize"],
-                        "tilt": f"{float(cfg['tilt']):.2f}",
-                        "damping": f"{float(cfg['damping']):.2f}",
-                        "target_lufs": (
-                            f"{float(cfg['target_lufs']):.2f}"
-                            if cfg["target_lufs"] is not None
-                            else "none"
-                        ),
-                    }
-                )
-                status.advance(detail=f"seed={seed_value + idx}")
-
-        if not silent:
-            table = Table(title=f"Lucky IR Process Batch ({lucky} outputs)")
-            table.add_column("#", style="cyan", justify="right")
-            table.add_column("out_ir", style="white")
-            table.add_column("normalize", style="green")
-            table.add_column("tilt", justify="right")
-            table.add_column("damping", justify="right")
-            table.add_column("target_lufs", justify="right")
-            for row in rows:
-                table.add_row(
-                    row["index"],
-                    row["out_ir"],
-                    row["normalize"],
-                    row["tilt"],
-                    row["damping"],
-                    row["target_lufs"],
-                )
-            console.print(table)
-    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-
-
-@ir_app.command("morph")
-def ir_morph(
-    ir_a: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
-    ir_b: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
-    out_ir: Path = typer.Argument(..., resolve_path=True),
-    mode: str = typer.Option(
-        "equal-power",
-        "--mode",
-        help="Morph mode: linear, equal-power, spectral, or envelope-aware.",
-    ),
-    alpha: float = typer.Option(0.5, "--alpha", min=0.0, max=1.0),
-    early_ms: float = typer.Option(
-        80.0,
-        "--early-ms",
-        min=0.0,
-        help="Early/late split used by split/envelope-aware morphing (ms).",
-    ),
-    early_alpha: float | None = typer.Option(
-        None,
-        "--early-alpha",
-        min=0.0,
-        max=1.0,
-        help="Optional alpha override for early-reflection region.",
-    ),
-    late_alpha: float | None = typer.Option(
-        None,
-        "--late-alpha",
-        min=0.0,
-        max=1.0,
-        help="Optional alpha override for late-tail region.",
-    ),
-    align_decay: bool = typer.Option(
-        True,
-        "--align-decay/--no-align-decay",
-        help="Align decay profiles before morphing for stable RT trajectories.",
-    ),
-    phase_coherence: float = typer.Option(
-        0.75,
-        "--phase-coherence",
-        min=0.0,
-        max=1.0,
-        help="Phase-coherence safeguard strength for spectral morphing.",
-    ),
-    spectral_smooth_bins: int = typer.Option(
-        3,
-        "--spectral-smooth-bins",
-        min=0,
-        max=128,
-        help="Frequency smoothing radius (FFT bins) used by spectral modes.",
-    ),
-    mismatch_policy: IRMorphMismatchPolicy = typer.Option(
-        "coerce",
-        "--mismatch-policy",
-        help=(
-            "Mismatch behavior for sample-rate/channel/duration differences: "
-            "coerce (align) or strict (fail)."
-        ),
-    ),
-    target_sr: int | None = typer.Option(
-        None,
-        "--target-sr",
-        min=1,
-        help="Optional target sample rate for morph processing and output.",
-    ),
-    cache_dir: str = typer.Option(".verbx_cache/ir_morph", "--cache-dir"),
-    silent: bool = typer.Option(False, "--silent"),
-) -> None:
-    """Morph two IR files with cache-backed Track D processing."""
-    _validate_ir_morph_call(
-        ir_a=ir_a,
-        ir_b=ir_b,
-        out_ir=out_ir,
-        mode=mode,
-        early_alpha=early_alpha,
-        late_alpha=late_alpha,
-        mismatch_policy=mismatch_policy,
-        cache_dir=cache_dir,
-    )
-
-    cfg = IRMorphConfig(
-        mode=cast(
-            Literal["linear", "equal-power", "spectral", "envelope-aware"],
-            validate_ir_morph_mode_name(mode),
-        ),
-        alpha=float(alpha),
-        early_ms=float(early_ms),
-        early_alpha=None if early_alpha is None else float(early_alpha),
-        late_alpha=None if late_alpha is None else float(late_alpha),
-        align_decay=bool(align_decay),
-        phase_coherence=float(phase_coherence),
-        spectral_smooth_bins=int(spectral_smooth_bins),
-        mismatch_policy=cast(
-            IRMorphMismatchPolicy,
-            normalize_ir_morph_mismatch_policy_name(mismatch_policy),
-        ),
-    )
-
-    try:
-        with _processing_status("Morph IRs", enabled=not silent):
-            audio, sr, meta, cache_path, cache_hit = generate_or_load_cached_morphed_ir(
-                ir_a_path=ir_a,
-                ir_b_path=ir_b,
-                config=cfg,
-                cache_dir=Path(cache_dir),
-                target_sr=None if target_sr is None else int(target_sr),
-            )
-            write_ir_artifacts(out_ir, audio, sr, meta, silent=silent)
-    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-
-    if silent:
-        return
-
-    table = Table(title="IR Morph")
-    table.add_column("Field", style="cyan")
-    table.add_column("Value", style="white")
-    table.add_row("mode", cfg.mode)
-    table.add_row("alpha", f"{cfg.alpha:.3f}")
-    table.add_row("early_ms", f"{cfg.early_ms:.2f}")
-    table.add_row("mismatch_policy", str(cfg.mismatch_policy))
-    table.add_row("out_ir", str(out_ir))
-    table.add_row("cache_path", str(cache_path))
-    table.add_row("cache_hit", str(cache_hit))
-    table.add_row("sample_rate", str(int(sr)))
-    table.add_row("channels", str(int(audio.shape[1])))
-    table.add_row("duration_s", f"{float(audio.shape[0]) / float(sr):.3f}")
-    quality = meta.get("quality", {})
-    if isinstance(quality, dict):
-        drift = quality.get("rt60_drift_s")
-        if drift is not None:
-            table.add_row("rt60_drift_s", f"{float(drift):.4f}")
-        spectral = quality.get("spectral_distance_db")
-        if spectral is not None:
-            table.add_row("spectral_distance_db", f"{float(spectral):.4f}")
-    console.print(table)
-
-
-@ir_app.command("morph-sweep")
-def ir_morph_sweep(
+def _ir_morph_sweep_impl(
     ir_a: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
     ir_b: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
     out_dir: Path = typer.Argument(..., resolve_path=True),
@@ -3623,165 +3177,7 @@ def ir_morph_sweep(
         raise typer.Exit(code=2)
 
 
-@ir_app.command("fit")
-def ir_fit(
-    infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
-    out_ir: Path = typer.Argument(..., resolve_path=True),
-    top_k: int = typer.Option(3, "--top-k", min=1),
-    base_mode: IRMode = typer.Option("hybrid", "--base-mode"),
-    length: float = typer.Option(60.0, "--length", min=0.1),
-    seed: int = typer.Option(0, "--seed"),
-    candidate_pool: int = typer.Option(12, "--candidate-pool", min=1),
-    fit_workers: int = typer.Option(0, "--fit-workers", min=0, help="0 = auto"),
-    analyze_tuning: bool = typer.Option(True, "--analyze-tuning/--no-analyze-tuning"),
-    cache_dir: str = typer.Option(".verbx_cache/irs", "--cache-dir"),
-) -> None:
-    """Analyze source audio, score candidate IRs, and write top-k results."""
-    _validate_output_audio_path(out_ir, "auto")
-    try:
-        with _processing_status("Analyze source for IR fit"):
-            audio, sr = read_audio(str(infile))
-            analyzer = AudioAnalyzer()
-            metrics = analyzer.analyze(audio, sr)
-    except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-
-    pool_size = max(top_k, candidate_pool)
-    numeric_metrics = {
-        key: float(value)
-        for key, value in metrics.items()
-        if isinstance(value, (int, float))
-    }
-    target_profile = derive_ir_fit_target(numeric_metrics, sr)
-
-    f0_hz: float | None = None
-    harmonics: tuple[float, ...] = ()
-    if analyze_tuning:
-        try:
-            f0_est, harmonic_est = analyze_audio_for_tuning(infile, max_harmonics=12)
-            f0_hz = f0_est
-            harmonics = tuple(harmonic_est)
-        except (ValueError, RuntimeError, FileNotFoundError, sf.LibsndfileError):
-            f0_hz = None
-            harmonics = ()
-
-    candidates = build_ir_fit_candidates(
-        base_mode=base_mode,
-        length=length,
-        sr=sr,
-        channels=max(1, min(2, audio.shape[1])),
-        seed=seed,
-        pool_size=pool_size,
-        target=target_profile,
-        f0_hz=f0_hz,
-        harmonic_targets_hz=harmonics,
-    )
-
-    cache_root = Path(cache_dir)
-    scored = _score_fit_candidates(
-        candidates=candidates,
-        target=target_profile,
-        cache_dir=cache_root,
-        fit_workers=fit_workers,
-        show_progress=True,
-    )
-
-    selected = sorted(
-        scored,
-        key=lambda item: item.score.score,
-        reverse=True,
-    )[:top_k]
-
-    created: list[str] = []
-    with _BatchStatusBar(total=len(selected), label="Write fitted IRs", enabled=True) as status:
-        for rank, item in enumerate(selected, start=1):
-            target_path = (
-                out_ir
-                if top_k == 1
-                else out_ir.with_name(f"{out_ir.stem}_{rank:02d}{out_ir.suffix}")
-            )
-            meta = dict(item.meta)
-            meta["fit"] = {
-                "rank": rank,
-                "score": item.score.score,
-                "strategy": item.candidate.strategy,
-                "target": asdict(target_profile),
-                "errors": asdict(item.score),
-                "detail_metrics": item.detail_metrics,
-            }
-            cached_audio, _ = sf.read(str(item.cache_path), always_2d=True, dtype="float64")
-            write_ir_artifacts(
-                target_path,
-                np.asarray(cached_audio, dtype=np.float64),
-                item.sr,
-                meta,
-                silent=False,
-            )
-            created.append(str(target_path))
-            status.advance(detail=f"rank={rank}")
-
-    table = Table(title="IR Fit")
-    table.add_column("Field", style="green")
-    table.add_column("Value", style="white")
-    table.add_row("input", str(infile))
-    table.add_row("top_k", str(top_k))
-    table.add_row("candidate_pool", str(pool_size))
-    table.add_row("target_rt60", f"{target_profile.rt60_seconds:.2f}")
-    table.add_row("target_early_late_db", f"{target_profile.early_late_ratio_db:.2f}")
-    table.add_row("target_coherence", f"{target_profile.stereo_coherence:.3f}")
-    if f0_hz is not None:
-        table.add_row("detected_f0_hz", f"{f0_hz:.3f}")
-    if selected:
-        table.add_row("best_score", f"{selected[0].score.score:.5f}")
-        table.add_row("best_strategy", selected[0].candidate.strategy)
-    table.add_row("outputs", "\n".join(created))
-    console.print(table)
-
-
-@cache_app.command("info")
-def cache_info(
-    cache_dir: str = typer.Option(".verbx_cache/irs", "--cache-dir"),
-) -> None:
-    """Show cache statistics."""
-    root = Path(cache_dir)
-    if root.exists() and not root.is_dir():
-        msg = f"Cache path is not a directory: {root}"
-        raise typer.BadParameter(msg)
-    wavs = sorted(root.glob("*.wav"))
-    metas = sorted(root.glob("*.meta.json"))
-    total_bytes = (
-        sum(path.stat().st_size for path in root.glob("*") if path.is_file())
-        if root.exists()
-        else 0
-    )
-
-    table = Table(title="Cache Info")
-    table.add_column("Field", style="cyan")
-    table.add_column("Value", style="white")
-    table.add_row("cache_dir", str(root))
-    table.add_row("wav_files", str(len(wavs)))
-    table.add_row("meta_files", str(len(metas)))
-    table.add_row("size_mb", f"{total_bytes / (1024 * 1024):.3f}")
-    console.print(table)
-
-
-@cache_app.command("clear")
-def cache_clear(
-    cache_dir: str = typer.Option(".verbx_cache/irs", "--cache-dir"),
-) -> None:
-    """Clear IR cache directory."""
-    root = Path(cache_dir)
-    if root.exists() and not root.is_dir():
-        msg = f"Cache path is not a directory: {root}"
-        raise typer.BadParameter(msg)
-    if root.exists():
-        shutil.rmtree(root)
-    root.mkdir(parents=True, exist_ok=True)
-    console.print(f"Cleared cache: {root}")
-
-
-@batch_app.command("template")
-def batch_template() -> None:
+def _batch_template_impl() -> None:
     """Print a batch manifest template as JSON."""
     template = {
         "version": BATCH_MANIFEST_VERSION,
@@ -3802,8 +3198,7 @@ def batch_template() -> None:
     typer.echo(json.dumps(template, indent=2))
 
 
-@batch_app.command("augment-template")
-def batch_augment_template() -> None:
+def _batch_augment_template_impl() -> None:
     """Print an AI/data-augmentation manifest template as JSON."""
     template = build_augmentation_manifest_template()
     template["profiles"] = {
@@ -3813,8 +3208,7 @@ def batch_augment_template() -> None:
     typer.echo(json.dumps(template, indent=2))
 
 
-@batch_app.command("augment-profiles")
-def batch_augment_profiles(
+def _batch_augment_profiles_impl(
     as_json: bool = typer.Option(
         False,
         "--json",
@@ -3845,8 +3239,7 @@ def batch_augment_profiles(
     console.print(table)
 
 
-@batch_app.command("augment")
-def batch_augment(
+def _batch_augment_impl(
     manifest: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
     output_root: Path | None = typer.Option(
         None,
@@ -4140,8 +3533,7 @@ def batch_augment(
         raise typer.Exit(code=2)
 
 
-@batch_app.command("render")
-def batch_render(
+def _batch_render_impl(
     manifest: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
     jobs: int = typer.Option(0, "--jobs", min=0, help="0 = auto"),
     schedule: BatchSchedulePolicy = typer.Option("longest-first", "--schedule"),
@@ -4385,8 +3777,7 @@ def batch_render(
             raise typer.BadParameter(str(exc)) from exc
 
 
-@immersive_app.command("template")
-def immersive_template() -> None:
+def _immersive_template_impl() -> None:
     """Print an immersive scene handoff template as JSON."""
     template = {
         "scene_name": "feature_episode_01",
@@ -4435,8 +3826,7 @@ def immersive_template() -> None:
     typer.echo(json.dumps(template, indent=2))
 
 
-@immersive_app.command("handoff")
-def immersive_handoff(
+def _immersive_handoff_impl(
     scene_file: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
     out_dir: Path = typer.Argument(..., resolve_path=True),
     strict: bool = typer.Option(
@@ -4494,8 +3884,7 @@ def immersive_handoff(
     console.print(table)
 
 
-@immersive_app.command("qc")
-def immersive_qc(
+def _immersive_qc_impl(
     infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
     layout: str = typer.Option(
         "auto",
@@ -4585,8 +3974,7 @@ def immersive_qc(
         raise typer.Exit(code=2)
 
 
-@immersive_queue_app.command("template")
-def immersive_queue_template() -> None:
+def _immersive_queue_template_impl() -> None:
     """Print a file-backed immersive queue template as JSON."""
     template = {
         "version": IMMERSIVE_QUEUE_VERSION,
@@ -4610,8 +3998,7 @@ def immersive_queue_template() -> None:
     typer.echo(json.dumps(template, indent=2))
 
 
-@immersive_queue_app.command("status")
-def immersive_queue_status(
+def _immersive_queue_status_impl(
     queue_file: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
 ) -> None:
     """Show file-queue state summary."""
@@ -4633,8 +4020,7 @@ def immersive_queue_status(
     console.print(table)
 
 
-@immersive_queue_app.command("worker")
-def immersive_queue_worker(
+def _immersive_queue_worker_impl(
     queue_file: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
     worker_id: str | None = typer.Option(
         None,
@@ -4760,14 +4146,6 @@ def _checkpoint_success_outfiles(payload: dict[str, Any]) -> set[str]:
         if out_path.exists():
             completed.add(str(out_path.resolve()))
     return completed
-
-
-def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
-    """Atomically write JSON payload to disk."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(f"{path.suffix}.tmp")
-    tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    tmp.replace(path)
 
 
 def _write_jsonl_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -5838,7 +5216,12 @@ def _print_render_summary(
         ):
             if key in config_report:
                 table.add_row(key, str(config_report[key]))
-        for key in ("allpass_gains", "allpass_delays_ms", "comb_delays_ms"):
+        for key in (
+            "allpass_gains",
+            "allpass_delays_ms",
+            "comb_delays_ms",
+            "comb_cloud_delays_ms",
+        ):
             if key in config_report and isinstance(config_report[key], (list, tuple)):
                 table.add_row(f"{key}_count", str(len(config_report[key])))
     table.add_row("analysis_json", str(report.get("analysis_path", "")))
@@ -6514,10 +5897,13 @@ def _estimate_render_output_duration_seconds(*, infile: Path, config: RenderConf
         config.engine == "auto"
         and not (config.ir is not None or config.ir_gen or config.self_convolve)
     ):
-        duration_s += max(
+        algo_tail_seconds = max(
             0.25,
             float(config.rt60) + (max(0.0, float(config.pre_delay_ms)) / 1000.0),
         )
+        if config.tail_limit is not None:
+            algo_tail_seconds = min(algo_tail_seconds, max(0.0, float(config.tail_limit)))
+        duration_s += algo_tail_seconds
     return duration_s
 
 
@@ -6582,6 +5968,13 @@ def _print_render_dry_run_plan(
     table.add_row("repeat", str(int(config.repeat)))
     table.add_row("fdn_matrix", str(config.fdn_matrix))
     table.add_row("fdn_lines", str(int(config.fdn_lines)))
+    if config.comb_cloud:
+        table.add_row("comb_cloud", "enabled")
+        table.add_row("comb_cloud_count", str(int(config.comb_cloud_count)))
+        table.add_row("comb_cloud_feedback", f"{float(config.comb_cloud_feedback):.3f}")
+        table.add_row("comb_cloud_mix", f"{float(config.comb_cloud_mix):.3f}")
+        if len(config.comb_cloud_delays_ms) > 0:
+            table.add_row("comb_cloud_delay_count", str(len(config.comb_cloud_delays_ms)))
     table.add_row("ir", str(config.ir))
     table.add_row("ir_blend_count", str(len(config.ir_blend)))
     estimated_duration_s = _estimate_render_output_duration_seconds(infile=infile, config=config)
@@ -7486,6 +6879,9 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
     if len(config.comb_delays_ms) > 64:
         msg = "--comb-delays-ms supports at most 64 entries."
         raise typer.BadParameter(msg)
+    if len(config.comb_cloud_delays_ms) > 128:
+        msg = "--comb-cloud-delays-ms supports at most 128 entries."
+        raise typer.BadParameter(msg)
     if len(config.allpass_delays_ms) > 128:
         msg = "--allpass-delays-ms supports at most 128 entries."
         raise typer.BadParameter(msg)
@@ -7605,16 +7001,6 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
             parse_mod_route_spec(route_spec)
         except ValueError as exc:
             raise typer.BadParameter(f"invalid --mod-route '{route_spec}': {exc}") from exc
-
-
-def _validate_analyze_call(infile: Path, json_out: Path | None, frames_out: Path | None) -> None:
-    """Validate analyze command output paths."""
-    if json_out is not None and infile.resolve() == json_out.resolve():
-        msg = "--json-out must be different from input file."
-        raise typer.BadParameter(msg)
-    if frames_out is not None and infile.resolve() == frames_out.resolve():
-        msg = "--frames-out must be different from input file."
-        raise typer.BadParameter(msg)
 
 
 def _validate_ir_gen_call(
@@ -7986,6 +7372,50 @@ def _validate_output_audio_path(path: Path, out_subtype_mode: str) -> None:
                 f"Use --out-subtype auto or one of: {supported_text}."
             )
             raise typer.BadParameter(msg)
+
+
+# Keep these shared helpers explicitly referenced while extracted IR command
+# implementations continue to reuse them through the CLI module.
+_IR_IMPL_SHARED_HELPERS = (
+    _build_lucky_ir_process_config,
+    _score_fit_candidates,
+    _validate_ir_analyze_call,
+    _validate_ir_morph_call,
+    _validate_ir_process_call,
+)
+
+
+_COMMAND_IMPLS: dict[str, Callable[..., Any]] = {
+    "_render_impl": _render_impl,
+    "_dereverb_impl": _dereverb_impl,
+    "_ir_gen_impl": _ir_gen_impl,
+    "_ir_analyze_impl": _ir_analyze_impl,
+    "_ir_sofa_info_impl": _ir_sofa_info_impl,
+    "_ir_sofa_extract_impl": _ir_sofa_extract_impl,
+    "_ir_process_impl": _ir_process_impl,
+    "_ir_morph_impl": _ir_morph_impl,
+    "_ir_morph_sweep_impl": _ir_morph_sweep_impl,
+    "_ir_fit_impl": _ir_fit_impl,
+    "_batch_template_impl": _batch_template_impl,
+    "_batch_augment_template_impl": _batch_augment_template_impl,
+    "_batch_augment_profiles_impl": _batch_augment_profiles_impl,
+    "_batch_augment_impl": _batch_augment_impl,
+    "_batch_render_impl": _batch_render_impl,
+    "_immersive_template_impl": _immersive_template_impl,
+    "_immersive_handoff_impl": _immersive_handoff_impl,
+    "_immersive_qc_impl": _immersive_qc_impl,
+    "_immersive_queue_template_impl": _immersive_queue_template_impl,
+    "_immersive_queue_status_impl": _immersive_queue_status_impl,
+    "_immersive_queue_worker_impl": _immersive_queue_worker_impl,
+}
+
+
+def get_command_impl(name: str) -> Callable[..., Any]:
+    """Return a named extracted command implementation."""
+    try:
+        return _COMMAND_IMPLS[name]
+    except KeyError as exc:
+        raise AttributeError(name) from exc
 
 
 if __name__ == "__main__":

@@ -44,6 +44,18 @@ uv run pytest tests
 - Add tests for behavior changes.
 - Update docs/man pages when CLI behavior changes.
 
+## Docs synchronization
+
+When the CLI surface or user-facing workflows change, refresh the generated docs too:
+
+```bash
+uv run python scripts/generate_cli_reference.py
+python3 scripts_generate_docs_pdf.py
+```
+
+This regenerates [`docs/CLI_REFERENCE.md`](docs/CLI_REFERENCE.md),
+[`docs/USERGUIDE.md`](docs/USERGUIDE.md), and `USERGUIDE.pdf`.
+
 ## Pull requests
 
 - Keep PRs focused and scoped.

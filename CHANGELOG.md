@@ -8,11 +8,31 @@ All notable changes to this project are documented in this file.
 - `run_render_pipeline()` is now split into explicit streaming and in-memory
   stage helpers, reducing the amount of orchestration living in a single branchy
   function.
+- CLI decomposition continues: `presets` and `cache` now live under
+  `src/verbx/commands/`, following the earlier `realtime`, `room_model`, and
+  `system` extractions.
+- `analyze`, `compare`, and `suggest` now live in dedicated command modules,
+  and shared CLI status/JSON helpers were moved into
+  `src/verbx/commands/common.py`.
+- All remaining CLI entrypoints now register from command modules
+  (`render`, `dereverb`, `ir`, `batch`, and `immersive` families), leaving
+  `src/verbx/cli.py` as the shrinking implementation/helper layer instead of
+  the public command-definition surface.
 
 ### Added
 - `src/verbx/core/room_geometry.py` with a reusable `RoomGeometry` dataclass,
   direct-path/pre-delay metrics, aspect-ratio analysis, and Bolt-style warnings
   for physically grounded room workflows.
+- Low-latency realtime dereverb modes for `verbx realtime`:
+  `--live-mode dereverb` for standalone cleanup and
+  `--live-mode dereverb-reverb` for dereverb feeding the live reverb engine,
+  with dedicated spectral controls for mode, strength, floor, window/hop,
+  tail tracking, attenuation clamp, stereo linking, and gain trim.
+- Optional algorithmic comb-cloud coloration for `verbx render` via
+  `--comb-cloud`, with controls for bank size, feedback, mix, seed, and custom
+  delay lists.
+- Consolidated documentation build outputs: `docs/USERGUIDE.md` and
+  `USERGUIDE.pdf`, generated from README plus user-facing guides/tips.
 - `verbx room-model`, a new CLI sub-command for inspecting explicit room
   geometry or inferring a plausible rectangular room from RT60 plus an
   absorption/material assumption.

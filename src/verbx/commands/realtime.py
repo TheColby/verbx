@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -17,6 +17,11 @@ from verbx.core.convolution_reverb import (
     ConvolutionReverbEngine,
     LiveConvolutionProcessor,
 )
+from verbx.core.dereverb import (
+    LiveDereverbConfig,
+    create_live_dereverb_processor,
+    parse_dereverb_window_weights,
+)
 from verbx.core.fdn_capabilities import (
     FDN_GRAPH_TOPOLOGY_CHOICES,
     FDN_LINK_FILTER_CHOICES,
@@ -26,6 +31,7 @@ from verbx.core.fdn_capabilities import (
     normalize_fdn_matrix_name,
 )
 from verbx.io.realtime import (
+    RealtimeBlockProcessor,
     RealtimeDeviceInfo,
     RealtimeSessionSummary,
     list_audio_devices,
@@ -110,7 +116,28 @@ _ALGO_ONLY_SWITCHES: dict[str, str] = {
 }
 
 
+@dataclass(slots=True)
+class _ProcessorChain:
+    """Sequentially apply two realtime processors."""
+
+    first: RealtimeBlockProcessor
+    second: RealtimeBlockProcessor
+    input_channels: int
+    output_channels: int
+
+    def process_block(self, block: Any) -> Any:
+        return self.second.process_block(self.first.process_block(block))
+
+
 def realtime(
+    live_mode: Literal["reverb", "dereverb", "dereverb-reverb"] = typer.Option(
+        "reverb",
+        "--live-mode",
+        help=(
+            "Realtime processing mode: reverb only, dereverb only, or "
+            "dereverb feeding the live reverb path."
+        ),
+    ),
     engine: Literal["auto", "conv", "algo"] = typer.Option(
         "auto",
         "--engine",
@@ -181,6 +208,136 @@ def realtime(
         "--duration",
         min=0.0,
         help="Optional duration in seconds. Omit to run until Ctrl-C.",
+    ),
+    dereverb_mode: Literal["wiener", "spectral_sub"] = typer.Option(
+        "wiener",
+        "--dereverb-mode",
+        help="Low-latency dereverb kernel used by --live-mode dereverb*.",
+    ),
+    dereverb_strength: float = typer.Option(
+        0.7,
+        "--dereverb-strength",
+        min=0.0,
+        max=2.0,
+    ),
+    dereverb_floor: float = typer.Option(
+        0.08,
+        "--dereverb-floor",
+        min=1e-6,
+        max=1.0,
+    ),
+    dereverb_window_ms: float = typer.Option(
+        16.0,
+        "--dereverb-window-ms",
+        min=2.0,
+    ),
+    dereverb_hop_ms: float = typer.Option(
+        8.0,
+        "--dereverb-hop-ms",
+        min=1.0,
+    ),
+    dereverb_tail_ms: float = typer.Option(
+        120.0,
+        "--dereverb-tail-ms",
+        min=10.0,
+    ),
+    dereverb_pre_emphasis: float = typer.Option(
+        0.0,
+        "--dereverb-pre-emphasis",
+        min=0.0,
+        max=0.98,
+    ),
+    dereverb_mix: float = typer.Option(
+        1.0,
+        "--dereverb-mix",
+        min=0.0,
+        max=1.0,
+    ),
+    dereverb_max_atten_db: float = typer.Option(
+        18.0,
+        "--dereverb-max-atten-db",
+        min=0.0,
+        max=48.0,
+    ),
+    dereverb_stereo_link: bool = typer.Option(
+        True,
+        "--dereverb-stereo-link/--no-dereverb-stereo-link",
+        help="Link stereo gain decisions to reduce image wobble.",
+    ),
+    dereverb_input_gain_db: float = typer.Option(
+        0.0,
+        "--dereverb-input-gain-db",
+        min=-24.0,
+        max=24.0,
+    ),
+    dereverb_output_gain_db: float = typer.Option(
+        0.0,
+        "--dereverb-output-gain-db",
+        min=-24.0,
+        max=24.0,
+    ),
+    dereverb_window_type: str = typer.Option(
+        "hann",
+        "--dereverb-window-type",
+        help=(
+            "Live dereverb analysis window family "
+            "(hann, hamming, blackman, kaiser, dpss, tukey, chebwin, and many more)."
+        ),
+    ),
+    dereverb_synthesis_window_type: str | None = typer.Option(
+        None,
+        "--dereverb-synthesis-window-type",
+        help="Optional live dereverb synthesis window family. Defaults to the analysis window.",
+    ),
+    dereverb_window_symmetric: bool = typer.Option(
+        False,
+        "--dereverb-window-symmetric/--dereverb-window-periodic",
+        help="Use symmetric instead of periodic live dereverb windows.",
+    ),
+    dereverb_window_alpha: float = typer.Option(
+        0.5,
+        "--dereverb-window-alpha",
+        min=0.0,
+    ),
+    dereverb_window_beta: float = typer.Option(
+        14.0,
+        "--dereverb-window-beta",
+        min=0.0,
+    ),
+    dereverb_window_std: float = typer.Option(
+        2.5,
+        "--dereverb-window-std",
+        min=1e-6,
+    ),
+    dereverb_window_power: float = typer.Option(
+        1.5,
+        "--dereverb-window-power",
+        min=1e-6,
+    ),
+    dereverb_window_atten_db: float = typer.Option(
+        100.0,
+        "--dereverb-window-atten-db",
+        min=1e-3,
+    ),
+    dereverb_window_nbar: int = typer.Option(
+        4,
+        "--dereverb-window-nbar",
+        min=2,
+    ),
+    dereverb_window_nw: float = typer.Option(
+        2.5,
+        "--dereverb-window-nw",
+        min=1e-3,
+    ),
+    dereverb_window_tau: float = typer.Option(
+        3.0,
+        "--dereverb-window-tau",
+        min=1e-6,
+    ),
+    dereverb_window_weights: str | None = typer.Option(
+        None,
+        "--dereverb-window-weights",
+        help="Optional comma-separated weights for general_cosine live dereverb windows.",
     ),
     wet: float = typer.Option(0.8, "--wet", min=0.0, max=1.0),
     dry: float = typer.Option(0.2, "--dry", min=0.0, max=1.0),
@@ -400,6 +557,38 @@ def realtime(
         requested_map=parsed_input_channel_map,
         device=input_info,
     )
+    try:
+        parsed_dereverb_window_weights = parse_dereverb_window_weights(
+            dereverb_window_weights
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    live_dereverb_config = LiveDereverbConfig(
+        mode=dereverb_mode,
+        strength=float(dereverb_strength),
+        floor=float(dereverb_floor),
+        window_ms=float(dereverb_window_ms),
+        hop_ms=float(dereverb_hop_ms),
+        tail_ms=float(dereverb_tail_ms),
+        pre_emphasis=float(dereverb_pre_emphasis),
+        mix=float(dereverb_mix),
+        max_atten_db=float(dereverb_max_atten_db),
+        stereo_link=bool(dereverb_stereo_link),
+        input_gain_db=float(dereverb_input_gain_db),
+        output_gain_db=float(dereverb_output_gain_db),
+        analysis_window=str(dereverb_window_type),
+        synthesis_window=dereverb_synthesis_window_type,
+        window_symmetric=bool(dereverb_window_symmetric),
+        window_alpha=float(dereverb_window_alpha),
+        window_beta=float(dereverb_window_beta),
+        window_std=float(dereverb_window_std),
+        window_power=float(dereverb_window_power),
+        window_atten_db=float(dereverb_window_atten_db),
+        window_nbar=int(dereverb_window_nbar),
+        window_nw=float(dereverb_window_nw),
+        window_tau=float(dereverb_window_tau),
+        window_weights=parsed_dereverb_window_weights,
+    )
     realtime_config = RenderConfig(
         engine=engine,
         rt60=float(rt60),
@@ -483,13 +672,30 @@ def realtime(
         progress=False,
         silent=True,
     )
-    _validate_realtime_config(realtime_config)
+    if str(live_mode) != "dereverb":
+        _validate_realtime_config(realtime_config)
 
-    processor, engine_summary = _build_live_processor(
-        config=realtime_config,
-        sample_rate=int(sample_rate),
-        input_channels=resolved_input_channels,
-    )
+    if str(live_mode) == "dereverb":
+        processor, engine_summary = _build_live_dereverb_processor(
+            config=live_dereverb_config,
+            sample_rate=int(sample_rate),
+            block_size=int(block_size),
+            input_channels=resolved_input_channels,
+        )
+    elif str(live_mode) == "dereverb-reverb":
+        processor, engine_summary = _build_live_dereverb_reverb_processor(
+            dereverb_config=live_dereverb_config,
+            reverb_config=realtime_config,
+            sample_rate=int(sample_rate),
+            block_size=int(block_size),
+            input_channels=resolved_input_channels,
+        )
+    else:
+        processor, engine_summary = _build_live_processor(
+            config=realtime_config,
+            sample_rate=int(sample_rate),
+            input_channels=resolved_input_channels,
+        )
     resolved_output_channels = _resolve_output_channels(
         requested=output_channels,
         requested_map=parsed_output_channel_map,
@@ -511,6 +717,20 @@ def realtime(
             duration=duration,
         )
 
+    def _handle_stream_started(
+        input_latency_seconds: float | None,
+        output_latency_seconds: float | None,
+    ) -> None:
+        if quiet:
+            return
+        _print_realtime_latency_table(
+            sample_rate=int(sample_rate),
+            block_size=int(block_size),
+            engine_summary=engine_summary,
+            reported_input_latency_seconds=input_latency_seconds,
+            reported_output_latency_seconds=output_latency_seconds,
+        )
+
     try:
         summary = run_realtime_duplex(
             processor=processor,
@@ -523,6 +743,7 @@ def realtime(
             input_channel_map=parsed_input_channel_map,
             output_channel_map=parsed_output_channel_map,
             duration_seconds=duration,
+            on_stream_started=_handle_stream_started,
         )
     finally:
         proxy_path = engine_summary.get("proxy_ir_path")
@@ -530,7 +751,7 @@ def realtime(
             proxy_path.unlink(missing_ok=True)
 
     if not quiet:
-        _print_realtime_end_table(summary)
+        _print_realtime_end_table(summary, engine_summary=engine_summary)
 
 
 def _build_live_processor(
@@ -612,6 +833,80 @@ def _build_live_processor(
                 "proxy_eq": _format_proxy_eq_summary(live_config),
             }
         )
+    return processor, summary
+
+
+def _build_live_dereverb_processor(
+    *,
+    config: LiveDereverbConfig,
+    sample_rate: int,
+    block_size: int,
+    input_channels: int,
+) -> tuple[RealtimeBlockProcessor, dict[str, object]]:
+    """Build a low-latency standalone live dereverb processor."""
+    processor = create_live_dereverb_processor(
+        sample_rate=int(sample_rate),
+        input_channels=int(input_channels),
+        config=config,
+    )
+    if int(block_size) % int(processor.hop_samples) != 0:
+        msg = (
+            "Low-latency live dereverb requires --block-size to be divisible by the "
+            f"resolved hop size ({processor.hop_samples} samples)."
+        )
+        raise typer.BadParameter(msg)
+    summary: dict[str, object] = {
+        "engine_resolved": "dereverb_live",
+        "compute_backend": "stft_cpu",
+        "dereverb_mode": str(config.mode),
+        "dereverb_window_type": str(config.analysis_window),
+        "dereverb_synthesis_window_type": (
+            str(config.analysis_window)
+            if config.synthesis_window is None
+            else str(config.synthesis_window)
+        ),
+        "dereverb_window_ms": float(config.window_ms),
+        "dereverb_hop_ms": float(config.hop_ms),
+        "dereverb_tail_ms": float(config.tail_ms),
+        "dereverb_mix": float(config.mix),
+        "dereverb_stereo_link": bool(config.stereo_link),
+        "dereverb_latency_ms": (1000.0 * float(processor.latency_samples)) / float(sample_rate),
+    }
+    return processor, summary
+
+
+def _build_live_dereverb_reverb_processor(
+    *,
+    dereverb_config: LiveDereverbConfig,
+    reverb_config: RenderConfig,
+    sample_rate: int,
+    block_size: int,
+    input_channels: int,
+) -> tuple[RealtimeBlockProcessor, dict[str, object]]:
+    """Build a live dereverb front-end feeding the existing realtime reverb path."""
+    dereverb_processor, dereverb_summary = _build_live_dereverb_processor(
+        config=dereverb_config,
+        sample_rate=int(sample_rate),
+        block_size=int(block_size),
+        input_channels=int(input_channels),
+    )
+    reverb_processor, reverb_summary = _build_live_processor(
+        config=reverb_config,
+        sample_rate=int(sample_rate),
+        input_channels=int(input_channels),
+    )
+    summary = dict(reverb_summary)
+    summary.update(dereverb_summary)
+    summary["engine_resolved"] = "dereverb_reverb_live"
+    summary["compute_backend"] = (
+        f"dereverb_stft_cpu -> {reverb_summary.get('compute_backend', 'cpu')}"
+    )
+    processor = _ProcessorChain(
+        first=dereverb_processor,
+        second=reverb_processor,
+        input_channels=int(input_channels),
+        output_channels=int(reverb_processor.output_channels),
+    )
     return processor, summary
 
 
@@ -721,7 +1016,8 @@ def _print_realtime_start_table(
     table = Table(title="Realtime Session")
     table.add_column("Field", style="cyan")
     table.add_column("Value", style="white")
-    table.add_row("engine", str(engine_summary.get("engine_resolved", "")))
+    resolved_engine = str(engine_summary.get("engine_resolved", ""))
+    table.add_row("engine", resolved_engine)
     table.add_row("backend", str(engine_summary.get("compute_backend", "")))
     table.add_row("sample_rate", str(sample_rate))
     table.add_row("block_size", str(block_size))
@@ -732,7 +1028,53 @@ def _print_realtime_start_table(
     table.add_row("input_map", _format_channel_map(input_channels, input_channel_map))
     table.add_row("output_map", _format_channel_map(output_channels, output_channel_map))
     table.add_row("duration", "until Ctrl-C" if duration is None else f"{duration:.2f}s")
-    if str(engine_summary.get("engine_resolved", "")) == "algo_proxy_live":
+    table.add_row("block_latency", f"{_block_latency_ms(sample_rate, block_size):.1f}ms")
+    if resolved_engine in {"dereverb_live", "dereverb_reverb_live"}:
+        latency = _latency_metrics(
+            sample_rate=sample_rate,
+            block_size=block_size,
+            engine_summary=engine_summary,
+        )
+        table.add_row("dereverb_mode", str(engine_summary.get("dereverb_mode", "")))
+        table.add_row(
+            "dereverb_windows",
+            (
+                f"{engine_summary.get('dereverb_window_type', 'hann')!s} -> "
+                f"{engine_summary.get('dereverb_synthesis_window_type', 'hann')!s}"
+            ),
+        )
+        table.add_row(
+            "dereverb_window",
+            (
+                f"{_summary_float(engine_summary, 'dereverb_window_ms'):.1f}ms / "
+                f"hop {_summary_float(engine_summary, 'dereverb_hop_ms'):.1f}ms"
+            ),
+        )
+        table.add_row(
+            "dereverb_tail",
+            f"{_summary_float(engine_summary, 'dereverb_tail_ms'):.1f}ms",
+        )
+        table.add_row(
+            "dereverb_mix",
+            f"{_summary_float(engine_summary, 'dereverb_mix'):.2f}",
+        )
+        table.add_row(
+            "dereverb_link",
+            "on" if bool(engine_summary.get("dereverb_stereo_link", False)) else "off",
+        )
+        table.add_row(
+            "dereverb_latency",
+            f"{latency['algorithm_latency_ms']:.1f}ms",
+        )
+        table.add_row(
+            "software_latency_est",
+            f"{latency['software_latency_ms']:.1f}ms",
+        )
+        table.add_row(
+            "end_to_end_est",
+            f"{latency['software_latency_ms']:.1f}ms + backend pending",
+        )
+    if resolved_engine in {"algo_proxy_live", "dereverb_reverb_live"}:
         rt60_value = engine_summary.get("rt60", 0.0)
         proxy_rt60 = float(rt60_value) if isinstance(rt60_value, (int, float)) else 0.0
         table.add_row("proxy_rt60", f"{proxy_rt60:.2f}s")
@@ -752,7 +1094,51 @@ def _print_realtime_start_table(
     console.print(table)
 
 
-def _print_realtime_end_table(summary: RealtimeSessionSummary) -> None:
+def _print_realtime_latency_table(
+    *,
+    sample_rate: int,
+    block_size: int,
+    engine_summary: dict[str, object],
+    reported_input_latency_seconds: float | None,
+    reported_output_latency_seconds: float | None,
+) -> None:
+    """Print stream-reported latency once the backend opens the duplex device."""
+    metrics = _latency_metrics(
+        sample_rate=sample_rate,
+        block_size=block_size,
+        engine_summary=engine_summary,
+        reported_input_latency_seconds=reported_input_latency_seconds,
+        reported_output_latency_seconds=reported_output_latency_seconds,
+    )
+    table = Table(title="Realtime Stream Latency")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="white")
+    table.add_row(
+        "reported_input_latency",
+        _format_latency_ms(metrics["reported_input_latency_ms"]),
+    )
+    table.add_row(
+        "reported_output_latency",
+        _format_latency_ms(metrics["reported_output_latency_ms"]),
+    )
+    table.add_row(
+        "reported_backend_latency",
+        _format_latency_ms(metrics["reported_backend_latency_ms"]),
+    )
+    if str(engine_summary.get("engine_resolved", "")) in {"dereverb_live", "dereverb_reverb_live"}:
+        table.add_row("software_latency_est", f"{metrics['software_latency_ms']:.1f}ms")
+        table.add_row(
+            "end_to_end_est",
+            _format_latency_ms(metrics["end_to_end_latency_ms"]),
+        )
+    console.print(table)
+
+
+def _print_realtime_end_table(
+    summary: RealtimeSessionSummary,
+    *,
+    engine_summary: dict[str, object],
+) -> None:
     table = Table(title="Realtime Session Complete")
     table.add_column("Field", style="cyan")
     table.add_column("Value", style="white")
@@ -770,6 +1156,31 @@ def _print_realtime_end_table(summary: RealtimeSessionSummary) -> None:
     table.add_row("processed_blocks", str(summary.processed_blocks))
     table.add_row("processed_seconds", f"{summary.processed_seconds:.3f}")
     table.add_row("clipped_blocks", str(summary.clipped_blocks))
+    latency = _latency_metrics(
+        sample_rate=int(summary.sample_rate),
+        block_size=int(summary.block_size),
+        engine_summary=engine_summary,
+        reported_input_latency_seconds=summary.reported_input_latency_seconds,
+        reported_output_latency_seconds=summary.reported_output_latency_seconds,
+    )
+    table.add_row(
+        "reported_input_latency",
+        _format_latency_ms(latency["reported_input_latency_ms"]),
+    )
+    table.add_row(
+        "reported_output_latency",
+        _format_latency_ms(latency["reported_output_latency_ms"]),
+    )
+    table.add_row(
+        "reported_backend_latency",
+        _format_latency_ms(latency["reported_backend_latency_ms"]),
+    )
+    if str(engine_summary.get("engine_resolved", "")) in {"dereverb_live", "dereverb_reverb_live"}:
+        table.add_row("software_latency_est", f"{latency['software_latency_ms']:.1f}ms")
+        table.add_row(
+            "end_to_end_est",
+            _format_latency_ms(latency["end_to_end_latency_ms"]),
+        )
     console.print(table)
 
 
@@ -777,6 +1188,58 @@ def _format_channel_map(channels: int, mapping: tuple[int, ...]) -> str:
     """Format a channel map for console summaries."""
     resolved = mapping if len(mapping) > 0 else tuple(range(1, int(channels) + 1))
     return ",".join(str(ch) for ch in resolved)
+
+
+def _block_latency_ms(sample_rate: int, block_size: int) -> float:
+    """Return the callback block duration in milliseconds."""
+    return (1000.0 * float(block_size)) / float(max(1, sample_rate))
+
+
+def _latency_metrics(
+    *,
+    sample_rate: int,
+    block_size: int,
+    engine_summary: dict[str, object],
+    reported_input_latency_seconds: float | None = None,
+    reported_output_latency_seconds: float | None = None,
+) -> dict[str, float | None]:
+    """Combine algorithmic, block, and backend latency into practical estimates."""
+    block_latency_ms = _block_latency_ms(sample_rate, block_size)
+    algorithm_latency_ms = _summary_float(engine_summary, "dereverb_latency_ms")
+    reported_input_latency_ms = _seconds_to_ms(reported_input_latency_seconds)
+    reported_output_latency_ms = _seconds_to_ms(reported_output_latency_seconds)
+    reported_backend_latency_ms = None
+    if reported_input_latency_ms is not None or reported_output_latency_ms is not None:
+        reported_backend_latency_ms = (reported_input_latency_ms or 0.0) + (
+            reported_output_latency_ms or 0.0
+        )
+    software_latency_ms = block_latency_ms + algorithm_latency_ms
+    end_to_end_latency_ms = software_latency_ms
+    if reported_backend_latency_ms is not None:
+        end_to_end_latency_ms += reported_backend_latency_ms
+    return {
+        "block_latency_ms": block_latency_ms,
+        "algorithm_latency_ms": algorithm_latency_ms,
+        "software_latency_ms": software_latency_ms,
+        "reported_input_latency_ms": reported_input_latency_ms,
+        "reported_output_latency_ms": reported_output_latency_ms,
+        "reported_backend_latency_ms": reported_backend_latency_ms,
+        "end_to_end_latency_ms": end_to_end_latency_ms,
+    }
+
+
+def _seconds_to_ms(seconds: float | None) -> float | None:
+    """Convert optional seconds into milliseconds."""
+    if seconds is None:
+        return None
+    return 1000.0 * float(seconds)
+
+
+def _format_latency_ms(value_ms: float | None) -> str:
+    """Format optional latency values for console output."""
+    if value_ms is None:
+        return "unreported"
+    return f"{float(value_ms):.1f}ms"
 
 
 def _parse_delay_list_ms(raw: str | None, *, option_name: str) -> tuple[float, ...]:
@@ -936,3 +1399,9 @@ def _format_proxy_eq_summary(config: RenderConfig) -> str:
     if abs(float(config.tilt)) > 1e-4:
         parts.append(f"tilt={config.tilt:+.1f}dB/oct")
     return ", ".join(parts) if len(parts) > 0 else "flat"
+
+
+def _summary_float(summary: dict[str, object], key: str, default: float = 0.0) -> float:
+    """Safely coerce numeric summary fields for console display."""
+    value = summary.get(key, default)
+    return float(value) if isinstance(value, (int, float)) else float(default)

@@ -1,16 +1,16 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 import numpy as np
 import pytest
 
-from verbx.core.dereverb import (
-    DereverbConfig,
-    _bark_weighted_snr_db,
-    _mcd_db,
-    _stoi_approx,
-    apply_dereverb,
-    run_dereverb_benchmark,
-)
+from verbx.core import dereverb as dereverb_core
+from verbx.core.dereverb import DereverbConfig, apply_dereverb, run_dereverb_benchmark
+
+_bark_weighted_snr_db = dereverb_core._bark_weighted_snr_db  # pyright: ignore[reportPrivateUsage]
+_mcd_db = dereverb_core._mcd_db  # pyright: ignore[reportPrivateUsage]
+_stoi_approx = dereverb_core._stoi_approx  # pyright: ignore[reportPrivateUsage]
 
 
 def _synthetic_reverberant_impulse(*, sr: int, length_s: float) -> np.ndarray:
@@ -69,13 +69,59 @@ def test_apply_dereverb_spectral_sub_mode_is_stable() -> None:
     assert np.isfinite(out).all()
 
 
+def test_apply_dereverb_accepts_parameterized_window_families() -> None:
+    sr = 24_000
+    x = np.zeros((4096, 1), dtype=np.float64)
+    x[64:256, 0] = 0.4
+    out = apply_dereverb(
+        x,
+        sr,
+        DereverbConfig(
+            mode="wiener",
+            strength=0.8,
+            floor=0.05,
+            window_ms=24.0,
+            hop_ms=6.0,
+            tail_ms=110.0,
+            analysis_window="kaiser",
+            synthesis_window="tukey",
+            window_beta=12.0,
+            window_alpha=0.35,
+        ),
+    )
+    assert out.shape == x.shape
+    assert np.isfinite(out).all()
+
+
+def test_apply_dereverb_accepts_general_cosine_weights() -> None:
+    sr = 16_000
+    wet = _synthetic_reverberant_impulse(sr=sr, length_s=0.75)
+    out = apply_dereverb(
+        wet,
+        sr,
+        DereverbConfig(
+            mode="spectral_sub",
+            strength=0.7,
+            floor=0.08,
+            window_ms=18.0,
+            hop_ms=4.5,
+            tail_ms=90.0,
+            analysis_window="general_cosine",
+            synthesis_window="general_cosine",
+            window_weights=(0.42, 0.5, 0.08),
+        ),
+    )
+    assert out.shape == wet.shape
+    assert np.isfinite(out).all()
+
+
 # ---------------------------------------------------------------------------
 # Objective quality metric tests
 # ---------------------------------------------------------------------------
 
 def _make_voiced_signal(sr: int, duration_s: float) -> np.ndarray:
     """Bandlimited voiced-noise burst (voice-like shape)."""
-    from scipy.signal import butter, sosfilt  # noqa: PLC0415
+    from scipy.signal import butter, sosfilt
 
     rng = np.random.default_rng(99)
     n = int(sr * duration_s)
@@ -149,7 +195,8 @@ def test_run_dereverb_benchmark_includes_all_v2_metrics() -> None:
     assert "stoi_reverberant" in report
     assert "mcd_reverberant_db" in report
 
-    for result in report["results"]:
+    results = cast(list[dict[str, Any]], report["results"])
+    for result in results:
         assert "bark_snr_db" in result
         assert "bark_snr_improvement_db" in result
         assert "stoi_approx" in result
@@ -166,7 +213,8 @@ def test_run_dereverb_benchmark_includes_all_v2_metrics() -> None:
 def test_run_dereverb_benchmark_shows_improvement_over_reverberant() -> None:
     """Both modes should improve at least one perceptual metric vs the reverberant baseline."""
     report = run_dereverb_benchmark(sr=16_000, duration_s=3.0, rt60=1.5)
-    for result in report["results"]:
+    results = cast(list[dict[str, Any]], report["results"])
+    for result in results:
         improved = (
             float(result["snr_improvement_db"]) > 0.0
             or float(result["bark_snr_improvement_db"]) > 0.0
@@ -179,6 +227,7 @@ def test_run_dereverb_benchmark_shows_improvement_over_reverberant() -> None:
 @pytest.mark.parametrize("rt60", [0.4, 1.2, 3.0])
 def test_benchmark_metrics_are_finite_across_rt60(rt60: float) -> None:
     report = run_dereverb_benchmark(sr=16_000, duration_s=2.5, rt60=rt60)
-    for result in report["results"]:
+    results = cast(list[dict[str, Any]], report["results"])
+    for result in results:
         for key in ("bark_snr_db", "stoi_approx", "mcd_db", "snr_db"):
             assert np.isfinite(result[key]), f"Non-finite {key} at RT60={rt60}"

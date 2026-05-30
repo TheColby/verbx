@@ -57,6 +57,21 @@ def test_version_command_reports_package_version() -> None:
     assert f"verbx {__version__}" in result.stdout
 
 
+def test_ir_command_impls_resolve_to_extracted_module() -> None:
+    expected = {
+        "_ir_analyze_impl",
+        "_ir_sofa_info_impl",
+        "_ir_sofa_extract_impl",
+        "_ir_process_impl",
+        "_ir_morph_impl",
+        "_ir_fit_impl",
+    }
+
+    for name in expected:
+        impl = cli_module.get_command_impl(name)
+        assert impl.__module__ == "verbx.commands.ir_impl"
+
+
 def test_room_model_command_infers_geometry_and_writes_json(tmp_path: Path) -> None:
     json_out = tmp_path / "room_model.json"
     result = runner.invoke(
@@ -303,6 +318,74 @@ def test_render_dry_run_accepts_extended_rt60_upper_bound(tmp_path: Path) -> Non
     assert "Render Dry-Run Plan" in text
     assert not outfile.exists()
     assert not Path(f"{outfile}.analysis.json").exists()
+
+
+def test_render_rejects_unbounded_extreme_algo_tail_without_tail_limit(tmp_path: Path) -> None:
+    audio = np.zeros((256, 1), dtype=np.float64)
+    audio[0, 0] = 0.8
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "3600",
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "append about" in text
+    assert "--tail-limit" in text
+    assert not outfile.exists()
+
+
+def test_render_allows_extreme_algo_tail_when_tail_limit_is_set(tmp_path: Path) -> None:
+    sr = 2_000
+    audio = np.zeros((1_000, 1), dtype=np.float64)
+    audio[0, 0] = 0.8
+    infile = tmp_path / "tail_limit_in.wav"
+    outfile = tmp_path / "tail_limit_out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "3600",
+            "--tail-limit",
+            "2.0",
+            "--fdn-lines",
+            "4",
+            "--allpass-stages",
+            "2",
+            "--target-sr",
+            str(sr),
+            "--tail-stop-threshold-db",
+            "-240",
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert outfile.exists()
+    y, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == sr
+    assert y.shape[0] < int(10.0 * sr)
+    assert np.max(np.abs(y[: min(y.shape[0], 512), :])) > 0.0
 
 
 def test_render_dry_run_accepts_w64_extension(tmp_path: Path) -> None:
@@ -858,6 +941,47 @@ def test_render_rejects_invalid_tvu_combo(tmp_path: Path) -> None:
     assert "--fdn-tv-depth > 0" in text
 
 
+def test_render_comb_cloud_mode_is_applied(tmp_path: Path) -> None:
+    audio = np.zeros((1536, 1), dtype=np.float64)
+    audio[0, 0] = 1.0
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "0.4",
+            "--comb-cloud",
+            "--comb-cloud-count",
+            "32",
+            "--comb-cloud-feedback",
+            "0.42",
+            "--comb-cloud-mix",
+            "0.30",
+            "--comb-cloud-seed",
+            "17",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert bool(config["comb_cloud"])
+    assert config["comb_cloud_count"] == 32
+    assert abs(float(config["comb_cloud_feedback"]) - 0.42) < 1e-6
+    assert abs(float(config["comb_cloud_mix"]) - 0.30) < 1e-6
+    assert config["comb_cloud_seed"] == 17
+    assert "combcloud" in str(payload["effective"]["compute_backend"])
+
+
 def test_render_sparse_high_order_switches_are_applied(tmp_path: Path) -> None:
     audio = np.zeros((1024, 1), dtype=np.float64)
     audio[20:120, 0] = 0.35
@@ -1373,6 +1497,62 @@ def test_render_track_c_perceptual_fdn_controls_are_applied(tmp_path: Path) -> N
     assert "delta_from_requested" in macro_report
 
 
+def test_render_post_shaping_controls_are_applied(tmp_path: Path) -> None:
+    audio = np.zeros((2400, 1), dtype=np.float64)
+    audio[80:220, 0] = 0.3
+    infile = tmp_path / "post_shape_in.wav"
+    outfile = tmp_path / "post_shape_out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--duck",
+            "--duck-strength",
+            "0.9",
+            "--duck-floor",
+            "0.2",
+            "--bloom",
+            "2.5",
+            "--bloom-mix",
+            "0.6",
+            "--lowcut",
+            "120",
+            "--lowcut-order",
+            "4",
+            "--highcut",
+            "8000",
+            "--highcut-order",
+            "5",
+            "--tilt",
+            "3.0",
+            "--tilt-pivot-hz",
+            "700",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert bool(config["duck"]) is True
+    assert abs(float(config["duck_strength"]) - 0.9) < 1e-6
+    assert abs(float(config["duck_floor"]) - 0.2) < 1e-6
+    assert abs(float(config["bloom"]) - 2.5) < 1e-6
+    assert abs(float(config["bloom_mix"]) - 0.6) < 1e-6
+    assert abs(float(config["lowcut"]) - 120.0) < 1e-6
+    assert int(config["lowcut_order"]) == 4
+    assert abs(float(config["highcut"]) - 8000.0) < 1e-6
+    assert int(config["highcut_order"]) == 5
+    assert abs(float(config["tilt"]) - 3.0) < 1e-6
+    assert abs(float(config["tilt_pivot_hz"]) - 700.0) < 1e-6
+
+
 def test_render_convolution_route_map_and_trajectory(tmp_path: Path) -> None:
     sr = 16_000
     infile = tmp_path / "mono_in.wav"
@@ -1799,6 +1979,46 @@ def test_analyze_edr_mode(tmp_path: Path) -> None:
     assert "edr_rt60_median_s" in result.stdout
 
 
+def test_compare_command_writes_json(tmp_path: Path) -> None:
+    sr = 48_000
+    n = 4096
+    a = np.zeros((n, 1), dtype=np.float64)
+    b = np.zeros((n, 1), dtype=np.float64)
+    a[64:512, 0] = 0.2
+    b[64:512, 0] = 0.35
+    file_a = tmp_path / "a.wav"
+    file_b = tmp_path / "b.wav"
+    json_out = tmp_path / "compare.json"
+    sf.write(str(file_a), a, sr)
+    sf.write(str(file_b), b, sr)
+
+    result = runner.invoke(app, ["compare", str(file_a), str(file_b), "--json-out", str(json_out)])
+    assert result.exit_code == 0, result.stdout
+    assert "Compare:" in result.stdout
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["schema"] == "compare-report-v1"
+    assert payload["sample_rate_a"] == sr
+    assert payload["sample_rate_b"] == sr
+    assert "delta" in payload
+
+
+def test_suggest_command_pins_json(tmp_path: Path) -> None:
+    sr = 48_000
+    audio = np.zeros((4096, 1), dtype=np.float64)
+    audio[64:512, 0] = 0.3
+    infile = tmp_path / "suggest.wav"
+    pin = tmp_path / "suggested.json"
+    sf.write(str(infile), audio, sr)
+
+    result = runner.invoke(app, ["suggest", str(infile), "--pin", str(pin)])
+    assert result.exit_code == 0, result.stdout
+    assert "Suggested Parameters:" in result.stdout
+    payload = json.loads(pin.read_text(encoding="utf-8"))
+    assert payload["engine"] in {"algo", "conv"}
+    assert "rt60" in payload
+    assert "wet" in payload
+
+
 def test_dereverb_command_writes_output_and_json(tmp_path: Path) -> None:
     sr = 16_000
     n = sr
@@ -1865,6 +2085,64 @@ def test_dereverb_rejects_hop_ms_not_smaller_than_window(tmp_path: Path) -> None
     assert result.exit_code != 0
     text = _combined_cli_output(result)
     assert "--hop-ms must be smaller than --window-ms." in text
+
+
+def test_dereverb_window_options_are_reported_in_json(tmp_path: Path) -> None:
+    sr = 24_000
+    audio = np.zeros((2048, 1), dtype=np.float64)
+    audio[80:220, 0] = 0.3
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    json_out = tmp_path / "dereverb_windows.json"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "dereverb",
+            str(infile),
+            str(outfile),
+            "--window-type",
+            "kaiser",
+            "--synthesis-window-type",
+            "tukey",
+            "--window-beta",
+            "10",
+            "--window-alpha",
+            "0.25",
+            "--window-std",
+            "2.2",
+            "--window-power",
+            "1.8",
+            "--window-atten-db",
+            "90",
+            "--window-nbar",
+            "5",
+            "--window-nw",
+            "3.0",
+            "--window-tau",
+            "2.5",
+            "--window-weights",
+            "0.42,0.5,0.08",
+            "--json-out",
+            str(json_out),
+            "--quiet",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    cfg = payload["config"]
+    assert cfg["window_type"] == "kaiser"
+    assert cfg["synthesis_window_type"] == "tukey"
+    assert cfg["window_beta"] == 10.0
+    assert cfg["window_alpha"] == 0.25
+    assert cfg["window_std"] == 2.2
+    assert cfg["window_power"] == 1.8
+    assert cfg["window_atten_db"] == 90.0
+    assert cfg["window_nbar"] == 5
+    assert cfg["window_nw"] == 3.0
+    assert cfg["window_tau"] == 2.5
+    assert cfg["window_weights"] == [0.42, 0.5, 0.08]
 
 
 def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> None:
@@ -1983,6 +2261,80 @@ def test_render_defaults_to_hd_output_definition(tmp_path: Path) -> None:
     info = sf.info(str(outfile))
     assert info.samplerate == _DEFAULT_RENDER_SR
     assert info.subtype == "FLOAT"
+
+
+def test_render_limiter_options_round_trip_into_analysis_config(tmp_path: Path) -> None:
+    sr = 48_000
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[8:32, 0] = 1.4
+    infile = tmp_path / "in.wav"
+    irfile = tmp_path / "ir.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, sr)
+    sf.write(str(irfile), np.array([[1.0]], dtype=np.float64), sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--target-peak-dbfs",
+            "-2.0",
+            "--limiter-mode",
+            "arctan",
+            "--limiter-detect",
+            "rms",
+            "--limiter-threshold-dbfs",
+            "-8.0",
+            "--limiter-ceiling-dbfs",
+            "-2.0",
+            "--limiter-knee-db",
+            "9.0",
+            "--limiter-drive",
+            "1.7",
+            "--limiter-mix",
+            "0.8",
+            "--limiter-attack-ms",
+            "0.2",
+            "--limiter-release-ms",
+            "120.0",
+            "--limiter-lookahead-ms",
+            "2.5",
+            "--no-limiter-stereo-link",
+            "--limiter-oversample",
+            "4",
+            "--limiter-pre-gain-db",
+            "3.0",
+            "--limiter-post-gain-db",
+            "-1.0",
+            "--limiter-dc-block",
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert config["limiter_mode"] == "arctan"
+    assert config["limiter_detect"] == "rms"
+    assert abs(float(config["limiter_threshold_dbfs"]) - (-8.0)) < 1e-6
+    assert abs(float(config["limiter_ceiling_dbfs"]) - (-2.0)) < 1e-6
+    assert abs(float(config["limiter_knee_db"]) - 9.0) < 1e-6
+    assert abs(float(config["limiter_drive"]) - 1.7) < 1e-6
+    assert abs(float(config["limiter_mix"]) - 0.8) < 1e-6
+    assert abs(float(config["limiter_attack_ms"]) - 0.2) < 1e-6
+    assert abs(float(config["limiter_release_ms"]) - 120.0) < 1e-6
+    assert abs(float(config["limiter_lookahead_ms"]) - 2.5) < 1e-6
+    assert config["limiter_stereo_link"] is False
+    assert int(config["limiter_oversample"]) == 4
+    assert abs(float(config["limiter_pre_gain_db"]) - 3.0) < 1e-6
+    assert abs(float(config["limiter_post_gain_db"]) - (-1.0)) < 1e-6
+    assert config["limiter_dc_block"] is True
 
 
 def test_render_quality_preset_sd_and_explicit_override_precedence(tmp_path: Path) -> None:

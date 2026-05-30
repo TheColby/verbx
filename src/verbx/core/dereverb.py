@@ -3,16 +3,57 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal, cast
 
 import numpy as np
 import numpy.typing as npt
 from scipy.signal import istft, stft
+from scipy.signal import windows as signal_windows
 
 from verbx.io.audio import ensure_mono_or_stereo
 
 AudioArray = npt.NDArray[np.float64]
 DereverbMode = Literal["wiener", "spectral_sub"]
+
+DEREVERB_WINDOW_CHOICES = frozenset(
+    {
+        "barthann",
+        "bartlett",
+        "blackman",
+        "blackmanharris",
+        "bohman",
+        "boxcar",
+        "chebwin",
+        "cosine",
+        "dpss",
+        "exponential",
+        "flattop",
+        "gaussian",
+        "general_cosine",
+        "general_gaussian",
+        "hamming",
+        "hann",
+        "kaiser",
+        "kaiser_bessel_derived",
+        "lanczos",
+        "nuttall",
+        "parzen",
+        "taylor",
+        "triang",
+        "tukey",
+    }
+)
+_DEREVERB_WINDOW_ALIASES = {
+    "blackman_harris": "blackmanharris",
+    "chebyshev": "chebwin",
+    "general-cosine": "general_cosine",
+    "general-gaussian": "general_gaussian",
+    "kaiser-bessel-derived": "kaiser_bessel_derived",
+    "kbd": "kaiser_bessel_derived",
+    "rect": "boxcar",
+    "rectangular": "boxcar",
+    "triangle": "triang",
+}
 
 
 @dataclass(slots=True)
@@ -27,6 +68,213 @@ class DereverbConfig:
     tail_ms: float = 220.0
     pre_emphasis: float = 0.0
     mix: float = 1.0
+    analysis_window: str = "hann"
+    synthesis_window: str | None = None
+    window_symmetric: bool = False
+    window_alpha: float = 0.5
+    window_beta: float = 14.0
+    window_std: float = 2.5
+    window_power: float = 1.5
+    window_atten_db: float = 100.0
+    window_nbar: int = 4
+    window_nw: float = 2.5
+    window_tau: float = 3.0
+    window_weights: tuple[float, ...] = ()
+
+
+@dataclass(slots=True)
+class LiveDereverbConfig:
+    """Configuration for low-latency realtime dereverberation."""
+
+    mode: DereverbMode = "wiener"
+    strength: float = 0.65
+    floor: float = 0.08
+    window_ms: float = 16.0
+    hop_ms: float = 8.0
+    tail_ms: float = 120.0
+    pre_emphasis: float = 0.0
+    mix: float = 1.0
+    max_atten_db: float = 18.0
+    stereo_link: bool = True
+    input_gain_db: float = 0.0
+    output_gain_db: float = 0.0
+    analysis_window: str = "hann"
+    synthesis_window: str | None = None
+    window_symmetric: bool = False
+    window_alpha: float = 0.5
+    window_beta: float = 14.0
+    window_std: float = 2.5
+    window_power: float = 1.5
+    window_atten_db: float = 100.0
+    window_nbar: int = 4
+    window_nw: float = 2.5
+    window_tau: float = 3.0
+    window_weights: tuple[float, ...] = ()
+
+
+@dataclass(slots=True)
+class LiveDereverbProcessor:
+    """Stateful low-latency streaming dereverb processor."""
+
+    config: LiveDereverbConfig
+    sample_rate: int
+    input_channels: int
+    output_channels: int
+    n_fft: int
+    hop_samples: int
+    latency_samples: int
+    analysis_window: npt.NDArray[np.float64]
+    synthesis_window: npt.NDArray[np.float64]
+    window_energy: npt.NDArray[np.float64]
+    analysis_frames: npt.NDArray[np.float64]
+    overlap_add: npt.NDArray[np.float64]
+    overlap_norm: npt.NDArray[np.float64]
+    late_magnitude: npt.NDArray[np.float64]
+    dry_delay: npt.NDArray[np.float64]
+    pre_emphasis_state: npt.NDArray[np.float64]
+    de_emphasis_state: npt.NDArray[np.float64]
+    input_gain_linear: float
+    output_gain_linear: float
+    min_gain: float
+    late_alpha: float
+    frame_cursor: int = 0
+
+    def process_block(self, block: AudioArray) -> AudioArray:
+        """Process one realtime block with fixed-hop streaming STFT."""
+        x = ensure_mono_or_stereo(block)
+        samples = int(x.shape[0])
+        if samples <= 0:
+            return np.zeros((0, self.output_channels), dtype=np.float64)
+        if int(x.shape[1]) != int(self.input_channels):
+            msg = (
+                "Live dereverb received a block with unexpected channel count: "
+                f"{x.shape[1]} != {self.input_channels}"
+            )
+            raise ValueError(msg)
+        if (samples % int(self.hop_samples)) != 0:
+            msg = (
+                "Live dereverb requires the realtime block size to be divisible by the "
+                f"resolved hop size ({self.hop_samples} samples)."
+            )
+            raise ValueError(msg)
+
+        dry_input = np.asarray(x * self.input_gain_linear, dtype=np.float64)
+        processed_input = np.asarray(dry_input, dtype=np.float64)
+        if float(self.config.pre_emphasis) > 0.0:
+            processed_input = self._apply_pre_emphasis_live(processed_input)
+
+        output = np.zeros((samples, self.output_channels), dtype=np.float64)
+        hop = int(self.hop_samples)
+        mix = float(np.clip(self.config.mix, 0.0, 1.0))
+        stereo_link = bool(self.config.stereo_link and self.input_channels == 2)
+
+        for start in range(0, samples, hop):
+            end = start + hop
+            hop_dry = np.asarray(dry_input[start:end, :].T, dtype=np.float64)
+            hop_in = np.asarray(processed_input[start:end, :].T, dtype=np.float64)
+
+            self.analysis_frames[:, :-hop] = self.analysis_frames[:, hop:]
+            self.analysis_frames[:, -hop:] = hop_in
+
+            spectra = np.fft.rfft(
+                self.analysis_frames * self.analysis_window[None, :],
+                axis=1,
+            )
+            magnitude = np.abs(spectra)
+            self.late_magnitude = (
+                self.late_alpha * self.late_magnitude
+            ) + ((1.0 - self.late_alpha) * magnitude)
+
+            if stereo_link:
+                linked_mag = np.mean(magnitude, axis=0, keepdims=True)
+                linked_late = np.mean(self.late_magnitude, axis=0, keepdims=True)
+                gain = _compute_realtime_gain(
+                    linked_mag,
+                    linked_late,
+                    mode=self.config.mode,
+                    strength=float(self.config.strength),
+                    min_gain=float(self.min_gain),
+                )
+                gain = np.repeat(gain, self.input_channels, axis=0)
+            else:
+                gain = _compute_realtime_gain(
+                    magnitude,
+                    self.late_magnitude,
+                    mode=self.config.mode,
+                    strength=float(self.config.strength),
+                    min_gain=float(self.min_gain),
+                )
+
+            restored = np.fft.irfft(spectra * gain, n=self.n_fft, axis=1)
+            restored *= self.synthesis_window[None, :]
+            self.overlap_add += restored
+            self.overlap_norm += self.window_energy[None, :]
+
+            restored_hop = self.overlap_add[:, :hop] / np.maximum(
+                self.overlap_norm[:, :hop],
+                1e-8,
+            )
+            self.overlap_add[:, :-hop] = self.overlap_add[:, hop:]
+            self.overlap_add[:, -hop:] = 0.0
+            self.overlap_norm[:, :-hop] = self.overlap_norm[:, hop:]
+            self.overlap_norm[:, -hop:] = 0.0
+
+            if float(self.config.pre_emphasis) > 0.0:
+                restored_hop = self._apply_de_emphasis_live(restored_hop)
+
+            delayed_dry = self._delay_dry_hop(hop_dry)
+            mixed_hop = (mix * restored_hop) + ((1.0 - mix) * delayed_dry)
+            output[start:end, :] = np.asarray(
+                mixed_hop.T * self.output_gain_linear,
+                dtype=np.float64,
+            )
+
+        self.frame_cursor += samples
+        return np.asarray(
+            np.nan_to_num(output, nan=0.0, posinf=0.0, neginf=0.0),
+            dtype=np.float64,
+        )
+
+    def _delay_dry_hop(self, hop_dry: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+        """Return a latency-aligned dry hop for mix control."""
+        hop = int(hop_dry.shape[1])
+        if self.latency_samples <= 0:
+            return np.asarray(hop_dry, dtype=np.float64)
+        queued = np.concatenate((self.dry_delay, hop_dry), axis=1)
+        delayed = np.asarray(queued[:, :hop], dtype=np.float64)
+        self.dry_delay = np.asarray(queued[:, hop:], dtype=np.float64)
+        return delayed
+
+    def _apply_pre_emphasis_live(self, block: AudioArray) -> AudioArray:
+        """Apply causal pre-emphasis to one multichannel block."""
+        coef = float(np.clip(self.config.pre_emphasis, 0.0, 0.98))
+        if coef <= 0.0:
+            return np.asarray(block, dtype=np.float64)
+        x_t = np.asarray(block.T, dtype=np.float64)
+        out = np.empty_like(x_t, dtype=np.float64)
+        out[:, 0] = x_t[:, 0] - (coef * self.pre_emphasis_state)
+        if x_t.shape[1] > 1:
+            out[:, 1:] = x_t[:, 1:] - (coef * x_t[:, :-1])
+        self.pre_emphasis_state = np.asarray(x_t[:, -1], dtype=np.float64)
+        return np.asarray(out.T, dtype=np.float64)
+
+    def _apply_de_emphasis_live(
+        self,
+        block_t: npt.NDArray[np.float64],
+    ) -> npt.NDArray[np.float64]:
+        """Apply causal de-emphasis to one channel-first hop block."""
+        coef = float(np.clip(self.config.pre_emphasis, 0.0, 0.98))
+        if coef <= 0.0:
+            return np.asarray(block_t, dtype=np.float64)
+        out = np.empty_like(block_t, dtype=np.float64)
+        for ch in range(block_t.shape[0]):
+            prev = float(self.de_emphasis_state[ch])
+            for idx in range(block_t.shape[1]):
+                sample = float(block_t[ch, idx]) + (coef * prev)
+                out[ch, idx] = sample
+                prev = sample
+            self.de_emphasis_state[ch] = prev
+        return out
 
 
 def apply_dereverb(audio: AudioArray, sr: int, config: DereverbConfig) -> AudioArray:
@@ -52,6 +300,7 @@ def apply_dereverb(audio: AudioArray, sr: int, config: DereverbConfig) -> AudioA
     if mode not in {"wiener", "spectral_sub"}:
         msg = f"Unsupported dereverb mode: {config.mode}"
         raise ValueError(msg)
+    analysis_window, synthesis_window = _resolve_dereverb_windows(config, n_fft)
 
     out = np.zeros_like(x, dtype=np.float64)
     for ch in range(x.shape[1]):
@@ -62,7 +311,7 @@ def apply_dereverb(audio: AudioArray, sr: int, config: DereverbConfig) -> AudioA
         _, _, z = stft(
             chan,
             fs=float(sr),
-            window="hann",
+            window=cast(Any, analysis_window),
             nperseg=n_fft,
             noverlap=n_fft - hop,
             nfft=n_fft,
@@ -80,7 +329,7 @@ def apply_dereverb(audio: AudioArray, sr: int, config: DereverbConfig) -> AudioA
         _, restored = istft(
             z_hat,
             fs=float(sr),
-            window="hann",
+            window=cast(Any, synthesis_window),
             nperseg=n_fft,
             noverlap=n_fft - hop,
             nfft=n_fft,
@@ -98,6 +347,190 @@ def apply_dereverb(audio: AudioArray, sr: int, config: DereverbConfig) -> AudioA
     return np.asarray(np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
 
 
+def create_live_dereverb_processor(
+    *,
+    sample_rate: int,
+    input_channels: int,
+    config: LiveDereverbConfig,
+) -> LiveDereverbProcessor:
+    """Construct a streaming dereverb processor for realtime audio I/O."""
+    if int(input_channels) < 1 or int(input_channels) > 2:
+        msg = "Low-latency live dereverb currently supports mono or stereo input only."
+        raise ValueError(msg)
+    n_fft, hop = _resolve_stft_window_hop(
+        sr=int(sample_rate),
+        window_ms=float(config.window_ms),
+        hop_ms=float(config.hop_ms),
+    )
+    analysis_window, synthesis_window = _resolve_dereverb_windows(config, n_fft)
+    bins = (n_fft // 2) + 1
+    min_gain = max(
+        float(np.clip(config.floor, 1e-6, 1.0)),
+        float(10.0 ** (-max(0.0, float(config.max_atten_db)) / 20.0)),
+    )
+    hop_seconds = float(hop) / float(max(1, sample_rate))
+    tail_seconds = max(0.001, float(config.tail_ms) / 1000.0)
+    late_alpha = float(np.exp(-hop_seconds / max(hop_seconds, tail_seconds)))
+    latency_samples = max(0, int(n_fft - hop))
+    channels = int(input_channels)
+    return LiveDereverbProcessor(
+        config=config,
+        sample_rate=int(sample_rate),
+        input_channels=channels,
+        output_channels=channels,
+        n_fft=int(n_fft),
+        hop_samples=int(hop),
+        latency_samples=int(latency_samples),
+        analysis_window=analysis_window,
+        synthesis_window=synthesis_window,
+        window_energy=np.asarray(analysis_window * synthesis_window, dtype=np.float64),
+        analysis_frames=np.zeros((channels, n_fft), dtype=np.float64),
+        overlap_add=np.zeros((channels, n_fft), dtype=np.float64),
+        overlap_norm=np.zeros((channels, n_fft), dtype=np.float64),
+        late_magnitude=np.zeros((channels, bins), dtype=np.float64),
+        dry_delay=np.zeros((channels, latency_samples), dtype=np.float64),
+        pre_emphasis_state=np.zeros(channels, dtype=np.float64),
+        de_emphasis_state=np.zeros(channels, dtype=np.float64),
+        input_gain_linear=float(10.0 ** (float(config.input_gain_db) / 20.0)),
+        output_gain_linear=float(10.0 ** (float(config.output_gain_db) / 20.0)),
+        min_gain=float(min_gain),
+        late_alpha=float(late_alpha),
+    )
+
+
+def normalize_dereverb_window_name(name: str) -> str:
+    """Normalize a user-facing window name and validate support."""
+    normalized = str(name).strip().lower().replace("-", "_")
+    normalized = _DEREVERB_WINDOW_ALIASES.get(normalized, normalized)
+    if normalized not in DEREVERB_WINDOW_CHOICES:
+        options = ", ".join(sorted(DEREVERB_WINDOW_CHOICES))
+        raise ValueError(f"Unsupported dereverb window '{name}'. Supported: {options}.")
+    return normalized
+
+
+def parse_dereverb_window_weights(raw: str | None) -> tuple[float, ...]:
+    """Parse comma-separated window weights for ``general_cosine`` windows."""
+    if raw is None:
+        return ()
+    cleaned = raw.strip()
+    if cleaned == "":
+        return ()
+    values: list[float] = []
+    for token in cleaned.split(","):
+        part = token.strip()
+        if part == "":
+            continue
+        try:
+            values.append(float(part))
+        except ValueError as exc:
+            raise ValueError(
+                "--window-weights expects a comma-separated float list."
+            ) from exc
+    if len(values) == 0:
+        return ()
+    return tuple(values)
+
+
+def _resolve_dereverb_windows(
+    config: DereverbConfig | LiveDereverbConfig,
+    length: int,
+) -> tuple[AudioArray, AudioArray]:
+    """Build analysis/synthesis windows for one dereverb configuration."""
+    analysis_name = normalize_dereverb_window_name(str(config.analysis_window))
+    synthesis_raw = config.synthesis_window
+    synthesis_name = (
+        analysis_name
+        if synthesis_raw is None or str(synthesis_raw).strip() == ""
+        else normalize_dereverb_window_name(str(synthesis_raw))
+    )
+    analysis_window = _build_dereverb_window(length=length, name=analysis_name, config=config)
+    synthesis_window = _build_dereverb_window(length=length, name=synthesis_name, config=config)
+    return analysis_window, synthesis_window
+
+
+def _build_dereverb_window(
+    *,
+    length: int,
+    name: str,
+    config: DereverbConfig | LiveDereverbConfig,
+) -> AudioArray:
+    """Construct one dereverb window from the shared option set."""
+    sym = bool(config.window_symmetric)
+    alpha = float(config.window_alpha)
+    beta = float(config.window_beta)
+    std = float(config.window_std)
+    power = float(config.window_power)
+    atten_db = float(config.window_atten_db)
+    nbar = int(config.window_nbar)
+    nw = float(config.window_nw)
+    tau = float(config.window_tau)
+    weights = tuple(float(v) for v in config.window_weights)
+
+    if name == "barthann":
+        values = signal_windows.barthann(length, sym=sym)
+    elif name == "bartlett":
+        values = signal_windows.bartlett(length, sym=sym)
+    elif name == "blackman":
+        values = signal_windows.blackman(length, sym=sym)
+    elif name == "blackmanharris":
+        values = signal_windows.blackmanharris(length, sym=sym)
+    elif name == "bohman":
+        values = signal_windows.bohman(length, sym=sym)
+    elif name == "boxcar":
+        values = signal_windows.boxcar(length, sym=sym)
+    elif name == "chebwin":
+        values = signal_windows.chebwin(length, at=max(1e-3, atten_db), sym=sym)
+    elif name == "cosine":
+        values = signal_windows.cosine(length, sym=sym)
+    elif name == "dpss":
+        values = signal_windows.dpss(length, NW=max(1e-3, nw), sym=sym)
+    elif name == "exponential":
+        values = signal_windows.exponential(length, tau=max(1e-6, tau), sym=sym)
+    elif name == "flattop":
+        values = signal_windows.flattop(length, sym=sym)
+    elif name == "gaussian":
+        values = signal_windows.gaussian(length, std=max(1e-6, std), sym=sym)
+    elif name == "general_cosine":
+        resolved_weights = weights if len(weights) > 0 else (0.5, 0.5)
+        values = signal_windows.general_cosine(length, resolved_weights, sym=sym)
+    elif name == "general_gaussian":
+        values = signal_windows.general_gaussian(
+            length,
+            p=max(1e-6, power),
+            sig=max(1e-6, std),
+            sym=sym,
+        )
+    elif name == "hamming":
+        values = signal_windows.hamming(length, sym=sym)
+    elif name == "hann":
+        values = signal_windows.hann(length, sym=sym)
+    elif name == "kaiser":
+        values = signal_windows.kaiser(length, beta=max(0.0, beta), sym=sym)
+    elif name == "kaiser_bessel_derived":
+        values = signal_windows.kaiser_bessel_derived(length, beta=max(0.0, beta), sym=sym)
+    elif name == "lanczos":
+        values = signal_windows.lanczos(length, sym=sym)
+    elif name == "nuttall":
+        values = signal_windows.nuttall(length, sym=sym)
+    elif name == "parzen":
+        values = signal_windows.parzen(length, sym=sym)
+    elif name == "taylor":
+        values = signal_windows.taylor(
+            length,
+            nbar=max(2, nbar),
+            sll=max(1, round(atten_db)),
+            norm=True,
+            sym=sym,
+        )
+    elif name == "triang":
+        values = signal_windows.triang(length, sym=sym)
+    elif name == "tukey":
+        values = signal_windows.tukey(length, alpha=max(0.0, alpha), sym=sym)
+    else:
+        raise ValueError(f"Unsupported dereverb window '{name}'.")
+    return np.asarray(values, dtype=np.float64)
+
+
 def _resolve_stft_window_hop(*, sr: int, window_ms: float, hop_ms: float) -> tuple[int, int]:
     """Map millisecond window/hop settings to stable FFT-friendly samples."""
     win = max(32, round(max(2.0, window_ms) * float(sr) / 1000.0))
@@ -108,6 +541,30 @@ def _resolve_stft_window_hop(*, sr: int, window_ms: float, hop_ms: float) -> tup
     if n_fft < win:
         n_fft <<= 1
     return int(n_fft), int(hop)
+
+
+def _compute_realtime_gain(
+    magnitude: AudioArray,
+    late_magnitude: AudioArray,
+    *,
+    mode: DereverbMode,
+    strength: float,
+    min_gain: float,
+) -> AudioArray:
+    """Return a stable spectral gain for live dereverb processing."""
+    gain_floor = float(np.clip(min_gain, 1e-6, 1.0))
+    if mode == "spectral_sub":
+        residual = magnitude - (float(strength) * late_magnitude)
+        raw_gain = residual / np.maximum(magnitude, 1e-12)
+        return np.asarray(np.clip(raw_gain, gain_floor, 1.0), dtype=np.float64)
+    if mode != "wiener":
+        msg = f"Unsupported dereverb mode: {mode}"
+        raise ValueError(msg)
+    mag2 = np.square(magnitude)
+    late2 = np.square(late_magnitude)
+    early2 = np.maximum(mag2 - (float(strength) * late2), 0.0)
+    gain = early2 / (early2 + late2 + 1e-12)
+    return np.asarray(np.clip(gain, gain_floor, 1.0), dtype=np.float64)
 
 
 def _estimate_late_tail(
@@ -224,7 +681,10 @@ def _bark_weighted_snr_db(
     sig_power /= frames
     err_power /= frames
 
-    freqs = np.fft.rfftfreq(n_fft, d=1.0 / float(sample_rate))
+    freqs = np.asarray(
+        np.fft.rfftfreq(n_fft, d=1.0 / float(sample_rate)),
+        dtype=np.float64,
+    )
     bark_bins = _hz_to_bark(freqs)
 
     band_snrs: list[float] = []
@@ -254,7 +714,7 @@ def _stoi_approx(
     clean and processed signals across perceptual 1/3-octave frequency bands.
     Returns a value in ``[0, 1]`` where 1 = perfect intelligibility match.
     """
-    from scipy.signal import butter, sosfilt  # noqa: PLC0415
+    from scipy.signal import butter, sosfilt
 
     x = clean.ravel().astype(np.float64)
     y = processed.ravel().astype(np.float64)
@@ -289,11 +749,22 @@ def _stoi_approx(
         n_frames = n // frame_len
         if n_frames < 2:
             continue
+        x_frame_rms = []
+        y_frame_rms = []
+        for i in range(n_frames):
+            start = i * frame_len
+            end = (i + 1) * frame_len
+            x_slice = np.asarray(x_b[start:end], dtype=np.float64)
+            y_slice = np.asarray(y_b[start:end], dtype=np.float64)
+            x_frame_rms.append(float(np.sqrt(np.mean(np.square(x_slice)))))
+            y_frame_rms.append(float(np.sqrt(np.mean(np.square(y_slice)))))
         x_env = np.array(
-            [float(np.sqrt(np.mean(x_b[i * frame_len : (i + 1) * frame_len] ** 2))) for i in range(n_frames)]
+            x_frame_rms,
+            dtype=np.float64,
         )
         y_env = np.array(
-            [float(np.sqrt(np.mean(y_b[i * frame_len : (i + 1) * frame_len] ** 2))) for i in range(n_frames)]
+            y_frame_rms,
+            dtype=np.float64,
         )
         x_std = float(np.std(x_env))
         y_std = float(np.std(y_env))
@@ -321,7 +792,7 @@ def _mcd_db(
     envelope preservation (correlates with lower ASR word-error rate).
     Returns distortion in dB; 0 dB = identical spectral envelopes.
     """
-    import librosa  # noqa: PLC0415
+    import librosa
 
     hop_length = max(64, int(0.010 * float(sample_rate)))
     n_fft = max(256, 1 << int(np.ceil(np.log2(max(256, int(0.025 * float(sample_rate)))))))
@@ -399,9 +870,9 @@ def run_dereverb_benchmark(
     # Clean signal: band-limited noise burst (voice-like spectral shape)
     clean = rng.standard_normal(n).astype(np.float64)
     # Simple spectral shaping: emphasise 200-4000 Hz
-    from scipy.signal import butter, sosfilt  # noqa: PLC0415
+    from scipy.signal import butter, sosfilt
     sos = butter(4, [200.0 / (sr / 2), 4000.0 / (sr / 2)], btype="bandpass", output="sos")
-    clean = sosfilt(sos, clean)
+    clean = np.asarray(sosfilt(sos, clean), dtype=np.float64)
     peak = float(np.max(np.abs(clean)) + 1e-12)
     clean = (clean * (0.5 / peak)).astype(np.float64)
     clean_2d = clean[:, np.newaxis]  # (samples, 1)
@@ -414,7 +885,7 @@ def run_dereverb_benchmark(
     ir = ir / (np.max(np.abs(ir)) + 1e-12) * 0.3
 
     # Convolve to create reverberant mix
-    from scipy.signal import fftconvolve  # noqa: PLC0415
+    from scipy.signal import fftconvolve
     reverberant_full = fftconvolve(clean, ir)
     reverberant = reverberant_full[:n].astype(np.float64)[:, np.newaxis]
 

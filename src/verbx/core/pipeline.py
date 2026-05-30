@@ -75,6 +75,7 @@ from verbx.ir.morph import (
 
 AudioArray = npt.NDArray[np.float64]
 PassProcessor = Callable[[AudioArray, int, int], AudioArray]
+_MAX_UNBOUNDED_ALGO_TAIL_SECONDS = 300.0
 
 
 @dataclass(slots=True)
@@ -149,6 +150,7 @@ def run_render_pipeline(infile: Path, outfile: Path, config: RenderConfig) -> Re
             engine_device=engine_device,
             platform_device=platform_device,
         )
+        _validate_runtime_tail_bounds(context)
         streaming_report = _run_streaming_pipeline_if_eligible(context)
         if streaming_report is not None:
             return streaming_report
@@ -182,7 +184,10 @@ def _run_algo_proxy_streaming_pipeline(context: _PipelineContext) -> RenderRepor
         estimated_bytes=None,
     )
     conv_device = "cuda" if runtime_config.algo_gpu_proxy else "cpu"
-    proxy_tail_padding_seconds = _algo_tail_padding_seconds(runtime_config, context.processing_sr)
+    proxy_tail_padding_seconds = _resolved_algo_tail_padding_seconds(
+        runtime_config,
+        context.processing_sr,
+    )
     proxy_hold_frames = _tail_zero_hold_samples(
         context.processing_sr,
         runtime_config.tail_stop_hold_ms,
@@ -255,6 +260,9 @@ def _run_algo_proxy_streaming_pipeline(context: _PipelineContext) -> RenderRepor
             tilt_db=float(runtime_config.tilt),
             lowcut=runtime_config.lowcut,
             highcut=runtime_config.highcut,
+            lowcut_order=int(runtime_config.lowcut_order),
+            highcut_order=int(runtime_config.highcut_order),
+            pivot_hz=float(runtime_config.tilt_pivot_hz),
         )
         write_audio(str(context.outfile), eq_out, context.processing_sr, subtype=output_subtype)
         output_samples = _complete_stream_file_tail_to_zero(
@@ -453,7 +461,7 @@ def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
 
     tail_padding_seconds = 0.0
     if context.engine_name == "algo":
-        tail_padding_seconds = _algo_tail_padding_seconds(runtime_config, sr)
+        tail_padding_seconds = _resolved_algo_tail_padding_seconds(runtime_config, sr)
         input_for_engine = _append_tail_padding(
             audio=input_for_engine,
             sr=sr,
@@ -528,10 +536,16 @@ def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
         duck=runtime_config.duck,
         duck_attack=runtime_config.duck_attack,
         duck_release=runtime_config.duck_release,
+        duck_strength=runtime_config.duck_strength,
+        duck_floor=runtime_config.duck_floor,
         bloom=runtime_config.bloom,
+        bloom_mix=runtime_config.bloom_mix,
         lowcut=runtime_config.lowcut,
+        lowcut_order=int(runtime_config.lowcut_order),
         highcut=runtime_config.highcut,
+        highcut_order=int(runtime_config.highcut_order),
         tilt=runtime_config.tilt,
+        tilt_pivot_hz=float(runtime_config.tilt_pivot_hz),
     )
 
     modulation_summaries: list[dict[str, Any]] = []
@@ -633,10 +647,53 @@ def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
             target_peak_dbfs=runtime_config.target_peak_dbfs,
             limiter=runtime_config.limiter,
             use_true_peak=runtime_config.use_true_peak,
+            limiter_mode=runtime_config.limiter_mode,
+            limiter_detect=runtime_config.limiter_detect,
+            limiter_threshold_dbfs=runtime_config.limiter_threshold_dbfs,
+            limiter_ceiling_dbfs=runtime_config.limiter_ceiling_dbfs,
+            limiter_knee_db=runtime_config.limiter_knee_db,
+            limiter_drive=runtime_config.limiter_drive,
+            limiter_mix=runtime_config.limiter_mix,
+            limiter_attack_ms=runtime_config.limiter_attack_ms,
+            limiter_release_ms=runtime_config.limiter_release_ms,
+            limiter_lookahead_ms=runtime_config.limiter_lookahead_ms,
+            limiter_stereo_link=runtime_config.limiter_stereo_link,
+            limiter_oversample=runtime_config.limiter_oversample,
+            limiter_pre_gain_db=runtime_config.limiter_pre_gain_db,
+            limiter_post_gain_db=runtime_config.limiter_post_gain_db,
+            limiter_dc_block=runtime_config.limiter_dc_block,
         )
     elif runtime_config.normalize_stage == "none" and runtime_config.limiter:
-        rendered = soft_limiter(rendered, threshold_dbfs=-1.0, knee_db=6.0)
-        rendered = peak_normalize(rendered, target_dbfs=-1.0)
+        limiter_ceiling_dbfs = (
+            -1.0
+            if runtime_config.limiter_ceiling_dbfs is None
+            else float(runtime_config.limiter_ceiling_dbfs)
+        )
+        limiter_threshold_dbfs = (
+            limiter_ceiling_dbfs
+            if runtime_config.limiter_threshold_dbfs is None
+            else float(runtime_config.limiter_threshold_dbfs)
+        )
+        rendered = soft_limiter(
+            rendered,
+            sr=sr,
+            threshold_dbfs=limiter_threshold_dbfs,
+            ceiling_dbfs=limiter_ceiling_dbfs,
+            knee_db=runtime_config.limiter_knee_db,
+            mode=runtime_config.limiter_mode,
+            detect=runtime_config.limiter_detect,
+            drive=runtime_config.limiter_drive,
+            mix=runtime_config.limiter_mix,
+            attack_ms=runtime_config.limiter_attack_ms,
+            release_ms=runtime_config.limiter_release_ms,
+            lookahead_ms=runtime_config.limiter_lookahead_ms,
+            stereo_link=runtime_config.limiter_stereo_link,
+            oversample=runtime_config.limiter_oversample,
+            pre_gain_db=runtime_config.limiter_pre_gain_db,
+            post_gain_db=runtime_config.limiter_post_gain_db,
+            dc_block=runtime_config.limiter_dc_block,
+        )
+        rendered = peak_normalize(rendered, target_dbfs=limiter_ceiling_dbfs)
 
     rendered = _apply_final_peak_normalization(
         rendered,
@@ -1483,6 +1540,12 @@ def _resolve_engine(
                 allpass_gains=config.allpass_gains,
                 allpass_delays_ms=config.allpass_delays_ms,
                 comb_delays_ms=config.comb_delays_ms,
+                comb_cloud=config.comb_cloud,
+                comb_cloud_count=config.comb_cloud_count,
+                comb_cloud_feedback=config.comb_cloud_feedback,
+                comb_cloud_mix=config.comb_cloud_mix,
+                comb_cloud_delays_ms=config.comb_cloud_delays_ms,
+                comb_cloud_seed=config.comb_cloud_seed,
                 fdn_lines=config.fdn_lines,
                 fdn_matrix=config.fdn_matrix,
                 fdn_tv_rate_hz=config.fdn_tv_rate_hz,
@@ -1575,6 +1638,21 @@ def _build_per_pass_processor(config: RenderConfig, sr: int) -> PassProcessor:
                 target_peak_dbfs=target_peak,
                 limiter=config.limiter,
                 use_true_peak=config.use_true_peak,
+                limiter_mode=config.limiter_mode,
+                limiter_detect=config.limiter_detect,
+                limiter_threshold_dbfs=config.limiter_threshold_dbfs,
+                limiter_ceiling_dbfs=config.limiter_ceiling_dbfs,
+                limiter_knee_db=config.limiter_knee_db,
+                limiter_drive=config.limiter_drive,
+                limiter_mix=config.limiter_mix,
+                limiter_attack_ms=config.limiter_attack_ms,
+                limiter_release_ms=config.limiter_release_ms,
+                limiter_lookahead_ms=config.limiter_lookahead_ms,
+                limiter_stereo_link=config.limiter_stereo_link,
+                limiter_oversample=config.limiter_oversample,
+                limiter_pre_gain_db=config.limiter_pre_gain_db,
+                limiter_post_gain_db=config.limiter_post_gain_db,
+                limiter_dc_block=config.limiter_dc_block,
             )
 
         return processor
@@ -1625,6 +1703,37 @@ def _algo_tail_padding_seconds(config: RenderConfig, sr: int) -> float:
     blocks_to_silence = int(np.ceil(np.log(1e-6) / np.log(feedback)))
     shimmer_tail = blocks_to_silence * block_seconds
     return base_tail + shimmer_tail
+
+
+def _resolved_algo_tail_padding_seconds(config: RenderConfig, sr: int) -> float:
+    """Return algorithmic tail padding after applying any explicit tail limit."""
+    tail_padding_seconds = _algo_tail_padding_seconds(config, sr)
+    if config.tail_limit is None:
+        return tail_padding_seconds
+    return min(tail_padding_seconds, max(0.0, float(config.tail_limit)))
+
+
+def _validate_runtime_tail_bounds(context: _PipelineContext) -> None:
+    """Reject accidental unbounded algorithmic renders that look like hangs."""
+    if context.engine_name != "algo":
+        return
+    unbounded_tail_seconds = _algo_tail_padding_seconds(
+        context.runtime_config,
+        context.processing_sr,
+    )
+    if (
+        context.runtime_config.tail_limit is None
+        and unbounded_tail_seconds > _MAX_UNBOUNDED_ALGO_TAIL_SECONDS
+    ):
+        msg = (
+            "This algorithmic render would append about "
+            f"{unbounded_tail_seconds:.1f}s of tail padding "
+            f"(rt60={context.runtime_config.rt60:.1f}s), "
+            "which is likely unintended and can appear hung. "
+            "Use --tail-limit SECONDS to bound the offline render, or use --dry-run first "
+            "to inspect the plan."
+        )
+        raise ValueError(msg)
 
 
 def _append_tail_padding(audio: AudioArray, sr: int, tail_seconds: float) -> AudioArray:

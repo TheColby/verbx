@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import os
 import platform
 import sys
 import tempfile
-from contextlib import contextmanager
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
@@ -17,17 +15,11 @@ import numpy as np
 import soundfile as sf
 import typer
 from rich.console import Console
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    SpinnerColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
 from rich.table import Table
 
 from verbx import __version__
+from verbx.commands.common import processing_status as _processing_status
+from verbx.commands.common import write_json_atomic
 from verbx.config import RenderConfig
 from verbx.core.accel import (
     cuda_available,
@@ -38,34 +30,6 @@ from verbx.core.accel import (
 from verbx.core.pipeline import run_render_pipeline
 
 console = Console()
-progress_console = Console(force_terminal=True, color_system="truecolor")
-
-
-@contextmanager
-def _processing_status(description: str, *, enabled: bool = True) -> Any:
-    """Render a compact single-task status indicator."""
-    progress = Progress(
-        SpinnerColumn(style="bold cyan"),
-        TextColumn("[bold cyan]{task.description}"),
-        BarColumn(
-            bar_width=24,
-            complete_style="bright_green",
-            finished_style="green",
-            pulse_style="bright_blue",
-        ),
-        MofNCompleteColumn(),
-        TimeElapsedColumn(),
-        console=progress_console,
-        transient=True,
-        disable=not enabled,
-    )
-    progress.start()
-    task = progress.add_task(str(description), total=1)
-    try:
-        yield progress
-        progress.update(task, completed=1)
-    finally:
-        progress.stop()
 
 
 def version() -> None:
@@ -468,11 +432,3 @@ def print_runtime_checks_table(report: dict[str, Any], *, title: str) -> None:
             str(item.get("value", "")),
         )
     console.print(table)
-
-
-def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
-    """Atomically write a JSON payload to disk."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(f"{path.suffix}.tmp")
-    tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    tmp.replace(path)

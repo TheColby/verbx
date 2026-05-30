@@ -1,0 +1,75 @@
+\usepackage{xurl}
+\usepackage{colortbl}
+\usepackage{ragged2e}
+\usepackage{newunicodechar}
+\newunicodechar{→}{\ensuremath{\rightarrow}}
+\setlength{\emergencystretch}{3em}
+\sloppy
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\definecolor{verbxTableOdd}{gray}{0.985}
+\definecolor{verbxTableEven}{gray}{0.955}
+\AtBeginEnvironment{longtable}{\footnotesize}
+\AtBeginEnvironment{longtable}{\rowcolors{2}{verbxTableOdd}{verbxTableEven}}
+
+% The guide is long enough for three-digit page numbers, and several section
+% titles include CLI flags. Give the TOC a wider page-number gutter so wrapped
+% entries do not collide with the page number column.
+\usepackage{tocloft}
+\setlength{\cftsecnumwidth}{3.4em}
+\setlength{\cftsubsecnumwidth}{4.2em}
+\setlength{\cftsubsubsecnumwidth}{5.2em}
+\setlength{\cftsecindent}{0em}
+\setlength{\cftsubsecindent}{1.4em}
+\setlength{\cftsubsubsecindent}{3.2em}
+\setlength{\cftbeforesecskip}{0.16em}
+\renewcommand{\cftdotsep}{1.4}
+\renewcommand{\cftsecfont}{\small}
+\renewcommand{\cftsecpagefont}{\small}
+\renewcommand{\cftsubsecfont}{\small}
+\renewcommand{\cftsubsecpagefont}{\small}
+\renewcommand{\cftsubsubsecfont}{\footnotesize}
+\renewcommand{\cftsubsubsecpagefont}{\footnotesize}
+\makeatletter
+\renewcommand{\@pnumwidth}{3.5em}
+\renewcommand{\@tocrmarg}{4.5em}
+\makeatother
+
+% Wrap long command examples and other verbatim blocks instead of letting them
+% run off the page in the generated PDF.
+\IfFileExists{fvextra.sty}{
+  \usepackage{fvextra}
+  \RecustomVerbatimEnvironment{verbatim}{Verbatim}{
+    breaklines,
+    breakanywhere,
+    commandchars=\\\{\}
+  }
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+    breaklines,
+    breakanywhere,
+    commandchars=\\\{\}
+  }
+}{
+  \usepackage{fancyvrb}
+  \RecustomVerbatimEnvironment{verbatim}{Verbatim}{
+    commandchars=\\\{\}
+  }
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+    commandchars=\\\{\}
+  }
+}
+
+\AtBeginDocument{
+  \IfFileExists{fvextra.sty}{
+    \RecustomVerbatimEnvironment{verbatim}{Verbatim}{
+      breaklines,
+      breakanywhere,
+      commandchars=\\\{\}
+    }
+    \DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+      breaklines,
+      breakanywhere,
+      commandchars=\\\{\}
+    }
+  }{}
+}

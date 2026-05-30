@@ -73,6 +73,9 @@ def render_algo_proxy_ir(
             tilt_db=float(config.tilt),
             lowcut=config.lowcut,
             highcut=config.highcut,
+            lowcut_order=int(config.lowcut_order),
+            highcut_order=int(config.highcut_order),
+            pivot_hz=float(config.tilt_pivot_hz),
         )
 
     fd, raw_path = tempfile.mkstemp(prefix="verbx_algo_proxy_ir_", suffix=".wav")
@@ -98,7 +101,10 @@ def _algo_tail_padding_seconds(config: RenderConfig, sr: int) -> float:
     block_seconds = max(1, int(config.block_size)) / max(1.0, float(sr))
     blocks_to_silence = int(np.ceil(np.log(1e-6) / np.log(feedback)))
     shimmer_tail = blocks_to_silence * block_seconds
-    return base_tail + shimmer_tail
+    tail_padding_seconds = base_tail + shimmer_tail
+    if config.tail_limit is None:
+        return tail_padding_seconds
+    return min(tail_padding_seconds, max(0.0, float(config.tail_limit)))
 
 
 def _build_algo_engine(config: RenderConfig) -> AlgoReverbEngine:
@@ -116,6 +122,12 @@ def _build_algo_engine(config: RenderConfig) -> AlgoReverbEngine:
             allpass_gains=config.allpass_gains,
             allpass_delays_ms=config.allpass_delays_ms,
             comb_delays_ms=config.comb_delays_ms,
+            comb_cloud=config.comb_cloud,
+            comb_cloud_count=config.comb_cloud_count,
+            comb_cloud_feedback=config.comb_cloud_feedback,
+            comb_cloud_mix=config.comb_cloud_mix,
+            comb_cloud_delays_ms=config.comb_cloud_delays_ms,
+            comb_cloud_seed=config.comb_cloud_seed,
             fdn_lines=config.fdn_lines,
             fdn_matrix=config.fdn_matrix,
             fdn_tv_rate_hz=config.fdn_tv_rate_hz,

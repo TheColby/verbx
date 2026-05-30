@@ -21,12 +21,12 @@ Do not edit manually.
 │ version     Print CLI/package version.                                       │
 │ quickstart  Print minimal copy/paste commands for first successful renders.  │
 │ doctor      Print runtime diagnostics for launch-day troubleshooting.        │
-│ render      Render input audio with algorithmic or convolution reverb.       │
 │ analyze     Analyze an audio file and print a summary table.                 │
 │ compare     Side-by-side comparison of two audio files.                      │
-│ dereverb    Suppress late reverberation from an existing audio recording.    │
-│ suggest     Suggest practical render defaults from input analysis.           │
 │ presets     Print available presets or one preset payload.                   │
+│ suggest     Suggest practical render defaults from input analysis.           │
+│ render                                                                       │
+│ dereverb                                                                     │
 │ ir          Impulse response workflows.                                      │
 │ cache       IR cache inspection and cleanup.                                 │
 │ batch       Batch manifest generation and rendering.                         │
@@ -39,8 +39,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root render [OPTIONS] INFILE OUTFILE                                    
-                                                                                
- Render input audio with algorithmic or convolution reverb.                     
                                                                                 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    infile       PATH  [required]                                           │
@@ -161,6 +159,44 @@ Do not edit manually.
 │                                                            milliseconds.     │
 │                                                            Example:          │
 │                                                            31,37,41,43,47,5… │
+│ --comb-cloud         --no-comb-cloud                       Enable an         │
+│                                                            optional pre-FDN  │
+│                                                            cloud of          │
+│                                                            decorrelated      │
+│                                                            feedback comb     │
+│                                                            filters.          │
+│                                                            [default:         │
+│                                                            no-comb-cloud]    │
+│ --comb-cloud-cou…                        INTEGER RANGE     Number of comb    │
+│                                          [1<=x<=128]       filters generated │
+│                                                            for the optional  │
+│                                                            comb cloud.       │
+│                                                            [default: 24]     │
+│ --comb-cloud-fee…                        FLOAT RANGE       Feedback amount   │
+│                                          [0.0<=x<=0.95]    used by the       │
+│                                                            optional comb     │
+│                                                            cloud (0..0.95).  │
+│                                                            [default: 0.35]   │
+│ --comb-cloud-mix                         FLOAT RANGE       Blend from        │
+│                                          [0.0<=x<=1.0]     diffusion output  │
+│                                                            into comb-cloud   │
+│                                                            color output      │
+│                                                            (0..1).           │
+│                                                            [default: 0.25]   │
+│ --comb-cloud-del…                        TEXT              Optional          │
+│                                                            comma-separated   │
+│                                                            delay list in     │
+│                                                            milliseconds for  │
+│                                                            the comb cloud.   │
+│                                                            Providing this    │
+│                                                            auto-enables the  │
+│                                                            mode.             │
+│ --comb-cloud-seed                        INTEGER           Deterministic     │
+│                                                            seed used when    │
+│                                                            generating the    │
+│                                                            optional comb     │
+│                                                            cloud.            │
+│                                                            [default: 2026]   │
 │ --fdn-lines                              INTEGER RANGE     FDN line count    │
 │                                          [1<=x<=64]        used when         │
 │                                                            --comb-delays-ms  │
@@ -634,6 +670,57 @@ Do not edit manually.
 │                                                            true-peak]        │
 │ --limiter            --no-limiter                          [default:         │
 │                                                            limiter]          │
+│ --limiter-mode                           [tanh|arctan|sof  Limiter transfer  │
+│                                          tsign|hard]       curve: tanh,      │
+│                                                            arctan, softsign, │
+│                                                            or hard.          │
+│                                                            [default: tanh]   │
+│ --limiter-detect                         [peak|rms]        Limiter detector  │
+│                                                            mode: peak or     │
+│                                                            rms.              │
+│                                                            [default: peak]   │
+│ --limiter-thresh…                        FLOAT             Limiter onset     │
+│                                                            threshold in      │
+│                                                            dBFS. Defaults to │
+│                                                            the active peak   │
+│                                                            target/ceiling.   │
+│ --limiter-ceilin…                        FLOAT             Limiter output    │
+│                                                            ceiling in dBFS.  │
+│                                                            Defaults to the   │
+│                                                            active peak       │
+│                                                            target or -1      │
+│                                                            dBFS.             │
+│ --limiter-knee-db                        FLOAT RANGE       [default: 6.0]    │
+│                                          [x>=0.0]                            │
+│ --limiter-drive                          FLOAT RANGE       [default: 1.0]    │
+│                                          [x>=1e-06]                          │
+│ --limiter-mix                            FLOAT RANGE       [default: 1.0]    │
+│                                          [0.0<=x<=1.0]                       │
+│ --limiter-attack…                        FLOAT RANGE       [default: 0.5]    │
+│                                          [x>=0.0]                            │
+│ --limiter-releas…                        FLOAT RANGE       [default: 80.0]   │
+│                                          [x>=0.0]                            │
+│ --limiter-lookah…                        FLOAT RANGE       [default: 1.5]    │
+│                                          [x>=0.0]                            │
+│ --limiter-stereo…    --no-limiter-st…                      Link channels in  │
+│                                                            the limiter       │
+│                                                            detector to       │
+│                                                            preserve stereo   │
+│                                                            image.            │
+│                                                            [default:         │
+│                                                            limiter-stereo-l… │
+│ --limiter-oversa…                        INTEGER RANGE     [default: 2]      │
+│                                          [1<=x<=16]                          │
+│ --limiter-pre-ga…                        FLOAT RANGE       [default: 0.0]    │
+│                                          [-48.0<=x<=48.0]                    │
+│ --limiter-post-g…                        FLOAT RANGE       [default: 0.0]    │
+│                                          [-48.0<=x<=48.0]                    │
+│ --limiter-dc-blo…    --no-limiter-dc…                      Apply a gentle DC │
+│                                                            blocker before    │
+│                                                            limiter           │
+│                                                            detection.        │
+│                                                            [default:         │
+│                                                            no-limiter-dc-bl… │
 │ --normalize-stage                        [none|post|per-p  [default: post]   │
 │                                          ass]                                │
 │ --repeat-target-…                        FLOAT                               │
@@ -741,13 +828,44 @@ Do not edit manually.
 │                                          [x>=0.1]                            │
 │ --duck-release                           FLOAT RANGE       [default: 350.0]  │
 │                                          [x>=0.1]                            │
+│ --duck-strength                          FLOAT RANGE       How strongly the  │
+│                                          [0.0<=x<=1.0]     wet field is      │
+│                                                            attenuated when   │
+│                                                            the sidechain     │
+│                                                            rises.            │
+│                                                            [default: 0.75]   │
+│ --duck-floor                             FLOAT RANGE       Minimum wet gain  │
+│                                          [0.0<=x<=1.0]     held during       │
+│                                                            ducking; useful   │
+│                                                            for softer        │
+│                                                            pumping.          │
+│                                                            [default: 0.0]    │
 │ --bloom                                  FLOAT RANGE       [default: 0.0]    │
 │                                          [x>=0.0]                            │
+│ --bloom-mix                              FLOAT RANGE       Override bloom    │
+│                                          [0.0<=x<=1.0]     blend amount.     │
+│                                                            Default           │
+│                                                            auto-scales from  │
+│                                                            --bloom.          │
 │ --lowcut                                 FLOAT RANGE                         │
 │                                          [x>=10.0]                           │
+│ --lowcut-order                           INTEGER RANGE     Butterworth order │
+│                                          [1<=x<=8]         used by the       │
+│                                                            post-wet          │
+│                                                            high-pass filter. │
+│                                                            [default: 2]      │
 │ --highcut                                FLOAT RANGE                         │
 │                                          [x>=10.0]                           │
+│ --highcut-order                          INTEGER RANGE     Butterworth order │
+│                                          [1<=x<=8]         used by the       │
+│                                                            post-wet low-pass │
+│                                                            filter.           │
+│                                                            [default: 2]      │
 │ --tilt                                   FLOAT             [default: 0.0]    │
+│ --tilt-pivot-hz                          FLOAT RANGE       Pivot frequency   │
+│                                          [x>=20.0]         used by the       │
+│                                                            post-wet tilt EQ. │
+│                                                            [default: 1000.0] │
 │ --automation-file                        PATH              JSON/CSV          │
 │                                                            automation lanes  │
 │                                                            used for          │
@@ -915,175 +1033,299 @@ Do not edit manually.
  Run realtime duplex monitoring with selectable input/output devices.           
                                                                                 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --engine                      [auto|conv|algo]        Realtime engine:       │
-│                                                       convolution IR, or     │
-│                                                       algorithmic proxy      │
-│                                                       rendered into a live   │
-│                                                       convolver.             │
-│                                                       [default: auto]        │
-│ --ir                          PATH                    Impulse response path  │
-│                                                       for realtime           │
-│                                                       convolution mode.      │
-│ --input-device                TEXT                    Input device index or  │
-│                                                       case-insensitive name  │
-│                                                       substring.             │
-│ --output-device               TEXT                    Output device index or │
-│                                                       case-insensitive name  │
-│                                                       substring.             │
-│ --list-devices                                        List available         │
-│                                                       realtime audio devices │
-│                                                       and exit.              │
-│ --sample-rate                 INTEGER RANGE           [default: 48000]       │
-│                               [x>=8000]                                      │
-│ --block-size                  INTEGER RANGE [x>=64]   [default: 512]         │
-│ --partition-size              INTEGER RANGE [x>=256]  [default: 2048]        │
-│ --input-channels              INTEGER RANGE [x>=1]    Requested live input   │
-│                                                       channel count.         │
-│                                                       Defaults to mono or    │
-│                                                       stereo depending on    │
-│                                                       device.                │
-│ --input-channel-map           TEXT                    Comma-separated        │
-│                                                       1-based hardware input │
-│                                                       channels to feed the   │
-│                                                       processor, for example │
-│                                                       1,3 or 1,3,5,7.        │
-│ --output-channels             INTEGER RANGE [x>=1]    Requested live output  │
-│                                                       channel count.         │
-│                                                       Defaults to the        │
-│                                                       processor's natural    │
-│                                                       output width.          │
-│ --output-channel-map          TEXT                    Comma-separated        │
-│                                                       1-based hardware       │
-│                                                       output channels that   │
-│                                                       receive processor      │
-│                                                       outputs, in order.     │
-│ --duration                    FLOAT RANGE [x>=0.0]    Optional duration in   │
-│                                                       seconds. Omit to run   │
-│                                                       until Ctrl-C.          │
-│ --wet                         FLOAT RANGE             [default: 0.8]         │
-│                               [0.0<=x<=1.0]                                  │
-│ --dry                         FLOAT RANGE             [default: 0.2]         │
-│                               [0.0<=x<=1.0]                                  │
-│ --rt60                        FLOAT RANGE [x>=0.1]    [default: 6.0]         │
-│ --pre-delay-ms                FLOAT RANGE [x>=0.0]    [default: 20.0]        │
-│ --damping                     FLOAT RANGE             [default: 0.45]        │
-│                               [0.0<=x<=1.0]                                  │
-│ --width                       FLOAT RANGE             [default: 1.0]         │
-│                               [0.0<=x<=2.0]                                  │
-│ --mod-depth-ms                FLOAT RANGE [x>=0.0]    [default: 2.0]         │
-│ --mod-rate-hz                 FLOAT RANGE [x>=0.0]    [default: 0.1]         │
-│ --fdn-lines                   INTEGER RANGE           [default: 8]           │
-│                               [1<=x<=64]                                     │
-│ --fdn-matrix                  TEXT                    Algorithmic proxy      │
-│                                                       matrix for realtime    │
-│                                                       --engine algo.         │
-│                                                       [default: hadamard]    │
-│ --fdn-tv-rate-hz              FLOAT RANGE [x>=0.0]    [default: 0.0]         │
-│ --fdn-tv-depth                FLOAT RANGE [x>=0.0]    [default: 0.0]         │
-│ --fdn-dfm-delays-ms           TEXT                    Comma-separated        │
-│                                                       delay-feedback         │
-│                                                       modulation taps in     │
-│                                                       milliseconds.          │
+│ --live-mode                              [reverb|dereverb  Realtime          │
+│                                          |dereverb-reverb  processing mode:  │
+│                                          ]                 reverb only,      │
+│                                                            dereverb only, or │
+│                                                            dereverb feeding  │
+│                                                            the live reverb   │
+│                                                            path.             │
+│                                                            [default: reverb] │
+│ --engine                                 [auto|conv|algo]  Realtime engine:  │
+│                                                            convolution IR,   │
+│                                                            or algorithmic    │
+│                                                            proxy rendered    │
+│                                                            into a live       │
+│                                                            convolver.        │
+│                                                            [default: auto]   │
+│ --ir                                     PATH              Impulse response  │
+│                                                            path for realtime │
+│                                                            convolution mode. │
+│ --input-device                           TEXT              Input device      │
+│                                                            index or          │
+│                                                            case-insensitive  │
+│                                                            name substring.   │
+│ --output-device                          TEXT              Output device     │
+│                                                            index or          │
+│                                                            case-insensitive  │
+│                                                            name substring.   │
+│ --list-devices                                             List available    │
+│                                                            realtime audio    │
+│                                                            devices and exit. │
+│ --sample-rate                            INTEGER RANGE     [default: 48000]  │
+│                                          [x>=8000]                           │
+│ --block-size                             INTEGER RANGE     [default: 512]    │
+│                                          [x>=64]                             │
+│ --partition-size                         INTEGER RANGE     [default: 2048]   │
+│                                          [x>=256]                            │
+│ --input-channels                         INTEGER RANGE     Requested live    │
+│                                          [x>=1]            input channel     │
+│                                                            count. Defaults   │
+│                                                            to mono or stereo │
+│                                                            depending on      │
+│                                                            device.           │
+│ --input-channel-…                        TEXT              Comma-separated   │
+│                                                            1-based hardware  │
+│                                                            input channels to │
+│                                                            feed the          │
+│                                                            processor, for    │
+│                                                            example 1,3 or    │
+│                                                            1,3,5,7.          │
+│ --output-channels                        INTEGER RANGE     Requested live    │
+│                                          [x>=1]            output channel    │
+│                                                            count. Defaults   │
+│                                                            to the            │
+│                                                            processor's       │
+│                                                            natural output    │
+│                                                            width.            │
+│ --output-channel…                        TEXT              Comma-separated   │
+│                                                            1-based hardware  │
+│                                                            output channels   │
+│                                                            that receive      │
+│                                                            processor         │
+│                                                            outputs, in       │
+│                                                            order.            │
+│ --duration                               FLOAT RANGE       Optional duration │
+│                                          [x>=0.0]          in seconds. Omit  │
+│                                                            to run until      │
+│                                                            Ctrl-C.           │
+│ --dereverb-mode                          [wiener|spectral  Low-latency       │
+│                                          _sub]             dereverb kernel   │
+│                                                            used by           │
+│                                                            --live-mode       │
+│                                                            dereverb*.        │
+│                                                            [default: wiener] │
+│ --dereverb-stren…                        FLOAT RANGE       [default: 0.7]    │
+│                                          [0.0<=x<=2.0]                       │
+│ --dereverb-floor                         FLOAT RANGE       [default: 0.08]   │
+│                                          [1e-06<=x<=1.0]                     │
+│ --dereverb-windo…                        FLOAT RANGE       [default: 16.0]   │
+│                                          [x>=2.0]                            │
+│ --dereverb-hop-ms                        FLOAT RANGE       [default: 8.0]    │
+│                                          [x>=1.0]                            │
+│ --dereverb-tail-…                        FLOAT RANGE       [default: 120.0]  │
+│                                          [x>=10.0]                           │
+│ --dereverb-pre-e…                        FLOAT RANGE       [default: 0.0]    │
+│                                          [0.0<=x<=0.98]                      │
+│ --dereverb-mix                           FLOAT RANGE       [default: 1.0]    │
+│                                          [0.0<=x<=1.0]                       │
+│ --dereverb-max-a…                        FLOAT RANGE       [default: 18.0]   │
+│                                          [0.0<=x<=48.0]                      │
+│ --dereverb-stere…    --no-dereverb-s…                      Link stereo gain  │
+│                                                            decisions to      │
+│                                                            reduce image      │
+│                                                            wobble.           │
+│                                                            [default:         │
+│                                                            dereverb-stereo-… │
+│ --dereverb-input…                        FLOAT RANGE       [default: 0.0]    │
+│                                          [-24.0<=x<=24.0]                    │
+│ --dereverb-outpu…                        FLOAT RANGE       [default: 0.0]    │
+│                                          [-24.0<=x<=24.0]                    │
+│ --dereverb-windo…                        TEXT              Live dereverb     │
+│                                                            analysis window   │
+│                                                            family (hann,     │
+│                                                            hamming,          │
+│                                                            blackman, kaiser, │
+│                                                            dpss, tukey,      │
+│                                                            chebwin, and many │
+│                                                            more).            │
+│                                                            [default: hann]   │
+│ --dereverb-synth…                        TEXT              Optional live     │
+│                                                            dereverb          │
+│                                                            synthesis window  │
+│                                                            family. Defaults  │
+│                                                            to the analysis   │
+│                                                            window.           │
+│ --dereverb-windo…    --dereverb-wind…                      Use symmetric     │
+│                                                            instead of        │
+│                                                            periodic live     │
+│                                                            dereverb windows. │
+│                                                            [default:         │
+│                                                            dereverb-window-… │
+│ --dereverb-windo…                        FLOAT RANGE       [default: 0.5]    │
+│                                          [x>=0.0]                            │
+│ --dereverb-windo…                        FLOAT RANGE       [default: 14.0]   │
+│                                          [x>=0.0]                            │
+│ --dereverb-windo…                        FLOAT RANGE       [default: 2.5]    │
+│                                          [x>=1e-06]                          │
+│ --dereverb-windo…                        FLOAT RANGE       [default: 1.5]    │
+│                                          [x>=1e-06]                          │
+│ --dereverb-windo…                        FLOAT RANGE       [default: 100.0]  │
+│                                          [x>=0.001]                          │
+│ --dereverb-windo…                        INTEGER RANGE     [default: 4]      │
+│                                          [x>=2]                              │
+│ --dereverb-windo…                        FLOAT RANGE       [default: 2.5]    │
+│                                          [x>=0.001]                          │
+│ --dereverb-windo…                        FLOAT RANGE       [default: 3.0]    │
+│                                          [x>=1e-06]                          │
+│ --dereverb-windo…                        TEXT              Optional          │
+│                                                            comma-separated   │
+│                                                            weights for       │
+│                                                            general_cosine    │
+│                                                            live dereverb     │
+│                                                            windows.          │
+│ --wet                                    FLOAT RANGE       [default: 0.8]    │
+│                                          [0.0<=x<=1.0]                       │
+│ --dry                                    FLOAT RANGE       [default: 0.2]    │
+│                                          [0.0<=x<=1.0]                       │
+│ --rt60                                   FLOAT RANGE       [default: 6.0]    │
+│                                          [x>=0.1]                            │
+│ --pre-delay-ms                           FLOAT RANGE       [default: 20.0]   │
+│                                          [x>=0.0]                            │
+│ --damping                                FLOAT RANGE       [default: 0.45]   │
+│                                          [0.0<=x<=1.0]                       │
+│ --width                                  FLOAT RANGE       [default: 1.0]    │
+│                                          [0.0<=x<=2.0]                       │
+│ --mod-depth-ms                           FLOAT RANGE       [default: 2.0]    │
+│                                          [x>=0.0]                            │
+│ --mod-rate-hz                            FLOAT RANGE       [default: 0.1]    │
+│                                          [x>=0.0]                            │
+│ --fdn-lines                              INTEGER RANGE     [default: 8]      │
+│                                          [1<=x<=64]                          │
+│ --fdn-matrix                             TEXT              Algorithmic proxy │
+│                                                            matrix for        │
+│                                                            realtime --engine │
+│                                                            algo.             │
+│                                                            [default:         │
+│                                                            hadamard]         │
+│ --fdn-tv-rate-hz                         FLOAT RANGE       [default: 0.0]    │
+│                                          [x>=0.0]                            │
+│ --fdn-tv-depth                           FLOAT RANGE       [default: 0.0]    │
+│                                          [x>=0.0]                            │
+│ --fdn-dfm-delays…                        TEXT              Comma-separated   │
+│                                                            delay-feedback    │
+│                                                            modulation taps   │
+│                                                            in milliseconds.  │
 │ --fdn-sparse                                                                 │
-│ --fdn-sparse-degree           INTEGER RANGE           [default: 2]           │
-│                               [1<=x<=16]                                     │
+│ --fdn-sparse-deg…                        INTEGER RANGE     [default: 2]      │
+│                                          [1<=x<=16]                          │
 │ --fdn-cascade                                                                │
-│ --fdn-cascade-mix             FLOAT RANGE             [default: 0.35]        │
-│                               [0.0<=x<=1.0]                                  │
-│ --fdn-cascade-delay-s…        FLOAT RANGE             [default: 0.5]         │
-│                               [0.2<=x<=1.0]                                  │
-│ --fdn-cascade-rt60-ra…        FLOAT RANGE             [default: 0.55]        │
-│                               [0.1<=x<=1.0]                                  │
-│ --fdn-rt60-low                FLOAT RANGE [x>=0.1]                           │
-│ --fdn-rt60-mid                FLOAT RANGE [x>=0.1]                           │
-│ --fdn-rt60-high               FLOAT RANGE [x>=0.1]                           │
-│ --fdn-rt60-tilt               FLOAT RANGE             [default: 0.0]         │
-│                               [-1.0<=x<=1.0]                                 │
-│ --fdn-tonal-correctio…        FLOAT RANGE             [default: 0.0]         │
-│                               [0.0<=x<=1.0]                                  │
-│ --fdn-xover-low-hz            FLOAT RANGE [x>=10.0]   [default: 250.0]       │
-│ --fdn-xover-high-hz           FLOAT RANGE [x>=10.0]   [default: 4000.0]      │
-│ --fdn-link-filter             [none|lowpass|highpass  [default: none]        │
-│                               ]                                              │
-│ --fdn-link-filter-hz          FLOAT RANGE [x>=10.0]   [default: 2500.0]      │
-│ --fdn-link-filter-mix         FLOAT RANGE             [default: 1.0]         │
-│                               [0.0<=x<=1.0]                                  │
-│ --fdn-graph-topology          [ring|path|star|random  [default: ring]        │
-│                               ]                                              │
-│ --fdn-graph-degree            INTEGER RANGE           [default: 2]           │
-│                               [1<=x<=16]                                     │
-│ --fdn-graph-seed              INTEGER                 [default: 2026]        │
-│ --fdn-matrix-morph-to         TEXT                    Optional second FDN    │
-│                                                       matrix family for      │
-│                                                       gradual morphing.      │
-│ --fdn-matrix-morph-se…        FLOAT RANGE [x>=0.0]    [default: 0.0]         │
-│ --fdn-spatial-couplin…        [none|adjacent|front_r  [default: none]        │
-│                               ear|bed_top|all_to_all                         │
-│                               ]                                              │
-│ --fdn-spatial-couplin…        FLOAT RANGE             [default: 0.0]         │
-│                               [0.0<=x<=1.0]                                  │
-│ --fdn-nonlinearity            [none|tanh|softclip]    [default: none]        │
-│ --fdn-nonlinearity-am…        FLOAT RANGE             [default: 0.0]         │
-│                               [0.0<=x<=1.0]                                  │
-│ --fdn-nonlinearity-dr…        FLOAT RANGE             [default: 1.0]         │
-│                               [0.1<=x<=8.0]                                  │
-│ --room-size-macro             FLOAT RANGE             [default: 0.0]         │
-│                               [-1.0<=x<=1.0]                                 │
-│ --clarity-macro               FLOAT RANGE             [default: 0.0]         │
-│                               [-1.0<=x<=1.0]                                 │
-│ --warmth-macro                FLOAT RANGE             [default: 0.0]         │
-│                               [-1.0<=x<=1.0]                                 │
-│ --envelopment-macro           FLOAT RANGE             [default: 0.0]         │
-│                               [-1.0<=x<=1.0]                                 │
-│ --algo-decorrelation-…        FLOAT RANGE             [default: 0.0]         │
-│                               [0.0<=x<=1.0]                                  │
-│ --algo-decorrelation-…        FLOAT RANGE             [default: 0.0]         │
-│                               [0.0<=x<=1.0]                                  │
-│ --algo-decorrelation-…        FLOAT RANGE             [default: 0.0]         │
-│                               [0.0<=x<=1.0]                                  │
-│ --allpass-stages              INTEGER RANGE           [default: 6]           │
-│                               [0<=x<=64]                                     │
-│ --allpass-gain                TEXT                    Single allpass gain or │
-│                                                       comma-separated        │
-│                                                       per-stage gains.       │
-│                                                       [default: 0.7]         │
-│ --allpass-delays-ms           TEXT                    Comma-separated        │
-│                                                       diffusion delays in    │
-│                                                       milliseconds.          │
-│ --comb-delays-ms              TEXT                    Comma-separated        │
-│                                                       FDN/comb delay taps in │
-│                                                       milliseconds.          │
-│ --freeze                                              Realtime algo only:    │
-│                                                       approximate a          │
-│                                                       frozen-space sustain   │
-│                                                       by forcing a long      │
-│                                                       near-infinite proxy    │
-│                                                       tail.                  │
+│ --fdn-cascade-mix                        FLOAT RANGE       [default: 0.35]   │
+│                                          [0.0<=x<=1.0]                       │
+│ --fdn-cascade-de…                        FLOAT RANGE       [default: 0.5]    │
+│                                          [0.2<=x<=1.0]                       │
+│ --fdn-cascade-rt…                        FLOAT RANGE       [default: 0.55]   │
+│                                          [0.1<=x<=1.0]                       │
+│ --fdn-rt60-low                           FLOAT RANGE                         │
+│                                          [x>=0.1]                            │
+│ --fdn-rt60-mid                           FLOAT RANGE                         │
+│                                          [x>=0.1]                            │
+│ --fdn-rt60-high                          FLOAT RANGE                         │
+│                                          [x>=0.1]                            │
+│ --fdn-rt60-tilt                          FLOAT RANGE       [default: 0.0]    │
+│                                          [-1.0<=x<=1.0]                      │
+│ --fdn-tonal-corr…                        FLOAT RANGE       [default: 0.0]    │
+│                                          [0.0<=x<=1.0]                       │
+│ --fdn-xover-low-…                        FLOAT RANGE       [default: 250.0]  │
+│                                          [x>=10.0]                           │
+│ --fdn-xover-high…                        FLOAT RANGE       [default: 4000.0] │
+│                                          [x>=10.0]                           │
+│ --fdn-link-filter                        [none|lowpass|hi  [default: none]   │
+│                                          ghpass]                             │
+│ --fdn-link-filte…                        FLOAT RANGE       [default: 2500.0] │
+│                                          [x>=10.0]                           │
+│ --fdn-link-filte…                        FLOAT RANGE       [default: 1.0]    │
+│                                          [0.0<=x<=1.0]                       │
+│ --fdn-graph-topo…                        [ring|path|star|  [default: ring]   │
+│                                          random]                             │
+│ --fdn-graph-degr…                        INTEGER RANGE     [default: 2]      │
+│                                          [1<=x<=16]                          │
+│ --fdn-graph-seed                         INTEGER           [default: 2026]   │
+│ --fdn-matrix-mor…                        TEXT              Optional second   │
+│                                                            FDN matrix family │
+│                                                            for gradual       │
+│                                                            morphing.         │
+│ --fdn-matrix-mor…                        FLOAT RANGE       [default: 0.0]    │
+│                                          [x>=0.0]                            │
+│ --fdn-spatial-co…                        [none|adjacent|f  [default: none]   │
+│                                          ront_rear|bed_to                    │
+│                                          p|all_to_all]                       │
+│ --fdn-spatial-co…                        FLOAT RANGE       [default: 0.0]    │
+│                                          [0.0<=x<=1.0]                       │
+│ --fdn-nonlineari…                        [none|tanh|softc  [default: none]   │
+│                                          lip]                                │
+│ --fdn-nonlineari…                        FLOAT RANGE       [default: 0.0]    │
+│                                          [0.0<=x<=1.0]                       │
+│ --fdn-nonlineari…                        FLOAT RANGE       [default: 1.0]    │
+│                                          [0.1<=x<=8.0]                       │
+│ --room-size-macro                        FLOAT RANGE       [default: 0.0]    │
+│                                          [-1.0<=x<=1.0]                      │
+│ --clarity-macro                          FLOAT RANGE       [default: 0.0]    │
+│                                          [-1.0<=x<=1.0]                      │
+│ --warmth-macro                           FLOAT RANGE       [default: 0.0]    │
+│                                          [-1.0<=x<=1.0]                      │
+│ --envelopment-ma…                        FLOAT RANGE       [default: 0.0]    │
+│                                          [-1.0<=x<=1.0]                      │
+│ --algo-decorrela…                        FLOAT RANGE       [default: 0.0]    │
+│                                          [0.0<=x<=1.0]                       │
+│ --algo-decorrela…                        FLOAT RANGE       [default: 0.0]    │
+│                                          [0.0<=x<=1.0]                       │
+│ --algo-decorrela…                        FLOAT RANGE       [default: 0.0]    │
+│                                          [0.0<=x<=1.0]                       │
+│ --allpass-stages                         INTEGER RANGE     [default: 6]      │
+│                                          [0<=x<=64]                          │
+│ --allpass-gain                           TEXT              Single allpass    │
+│                                                            gain or           │
+│                                                            comma-separated   │
+│                                                            per-stage gains.  │
+│                                                            [default: 0.7]    │
+│ --allpass-delays…                        TEXT              Comma-separated   │
+│                                                            diffusion delays  │
+│                                                            in milliseconds.  │
+│ --comb-delays-ms                         TEXT              Comma-separated   │
+│                                                            FDN/comb delay    │
+│                                                            taps in           │
+│                                                            milliseconds.     │
+│ --freeze                                                   Realtime algo     │
+│                                                            only: approximate │
+│                                                            a frozen-space    │
+│                                                            sustain by        │
+│                                                            forcing a long    │
+│                                                            near-infinite     │
+│                                                            proxy tail.       │
 │ --shimmer                                                                    │
-│ --shimmer-semitones           FLOAT                   [default: 12.0]        │
-│ --shimmer-mix                 FLOAT RANGE             [default: 0.25]        │
-│                               [0.0<=x<=1.0]                                  │
-│ --shimmer-feedback            FLOAT RANGE             [default: 0.35]        │
-│                               [0.0<=x<=1.25]                                 │
-│ --shimmer-highcut             FLOAT RANGE [x>=10.0]                          │
-│ --shimmer-lowcut              FLOAT RANGE [x>=10.0]                          │
+│ --shimmer-semito…                        FLOAT             [default: 12.0]   │
+│ --shimmer-mix                            FLOAT RANGE       [default: 0.25]   │
+│                                          [0.0<=x<=1.0]                       │
+│ --shimmer-feedba…                        FLOAT RANGE       [default: 0.35]   │
+│                                          [0.0<=x<=1.25]                      │
+│ --shimmer-highcut                        FLOAT RANGE                         │
+│                                          [x>=10.0]                           │
+│ --shimmer-lowcut                         FLOAT RANGE                         │
+│                                          [x>=10.0]                           │
 │ --shimmer-spatial                                                            │
-│ --shimmer-spread-cents        FLOAT RANGE [x>=0.0]    [default: 8.0]         │
-│ --shimmer-decorrelati…        FLOAT RANGE [x>=0.0]    [default: 1.5]         │
-│ --unsafe-self-oscilla…                                                       │
-│ --unsafe-loop-gain            FLOAT RANGE [x>=0.001]  [default: 1.02]        │
-│ --algo-proxy-ir-max-s…        FLOAT RANGE [x>=0.1]    Maximum rendered proxy │
-│                                                       IR duration used by    │
-│                                                       realtime --engine      │
-│                                                       algo.                  │
-│                                                       [default: 120.0]       │
-│ --lowcut                      FLOAT RANGE [x>=10.0]                          │
-│ --highcut                     FLOAT RANGE [x>=10.0]                          │
-│ --tilt                        FLOAT RANGE             [default: 0.0]         │
-│                               [-18.0<=x<=18.0]                               │
-│ --quiet                                               Reduce console output. │
-│ --help                                                Show this message and  │
-│                                                       exit.                  │
+│ --shimmer-spread…                        FLOAT RANGE       [default: 8.0]    │
+│                                          [x>=0.0]                            │
+│ --shimmer-decorr…                        FLOAT RANGE       [default: 1.5]    │
+│                                          [x>=0.0]                            │
+│ --unsafe-self-os…                                                            │
+│ --unsafe-loop-ga…                        FLOAT RANGE       [default: 1.02]   │
+│                                          [x>=0.001]                          │
+│ --algo-proxy-ir-…                        FLOAT RANGE       Maximum rendered  │
+│                                          [x>=0.1]          proxy IR duration │
+│                                                            used by realtime  │
+│                                                            --engine algo.    │
+│                                                            [default: 120.0]  │
+│ --lowcut                                 FLOAT RANGE                         │
+│                                          [x>=10.0]                           │
+│ --highcut                                FLOAT RANGE                         │
+│                                          [x>=10.0]                           │
+│ --tilt                                   FLOAT RANGE       [default: 0.0]    │
+│                                          [-18.0<=x<=18.0]                    │
+│ --quiet                                                    Reduce console    │
+│                                                            output.           │
+│ --help                                                     Show this message │
+│                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1273,16 +1515,14 @@ Do not edit manually.
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ gen           Generate an IR file with deterministic caching.                │
-│ analyze       Analyze an impulse response.                                   │
-│ sofa-info     Inspect SOFA metadata and dimensions.                          │
-│ sofa-extract  Extract SOFA FIR data to a WAV matrix for convolution          │
-│               workflows.                                                     │
-│ process       Process an existing IR through shaping/targeting chain.        │
-│ morph         Morph two IR files with cache-backed Track D processing.       │
-│ morph-sweep   Run an alpha timeline sweep and emit Track D QA artifacts.     │
-│ fit           Analyze source audio, score candidate IRs, and write top-k     │
-│               results.                                                       │
+│ gen                                                                          │
+│ analyze                                                                      │
+│ sofa-info                                                                    │
+│ sofa-extract                                                                 │
+│ process                                                                      │
+│ morph                                                                        │
+│ morph-sweep                                                                  │
+│ fit                                                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1291,8 +1531,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root ir gen [OPTIONS] OUT_IR                                            
-                                                                                
- Generate an IR file with deterministic caching.                                
                                                                                 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    out_ir      PATH  [required]                                            │
@@ -1619,8 +1857,6 @@ Do not edit manually.
                                                                                 
  Usage: root ir analyze [OPTIONS] IR_FILE                                       
                                                                                 
- Analyze an impulse response.                                                   
-                                                                                
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    ir_file      PATH  [required]                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -1635,8 +1871,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root ir process [OPTIONS] IN_IR OUT_IR                                  
-                                                                                
- Process an existing IR through shaping/targeting chain.                        
                                                                                 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    in_ir       PATH  [required]                                            │
@@ -1681,8 +1915,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root ir morph [OPTIONS] IR_A IR_B OUT_IR                                
-                                                                                
- Morph two IR files with cache-backed Track D processing.                       
                                                                                 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    ir_a        PATH  [required]                                            │
@@ -1754,8 +1986,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root ir morph-sweep [OPTIONS] IR_A IR_B OUT_DIR                         
-                                                                                
- Run an alpha timeline sweep and emit Track D QA artifacts.                     
                                                                                 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    ir_a         PATH  [required]                                           │
@@ -1854,8 +2084,6 @@ Do not edit manually.
                                                                                 
  Usage: root ir fit [OPTIONS] INFILE OUT_IR                                     
                                                                                 
- Analyze source audio, score candidate IRs, and write top-k results.            
-                                                                                
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    infile      PATH  [required]                                            │
 │ *    out_ir      PATH  [required]                                            │
@@ -1893,12 +2121,11 @@ Do not edit manually.
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ template          Print a batch manifest template as JSON.                   │
-│ augment-template  Print an AI/data-augmentation manifest template as JSON.   │
-│ augment-profiles  List built-in augmentation profiles and archetypes.        │
-│ augment           Render a deterministic augmentation dataset for AI         │
-│                   research workflows.                                        │
-│ render            Render jobs from manifest.json.                            │
+│ template                                                                     │
+│ augment-template                                                             │
+│ augment-profiles                                                             │
+│ augment                                                                      │
+│ render                                                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1907,8 +2134,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root batch template [OPTIONS]                                           
-                                                                                
- Print a batch manifest template as JSON.                                       
                                                                                 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                  │
@@ -1921,8 +2146,6 @@ Do not edit manually.
                                                                                 
  Usage: root batch augment-template [OPTIONS]                                   
                                                                                 
- Print an AI/data-augmentation manifest template as JSON.                       
-                                                                                
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -1933,8 +2156,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root batch augment-profiles [OPTIONS]                                   
-                                                                                
- List built-in augmentation profiles and archetypes.                            
                                                                                 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json          Emit profile definitions as JSON instead of a table.         │
@@ -1947,8 +2168,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root batch augment [OPTIONS] MANIFEST                                   
-                                                                                
- Render a deterministic augmentation dataset for AI research workflows.         
                                                                                 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    manifest      PATH  [required]                                          │
@@ -2054,8 +2273,6 @@ Do not edit manually.
                                                                                 
  Usage: root batch render [OPTIONS] MANIFEST                                    
                                                                                 
- Render jobs from manifest.json.                                                
-                                                                                
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    manifest      PATH  [required]                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -2119,9 +2336,9 @@ Do not edit manually.
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ template  Print an immersive scene handoff template as JSON.                 │
-│ handoff   Generate immersive handoff sidecars and deliverable manifests.     │
-│ qc        Run immersive QC gates for loudness/true-peak/fold-down/occupancy. │
+│ template                                                                     │
+│ handoff                                                                      │
+│ qc                                                                           │
 │ queue     Distributed immersive queue workflows.                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -2131,8 +2348,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root immersive template [OPTIONS]                                       
-                                                                                
- Print an immersive scene handoff template as JSON.                             
                                                                                 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                  │
@@ -2144,8 +2359,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root immersive handoff [OPTIONS] SCENE_FILE OUT_DIR                     
-                                                                                
- Generate immersive handoff sidecars and deliverable manifests.                 
                                                                                 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    scene_file      PATH  [required]                                        │
@@ -2163,8 +2376,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root immersive qc [OPTIONS] INFILE                                      
-                                                                                
- Run immersive QC gates for loudness/true-peak/fold-down/occupancy.             
                                                                                 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    infile      PATH  [required]                                            │
@@ -2204,9 +2415,9 @@ Do not edit manually.
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ template  Print a file-backed immersive queue template as JSON.              │
-│ status    Show file-queue state summary.                                     │
-│ worker    Run one distributed queue worker for immersive batch execution.    │
+│ template                                                                     │
+│ status                                                                       │
+│ worker                                                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2215,8 +2426,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root immersive queue template [OPTIONS]                                 
-                                                                                
- Print a file-backed immersive queue template as JSON.                          
                                                                                 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                  │
@@ -2228,8 +2437,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root immersive queue status [OPTIONS] QUEUE_FILE                        
-                                                                                
- Show file-queue state summary.                                                 
                                                                                 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    queue_file      PATH  [required]                                        │
@@ -2244,8 +2451,6 @@ Do not edit manually.
 ```text
                                                                                 
  Usage: root immersive queue worker [OPTIONS] QUEUE_FILE                        
-                                                                                
- Run one distributed queue worker for immersive batch execution.                
                                                                                 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    queue_file      PATH  [required]                                        │

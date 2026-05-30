@@ -10,12 +10,13 @@ The API is intentionally pragmatic for offline rendering:
 from __future__ import annotations
 
 import math
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
 from scipy.signal import resample_poly
 
-from verbx.io.audio import ensure_mono_or_stereo, soft_limiter
+from verbx.io.audio import LimiterDetect, LimiterMode, ensure_mono_or_stereo, soft_limiter
 
 try:
     import pyloudnorm as pyln  # type: ignore[import-untyped]
@@ -138,6 +139,21 @@ def apply_output_targets(
     limiter: bool = True,
     use_true_peak: bool = True,
     oversample: int = 4,
+    limiter_mode: LimiterMode = "tanh",
+    limiter_detect: LimiterDetect = "peak",
+    limiter_threshold_dbfs: float | None = None,
+    limiter_ceiling_dbfs: float | None = None,
+    limiter_knee_db: float = 6.0,
+    limiter_drive: float = 1.0,
+    limiter_mix: float = 1.0,
+    limiter_attack_ms: float = 0.5,
+    limiter_release_ms: float = 80.0,
+    limiter_lookahead_ms: float = 1.5,
+    limiter_stereo_link: bool = True,
+    limiter_oversample: int = 2,
+    limiter_pre_gain_db: float = 0.0,
+    limiter_post_gain_db: float = 0.0,
+    limiter_dc_block: bool = False,
 ) -> AudioArray:
     """Apply loudness and peak targets to output audio.
 
@@ -157,6 +173,16 @@ def apply_output_targets(
         out = loudness_normalize(out, sr, target_lufs)
 
     if target_peak_dbfs is not None and np.isfinite(target_peak_dbfs):
+        resolved_limiter_threshold_dbfs = (
+            float(target_peak_dbfs)
+            if limiter_threshold_dbfs is None
+            else float(limiter_threshold_dbfs)
+        )
+        resolved_limiter_ceiling_dbfs = (
+            float(target_peak_dbfs)
+            if limiter_ceiling_dbfs is None
+            else float(limiter_ceiling_dbfs)
+        )
         measured = (
             true_peak_dbfs(out, sr, oversample=oversample)
             if use_true_peak
@@ -168,7 +194,25 @@ def apply_output_targets(
             out = np.asarray(out * gain, dtype=np.float64)
 
         if limiter:
-            out = soft_limiter(out, threshold_dbfs=target_peak_dbfs, knee_db=6.0)
+            out = soft_limiter(
+                out,
+                sr=sr,
+                threshold_dbfs=resolved_limiter_threshold_dbfs,
+                ceiling_dbfs=resolved_limiter_ceiling_dbfs,
+                knee_db=limiter_knee_db,
+                mode=cast(LimiterMode, str(limiter_mode).strip().lower()),
+                detect=cast(LimiterDetect, str(limiter_detect).strip().lower()),
+                drive=limiter_drive,
+                mix=limiter_mix,
+                attack_ms=limiter_attack_ms,
+                release_ms=limiter_release_ms,
+                lookahead_ms=limiter_lookahead_ms,
+                stereo_link=bool(limiter_stereo_link),
+                oversample=limiter_oversample,
+                pre_gain_db=limiter_pre_gain_db,
+                post_gain_db=limiter_post_gain_db,
+                dc_block=bool(limiter_dc_block),
+            )
 
         out = peak_limit(out, target_peak_dbfs)
 

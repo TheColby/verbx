@@ -138,6 +138,46 @@ def test_proxy_stream_tilt_matches_standard_path(tmp_path: Path) -> None:
     _assert_proxy_close(standard_audio, proxy_audio, sr=sr)
 
 
+def test_proxy_stream_extended_eq_controls_match_standard_path(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "in.wav"
+    _write_sine(infile, sr)
+
+    out_standard = tmp_path / "out_standard.wav"
+    run_render_pipeline(
+        infile,
+        out_standard,
+        _base_algo_config(
+            lowcut=90.0,
+            lowcut_order=4,
+            highcut=5_500.0,
+            highcut_order=5,
+            tilt=2.5,
+            tilt_pivot_hz=750.0,
+        ),
+    )
+
+    out_proxy = tmp_path / "out_proxy.wav"
+    run_render_pipeline(
+        infile,
+        out_proxy,
+        _base_algo_config(
+            lowcut=90.0,
+            lowcut_order=4,
+            highcut=5_500.0,
+            highcut_order=5,
+            tilt=2.5,
+            tilt_pivot_hz=750.0,
+            algo_stream=True,
+        ),
+    )
+
+    standard_audio, _ = sf.read(str(out_standard), dtype="float64")
+    proxy_audio, _ = sf.read(str(out_proxy), dtype="float64")
+
+    _assert_proxy_close(standard_audio, proxy_audio, sr=sr)
+
+
 def test_proxy_stream_combined_eq_produces_valid_output(tmp_path: Path) -> None:
     """Lowcut + highcut + tilt combined should produce a finite output."""
     sr = 24_000

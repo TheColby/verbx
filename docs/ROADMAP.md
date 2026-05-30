@@ -1,6 +1,6 @@
 # verbx Roadmap
 
-_Last updated: 2026-04-03. Maintained with `README.md` and `CHANGELOG.md`._
+_Last updated: 2026-04-03. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
 
 ---
 
@@ -29,9 +29,12 @@ Patch line opened 2026-03-30. Items below are the active focus.
 - [x] Extract algorithmic proxy IR generation into `src/verbx/core/algo_proxy.py` so offline streaming and realtime monitoring share one implementation.
 - [x] Add an initial command-module split under `src/verbx/commands/` with `realtime.py` as the first standalone command surface.
 - [x] Continue command-module split by moving onboarding/diagnostic commands into `src/verbx/commands/system.py`.
+- [x] Continue command-module split by moving preset inspection and cache commands into `src/verbx/commands/`.
+- [x] Continue command-module split by moving `analyze`, `compare`, and `suggest` into dedicated command modules plus shared command helpers.
 - [x] Add initial realtime duplex monitoring with CLI-selectable input/output devices and algorithmic-proxy or convolution live engines.
 - [x] Update README, CLI reference, and release/support docs for the refactor and realtime command surface.
-- [ ] Decompose `cli.py` (8 376 lines) into per-command submodules under `src/verbx/commands/`.
+- [x] Move all CLI command entrypoints into per-command submodules under `src/verbx/commands/`.
+- [ ] Continue shrinking `cli.py` by migrating the remaining shared implementation/helper layer out of the legacy entrypoint module.
 - [ ] Decompose `RenderConfig` (162 fields) into composed sub-configs (`FDNConfig`, `AutomationConfig`, `SpatialConfig`, `StreamingConfig`).
 - [x] Decompose `run_render_pipeline` (~640 lines) into explicit pipeline stages.
 - [ ] Add dedicated unit tests for `automation.py`, `convolution_reverb.py`, `feature_vector.py`, `immersive.py`.

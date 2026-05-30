@@ -10,13 +10,14 @@ Signal flow (per channel):
 
 1. pre-delay line,
 2. short all-pass diffusion network,
-3. FDN late field with configurable delay-line count/lengths and:
+3. optional comb-cloud coloration stage,
+4. FDN late field with configurable delay-line count/lengths and:
    - RT60-calibrated per-line gains,
    - one-pole damping in each feedback path,
    - DC blocking in the loop,
    - subtle delay modulation to reduce metallic ringing.
-4. optional stereo width stage (for 2ch),
-5. optional shimmer stage on the wet path.
+5. optional stereo width stage (for 2ch),
+6. optional shimmer stage on the wet path.
 """
 
 from __future__ import annotations
@@ -80,6 +81,12 @@ class AlgoReverbConfig:
     allpass_gains: tuple[float, ...] = ()
     allpass_delays_ms: tuple[float, ...] = ()
     comb_delays_ms: tuple[float, ...] = ()
+    comb_cloud: bool = False
+    comb_cloud_count: int = 24
+    comb_cloud_feedback: float = 0.35
+    comb_cloud_mix: float = 0.25
+    comb_cloud_delays_ms: tuple[float, ...] = ()
+    comb_cloud_seed: int = 2026
     fdn_lines: int = 8
     fdn_matrix: str = "hadamard"
     fdn_tv_rate_hz: float = 0.0
@@ -183,6 +190,15 @@ class AlgoReverbEngine(ReverbEngine):
         self._state_guard_peak = 1e12 if self._unsafe_self_oscillate else 64.0
         self._state_guard_scale = np.float64(0.25 if self._unsafe_self_oscillate else 0.5)
         self._base_delay_ms = self._resolve_fdn_delay_ms(config)
+        self._comb_cloud_delay_ms = self._resolve_comb_cloud_delay_ms(config)
+        self._comb_cloud_enabled = (
+            bool(config.comb_cloud or len(config.comb_cloud_delays_ms) > 0)
+            and self._comb_cloud_delay_ms.size > 0
+            and float(config.comb_cloud_mix) > 0.0
+        )
+        self._comb_cloud_feedback = float(np.clip(config.comb_cloud_feedback, 0.0, 0.95))
+        self._comb_cloud_mix = float(np.clip(config.comb_cloud_mix, 0.0, 1.0))
+        self._comb_cloud_seed = int(config.comb_cloud_seed)
         self._diffusion_delay_ms = self._resolve_diffusion_delay_ms(config)
         self._dfm_delay_ms = self._resolve_dfm_delay_ms(config, int(self._base_delay_ms.shape[0]))
         self._allpass_gains = self._resolve_allpass_gains(
@@ -308,6 +324,7 @@ class AlgoReverbEngine(ReverbEngine):
             and not self._link_filter_enabled
             and not self._cascade_enabled
             and not self._nonlinearity_enabled
+            and not self._comb_cloud_enabled
             and abs(float(config.room_size_macro)) <= 1e-9
             and abs(float(config.clarity_macro)) <= 1e-9
             and abs(float(config.warmth_macro)) <= 1e-9
@@ -425,6 +442,7 @@ class AlgoReverbEngine(ReverbEngine):
             wet[:, channel] = self._process_channel(
                 x[:, channel],
                 sr,
+                channel_index=channel,
                 parameter_automation=param_automation,
             )
 
@@ -609,6 +627,8 @@ class AlgoReverbEngine(ReverbEngine):
             suffixes.append("spatialcouple")
         if self._nonlinearity_enabled:
             suffixes.append("nonlinear")
+        if self._comb_cloud_enabled:
+            suffixes.append("combcloud")
         if self._matrix_morph_enabled:
             suffixes.append("matrixmorph")
         if self._unsafe_self_oscillate:
@@ -1031,6 +1051,30 @@ class AlgoReverbEngine(ReverbEngine):
             defaults.append(next_delay)
         return np.asarray(defaults[:requested], dtype=np.float64)
 
+    @classmethod
+    def _resolve_comb_cloud_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float64]:
+        """Resolve optional comb-cloud delay lengths for the pre-FDN color stage."""
+        enabled = bool(config.comb_cloud or len(config.comb_cloud_delays_ms) > 0)
+        if not enabled:
+            return np.zeros((0,), dtype=np.float64)
+
+        if len(config.comb_cloud_delays_ms) > 0:
+            delays = [max(0.1, float(value)) for value in config.comb_cloud_delays_ms]
+            return np.asarray(delays, dtype=np.float64)
+
+        requested = max(1, int(config.comb_cloud_count))
+        rng = np.random.default_rng(int(config.comb_cloud_seed))
+        base = np.linspace(7.5, 89.0, requested, dtype=np.float64)
+        spread = rng.uniform(0.94, 1.06, size=requested).astype(np.float64)
+        jitter = rng.uniform(-1.5, 1.5, size=requested).astype(np.float64)
+        delays = np.clip((base * spread) + jitter, 3.0, 120.0)
+        delays.sort()
+        for index in range(1, requested):
+            minimum = delays[index - 1] + 0.35
+            if delays[index] < minimum:
+                delays[index] = minimum
+        return np.asarray(np.clip(delays, 3.0, 120.0), dtype=np.float64)
+
     @staticmethod
     def _resolve_dfm_delay_ms(
         config: AlgoReverbConfig,
@@ -1250,9 +1294,10 @@ class AlgoReverbEngine(ReverbEngine):
         signal: npt.NDArray[np.float64],
         sr: int,
         *,
+        channel_index: int = 0,
         parameter_automation: CurveMap | None = None,
     ) -> npt.NDArray[np.float64]:
-        """Run one channel through pre-delay, diffusion, and FDN late reverb."""
+        """Run one channel through pre-delay, diffusion, comb cloud, and FDN late reverb."""
         automation = parameter_automation or {}
         rt60_curve = automation.get("rt60")
         damping_curve = automation.get("damping")
@@ -1316,6 +1361,38 @@ class AlgoReverbEngine(ReverbEngine):
             1,
             np.asarray(np.round((self._diffusion_delay_ms / 1000.0) * sr), dtype=np.int32),
         )
+        comb_cloud_delays = np.zeros((0,), dtype=np.int32)
+        comb_cloud_buffers: list[npt.NDArray[np.float64]] = []
+        comb_cloud_indices = np.zeros((0,), dtype=np.int32)
+        comb_cloud_feedback = np.zeros((0,), dtype=np.float64)
+        comb_cloud_polarity = np.zeros((0,), dtype=np.float64)
+        comb_cloud_norm = np.float64(0.0)
+        comb_cloud_enabled = self._comb_cloud_enabled
+        if comb_cloud_enabled:
+            base_comb_cloud_delays = np.maximum(
+                1,
+                np.asarray(np.round((self._comb_cloud_delay_ms / 1000.0) * sr), dtype=np.int32),
+            )
+            channel_seed = self._comb_cloud_seed + (7_919 * max(0, int(channel_index)))
+            rng = np.random.default_rng(channel_seed)
+            delay_jitter = rng.integers(-2, 3, size=base_comb_cloud_delays.shape[0], endpoint=False)
+            comb_cloud_delays = np.maximum(1, base_comb_cloud_delays + delay_jitter)
+            comb_cloud_buffers = [
+                np.zeros(int(delay) + 1, dtype=np.float64) for delay in comb_cloud_delays
+            ]
+            comb_cloud_indices = np.zeros(comb_cloud_delays.shape[0], dtype=np.int32)
+            comb_cloud_feedback = np.clip(
+                self._comb_cloud_feedback
+                * rng.uniform(0.92, 1.08, size=comb_cloud_delays.shape[0]).astype(np.float64),
+                0.0,
+                0.95,
+            )
+            comb_cloud_polarity = rng.choice(
+                np.array([-1.0, 1.0], dtype=np.float64),
+                size=comb_cloud_delays.shape[0],
+                replace=True,
+            ).astype(np.float64)
+            comb_cloud_norm = np.float64(1.0 / np.sqrt(float(comb_cloud_delays.shape[0])))
 
         allpasses = [
             _AllpassState(buffer=np.zeros(delay + 1, dtype=np.float64))
@@ -1760,6 +1837,19 @@ class AlgoReverbEngine(ReverbEngine):
                         ap,
                         gain=np.float64(self._allpass_gains[ap_index]),
                     )
+                if comb_cloud_enabled:
+                    comb_cloud_out = np.float64(0.0)
+                    for i, buffer in enumerate(comb_cloud_buffers):
+                        delayed = buffer[comb_cloud_indices[i]]
+                        comb_cloud_out += comb_cloud_polarity[i] * delayed
+                        buffer[comb_cloud_indices[i]] = (
+                            diffused + (comb_cloud_feedback[i] * delayed)
+                        )
+                        comb_cloud_indices[i] = (comb_cloud_indices[i] + 1) % buffer.shape[0]
+                    diffused = np.float64(
+                        ((1.0 - self._comb_cloud_mix) * diffused)
+                        + (self._comb_cloud_mix * comb_cloud_out * comb_cloud_norm)
+                    )
 
                 if cascade_enabled:
                     for i in range(cascade_fdn_out.shape[0]):
@@ -1988,6 +2078,13 @@ class AlgoReverbEngine(ReverbEngine):
                                 neginf=0.0,
                             )
                             cascade_dc_prev_out[i] *= guard_scale
+                    if comb_cloud_enabled:
+                        for i, buffer in enumerate(comb_cloud_buffers):
+                            comb_cloud_buffers[i] = np.asarray(
+                                np.nan_to_num(buffer, nan=0.0, posinf=0.0, neginf=0.0),
+                                dtype=np.float64,
+                            )
+                            comb_cloud_buffers[i] *= guard_scale
 
         return output
 

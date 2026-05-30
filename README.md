@@ -8,9 +8,9 @@
 
 `verbx` is a research-grade Python CLI for creating reverb effects that range from subtle room placement to cathedral-scale tails 3600 seconds long. It handles the complete reverb workflow: ingesting and generating impulse responses, processing audio through two independent engines, controlling every parameter with time-varying automation, delivering loudness-targeted multichannel output, reducing late-room smear with deterministic dereverberation, producing reproducible analysis artifacts at every step, and now previewing spaces in realtime from CLI-selectable audio devices.
 
-You can batch reverberate a directory of audio files to create lush Dolby Atmos beds. or use it as part of your corpus-augmentation workflow for audio AI projects. 
+You can batch reverberate a directory of audio files to create lush Dolby Atmos beds. Or use it as part of your corpus-augmentation workflow for audio AI projects.
 
-Under the hood, everything runs in 64-bit floating point. The algorithmic engine is built around a configurable Feedback Delay Network with eight matrix families, multiband decay, and optional time-varying behavior. The convolution engine uses partitioned FFT with optional CUDA acceleration and full M-input-to-N-output matrix routing. Both engines share the same diffusion, shimmer, ducking, freeze, loudness, and spatial controls.
+Under the hood, everything runs in 64-bit floating point. The algorithmic engine is built around a configurable Feedback Delay Network with eight matrix families, multiband decay, optional pre-FDN comb-cloud coloration, and optional time-varying behavior. The convolution engine uses partitioned FFT with optional CUDA acceleration and full M-input-to-N-output matrix routing. Both engines share the same diffusion, shimmer, ducking, freeze, loudness, and spatial controls.
 
 The latest `v0.7.7` work also starts to bridge pure parametric design with
 explicit acoustics. There is now a reusable room-geometry model for dimensions,
@@ -74,6 +74,19 @@ automation/batch feature set. Realtime `--freeze` is an honest approximation:
 it renders a long self-sustaining proxy tail for live auditioning rather than
 reusing the offline segment-freeze operator.
 
+Need live cleanup instead of added space?
+
+```bash
+verbx realtime --live-mode dereverb \
+  --input-device "Built-in Microphone" \
+  --output-device "Headphones" \
+  --sample-rate 48000 --block-size 384 \
+  --dereverb-mode wiener --dereverb-strength 0.85 \
+  --dereverb-window-ms 12 --dereverb-hop-ms 4 --dereverb-tail-ms 90 \
+  --dereverb-pre-emphasis 0.2 --dereverb-max-atten-db 18 \
+  --duration 10
+```
+
 If you need to install first on macOS:
 
 ```bash
@@ -88,6 +101,14 @@ Need starting settings for your file?
 verbx suggest input.wav
 verbx quickstart
 ```
+
+Need the long-form manual?
+
+```bash
+python3 scripts_generate_docs_pdf.py
+```
+
+That writes [`docs/USERGUIDE.md`](docs/USERGUIDE.md) and `USERGUIDE.pdf`, combining this README with the user-facing guides and tip-heavy docs in `docs/`.
 
 ### Five Runnable Examples
 
@@ -108,6 +129,11 @@ verbx render in.wav broadcast.wav --target-lufs -23 --true-peak --target-peak-db
 # 5. Extreme ambient — 90-second tail, slow evolution, near-frozen
 verbx render in.wav ambient.wav --engine algo --rt60 90 --wet 0.92 \
   --fdn-matrix tv_unitary --fdn-tv-rate-hz 0.08 --bloom 2.0 --tilt 0.8
+
+# 6. Comb-cloud texture — dense metallic haze before the late field
+verbx render in.wav combcloud.wav --engine algo --rt60 6 --wet 0.78 --dry 0.35 \
+  --comb-cloud --comb-cloud-count 32 --comb-cloud-feedback 0.42 --comb-cloud-mix 0.30 \
+  --fdn-lines 12 --fdn-matrix hadamard
 ```
 
 ```bash
@@ -439,6 +465,8 @@ Shorter delay lines require gains closer to 1.0. This is computed per line so di
 | `--fdn-matrix` | see above | Feedback mixing topology | Controls tail texture and energy diffusion pattern |
 | `--allpass-stages` | 0–16 | Early diffusion stages | 4–10 is typical; 0 disables diffusion entirely |
 | `--allpass-gain` | ±0.99 | Allpass coefficient | Per-stage or broadcast; must stay inside unit circle |
+| `--comb-cloud` | flag | Optional pre-FDN comb bank | Adds metallic/dense coloration before the late field |
+| `--comb-cloud-mix` | 0–1 | Comb-cloud blend amount | Start around `0.2` before increasing line count/feedback |
 | `--damping` | 0–1 | HF rolloff in feedback loop | Higher values darken the tail faster |
 | `--fdn-rt60-tilt` | -1 to 1 | Low/high decay skew | Positive = longer lows, shorter highs |
 | `--fdn-link-filter` | none/lowpass/highpass | In-loop spectral shaping | Shapes the spectral flow on feedback edges |
@@ -560,6 +588,26 @@ Safe mode clamps `--shimmer-feedback` to `0.98`. For intentional self-oscillatio
 --shimmer-lowcut 300 --shimmer-highcut 12000    # control frequency range of shimmer layer
 ```
 
+### Comb Cloud
+
+`--comb-cloud` inserts a separate bank of decorrelated feedback comb filters between the diffusion stage and the main FDN late field. It is an optional color mode for when you want extra density, metallic haze, or exaggerated spatial smear without redefining the core FDN topology. The point is texture, not neutrality.
+
+Use it when the base algorithmic tail feels too smooth or too well-behaved:
+
+- plates and metallic chambers
+- sci-fi interiors and synthetic spaces
+- frozen, haunted, or intentionally "wrong" ambience
+- pre-shimmer thickening before harmonic coloration
+
+Start conservatively. `--comb-cloud-mix 0.15-0.35` is usually enough. Higher `--comb-cloud-feedback` values push the sound toward ringing and resonant buildup.
+
+```bash
+--comb-cloud --comb-cloud-count 24 --comb-cloud-feedback 0.35 --comb-cloud-mix 0.25
+--comb-cloud-delays-ms 6,9,13,17,23,29,37,49   # optional custom cloud spacing
+```
+
+Practical tip: comb cloud and shimmer solve different problems. Comb cloud thickens and roughens the time structure; shimmer adds pitched harmonic content. If the reverb feels sterile, try comb cloud first. If it feels emotionally flat, try shimmer.
+
 ### Freeze / Repeat
 
 `--freeze` locks onto a segment of audio (defined by `--start` and `--end` in seconds) and loops it through the reverb engine with an equal-power crossfade at loop boundaries. This produces sustained, near-static textures. `--repeat N` runs the full render chain N times sequentially, each pass using the output of the previous as input — an iterative reprocessing that progressively imprints the room resonance on the source. Classic application: Alvin Lucier's "I Am Sitting in a Room" technique.
@@ -571,18 +619,22 @@ Use `--output-peak-norm input` with repeat chains to keep levels stable across p
 `--duck` is the reverb effect most mix engineers do not use until they hear it. It attenuates the reverb output while the source signal is active, then lets the tail bloom in the gaps. The effect keeps the dry signal clean and articulate while the reverb is still long and spacious. Especially effective on drums, vocals, and anything with rhythmic transients.
 
 ```bash
---duck --duck-attack 15 --duck-release 250
+--duck --duck-attack 15 --duck-release 250 --duck-strength 0.9 --duck-floor 0.18
 ```
 
-Attack controls how quickly the reverb ducks when signal appears; release controls how quickly it recovers. Shorter release times give a punchier, more gated feel.
+Attack controls how quickly the reverb ducks when signal appears; release controls how quickly it recovers. Shorter release times give a punchier, more gated feel. `--duck-strength` controls how deep the wet attenuation goes, while `--duck-floor` keeps some reverb present even at the deepest point of the pump.
 
 ### Bloom
 
 `--bloom N` emphasizes the slow build-up phase of the wet field, creating a cinematic swell effect where the reverb tail rises rather than immediately decaying. Values between 1.5 and 3.0 are perceptible as a rise before the decay plateau. Higher values push into dramatic orchestral-swell territory. It operates on the spectral envelope of the wet output and is distinct from simple gain automation.
 
+Use `--bloom-mix` when you want the bloom time constant from `--bloom` but a more restrained or more exaggerated blend than the automatic scaling would choose.
+
 ### Tilt EQ
 
 `--tilt N` applies a broadband spectral tilt to the wet field. Positive values (try 1.0–3.0) brighten the reverb tail; negative values darken it. This is a post-wet control, so it does not affect the dry signal or the decay mathematics — it only shapes the perceptual tone of the reverb output. Combine with `--lowcut` and `--highcut` for more specific frequency management.
+
+`--tilt-pivot-hz` moves the tonal fulcrum of that tilt, while `--lowcut-order` and `--highcut-order` let you choose gentler or steeper post-wet filter slopes.
 
 ---
 
@@ -703,6 +755,12 @@ curated quick-reference for common switches.
 | `--width` | 0–2 | Stereo decorrelation | |
 | `--allpass-stages` | 0–16 | Diffusion stage count | |
 | `--allpass-gain` | ±0.99 | Per-stage allpass coefficient | Comma-separated per-stage list accepted |
+| `--comb-cloud` | flag | Enable optional pre-FDN comb-cloud coloration | Separate color stage; default off |
+| `--comb-cloud-count` | 1–128 | Generated comb-cloud line count | Higher = denser, more colored |
+| `--comb-cloud-feedback` | 0–0.95 | Comb-cloud feedback amount | Higher = more ringing / metallicity |
+| `--comb-cloud-mix` | 0–1 | Blend between diffusion output and comb-cloud output | 0.15–0.35 is a strong starting range |
+| `--comb-cloud-delays-ms` | comma list | Custom comb-cloud delay list in ms | Auto-enables comb cloud |
+| `--comb-cloud-seed` | int | Deterministic comb-cloud seed | Changes generated spacing/decorrelation |
 | `--fdn-lines` | 2–64 | Delay line count | |
 | `--fdn-matrix` | see table above | Feedback matrix family | |
 | `--fdn-tv-rate-hz` | 0–5 | TV-unitary update rate | `tv_unitary` only |
@@ -780,10 +838,16 @@ curated quick-reference for common switches.
 | `--duck` | flag | Enable sidechain ducking |
 | `--duck-attack` | ms | Ducking attack time |
 | `--duck-release` | ms | Ducking release time |
+| `--duck-strength` | 0–1 | Ducking depth | Higher values carve more space for the dry signal |
+| `--duck-floor` | 0–1 | Minimum wet gain during ducking | Keeps ambience present while pumping |
 | `--bloom` | 0–5 | Wet field build-up emphasis |
+| `--bloom-mix` | 0–1 | Bloom blend override | Auto-derived from `--bloom` when omitted |
 | `--lowcut` | Hz | Post-wet high-pass filter |
+| `--lowcut-order` | 1–8 | High-pass slope order | Higher = steeper low-frequency cleanup |
 | `--highcut` | Hz | Post-wet low-pass filter |
+| `--highcut-order` | 1–8 | Low-pass slope order | Higher = steeper top-end damping |
 | `--tilt` | dB/oct | Post-wet spectral tilt |
+| `--tilt-pivot-hz` | Hz | Tilt pivot frequency | Moves the tonal hinge point of the tilt EQ |
 | `--freeze` | flag | Loop a segment through the engine |
 | `--start` | seconds | Freeze segment start |
 | `--end` | seconds | Freeze segment end |
@@ -877,12 +941,14 @@ live monitor through the streaming convolution engine. That means you get live
 device routing and stable tails today, without pretending the full offline
 automation surface is callback-safe yet. In other words: convolution settings
 act live, while algorithmic settings shape the startup proxy IR that the live
-convolver uses for the session.
+convolver uses for the session. It now also supports a dedicated low-latency
+live dereverb path, either standalone or chained in front of the reverb engine.
 
 **Transport and device routing**
 
 | Switch | Values | What it does |
 |---|---|---|
+| `--live-mode` | reverb/dereverb/dereverb-reverb | Choose reverb only, dereverb only, or dereverb feeding the live reverb path |
 | `--engine` | auto/conv/algo | Live engine mode. `auto` chooses convolution when `--ir` is present, else algorithmic proxy |
 | `--ir` | file path | IR source for realtime convolution |
 | `--input-device` | index or substring | Select live input device |
@@ -897,6 +963,21 @@ convolver uses for the session.
 | `--output-channel-map` | comma-separated 1-based ints | Select and reorder hardware output channels that receive processor outputs |
 | `--duration` | seconds | Stop automatically after N seconds; omit for Ctrl-C run |
 | `--quiet` | flag | Reduce console output |
+
+**Low-latency live dereverb**
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--dereverb-mode` | wiener/spectral_sub | Realtime dereverb kernel |
+| `--dereverb-strength` | 0–2 | How aggressively late energy is suppressed |
+| `--dereverb-floor` | 0–1 | Minimum residual gain floor |
+| `--dereverb-window-ms` / `--dereverb-hop-ms` | ms / ms | Short STFT analysis window and hop for the live dereverb path |
+| `--dereverb-tail-ms` | ms | Exponential late-tail tracking horizon |
+| `--dereverb-pre-emphasis` | 0–0.98 | Optional pre-emphasis before spectral processing |
+| `--dereverb-mix` | 0–1 | Blend between dereverbed and latency-aligned dry signal |
+| `--dereverb-max-atten-db` | dB | Clamp the maximum spectral attenuation |
+| `--dereverb-stereo-link` | flag | Link stereo gain decisions to reduce image wobble |
+| `--dereverb-input-gain-db` / `--dereverb-output-gain-db` | dB / dB | Trim into and out of the live dereverb processor |
 
 **Realtime mix and proxy-room controls**
 
@@ -945,13 +1026,17 @@ convolver uses for the session.
 
 Notes:
 
+- `--live-mode dereverb` ignores reverb-engine startup options and runs only the low-latency dereverb processor.
+- `--live-mode dereverb-reverb` runs the same dereverb front-end first, then feeds the selected live reverb engine.
+- Live dereverb currently supports mono or stereo processor widths.
+- `--block-size` must be divisible by the resolved dereverb hop size. At 48 kHz with `--dereverb-hop-ms 4`, safe values include `192`, `384`, and `576`.
 - When `--engine conv` is used with `--ir`, algorithmic proxy flags are rejected instead of being silently ignored.
 - Realtime `--freeze` is not the offline segment-freeze processor. It is a live-preview approximation built on a long self-sustaining proxy IR.
 - Channel maps are 1-based hardware channel numbers. If you pass `--input-channel-map 1,3`, processor input 1 comes from hardware input 1 and processor input 2 comes from hardware input 3.
 - Channel-count switches must match the length of the corresponding channel map when both are provided.
 - The autogenerated exhaustive help for every switch lives in [`docs/CLI_REFERENCE.md`](docs/CLI_REFERENCE.md).
 
-Example:
+Examples:
 
 ```bash
 verbx realtime --engine algo \
@@ -963,6 +1048,29 @@ verbx realtime --engine algo \
   --fdn-matrix tv-unitary --fdn-tv-rate-hz 0.35 --fdn-tv-depth 0.12 \
   --fdn-graph-topology star --fdn-sparse --fdn-cascade \
   --lowcut 120 --highcut 9000 --tilt 1.5
+```
+
+```bash
+verbx realtime --live-mode dereverb \
+  --input-device "Built-in Microphone" \
+  --output-device "Headphones" \
+  --sample-rate 48000 --block-size 384 \
+  --dereverb-mode wiener \
+  --dereverb-strength 0.85 --dereverb-floor 0.05 \
+  --dereverb-window-ms 12 --dereverb-hop-ms 4 --dereverb-tail-ms 90 \
+  --dereverb-pre-emphasis 0.2 --dereverb-mix 1.0 \
+  --dereverb-max-atten-db 18 --dereverb-stereo-link
+```
+
+```bash
+verbx realtime --live-mode dereverb-reverb --engine algo \
+  --input-device "Built-in Microphone" \
+  --output-device "Headphones" \
+  --sample-rate 48000 --block-size 384 \
+  --dereverb-mode spectral_sub --dereverb-strength 0.9 \
+  --dereverb-window-ms 12 --dereverb-hop-ms 4 \
+  --rt60 12 --wet 0.55 --dry 0.45 \
+  --fdn-matrix tv-unitary --fdn-tv-rate-hz 0.25 --fdn-tv-depth 0.08
 ```
 
 ---
@@ -1058,6 +1166,7 @@ verbx batch augment augment.json --jobs 8      # generate training dataset
 verbx suggest INFILE      # analysis-driven starter settings for your specific audio
 verbx realtime --list-devices   # list selectable live audio devices
 verbx realtime --engine algo --input-device 0 --output-device 3   # live preview
+verbx realtime --live-mode dereverb --input-device 0 --output-device 3   # live low-latency dereverb
 verbx render in.wav out.wav --preset room:6x8x3/hall   # geometry-derived room baseline
 verbx room-model --rt60 1.8 --material hall   # infer a plausible room geometry
 verbx dereverb INFILE OUTFILE   # suppress late reverberation from an existing recording
@@ -1401,7 +1510,8 @@ For contributors and people who want to understand the signal chain in code.
 
 | Path | Contents |
 |---|---|
-| `src/verbx/cli.py` | Command routing, CLI surface, option validation |
+| `src/verbx/commands/` | Public command modules and Typer registration surfaces |
+| `src/verbx/cli.py` | Shared CLI validation, config assembly, and helper/report logic |
 | `src/verbx/core/algo_reverb.py` | Algorithmic FDN engine |
 | `src/verbx/core/conv_reverb.py` | Partitioned FFT convolution engine |
 | `src/verbx/core/pipeline.py` | Render orchestration, stage ordering |
@@ -1421,14 +1531,15 @@ input audio
   │                                                        │
   └─ pre-delay (z^-N)                                      │
        └─ allpass diffusion (stages 1..K)                  │
-            └─ FDN core                                     │
-                 ├─ delay bank (lines 1..N)                │
-                 ├─ loop conditioning D(z)                 │
-                 ├─ RT60 gain matrix G                     │
-                 ├─ feedback matrix M [orthonormal]        │
-                 ├─ [optional] DFM micro-delays            │
-                 ├─ [optional] link filter                 │
-                 └─ [optional] in-loop nonlinearity        │
+            └─ [optional] comb cloud                        │
+                 └─ FDN core                                │
+                      ├─ delay bank (lines 1..N)           │
+                      ├─ loop conditioning D(z)            │
+                      ├─ RT60 gain matrix G                │
+                      ├─ feedback matrix M [orthonormal]   │
+                      ├─ [optional] DFM micro-delays       │
+                      ├─ [optional] link filter            │
+                      └─ [optional] in-loop nonlinearity   │
             └─ wet projection                              │
                  └─ shimmer / bloom / duck / tilt / EQ ───┤
                                                            │
@@ -1494,6 +1605,7 @@ Key papers:
 - **Gardner (1998)** — "Reverberation algorithms." Practical implementation guide covering partitioned convolution, early reflections, and late field design.
 
 Additional guides in `docs/`:
+- [Consolidated user guide](docs/USERGUIDE.md) and `USERGUIDE.pdf` — README plus user-facing docs/tips in one manual
 - [Autogenerated CLI reference](docs/CLI_REFERENCE.md) — machine-generated `--help` snapshots for all command groups
 - [IR synthesis guide](docs/IR_SYNTHESIS.md) — complete parameter reference for all synthesis modes
 - [AI augmentation guide](docs/AI_AUGMENTATION.md) — dataset generation workflow documentation

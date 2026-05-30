@@ -81,7 +81,12 @@ class ShimmerProcessor:
         self._feedback_state = shimmer_wet.astype(np.float64)
 
         out = ((1.0 - mix) * x) + (mix * shimmer_wet)
-        out = soft_limiter(np.asarray(out, dtype=np.float64), threshold_dbfs=-1.0, knee_db=5.0)
+        out = soft_limiter(
+            np.asarray(out, dtype=np.float64),
+            sr=sr,
+            threshold_dbfs=-1.0,
+            knee_db=5.0,
+        )
         return np.asarray(out, dtype=np.float64)
 
 

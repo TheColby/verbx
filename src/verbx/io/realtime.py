@@ -5,16 +5,25 @@ from __future__ import annotations
 import importlib
 import threading
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 import numpy as np
 import numpy.typing as npt
 
-from verbx.core.convolution_reverb import LiveConvolutionProcessor
-
 AudioArray = npt.NDArray[np.float64]
+
+
+class RealtimeBlockProcessor(Protocol):
+    """Minimal protocol shared by realtime audio processors."""
+
+    input_channels: int
+    output_channels: int
+
+    def process_block(self, block: AudioArray) -> AudioArray:
+        """Process one realtime block and return a same-length output block."""
+        ...
 
 
 @dataclass(slots=True)
@@ -44,6 +53,8 @@ class RealtimeSessionSummary:
     processed_blocks: int
     processed_seconds: float
     clipped_blocks: int
+    reported_input_latency_seconds: float | None = None
+    reported_output_latency_seconds: float | None = None
 
 
 def parse_channel_map(raw: str | None, *, option_name: str) -> tuple[int, ...]:
@@ -162,7 +173,7 @@ def resolve_audio_device(
 
 def run_realtime_duplex(
     *,
-    processor: LiveConvolutionProcessor,
+    processor: RealtimeBlockProcessor,
     sample_rate: int,
     block_size: int,
     input_device: RealtimeDeviceInfo,
@@ -172,6 +183,7 @@ def run_realtime_duplex(
     input_channel_map: tuple[int, ...] | None = None,
     output_channel_map: tuple[int, ...] | None = None,
     duration_seconds: float | None = None,
+    on_stream_started: Callable[[float | None, float | None], None] | None = None,
 ) -> RealtimeSessionSummary:
     """Run a duplex realtime session until Ctrl-C or ``duration_seconds`` expires."""
     sd = require_sounddevice()
@@ -188,6 +200,8 @@ def run_realtime_duplex(
         "processed_frames": 0,
         "clipped_blocks": 0,
     }
+    reported_input_latency_seconds: float | None = None
+    reported_output_latency_seconds: float | None = None
 
     def callback(indata: Any, outdata: Any, frames: int, time_info: Any, status: Any) -> None:
         _ = time_info
@@ -226,7 +240,16 @@ def run_realtime_duplex(
             channels=(int(stream_input_channels), int(stream_output_channels)),
             dtype="float32",
             callback=callback,
-        ):
+        ) as stream:
+            (
+                reported_input_latency_seconds,
+                reported_output_latency_seconds,
+            ) = _normalize_stream_latency(getattr(stream, "latency", None))
+            if on_stream_started is not None:
+                on_stream_started(
+                    reported_input_latency_seconds,
+                    reported_output_latency_seconds,
+                )
             if duration_seconds is None:
                 while True:
                     time.sleep(0.1)
@@ -248,4 +271,27 @@ def run_realtime_duplex(
         processed_blocks=int(stats["processed_blocks"]),
         processed_seconds=float(stats["processed_frames"]) / float(max(1, sample_rate)),
         clipped_blocks=int(stats["clipped_blocks"]),
+        reported_input_latency_seconds=reported_input_latency_seconds,
+        reported_output_latency_seconds=reported_output_latency_seconds,
     )
+
+
+def _normalize_stream_latency(raw_latency: object) -> tuple[float | None, float | None]:
+    """Normalize sounddevice latency values into duplex input/output seconds."""
+    if isinstance(raw_latency, (tuple, list)):
+        values = list(raw_latency)
+        input_latency = _coerce_latency_seconds(values[0] if len(values) >= 1 else None)
+        output_latency = _coerce_latency_seconds(values[1] if len(values) >= 2 else None)
+        return input_latency, output_latency
+    latency_seconds = _coerce_latency_seconds(raw_latency)
+    return latency_seconds, latency_seconds
+
+
+def _coerce_latency_seconds(raw_latency: object) -> float | None:
+    """Return a non-negative latency value in seconds when available."""
+    if not isinstance(raw_latency, (int, float)):
+        return None
+    latency_seconds = float(raw_latency)
+    if latency_seconds < 0.0:
+        return None
+    return latency_seconds
