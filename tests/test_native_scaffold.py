@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -191,3 +192,28 @@ def test_native_render_silent_input_trims_to_short_zero_tail(tmp_path: Path) -> 
     assert out_sr == sr
     assert rendered.shape == (240, 1)
     assert np.max(np.abs(rendered)) == 0.0
+
+
+def test_native_render_parity_contract_is_narrow_and_deterministic() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    contract_path = repo_root / "tests/fixtures/native_render_parity_contract.json"
+    payload = json.loads(contract_path.read_text(encoding="utf-8"))
+
+    assert payload["schema_version"] == 1
+    assert payload["python_reference"]["command"] == "verbx render"
+    assert payload["native_candidate"]["command"] == "verbx-c render"
+    assert payload["formats"]["channels"] == [1, 2]
+    assert payload["controls"]["deferred"]
+    assert {
+        "rt60",
+        "wet",
+        "dry",
+        "pre_delay_ms",
+        "tail_threshold_db",
+        "tail_hold_ms",
+        "tail_metric",
+        "out_format",
+    }.issubset(set(payload["controls"]["required"]))
+    assert len(payload["fixtures"]) >= 2
+    assert payload["acceptance_metrics"]["finite_samples_only"] is True
+    assert payload["acceptance_metrics"]["tail_ends_in_exact_zeros"] is True

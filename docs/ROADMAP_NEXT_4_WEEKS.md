@@ -3,7 +3,7 @@
 _Execution checklist derived from the active roadmap in `README.md`,
 `CHANGELOG.md`, and `docs/ROADMAP.md`._
 
-_Last updated: 2026-04-16._
+_Last updated: 2026-06-04._
 
 ---
 
@@ -47,11 +47,12 @@ Use these as the working top-line priorities for the current cycle:
 ### Week 2
 
 - [ ] Harden realtime UX:
-  - [ ] clearer startup summaries
+  - [x] clearer startup summaries
   - [ ] better device/input-output error reporting
-  - [ ] safer defaults for live dereverb and freeze/infinite-style reverb
+  - [x] safer defaults for live dereverb and freeze/infinite-style reverb
 - [ ] Add consistent machine-readable analysis/report outputs anywhere render, realtime, and dereverb still diverge.
 - [ ] Close the remaining “looks hung” and “surprising default” render flows with fail-fast validation or clearer status output.
+  - [x] Add shared render/realtime preflight rows for render path, tail risk, proxy budget, and block latency.
 
 ### Week 3
 
@@ -80,7 +81,7 @@ Use these as the working top-line priorities for the current cycle:
   - [ ] input/output formats
   - [ ] tail handling
   - [ ] core algorithmic controls
-- [ ] Add a small parity matrix in tests or fixtures so native work has a concrete target.
+- [x] Add a small parity matrix in tests or fixtures so native work has a concrete target.
 
 ### Week 2
 

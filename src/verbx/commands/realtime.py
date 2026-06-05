@@ -10,6 +10,10 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from verbx.commands.safety import (
+    realtime_freeze_proxy_required_seconds,
+    realtime_preflight_items,
+)
 from verbx.config import RenderConfig
 from verbx.core.algo_proxy import render_algo_proxy_ir
 from verbx.core.convolution_reverb import (
@@ -704,6 +708,15 @@ def realtime(
     )
 
     if not quiet:
+        _print_realtime_preflight_table(
+            realtime_preflight_items(
+                config=realtime_config,
+                live_mode=str(live_mode),
+                sample_rate=int(sample_rate),
+                block_size=int(block_size),
+                duration_seconds=duration,
+            )
+        )
         _print_realtime_start_table(
             input_device=input_info,
             output_device=output_info,
@@ -997,6 +1010,19 @@ def _print_device_table(devices: list[RealtimeDeviceInfo]) -> None:
             str(device.max_output_channels),
             f"{device.default_samplerate:.1f}",
         )
+    console.print(table)
+
+
+def _print_realtime_preflight_table(items: tuple[object, ...]) -> None:
+    """Print quick startup risk/latency summary before opening the device."""
+
+    table = Table(title="Realtime Preflight")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="white")
+    for item in items:
+        key = getattr(item, "key", "")
+        value = getattr(item, "value", "")
+        table.add_row(str(key), str(value))
     console.print(table)
 
 
@@ -1362,6 +1388,15 @@ def _validate_realtime_config(config: RenderConfig) -> None:
             f"{resolved_fdn_lines} values."
         )
         raise typer.BadParameter(msg)
+    if config.freeze:
+        required_seconds = realtime_freeze_proxy_required_seconds(config)
+        if required_seconds > float(config.algo_proxy_ir_max_seconds):
+            msg = (
+                "--freeze with this --rt60 needs an algorithmic proxy IR of about "
+                f"{required_seconds:.1f}s. Increase --algo-proxy-ir-max-seconds "
+                "or lower --rt60 to avoid a startup that looks hung."
+            )
+            raise typer.BadParameter(msg)
 
 
 def _collect_algo_only_option_overrides(config: RenderConfig) -> list[str]:
@@ -1384,7 +1419,7 @@ def _apply_realtime_freeze_proxy(config: RenderConfig) -> RenderConfig:
         frozen.unsafe_loop_gain = _REALTIME_FREEZE_LOOP_GAIN
     frozen.algo_proxy_ir_max_seconds = max(
         float(frozen.algo_proxy_ir_max_seconds),
-        max(_REALTIME_FREEZE_PROXY_SECONDS, float(frozen.rt60) * 4.0),
+        _REALTIME_FREEZE_PROXY_SECONDS,
     )
     return frozen
 

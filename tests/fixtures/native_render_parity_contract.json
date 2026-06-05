@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "target": "verbx-c offline render parity slice",
+  "owner_track": "v0.8 native executable program",
+  "python_reference": {
+    "command": "verbx render",
+    "engine": "algo",
+    "determinism": "fixed seed, no automation, no convolution input"
+  },
+  "native_candidate": {
+    "command": "verbx-c render",
+    "engine": "native-offline"
+  },
+  "formats": {
+    "input": ["pcm16", "pcm24", "pcm32", "float32", "float64"],
+    "output": ["pcm16", "float32", "float64"],
+    "channels": [1, 2]
+  },
+  "controls": {
+    "required": [
+      "rt60",
+      "wet",
+      "dry",
+      "pre_delay_ms",
+      "damping",
+      "tail_threshold_db",
+      "tail_hold_ms",
+      "tail_metric",
+      "out_format"
+    ],
+    "deferred": [
+      "fdn_matrix",
+      "fdn_lines",
+      "multiband_rt60",
+      "automation",
+      "shimmer",
+      "freeze",
+      "limiter"
+    ]
+  },
+  "fixtures": [
+    {
+      "name": "mono_impulse_short_tail",
+      "sample_rate": 16000,
+      "channels": 1,
+      "duration_seconds": 0.016,
+      "input_subtype": "float64",
+      "output_subtype": "float32",
+      "args": {
+        "rt60": 0.6,
+        "wet": 1.0,
+        "dry": 0.0,
+        "pre_delay_ms": 0.0,
+        "damping": 0.45,
+        "tail_threshold_db": -70.0,
+        "tail_hold_ms": 5.0,
+        "tail_metric": "rms"
+      }
+    },
+    {
+      "name": "stereo_impulse_mixed_tail",
+      "sample_rate": 22050,
+      "channels": 2,
+      "duration_seconds": 0.015,
+      "input_subtype": "pcm16",
+      "output_subtype": "pcm16",
+      "args": {
+        "rt60": 0.8,
+        "wet": 0.85,
+        "dry": 0.15,
+        "pre_delay_ms": 20.0,
+        "damping": 0.5,
+        "tail_threshold_db": -100.0,
+        "tail_hold_ms": 10.0,
+        "tail_metric": "peak"
+      }
+    }
+  ],
+  "acceptance_metrics": {
+    "sample_rate_exact": true,
+    "channel_count_exact": true,
+    "finite_samples_only": true,
+    "tail_ends_in_exact_zeros": true,
+    "peak_abs_tolerance": 0.05,
+    "rms_tolerance_db": 1.5,
+    "duration_tolerance_ms": 25.0
+  }
+}

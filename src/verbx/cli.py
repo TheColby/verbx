@@ -130,6 +130,7 @@ from verbx.commands.presets import list_presets as list_presets_command
 from verbx.commands.realtime import realtime as realtime_command
 from verbx.commands.render import render as render_command
 from verbx.commands.room_model import room_model as room_model_command
+from verbx.commands.safety import render_preflight_items
 from verbx.commands.suggest import suggest as suggest_command
 from verbx.commands.system import collect_runtime_diagnostics
 from verbx.commands.system import doctor as doctor_command
@@ -5977,6 +5978,8 @@ def _print_render_dry_run_plan(
             table.add_row("comb_cloud_delay_count", str(len(config.comb_cloud_delays_ms)))
     table.add_row("ir", str(config.ir))
     table.add_row("ir_blend_count", str(len(config.ir_blend)))
+    for item in render_preflight_items(config):
+        table.add_row(item.key, item.value)
     estimated_duration_s = _estimate_render_output_duration_seconds(infile=infile, config=config)
     if estimated_duration_s is not None:
         table.add_row("estimated_output_duration_s", f"{estimated_duration_s:.3f}")

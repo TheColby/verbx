@@ -1,6 +1,6 @@
 # verbx Roadmap
 
-_Last updated: 2026-04-03. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
+_Last updated: 2026-06-04. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
 
 ---
 
@@ -90,7 +90,8 @@ released/public-alpha tool during the transition.
 - [x] Port a first native offline late-field core (pre-delay, combs, allpass diffusion, tail finalization).
 - [ ] Replace the foundational Schroeder/Moorer core with the higher-order FDN loop used by `v0.7.x`.
 - [ ] Port damping, width, pre-delay, freeze, repeat, and normalization in controlled phases.
-- [ ] Define parity corpus against `v0.7.x` Python outputs before feature expansion.
+- [x] Define the first narrow parity contract in `tests/fixtures/native_render_parity_contract.json`.
+- [ ] Generate Python/native metric comparisons from that contract before feature expansion.
 
 ### 4.4 Productization
 

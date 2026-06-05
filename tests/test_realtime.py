@@ -306,6 +306,8 @@ def test_realtime_algo_accepts_extended_proxy_options(
     assert config.fdn_dfm_delays_ms == (0.8, 1.2, 1.6, 2.0)
     assert "proxy_freeze" in result.stdout
     assert "proxy_eq" in result.stdout
+    assert "Realtime Preflight" in result.stdout
+    assert "proxy_ir_budget" in result.stdout
 
 
 def test_realtime_conv_rejects_algo_only_switches(
@@ -354,6 +356,48 @@ def test_realtime_conv_rejects_algo_only_switches(
     assert "only apply to realtime --engine algo" in combined
     assert "--rt60" in combined
     assert "--freeze" in combined
+
+
+def test_realtime_freeze_rejects_unbounded_proxy_startup(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    fake_devices = [
+        realtime_io.RealtimeDeviceInfo(
+            index=0,
+            name="Mic",
+            max_input_channels=2,
+            max_output_channels=0,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+        realtime_io.RealtimeDeviceInfo(
+            index=1,
+            name="Speakers",
+            max_input_channels=0,
+            max_output_channels=2,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+    ]
+    monkeypatch.setattr(realtime_cmd, "list_audio_devices", lambda: fake_devices)
+
+    result = runner.invoke(
+        app,
+        [
+            "realtime",
+            "--engine",
+            "algo",
+            "--rt60",
+            "3600",
+            "--freeze",
+            "--duration",
+            "0.01",
+        ],
+    )
+    assert result.exit_code != 0
+    combined = _combined_output(result)
+    assert "startup that looks hung" in combined
+    assert "--algo-proxy-ir-max-seconds" in combined
 
 
 def test_realtime_channel_map_sets_processor_widths(monkeypatch: MonkeyPatch) -> None:

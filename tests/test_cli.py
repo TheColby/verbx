@@ -288,6 +288,8 @@ def test_render_dry_run_validates_without_writing_audio(tmp_path: Path) -> None:
     assert "Render Dry-Run Plan" in text
     assert "audio_write" in text
     assert "skipped" in text
+    assert "render_path" in text
+    assert "safety_profile" in text
     assert "estimated_output_size_mb" in text
     assert not outfile.exists()
     assert not Path(f"{outfile}.analysis.json").exists()
@@ -316,6 +318,8 @@ def test_render_dry_run_accepts_extended_rt60_upper_bound(tmp_path: Path) -> Non
     assert result.exit_code == 0, result.stdout
     text = _combined_cli_output(result)
     assert "Render Dry-Run Plan" in text
+    assert "extreme-tail" in text
+    assert "tail_limit" in text
     assert not outfile.exists()
     assert not Path(f"{outfile}.analysis.json").exists()
 

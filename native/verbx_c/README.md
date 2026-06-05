@@ -72,6 +72,16 @@ not yet the full Python FDN engine.
 ## Immediate goals
 
 - stabilize the native error model, logging model, and offline process contract
-- broaden native render coverage and add deterministic parity fixtures
+- broaden native render coverage against
+  `tests/fixtures/native_render_parity_contract.json`
 - port the higher-order FDN/automation render core in small, testable pieces
 - keep regression parity with the `v0.7.x` Python renderer during the migration
+
+## Parity Contract
+
+The first native parity target is intentionally narrow: deterministic offline
+render only, mono/stereo WAV IO, `rt60`, `wet`, `dry`, `pre-delay`, damping,
+tail threshold/hold/metric, and output subtype selection. The checked-in
+contract at `tests/fixtures/native_render_parity_contract.json` defines the
+fixture names, accepted formats, deferred features, and metric tolerances that
+the `v0.8` native track should satisfy before broadening the DSP surface.
