@@ -66,10 +66,19 @@ def _build_markdown(author: str) -> str:
     for index, source in enumerate(USERGUIDE_SOURCES):
         if index > 0:
             lines.extend(["", "\\newpage", "", f"<!-- {_rel(source)} -->", ""])
-        lines.append(source.read_text(encoding="utf-8").rstrip())
+        lines.append(_markdown_for_userguide(source).rstrip())
         lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _markdown_for_userguide(source: Path) -> str:
+    """Return source Markdown adjusted for its new home in docs/USERGUIDE.md."""
+
+    markdown = source.read_text(encoding="utf-8")
+    if source == ROOT / "README.md":
+        markdown = markdown.replace('src="docs/assets/', 'src="assets/')
+    return markdown
 
 
 def _write_markdown(path: Path, author: str) -> None:
