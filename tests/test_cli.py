@@ -103,6 +103,9 @@ def test_quickstart_command_prints_copyable_workflows() -> None:
     assert "verbx Quickstart" in text
     assert "verbx render ../in.wav out.wav" in text
     assert "verbx analyze in.wav" in text
+    assert "limiter-broadcast-safe" in text
+    assert "verbx dereverb in.wav out_dry.wav" in text
+    assert "--output-container w64" in text
 
 
 def test_doctor_command_prints_runtime_diagnostics(tmp_path: Path) -> None:
@@ -390,6 +393,44 @@ def test_render_allows_extreme_algo_tail_when_tail_limit_is_set(tmp_path: Path) 
     assert out_sr == sr
     assert y.shape[0] < int(10.0 * sr)
     assert np.max(np.abs(y[: min(y.shape[0], 512), :])) > 0.0
+
+
+def test_render_long_tail_prints_preflight_status(tmp_path: Path) -> None:
+    sr = 2_000
+    audio = np.zeros((256, 1), dtype=np.float64)
+    audio[0, 0] = 0.8
+    infile = tmp_path / "long_tail_in.wav"
+    outfile = tmp_path / "long_tail_out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "60",
+            "--tail-limit",
+            "0.1",
+            "--fdn-lines",
+            "4",
+            "--allpass-stages",
+            "2",
+            "--target-sr",
+            str(sr),
+            "--no-progress",
+        ],
+    )
+
+    assert result.exit_code == 0, _combined_cli_output(result)
+    text = _combined_cli_output(result)
+    assert "Render Preflight" in text
+    assert "safety_profile" in text
+    assert "long-tail" in text
+    assert "Long tail is bounded by --tail-limit" in text
 
 
 def test_render_dry_run_accepts_w64_extension(tmp_path: Path) -> None:
@@ -2063,6 +2104,8 @@ def test_dereverb_command_writes_output_and_json(tmp_path: Path) -> None:
     assert out_audio.shape == (n, 1)
     payload = json.loads(json_out.read_text(encoding="utf-8"))
     assert payload["schema"] == "dereverb-report-v1"
+    assert payload["command"] == "dereverb"
+    assert payload["status"] == "ok"
     assert payload["sample_rate"] == sr
     assert payload["channels"] == 1
     assert "rms_delta_db" in payload["metrics"]
@@ -2339,6 +2382,85 @@ def test_render_limiter_options_round_trip_into_analysis_config(tmp_path: Path) 
     assert abs(float(config["limiter_pre_gain_db"]) - 3.0) < 1e-6
     assert abs(float(config["limiter_post_gain_db"]) - (-1.0)) < 1e-6
     assert config["limiter_dc_block"] is True
+
+
+def test_render_rejects_limiter_threshold_above_ceiling(tmp_path: Path) -> None:
+    sr = 48_000
+    audio = np.zeros((512, 1), dtype=np.float64)
+    audio[0, 0] = 1.0
+    infile = tmp_path / "in.wav"
+    irfile = tmp_path / "ir.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, sr)
+    sf.write(str(irfile), np.array([[1.0]], dtype=np.float64), sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--limiter-threshold-dbfs",
+            "-1.0",
+            "--limiter-ceiling-dbfs",
+            "-6.0",
+            "--no-progress",
+        ],
+    )
+
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "--limiter-threshold-dbfs must be <= --limiter-ceiling-dbfs" in text
+    assert not outfile.exists()
+
+
+def test_render_rejects_explicit_container_extension_mismatch(tmp_path: Path) -> None:
+    sr = 48_000
+    audio = np.zeros((512, 1), dtype=np.float64)
+    audio[0, 0] = 1.0
+    infile = tmp_path / "in.wav"
+    irfile = tmp_path / "ir.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, sr)
+    sf.write(str(irfile), np.array([[1.0]], dtype=np.float64), sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--output-container",
+            "w64",
+            "--no-progress",
+        ],
+    )
+
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "--output-container w64 should use a .w64 output path" in text
+    assert not outfile.exists()
+
+
+def test_presets_include_week3_stabilization_examples() -> None:
+    result = runner.invoke(app, ["presets"])
+    assert result.exit_code == 0, result.stdout
+    assert "room_model_studio" in result.stdout
+    assert "limiter_broadcast_safe" in result.stdout
+    assert "delivery_long_tail_safe" in result.stdout
+
+    detail = runner.invoke(app, ["presets", "--show", "limiter-broadcast-safe"])
+    assert detail.exit_code == 0, detail.stdout
+    assert "limiter_ceiling_dbfs" in detail.stdout
+    assert "output_peak_norm" in detail.stdout
 
 
 def test_render_quality_preset_sd_and_explicit_override_precedence(tmp_path: Path) -> None:

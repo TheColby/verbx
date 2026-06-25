@@ -18,6 +18,22 @@ All notable changes to this project are documented in this file.
   (`render`, `dereverb`, `ir`, `batch`, and `immersive` families), leaving
   `src/verbx/cli.py` as the shrinking implementation/helper layer instead of
   the public command-definition surface.
+- Command-module split status: the next safe post-IR slice is shared validators;
+  path/output-audio validation now lives in `src/verbx/commands/validators.py`,
+  with render, batch, and IR workflows continuing to use compatibility aliases
+  while the remaining helper clusters are extracted.
+- Realtime stabilization now reports device-selection and backend stream-open
+  failures with viable device hints, attempted sample rate/block/channel
+  settings, and recovery guidance instead of terse backend errors.
+- Render/realtime/dereverb report payloads are more consistent:
+  `verbx realtime --json-out` now writes a `realtime-report-v1` session report,
+  and dereverb reports include shared `command` and `status` metadata.
+- Week 3 output-delivery hardening now rejects contradictory limiter
+  threshold/ceiling settings and explicit container/extension mismatches before
+  rendering, avoiding silent limiter collapse or mislabeled W64/RF64 files.
+- Added Week 3 stabilization presets and quickstart/docs examples for
+  room-modelled renders, dereverb cleanup, limiter-safe delivery, and bounded
+  long-tail W64 output.
 
 ### Added
 - `src/verbx/core/room_geometry.py` with a reusable `RoomGeometry` dataclass,

@@ -141,7 +141,10 @@ def resolve_audio_device(
     capability_key = "max_input_channels" if kind == "input" else "max_output_channels"
     capable = [device for device in available if int(getattr(device, capability_key)) > 0]
     if len(capable) == 0:
-        raise RuntimeError(f"No realtime {kind} devices are available.")
+        raise RuntimeError(
+            f"No realtime {kind} devices are available. "
+            f"{_device_selection_hint(kind=kind, devices=available)}"
+        )
 
     if selector is None:
         return capable[0]
@@ -155,20 +158,50 @@ def resolve_audio_device(
             for device in capable:
                 if int(device.index) == target:
                     return device
-            raise ValueError(f"No realtime {kind} device with index {target}.")
+            raise ValueError(
+                f"No realtime {kind} device with index {target}. "
+                f"{_device_selection_hint(kind=kind, devices=capable)}"
+            )
         needle = stripped.lower()
     else:
         target = int(selector)
         for device in capable:
             if int(device.index) == target:
                 return device
-        raise ValueError(f"No realtime {kind} device with index {target}.")
+        raise ValueError(
+            f"No realtime {kind} device with index {target}. "
+            f"{_device_selection_hint(kind=kind, devices=capable)}"
+        )
 
     for device in capable:
         haystack = f"{device.name} {device.hostapi or ''}".lower()
         if needle in haystack:
             return device
-    raise ValueError(f"No realtime {kind} device matching '{selector}'.")
+    raise ValueError(
+        f"No realtime {kind} device matching '{selector}'. "
+        f"{_device_selection_hint(kind=kind, devices=capable)}"
+    )
+
+
+def _device_selection_hint(*, kind: str, devices: Sequence[RealtimeDeviceInfo]) -> str:
+    """Return a compact device list plus the canonical discovery command."""
+    capability_key = "max_input_channels" if kind == "input" else "max_output_channels"
+    capable = [device for device in devices if int(getattr(device, capability_key)) > 0]
+    if len(capable) == 0:
+        return "Run `verbx realtime --list-devices` to inspect backend-visible devices."
+    shown = []
+    for device in capable[:8]:
+        sr = f"{float(device.default_samplerate):.0f}Hz" if device.default_samplerate else "sr=?"
+        shown.append(
+            f"{device.index}:{device.name}"
+            f" ({device.hostapi or 'unknown'}, in={device.max_input_channels}, "
+            f"out={device.max_output_channels}, {sr})"
+        )
+    suffix = "" if len(capable) <= 8 else f"; ... {len(capable) - 8} more"
+    return (
+        f"Available {kind} devices: {'; '.join(shown)}{suffix}. "
+        "Run `verbx realtime --list-devices` for the full table."
+    )
 
 
 def run_realtime_duplex(
@@ -259,6 +292,21 @@ def run_realtime_duplex(
                 time.sleep(max(0.05, float(block_size) / float(sample_rate)))
     except KeyboardInterrupt:
         stop_event.set()
+    except Exception as exc:
+        input_map = ",".join(str(ch) for ch in resolved_input_map)
+        output_map = ",".join(str(ch) for ch in resolved_output_map)
+        msg = (
+            "Failed to open realtime duplex stream "
+            f"(input={input_device.index}:{input_device.name}, "
+            f"output={output_device.index}:{output_device.name}, "
+            f"sample_rate={int(sample_rate)}, block_size={int(block_size)}, "
+            f"input_channels={int(stream_input_channels)}, "
+            f"output_channels={int(stream_output_channels)}, "
+            f"input_map={input_map}, output_map={output_map}). "
+            "Check device names with `verbx realtime --list-devices`, then try matching "
+            "--sample-rate, --block-size, --input-channels, or --output-channels to the device."
+        )
+        raise RuntimeError(msg) from exc
     return RealtimeSessionSummary(
         sample_rate=int(sample_rate),
         block_size=int(block_size),

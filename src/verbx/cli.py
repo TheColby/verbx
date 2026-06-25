@@ -136,6 +136,8 @@ from verbx.commands.system import collect_runtime_diagnostics
 from verbx.commands.system import doctor as doctor_command
 from verbx.commands.system import quickstart as quickstart_command
 from verbx.commands.system import version as version_command
+from verbx.commands.validators import ensure_distinct_paths as _ensure_distinct_paths
+from verbx.commands.validators import validate_output_audio_path as _validate_output_audio_path
 from verbx.config import (
     AmbiChannelOrder,
     AmbiDecodeTo,
@@ -1826,6 +1828,9 @@ def _render_impl(
                 "Install with: pip install librosa"
             )
 
+    if not config.silent and not quiet and verbosity > 0:
+        _print_render_preflight_status(config)
+
     try:
         with _processing_status(
             "Render audio",
@@ -2164,6 +2169,8 @@ def _dereverb_impl(
     )
     payload: dict[str, Any] = {
         "schema": "dereverb-report-v1",
+        "command": "dereverb",
+        "status": "ok",
         "input": str(infile),
         "output": str(outfile),
         "sample_rate": int(sr),
@@ -6033,6 +6040,24 @@ def _print_render_dry_run_plan(
     console.print(table)
 
 
+def _print_render_preflight_status(config: RenderConfig) -> None:
+    """Show early context for long algorithmic renders before processing starts."""
+    items = render_preflight_items(config)
+    profile = next((item.value for item in items if item.key == "safety_profile"), "")
+    if profile not in {"long-tail", "extreme-tail"}:
+        return
+    table = Table(title="Render Preflight")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="white")
+    for item in items:
+        table.add_row(item.key, item.value)
+    if config.tail_limit is None:
+        table.add_row("hint", "Use --tail-limit to bound intentionally huge tails.")
+    else:
+        table.add_row("hint", "Long tail is bounded by --tail-limit.")
+    console.print(table)
+
+
 def _validate_fdn_matrix_name(fdn_matrix: str) -> None:
     """Validate FDN matrix topology identifier."""
     normalized = _normalize_fdn_matrix_name(fdn_matrix)
@@ -6754,6 +6779,18 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
     if config.output_container not in {"auto", "wav", "w64", "rf64"}:
         msg = "--output-container must be one of: auto, wav, w64, rf64."
         raise typer.BadParameter(msg)
+    _validate_explicit_output_container_path(outfile, config.output_container)
+    if (
+        config.limiter_threshold_dbfs is not None
+        and config.limiter_ceiling_dbfs is not None
+        and float(config.limiter_threshold_dbfs) > float(config.limiter_ceiling_dbfs)
+    ):
+        msg = (
+            "--limiter-threshold-dbfs must be <= --limiter-ceiling-dbfs. "
+            "Use a threshold at or below the ceiling so gain reduction starts before "
+            "the final output clamp."
+        )
+        raise typer.BadParameter(msg)
     if config.algo_stream and not algo_enabled:
         msg = "--algo-stream is only valid for algorithmic renders."
         raise typer.BadParameter(msg)
@@ -7004,6 +7041,25 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
             parse_mod_route_spec(route_spec)
         except ValueError as exc:
             raise typer.BadParameter(f"invalid --mod-route '{route_spec}': {exc}") from exc
+
+
+def _validate_explicit_output_container_path(outfile: Path, output_container: str) -> None:
+    """Fail fast when an explicit container disagrees with the output extension."""
+    normalized = str(output_container).strip().lower()
+    if normalized == "auto":
+        return
+    expected_suffix = {
+        "wav": ".wav",
+        "w64": ".w64",
+        "rf64": ".rf64",
+    }.get(normalized)
+    if expected_suffix is None:
+        return
+    if outfile.suffix.lower() != expected_suffix:
+        raise typer.BadParameter(
+            f"--output-container {normalized} should use a {expected_suffix} output path "
+            f"(got {outfile.name}). Use --output-container auto to infer from the extension."
+        )
 
 
 def _validate_ir_gen_call(
@@ -7299,82 +7355,6 @@ def _validate_batch_job_paths(infile: Path, outfile: Path, idx: int) -> None:
         msg = f"jobs[{idx - 1}] infile not found: {infile}"
         raise typer.BadParameter(msg)
     _validate_output_audio_path(outfile, "auto")
-
-
-def _ensure_distinct_paths(in_path: Path, out_path: Path, in_label: str, out_label: str) -> None:
-    """Ensure input and output paths are not identical."""
-    if in_path.resolve() == out_path.resolve():
-        msg = f"{in_label} and {out_label} must be different paths."
-        raise typer.BadParameter(msg)
-
-
-def _validate_output_audio_path(path: Path, out_subtype_mode: str) -> None:
-    """Validate output extension and requested SoundFile subtype support."""
-    suffix = path.suffix.lower().lstrip(".")
-    if suffix == "":
-        msg = f"Output path must include an audio file extension: {path} (try .wav or .flac)."
-        raise typer.BadParameter(msg)
-
-    format_map = {
-        "wav": "WAV",
-        "w64": "W64",
-        "rf64": "RF64",
-        "flac": "FLAC",
-        "aif": "AIFF",
-        "aiff": "AIFF",
-        "ogg": "OGG",
-        "caf": "CAF",
-        "au": "AU",
-    }
-    fmt = format_map.get(suffix)
-    if fmt is None:
-        supported = ", ".join(f".{ext}" for ext in sorted(format_map))
-        suggestion = _did_you_mean(suffix, set(format_map.keys()))
-        if suggestion is None:
-            for ext in sorted(format_map.keys()):
-                if suffix.startswith(ext) or ext.startswith(suffix):
-                    suggestion = ext
-                    break
-        if suggestion is not None:
-            msg = (
-                f"Unsupported output audio extension: .{suffix}. "
-                f"Did you mean '.{suggestion}'? Supported: {supported}."
-            )
-        else:
-            msg = f"Unsupported output audio extension: .{suffix}. Supported: {supported}."
-        raise typer.BadParameter(msg)
-
-    subtype_map = {
-        "auto": None,
-        "float32": "FLOAT",
-        "float64": "DOUBLE",
-        "pcm16": "PCM_16",
-        "pcm24": "PCM_24",
-        "pcm32": "PCM_32",
-    }
-    subtype = subtype_map.get(out_subtype_mode)
-    if out_subtype_mode not in subtype_map:
-        msg = f"Unsupported --out-subtype value: {out_subtype_mode}"
-        raise typer.BadParameter(msg)
-
-    if subtype is None:
-        if not sf.check_format(fmt):
-            msg = f"SoundFile cannot write format '{fmt}' for output path {path}"
-            raise typer.BadParameter(msg)
-    else:
-        if not sf.check_format(fmt, subtype):
-            supported_subtypes: list[str] = []
-            for mode, candidate in subtype_map.items():
-                if candidate is None:
-                    continue
-                if sf.check_format(fmt, candidate):
-                    supported_subtypes.append(mode)
-            supported_text = ", ".join(sorted(supported_subtypes))
-            msg = (
-                f"Subtype '{subtype}' is not supported for format '{fmt}'. "
-                f"Use --out-subtype auto or one of: {supported_text}."
-            )
-            raise typer.BadParameter(msg)
 
 
 # Keep these shared helpers explicitly referenced while extracted IR command

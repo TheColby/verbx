@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import difflib
 
-DEFAULT_PRESETS: dict[str, dict[str, float | int | bool | str]] = {
+PresetValue = float | int | bool | str | tuple[float, ...]
+
+
+DEFAULT_PRESETS: dict[str, dict[str, PresetValue]] = {
     "cathedral_extreme": {
         "rt60": 90.0,
         "wet": 0.9,
@@ -58,6 +61,58 @@ DEFAULT_PRESETS: dict[str, dict[str, float | int | bool | str]] = {
         "repeat": 2,
         "target_lufs": -18.0,
         "target_peak_dbfs": -1.0,
+        "normalize_stage": "post",
+    },
+    "room_model_studio": {
+        "engine": "algo",
+        "rt60": 1.2,
+        "pre_delay_ms": 14.0,
+        "wet": 0.32,
+        "dry": 0.88,
+        "er_geometry": True,
+        "er_room_dims_m": (6.0, 8.0, 3.0),
+        "er_material": "studio",
+        "room_size_macro": -0.25,
+        "clarity_macro": 0.35,
+        "warmth_macro": 0.12,
+        "fdn_lines": 12,
+        "fdn_matrix": "householder",
+        "normalize_stage": "none",
+    },
+    "limiter_broadcast_safe": {
+        "engine": "algo",
+        "rt60": 2.8,
+        "wet": 0.42,
+        "dry": 0.82,
+        "target_lufs": -18.0,
+        "target_peak_dbfs": -1.0,
+        "limiter": True,
+        "limiter_mode": "softsign",
+        "limiter_detect": "peak",
+        "limiter_threshold_dbfs": -6.0,
+        "limiter_ceiling_dbfs": -1.0,
+        "limiter_knee_db": 4.0,
+        "limiter_lookahead_ms": 2.0,
+        "limiter_oversample": 4,
+        "output_peak_norm": "target",
+        "output_peak_target_dbfs": -1.0,
+        "normalize_stage": "post",
+    },
+    "delivery_long_tail_safe": {
+        "engine": "algo",
+        "rt60": 24.0,
+        "wet": 0.82,
+        "dry": 0.28,
+        "fdn_lines": 24,
+        "fdn_matrix": "hadamard",
+        "tail_limit": 12.0,
+        "tail_stop_threshold_db": -120.0,
+        "tail_stop_hold_ms": 20.0,
+        "algo_stream": True,
+        "output_container": "w64",
+        "output_subtype": "float32",
+        "limiter": True,
+        "limiter_ceiling_dbfs": -1.0,
         "normalize_stage": "post",
     },
     "perceptual_small_room_regression": {
@@ -150,7 +205,7 @@ def normalize_preset_name(value: str) -> str:
     return token
 
 
-def resolve_preset(value: str) -> tuple[str, dict[str, float | int | bool | str]]:
+def resolve_preset(value: str) -> tuple[str, dict[str, PresetValue]]:
     """Resolve preset key and payload or raise a helpful error."""
     normalized = normalize_preset_name(value)
     if normalized in DEFAULT_PRESETS:

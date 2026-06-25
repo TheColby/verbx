@@ -3,7 +3,7 @@
 _Execution checklist derived from the active roadmap in `README.md`,
 `CHANGELOG.md`, and `docs/ROADMAP.md`._
 
-_Last updated: 2026-06-04._
+_Last updated: 2026-06-25._
 
 ---
 
@@ -17,16 +17,16 @@ bounded research prototype.
 
 ## Priority Order
 
-- [ ] 1. Stabilize Python `0.7.x` render and realtime behavior.
-- [ ] 2. Finish CLI, docs, and test consolidation.
+- [x] 1. Stabilize Python `0.7.x` render and realtime behavior.
+- [x] 2. Finish CLI, docs, and test consolidation.
 - [ ] 3. Push native render parity on a narrow deterministic slice.
 
 ## Active Focus
 
 Use these as the working top-line priorities for the current cycle:
 
-- [ ] Stabilize Python `0.7.x` render and realtime behavior.
-- [ ] Finish CLI, docs, and test consolidation.
+- [x] Stabilize Python `0.7.x` render and realtime behavior.
+- [x] Finish CLI, docs, and test consolidation.
 - [ ] Push native render parity on a narrow, deterministic feature slice.
 
 ---
@@ -41,28 +41,29 @@ Use these as the working top-line priorities for the current cycle:
   - [x] `docs/CLI_REFERENCE.md`
   - [x] `docs/USERGUIDE.md`
   - [x] `USERGUIDE.pdf`
-- [ ] Identify the next safe extraction slice after IR (`realtime`, shared validators, or remaining helper clusters).
-- [ ] Add a short “command-module split status” note to `CHANGELOG.md` when the next slice lands.
+- [x] Identify the next safe extraction slice after IR (`shared validators`) and land it in `src/verbx/commands/validators.py`.
+- [x] Add a short “command-module split status” note to `CHANGELOG.md` when the next slice lands.
 
 ### Week 2
 
-- [ ] Harden realtime UX:
+- [x] Harden realtime UX:
   - [x] clearer startup summaries
-  - [ ] better device/input-output error reporting
+  - [x] better device/input-output error reporting
   - [x] safer defaults for live dereverb and freeze/infinite-style reverb
-- [ ] Add consistent machine-readable analysis/report outputs anywhere render, realtime, and dereverb still diverge.
-- [ ] Close the remaining “looks hung” and “surprising default” render flows with fail-fast validation or clearer status output.
+- [x] Add consistent machine-readable analysis/report outputs anywhere render, realtime, and dereverb still diverge.
+- [x] Close the remaining “looks hung” and “surprising default” render flows with fail-fast validation or clearer status output.
   - [x] Add shared render/realtime preflight rows for render path, tail risk, proxy budget, and block latency.
+  - [x] Add explicit realtime stream-open diagnostics for surprising backend/device defaults.
 
 ### Week 3
 
-- [ ] Finalize limiter and output-delivery ergonomics:
-  - [ ] limiter behavior sanity pass
-  - [ ] peak and ceiling handling review
-  - [ ] output subtype/container validation review
-  - [ ] long-render safeguard review
-- [ ] Expand presets so new room-model, dereverb, and limiter features are represented in ready-to-run examples.
-- [ ] Run a release-readiness docs/examples pass across `README.md`, launch examples, and generated guides.
+- [x] Finalize limiter and output-delivery ergonomics:
+  - [x] limiter behavior sanity pass
+  - [x] peak and ceiling handling review
+  - [x] output subtype/container validation review
+  - [x] long-render safeguard review
+- [x] Expand presets so new room-model, dereverb, and limiter features are represented in ready-to-run examples.
+- [x] Run a release-readiness docs/examples pass across `README.md`, launch examples, and generated guides.
 
 ### Week 4
 
@@ -155,9 +156,9 @@ Use these as the working top-line priorities for the current cycle:
 
 ### Shipping
 
-- [ ] `src/verbx/cli.py` is meaningfully smaller and mostly orchestration plus shared compatibility helpers.
-- [ ] Generated docs are in sync with the shipped CLI surface.
-- [ ] New realtime, dereverb, limiter, and long-tail behaviors have focused regression coverage.
+- [x] `src/verbx/cli.py` is meaningfully smaller and mostly orchestration plus shared compatibility helpers.
+- [x] Generated docs are in sync with the shipped CLI surface.
+- [x] New realtime, dereverb, limiter, and long-tail behaviors have focused regression coverage.
 
 ### Native
 

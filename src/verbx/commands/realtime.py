@@ -10,6 +10,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from verbx.commands.common import write_json_atomic
 from verbx.commands.safety import (
     realtime_freeze_proxy_required_seconds,
     realtime_preflight_items,
@@ -509,9 +510,16 @@ def realtime(
     lowcut: float | None = typer.Option(None, "--lowcut", min=10.0),
     highcut: float | None = typer.Option(None, "--highcut", min=10.0),
     tilt: float = typer.Option(0.0, "--tilt", min=-18.0, max=18.0),
+    json_out: Path | None = typer.Option(
+        None,
+        "--json-out",
+        resolve_path=True,
+        help="Optional path for a machine-readable realtime session report JSON.",
+    ),
     quiet: bool = typer.Option(False, "--quiet", help="Reduce console output."),
 ) -> None:
     """Run realtime duplex monitoring with selectable input/output devices."""
+    _validate_realtime_json_out(json_out)
     try:
         devices = list_audio_devices()
     except RuntimeError as exc:
@@ -758,13 +766,29 @@ def realtime(
             duration_seconds=duration,
             on_stream_started=_handle_stream_started,
         )
+    except RuntimeError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     finally:
         proxy_path = engine_summary.get("proxy_ir_path")
         if isinstance(proxy_path, Path):
             proxy_path.unlink(missing_ok=True)
 
+    report = _build_realtime_report(
+        live_mode=str(live_mode),
+        requested_engine=str(engine),
+        summary=summary,
+        input_device=input_info,
+        output_device=output_info,
+        engine_summary=engine_summary,
+        duration=duration,
+    )
+    if json_out is not None:
+        write_json_atomic(json_out.resolve(), report)
+
     if not quiet:
         _print_realtime_end_table(summary, engine_summary=engine_summary)
+        if json_out is not None:
+            console.print(f"[dim]Realtime report written to {json_out.resolve()}[/dim]")
 
 
 def _build_live_processor(
@@ -1208,6 +1232,82 @@ def _print_realtime_end_table(
             _format_latency_ms(latency["end_to_end_latency_ms"]),
         )
     console.print(table)
+
+
+def _validate_realtime_json_out(json_out: Path | None) -> None:
+    """Validate the optional realtime report destination."""
+    if json_out is None:
+        return
+    if json_out.suffix.lower() != ".json":
+        raise typer.BadParameter("--json-out must use .json extension.")
+
+
+def _build_realtime_report(
+    *,
+    live_mode: str,
+    requested_engine: str,
+    summary: RealtimeSessionSummary,
+    input_device: RealtimeDeviceInfo,
+    output_device: RealtimeDeviceInfo,
+    engine_summary: dict[str, object],
+    duration: float | None,
+) -> dict[str, Any]:
+    """Build the stable machine-readable realtime report payload."""
+    latency = _latency_metrics(
+        sample_rate=int(summary.sample_rate),
+        block_size=int(summary.block_size),
+        engine_summary=engine_summary,
+        reported_input_latency_seconds=summary.reported_input_latency_seconds,
+        reported_output_latency_seconds=summary.reported_output_latency_seconds,
+    )
+    return {
+        "schema": "realtime-report-v1",
+        "command": "realtime",
+        "status": "ok",
+        "live_mode": str(live_mode),
+        "requested_engine": str(requested_engine),
+        "sample_rate": int(summary.sample_rate),
+        "block_size": int(summary.block_size),
+        "duration_requested_seconds": None if duration is None else float(duration),
+        "input": {
+            "device_index": int(input_device.index),
+            "device": str(summary.input_device),
+            "hostapi": input_device.hostapi,
+            "channels": int(summary.input_channels),
+            "channel_map": list(summary.input_channel_map),
+            "max_input_channels": int(input_device.max_input_channels),
+            "default_samplerate": float(input_device.default_samplerate),
+        },
+        "output": {
+            "device_index": int(output_device.index),
+            "device": str(summary.output_device),
+            "hostapi": output_device.hostapi,
+            "channels": int(summary.output_channels),
+            "channel_map": list(summary.output_channel_map),
+            "max_output_channels": int(output_device.max_output_channels),
+            "default_samplerate": float(output_device.default_samplerate),
+        },
+        "engine": _jsonable_engine_summary(engine_summary),
+        "latency": latency,
+        "processed": {
+            "blocks": int(summary.processed_blocks),
+            "seconds": float(summary.processed_seconds),
+            "clipped_blocks": int(summary.clipped_blocks),
+        },
+    }
+
+
+def _jsonable_engine_summary(engine_summary: dict[str, object]) -> dict[str, object]:
+    """Convert transient Path values into stable JSON strings."""
+    payload: dict[str, object] = {}
+    for key, value in engine_summary.items():
+        if isinstance(value, Path):
+            payload[key] = str(value)
+        elif isinstance(value, tuple):
+            payload[key] = list(value)
+        else:
+            payload[key] = value
+    return payload
 
 
 def _format_channel_map(channels: int, mapping: tuple[int, ...]) -> str:

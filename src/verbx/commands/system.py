@@ -85,6 +85,21 @@ def quickstart(
             "Convolution render with IR",
             "verbx render in.wav out_conv.wav --engine conv --ir hall.wav --wet 0.75 --dry 0.25",
         ),
+        (
+            "Limiter-safe delivery render",
+            "verbx render in.wav out_limited.wav --preset limiter-broadcast-safe "
+            "--output-peak-norm target --output-peak-target-dbfs -1",
+        ),
+        (
+            "Low-latency dereverb cleanup",
+            "verbx dereverb in.wav out_dry.wav --mode wiener --strength 0.85 "
+            "--tail-ms 120 --json-out dereverb.json",
+        ),
+        (
+            "Long-tail W64 delivery",
+            "verbx render in.wav out_long.w64 --preset delivery-long-tail-safe "
+            "--output-container w64 --tail-limit 12",
+        ),
     ]
     table = Table(title="verbx Quickstart")
     table.add_column("Workflow", style="cyan")

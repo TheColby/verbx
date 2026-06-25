@@ -1,7 +1,7 @@
 # ruff: noqa: B008
 """Extracted IR command implementations.
 
-These implementations intentionally reuse a few shared CLI helpers via lazy
+These implementations intentionally reuse a few legacy CLI helpers via lazy
 imports from ``verbx.cli`` so command behavior stays identical while the public
 CLI surface continues moving out of the monolithic entrypoint file.
 """
@@ -19,6 +19,7 @@ import typer
 from rich.table import Table
 
 from verbx.analysis.analyzer import AudioAnalyzer
+from verbx.commands.validators import validate_output_audio_path
 from verbx.config import IRMode, IRMorphMismatchPolicy
 from verbx.io.audio import read_audio
 from verbx.ir.fitting import build_ir_fit_candidates, derive_ir_fit_target
@@ -167,7 +168,7 @@ def ir_sofa_extract_impl(
 ) -> None:
     """Extract SOFA FIR data to a WAV matrix for convolution workflows."""
     cli_module = _cli()
-    cli_module._validate_output_audio_path(out_ir, "auto")
+    validate_output_audio_path(out_ir, "auto")
     try:
         with cli_module._processing_status("Extract SOFA IR", enabled=not silent):
             audio, sr, meta = extract_sofa_ir(
@@ -494,7 +495,7 @@ def ir_fit_impl(
 ) -> None:
     """Analyze source audio, score candidate IRs, and write top-k results."""
     cli_module = _cli()
-    cli_module._validate_output_audio_path(out_ir, "auto")
+    validate_output_audio_path(out_ir, "auto")
     try:
         with cli_module._processing_status("Analyze source for IR fit"):
             audio, sr = read_audio(str(infile))

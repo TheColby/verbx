@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -59,6 +60,38 @@ def test_resolve_audio_device_supports_index_and_substring() -> None:
     assert by_name.index == 1
 
 
+def test_resolve_audio_device_error_lists_viable_devices() -> None:
+    devices = [
+        realtime_io.RealtimeDeviceInfo(
+            index=0,
+            name="Built-in Mic",
+            max_input_channels=2,
+            max_output_channels=0,
+            default_samplerate=48_000.0,
+            hostapi="CoreAudio",
+        ),
+        realtime_io.RealtimeDeviceInfo(
+            index=3,
+            name="Studio Output",
+            max_input_channels=0,
+            max_output_channels=8,
+            default_samplerate=96_000.0,
+            hostapi="CoreAudio",
+        ),
+    ]
+
+    try:
+        realtime_io.resolve_audio_device(selector="not-there", kind="output", devices=devices)
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("expected missing output device to fail")
+
+    assert "No realtime output device matching" in message
+    assert "3:Studio Output" in message
+    assert "verbx realtime --list-devices" in message
+
+
 def test_realtime_list_devices_uses_fake_backend(monkeypatch: MonkeyPatch) -> None:
     fake_devices = [
         realtime_io.RealtimeDeviceInfo(
@@ -76,6 +109,98 @@ def test_realtime_list_devices_uses_fake_backend(monkeypatch: MonkeyPatch) -> No
     assert result.exit_code == 0, result.stdout
     assert "Realtime Audio Devices" in result.stdout
     assert "Loopback 3" in result.stdout
+
+
+def test_realtime_json_out_writes_session_report(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    fake_devices = [
+        realtime_io.RealtimeDeviceInfo(
+            index=0,
+            name="Mic",
+            max_input_channels=2,
+            max_output_channels=0,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+        realtime_io.RealtimeDeviceInfo(
+            index=1,
+            name="Speakers",
+            max_input_channels=0,
+            max_output_channels=2,
+            default_samplerate=48_000.0,
+            hostapi="TestAPI",
+        ),
+    ]
+
+    class _FakeProcessor:
+        output_channels = 2
+
+    def fake_build_live_processor(
+        *,
+        config: RenderConfig,
+        sample_rate: int,
+        input_channels: int,
+    ) -> tuple[_FakeProcessor, dict[str, object]]:
+        return _FakeProcessor(), {
+            "engine_resolved": "algo_proxy_live",
+            "compute_backend": "cpu",
+            "rt60": config.rt60,
+            "fdn_lines": config.fdn_lines,
+            "proxy_ir_path": tmp_path / "proxy.wav",
+            "sample_rate": sample_rate,
+            "input_channels": input_channels,
+        }
+
+    def fake_run_realtime_duplex(**_: object) -> realtime_io.RealtimeSessionSummary:
+        return realtime_io.RealtimeSessionSummary(
+            sample_rate=48_000,
+            block_size=256,
+            input_channels=2,
+            output_channels=2,
+            input_device="Mic",
+            output_device="Speakers",
+            input_channel_map=(1, 2),
+            output_channel_map=(1, 2),
+            processed_blocks=4,
+            processed_seconds=0.021333,
+            clipped_blocks=1,
+            reported_input_latency_seconds=0.003,
+            reported_output_latency_seconds=0.004,
+        )
+
+    json_out = tmp_path / "realtime.json"
+    monkeypatch.setattr(realtime_cmd, "list_audio_devices", lambda: fake_devices)
+    monkeypatch.setattr(realtime_cmd, "_build_live_processor", fake_build_live_processor)
+    monkeypatch.setattr(realtime_cmd, "run_realtime_duplex", fake_run_realtime_duplex)
+
+    result = runner.invoke(
+        app,
+        [
+            "realtime",
+            "--engine",
+            "algo",
+            "--duration",
+            "0.01",
+            "--block-size",
+            "256",
+            "--json-out",
+            str(json_out),
+            "--quiet",
+        ],
+    )
+
+    assert result.exit_code == 0, _combined_output(result)
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["schema"] == "realtime-report-v1"
+    assert payload["command"] == "realtime"
+    assert payload["status"] == "ok"
+    assert payload["input"]["device"] == "Mic"
+    assert payload["output"]["device"] == "Speakers"
+    assert payload["engine"]["proxy_ir_path"].endswith("proxy.wav")
+    assert payload["latency"]["reported_backend_latency_ms"] == 7.0
+    assert payload["processed"]["blocks"] == 4
 
 
 def test_realtime_forced_convolution_requires_ir(monkeypatch: MonkeyPatch) -> None:
@@ -913,6 +1038,64 @@ def test_run_realtime_duplex_reports_stream_latency(monkeypatch: MonkeyPatch) ->
     assert started == [(0.006, 0.009)]
     assert summary.reported_input_latency_seconds == 0.006
     assert summary.reported_output_latency_seconds == 0.009
+
+
+def test_run_realtime_duplex_wraps_stream_open_errors(monkeypatch: MonkeyPatch) -> None:
+    class _FakeProcessor:
+        input_channels = 1
+        output_channels = 1
+
+        def process_block(self, block: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
+            return block
+
+    class _CallbackStopError(Exception):
+        pass
+
+    class _FakeSoundDevice:
+        CallbackStop = _CallbackStopError
+
+        def __init__(self) -> None:
+            self.Stream = _stream_factory
+
+    def _stream_factory(**_: object) -> object:
+        raise OSError("backend rejected stream")
+
+    monkeypatch.setattr(realtime_io, "require_sounddevice", lambda: _FakeSoundDevice())
+
+    try:
+        realtime_io.run_realtime_duplex(
+            processor=_FakeProcessor(),
+            sample_rate=96_000,
+            block_size=128,
+            input_device=realtime_io.RealtimeDeviceInfo(
+                index=0,
+                name="Mic",
+                max_input_channels=2,
+                max_output_channels=0,
+                default_samplerate=48_000.0,
+                hostapi="TestAPI",
+            ),
+            output_device=realtime_io.RealtimeDeviceInfo(
+                index=1,
+                name="Speakers",
+                max_input_channels=0,
+                max_output_channels=2,
+                default_samplerate=48_000.0,
+                hostapi="TestAPI",
+            ),
+            input_channels=1,
+            output_channels=1,
+            duration_seconds=0.01,
+        )
+    except RuntimeError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("expected stream-open failure to be wrapped")
+
+    assert "Failed to open realtime duplex stream" in message
+    assert "sample_rate=96000" in message
+    assert "block_size=128" in message
+    assert "verbx realtime --list-devices" in message
 
 
 def test_apply_realtime_freeze_proxy_uses_safe_defaults() -> None:

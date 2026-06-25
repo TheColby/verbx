@@ -61,6 +61,23 @@ verbx render examples/audio/realistic_music_dry.wav examples/audio/extreme_froze
   --fdn-lines 32 --pre-delay-ms 60 --fdn-matrix hadamard
 ```
 
+Week 3 stabilization examples — copy-paste workflows for room modelling,
+dereverb cleanup, limiter-safe delivery, and bounded long-tail output:
+
+```bash
+verbx render examples/audio/realistic_speech_dry.wav out_room.wav \
+  --preset room-model-studio --target-sr 48000 --out-subtype pcm24
+
+verbx dereverb examples/audio/realistic_speech_room.wav out_dry.wav \
+  --mode wiener --strength 0.85 --tail-ms 120 --json-out dereverb.json
+
+verbx render examples/audio/realistic_music_dry.wav out_limited.wav \
+  --preset limiter-broadcast-safe --output-peak-norm target --output-peak-target-dbfs -1
+
+verbx render examples/audio/realistic_music_dry.wav out_long.w64 \
+  --preset delivery-long-tail-safe --output-container w64 --tail-limit 12
+```
+
 Experimental music tradition example set — eight demos from the avant-garde/experimental canon:
 
 - `lucier_sitting_room.wav`: speech → 7-pass room resonance accumulation (Alvin Lucier)
