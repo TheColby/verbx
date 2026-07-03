@@ -1196,12 +1196,15 @@ verbx realtime --list-devices   # list selectable live audio devices
 verbx realtime --engine algo --input-device 0 --output-device 3   # live preview
 verbx realtime --live-mode dereverb --input-device 0 --output-device 3   # live low-latency dereverb
 verbx render in.wav out.wav --preset room:6x8x3/hall   # geometry-derived room baseline
+verbx render in.wav out_warm.wav --preset warm-chamber   # one of 280 generated style/space presets
+verbx render in.wav out_shimmer.wav --preset shimmer-cathedral   # expansive shimmer preset
 verbx render in.wav out_limited.wav --preset limiter-broadcast-safe   # limiter-safe delivery preset
 verbx render in.wav out_long.w64 --preset delivery-long-tail-safe --output-container w64   # bounded long-tail W64 delivery
 verbx room-model --rt60 1.8 --material hall   # infer a plausible room geometry
 verbx dereverb in.wav out_dry.wav --mode wiener --strength 0.85 --json-out dereverb.json   # suppress late reverberation from an existing recording
 verbx presets             # list built-in presets
 verbx presets --show cathedral_extreme   # inspect preset parameters
+verbx presets --show warm-chamber   # inspect generated style/space presets
 verbx presets --show limiter-broadcast-safe   # inspect limiter/output delivery defaults
 verbx quickstart          # copy-paste workflows for first-run scenarios
 verbx quickstart --verify --strict       # startup readiness check (useful before demos)

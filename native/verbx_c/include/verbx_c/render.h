@@ -25,6 +25,8 @@ typedef struct {
     double pre_delay_ms;
     double tail_threshold_db;
     double tail_hold_ms;
+    int peak_safe;
+    double peak_ceiling_db;
     verbx_tail_metric tail_metric;
     verbx_wav_format out_format;
 } verbx_render_options;
@@ -34,6 +36,11 @@ typedef struct {
     size_t output_frames;
     unsigned int sample_rate;
     unsigned short channels;
+    double input_peak_abs;
+    double output_peak_abs;
+    double peak_gain;
+    double peak_ceiling_db;
+    int peak_safe_applied;
     verbx_wav_format out_format;
     verbx_tail_metric tail_metric;
     verbx_status_code status_code;

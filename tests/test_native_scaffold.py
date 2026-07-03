@@ -194,6 +194,106 @@ def test_native_render_silent_input_trims_to_short_zero_tail(tmp_path: Path) -> 
     assert np.max(np.abs(rendered)) == 0.0
 
 
+def test_native_render_peak_safe_scales_float_output_to_ceiling(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    exe = _build_native_executable(tmp_path)
+    sr = 16_000
+    audio = np.zeros((256, 1), dtype=np.float64)
+    audio[0, 0] = 2.0
+    infile = tmp_path / "hot_in.wav"
+    outfile = tmp_path / "hot_out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = subprocess.run(
+        [
+            str(exe),
+            "render",
+            str(infile),
+            str(outfile),
+            "--rt60",
+            "0.2",
+            "--wet",
+            "0.0",
+            "--dry",
+            "1.0",
+            "--tail-threshold-db",
+            "-120",
+            "--tail-hold-ms",
+            "5",
+            "--peak-safe",
+            "--peak-ceiling-db",
+            "-6",
+            "--out-format",
+            "float64",
+        ],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    rendered, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == sr
+    assert np.max(np.abs(rendered)) <= 10 ** (-6.0 / 20.0) + 1e-9
+    assert "peak_safe: true" in result.stdout
+    assert "peak_ceiling_db: -6.00" in result.stdout
+    assert "peak_gain:" in result.stdout
+
+
+def test_native_render_writes_machine_readable_json_report(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    exe = _build_native_executable(tmp_path)
+    sr = 16_000
+    audio = np.zeros((256, 1), dtype=np.float64)
+    audio[0, 0] = 0.75
+    infile = tmp_path / "report_in.wav"
+    outfile = tmp_path / "report_out.wav"
+    json_out = tmp_path / "native_report.json"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    subprocess.run(
+        [
+            str(exe),
+            "render",
+            str(infile),
+            str(outfile),
+            "--rt60",
+            "0.6",
+            "--wet",
+            "1.0",
+            "--dry",
+            "0.0",
+            "--tail-metric",
+            "rms",
+            "--peak-safe",
+            "--peak-ceiling-db",
+            "-3",
+            "--out-format",
+            "float32",
+            "--json-out",
+            str(json_out),
+        ],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["schema"] == "native-render-report-v1"
+    assert payload["command"] == "verbx-c render"
+    assert payload["status"] == "ok"
+    assert payload["sample_rate"] == sr
+    assert payload["channels"] == 1
+    assert payload["out_format"] == "float32"
+    assert payload["tail_metric"] == "rms"
+    assert payload["peak_safe"] is True
+    assert payload["peak_ceiling_db"] == -3
+    assert payload["input_frames"] == 256
+    assert payload["output_frames"] > payload["input_frames"]
+    assert payload["output_peak_abs"] <= 10 ** (-3.0 / 20.0) + 1e-9
+
+
 def test_native_render_parity_contract_is_narrow_and_deterministic() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     contract_path = repo_root / "tests/fixtures/native_render_parity_contract.json"
@@ -213,6 +313,8 @@ def test_native_render_parity_contract_is_narrow_and_deterministic() -> None:
         "tail_hold_ms",
         "tail_metric",
         "out_format",
+        "peak_safe",
+        "peak_ceiling_db",
     }.issubset(set(payload["controls"]["required"]))
     assert len(payload["fixtures"]) >= 2
     assert payload["acceptance_metrics"]["finite_samples_only"] is True

@@ -26,7 +26,9 @@
       "tail_threshold_db",
       "tail_hold_ms",
       "tail_metric",
-      "out_format"
+      "out_format",
+      "peak_safe",
+      "peak_ceiling_db"
     ],
     "deferred": [
       "fdn_matrix",
@@ -54,7 +56,9 @@
         "damping": 0.45,
         "tail_threshold_db": -70.0,
         "tail_hold_ms": 5.0,
-        "tail_metric": "rms"
+        "tail_metric": "rms",
+        "peak_safe": false,
+        "peak_ceiling_db": -1.0
       }
     },
     {
@@ -72,7 +76,9 @@
         "damping": 0.5,
         "tail_threshold_db": -100.0,
         "tail_hold_ms": 10.0,
-        "tail_metric": "peak"
+        "tail_metric": "peak",
+        "peak_safe": true,
+        "peak_ceiling_db": -1.0
       }
     }
   ],

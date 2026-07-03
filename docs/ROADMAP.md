@@ -90,8 +90,11 @@ released/public-alpha tool during the transition.
 - [x] Port a first native offline late-field core (pre-delay, combs, allpass diffusion, tail finalization).
 - [ ] Replace the foundational Schroeder/Moorer core with the higher-order FDN loop used by `v0.7.x`.
 - [ ] Port damping, width, pre-delay, freeze, repeat, and normalization in controlled phases.
+- [x] Add native peak-safe output with deterministic peak/gain reporting.
 - [x] Define the first narrow parity contract in `tests/fixtures/native_render_parity_contract.json`.
-- [ ] Generate Python/native metric comparisons from that contract before feature expansion.
+- [x] Generate Python/native metric comparisons from that contract before feature expansion (`scripts/compare_native_render_parity.py`).
+- [x] Emit `native-render-report-v1` JSON from `verbx-c render --json-out` for
+  machine-readable native support bundles.
 
 ### 4.4 Productization
 
@@ -177,7 +180,39 @@ parameter choices:
 - [ ] Expose via `--er-material` and the `RoomGeometry` model.
 - [ ] Include Sabine data citations and units in module docstring.
 
-### 6.6 Room Size Estimation from Recordings ✅
+### 6.6 CAD / DXF Ray-Tracing IR Import
+
+Goal: import constrained architectural CAD geometry and generate an impulse
+response that can feed the existing convolution engine, without claiming full
+architectural-acoustics accuracy in the first slice.
+
+- [ ] Define supported geometry subset for MVP: clean DXF room boundaries,
+  planar wall/floor/ceiling surfaces, closed volumes or closed 2D plans with
+  explicit height, and optional layer-name material hints.
+- [ ] Add experimental command shape:
+  `verbx ir trace ROOM.dxf OUT_IR.wav --source x,y,z --listener x,y,z --rays N
+  --length S --material default:NAME --target-sr SR`.
+- [ ] Build DXF ingest/normalization stage that converts CAD entities into
+  `RoomGeometry`-compatible planes/triangles and emits warnings for open
+  boundaries, non-manifold geometry, unsupported curves, or missing scale units.
+- [ ] Generate deterministic early reflections with image-source/ray-hit timing
+  and amplitude, then synthesize late decay from stochastic ray energy histograms.
+- [ ] Support frequency-dependent material absorption/scattering once the
+  material library lands; start with a default material plus per-layer overrides.
+- [ ] Write `trace-report-v1` JSON with geometry stats, material assignment,
+  direct path, reflection counts, ray budget, estimated RT60, and warnings.
+- [ ] Output an IR WAV usable by `verbx render --engine conv --ir OUT_IR.wav`.
+- [ ] Keep first implementation experimental and scoped to demoable room-like
+  DXF files; robust arbitrary CAD cleanup remains a later 2+ month milestone.
+
+Estimated effort:
+
+- Prototype: 1-2 weeks for simple DXF ingest plus plausible early reflections.
+- Useful MVP: 3-5 weeks for DXF-to-IR, reports, docs, and fixtures.
+- Good acoustic tool: 6-10 weeks for materials, stochastic tails, validation,
+  and plots.
+
+### 6.7 Room Size Estimation from Recordings ✅
 
 _Already shipped in v0.7.6._
 

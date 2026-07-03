@@ -2,6 +2,7 @@
 #include "verbx_c/algo_reverb.h"
 #include "verbx_c/wav_io.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -36,6 +37,53 @@ const char *verbx_tail_metric_name(verbx_tail_metric metric) {
     return "unknown";
 }
 
+static double buffer_peak_abs(const verbx_audio_buffer *buffer) {
+    double peak = 0.0;
+    size_t sample_count;
+    size_t index;
+
+    if ((buffer == NULL) || (buffer->samples == NULL)) {
+        return 0.0;
+    }
+    sample_count = buffer->frames * (size_t)buffer->channels;
+    for (index = 0U; index < sample_count; ++index) {
+        double value = fabs(buffer->samples[index]);
+        if (value > peak) {
+            peak = value;
+        }
+    }
+    return peak;
+}
+
+static double ceiling_from_db(double ceiling_db) {
+    double clamped = ceiling_db;
+    if (clamped > 0.0) {
+        clamped = 0.0;
+    }
+    if (clamped < -120.0) {
+        clamped = -120.0;
+    }
+    return pow(10.0, clamped / 20.0);
+}
+
+static double apply_peak_safety(verbx_audio_buffer *buffer, double ceiling_db) {
+    double peak = buffer_peak_abs(buffer);
+    double ceiling = ceiling_from_db(ceiling_db);
+    double gain = 1.0;
+    size_t sample_count;
+    size_t index;
+
+    if ((buffer == NULL) || (buffer->samples == NULL) || (peak <= ceiling) || (peak <= 0.0)) {
+        return gain;
+    }
+    gain = ceiling / peak;
+    sample_count = buffer->frames * (size_t)buffer->channels;
+    for (index = 0U; index < sample_count; ++index) {
+        buffer->samples[index] *= gain;
+    }
+    return gain;
+}
+
 int verbx_render_file(
     const char *input_path,
     const char *output_path,
@@ -63,6 +111,11 @@ int verbx_render_file(
         verbx_audio_buffer_free(&input);
         return -1;
     }
+    report->input_peak_abs = buffer_peak_abs(&input);
+    report->peak_gain = options->peak_safe ? apply_peak_safety(&output, options->peak_ceiling_db) : 1.0;
+    report->output_peak_abs = buffer_peak_abs(&output);
+    report->peak_ceiling_db = options->peak_ceiling_db;
+    report->peak_safe_applied = options->peak_safe ? 1 : 0;
     if (verbx_wav_write(output_path, &output, options->out_format, error_message, error_message_size) != 0) {
         report->status_code = VERBX_STATUS_IO_ERROR;
         verbx_audio_buffer_free(&input);

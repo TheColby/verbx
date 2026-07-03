@@ -30,7 +30,11 @@ static void print_usage(FILE *stream) {
     );
     fprintf(
         stream,
-        "           [--out-format pcm16|float32|float64]\n"
+        "           [--peak-safe] [--peak-ceiling-db DB]\n"
+    );
+    fprintf(
+        stream,
+        "           [--out-format pcm16|float32|float64] [--json-out report.json]\n"
     );
     fprintf(stream, "\n");
     fprintf(stream, "Status:\n");
@@ -117,9 +121,89 @@ static int parse_tail_metric(const char *value_text, verbx_tail_metric *out_metr
     return -1;
 }
 
+static void write_json_string(FILE *stream, const char *value) {
+    const unsigned char *cursor = (const unsigned char *)value;
+    fputc('"', stream);
+    if (cursor != NULL) {
+        while (*cursor != '\0') {
+            unsigned char ch = *cursor++;
+            if ((ch == '"') || (ch == '\\')) {
+                fputc('\\', stream);
+                fputc((int)ch, stream);
+            } else if (ch == '\n') {
+                fputs("\\n", stream);
+            } else if (ch == '\r') {
+                fputs("\\r", stream);
+            } else if (ch == '\t') {
+                fputs("\\t", stream);
+            } else if (ch < 0x20U) {
+                fprintf(stream, "\\u%04x", (unsigned int)ch);
+            } else {
+                fputc((int)ch, stream);
+            }
+        }
+    }
+    fputc('"', stream);
+}
+
+static int write_render_json_report(
+    const char *json_path,
+    const char *input_path,
+    const char *output_path,
+    const verbx_render_options *options,
+    const verbx_render_report *report
+) {
+    FILE *stream;
+
+    if ((json_path == NULL) || (json_path[0] == '\0')) {
+        return 0;
+    }
+    stream = fopen(json_path, "wb");
+    if (stream == NULL) {
+        fprintf(stderr, "%s: failed to open --json-out '%s': %s\n", VERBX_C_PROJECT_NAME, json_path, strerror(errno));
+        return -1;
+    }
+    fputs("{\n", stream);
+    fputs("  \"schema\": \"native-render-report-v1\",\n", stream);
+    fprintf(stream, "  \"command\": \"%s render\",\n", VERBX_C_PROJECT_NAME);
+    fputs("  \"status\": ", stream);
+    write_json_string(stream, verbx_status_code_name(report->status_code));
+    fputs(",\n  \"input_path\": ", stream);
+    write_json_string(stream, input_path);
+    fputs(",\n  \"output_path\": ", stream);
+    write_json_string(stream, output_path);
+    fprintf(stream, ",\n  \"sample_rate\": %u,\n", report->sample_rate);
+    fprintf(stream, "  \"channels\": %u,\n", report->channels);
+    fprintf(stream, "  \"input_frames\": %zu,\n", report->input_frames);
+    fprintf(stream, "  \"output_frames\": %zu,\n", report->output_frames);
+    fputs("  \"out_format\": ", stream);
+    write_json_string(stream, verbx_wav_format_name(report->out_format));
+    fputs(",\n  \"tail_metric\": ", stream);
+    write_json_string(stream, verbx_tail_metric_name(report->tail_metric));
+    fprintf(stream, ",\n  \"rt60\": %.17g,\n", options->rt60);
+    fprintf(stream, "  \"wet\": %.17g,\n", options->wet);
+    fprintf(stream, "  \"dry\": %.17g,\n", options->dry);
+    fprintf(stream, "  \"damping\": %.17g,\n", options->damping);
+    fprintf(stream, "  \"pre_delay_ms\": %.17g,\n", options->pre_delay_ms);
+    fprintf(stream, "  \"tail_threshold_db\": %.17g,\n", options->tail_threshold_db);
+    fprintf(stream, "  \"tail_hold_ms\": %.17g,\n", options->tail_hold_ms);
+    fprintf(stream, "  \"peak_safe\": %s,\n", report->peak_safe_applied ? "true" : "false");
+    fprintf(stream, "  \"peak_ceiling_db\": %.17g,\n", report->peak_ceiling_db);
+    fprintf(stream, "  \"input_peak_abs\": %.17g,\n", report->input_peak_abs);
+    fprintf(stream, "  \"output_peak_abs\": %.17g,\n", report->output_peak_abs);
+    fprintf(stream, "  \"peak_gain\": %.17g\n", report->peak_gain);
+    fputs("}\n", stream);
+    if (fclose(stream) != 0) {
+        fprintf(stderr, "%s: failed to write --json-out '%s': %s\n", VERBX_C_PROJECT_NAME, json_path, strerror(errno));
+        return -1;
+    }
+    return 0;
+}
+
 static int handle_render(int argc, char **argv) {
     const char *input_path;
     const char *output_path;
+    const char *json_out_path = NULL;
     verbx_render_options options = {
         .rt60 = 2.5,
         .wet = 0.8,
@@ -128,6 +212,8 @@ static int handle_render(int argc, char **argv) {
         .pre_delay_ms = 20.0,
         .tail_threshold_db = -120.0,
         .tail_hold_ms = 10.0,
+        .peak_safe = 0,
+        .peak_ceiling_db = -1.0,
         .tail_metric = VERBX_TAIL_METRIC_PEAK,
         .out_format = VERBX_WAV_FORMAT_FLOAT32
     };
@@ -177,10 +263,18 @@ static int handle_render(int argc, char **argv) {
             if (parse_tail_metric(argv[++index], &options.tail_metric) != 0) {
                 return 2;
             }
+        } else if (strcmp(arg, "--peak-safe") == 0) {
+            options.peak_safe = 1;
+        } else if ((strcmp(arg, "--peak-ceiling-db") == 0) && (index + 1 < argc)) {
+            if (parse_double_option("--peak-ceiling-db", argv[++index], &options.peak_ceiling_db) != 0) {
+                return 2;
+            }
         } else if ((strcmp(arg, "--out-format") == 0) && (index + 1 < argc)) {
             if (parse_out_format(argv[++index], &options.out_format) != 0) {
                 return 2;
             }
+        } else if ((strcmp(arg, "--json-out") == 0) && (index + 1 < argc)) {
+            json_out_path = argv[++index];
         } else {
             fprintf(stderr, "%s: unknown render option '%s'\n", VERBX_C_PROJECT_NAME, arg);
             return 2;
@@ -192,7 +286,7 @@ static int handle_render(int argc, char **argv) {
         return 1;
     }
     printf(
-        "%s render complete\nsample_rate: %u\nchannels: %u\ninput_frames: %zu\noutput_frames: %zu\nout_format: %s\ntail_metric: %s\nstatus: %s\n",
+        "%s render complete\nsample_rate: %u\nchannels: %u\ninput_frames: %zu\noutput_frames: %zu\nout_format: %s\ntail_metric: %s\npeak_safe: %s\npeak_ceiling_db: %.2f\ninput_peak_abs: %.9f\noutput_peak_abs: %.9f\npeak_gain: %.9f\nstatus: %s\n",
         VERBX_C_PROJECT_NAME,
         report.sample_rate,
         report.channels,
@@ -200,8 +294,16 @@ static int handle_render(int argc, char **argv) {
         report.output_frames,
         verbx_wav_format_name(report.out_format),
         verbx_tail_metric_name(report.tail_metric),
+        report.peak_safe_applied ? "true" : "false",
+        report.peak_ceiling_db,
+        report.input_peak_abs,
+        report.output_peak_abs,
+        report.peak_gain,
         verbx_status_code_name(report.status_code)
     );
+    if (write_render_json_report(json_out_path, input_path, output_path, &options, &report) != 0) {
+        return 1;
+    }
     return 0;
 }
 

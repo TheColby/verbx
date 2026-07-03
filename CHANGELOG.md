@@ -57,9 +57,22 @@ All notable changes to this project are documented in this file.
   baseline (`er_geometry`, direct-path pre-delay, absorption/material, room-size
   macro, and size-scaled FDN density) without taking away explicit CLI
   overrides.
+- Expanded the built-in reverb preset bank to 293 presets by generating 280
+  deterministic style/space combinations such as `warm_chamber`,
+  `shimmer_cathedral`, `cinematic_scoring_stage`, and `infinite_cavern`.
 - Native `verbx-c` process-contract reporting and tail metric selection:
   `verbx-c doctor` now surfaces the deterministic offline lifecycle and exit
   contract, and `verbx-c render` supports `--tail-metric peak|rms`.
+- Native `verbx-c render` now supports peak-safe output via `--peak-safe` and
+  `--peak-ceiling-db`, with input/output peak and gain values reported in the
+  deterministic render summary.
+- Native `verbx-c render --json-out report.json` now writes a
+  `native-render-report-v1` support bundle with render settings, frame counts,
+  output format, tail metric, and peak-safety analysis fields.
+- `scripts/compare_native_render_parity.py`, a contract-driven Python/native
+  render comparison harness that builds `verbx-c`, renders deterministic
+  fixtures from `tests/fixtures/native_render_parity_contract.json`, and emits
+  machine-readable metric reports for the `v0.8` parity track.
 
 ## [0.7.7] - 2026-03-31
 

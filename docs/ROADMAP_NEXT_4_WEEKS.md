@@ -77,27 +77,27 @@ Use these as the working top-line priorities for the current cycle:
 
 ### Week 1
 
-- [ ] Define the minimum `verbx-c` parity target for offline render.
-- [ ] Write down the parity contract for:
-  - [ ] input/output formats
-  - [ ] tail handling
-  - [ ] core algorithmic controls
+- [x] Define the minimum `verbx-c` parity target for offline render.
+- [x] Write down the parity contract for:
+  - [x] input/output formats
+  - [x] tail handling
+  - [x] core algorithmic controls
 - [x] Add a small parity matrix in tests or fixtures so native work has a concrete target.
 
 ### Week 2
 
 - [ ] Expand native render flags for the most-used offline slice first:
-  - [ ] `rt60`
-  - [ ] `wet`
-  - [ ] `dry`
-  - [ ] subtype/format selection
-  - [ ] tail metrics
-  - [ ] peak-safe output
-- [ ] Add golden-file or metric-based Python/native comparisons for a deterministic fixture set.
+  - [x] `rt60`
+  - [x] `wet`
+  - [x] `dry`
+  - [x] subtype/format selection
+  - [x] tail metrics
+  - [x] peak-safe output
+- [x] Add golden-file or metric-based Python/native comparisons for a deterministic fixture set.
 
 ### Week 3
 
-- [ ] Add analysis/report parity where feasible so native runs can emit a comparable JSON support bundle.
+- [x] Add analysis/report parity where feasible so native runs can emit a comparable JSON support bundle.
 - [ ] Improve native doctor/build ergonomics and packaging scripts.
 
 ### Week 4
@@ -114,8 +114,8 @@ Use these as the working top-line priorities for the current cycle:
 
 ### Week 1
 
-- [ ] Pick exactly one topology-expansion prototype for this cycle.
-- [ ] Prefer next-generation FDN topology work over starting both geometry and neural branches at once.
+- [ ] Pick exactly one topology-expansion prototype for this cycle; candidate now includes DXF/CAD ray-tracing IR import.
+- [ ] Prefer one bounded physical-acoustics prototype (DXF ray tracing or geometry-to-FDN) over starting geometry, neural, and topology branches at once.
 - [ ] Write down success criteria for the chosen prototype before implementation starts.
 
 ### Week 2
@@ -123,8 +123,14 @@ Use these as the working top-line priorities for the current cycle:
 - [ ] Build one prototype behind an explicit experimental flag.
 - [ ] Candidate directions:
   - [ ] denser delay-feedback matrix variants
+  - [ ] DXF/CAD ray-tracing IR prototype (`verbx ir trace ROOM.dxf OUT_IR.wav`)
   - [ ] geometry-to-FDN parameter derivation improvements
   - [ ] intelligibility-aware dereverb scoring
+- [ ] If DXF ray tracing is selected, constrain MVP scope:
+  - [ ] closed room-like DXF geometry only
+  - [ ] source/listener coordinates required on CLI
+  - [ ] default material plus optional layer/material mapping
+  - [ ] output IR WAV plus `trace-report-v1` JSON
 
 ### Week 3
 
@@ -133,6 +139,7 @@ Use these as the working top-line priorities for the current cycle:
   - [ ] repeatable presets
   - [ ] objective metrics
   - [ ] example corpus
+  - [ ] DXF fixture rooms with expected direct-path and first-reflection timing
 
 ### Week 4
 
@@ -140,6 +147,7 @@ Use these as the working top-line priorities for the current cycle:
   - [ ] graduates into `0.7.x`
   - [ ] waits for `0.8`
   - [ ] remains experimental only
+  - [ ] remains experimental only until DXF import robustness and acoustic validation are proven
 
 ---
 

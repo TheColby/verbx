@@ -51,6 +51,8 @@ The current native binary is intentionally narrow, but it is no longer a stub.
 - render model: deterministic offline file render
 - tail handling: threshold/hold based trim with a short click-safe fade into
   exact zeros
+- peak-safe output: optional render-level scaling with `--peak-safe` and
+  `--peak-ceiling-db`
 
 Example:
 
@@ -63,7 +65,10 @@ Example:
   --damping 0.5 \
   --tail-threshold-db -100 \
   --tail-hold-ms 10 \
-  --out-format float32
+  --peak-safe \
+  --peak-ceiling-db -1 \
+  --out-format float32 \
+  --json-out native-report.json
 ```
 
 The current DSP is a foundational Schroeder/Moorer-style offline reverb core,
@@ -81,7 +86,23 @@ not yet the full Python FDN engine.
 
 The first native parity target is intentionally narrow: deterministic offline
 render only, mono/stereo WAV IO, `rt60`, `wet`, `dry`, `pre-delay`, damping,
-tail threshold/hold/metric, and output subtype selection. The checked-in
+tail threshold/hold/metric, peak-safe output, and output subtype selection. The checked-in
 contract at `tests/fixtures/native_render_parity_contract.json` defines the
 fixture names, accepted formats, deferred features, and metric tolerances that
 the `v0.8` native track should satisfy before broadening the DSP surface.
+
+`verbx-c render --json-out report.json` writes a `native-render-report-v1`
+payload with the render contract, frame counts, output format, tail settings,
+and input/output peak-safety metrics.
+
+Run the Python/native comparison harness with:
+
+```bash
+uv run python scripts/compare_native_render_parity.py \
+  --build-native \
+  --report build/native_render_parity_report.json
+```
+
+The script can build `verbx-c`, renders every contract
+fixture through both the Python reference and native candidate, and emits a
+machine-readable metric report. Add `--strict` when using it as a failing gate.
