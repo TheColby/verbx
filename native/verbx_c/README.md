@@ -13,6 +13,8 @@ This directory now contains the first functional native render path:
 
 The Python application in `src/verbx/` remains the released implementation for
 `v0.7.x`. The native track is where the executable rewrite starts.
+The canonical feature/gap matrix lives in
+[`docs/NATIVE_PARITY.md`](../../docs/NATIVE_PARITY.md).
 
 ## Build
 
@@ -23,6 +25,20 @@ With a plain C compiler:
 ./build/native/verbx_c/verbx-c version
 ```
 
+Useful build-script options:
+
+```bash
+./scripts/build_verbx_c.sh --clean --doctor
+./scripts/build_verbx_c.sh --print-path
+CC=clang CFLAGS="-O2" ./scripts/build_verbx_c.sh
+```
+
+Install the native binary and man page into a local prefix:
+
+```bash
+scripts/install_verbx_c.sh --prefix "$HOME/.local" --doctor
+```
+
 With CMake:
 
 ```bash
@@ -31,11 +47,22 @@ cmake --build build/native/verbx_c
 ./build/native/verbx_c/verbx-c doctor
 ```
 
+For machine-readable diagnostics:
+
+```bash
+./build/native/verbx_c/verbx-c doctor --json-out native-doctor.json
+```
+
+After installing with `scripts/install_verbx_c.sh`, the native man page is
+available as `man verbx-c` when the install prefix's man path is visible.
+
 ## What Works Today
 
 The current native binary is intentionally narrow, but it is no longer a stub.
 
 - commands: `help`, `version`, `doctor`, `render`
+- doctor reports: human-readable stdout plus optional
+  `native-doctor-report-v1` JSON via `doctor --json-out`
 - channels: mono and stereo
 - input WAV formats:
   - PCM16
@@ -79,6 +106,7 @@ not yet the full Python FDN engine.
 - stabilize the native error model, logging model, and offline process contract
 - broaden native render coverage against
   `tests/fixtures/native_render_parity_contract.json`
+- keep `docs/NATIVE_PARITY.md` updated whenever native scope changes
 - port the higher-order FDN/automation render core in small, testable pieces
 - keep regression parity with the `v0.7.x` Python renderer during the migration
 

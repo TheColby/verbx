@@ -69,6 +69,17 @@ All notable changes to this project are documented in this file.
 - Native `verbx-c render --json-out report.json` now writes a
   `native-render-report-v1` support bundle with render settings, frame counts,
   output format, tail metric, and peak-safety analysis fields.
+- Native doctor/build ergonomics improved: `verbx-c doctor --json-out` writes a
+  `native-doctor-report-v1` diagnostics bundle, and
+  `scripts/build_verbx_c.sh` now supports `--clean`, `--doctor`, `--print-path`,
+  `CC`, `CFLAGS`, and `LDFLAGS`.
+- Added native install packaging primitives: `scripts/install_verbx_c.sh`
+  installs `verbx-c` plus the new `verbx-c(1)` man page into a chosen prefix.
+- Added `docs/NATIVE_PARITY.md` as the canonical native feature/gap matrix for
+  the `v0.8` hybrid transition.
+- Documented the chosen `v0.8` release shape as a hybrid transition: `verbx-c`
+  ships as an opt-in native render/doctor binary while Python `verbx` remains
+  the default public-alpha CLI until broader parity is proven.
 - `scripts/compare_native_render_parity.py`, a contract-driven Python/native
   render comparison harness that builds `verbx-c`, renders deterministic
   fixtures from `tests/fixtures/native_render_parity_contract.json`, and emits

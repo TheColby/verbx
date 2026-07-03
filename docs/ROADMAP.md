@@ -98,9 +98,31 @@ released/public-alpha tool during the transition.
 
 ### 4.4 Productization
 
-- [ ] Decide whether `verbx-c` remains a transition binary or replaces `verbx` at release.
-- [ ] Add native packaging/release flow (install script, Homebrew, man pages, CI).
-- [ ] Document feature parity and feature gaps continuously during the migration.
+- [x] Decide whether `verbx-c` remains a transition binary or replaces `verbx`
+  at release: `v0.8` is a hybrid wrapper phase before full replacement.
+- [x] Document the chosen `v0.8` parity scope in `README.md` and this roadmap.
+- [ ] Add native packaging/release flow:
+  - [x] install script
+  - [x] man page
+  - [ ] Homebrew formula/tap integration for `verbx-c`
+  - [ ] CI packaging/release check
+- [x] Improve native build/doctor ergonomics with build-script flags and
+  `native-doctor-report-v1` JSON diagnostics.
+- [x] Document feature parity and feature gaps continuously during the migration
+  in `docs/NATIVE_PARITY.md`.
+
+Chosen `v0.8` release shape:
+
+- Ship `verbx-c` as an opt-in native executable, not as a replacement for the
+  Python `verbx` command.
+- Support the deterministic offline render slice first: mono/stereo WAV input,
+  `pcm16`/`float32`/`float64` output, `rt60`, `wet`, `dry`, pre-delay, damping,
+  tail threshold/hold/metric, peak-safe output, and render/doctor JSON reports.
+- Keep Python as the default public-alpha CLI for realtime, dereverb,
+  convolution, IR workflows, batch, immersive utilities, presets, and the full
+  FDN feature surface.
+- Require native feature expansion to pass the checked-in parity contract and
+  comparison harness before broadening scope.
 
 ---
 

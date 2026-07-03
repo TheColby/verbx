@@ -120,6 +120,91 @@ def test_native_doctor_reports_process_contract(tmp_path: Path) -> None:
     assert "error_contract:" in result.stdout
 
 
+def test_native_doctor_writes_machine_readable_json_report(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    exe = _build_native_executable(tmp_path)
+    json_out = tmp_path / "doctor.json"
+
+    result = subprocess.run(
+        [str(exe), "doctor", "--json-out", str(json_out)],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert "process_contract:" in result.stdout
+    assert payload["schema"] == "native-doctor-report-v1"
+    assert payload["command"] == "verbx-c doctor"
+    assert payload["status"] == "native-render-foundation"
+    assert payload["process_contract"] == "read -> render -> tail_stop -> write (deterministic)"
+    assert payload["compiler_family"] in {"clang", "gcc", "msvc", "unknown"}
+
+
+def test_native_build_script_exposes_ergonomic_flags() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    script = repo_root / "scripts/build_verbx_c.sh"
+
+    help_result = subprocess.run(
+        [str(script), "--help"],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    path_result = subprocess.run(
+        [str(script), "--print-path"],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "--clean" in help_result.stdout
+    assert "--doctor" in help_result.stdout
+    assert "--print-path" in help_result.stdout
+    assert path_result.stdout.strip().endswith("build/native/verbx_c/verbx-c")
+
+
+def test_native_install_script_installs_binary_and_man_page(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    script = repo_root / "scripts/install_verbx_c.sh"
+    prefix = tmp_path / "prefix"
+
+    help_result = subprocess.run(
+        [str(script), "--help"],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    assert "--prefix" in help_result.stdout
+    assert "--skip-build" in help_result.stdout
+    assert "--no-man" in help_result.stdout
+
+    subprocess.run(
+        [str(script), "--prefix", str(prefix)],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    installed = prefix / "bin/verbx-c"
+    man_page = prefix / "share/man/man1/verbx-c.1"
+    assert installed.exists()
+    assert man_page.exists()
+    version = subprocess.run(
+        [str(installed), "version"],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    assert version.stdout.strip() == "verbx-c 0.8.0-dev"
+
+
 def test_native_render_stereo_pcm16_output(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     exe = _build_native_executable(tmp_path)

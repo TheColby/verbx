@@ -288,8 +288,9 @@ Current stabilization status:
   plan: shared validators are extracted, generated docs/PDF are in sync, and
   focused regression coverage covers realtime, dereverb, limiter, and long-tail
   behaviors.
-- Next active roadmap item: narrow deterministic `verbx-c` render parity for
-  the `v0.8` native track. See
+- Current native-track decision: `v0.8` is a hybrid transition release, with
+  `verbx-c` shipped as an opt-in native render/doctor binary while the Python
+  CLI remains the public alpha default. See
   [`docs/ROADMAP_NEXT_4_WEEKS.md`](docs/ROADMAP_NEXT_4_WEEKS.md).
 
 - `verbx` is currently research-grade software (public alpha), not production-certified.
@@ -314,6 +315,15 @@ Current stabilization status:
 `v0.8` is the planned native C executable line. The released tool remains the
 Python implementation in `v0.7.x`, but the native rewrite has now started with
 an executable scaffold under [`native/verbx_c/README.md`](native/verbx_c/README.md).
+The live feature/gap table is tracked in
+[`docs/NATIVE_PARITY.md`](docs/NATIVE_PARITY.md).
+
+Chosen `v0.8` release shape: **hybrid wrapper phase before full replacement**.
+`verbx-c` is the opt-in native executable for deterministic offline render,
+doctor diagnostics, and machine-readable native support bundles. The Python
+`verbx` CLI remains the default for realtime, dereverb, convolution, IR tools,
+batch workflows, immersive utilities, and the full FDN feature surface until
+native parity is proven by the checked-in contract fixtures.
 
 Current native status:
 
@@ -325,14 +335,35 @@ Current native status:
 - deterministic offline render lifecycle in C: read -> process -> tail-finalize -> write
 - explicit native process/error contract surfaced in `verbx-c doctor`
 - native tail-stop metric selection: `--tail-metric peak|rms`
+- native peak-safe output: `--peak-safe --peak-ceiling-db DB`
+- native JSON reports: `doctor --json-out` and `render --json-out`
 - foundational native algorithmic reverb core with float64 internal processing
+
+`v0.8` in scope:
+
+- `verbx-c doctor` and `verbx-c render`
+- deterministic mono/stereo WAV offline render
+- `pcm16`, `float32`, and `float64` output
+- render/doctor JSON reports for support bundles
+- parity comparison against `tests/fixtures/native_render_parity_contract.json`
+
+Deferred beyond the first `v0.8` slice:
+
+- replacing Python `verbx` as the default command
+- realtime audio in native
+- convolution, dereverb, IR synthesis/morphing, batch, immersive, and AI helpers
+- full Python FDN parity, automation lanes, shimmer/freeze/repeat, and broad preset coverage
 
 Example native smoke test:
 
 ```bash
-./scripts/build_verbx_c.sh
-./build/native/verbx_c/verbx-c doctor
-./build/native/verbx_c/verbx-c render in.wav out.wav --rt60 3.5 --out-format float32
+./scripts/build_verbx_c.sh --doctor
+scripts/install_verbx_c.sh --prefix "$HOME/.local" --doctor
+./build/native/verbx_c/verbx-c render in.wav out.wav \
+  --rt60 3.5 \
+  --peak-safe \
+  --out-format float32 \
+  --json-out native-render.json
 ```
 
 ---

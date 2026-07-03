@@ -98,15 +98,15 @@ Use these as the working top-line priorities for the current cycle:
 ### Week 3
 
 - [x] Add analysis/report parity where feasible so native runs can emit a comparable JSON support bundle.
-- [ ] Improve native doctor/build ergonomics and packaging scripts.
+- [x] Improve native doctor/build ergonomics and packaging scripts.
 
 ### Week 4
 
-- [ ] Decide the `v0.8` release shape:
+- [x] Decide the `v0.8` release shape:
   - [ ] native render only
   - [ ] native render + doctor + analysis
-  - [ ] hybrid wrapper phase before full replacement
-- [ ] Document the chosen `v0.8` parity scope in `README.md` and `docs/ROADMAP.md`.
+  - [x] hybrid wrapper phase before full replacement
+- [x] Document the chosen `v0.8` parity scope in `README.md` and `docs/ROADMAP.md`.
 
 ---
 

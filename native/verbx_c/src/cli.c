@@ -8,13 +8,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void write_json_string(FILE *stream, const char *value);
+
 static void print_usage(FILE *stream) {
     fprintf(stream, "%s %s\n", VERBX_C_PROJECT_NAME, VERBX_C_VERSION);
     fprintf(stream, "Native executable foundation for the verbx v0.8 track.\n\n");
     fprintf(stream, "Usage:\n");
     fprintf(stream, "  %s help\n", VERBX_C_PROJECT_NAME);
     fprintf(stream, "  %s version\n", VERBX_C_PROJECT_NAME);
-    fprintf(stream, "  %s doctor\n", VERBX_C_PROJECT_NAME);
+    fprintf(stream, "  %s doctor [--json-out report.json]\n", VERBX_C_PROJECT_NAME);
     fprintf(
         stream,
         "  %s render <in.wav> <out.wav> [--rt60 SEC] [--wet X] [--dry X]\n",
@@ -46,6 +48,34 @@ static void print_version(void) {
     printf("%s %s\n", VERBX_C_PROJECT_NAME, VERBX_C_VERSION);
 }
 
+static const char *compiler_family(void) {
+#if defined(__clang__)
+    return "clang";
+#elif defined(__GNUC__)
+    return "gcc";
+#elif defined(_MSC_VER)
+    return "msvc";
+#else
+    return "unknown";
+#endif
+}
+
+static const char *compiler_version(void) {
+#if defined(__clang__)
+    return __clang_version__;
+#elif defined(__GNUC__)
+    static char version[64];
+    snprintf(version, sizeof(version), "%d.%d.%d", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
+    return version;
+#elif defined(_MSC_VER)
+    static char version[64];
+    snprintf(version, sizeof(version), "%d", _MSC_VER);
+    return version;
+#else
+    return "unknown";
+#endif
+}
+
 static void print_doctor(void) {
     printf("%s doctor\n", VERBX_C_PROJECT_NAME);
     printf("version: %s\n", VERBX_C_VERSION);
@@ -54,17 +84,59 @@ static void print_doctor(void) {
     printf("wav_io: mono/stereo PCM + IEEE float WAV\n");
     printf("process_contract: read -> render -> tail_stop -> write (deterministic)\n");
     printf("error_contract: exit 0=ok, 1=render failure, 2=cli usage error\n");
-    printf("compiler: ");
-#if defined(__clang__)
-    printf("clang %s\n", __clang_version__);
-#elif defined(__GNUC__)
-    printf("gcc %d.%d.%d\n", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
-#elif defined(_MSC_VER)
-    printf("msvc %d\n", _MSC_VER);
-#else
-    printf("unknown\n");
-#endif
+    printf("compiler: %s %s\n", compiler_family(), compiler_version());
     printf("c_standard: %ld\n", (long)__STDC_VERSION__);
+}
+
+static int write_doctor_json_report(const char *json_path) {
+    FILE *stream;
+
+    if ((json_path == NULL) || (json_path[0] == '\0')) {
+        return 0;
+    }
+    stream = fopen(json_path, "wb");
+    if (stream == NULL) {
+        fprintf(stderr, "%s: failed to open --json-out '%s': %s\n", VERBX_C_PROJECT_NAME, json_path, strerror(errno));
+        return -1;
+    }
+    fputs("{\n", stream);
+    fputs("  \"schema\": \"native-doctor-report-v1\",\n", stream);
+    fprintf(stream, "  \"command\": \"%s doctor\",\n", VERBX_C_PROJECT_NAME);
+    fprintf(stream, "  \"project\": \"%s\",\n", VERBX_C_PROJECT_NAME);
+    fprintf(stream, "  \"version\": \"%s\",\n", VERBX_C_VERSION);
+    fputs("  \"status\": \"native-render-foundation\",\n", stream);
+    fputs("  \"dsp_core\": \"algorithmic offline core (foundational subset)\",\n", stream);
+    fputs("  \"wav_io\": \"mono/stereo PCM + IEEE float WAV\",\n", stream);
+    fputs("  \"process_contract\": \"read -> render -> tail_stop -> write (deterministic)\",\n", stream);
+    fputs("  \"error_contract\": \"exit 0=ok, 1=render failure, 2=cli usage error\",\n", stream);
+    fputs("  \"compiler_family\": ", stream);
+    write_json_string(stream, compiler_family());
+    fputs(",\n  \"compiler_version\": ", stream);
+    write_json_string(stream, compiler_version());
+    fprintf(stream, ",\n  \"c_standard\": %ld\n", (long)__STDC_VERSION__);
+    fputs("}\n", stream);
+    if (fclose(stream) != 0) {
+        fprintf(stderr, "%s: failed to write --json-out '%s': %s\n", VERBX_C_PROJECT_NAME, json_path, strerror(errno));
+        return -1;
+    }
+    return 0;
+}
+
+static int handle_doctor(int argc, char **argv) {
+    const char *json_out_path = NULL;
+    int index;
+
+    for (index = 2; index < argc; ++index) {
+        const char *arg = argv[index];
+        if ((strcmp(arg, "--json-out") == 0) && (index + 1 < argc)) {
+            json_out_path = argv[++index];
+        } else {
+            fprintf(stderr, "%s: unknown doctor option '%s'\n", VERBX_C_PROJECT_NAME, arg);
+            return 2;
+        }
+    }
+    print_doctor();
+    return write_doctor_json_report(json_out_path) == 0 ? 0 : 1;
 }
 
 static int parse_double_option(const char *name, const char *value_text, double *out_value) {
@@ -327,8 +399,7 @@ int verbx_c_run(int argc, char **argv) {
         return 0;
     }
     if (strcmp(command, "doctor") == 0) {
-        print_doctor();
-        return 0;
+        return handle_doctor(argc, argv);
     }
     if (strcmp(command, "render") == 0) {
         return handle_render(argc, argv);
