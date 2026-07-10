@@ -107,6 +107,45 @@ def test_native_render_mono_wav_round_trip(tmp_path: Path) -> None:
     assert "status: ok" in result.stdout
 
 
+def test_native_render_accepts_plugin_minimum_rt60(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    exe = _build_native_executable(tmp_path)
+    sr = 48_000
+    audio = np.zeros((256, 1), dtype=np.float64)
+    audio[0, 0] = 0.5
+    infile = tmp_path / "short_rt60_in.wav"
+    outfile = tmp_path / "short_rt60_out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    subprocess.run(
+        [
+            str(exe),
+            "render",
+            str(infile),
+            str(outfile),
+            "--rt60",
+            "0.01",
+            "--wet",
+            "1.0",
+            "--dry",
+            "0.0",
+            "--tail-hold-ms",
+            "1",
+            "--out-format",
+            "float32",
+        ],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    rendered, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == sr
+    assert rendered.shape[1] == 1
+    assert np.all(np.isfinite(rendered))
+
+
 def test_native_doctor_reports_process_contract(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     exe = _build_native_executable(tmp_path)

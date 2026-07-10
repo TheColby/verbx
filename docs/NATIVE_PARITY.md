@@ -26,6 +26,7 @@ Chosen `v0.8` shape: **hybrid wrapper phase before full replacement**.
 | Tail handling | Python tail-stop semantics plus long-render safeguards | Threshold/hold tail trim with exact-zero ending | In progress | Native scaffold tests and parity report |
 | Peak-safe output | Limiter/normalization/output peak controls | `--peak-safe --peak-ceiling-db` render-level scaling | Implemented for native slice | `test_native_render_peak_safe_scales_float_output_to_ceiling` |
 | Machine-readable reports | Render, realtime, dereverb, doctor, compare reports | `native-render-report-v1`, `native-doctor-report-v1` | Implemented for native slice | Native scaffold tests |
+| Plug-in foundation | Not applicable | Parameter manifest, RT60 mapping, realtime context API, guarded JUCE scaffold | Foundation slice | `ctest --test-dir build/native/verbx_c-plan --output-on-failure` |
 | Build ergonomics | Python packaging/install flow | `scripts/build_verbx_c.sh` with `--clean`, `--doctor`, `--print-path` | Implemented | `test_native_build_script_exposes_ergonomic_flags` |
 | Install ergonomics | Python install helper, man pages, Homebrew formula | `scripts/install_verbx_c.sh`, `verbx-c(1)` | Local install implemented | `test_native_install_script_installs_binary_and_man_page` |
 | Realtime | Full Python realtime path | Not implemented | Deferred | Roadmap only |

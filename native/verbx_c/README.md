@@ -76,6 +76,8 @@ The current native binary is intentionally narrow, but it is no longer a stub.
   - `float64`
 - processing precision: internal `float64`
 - render model: deterministic offline file render
+- plug-in foundation parameters: RT60 coarse/fine mapping supports `0.01s` to
+  `360s`, with Freeze and Reverse represented as explicit mode parameters
 - tail handling: threshold/hold based trim with a short click-safe fade into
   exact zeros
 - peak-safe output: optional render-level scaling with `--peak-safe` and

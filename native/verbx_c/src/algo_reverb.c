@@ -300,8 +300,8 @@ int verbx_algo_render(
     rt60 = options->rt60;
     pre_delay_ms = options->pre_delay_ms;
 
-    if (rt60 < 0.1) {
-        rt60 = 0.1;
+    if (rt60 < 0.01) {
+        rt60 = 0.01;
     }
     if (wet < 0.0) {
         wet = 0.0;
