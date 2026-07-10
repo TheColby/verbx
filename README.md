@@ -30,6 +30,38 @@ verbx render voice.wav out.wav \
   --bloom 2.8 --tilt 2.0
 ```
 
+## AUv3 / VST3 Plug-in Track
+
+![VERBX full-screen AUv3 and VST3 plug-in design](docs/assets/verbx_plugin_fullscreen.png)
+
+The image above is an actual `1920x1080` capture of the current full-screen
+design prototype. It is the visual target for the plug-in, not a claim that the
+production editor is finished.
+
+The first native plug-in foundation is implemented under
+[`native/verbx_plugin`](native/verbx_plugin/README.md):
+
+- C++17/JUCE host shell for AU, AUv3, VST3, and standalone targets
+- shared C11 parameter manifest and realtime processing boundary
+- logarithmic RT60 mapping from `0.01s` to `360s` with coarse and fine controls
+- explicit Freeze and Reverse parameters
+- Target 192 kHz quality mode by default with a 32-bit-float callback contract
+- cached lock-free parameter reads on the audio callback
+- pass-through-safe realtime core while the native reverb DSP is moved behind
+  the callback boundary
+
+Repository builds do not require JUCE unless the plug-in target is enabled:
+
+```bash
+# Verify the guarded scaffold without JUCE.
+cmake -S native/verbx_plugin -B build/native/verbx_plugin
+
+# Configure the real AU/AUv3/VST3/Standalone targets when JUCE is installed.
+cmake -S native/verbx_plugin -B build/native/verbx_plugin-juce \
+  -DVERBX_ENABLE_JUCE_PLUGIN=ON
+cmake --build build/native/verbx_plugin-juce --config Release
+```
+
 ---
 
 ## Instant Sonic Gratification
@@ -338,6 +370,11 @@ Current native status:
 - native peak-safe output: `--peak-safe --peak-ceiling-db DB`
 - native JSON reports: `doctor --json-out` and `render --json-out`
 - foundational native algorithmic reverb core with float64 internal processing
+- reusable `verbx_c_core` library with a tested plug-in parameter manifest
+- realtime context API with quality-target status, latency reporting, Freeze,
+  Reverse, and pass-through-safe callback behavior
+- guarded C++/JUCE AU, AUv3, VST3, and standalone shell scaffold
+- plug-in RT60 coarse/fine mapping and native render floor aligned at `0.01s`
 
 `v0.8` in scope:
 
@@ -350,7 +387,7 @@ Current native status:
 Deferred beyond the first `v0.8` slice:
 
 - replacing Python `verbx` as the default command
-- realtime audio in native
+- full native realtime reverb DSP and device/DAW production validation
 - convolution, dereverb, IR synthesis/morphing, batch, immersive, and AI helpers
 - full Python FDN parity, automation lanes, shimmer/freeze/repeat, and broad preset coverage
 
