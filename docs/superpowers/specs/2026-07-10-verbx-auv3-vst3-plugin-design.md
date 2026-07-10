@@ -16,7 +16,7 @@ The first implementation path is a JUCE-style native plug-in shell backed by a s
 - Keep the realtime audio callback deterministic, bounded, and free of file I/O, allocation-heavy work, and geometry parsing.
 - Default to high fidelity: host-rate I/O with internal processing targeting 192 kHz and 32-bit float.
 - Expose a stable host automation surface with performance-first controls and deeper expert controls.
-- Make long reverb times playable with RT60 coarse/fine controls and logarithmic mapping up to 360 seconds.
+- Make reverb times playable across extreme ranges with RT60 coarse/fine controls and logarithmic mapping from 0.01 seconds to 360 seconds.
 
 ## Non-Goals For The First Slice
 
@@ -107,7 +107,7 @@ Optional double-precision processing can be added later for selected internal ac
 
 RT60 uses paired controls:
 
-- `rt60_coarse`: normalized host parameter mapped logarithmically from 0.1 seconds to 360 seconds.
+- `rt60_coarse`: normalized host parameter mapped logarithmically from 0.01 seconds to 360 seconds.
 - `rt60_fine`: bipolar normalized host parameter centered at zero, applied as a log-space trim around the coarse value.
 - Effective RT60: the final clamped value shown in seconds.
 
@@ -118,9 +118,9 @@ Freeze or infinite reverb is a separate mode parameter. It must not be represent
 The mapping should be deterministic and testable. A suitable form is:
 
 ```text
-coarse_seconds = exp(lerp(log(0.1), log(360.0), normalized_coarse))
+coarse_seconds = exp(lerp(log(0.01), log(360.0), normalized_coarse))
 fine_ratio = exp(log(1.20) * bipolar_fine)
-effective_rt60 = clamp(coarse_seconds * fine_ratio, 0.1, 360.0)
+effective_rt60 = clamp(coarse_seconds * fine_ratio, 0.01, 360.0)
 ```
 
 ## Parameter Surface
@@ -201,7 +201,7 @@ The footer/status strip is the primary place for warnings. Severe errors should 
 
 Testing starts below the DAW host:
 
-- Parameter mapping tests for RT60 coarse/fine across the full 0.1s to 360s range.
+- Parameter mapping tests for RT60 coarse/fine across the full 0.01s to 360s range.
 - DSP unit tests for deterministic blocks and no NaN/Inf output.
 - Golden audio snapshots at 44.1, 48, 96, and 192 kHz host rates.
 - Oversampling/latency reporting tests.
