@@ -12,6 +12,7 @@ set(VERBX_C_CORE_SOURCES
   src/render.c
   src/wav_io.c
   src/plugin_params.c
+  src/plugin_realtime.c
 )
 
 add_library(verbx_c_core STATIC ${VERBX_C_CORE_SOURCES})
@@ -50,6 +51,10 @@ if(BUILD_TESTING)
     target_compile_options(test_plugin_params PRIVATE -Wall -Wextra -Wpedantic)
   endif()
   add_test(NAME plugin_params COMMAND test_plugin_params)
+
+  add_executable(test_plugin_realtime tests/test_plugin_realtime.c)
+  target_link_libraries(test_plugin_realtime PRIVATE verbx_c_core)
+  add_test(NAME plugin_realtime COMMAND test_plugin_realtime)
 endif()
 
 install(TARGETS verbx-c RUNTIME DESTINATION bin)
