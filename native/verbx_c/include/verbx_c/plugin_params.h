@@ -3,6 +3,10 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     VERBX_PLUGIN_PARAM_PRE_DELAY_MS = 0,
     VERBX_PLUGIN_PARAM_ROOM_SIZE = 1,
@@ -48,5 +52,9 @@ const verbx_plugin_parameter *verbx_plugin_parameter_at(size_t index);
 const verbx_plugin_parameter *verbx_plugin_parameter_by_id(verbx_plugin_parameter_id id);
 double verbx_plugin_clamp(double value, double minimum, double maximum);
 double verbx_plugin_map_rt60_seconds(double normalized_coarse, double bipolar_fine);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

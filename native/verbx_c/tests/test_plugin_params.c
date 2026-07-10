@@ -1,6 +1,6 @@
 #include "verbx_c/plugin_params.h"
 
-#include <assert.h>
+#include <stdio.h>
 #include <math.h>
 #include <stddef.h>
 #include <string.h>
@@ -16,27 +16,101 @@ typedef struct {
     double default_value;
 } expected_parameter;
 
-static void assert_close(double actual, double expected, double tolerance) {
-    assert(fabs(actual - expected) <= tolerance);
+static int fail_message(const char *message) {
+    fprintf(stderr, "test_plugin_params: %s\n", message);
+    return 1;
 }
 
-static void assert_parameter_matches(const verbx_plugin_parameter *actual, const expected_parameter *expected) {
-    assert(actual != NULL);
-    assert(expected != NULL);
-    assert(actual->id == expected->id);
-    assert(actual->key != NULL);
-    assert(actual->label != NULL);
-    assert(actual->unit != NULL);
-    assert(strcmp(actual->key, expected->key) == 0);
-    assert(strcmp(actual->label, expected->label) == 0);
-    assert(strcmp(actual->unit, expected->unit) == 0);
-    assert(actual->kind == expected->kind);
-    assert_close(actual->minimum, expected->minimum, 1e-12);
-    assert_close(actual->maximum, expected->maximum, 1e-12);
-    assert_close(actual->default_value, expected->default_value, 1e-12);
-    assert(actual->minimum <= actual->maximum);
-    assert(actual->default_value >= actual->minimum);
-    assert(actual->default_value <= actual->maximum);
+static int require_true(int condition, const char *message) {
+    if (!condition) {
+        return fail_message(message);
+    }
+
+    return 0;
+}
+
+static int require_close(double actual, double expected, double tolerance, const char *message) {
+    if (fabs(actual - expected) > tolerance) {
+        fprintf(
+            stderr,
+            "test_plugin_params: %s (actual=%0.17g expected=%0.17g tolerance=%0.17g)\n",
+            message,
+            actual,
+            expected,
+            tolerance
+        );
+        return 1;
+    }
+
+    return 0;
+}
+
+static int require_string_equal(const char *actual, const char *expected, const char *message) {
+    if (actual == NULL || expected == NULL || strcmp(actual, expected) != 0) {
+        fprintf(
+            stderr,
+            "test_plugin_params: %s (actual=%s expected=%s)\n",
+            message,
+            actual != NULL ? actual : "(null)",
+            expected != NULL ? expected : "(null)"
+        );
+        return 1;
+    }
+
+    return 0;
+}
+
+static int check_parameter_matches(const verbx_plugin_parameter *actual, const expected_parameter *expected) {
+    if (require_true(actual != NULL, "manifest entry is NULL") != 0) {
+        return 1;
+    }
+    if (require_true(expected != NULL, "expected manifest entry is NULL") != 0) {
+        return 1;
+    }
+    if (require_true(actual->id == expected->id, "parameter id mismatch") != 0) {
+        return 1;
+    }
+    if (require_true(actual->key != NULL, "parameter key is NULL") != 0) {
+        return 1;
+    }
+    if (require_true(actual->label != NULL, "parameter label is NULL") != 0) {
+        return 1;
+    }
+    if (require_true(actual->unit != NULL, "parameter unit is NULL") != 0) {
+        return 1;
+    }
+    if (require_string_equal(actual->key, expected->key, "parameter key mismatch") != 0) {
+        return 1;
+    }
+    if (require_string_equal(actual->label, expected->label, "parameter label mismatch") != 0) {
+        return 1;
+    }
+    if (require_string_equal(actual->unit, expected->unit, "parameter unit mismatch") != 0) {
+        return 1;
+    }
+    if (require_true(actual->kind == expected->kind, "parameter kind mismatch") != 0) {
+        return 1;
+    }
+    if (require_close(actual->minimum, expected->minimum, 1e-12, "parameter minimum mismatch") != 0) {
+        return 1;
+    }
+    if (require_close(actual->maximum, expected->maximum, 1e-12, "parameter maximum mismatch") != 0) {
+        return 1;
+    }
+    if (require_close(actual->default_value, expected->default_value, 1e-12, "parameter default mismatch") != 0) {
+        return 1;
+    }
+    if (require_true(actual->minimum <= actual->maximum, "parameter minimum exceeds maximum") != 0) {
+        return 1;
+    }
+    if (require_true(actual->default_value >= actual->minimum, "parameter default below minimum") != 0) {
+        return 1;
+    }
+    if (require_true(actual->default_value <= actual->maximum, "parameter default above maximum") != 0) {
+        return 1;
+    }
+
+    return 0;
 }
 
 int main(void) {
@@ -60,32 +134,58 @@ int main(void) {
     double fine_down;
     size_t index;
 
-    assert(verbx_plugin_parameter_count() == VERBX_PLUGIN_PARAMETER_COUNT);
-    assert(VERBX_PLUGIN_PARAMETER_COUNT == 12U);
+    if (require_true(verbx_plugin_parameter_count() == VERBX_PLUGIN_PARAMETER_COUNT, "parameter count mismatch") != 0) {
+        return 1;
+    }
+    if (require_true(VERBX_PLUGIN_PARAMETER_COUNT == 12U, "parameter enum count changed") != 0) {
+        return 1;
+    }
 
     for (index = 0U; index < VERBX_PLUGIN_PARAMETER_COUNT; ++index) {
         parameter = verbx_plugin_parameter_at(index);
-        assert_parameter_matches(parameter, &expected_parameters[index]);
-        assert(verbx_plugin_parameter_by_id(expected_parameters[index].id) == parameter);
+        if (check_parameter_matches(parameter, &expected_parameters[index]) != 0) {
+            return 1;
+        }
+        if (require_true(verbx_plugin_parameter_by_id(expected_parameters[index].id) == parameter, "lookup by id returned wrong parameter") != 0) {
+            return 1;
+        }
     }
 
-    assert_close(verbx_plugin_map_rt60_seconds(0.0, 0.0), 0.01, 1e-12);
-    assert_close(verbx_plugin_map_rt60_seconds(1.0, 0.0), 360.0, 1e-9);
+    if (require_close(verbx_plugin_map_rt60_seconds(0.0, 0.0), 0.01, 1e-12, "rt60 minimum mapping mismatch") != 0) {
+        return 1;
+    }
+    if (require_close(verbx_plugin_map_rt60_seconds(1.0, 0.0), 360.0, 1e-9, "rt60 maximum mapping mismatch") != 0) {
+        return 1;
+    }
 
     midpoint = verbx_plugin_map_rt60_seconds(0.5, 0.0);
-    assert_close(midpoint, sqrt(0.01 * 360.0), 1e-12);
+    if (require_close(midpoint, sqrt(0.01 * 360.0), 1e-12, "rt60 midpoint mapping mismatch") != 0) {
+        return 1;
+    }
 
     fine_up = verbx_plugin_map_rt60_seconds(0.5, 1.0);
-    assert_close(fine_up, midpoint * 1.20, 1e-12);
+    if (require_close(fine_up, midpoint * 1.20, 1e-12, "rt60 positive fine trim mismatch") != 0) {
+        return 1;
+    }
 
     fine_down = verbx_plugin_map_rt60_seconds(0.5, -1.0);
-    assert_close(fine_down, midpoint / 1.20, 1e-12);
+    if (require_close(fine_down, midpoint / 1.20, 1e-12, "rt60 negative fine trim mismatch") != 0) {
+        return 1;
+    }
 
-    assert_close(verbx_plugin_map_rt60_seconds(-1.0, -2.0), 0.01, 1e-12);
-    assert_close(verbx_plugin_map_rt60_seconds(2.0, 2.0), 360.0, 1e-9);
+    if (require_close(verbx_plugin_map_rt60_seconds(-1.0, -2.0), 0.01, 1e-12, "rt60 lower clamp mismatch") != 0) {
+        return 1;
+    }
+    if (require_close(verbx_plugin_map_rt60_seconds(2.0, 2.0), 360.0, 1e-9, "rt60 upper clamp mismatch") != 0) {
+        return 1;
+    }
 
-    assert(verbx_plugin_parameter_by_id((verbx_plugin_parameter_id)9999) == NULL);
-    assert(verbx_plugin_parameter_at(VERBX_PLUGIN_PARAMETER_COUNT) == NULL);
+    if (require_true(verbx_plugin_parameter_by_id((verbx_plugin_parameter_id)9999) == NULL, "invalid id lookup should return NULL") != 0) {
+        return 1;
+    }
+    if (require_true(verbx_plugin_parameter_at(VERBX_PLUGIN_PARAMETER_COUNT) == NULL, "out-of-range index lookup should return NULL") != 0) {
+        return 1;
+    }
 
     return 0;
 }
