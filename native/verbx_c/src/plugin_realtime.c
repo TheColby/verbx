@@ -29,8 +29,12 @@ int verbx_plugin_realtime_prepare(
     char *error_message,
     size_t error_message_size
 ) {
-    if ((context == 0) || (config == 0)) {
-        set_error(error_message, error_message_size, "invalid realtime prepare arguments");
+    if (context == 0) {
+        set_error(error_message, error_message_size, "context must be non-null");
+        return -1;
+    }
+    if (config == 0) {
+        set_error(error_message, error_message_size, "config must be non-null");
         return -1;
     }
     if (config->host_sample_rate == 0U) {

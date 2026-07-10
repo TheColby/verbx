@@ -132,6 +132,22 @@ int main(void) {
         return 1;
     }
 
+    memset(error, 0, sizeof(error));
+    if (require_true(verbx_plugin_realtime_prepare(&context, 0, error, sizeof(error)) != 0, "prepare should reject null config") != 0) {
+        return 1;
+    }
+    if (require_string_contains(error, "config", "null config error should name config") != 0) {
+        return 1;
+    }
+
+    memset(error, 0, sizeof(error));
+    if (require_true(verbx_plugin_realtime_prepare(0, &config, error, sizeof(error)) != 0, "prepare should reject null context") != 0) {
+        return 1;
+    }
+    if (require_string_contains(error, "context", "null context error should name context") != 0) {
+        return 1;
+    }
+
     config.channel_count = 0U;
     memset(error, 0, sizeof(error));
     if (require_true(verbx_plugin_realtime_prepare(&context, &config, error, sizeof(error)) != 0, "prepare should reject zero channels") != 0) {
