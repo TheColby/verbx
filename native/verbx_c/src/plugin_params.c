@@ -60,6 +60,7 @@ double verbx_plugin_map_rt60_seconds(double normalized_coarse, double bipolar_fi
     double coarse = verbx_plugin_clamp(normalized_coarse, 0.0, 1.0);
     double fine = verbx_plugin_clamp(bipolar_fine, -1.0, 1.0);
     double coarse_seconds = exp(log(min_rt60) + ((log(max_rt60) - log(min_rt60)) * coarse));
+    /* Fine trim is symmetric in log space: +1.0 scales by 1.20, -1.0 scales by 1/1.20. */
     double fine_ratio = exp(log(fine_max_ratio) * fine);
 
     return verbx_plugin_clamp(coarse_seconds * fine_ratio, min_rt60, max_rt60);
