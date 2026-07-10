@@ -120,6 +120,9 @@ int main(void) {
     if (require_true(status.internal_sample_rate == 192000U, "internal sample rate status mismatch") != 0) {
         return 1;
     }
+    if (require_true(status.latency_frames == 0U, "latency status mismatch") != 0) {
+        return 1;
+    }
 
     verbx_plugin_realtime_release(&context);
     if (require_true(verbx_plugin_realtime_internal_sample_rate(&context) == 0U, "released context internal sample rate should reset") != 0) {
@@ -129,6 +132,12 @@ int main(void) {
         return 1;
     }
     if (require_true(context.prepared == 0, "released context should clear prepared flag") != 0) {
+        return 1;
+    }
+    if (require_true(verbx_plugin_realtime_internal_sample_rate(NULL) == 0U, "null context internal sample rate should be zero") != 0) {
+        return 1;
+    }
+    if (require_true(verbx_plugin_realtime_latency_frames(NULL) == 0U, "null context latency should be zero") != 0) {
         return 1;
     }
 
