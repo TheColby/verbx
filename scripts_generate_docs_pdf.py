@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parent
 DEFAULT_MD = ROOT / "docs" / "USERGUIDE.md"
 DEFAULT_PDF = ROOT / "USERGUIDE.pdf"
 PDF_PREAMBLE = ROOT / "docs" / "assets" / "pandoc_pdf_preamble.tex"
+PLUGIN_GUIDE_GENERATOR = ROOT / "scripts_generate_plugin_guide.py"
 DEFAULT_AUTHOR = "Colby Leider"
 TEX_GYRE_FONT_DIR = (
     "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/tex-gyre/"
@@ -26,6 +27,7 @@ TEX_GYRE_MATH_FONT_DIR = (
 
 USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "README.md",
+    ROOT / "docs" / "PLUGIN_GUIDE.md",
     ROOT / "docs" / "PUBLIC_ALPHA_NOTES.md",
     ROOT / "docs" / "CLI_REFERENCE.md",
     ROOT / "docs" / "EXTREME_COOKBOOK.md",
@@ -78,6 +80,7 @@ def _markdown_for_userguide(source: Path) -> str:
     markdown = source.read_text(encoding="utf-8")
     if source == ROOT / "README.md":
         markdown = markdown.replace('src="docs/assets/', 'src="assets/')
+        markdown = markdown.replace("](docs/assets/", "](assets/")
     return markdown
 
 
@@ -87,6 +90,7 @@ def _write_markdown(path: Path, author: str) -> None:
 
 
 def _pandoc_base_command(markdown_path: Path, author: str) -> list[str]:
+    generated_on = datetime.now().astimezone().strftime("%B %d, %Y")
     return [
         "pandoc",
         str(markdown_path),
@@ -97,6 +101,7 @@ def _pandoc_base_command(markdown_path: Path, author: str) -> list[str]:
         "--resource-path=.:docs:examples",
         "--metadata=title:verbx User Guide",
         f"--metadata=author:{author}",
+        f"--metadata=date:{generated_on}",
         "--include-in-header",
         str(PDF_PREAMBLE),
         "-V",
@@ -154,13 +159,15 @@ def _rewrite_longtable_specs(latex_path: Path) -> None:
 
 
 def _rewrite_figure_paths(text: str) -> str:
-    """Resolve generated guide figures from the temporary LaTeX build dir."""
+    """Resolve guide assets from the temporary LaTeX build directory."""
 
     figure_root = (ROOT / "docs" / "assets" / "userguide_figures").as_posix()
-    return text.replace(
+    asset_root = (ROOT / "docs" / "assets").as_posix()
+    text = text.replace(
         r"{assets/userguide_figures/",
         rf"{{{figure_root}/",
     )
+    return text.replace(r"{assets/", rf"{{{asset_root}/")
 
 
 def _rewrite_longtable_value_breaks(text: str) -> str:
@@ -251,7 +258,13 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
             + "\n```"
         )
 
-    return re.sub(r'(?:<a\s+id="[^"]+"></a>)+', replace_anchor_run, markdown)
+    markdown = re.sub(r'(?:<a\s+id="[^"]+"></a>)+', replace_anchor_run, markdown)
+    return re.sub(
+        r"^\\newpage$",
+        lambda _: "```{=latex}\n\\newpage\n```",
+        markdown,
+        flags=re.MULTILINE,
+    )
 
 
 def _render_pdf(markdown_path: Path, pdf_path: Path, author: str) -> None:
@@ -299,6 +312,8 @@ def main() -> int:
         help="Only write the consolidated Markdown file and skip PDF rendering.",
     )
     args = parser.parse_args()
+
+    subprocess.run([sys.executable, str(PLUGIN_GUIDE_GENERATOR)], cwd=ROOT, check=True)
 
     missing = [path for path in USERGUIDE_SOURCES if not path.exists()]
     if missing:
