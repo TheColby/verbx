@@ -37,6 +37,7 @@ The approved UI direction is "Spatial Architecture Instrument, closer to the GUI
 - Wide spectrum/decay strip: live decay spectrum, EDR-style view, CPU and latency status.
 - Expert tabs: FDN and Diffusion, Shimmer and Color, Dynamics and Tone, Spatial and Geometry.
 - Footer: host rate, internal quality target, block size, latency, CPU, version, and warnings.
+- Mode buttons: Freeze/Infinite and Reverse Reverb should be visible performance controls, not buried in a menu.
 
 The front panel should feel performance-simple. The host automation surface can be deeper, but the editor should not overwhelm users with hundreds of equal-weight controls.
 
@@ -80,6 +81,7 @@ The realtime DSP core should start with the narrow deterministic feature slice:
 - Modulation rate/depth where realtime safe.
 - Ducking and limiter controls where already deterministic.
 - Freeze/infinite reverb as a dedicated mode.
+- Reverse reverb as a dedicated mode button with bounded lookahead/buffer behavior.
 - Spatial blend controls that influence early/late behavior without requiring live ray tracing.
 
 The DSP core must be independent enough to test outside a DAW host.
@@ -115,6 +117,8 @@ The proposed fine range is plus or minus 20 percent around the coarse value. Thi
 
 Freeze or infinite reverb is a separate mode parameter. It must not be represented as "RT60 at maximum."
 
+Reverse reverb is also a separate mode parameter. It should be exposed as a visible button near Freeze/Infinite and should not change the meaning of RT60. The implementation must make its added latency explicit because reverse tails require buffering or pre-rendered/reordered tail segments.
+
 The mapping should be deterministic and testable. A suitable form is:
 
 ```text
@@ -142,6 +146,8 @@ The initial main-page macro set is:
 - Diffusion
 - Wet
 - Dry
+- Reverse mode button
+- Freeze/Infinite mode button
 
 RT60 coarse may be visually dominant. RT60 fine can be a smaller companion knob or trim ring near the coarse control.
 
@@ -207,7 +213,7 @@ Testing starts below the DAW host:
 - Oversampling/latency reporting tests.
 - Preset serialization and recall tests.
 - Geometry profile validation tests.
-- Stress tests for extreme RT60, freeze mode, wet/dry edges, and CPU-heavy quality settings.
+- Stress tests for extreme RT60, freeze mode, reverse mode, wet/dry edges, and CPU-heavy quality settings.
 
 DAW validation comes after the standalone core tests:
 
