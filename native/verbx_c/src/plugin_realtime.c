@@ -1,5 +1,6 @@
 #include "verbx_c/plugin_realtime.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -47,6 +48,18 @@ int verbx_plugin_realtime_prepare(
     }
     if (config->channel_count == 0U) {
         set_error(error_message, error_message_size, "channel_count must be non-zero");
+        return -1;
+    }
+    if ((config->quality_mode < VERBX_PLUGIN_QUALITY_HOST)
+        || (config->quality_mode > VERBX_PLUGIN_QUALITY_TARGET_192K)) {
+        set_error(error_message, error_message_size, "quality_mode is invalid");
+        return -1;
+    }
+    if (((config->quality_mode == VERBX_PLUGIN_QUALITY_2X)
+         && (config->host_sample_rate > (UINT_MAX / 2U)))
+        || ((config->quality_mode == VERBX_PLUGIN_QUALITY_4X)
+            && (config->host_sample_rate > (UINT_MAX / 4U)))) {
+        set_error(error_message, error_message_size, "internal sample rate would overflow");
         return -1;
     }
 

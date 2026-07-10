@@ -2,6 +2,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include <atomic>
+
 extern "C" {
 #include "verbx_c/plugin_realtime.h"
 }
@@ -37,10 +39,27 @@ public:
     juce::AudioProcessorValueTreeState& state();
 
 private:
+    struct RealtimeParameterPointers {
+        std::atomic<float>* preDelayMs = nullptr;
+        std::atomic<float>* roomSize = nullptr;
+        std::atomic<float>* rt60Coarse = nullptr;
+        std::atomic<float>* rt60Fine = nullptr;
+        std::atomic<float>* damping = nullptr;
+        std::atomic<float>* width = nullptr;
+        std::atomic<float>* diffusion = nullptr;
+        std::atomic<float>* wet = nullptr;
+        std::atomic<float>* dry = nullptr;
+        std::atomic<float>* freeze = nullptr;
+        std::atomic<float>* reverse = nullptr;
+        std::atomic<float>* qualityMode = nullptr;
+    };
+
     juce::AudioProcessorValueTreeState parameters_;
+    RealtimeParameterPointers parameterPointers_{};
     verbx_plugin_realtime_context realtimeContext_{};
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    void cacheParameterPointers();
     verbx_plugin_realtime_params currentRealtimeParams() const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VerbXPluginProcessor)

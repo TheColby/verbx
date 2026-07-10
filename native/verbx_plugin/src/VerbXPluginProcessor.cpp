@@ -11,12 +11,8 @@ juce::String parameterId(verbx_plugin_parameter_id id) {
     return parameter != nullptr ? juce::String(parameter->key) : juce::String();
 }
 
-float parameterValue(
-    const juce::AudioProcessorValueTreeState& state,
-    verbx_plugin_parameter_id id
-) {
-    const auto* value = state.getRawParameterValue(parameterId(id));
-    return value != nullptr ? value->load() : 0.0f;
+float parameterValue(const std::atomic<float>* value) {
+    return value != nullptr ? value->load(std::memory_order_relaxed) : 0.0f;
 }
 
 juce::ParameterID versionedParameterId(const verbx_plugin_parameter& parameter) {
@@ -28,7 +24,9 @@ juce::ParameterID versionedParameterId(const verbx_plugin_parameter& parameter) 
 VerbXPluginProcessor::VerbXPluginProcessor()
     : AudioProcessor(BusesProperties().withInput("Input", juce::AudioChannelSet::stereo(), true)
                                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-      parameters_(*this, nullptr, "VERBX", createParameterLayout()) {}
+      parameters_(*this, nullptr, "VERBX", createParameterLayout()) {
+    cacheParameterPointers();
+}
 
 VerbXPluginProcessor::~VerbXPluginProcessor() {
     verbx_plugin_realtime_release(&realtimeContext_);
@@ -76,6 +74,45 @@ juce::AudioProcessorValueTreeState::ParameterLayout VerbXPluginProcessor::create
     return {layout.begin(), layout.end()};
 }
 
+void VerbXPluginProcessor::cacheParameterPointers() {
+    parameterPointers_.preDelayMs = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_PRE_DELAY_MS)
+    );
+    parameterPointers_.roomSize = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_ROOM_SIZE)
+    );
+    parameterPointers_.rt60Coarse = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_RT60_COARSE)
+    );
+    parameterPointers_.rt60Fine = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_RT60_FINE)
+    );
+    parameterPointers_.damping = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_DAMPING)
+    );
+    parameterPointers_.width = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_WIDTH)
+    );
+    parameterPointers_.diffusion = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_DIFFUSION)
+    );
+    parameterPointers_.wet = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_WET)
+    );
+    parameterPointers_.dry = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_DRY)
+    );
+    parameterPointers_.freeze = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_FREEZE)
+    );
+    parameterPointers_.reverse = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_REVERSE)
+    );
+    parameterPointers_.qualityMode = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_QUALITY_MODE)
+    );
+}
+
 void VerbXPluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     char error[256] = {};
     verbx_plugin_realtime_config config{};
@@ -85,7 +122,12 @@ void VerbXPluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
         getTotalNumInputChannels(),
         getTotalNumOutputChannels()
     ));
-    config.quality_mode = VERBX_PLUGIN_QUALITY_TARGET_192K;
+    const auto qualityMode = juce::jlimit(
+        static_cast<int>(VERBX_PLUGIN_QUALITY_HOST),
+        static_cast<int>(VERBX_PLUGIN_QUALITY_TARGET_192K),
+        juce::roundToInt(parameterValue(parameterPointers_.qualityMode))
+    );
+    config.quality_mode = static_cast<verbx_plugin_quality_mode>(qualityMode);
 
     const auto result = verbx_plugin_realtime_prepare(
         &realtimeContext_,
@@ -113,17 +155,17 @@ bool VerbXPluginProcessor::isBusesLayoutSupported(const BusesLayout& layouts) co
 
 verbx_plugin_realtime_params VerbXPluginProcessor::currentRealtimeParams() const {
     verbx_plugin_realtime_params params{};
-    params.pre_delay_ms = parameterValue(parameters_, VERBX_PLUGIN_PARAM_PRE_DELAY_MS);
-    params.room_size = parameterValue(parameters_, VERBX_PLUGIN_PARAM_ROOM_SIZE);
-    params.rt60_coarse_normalized = parameterValue(parameters_, VERBX_PLUGIN_PARAM_RT60_COARSE);
-    params.rt60_fine_bipolar = parameterValue(parameters_, VERBX_PLUGIN_PARAM_RT60_FINE);
-    params.damping = parameterValue(parameters_, VERBX_PLUGIN_PARAM_DAMPING);
-    params.width = parameterValue(parameters_, VERBX_PLUGIN_PARAM_WIDTH);
-    params.diffusion = parameterValue(parameters_, VERBX_PLUGIN_PARAM_DIFFUSION);
-    params.wet = parameterValue(parameters_, VERBX_PLUGIN_PARAM_WET);
-    params.dry = parameterValue(parameters_, VERBX_PLUGIN_PARAM_DRY);
-    params.freeze = parameterValue(parameters_, VERBX_PLUGIN_PARAM_FREEZE) >= 0.5f ? 1 : 0;
-    params.reverse = parameterValue(parameters_, VERBX_PLUGIN_PARAM_REVERSE) >= 0.5f ? 1 : 0;
+    params.pre_delay_ms = parameterValue(parameterPointers_.preDelayMs);
+    params.room_size = parameterValue(parameterPointers_.roomSize);
+    params.rt60_coarse_normalized = parameterValue(parameterPointers_.rt60Coarse);
+    params.rt60_fine_bipolar = parameterValue(parameterPointers_.rt60Fine);
+    params.damping = parameterValue(parameterPointers_.damping);
+    params.width = parameterValue(parameterPointers_.width);
+    params.diffusion = parameterValue(parameterPointers_.diffusion);
+    params.wet = parameterValue(parameterPointers_.wet);
+    params.dry = parameterValue(parameterPointers_.dry);
+    params.freeze = parameterValue(parameterPointers_.freeze) >= 0.5f ? 1 : 0;
+    params.reverse = parameterValue(parameterPointers_.reverse) >= 0.5f ? 1 : 0;
     return params;
 }
 

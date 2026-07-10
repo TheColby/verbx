@@ -1,5 +1,6 @@
 #include "verbx_c/plugin_realtime.h"
 
+#include <limits.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -123,6 +124,20 @@ int main(void) {
     if (require_true(status.latency_frames == 0U, "latency status mismatch") != 0) {
         return 1;
     }
+    if (require_true(verbx_plugin_realtime_process(&context, inputs, outputs, 513U, 2U, &params, &status) != 0, "process should reject oversized blocks") != 0) {
+        return 1;
+    }
+    if (require_true(verbx_plugin_realtime_process(&context, inputs, outputs, 4U, 0U, &params, &status) != 0, "process should reject zero channels") != 0) {
+        return 1;
+    }
+    if (require_true(verbx_plugin_realtime_process(&context, inputs, outputs, 4U, 2U, NULL, &status) != 0, "process should reject null params") != 0) {
+        return 1;
+    }
+    inputs[1] = NULL;
+    if (require_true(verbx_plugin_realtime_process(&context, inputs, outputs, 4U, 2U, &params, &status) != 0, "process should reject null channel pointers") != 0) {
+        return 1;
+    }
+    inputs[1] = in_r;
 
     verbx_plugin_realtime_release(&context);
     if (require_true(verbx_plugin_realtime_internal_sample_rate(&context) == 0U, "released context internal sample rate should reset") != 0) {
@@ -138,6 +153,9 @@ int main(void) {
         return 1;
     }
     if (require_true(verbx_plugin_realtime_latency_frames(NULL) == 0U, "null context latency should be zero") != 0) {
+        return 1;
+    }
+    if (require_true(verbx_plugin_realtime_process(&context, inputs, outputs, 4U, 2U, &params, &status) != 0, "process should reject an unprepared context") != 0) {
         return 1;
     }
 
@@ -163,6 +181,80 @@ int main(void) {
         return 1;
     }
     if (require_string_contains(error, "channel_count", "zero channel error should name channel_count") != 0) {
+        return 1;
+    }
+
+    config.channel_count = 2U;
+    config.host_sample_rate = 0U;
+    memset(error, 0, sizeof(error));
+    if (require_true(verbx_plugin_realtime_prepare(&context, &config, error, sizeof(error)) != 0, "prepare should reject zero sample rate") != 0) {
+        return 1;
+    }
+    if (require_string_contains(error, "host_sample_rate", "zero sample rate error should name host_sample_rate") != 0) {
+        return 1;
+    }
+
+    config.host_sample_rate = 48000U;
+    config.max_block_frames = 0U;
+    memset(error, 0, sizeof(error));
+    if (require_true(verbx_plugin_realtime_prepare(&context, &config, error, sizeof(error)) != 0, "prepare should reject zero max block") != 0) {
+        return 1;
+    }
+    if (require_string_contains(error, "max_block_frames", "zero max block error should name max_block_frames") != 0) {
+        return 1;
+    }
+
+    config.max_block_frames = 512U;
+    config.quality_mode = VERBX_PLUGIN_QUALITY_HOST;
+    if (require_true(verbx_plugin_realtime_prepare(&context, &config, error, sizeof(error)) == 0, "host quality prepare should succeed") != 0) {
+        return 1;
+    }
+    if (require_true(context.internal_sample_rate == 48000U, "host quality rate mismatch") != 0) {
+        return 1;
+    }
+
+    config.quality_mode = VERBX_PLUGIN_QUALITY_2X;
+    if (require_true(verbx_plugin_realtime_prepare(&context, &config, error, sizeof(error)) == 0, "2x quality prepare should succeed") != 0) {
+        return 1;
+    }
+    if (require_true(context.internal_sample_rate == 96000U, "2x quality rate mismatch") != 0) {
+        return 1;
+    }
+
+    config.quality_mode = VERBX_PLUGIN_QUALITY_4X;
+    if (require_true(verbx_plugin_realtime_prepare(&context, &config, error, sizeof(error)) == 0, "4x quality prepare should succeed") != 0) {
+        return 1;
+    }
+    if (require_true(context.internal_sample_rate == 192000U, "4x quality rate mismatch") != 0) {
+        return 1;
+    }
+
+    config.host_sample_rate = 384000U;
+    config.quality_mode = VERBX_PLUGIN_QUALITY_TARGET_192K;
+    if (require_true(verbx_plugin_realtime_prepare(&context, &config, error, sizeof(error)) == 0, "high host rate prepare should succeed") != 0) {
+        return 1;
+    }
+    if (require_true(context.internal_sample_rate == 384000U, "target quality should preserve a higher host rate") != 0) {
+        return 1;
+    }
+
+    config.host_sample_rate = 48000U;
+    config.quality_mode = (verbx_plugin_quality_mode)999;
+    memset(error, 0, sizeof(error));
+    if (require_true(verbx_plugin_realtime_prepare(&context, &config, error, sizeof(error)) != 0, "prepare should reject invalid quality") != 0) {
+        return 1;
+    }
+    if (require_string_contains(error, "quality_mode", "invalid quality error should name quality_mode") != 0) {
+        return 1;
+    }
+
+    config.host_sample_rate = UINT_MAX;
+    config.quality_mode = VERBX_PLUGIN_QUALITY_4X;
+    memset(error, 0, sizeof(error));
+    if (require_true(verbx_plugin_realtime_prepare(&context, &config, error, sizeof(error)) != 0, "prepare should reject internal-rate overflow") != 0) {
+        return 1;
+    }
+    if (require_string_contains(error, "overflow", "overflow error should identify overflow") != 0) {
         return 1;
     }
 

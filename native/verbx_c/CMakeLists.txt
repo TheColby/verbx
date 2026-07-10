@@ -54,6 +54,9 @@ if(BUILD_TESTING)
 
   add_executable(test_plugin_realtime tests/test_plugin_realtime.c)
   target_link_libraries(test_plugin_realtime PRIVATE verbx_c_core)
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_plugin_realtime PRIVATE -Wall -Wextra -Wpedantic)
+  endif()
   add_test(NAME plugin_realtime COMMAND test_plugin_realtime)
 endif()
 
