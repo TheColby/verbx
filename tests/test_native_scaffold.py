@@ -13,6 +13,8 @@ def _native_sources(repo_root: Path) -> list[str]:
     return [
         str(repo_root / "native/verbx_c/src/audio.c"),
         str(repo_root / "native/verbx_c/src/algo_reverb.c"),
+        str(repo_root / "native/verbx_c/src/plugin_params.c"),
+        str(repo_root / "native/verbx_c/src/plugin_realtime.c"),
         str(repo_root / "native/verbx_c/src/render.c"),
         str(repo_root / "native/verbx_c/src/wav_io.c"),
         str(repo_root / "native/verbx_c/src/main.c"),
