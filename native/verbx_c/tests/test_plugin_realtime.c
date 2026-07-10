@@ -122,6 +122,15 @@ int main(void) {
     }
 
     verbx_plugin_realtime_release(&context);
+    if (require_true(verbx_plugin_realtime_internal_sample_rate(&context) == 0U, "released context internal sample rate should reset") != 0) {
+        return 1;
+    }
+    if (require_true(verbx_plugin_realtime_latency_frames(&context) == 0U, "released context latency should reset") != 0) {
+        return 1;
+    }
+    if (require_true(context.prepared == 0, "released context should clear prepared flag") != 0) {
+        return 1;
+    }
 
     config.channel_count = 0U;
     memset(error, 0, sizeof(error));
