@@ -108,6 +108,9 @@ from verbx.commands.ir import (
 from verbx.commands.ir import (
     ir_sofa_info as ir_sofa_info_command,
 )
+from verbx.commands.ir import (
+    ir_trace as ir_trace_command,
+)
 from verbx.commands.ir_impl import (
     ir_analyze_impl as _ir_analyze_impl,
 )
@@ -125,6 +128,9 @@ from verbx.commands.ir_impl import (
 )
 from verbx.commands.ir_impl import (
     ir_sofa_info_impl as _ir_sofa_info_impl,
+)
+from verbx.commands.ir_impl import (
+    ir_trace_impl as _ir_trace_impl,
 )
 from verbx.commands.presets import list_presets as list_presets_command
 from verbx.commands.realtime import realtime as realtime_command
@@ -387,6 +393,7 @@ ir_app.command("gen")(ir_gen_command)
 ir_app.command("analyze")(ir_analyze_command)
 ir_app.command("sofa-info")(ir_sofa_info_command)
 ir_app.command("sofa-extract")(ir_sofa_extract_command)
+ir_app.command("trace")(ir_trace_command)
 ir_app.command("process")(ir_process_command)
 ir_app.command("morph")(ir_morph_command)
 ir_app.command("morph-sweep")(ir_morph_sweep_command)
@@ -7375,6 +7382,7 @@ _COMMAND_IMPLS: dict[str, Callable[..., Any]] = {
     "_ir_analyze_impl": _ir_analyze_impl,
     "_ir_sofa_info_impl": _ir_sofa_info_impl,
     "_ir_sofa_extract_impl": _ir_sofa_extract_impl,
+    "_ir_trace_impl": _ir_trace_impl,
     "_ir_process_impl": _ir_process_impl,
     "_ir_morph_impl": _ir_morph_impl,
     "_ir_morph_sweep_impl": _ir_morph_sweep_impl,

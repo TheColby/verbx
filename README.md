@@ -368,6 +368,35 @@ scripts/install_verbx_c.sh --prefix "$HOME/.local" --doctor
 
 ---
 
+## Experimental DXF Room Tracing
+
+`verbx ir trace` is the first bounded physical-acoustics prototype: it reads a
+simple room-like DXF outline, generates a stereo IR, and writes a
+`trace-report-v1` support bundle.
+
+```bash
+verbx ir trace room.dxf room_ir.wav \
+  --source 2,3,1.5 \
+  --listener 6,4,1.5 \
+  --height 3 \
+  --material studio \
+  --rays 50000 \
+  --length 4 \
+  --target-sr 48000 \
+  --json-out room_trace.json
+
+verbx render dry.wav in_room.wav --engine conv --ir room_ir.wav
+```
+
+This MVP supports ASCII DXF `LINE`/`LWPOLYLINE` 2D room outlines and derives an
+axis-aligned room box with direct path, first-order reflections, and a
+stochastic late tail. `--material` now validates against octave-band material
+profiles such as `studio`, `drywall`, `glass`, `concrete`, `carpet`,
+`acoustic-panel`, and `diffuser`; `trace-report-v1` records those absorption
+bands plus scattering metadata. See [`docs/DXF_TRACE_MVP.md`](docs/DXF_TRACE_MVP.md).
+
+---
+
 ## Announcement Channels
 
 - Release announcements: [github.com/TheColby/verbx/releases](https://github.com/TheColby/verbx/releases)

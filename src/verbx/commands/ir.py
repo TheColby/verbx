@@ -386,6 +386,48 @@ def ir_sofa_extract(
     _forward("_ir_sofa_extract_impl", dict(locals()))
 
 
+def ir_trace(
+    dxf_file: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
+    out_ir: Path = typer.Argument(..., resolve_path=True),
+    source: str = typer.Option(
+        ...,
+        "--source",
+        help="Source position in x,y,z meters, for example 2,3,1.5.",
+    ),
+    listener: str = typer.Option(
+        ...,
+        "--listener",
+        help="Listener position in x,y,z meters, for example 6,4,1.5.",
+    ),
+    height: float = typer.Option(
+        3.0,
+        "--height",
+        min=0.1,
+        help="Room height in meters when the DXF is a 2D plan.",
+    ),
+    material: str = typer.Option(
+        "studio",
+        "--material",
+        help=(
+            "Default material/absorption preset for all room surfaces "
+            "(for example studio, drywall, glass, concrete, acoustic-panel)."
+        ),
+    ),
+    rays: int = typer.Option(
+        50_000,
+        "--rays",
+        min=1,
+        help="Stochastic ray budget used for late-tail density metadata and synthesis.",
+    ),
+    length: float = typer.Option(4.0, "--length", min=0.05),
+    target_sr: int = typer.Option(48_000, "--target-sr", min=8_000),
+    seed: int = typer.Option(0, "--seed"),
+    json_out: Path | None = typer.Option(None, "--json-out", resolve_path=True),
+    silent: bool = typer.Option(False, "--silent"),
+) -> None:
+    _forward("_ir_trace_impl", dict(locals()))
+
+
 def ir_process(
     in_ir: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
     out_ir: Path = typer.Argument(..., resolve_path=True),

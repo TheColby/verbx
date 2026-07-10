@@ -114,32 +114,32 @@ Use these as the working top-line priorities for the current cycle:
 
 ### Week 1
 
-- [ ] Pick exactly one topology-expansion prototype for this cycle; candidate now includes DXF/CAD ray-tracing IR import.
-- [ ] Prefer one bounded physical-acoustics prototype (DXF ray tracing or geometry-to-FDN) over starting geometry, neural, and topology branches at once.
-- [ ] Write down success criteria for the chosen prototype before implementation starts.
+- [x] Pick exactly one topology-expansion prototype for this cycle; candidate now includes DXF/CAD ray-tracing IR import.
+- [x] Prefer one bounded physical-acoustics prototype (DXF ray tracing or geometry-to-FDN) over starting geometry, neural, and topology branches at once.
+- [x] Write down success criteria for the chosen prototype before implementation starts.
 
 ### Week 2
 
-- [ ] Build one prototype behind an explicit experimental flag.
+- [x] Build one prototype behind an explicit experimental command.
 - [ ] Candidate directions:
   - [ ] denser delay-feedback matrix variants
-  - [ ] DXF/CAD ray-tracing IR prototype (`verbx ir trace ROOM.dxf OUT_IR.wav`)
+  - [x] DXF/CAD ray-tracing IR prototype (`verbx ir trace ROOM.dxf OUT_IR.wav`)
   - [ ] geometry-to-FDN parameter derivation improvements
   - [ ] intelligibility-aware dereverb scoring
-- [ ] If DXF ray tracing is selected, constrain MVP scope:
-  - [ ] closed room-like DXF geometry only
-  - [ ] source/listener coordinates required on CLI
-  - [ ] default material plus optional layer/material mapping
-  - [ ] output IR WAV plus `trace-report-v1` JSON
+- [x] If DXF ray tracing is selected, constrain MVP scope:
+  - [x] closed room-like DXF geometry only
+  - [x] source/listener coordinates required on CLI
+  - [x] default material with octave-band material profile metadata
+  - [x] output IR WAV plus `trace-report-v1` JSON
 
 ### Week 3
 
 - [ ] Build evaluation harnesses before broadening scope:
   - [ ] render benchmarks
   - [ ] repeatable presets
-  - [ ] objective metrics
+  - [x] objective metrics
   - [ ] example corpus
-  - [ ] DXF fixture rooms with expected direct-path and first-reflection timing
+  - [x] DXF fixture rooms with expected direct-path and first-reflection timing
 
 ### Week 4
 

@@ -196,11 +196,14 @@ parameter choices:
 
 ### 6.5 Room Acoustics Material Library
 
-- [ ] Add `src/verbx/ir/materials.py`: frequency-dependent absorption
+- [x] Add `src/verbx/ir/materials.py`: frequency-dependent absorption
   coefficient table for ~20 common materials (concrete, drywall, glass,
   carpet, acoustic foam, wood panel, etc.) drawn from published Sabine data.
-- [ ] Expose via `--er-material` and the `RoomGeometry` model.
-- [ ] Include Sabine data citations and units in module docstring.
+- [x] Expose the table through `verbx ir trace --material` reports and the
+  `RoomGeometry` mean-absorption model.
+- [x] Include coefficient units/frequency bands in the module docstring and
+  JSON report payload.
+- [ ] Add per-surface/per-layer material assignment once DXF layer import lands.
 
 ### 6.6 CAD / DXF Ray-Tracing IR Import
 
@@ -208,23 +211,24 @@ Goal: import constrained architectural CAD geometry and generate an impulse
 response that can feed the existing convolution engine, without claiming full
 architectural-acoustics accuracy in the first slice.
 
-- [ ] Define supported geometry subset for MVP: clean DXF room boundaries,
+- [x] Define supported geometry subset for MVP: clean DXF room boundaries,
   planar wall/floor/ceiling surfaces, closed volumes or closed 2D plans with
   explicit height, and optional layer-name material hints.
-- [ ] Add experimental command shape:
+- [x] Add experimental command shape:
   `verbx ir trace ROOM.dxf OUT_IR.wav --source x,y,z --listener x,y,z --rays N
   --length S --material default:NAME --target-sr SR`.
-- [ ] Build DXF ingest/normalization stage that converts CAD entities into
+- [x] Build DXF ingest/normalization stage that converts CAD entities into
   `RoomGeometry`-compatible planes/triangles and emits warnings for open
   boundaries, non-manifold geometry, unsupported curves, or missing scale units.
-- [ ] Generate deterministic early reflections with image-source/ray-hit timing
+- [x] Generate deterministic early reflections with image-source/ray-hit timing
   and amplitude, then synthesize late decay from stochastic ray energy histograms.
-- [ ] Support frequency-dependent material absorption/scattering once the
-  material library lands; start with a default material plus per-layer overrides.
-- [ ] Write `trace-report-v1` JSON with geometry stats, material assignment,
+- [x] Support frequency-dependent material absorption/scattering for the default
+  material profile in `trace-report-v1`.
+- [ ] Add per-layer material overrides once DXF layer import lands.
+- [x] Write `trace-report-v1` JSON with geometry stats, material assignment,
   direct path, reflection counts, ray budget, estimated RT60, and warnings.
-- [ ] Output an IR WAV usable by `verbx render --engine conv --ir OUT_IR.wav`.
-- [ ] Keep first implementation experimental and scoped to demoable room-like
+- [x] Output an IR WAV usable by `verbx render --engine conv --ir OUT_IR.wav`.
+- [x] Keep first implementation experimental and scoped to demoable room-like
   DXF files; robust arbitrary CAD cleanup remains a later 2+ month milestone.
 
 Estimated effort:

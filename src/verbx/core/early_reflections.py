@@ -7,6 +7,7 @@ import numpy.typing as npt
 from scipy.signal import fftconvolve
 
 from verbx.io.audio import ensure_mono_or_stereo
+from verbx.ir.materials import material_absorption as profile_material_absorption
 
 AudioArray = npt.NDArray[np.float64]
 
@@ -24,7 +25,7 @@ def material_absorption(material: str, default: float) -> float:
     key = str(material).strip().lower()
     if key in MATERIAL_ABSORPTION:
         return float(MATERIAL_ABSORPTION[key])
-    return float(np.clip(default, 0.0, 0.99))
+    return profile_material_absorption(key, default)
 
 
 def apply_image_source_early_reflections(

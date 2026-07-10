@@ -28,6 +28,12 @@ from verbx.ir.metrics import analyze_ir
 from verbx.ir.morph import IRMorphConfig, generate_or_load_cached_morphed_ir
 from verbx.ir.shaping import apply_ir_shaping
 from verbx.ir.sofa import extract_sofa_ir, read_sofa_info
+from verbx.ir.trace import (
+    generate_trace_ir,
+    parse_dxf_room_outline,
+    parse_trace_vector,
+    write_trace_report,
+)
 from verbx.ir.tuning import analyze_audio_for_tuning
 
 
@@ -197,6 +203,78 @@ def ir_sofa_extract_impl(
     table.add_row("strict", str(bool(strict)))
     sample_rate_action = str(meta.get("sample_rate_action", "none"))
     table.add_row("sample_rate_action", sample_rate_action)
+    cli_module.console.print(table)
+
+
+def ir_trace_impl(
+    dxf_file: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
+    out_ir: Path = typer.Argument(..., resolve_path=True),
+    source: str = typer.Option(..., "--source"),
+    listener: str = typer.Option(..., "--listener"),
+    height: float = typer.Option(3.0, "--height", min=0.1),
+    material: str = typer.Option("studio", "--material"),
+    rays: int = typer.Option(50_000, "--rays", min=1),
+    length: float = typer.Option(4.0, "--length", min=0.05),
+    target_sr: int = typer.Option(48_000, "--target-sr", min=8_000),
+    seed: int = typer.Option(0, "--seed"),
+    json_out: Path | None = typer.Option(None, "--json-out", resolve_path=True),
+    silent: bool = typer.Option(False, "--silent"),
+) -> None:
+    """Generate an experimental room IR from a constrained DXF room outline."""
+    cli_module = _cli()
+    validate_output_audio_path(out_ir, "auto")
+    try:
+        source_pos = parse_trace_vector(source, label="--source")
+        listener_pos = parse_trace_vector(listener, label="--listener")
+        with cli_module._processing_status("Trace DXF room", enabled=not silent):
+            geometry = parse_dxf_room_outline(dxf_file, height_m=float(height))
+            audio, report = generate_trace_ir(
+                geometry=geometry,
+                source_pos_m=source_pos,
+                listener_pos_m=listener_pos,
+                material=str(material),
+                rays=int(rays),
+                length_s=float(length),
+                sr=int(target_sr),
+                seed=int(seed),
+            )
+            meta = {
+                "mode": "trace",
+                "source": str(dxf_file),
+                "trace_report": report,
+            }
+            write_ir_artifacts(out_ir, audio, int(target_sr), meta, silent=silent)
+            report_path = (
+                out_ir.with_suffix(f"{out_ir.suffix}.trace.json")
+                if json_out is None
+                else json_out
+            )
+            write_trace_report(report_path, report)
+    except (ValueError, RuntimeError, OSError, sf.LibsndfileError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if silent:
+        return
+
+    room = report["geometry"]["room"]
+    trace = report["trace"]
+    table = Table(title="IR Trace")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="white")
+    table.add_row("schema", str(report["schema"]))
+    table.add_row("experimental", str(bool(report["experimental"])))
+    table.add_row("out_ir", str(out_ir))
+    table.add_row("report", str(report_path))
+    table.add_row("room_dims_m", str(room["room_dims_m"]))
+    table.add_row("material", str(report["material"]["default"]))
+    table.add_row("rays", str(trace["rays"]))
+    table.add_row("sample_rate", str(trace["target_sr"]))
+    table.add_row("length_s", f"{float(trace['length_s']):.3f}")
+    table.add_row("estimated_rt60_s", f"{float(trace['estimated_rt60_s']):.3f}")
+    table.add_row("reflection_count", str(trace["reflection_count"]))
+    warnings = report["geometry"].get("warnings", [])
+    if isinstance(warnings, list) and len(warnings) > 0:
+        table.add_row("warnings", "\n".join(str(item) for item in warnings))
     cli_module.console.print(table)
 
 

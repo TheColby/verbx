@@ -77,6 +77,12 @@ All notable changes to this project are documented in this file.
   installs `verbx-c` plus the new `verbx-c(1)` man page into a chosen prefix.
 - Added `docs/NATIVE_PARITY.md` as the canonical native feature/gap matrix for
   the `v0.8` hybrid transition.
+- Added experimental `verbx ir trace`, a constrained ASCII DXF room-outline to
+  IR prototype that writes stereo IR WAV files plus `trace-report-v1` geometry,
+  reflection, ray-budget, and metric reports.
+- Added `src/verbx/ir/materials.py` with 20 frequency-dependent room-material
+  profiles; `verbx ir trace --material` now validates names and records
+  octave-band absorption plus scattering metadata in `trace-report-v1`.
 - Documented the chosen `v0.8` release shape as a hybrid transition: `verbx-c`
   ships as an opt-in native render/doctor binary while Python `verbx` remains
   the default public-alpha CLI until broader parity is proven.

@@ -1322,6 +1322,11 @@ Do not edit manually.
 │                                          [x>=10.0]                           │
 │ --tilt                                   FLOAT RANGE       [default: 0.0]    │
 │                                          [-18.0<=x<=18.0]                    │
+│ --json-out                               PATH              Optional path for │
+│                                                            a                 │
+│                                                            machine-readable  │
+│                                                            realtime session  │
+│                                                            report JSON.      │
 │ --quiet                                                    Reduce console    │
 │                                                            output.           │
 │ --help                                                     Show this message │
@@ -1519,6 +1524,7 @@ Do not edit manually.
 │ analyze                                                                      │
 │ sofa-info                                                                    │
 │ sofa-extract                                                                 │
+│ trace                                                                        │
 │ process                                                                      │
 │ morph                                                                        │
 │ morph-sweep                                                                  │

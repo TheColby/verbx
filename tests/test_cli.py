@@ -62,6 +62,7 @@ def test_ir_command_impls_resolve_to_extracted_module() -> None:
         "_ir_analyze_impl",
         "_ir_sofa_info_impl",
         "_ir_sofa_extract_impl",
+        "_ir_trace_impl",
         "_ir_process_impl",
         "_ir_morph_impl",
         "_ir_fit_impl",
