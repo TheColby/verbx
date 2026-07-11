@@ -10,6 +10,7 @@ reference material, and practical tips shipped in `docs/`.
 ## Included Sources
 
 - `README.md`
+- `docs/INTRODUCTORY_BLOCK_DIAGRAMS.md`
 - `docs/PUBLIC_ALPHA_NOTES.md`
 - `docs/CLI_REFERENCE.md`
 - `docs/EXTREME_COOKBOOK.md`
@@ -23,6 +24,8 @@ reference material, and practical tips shipped in `docs/`.
 - `docs/HOMEBREW.md`
 - `docs/benchmarks/README.md`
 - `docs/MUSICAL_PIECES_APPENDIX.md`
+- `docs/MUSICAL_PIECES_EXPANSION.md`
+- `docs/HOMEWORK_ASSIGNMENTS.md`
 - `docs/REFERENCES.md`
 
 ---
@@ -1784,6 +1787,123 @@ Additional guides in `docs/`:
 See [LICENSE](LICENSE).
 
 v0.7.7 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+
+\newpage
+
+<!-- docs/INTRODUCTORY_BLOCK_DIAGRAMS.md -->
+
+# System Orientation Through Block Diagrams
+
+This chapter is a visual map of the signal paths, state boundaries, and evidence loops used throughout verbx. Read each diagram from left to right, then use the paragraph beneath it to identify what may happen in realtime, what must be prepared off-thread, and what should be preserved in a report.
+
+## The complete verbx workflow
+
+![Block diagram 1: The complete verbx workflow.](assets/intro_block_diagrams/01_the_complete_verbx_workflow.png)
+
+**Block diagram 1.** Every workflow begins with an identified source and ends with both an audible artifact and machine-readable evidence. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Algorithmic render path
+
+![Block diagram 2: Algorithmic render path.](assets/intro_block_diagrams/02_algorithmic_render_path.png)
+
+**Block diagram 2.** The algorithmic engine separates arrival cues, density growth, sustained decay, and delivery processing. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Convolution render path
+
+![Block diagram 3: Convolution render path.](assets/intro_block_diagrams/03_convolution_render_path.png)
+
+**Block diagram 3.** Partitioned convolution trades a small fixed scheduling delay for efficient processing of long and multichannel impulse responses. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Realtime callback boundary
+
+![Block diagram 4: Realtime callback boundary.](assets/intro_block_diagrams/04_realtime_callback_boundary.png)
+
+**Block diagram 4.** The callback path must remain bounded and allocation-free; preparation, file access, and reporting belong outside it. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## End-to-end latency stack
+
+![Block diagram 5: End-to-end latency stack.](assets/intro_block_diagrams/05_end_to_end_latency_stack.png)
+
+**Block diagram 5.** Perceived realtime latency is the sum of device buffers, host scheduling, algorithmic lookahead, and physical propagation. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Reverb event anatomy
+
+![Block diagram 6: Reverb event anatomy.](assets/intro_block_diagrams/06_reverb_event_anatomy.png)
+
+**Block diagram 6.** A useful listening model treats reverberation as an ordered event rather than a single wet signal. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## RT60 control hierarchy
+
+![Block diagram 7: RT60 control hierarchy.](assets/intro_block_diagrams/07_rt60_control_hierarchy.png)
+
+**Block diagram 7.** Coarse and fine controls establish time scale while frequency-dependent decay and freeze determine how energy persists. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## FDN feedback loop
+
+![Block diagram 8: FDN feedback loop.](assets/intro_block_diagrams/08_fdn_feedback_loop.png)
+
+**Block diagram 8.** Delay lengths create modes; filters set color; the matrix disperses energy; calibrated gain establishes decay. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Impulse-response lifecycle
+
+![Block diagram 9: Impulse-response lifecycle.](assets/intro_block_diagrams/09_impulse_response_lifecycle.png)
+
+**Block diagram 9.** An impulse response is an auditable asset whose provenance and preparation affect every convolution result. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Dereverberation path
+
+![Block diagram 10: Dereverberation path.](assets/intro_block_diagrams/10_dereverberation_path.png)
+
+**Block diagram 10.** Dereverberation balances late-energy reduction against speech, transient, and ambience preservation. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Dynamics around reverb
+
+![Block diagram 11: Dynamics around reverb.](assets/intro_block_diagrams/11_dynamics_around_reverb.png)
+
+**Block diagram 11.** Ducking creates foreground space before a limiter protects the combined output and meters verify the result. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Spatial routing
+
+![Block diagram 12: Spatial routing.](assets/intro_block_diagrams/12_spatial_routing.png)
+
+**Block diagram 12.** Channel identity must remain explicit from source through room processing and final reproduction. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Automation contract
+
+![Block diagram 13: Automation contract.](assets/intro_block_diagrams/13_automation_contract.png)
+
+**Block diagram 13.** Automation is safest when parsed and validated off-thread, then applied deterministically at block boundaries. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Analysis evidence chain
+
+![Block diagram 14: Analysis evidence chain.](assets/intro_block_diagrams/14_analysis_evidence_chain.png)
+
+**Block diagram 14.** Analysis becomes operational evidence when measurements, policy thresholds, warnings, and provenance share one report. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Preset lifecycle
+
+![Block diagram 15: Preset lifecycle.](assets/intro_block_diagrams/15_preset_lifecycle.png)
+
+**Block diagram 15.** A preset is more than values: it needs intent, compatibility metadata, calibrated auditioning, and deterministic recall. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Plug-in host contract
+
+![Block diagram 16: Plug-in host contract.](assets/intro_block_diagrams/16_plug_in_host_contract.png)
+
+**Block diagram 16.** AUv3 and VST3 integration wrap the same DSP in host-specific state, layout, and lifecycle contracts. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Regression workflow
+
+![Block diagram 17: Regression workflow.](assets/intro_block_diagrams/17_regression_workflow.png)
+
+**Block diagram 17.** Deterministic fixtures make audible and numerical drift discoverable before release. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
+
+## Learning loop
+
+![Block diagram 18: Learning loop.](assets/intro_block_diagrams/18_learning_loop.png)
+
+**Block diagram 18.** The textbook exercises use repeated prediction, experiment, measurement, and critical listening to connect controls with perception. The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.
 
 
 \newpage
@@ -17907,115 +18027,115 @@ When a named recording is central to the entry, use that recording or a document
 
 ## Architecture as an Instrument
 
-**Thomas Tallis, Spem in alium (c. 1570).** Forty independent voices arranged in eight choirs make location part of the counterpoint. Listen for waves of activity passing between groups and for the moment when the full ensemble turns many local sources into one enveloping field. In verbx, route eight stem groups to slightly different early-reflection, pre-delay, and width settings while keeping one coherent late decay.
+**Thomas Tallis, *Spem in alium* (c. 1570).** Forty independent voices arranged in eight choirs make location part of the counterpoint. Listen for waves of activity passing between groups and for the moment when the full ensemble turns many local sources into one enveloping field. In verbx, route eight stem groups to slightly different early-reflection, pre-delay, and width settings while keeping one coherent late decay.
 
-**Giovanni Gabrieli, In ecclesiis (c. 1615).** Gabrieli's separated vocal and instrumental groups exploit the delayed answers and blended sustain of a large Venetian church. Listen for the alternation between intelligible local gestures and the collective halo that joins them. Recreate the principle with several buses: distinct pre-delays and positions for each ensemble, shared low-frequency decay, and conservative high-frequency damping.
+**Giovanni Gabrieli, *In ecclesiis* (c. 1615).** Gabrieli's separated vocal and instrumental groups exploit the delayed answers and blended sustain of a large Venetian church. Listen for the alternation between intelligible local gestures and the collective halo that joins them. Recreate the principle with several buses: distinct pre-delays and positions for each ensemble, shared low-frequency decay, and conservative high-frequency damping.
 
-**Hector Berlioz, Grande Messe des morts (1837).** The work's multiple brass groups and very large forces turn distance and direction into orchestration. Listen to how remote attacks retain identity while their decays merge with the central ensemble. A useful verbx study places four brass-like sources around a listener, varies direct-to-reverberant ratio rather than level alone, and checks whether the combined low end remains controlled.
+**Hector Berlioz, *Grande Messe des morts* (1837).** The work's multiple brass groups and very large forces turn distance and direction into orchestration. Listen to how remote attacks retain identity while their decays merge with the central ensemble. A useful verbx study places four brass-like sources around a listener, varies direct-to-reverberant ratio rather than level alone, and checks whether the combined low end remains controlled.
 
-**Charles Ives, The Unanswered Question (1906; revised later).** Ives separates sustained strings, a questioning trumpet, and increasingly agitated winds into different physical and conceptual layers. Listen for how distance stabilizes the strings while the foreground groups remain sharply profiled. Model the three ensembles with different room sends and early-reflection densities instead of putting one global reverb across the mix.
+**Charles Ives, *The Unanswered Question* (1906; revised later).** Ives separates sustained strings, a questioning trumpet, and increasingly agitated winds into different physical and conceptual layers. Listen for how distance stabilizes the strings while the foreground groups remain sharply profiled. Model the three ensembles with different room sends and early-reflection densities instead of putting one global reverb across the mix.
 
-**Ralph Vaughan Williams, Fantasia on a Theme by Thomas Tallis (1910).** A large string orchestra, a smaller antiphonal group, and a quartet create depth through changing ensemble scale. Listen for transitions where apparent distance changes without a conventional fade. In verbx, compare level automation with DRR automation: move a string stem backward by reducing direct energy and lengthening its early-reflection pattern while leaving musical dynamics intact.
+**Ralph Vaughan Williams, *Fantasia on a Theme by Thomas Tallis* (1910).** A large string orchestra, a smaller antiphonal group, and a quartet create depth through changing ensemble scale. Listen for transitions where apparent distance changes without a conventional fade. In verbx, compare level automation with DRR automation: move a string stem backward by reducing direct energy and lengthening its early-reflection pattern while leaving musical dynamics intact.
 
-**Olivier Messiaen, Et exspecto resurrectionem mortuorum (1964).** Monumental wind and percussion sonorities are written to activate a large resonant space, with silence functioning as part of the decay. Listen through the rests rather than treating them as empty time. Build a study with sparse gong or tam-tam attacks, long multiband decay, and enough headroom that each tail can be heard to disappear naturally.
+**Olivier Messiaen, *Et exspecto resurrectionem mortuorum* (1964).** Monumental wind and percussion sonorities are written to activate a large resonant space, with silence functioning as part of the decay. Listen through the rests rather than treating them as empty time. Build a study with sparse gong or tam-tam attacks, long multiband decay, and enough headroom that each tail can be heard to disappear naturally.
 
 ## Recorded Space and Tape-Era Studio Craft
 
-**Les Paul and Mary Ford, How High the Moon (1951).** Layering, close recording, speed manipulation, and repeated parts create an impossible studio ensemble whose space is assembled rather than documented. Listen for the contrast between intimate vocal presence and the depth implied by overdubs. Use a short room, narrow slap, and different pre-delays per layer; avoid one wash that flattens the arrangement.
+**Les Paul and Mary Ford, *How High the Moon* (1951).** Layering, close recording, speed manipulation, and repeated parts create an impossible studio ensemble whose space is assembled rather than documented. Listen for the contrast between intimate vocal presence and the depth implied by overdubs. Use a short room, narrow slap, and different pre-delays per layer; avoid one wash that flattens the arrangement.
 
-**Elvis Presley, Mystery Train (1955).** The Sun recording's slapback makes a compact performance feel rhythmically larger without suggesting a concert hall. Listen to the repeat as a second attack that locks to the groove. In verbx, begin with one short repeat, little diffusion, limited bandwidth, and no long tail; move the delay by a few milliseconds to hear how quickly pocket becomes clutter.
+**Elvis Presley, *Mystery Train* (1955).** The Sun recording's slapback makes a compact performance feel rhythmically larger without suggesting a concert hall. Listen to the repeat as a second attack that locks to the groove. In verbx, begin with one short repeat, little diffusion, limited bandwidth, and no long tail; move the delay by a few milliseconds to hear how quickly pocket becomes clutter.
 
-**The Ronettes, Be My Baby (1963).** The production combines dense orchestration and echo-chamber return into a unified wall while preserving the lead vocal's authority. Listen for ambience that thickens sustained energy more than transient detail. Test parallel chamber returns with strong filtering and compression, then compare a single long algorithmic preset against several shorter, differently colored returns.
+**The Ronettes, *Be My Baby* (1963).** The production combines dense orchestration and echo-chamber return into a unified wall while preserving the lead vocal's authority. Listen for ambience that thickens sustained energy more than transient detail. Test parallel chamber returns with strong filtering and compression, then compare a single long algorithmic preset against several shorter, differently colored returns.
 
-**The Beach Boys, Good Vibrations (1966).** Contrasting modules, instruments, and recording spaces are edited into a coherent form. Listen for changes in depth as part of the arrangement, not merely changes in instrumentation. Build several scene presets with matched loudness but different pre-delay, width, and decay color, then automate scene changes at structural boundaries rather than continuously morphing everything.
+**The Beach Boys, *Good Vibrations* (1966).** Contrasting modules, instruments, and recording spaces are edited into a coherent form. Listen for changes in depth as part of the arrangement, not merely changes in instrumentation. Build several scene presets with matched loudness but different pre-delay, width, and decay color, then automate scene changes at structural boundaries rather than continuously morphing everything.
 
-**The Beatles, Tomorrow Never Knows (1966).** Tape loops, compression, rotating-speaker color, and studio effects dissolve the boundary between performance and environment. Listen for moving layers whose apparent spaces are not mutually consistent yet remain compositionally clear. A verbx exercise uses multiple effect returns with different bandwidths and modulation rates, each ducked by a different source family.
+**The Beatles, *Tomorrow Never Knows* (1966).** Tape loops, compression, rotating-speaker color, and studio effects dissolve the boundary between performance and environment. Listen for moving layers whose apparent spaces are not mutually consistent yet remain compositionally clear. A verbx exercise uses multiple effect returns with different bandwidths and modulation rates, each ducked by a different source family.
 
-**Led Zeppelin, When the Levee Breaks (1971).** The drum sound demonstrates how a stairwell, distant microphones, compression, and delay can turn a performance into an architectural event. Listen to the separation between the initial hit and the enormous room response. Approximate the relationship with a transient-preserving dry path, a dark long room, modest pre-delay, and aggressive return compression rather than excessive wet percentage.
+**Led Zeppelin, *When the Levee Breaks* (1971).** The drum sound demonstrates how a stairwell, distant microphones, compression, and delay can turn a performance into an architectural event. Listen to the separation between the initial hit and the enormous room response. Approximate the relationship with a transient-preserving dry path, a dark long room, modest pre-delay, and aggressive return compression rather than excessive wet percentage.
 
 ## Electroacoustic Space and Feedback
 
-**Karlheinz Stockhausen, Gesang der Jünglinge (1955-1956).** Electronic sound and a recorded boy's voice move through a multichannel field, making trajectory and location structural parameters. Listen for timbral transitions that are reinforced by spatial transitions. In verbx, distribute several related source transformations around an ambisonic or surround layout and preserve common spectral landmarks so motion reads as continuity rather than random panning.
+**Karlheinz Stockhausen, *Gesang der Jünglinge* (1955-1956).** Electronic sound and a recorded boy's voice move through a multichannel field, making trajectory and location structural parameters. Listen for timbral transitions that are reinforced by spatial transitions. In verbx, distribute several related source transformations around an ambisonic or surround layout and preserve common spectral landmarks so motion reads as continuity rather than random panning.
 
-**Karlheinz Stockhausen, Gruppen (1955-1957).** Three orchestras with three conductors surround the audience and exchange blocks of tempo, density, and color. Listen for mass moving between ensembles and for events that only make sense as spatial simultaneities. Use three buses with independent early fields and a shared late field; automate source-group routing rather than relying only on a master-width control.
+**Karlheinz Stockhausen, *Gruppen* (1955-1957).** Three orchestras with three conductors surround the audience and exchange blocks of tempo, density, and color. Listen for mass moving between ensembles and for events that only make sense as spatial simultaneities. Use three buses with independent early fields and a shared late field; automate source-group routing rather than relying only on a master-width control.
 
-**Edgard Varèse, Poème électronique (1958).** Conceived for the Philips Pavilion, the work binds electronic montage to a purpose-built architectural and loudspeaker environment. Listen for abrupt scale changes, trajectories, and sound masses that imply spaces larger or stranger than the playback room. Create a sequence of short rendered scenes using sharply contrasting IRs, then crossfade only where the composition calls for continuity.
+**Edgard Varèse, *Poème électronique* (1958).** Conceived for the Philips Pavilion, the work binds electronic montage to a purpose-built architectural and loudspeaker environment. Listen for abrupt scale changes, trajectories, and sound masses that imply spaces larger or stranger than the playback room. Create a sequence of short rendered scenes using sharply contrasting IRs, then crossfade only where the composition calls for continuity.
 
-**Karlheinz Stockhausen, Kontakte (1958-1960).** Electronic gestures rotate, accelerate, and transform while percussion and piano connect synthetic and acoustic time. Listen to spatial movement as a form of articulation. A useful study maps one modulation source to position, brightness, and pre-delay with different depths, producing related motion without making every parameter trace the same curve.
+**Karlheinz Stockhausen, *Kontakte* (1958-1960).** Electronic gestures rotate, accelerate, and transform while percussion and piano connect synthetic and acoustic time. Listen to spatial movement as a form of articulation. A useful study maps one modulation source to position, brightness, and pre-delay with different depths, producing related motion without making every parameter trace the same curve.
 
-**Iannis Xenakis, Persephassa (1969).** Six percussionists surround the audience, allowing rhythmic patterns to become rotations and distributed masses. Listen for speed inferred from sequential attacks rather than from a continuously moving source. Recreate the principle with six discrete positions, very short directional early reflections, and a common late field that does not blur the attack order.
+**Iannis Xenakis, *Persephassa* (1969).** Six percussionists surround the audience, allowing rhythmic patterns to become rotations and distributed masses. Listen for speed inferred from sequential attacks rather than from a continuously moving source. Recreate the principle with six discrete positions, very short directional early reflections, and a common late field that does not blur the attack order.
 
-**Alvin Lucier, I am sitting in a room (1969).** Repeated recording and playback progressively reinforce room modes until speech becomes resonant pattern. The room is the filter and the iterative process is the form; the definitive concept is documented in the [Lovely Music album notes](https://www.lovely.com/albumnotes/notes1013cd.html). Reproduce the experiment safely with a short spoken phrase, bounded feedback or repeated offline renders, peak normalization between generations, and a JSON record of spectral change.
+**Alvin Lucier, *I am sitting in a room* (1969).** Repeated recording and playback progressively reinforce room modes until speech becomes resonant pattern. The room is the filter and the iterative process is the form; the definitive concept is documented in the [Lovely Music album notes](https://www.lovely.com/albumnotes/notes1013cd.html). Reproduce the experiment safely with a short spoken phrase, bounded feedback or repeated offline renders, peak normalization between generations, and a JSON record of spectral change.
 
 ## Dub, Echo, and the Mixing Desk as Performance Instrument
 
-**Augustus Pablo and King Tubby, King Tubby Meets Rockers Uptown (1974).** Dropouts, spring-like reverberation, filtered echo, and sudden restoration of the rhythm section turn the mix into a live arrangement. Listen for negative space: the effect is powerful because elements disappear. Build a verbx automation pass that mutes sends and sources decisively, then introduces short colored tails only on selected phrases.
+**Augustus Pablo and King Tubby, *King Tubby Meets Rockers Uptown* (1974).** Dropouts, spring-like reverberation, filtered echo, and sudden restoration of the rhythm section turn the mix into a live arrangement. Listen for negative space: the effect is powerful because elements disappear. Build a verbx automation pass that mutes sends and sources decisively, then introduces short colored tails only on selected phrases.
 
-**Lee Scratch Perry and the Upsetters, Dread Lion (1976).** The production treats percussion, bass, noise, and reverberant fragments as inhabitants of a mutable environment. Listen for returns that change tone and apparent distance over time. Use feedback filtering, modulation, and return saturation, but cap feedback and peak level so instability remains expressive rather than destructive.
+**Lee Scratch Perry and the Upsetters, *Dread Lion* (1976).** The production treats percussion, bass, noise, and reverberant fragments as inhabitants of a mutable environment. Listen for returns that change tone and apparent distance over time. Use feedback filtering, modulation, and return saturation, but cap feedback and peak level so instability remains expressive rather than destructive.
 
-**Augustus Pablo, East of the River Nile (1977).** Melodica tone, bass, and spacious rhythm demonstrate how a narrow lead can float above a deep, economical foundation. Listen for the lead's delayed shadows and the restraint of the low-frequency ambience. In verbx, high-pass the long return, keep bass largely direct, and use a darker short echo to support the lead without widening every element.
+**Augustus Pablo, *East of the River Nile* (1977).** Melodica tone, bass, and spacious rhythm demonstrate how a narrow lead can float above a deep, economical foundation. Listen for the lead's delayed shadows and the restraint of the low-frequency ambience. In verbx, high-pass the long return, keep bass largely direct, and use a darker short echo to support the lead without widening every element.
 
-**Scientist, Dance of the Vampires (1981).** Extreme dropouts and animated effect throws make the studio feel like a changing stage. Listen for the way echo feedback is performed in phrases rather than left at one setting. Record automation for send level, feedback, and damping as separate gestures; use limiter telemetry to identify throws that approach unsafe accumulation.
+**Scientist, *Dance of the Vampires* (1981).** Extreme dropouts and animated effect throws make the studio feel like a changing stage. Listen for the way echo feedback is performed in phrases rather than left at one setting. Record automation for send level, feedback, and damping as separate gestures; use limiter telemetry to identify throws that approach unsafe accumulation.
 
-**Grace Jones, Walking in the Rain (1981).** The Compass Point production uses disciplined space around bass, drums, guitar, voice, and atmospheric detail. Listen to how depth comes from selective ambience and arrangement gaps rather than from a uniformly wet mix. Rebuild the hierarchy with different decay times for voice and percussion, leaving the bass center dry and stable.
+**Grace Jones, *Walking in the Rain* (1981).** The Compass Point production uses disciplined space around bass, drums, guitar, voice, and atmospheric detail. Listen to how depth comes from selective ambience and arrangement gaps rather than from a uniformly wet mix. Rebuild the hierarchy with different decay times for voice and percussion, leaving the bass center dry and stable.
 
-**The Orb, Little Fluffy Clouds (1990).** Ambient collage, speech, loops, and dub-derived delays create a large but rhythmically legible environment. Listen for repeated fragments that become landmarks inside a slowly changing field. Use tempo-related echoes feeding a long dark reverb, then automate return EQ so repetition recedes without merely becoming quieter.
+**The Orb, *Little Fluffy Clouds* (1990).** Ambient collage, speech, loops, and dub-derived delays create a large but rhythmically legible environment. Listen for repeated fragments that become landmarks inside a slowly changing field. Use tempo-related echoes feeding a long dark reverb, then automate return EQ so repetition recedes without merely becoming quieter.
 
 ## Minimalism, Ambient Music, and Slow Decay
 
-**Terry Riley, Poppy Nogood and the Phantom Band (1967-1969).** Repetition and tape-delay accumulation create lines that remember their recent past. Listen for the point where echo stops reading as accompaniment and becomes counterpoint. Build a bounded delay-reverb loop with gradual filtering, then compare a fixed feedback value with a carefully performed feedback envelope.
+**Terry Riley, *Poppy Nogood and the Phantom Band* (1967-1969).** Repetition and tape-delay accumulation create lines that remember their recent past. Listen for the point where echo stops reading as accompaniment and becomes counterpoint. Build a bounded delay-reverb loop with gradual filtering, then compare a fixed feedback value with a carefully performed feedback envelope.
 
-**Brian Eno, Discreet Music (1975).** Long tape-delay systems and sparse source material establish a process that can unfold without conventional foreground development. Listen for change at the scale of minutes and for the musical value of near-stasis. In verbx, use deterministic modulation, a long but finite RT60, conservative high-frequency content, and a one-minute analysis window rather than judging from a five-second excerpt.
+**Brian Eno, *Discreet Music* (1975).** Long tape-delay systems and sparse source material establish a process that can unfold without conventional foreground development. Listen for change at the scale of minutes and for the musical value of near-stasis. In verbx, use deterministic modulation, a long but finite RT60, conservative high-frequency content, and a one-minute analysis window rather than judging from a five-second excerpt.
 
-**Steve Reich, Music for 18 Musicians (1976).** Pulsation, resonance, and gradual harmonic change make ensemble blend and room support essential. Listen to how mallet attacks remain distinct while voices and sustained instruments connect the harmony. Test medium decay with substantial pre-delay, then shorten only the high-band RT60 until rhythmic detail survives without making the ensemble feel dry.
+**Steve Reich, *Music for 18 Musicians* (1976).** Pulsation, resonance, and gradual harmonic change make ensemble blend and room support essential. Listen to how mallet attacks remain distinct while voices and sustained instruments connect the harmony. Test medium decay with substantial pre-delay, then shorten only the high-band RT60 until rhythmic detail survives without making the ensemble feel dry.
 
-**Brian Eno, 1/1 from Ambient 1: Music for Airports (1978).** Sparse piano events leave enough time for decay to become part of the phrase. Listen for the threshold between identifiable note, reflected note, and continuous atmosphere. Render the same piano pattern through several RT60 values at matched loudness; compare how note density changes the maximum usable decay.
+**Brian Eno, *1/1 from Ambient 1: Music for Airports* (1978).** Sparse piano events leave enough time for decay to become part of the phrase. Listen for the threshold between identifiable note, reflected note, and continuous atmosphere. Render the same piano pattern through several RT60 values at matched loudness; compare how note density changes the maximum usable decay.
 
-**Harold Budd and Brian Eno, First Light (1980).** Soft piano attacks and a luminous sustained field demonstrate how damping and modulation can imply depth without drawing attention to an effect. Listen to the stability of the center and the gentle motion at the edges. Use a dark early field, slow low-depth modulation, and equal-power wet/dry control; check mono compatibility before increasing width.
+**Harold Budd and Brian Eno, *First Light* (1980).** Soft piano attacks and a luminous sustained field demonstrate how damping and modulation can imply depth without drawing attention to an effect. Listen to the stability of the center and the gentle motion at the edges. Use a dark early field, slow low-depth modulation, and equal-power wet/dry control; check mono compatibility before increasing width.
 
-**Aphex Twin, Rhubarb (1994).** A simple harmonic surface becomes emotionally specific through blur, detuning, noise, and very long ambience. Listen for pitch identity surviving inside a nearly continuous tail. In verbx, start with a finite extreme RT60, reduce high-frequency damping gradually, and use a limiter with slow release to contain rare build-ups without making the pad pump.
+**Aphex Twin, *Rhubarb* (1994).** A simple harmonic surface becomes emotionally specific through blur, detuning, noise, and very long ambience. Listen for pitch identity surviving inside a nearly continuous tail. In verbx, start with a finite extreme RT60, reduce high-frequency damping gradually, and use a limiter with slow release to contain rare build-ups without making the pad pump.
 
 ## Gated, Digital, and Alternative Production Spaces
 
-**Peter Gabriel, Intruder (1980).** The famous drum environment uses a gated ambience that makes room sound terminate as an arranged event. Listen for the explosive onset and unnaturally decisive end. In verbx, tune gate hold and release before increasing wet level, and compare a hard gate with a shaped downward expander so the tail remains forceful without clicking.
+**Peter Gabriel, *Intruder* (1980).** The famous drum environment uses a gated ambience that makes room sound terminate as an arranged event. Listen for the explosive onset and unnaturally decisive end. In verbx, tune gate hold and release before increasing wet level, and compare a hard gate with a shaped downward expander so the tail remains forceful without clicking.
 
-**Phil Collins, In the Air Tonight (1981).** The late drum entrance turns a production technique into a structural revelation. Listen to the dry, restrained opening as preparation for the gated impact. Build two complete scenes rather than one automated preset: an intimate vocal environment and a protected high-headroom drum environment, then switch at the arrangement boundary.
+**Phil Collins, *In the Air Tonight* (1981).** The late drum entrance turns a production technique into a structural revelation. Listen to the dry, restrained opening as preparation for the gated impact. Build two complete scenes rather than one automated preset: an intimate vocal environment and a protected high-headroom drum environment, then switch at the arrangement boundary.
 
-**Kate Bush, Running Up That Hill (1985).** Layered drums, synthesizers, voice, and controlled digital space create scale without losing rhythmic insistence. Listen for how ambience supports sustained material while percussion remains forward. Use multiband decay and ducking keyed from the main pulse; release the ducking slowly enough that the field blooms between attacks.
+**Kate Bush, *Running Up That Hill* (1985).** Layered drums, synthesizers, voice, and controlled digital space create scale without losing rhythmic insistence. Listen for how ambience supports sustained material while percussion remains forward. Use multiband decay and ducking keyed from the main pulse; release the ducking slowly enough that the field blooms between attacks.
 
-**Cocteau Twins, Carolyn's Fingers (1988).** Guitar processing and vocal ambience produce a dense, luminous surface in which source identity is suggestive rather than literal. Listen for several depths coexisting inside the same wide image. Use parallel shimmer, chorus-like modulation, and dark reverb returns at low individual levels; bypass each return to verify that no single layer carries the entire illusion.
+**Cocteau Twins, *Carolyn's Fingers* (1988).** Guitar processing and vocal ambience produce a dense, luminous surface in which source identity is suggestive rather than literal. Listen for several depths coexisting inside the same wide image. Use parallel shimmer, chorus-like modulation, and dark reverb returns at low individual levels; bypass each return to verify that no single layer carries the entire illusion.
 
-**My Bloody Valentine, To Here Knows When (1991).** Pitch motion, reverse-like envelopes, distortion, and diffuse ambience collapse guitar and room into one unstable texture. Listen for attack ambiguity and slow spectral movement. Experiment with reverse reverb before distortion, then reverse the order; preserve a dry or lightly processed anchor so the texture remains intelligible at high density.
+**My Bloody Valentine, *To Here Knows When* (1991).** Pitch motion, reverse-like envelopes, distortion, and diffuse ambience collapse guitar and room into one unstable texture. Listen for attack ambiguity and slow spectral movement. Experiment with reverse reverb before distortion, then reverse the order; preserve a dry or lightly processed anchor so the texture remains intelligible at high density.
 
-**Talk Talk, After the Flood (1991).** Performance dynamics, sustained organ, amplified noise, and studio space produce a huge field that still feels physically inhabited. Listen to the contrast between near-silence and saturation. Use automation to change send topology and return color across sections, retaining wide dynamic range instead of normalizing every passage to a constant loudness.
+**Talk Talk, *After the Flood* (1991).** Performance dynamics, sustained organ, amplified noise, and studio space produce a huge field that still feels physically inhabited. Listen to the contrast between near-silence and saturation. Use automation to change send topology and return color across sections, retaining wide dynamic range instead of normalizing every passage to a constant loudness.
 
 ## Advanced Concert Spatialization
 
-**Jonathan Harvey, Mortuos Plango, Vivos Voco (1980).** Bell spectra and a boy's voice are analyzed, transformed, and projected through an eight-channel electronic space. Listen for movement that follows spectral identity rather than mimicking a traveling point source. Build related IR or resonator states from one spectral family and move between them with smooth, phase-conscious interpolation.
+**Jonathan Harvey, *Mortuos Plango, *Vivos Voco** (1980).** Bell spectra and a boy's voice are analyzed, transformed, and projected through an eight-channel electronic space. Listen for movement that follows spectral identity rather than mimicking a traveling point source. Build related IR or resonator states from one spectral family and move between them with smooth, phase-conscious interpolation.
 
-**Pierre Boulez, Repons (1981-1984).** Soloists, ensemble, live electronics, and loudspeaker placement create call-and-response across physical and transformed spaces. Listen to the distinction between a player's local sound and its electronic continuation around the hall. Design separate early and late spatial paths, report their latency explicitly, and test whether transformed responses remain rhythmically attached to the initiating gesture.
+**Pierre Boulez, *Repons* (1981-1984).** Soloists, ensemble, live electronics, and loudspeaker placement create call-and-response across physical and transformed spaces. Listen to the distinction between a player's local sound and its electronic continuation around the hall. Design separate early and late spatial paths, report their latency explicitly, and test whether transformed responses remain rhythmically attached to the initiating gesture.
 
-**Luigi Nono, Prometeo (1981-1984).** Nono's "tragedy of listening" distributes performers and live electronics through an acoustic structure conceived with the venue; IRCAM documents the 1984 San Lorenzo premiere and four instrumental groups in its [work record](https://ressources.ircam.fr/fr/work/prometeo). Listen for fragile sounds whose location and audibility demand attention. Use low-noise sources, subtle movement, and calibrated monitoring rather than exaggerated effects.
+**Luigi Nono, *Prometeo* (1981-1984).** Nono's "tragedy of listening" distributes performers and live electronics through an acoustic structure conceived with the venue; IRCAM documents the 1984 San Lorenzo premiere and four instrumental groups in its [work record](https://ressources.ircam.fr/fr/work/prometeo). Listen for fragile sounds whose location and audibility demand attention. Use low-noise sources, subtle movement, and calibrated monitoring rather than exaggerated effects.
 
-**Kaija Saariaho, Lichtbogen (1986).** Instrumental color and live electronics evolve as a continuous spectral and spatial fabric. Listen for transitions where electronic extension is difficult to separate from instrumental resonance. In verbx, derive damping, modulation, and spatial-width automation from one slow control curve, but scale each destination differently to avoid obvious lockstep motion.
+**Kaija Saariaho, *Lichtbogen* (1986).** Instrumental color and live electronics evolve as a continuous spectral and spatial fabric. Listen for transitions where electronic extension is difficult to separate from instrumental resonance. In verbx, derive damping, modulation, and spatial-width automation from one slow control curve, but scale each destination differently to avoid obvious lockstep motion.
 
-**Georg Friedrich Haas, in vain (2000).** Spectral harmony, tuning, darkness, and performance space alter the listener's orientation even without a conventional electronic reverb concept. Listen for beating patterns and apparent depth created by frequency relationships. Use this as a warning against treating every spatial sensation as an effect: compare true room processing with dry microtonal clusters before adding modulation.
+**Georg Friedrich Haas, *in vain* (2000).** Spectral harmony, tuning, darkness, and performance space alter the listener's orientation even without a conventional electronic reverb concept. Listen for beating patterns and apparent depth created by frequency relationships. Use this as a warning against treating every spatial sensation as an effect: compare true room processing with dry microtonal clusters before adding modulation.
 
-**Olga Neuwirth, Le Encantadas o le avventure nel mare delle meraviglie (2015).** The work imports a modeled acoustic memory of Venice's San Lorenzo into another venue and distributes performers as an archipelago; IRCAM describes the virtual acoustic and spatial conception in its [work presentation](https://medias.ircam.fr/en/media/xbe47e6). Compare physical and simulated place as compositional material. A verbx study can morph between measured or synthetic IRs while logging the exact interpolation path.
+**Olga Neuwirth, *Le Encantadas o le avventure nel mare delle meraviglie* (2015).** The work imports a modeled acoustic memory of Venice's San Lorenzo into another venue and distributes performers as an archipelago; IRCAM describes the virtual acoustic and spatial conception in its [work presentation](https://medias.ircam.fr/en/media/xbe47e6). Compare physical and simulated place as compositional material. A verbx study can morph between measured or synthetic IRs while logging the exact interpolation path.
 
 ## Contemporary Depth, Texture, and Immersion
 
-**Oneohtrix Point Never, Chrome Country (2013).** Synthetic voices, keyboard sonorities, and expanding ambience make scale feel unstable and cinematic. Listen for the transition from recognizable source to overwhelming field. Automate decay and spectral tilt together, then use loudness matching to determine whether the perceived expansion comes from space or simply from level.
+**Oneohtrix Point Never, *Chrome Country* (2013).** Synthetic voices, keyboard sonorities, and expanding ambience make scale feel unstable and cinematic. Listen for the transition from recognizable source to overwhelming field. Automate decay and spectral tilt together, then use loudness matching to determine whether the perceived expansion comes from space or simply from level.
 
-**Holly Herndon, Chorus (2014).** Processed voices and digitally fragmented space make the studio feel both intimate and distributed. Listen for micro-edits that retain a shared acoustic identity. Use short convolution states on individual fragments and a common algorithmic tail on the group, balancing local discontinuity against global coherence.
+**Holly Herndon, *Chorus* (2014).** Processed voices and digitally fragmented space make the studio feel both intimate and distributed. Listen for micro-edits that retain a shared acoustic identity. Use short convolution states on individual fragments and a common algorithmic tail on the group, balancing local discontinuity against global coherence.
 
-**Björk, Family (2015).** Strings, voice, electronics, and deep spatial perspective turn emotional distance into arrangement. Listen for the voice moving between exposed presence and a larger enveloping environment. Build a dual-engine vocal path with a precise early field and a separately automated late field; avoid using width as a substitute for depth.
+**Björk, *Family* (2015).** Strings, voice, electronics, and deep spatial perspective turn emotional distance into arrangement. Listen for the voice moving between exposed presence and a larger enveloping environment. Build a dual-engine vocal path with a precise early field and a separately automated late field; avoid using width as a substitute for depth.
 
-**Burial, Archangel (2007).** Vocal fragments, vinyl-like noise, filtered percussion, and cavernous returns create an imagined nocturnal city. Listen for ambience that carries environmental identity while transients remain deliberately incomplete. Use band-limited reverbs, irregular pre-delay, and low-level noise as separate layers, then verify that the rhythm still reads when the long return is muted.
+**Burial, *Archangel* (2007).** Vocal fragments, vinyl-like noise, filtered percussion, and cavernous returns create an imagined nocturnal city. Listen for ambience that carries environmental identity while transients remain deliberately incomplete. Use band-limited reverbs, irregular pre-delay, and low-level noise as separate layers, then verify that the rhythm still reads when the long return is muted.
 
-**Grouper, Heavy Water / I'd Rather Be Sleeping (2008).** Voice and guitar sit inside a dense veil where noise, sustain, and room-like blur are inseparable. Listen for intelligibility arriving in flashes rather than remaining constant. In verbx, combine moderate reverb with source-side filtering and saturation; an extreme RT60 alone will usually sound cleaner and less integrated than the reference principle.
+**Grouper, *Heavy Water / I'd Rather Be Sleeping* (2008).** Voice and guitar sit inside a dense veil where noise, sustain, and room-like blur are inseparable. Listen for intelligibility arriving in flashes rather than remaining constant. In verbx, combine moderate reverb with source-side filtering and saturation; an extreme RT60 alone will usually sound cleaner and less integrated than the reference principle.
 
-**FKA twigs, cellophane (2019).** Exposed vocal detail, piano, silence, and carefully scaled ambience make every decay psychologically legible. Listen for how little processing is required when arrangement leaves genuine space. Start with an almost dry vocal, add a quiet long return with substantial pre-delay, and automate only selected phrase endings rather than maintaining a constant wet bed.
+**FKA twigs, *cellophane* (2019).** Exposed vocal detail, piano, silence, and carefully scaled ambience make every decay psychologically legible. Listen for how little processing is required when arrangement leaves genuine space. Start with an almost dry vocal, add a quiet long return with substantial pre-delay, and automate only selected phrase endings rather than maintaining a constant wet bed.
 
 ## Recording and YouTube Citations
 
@@ -18064,7 +18184,7 @@ Links below identify the exact performance, master, or reference upload used for
 - Reich, Steve. *Music for 18 Musicians*. Eighth Blackbird and guests; Vic Firth institutional performance. [YouTube](https://www.youtube.com/watch?v=ZXJWO2FQ16c).
 - Eno, Brian. *1/1*, from *Ambient 1: Music for Airports*. 2004 remaster; Brian Eno channel, official audio. [YouTube](https://www.youtube.com/watch?v=LKZ3fGR2SDY).
 - Budd, Harold, and Brian Eno. *First Light*. 2004 remaster; Harold Budd Topic channel, official audio. [YouTube](https://www.youtube.com/watch?v=cOWJq88uAiQ).
-- Aphex Twin. “#3” (“Rhubarb”), from *Selected Ambient Works Volume II*. Aphex Twin channel, official audio. [YouTube](https://www.youtube.com/watch?v=75O11W5EZAU).
+- Aphex Twin. *#3 (Rhubarb)*, from *Selected Ambient Works Volume II*. Aphex Twin channel, official audio. [YouTube](https://www.youtube.com/watch?v=75O11W5EZAU).
 
 ### Gated, Digital, and Alternative Production Spaces
 
@@ -18105,6 +18225,899 @@ Links below identify the exact performance, master, or reference upload used for
 ## Documentation Sources
 
 The listening notes are interpretive and intentionally avoid reproducing lyrics or score text. Work dates and technical framing were checked against composer, publisher, label, and institutional documentation where available. Particularly useful primary or specialist records include the [Stockhausen complete-edition catalog](https://www.stockhausencds.com/), the [Lovely Music notes for Lucier's I am sitting in a room](https://www.lovely.com/albumnotes/notes1013cd.html), IRCAM's [Prometeo record](https://ressources.ircam.fr/fr/work/prometeo), and IRCAM's account of the virtual San Lorenzo acoustic in [Le Encantadas](https://medias.ircam.fr/en/media/xbe47e6).
+
+
+\newpage
+
+<!-- docs/MUSICAL_PIECES_EXPANSION.md -->
+
+## Expanded Listening Canon
+
+The following forty-eight additions broaden the appendix across sacred, orchestral, jazz, popular, ambient, screen, game, and contemporary immersive practices. Piece and album titles are italicized throughout. Links open a stable YouTube catalog search so readers can select an authorized or territorially available recording; recording-specific citations in the preceding section remain the preferred references where supplied.
+
+### Sacred Resonance And Ritual
+
+**Guillaume de Machaut, *Messe de Nostre Dame* (c. 1365).** from *polyphonic mass*. Track how long stone-room sustain joins successive voices without erasing their independent entries. [YouTube catalog search](https://www.youtube.com/results?search_query=Guillaume+de+Machaut+Messe+de+Nostre+Dame+official).
+
+**Gregorio Allegri, *Miserere mei, Deus* (c. 1638).** from *choral work*. Compare distant solo-group height with the grounded main choir and listen for architecture acting as an antiphonal mixer. [YouTube catalog search](https://www.youtube.com/results?search_query=Gregorio+Allegri+Miserere+mei%2C+Deus+official).
+
+**J. S. Bach, *St Matthew Passion* (1727).** from *oratorio*. Use contrasting recordings to separate compositional double-choir space from venue and microphone perspective. [YouTube catalog search](https://www.youtube.com/results?search_query=J.+S.+Bach+St+Matthew+Passion+official).
+
+**Anton Bruckner, *Locus iste* (1869).** from *motet*. Notice how rests expose the room and how harmonic arrivals briefly convert decay into part of the chord. [YouTube catalog search](https://www.youtube.com/results?search_query=Anton+Bruckner+Locus+iste+official).
+
+**Arvo Pärt, *Passio* (1982).** from *ECM New Series recording*. Study how narrow dynamics, sustained tones, and silence make the recording acoustic an active formal layer. [YouTube catalog search](https://www.youtube.com/results?search_query=Arvo+P%C3%A4rt+Passio+official).
+
+**John Tavener, *The Protecting Veil* (1988).** from *cello and strings*. Listen for solo-cello presence floating ahead of a slowly changing orchestral halo. [YouTube catalog search](https://www.youtube.com/results?search_query=John+Tavener+The+Protecting+Veil+official).
+
+### Orchestral Depth And Concert-Hall Scale
+
+**Gustav Mahler, *Symphony No. 2* (1894).** from *symphony*. Map offstage and distant events against close orchestral attacks, especially during the final movement's expanding scale. [YouTube catalog search](https://www.youtube.com/results?search_query=Gustav+Mahler+Symphony+No.+2+official).
+
+**Claude Debussy, *La mer* (1905).** from *orchestral work*. Follow how orchestral color, hall bloom, and dynamic shaping create depth without fixed foreground/background roles. [YouTube catalog search](https://www.youtube.com/results?search_query=Claude+Debussy+La+mer+official).
+
+**Gustav Holst, *Neptune, the Mystic* (1916).** from *The Planets*. The disappearing offstage chorus is a model for level, distance, filtering, and decay acting as one continuous gesture. [YouTube catalog search](https://www.youtube.com/results?search_query=Gustav+Holst+Neptune%2C+the+Mystic+official).
+
+**Maurice Ravel, *Daphnis et Chloé, Suite No. 2* (1913).** from *ballet suite*. Compare transient woodwind detail with the broad chorus and string field at the sunrise climax. [YouTube catalog search](https://www.youtube.com/results?search_query=Maurice+Ravel+Daphnis+et+Chlo%C3%A9%2C+Suite+No.+2+official).
+
+**Benjamin Britten, *War Requiem* (1962).** from *requiem*. Separate chamber, orchestral, and distant ceremonial layers by apparent location as well as orchestration. [YouTube catalog search](https://www.youtube.com/results?search_query=Benjamin+Britten+War+Requiem+official).
+
+**György Ligeti, *Lontano* (1967).** from *orchestral work*. Dense micropolyphony provides a reference for diffusion build-up whose source identities remain barely perceptible. [YouTube catalog search](https://www.youtube.com/results?search_query=Gy%C3%B6rgy+Ligeti+Lontano+official).
+
+### Jazz Rooms And Engineered Intimacy
+
+**Miles Davis, *So What* (1959).** from *Kind of Blue*. Use the studio's restrained ambience to study depth that does not announce itself as an effect. [YouTube catalog search](https://www.youtube.com/results?search_query=Miles+Davis+So+What+official).
+
+**Bill Evans Trio, *Waltz for Debby* (1961).** on *Waltz for Debby*. Audience, room, and trio occupy one acoustic scene; note how venue sound supplies scale without obscuring touch. [YouTube catalog search](https://www.youtube.com/results?search_query=Bill+Evans+Trio+Waltz+for+Debby+official).
+
+**John Coltrane, *A Love Supreme, Part I: Acknowledgement* (1965).** from *A Love Supreme*. Listen for cohesive room tone around forceful close detail and a rhythm section with stable depth. [YouTube catalog search](https://www.youtube.com/results?search_query=John+Coltrane+A+Love+Supreme%2C+Part+I%3A+Acknowledgement+official).
+
+**Miles Davis, *In a Silent Way / It's About That Time* (1969).** from *In a Silent Way*. Edits, electric timbres, and sustained studio space turn ambience into continuity across assembled performances. [YouTube catalog search](https://www.youtube.com/results?search_query=Miles+Davis+In+a+Silent+Way+%2F+It%27s+About+That+Time+official).
+
+**Alice Coltrane, *Journey in Satchidananda* (1971).** on *Journey in Satchidananda*. Harp resonance, drone, percussion, and studio ambience create layered sustain with distinct spectral zones. [YouTube catalog search](https://www.youtube.com/results?search_query=Alice+Coltrane+Journey+in+Satchidananda+official).
+
+**Jan Garbarek and The Hilliard Ensemble, *Parce mihi Domine* (1994).** from *Officium*. The saxophone and vocal ensemble demonstrate how one large church can preserve separate source distances. [YouTube catalog search](https://www.youtube.com/results?search_query=Jan+Garbarek+and+The+Hilliard+Ensemble+Parce+mihi+Domine+official).
+
+### Studio Architecture And Iconic Production
+
+**Roy Orbison, *In Dreams* (1963).** on *In Dreams*. Orchestral build and chamber-like return increase scale while Orbison's voice remains the fixed perceptual anchor. [YouTube catalog search](https://www.youtube.com/results?search_query=Roy+Orbison+In+Dreams+official).
+
+**Patsy Cline, *Crazy* (1961).** from *Showcase*. A controlled plate-or-chamber halo supports vocal sustain without moving the singer behind the ensemble. [YouTube catalog search](https://www.youtube.com/results?search_query=Patsy+Cline+Crazy+official).
+
+**Pink Floyd, *Echoes* (1971).** from *Meddle*. Treat the work as a catalog of synthetic distance, feedback, panning, and long-form transitions between acoustic worlds. [YouTube catalog search](https://www.youtube.com/results?search_query=Pink+Floyd+Echoes+official).
+
+**David Bowie, *Heroes* (1977).** on *Heroes*. The vocal microphone-gate arrangement links performance intensity to apparent room size and should be studied dynamically. [YouTube catalog search](https://www.youtube.com/results?search_query=David+Bowie+Heroes+official).
+
+**Prince and the Revolution, *Purple Rain* (1984).** on *Purple Rain*. Arena scale comes from performance, audience, delays, and long returns whose energy is carefully limited around the lead. [YouTube catalog search](https://www.youtube.com/results?search_query=Prince+and+the+Revolution+Purple+Rain+official).
+
+**U2, *A Sort of Homecoming* (1984).** from *The Unforgettable Fire*. Diffuse guitar and drum spaces show how modulation and ambience can bind a mix while preserving propulsion. [YouTube catalog search](https://www.youtube.com/results?search_query=U2+A+Sort+of+Homecoming+official).
+
+### Ambient Continuums And Decaying Form
+
+**Tangerine Dream, *Phaedra* (1974).** on *Phaedra*. Sequenced pulses and evolving electronic clouds offer a test for separating repeated attacks from a continuously moving field. [YouTube catalog search](https://www.youtube.com/results?search_query=Tangerine+Dream+Phaedra+official).
+
+**Laraaji, *Meditation No. 1* (1980).** from *Ambient 3: Day of Radiance*. Bright struck transients accumulate into a harmonically dense tail that tests damping and feedback stability. [YouTube catalog search](https://www.youtube.com/results?search_query=Laraaji+Meditation+No.+1+official).
+
+**Biosphere, *Poa Alpina* (1997).** from *Substrata*. Environmental scale is implied through filtered layers and quiet returns rather than a single identifiable room. [YouTube catalog search](https://www.youtube.com/results?search_query=Biosphere+Poa+Alpina+official).
+
+**Stars of the Lid, *Requiem for Dying Mothers, Part 2* (2001).** from *The Tired Sounds of Stars of the Lid*. Slow orchestral layers demonstrate how several long envelopes can overlap without uncontrolled low-mid buildup. [YouTube catalog search](https://www.youtube.com/results?search_query=Stars+of+the+Lid+Requiem+for+Dying+Mothers%2C+Part+2+official).
+
+**William Basinski, *d|p 1.1* (2002).** from *The Disintegration Loops*. Loop decay makes spectral loss and accumulating noise part of form, useful for comparing finite tail and degradation models. [YouTube catalog search](https://www.youtube.com/results?search_query=William+Basinski+d%7Cp+1.1+official).
+
+**Tim Hecker, *In the Fog II* (2011).** from *Ravedeath, 1972*. Distortion, organ-like sustain, and unstable depth show why reverb color cannot be separated from source processing. [YouTube catalog search](https://www.youtube.com/results?search_query=Tim+Hecker+In+the+Fog+II+official).
+
+### Dub, Trip-Hop, And Vocal Depth
+
+**Public Enemy, *Welcome to the Terrordome* (1990).** from *Fear of a Black Planet*. Dense sampling demonstrates selective short-space placement where a global long tail would destroy rhythmic hierarchy. [YouTube catalog search](https://www.youtube.com/results?search_query=Public+Enemy+Welcome+to+the+Terrordome+official).
+
+**Massive Attack, *Teardrop* (1998).** from *Mezzanine*. The vocal occupies an intimate center while percussion and tonal beds imply a larger dark enclosure. [YouTube catalog search](https://www.youtube.com/results?search_query=Massive+Attack+Teardrop+official).
+
+**Portishead, *Roads* (1994).** from *Dummy*. Sparse arrangement makes the scale and automation of vocal and string ambience unusually exposed. [YouTube catalog search](https://www.youtube.com/results?search_query=Portishead+Roads+official).
+
+**Radiohead, *Pyramid Song* (2001).** from *Amnesiac*. Piano resonance, voice, strings, and delayed percussion establish multiple depth planes that converge near climaxes. [YouTube catalog search](https://www.youtube.com/results?search_query=Radiohead+Pyramid+Song+official).
+
+**James Blake, *Limit to Your Love* (2010).** from *James Blake*. Extreme contrast between dry intimacy, sub-bass energy, and expanding vocal space is a lesson in spectral headroom. [YouTube catalog search](https://www.youtube.com/results?search_query=James+Blake+Limit+to+Your+Love+official).
+
+**Frank Ocean, *Seigfried* (2016).** from *Blonde*. Shifting voice layers and quiet environmental tails create psychological distance with very low effect visibility. [YouTube catalog search](https://www.youtube.com/results?search_query=Frank+Ocean+Seigfried+official).
+
+### Screen, Installation, And Game Worlds
+
+**Bernard Herrmann, *Scene d'Amour* (1958).** from *Vertigo*. Orchestral surges and scoring-stage depth link harmonic recurrence with a powerful sense of spatial return. [YouTube catalog search](https://www.youtube.com/results?search_query=Bernard+Herrmann+Scene+d%27Amour+official).
+
+**György Ligeti, *Lux Aeterna* (1966).** from *2001: A Space Odyssey soundtrack context*. The choral field demonstrates how dense voices and long room decay can become an apparently source-less texture. [YouTube catalog search](https://www.youtube.com/results?search_query=Gy%C3%B6rgy+Ligeti+Lux+Aeterna+official).
+
+**Vangelis, *Blade Runner Blues* (1982).** from *Blade Runner*. Synth sustain, saxophone, city-like ambience, and delay construct a space larger than any visible room. [YouTube catalog search](https://www.youtube.com/results?search_query=Vangelis+Blade+Runner+Blues+official).
+
+**Angelo Badalamenti, *Laura Palmer's Theme* (1990).** from *Twin Peaks*. Foreground keyboard attacks and a dark orchestral halo show how reverberation can signal emotional scale changes. [YouTube catalog search](https://www.youtube.com/results?search_query=Angelo+Badalamenti+Laura+Palmer%27s+Theme+official).
+
+**John Williams, *Theme from Jurassic Park* (1993).** from *Jurassic Park*. The scoring-stage image balances monumental brass and strings with intelligible inner detail at very high density. [YouTube catalog search](https://www.youtube.com/results?search_query=John+Williams+Theme+from+Jurassic+Park+official).
+
+**Martin O'Donnell and Michael Salvatori, *A Walk in the Woods* (2001).** from *Halo: Original Soundtrack*. Choral and synthetic layers demonstrate a game-space aesthetic that remains readable under repeated playback and combat effects. [YouTube catalog search](https://www.youtube.com/results?search_query=Martin+O%27Donnell+and+Michael+Salvatori+A+Walk+in+the+Woods+official).
+
+**Austin Wintory, *Nascence* (2012).** from *Journey*. The score's gradual spatial expansion offers a model for automating envelopment as a narrative parameter. [YouTube catalog search](https://www.youtube.com/results?search_query=Austin+Wintory+Nascence+official).
+
+### Contemporary Immersive Production
+
+**SOPHIE, *Is It Cold in the Water?* (2018).** from *Oil of Every Pearl's Un-Insides*. Hyper-detailed dry events and enormous synthetic depth shifts reveal the expressive value of abrupt spatial discontinuity. [YouTube catalog search](https://www.youtube.com/results?search_query=SOPHIE+Is+It+Cold+in+the+Water%3F+official).
+
+**Billie Eilish, *when the party's over* (2018).** from *WHEN WE ALL FALL ASLEEP, WHERE DO WE GO?*. Close vocal layers and restrained long returns show how arrangement can make subtle reverb feel immense. [YouTube catalog search](https://www.youtube.com/results?search_query=Billie+Eilish+when+the+party%27s+over+official).
+
+**Jon Hopkins, *Luminous Beings* (2018).** from *Singularity*. Pulsing detail and expanding harmonic clouds invite analysis of modulation, stereo correlation, and long-tail density. [YouTube catalog search](https://www.youtube.com/results?search_query=Jon+Hopkins+Luminous+Beings+official).
+
+**Floating Points, Pharoah Sanders, and the London Symphony Orchestra, *Movement 6* (2021).** from *Promises*. A recurring electronic figure, saxophone, and orchestra share a slowly changing field without losing their independent depths. [YouTube catalog search](https://www.youtube.com/results?search_query=Floating+Points%2C+Pharoah+Sanders%2C+and+the+London+Symphony+Orchestra+Movement+6+official).
+
+**Caroline Polachek, *Billions* (2022).** from *Desire, I Want to Turn Into You*. Layered voice, percussion, and choral scale demonstrate precise contrast between intimate articulation and spectacular bloom. [YouTube catalog search](https://www.youtube.com/results?search_query=Caroline+Polachek+Billions+official).
+
+
+\newpage
+
+<!-- docs/HOMEWORK_ASSIGNMENTS.md -->
+
+# Educational Exercises and Project Assignments
+
+These projects form a progressive laboratory course in reverberation, spatial audio, realtime systems, critical listening, and reproducible audio engineering. Each assignment is scoped for one book page; instructors may treat it as a weekly laboratory, combine adjacent projects, or select a focused sequence.
+
+## Assessment Framework
+
+Evaluate every submission on prediction, method, evidence, listening judgment, reproducibility, and clarity. Unless a project states otherwise, students should retain source audio, exact commands, parameter or preset state, analysis JSON, plots, and a short reflection distinguishing observation from interpretation.
+
+\newpage
+
+## Project 1: Calibrate a Natural Room
+
+**Central concepts:** RT60, pre-delay, early/late balance.
+
+**Design brief.** Create three believable rooms for speech, percussion, and strings from one dry recording. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{1}{Calibrate a Natural Room}
+```
+
+\newpage
+
+## Project 2: Map the Reverb Event
+
+**Central concepts:** direct sound, early reflections, late decay.
+
+**Design brief.** Annotate arrival times and energy regions in an impulse response and in a rendered waveform. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{2}{Map the Reverb Event}
+```
+
+\newpage
+
+## Project 3: Coarse and Fine RT60 Laboratory
+
+**Central concepts:** logarithmic control and parameter resolution.
+
+**Design brief.** Measure how coarse and fine controls distribute useful adjustment over 0.01 to 360 seconds. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{3}{Coarse and Fine RT60 Laboratory}
+```
+
+\newpage
+
+## Project 4: Frequency-Dependent Decay
+
+**Central concepts:** multiband RT60 and damping.
+
+**Design brief.** Design warm, neutral, and bright tails with equal broadband RT60 but different band decay. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{4}{Frequency-Dependent Decay}
+```
+
+\newpage
+
+## Project 5: Pre-Delay and Apparent Distance
+
+**Central concepts:** depth cues and source separation.
+
+**Design brief.** Hold loudness constant while testing whether pre-delay changes foreground placement. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{5}{Pre-Delay and Apparent Distance}
+```
+
+\newpage
+
+## Project 6: Early-Reflection Geometry
+
+**Central concepts:** room dimensions and directional cues.
+
+**Design brief.** Compare compact, wide, and tall reflection patterns using the same late field. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{6}{Early-Reflection Geometry}
+```
+
+\newpage
+
+## Project 7: Diffusion Build-Up
+
+**Central concepts:** echo density and allpass structure.
+
+**Design brief.** Find the transition from discrete echoes to a smooth field for three source types. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{7}{Diffusion Build-Up}
+```
+
+\newpage
+
+## Project 8: FDN Matrix Listening Test
+
+**Central concepts:** feedback matrices and modal texture.
+
+**Design brief.** Blind-compare matrix families under matched delay lengths, RT60, and output level. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{8}{FDN Matrix Listening Test}
+```
+
+\newpage
+
+## Project 9: Delay-Line Distribution
+
+**Central concepts:** mode spacing and metallic coloration.
+
+**Design brief.** Construct prime, randomized, and clustered delay sets and relate spectra to listening notes. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{9}{Delay-Line Distribution}
+```
+
+\newpage
+
+## Project 10: Freeze Stability Study
+
+**Central concepts:** infinite sustain and energy control.
+
+**Design brief.** Run a two-minute freeze test and document spectral accumulation, drift, and peak growth. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{10}{Freeze Stability Study}
+```
+
+\newpage
+
+## Project 11: Reverse-Reverb Design
+
+**Central concepts:** envelope reversal and transition timing.
+
+**Design brief.** Build phrase-leading reverse tails that arrive musically without masking the destination transient. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{11}{Reverse-Reverb Design}
+```
+
+\newpage
+
+## Project 12: Shimmer Feedback Safety
+
+**Central concepts:** pitch shifting inside feedback.
+
+**Design brief.** Map the boundary between harmonic bloom and unstable high-frequency accumulation. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{12}{Shimmer Feedback Safety}
+```
+
+\newpage
+
+## Project 13: Ducking as Orchestration
+
+**Central concepts:** sidechain dynamics and intelligibility.
+
+**Design brief.** Create three release laws that reveal different rhythmic subdivisions after a vocal phrase. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{13}{Ducking as Orchestration}
+```
+
+\newpage
+
+## Project 14: Limiter Transparency
+
+**Central concepts:** lookahead, knee, release, and true peak.
+
+**Design brief.** Protect an extreme wet mix while minimizing transient flattening and pumping. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{14}{Limiter Transparency}
+```
+
+\newpage
+
+## Project 15: Convolution Partition Plan
+
+**Central concepts:** latency versus throughput.
+
+**Design brief.** Select partition sizes for live monitoring, music production, and offline archival rendering. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{15}{Convolution Partition Plan}
+```
+
+\newpage
+
+## Project 16: Impulse-Response Capture
+
+**Central concepts:** sweeps, deconvolution, and noise.
+
+**Design brief.** Plan and document a repeatable room capture with calibration and failure checks. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{16}{Impulse-Response Capture}
+```
+
+\newpage
+
+## Project 17: IR Editing and Provenance
+
+**Central concepts:** trim, normalize, resample, and hash.
+
+**Design brief.** Prepare an IR library while preserving source identity and reversible processing metadata. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{17}{IR Editing and Provenance}
+```
+
+\newpage
+
+## Project 18: IR Morphing Atlas
+
+**Central concepts:** interpolation and perceptual continuity.
+
+**Design brief.** Create a five-point trajectory between contrasting spaces and identify discontinuities. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{18}{IR Morphing Atlas}
+```
+
+\newpage
+
+## Project 19: Dereverberation Tradeoff
+
+**Central concepts:** late-energy suppression and artifacts.
+
+**Design brief.** Build a strength sweep and select an operating point from measured and blind-listening evidence. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{19}{Dereverberation Tradeoff}
+```
+
+\newpage
+
+## Project 20: Speech Intelligibility Study
+
+**Central concepts:** DRR, clarity, and spectral masking.
+
+**Design brief.** Compare natural reverb, dereverberation, and re-reverberation for spoken material. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{20}{Speech Intelligibility Study}
+```
+
+\newpage
+
+## Project 21: Realtime Latency Audit
+
+**Central concepts:** device, host, DSP, and acoustic delay.
+
+**Design brief.** Measure round-trip latency and reconcile it with the predicted buffer stack. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{21}{Realtime Latency Audit}
+```
+
+\newpage
+
+## Project 22: Realtime Failure Injection
+
+**Central concepts:** xruns, overload, and recovery.
+
+**Design brief.** Stress block size and quality modes while recording dropout thresholds and recovery behavior. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{22}{Realtime Failure Injection}
+```
+
+\newpage
+
+## Project 23: Automation Reproducibility
+
+**Central concepts:** timeline interpolation and deterministic state.
+
+**Design brief.** Render the same automation in several block sizes and compare audio and JSON outputs. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{23}{Automation Reproducibility}
+```
+
+\newpage
+
+## Project 24: Preset Taxonomy
+
+**Central concepts:** semantic naming and controlled variation.
+
+**Design brief.** Design a coherent twelve-preset family whose labels predict audible differences. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{24}{Preset Taxonomy}
+```
+
+\newpage
+
+## Project 25: Loudness-Matched Evaluation
+
+**Central concepts:** LUFS, peak, and perceptual bias.
+
+**Design brief.** Compare six reverb designs only after integrated loudness and peak constraints are matched. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{25}{Loudness-Matched Evaluation}
+```
+
+\newpage
+
+## Project 26: Stereo Width Without Phase Damage
+
+**Central concepts:** correlation and mono compatibility.
+
+**Design brief.** Increase envelopment while maintaining a documented mono fold-down target. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{26}{Stereo Width Without Phase Damage}
+```
+
+\newpage
+
+## Project 27: Multichannel Bus Verification
+
+**Central concepts:** channel identity and matrix routing.
+
+**Design brief.** Use labeled impulses to prove every input-to-output route in a surround configuration. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{27}{Multichannel Bus Verification}
+```
+
+\newpage
+
+## Project 28: Ambisonic Rotation Exercise
+
+**Central concepts:** scene representation and decoding.
+
+**Design brief.** Rotate a first-order scene, decode it twice, and verify spatial and level invariants. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{28}{Ambisonic Rotation Exercise}
+```
+
+\newpage
+
+## Project 29: Room-Model Inversion
+
+**Central concepts:** Sabine estimates and geometric constraints.
+
+**Design brief.** Infer plausible dimensions and absorption from RT60, then explain non-unique solutions. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{29}{Room-Model Inversion}
+```
+
+\newpage
+
+## Project 30: Ray-Traced Early Field Proposal
+
+**Central concepts:** CAD geometry, materials, and validation.
+
+**Design brief.** Specify a DXF-to-reflection prototype with assumptions, error bounds, and listening tests. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{30}{Ray-Traced Early Field Proposal}
+```
+
+\newpage
+
+## Project 31: Machine-Readable Evidence
+
+**Central concepts:** analysis JSON and schema stability.
+
+**Design brief.** Design a report consumed by a regression script without parsing human progress text. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{31}{Machine-Readable Evidence}
+```
+
+\newpage
+
+## Project 32: Native Plug-in Parity Slice
+
+**Central concepts:** C++ DSP, host state, and deterministic comparison.
+
+**Design brief.** Port one narrow feature and prove parity against the Python reference. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{32}{Native Plug-in Parity Slice}
+```
+
+\newpage
+
+## Project 33: Capstone Spatial Production
+
+**Central concepts:** integrated artistic and engineering practice.
+
+**Design brief.** Deliver a multichannel production, reproducibility bundle, technical report, and critical reflection. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
+
+**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
+
+**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
+
+**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
+
+**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
+
+**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+
+```{=latex}
+\vfill
+\verbxAssignmentPlate{33}{Capstone Spatial Production}
+```
 
 
 \newpage

@@ -19,6 +19,7 @@ PDF_PREAMBLE = ROOT / "docs" / "assets" / "pandoc_pdf_preamble.tex"
 CARD_ILLUSTRATIONS = ROOT / "docs" / "assets" / "verbx_card_illustrations.tex"
 INDEX_STYLE = ROOT / "docs" / "assets" / "verbx_index.ist"
 PLUGIN_GUIDE_GENERATOR = ROOT / "scripts_generate_plugin_guide.py"
+BOOK_SUPPLEMENT_GENERATOR = ROOT / "scripts_generate_book_supplements.py"
 DEFAULT_AUTHOR = "Colby Leider"
 TEX_GYRE_FONT_DIR = (
     "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/tex-gyre/"
@@ -29,6 +30,7 @@ TEX_GYRE_MATH_FONT_DIR = (
 
 USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "README.md",
+    ROOT / "docs" / "INTRODUCTORY_BLOCK_DIAGRAMS.md",
     ROOT / "docs" / "PUBLIC_ALPHA_NOTES.md",
     ROOT / "docs" / "CLI_REFERENCE.md",
     ROOT / "docs" / "EXTREME_COOKBOOK.md",
@@ -42,6 +44,8 @@ USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "docs" / "HOMEBREW.md",
     ROOT / "docs" / "benchmarks" / "README.md",
     ROOT / "docs" / "MUSICAL_PIECES_APPENDIX.md",
+    ROOT / "docs" / "MUSICAL_PIECES_EXPANSION.md",
+    ROOT / "docs" / "HOMEWORK_ASSIGNMENTS.md",
     ROOT / "docs" / "REFERENCES.md",
 )
 
@@ -108,7 +112,7 @@ def _pandoc_base_command(markdown_path: Path, author: str) -> list[str]:
         "--top-level-division=chapter",
         "--resource-path=.:docs:examples",
         "--metadata=title:verbx User Guide",
-        "--metadata=subtitle:Reverb, Spatial Audio, Dereverberation, and Plug-in Design",
+        "--metadata=subtitle:Reverb, Spatial Audio, Dereverberation, Plug-in Design, and Educational Exercises",
         f"--metadata=author:{author}",
         f"--metadata=date:{generated_on}",
         "--include-in-header",
@@ -279,6 +283,7 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
 
     markdown = _remove_generated_pdf_preamble(markdown)
     markdown = _add_book_parts(markdown)
+    markdown = _italicize_musical_titles(markdown)
     markdown = re.sub(r'(?:<a\s+id="[^"]+"></a>)+', replace_anchor_run, markdown)
     markdown = _compact_illustrated_guide(markdown)
     markdown = _illustrate_operational_cards(markdown)
@@ -321,6 +326,28 @@ def _add_book_parts(markdown: str) -> str:
         marker = f"```{{=latex}}\n\\part{{{part_title}}}\n```\n\n"
         markdown = markdown.replace(heading, marker + heading, 1)
     return markdown
+
+
+def _italicize_musical_titles(markdown: str) -> str:
+    """Enforce book-style italics for work titles in Appendix A."""
+
+    start = markdown.find("# Important Musical Pieces")
+    end = markdown.find("# Educational Exercises and Project Assignments", start)
+    if start == -1:
+        return markdown
+    if end == -1:
+        end = len(markdown)
+    appendix = markdown[start:end]
+    lead_pattern = re.compile(
+        r"(?m)^\*\*(?P<creator>[^,*\n]+(?:,\s+[^,*\n]+)*),\s+"
+        r"(?P<title>(?!\*)[^\n]+?)\s+\((?P<date>[^)]+)\)\.\*\*"
+    )
+
+    def italicize(match: re.Match[str]) -> str:
+        return f"**{match.group('creator')}, *{match.group('title')}* ({match.group('date')}).**"
+
+    appendix = lead_pattern.sub(italicize, appendix)
+    return markdown[:start] + appendix + markdown[end:]
 
 
 def _illustrate_operational_cards(markdown: str) -> str:
@@ -474,9 +501,12 @@ def _compact_illustrated_guide(markdown: str) -> str:
 
 
 def _add_pdf_index(markdown: str) -> str:
-    """Index document headings and illustrated-guide subjects for the PDF."""
+    """Build a deep textbook index from structure, controls, cards, and citations."""
 
     markdown = _index_markdown_headings(markdown)
+    markdown = _index_cli_terms(markdown)
+    markdown = _index_operational_cards(markdown)
+    markdown = _index_bibliography(markdown)
 
     figure_pattern = re.compile(r"(?m)^(\*\*Figure\s+\d+\.\s+)(.+?)(\.\*\*)")
 
@@ -490,7 +520,7 @@ def _add_pdf_index(markdown: str) -> str:
     appendix_start = markdown.find("# Important Musical Pieces")
     if appendix_start != -1:
         appendix = markdown[appendix_start:]
-        work_pattern = re.compile(r"(?m)^\*\*(?P<term>[^*\n]+?\([^)]+\))\.\*\*")
+        work_pattern = re.compile(r"(?m)^\*\*(?P<term>.+?\([^)]+\))\.\*\*")
 
         def index_work(match: re.Match[str]) -> str:
             term = _plain_index_term(match.group("term"))
@@ -509,6 +539,109 @@ def _add_pdf_index(markdown: str) -> str:
         + "\\verbxColophon\n"
         + "```\n"
     )
+
+
+def _index_cli_terms(markdown: str) -> str:
+    """Index each distinct CLI flag and command at its first useful occurrence."""
+
+    flag_pattern = re.compile(r"(?<![\w-])--[a-z][a-z0-9-]+")
+    command_pattern = re.compile(r"\bverbx\s+[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?")
+    fence_pattern = re.compile(r"^\s*(`{3,}|~{3,})")
+    seen: set[str] = set()
+    pending: list[str] = []
+    output: list[str] = []
+    active_fence: str | None = None
+
+    def markers(terms: list[str]) -> list[str]:
+        if not terms:
+            return []
+        commands = "\n".join(
+            rf"\index{{{_latex_index_hierarchical('CLI', term)}}}" for term in terms
+        )
+        return ["", "```{=latex}", commands, "```", ""]
+
+    for line in markdown.splitlines():
+        fence = fence_pattern.match(line)
+        terms = [*flag_pattern.findall(line), *command_pattern.findall(line)]
+        fresh = [term for term in terms if term not in seen]
+        seen.update(fresh)
+        if active_fence is None and fresh:
+            output.extend(markers(fresh))
+        elif active_fence is not None:
+            pending.extend(fresh)
+        output.append(line)
+        if fence:
+            marker = fence.group(1)[0]
+            if active_fence == marker:
+                active_fence = None
+                output.extend(markers(pending))
+                pending.clear()
+            elif active_fence is None:
+                active_fence = marker
+    return "\n".join(output)
+
+
+def _index_operational_cards(markdown: str) -> str:
+    """Make all 588 operational-card subjects discoverable."""
+
+    pattern = re.compile(
+        r"(?m)^(?P<title>\*\*(?:Production|Automation|Quality|Validation|Troubleshooting|Preset|Interaction|Audition|Asset|Release|Bus|Signal-test|Triage) card.*?\*\*)$"
+    )
+
+    def add_marker(match: re.Match[str]) -> str:
+        term = _plain_index_term(match.group("title"))
+        family = term.split(" card", 1)[0] + " cards"
+        return (
+            "```{=latex}\n"
+            + rf"\index{{{_latex_index_hierarchical('Operational cards', term)}}}" + "\n"
+            + rf"\index{{{_latex_index_hierarchical(family, term)}}}" + "\n"
+            + "```\n\n"
+            + match.group(0)
+        )
+
+    return pattern.sub(add_marker, markdown)
+
+
+def _index_bibliography(markdown: str) -> str:
+    """Index every parsed paper author and title, including normalized Jot entries."""
+
+    start = markdown.find("# verbx Academic References")
+    if start == -1:
+        return markdown
+    references = markdown[start:]
+    entry_pattern = re.compile(
+        r"(?m)^(?P<entry>\*\*\[[^]]+\]\*\*\s+"
+        r"(?P<authors>.+?)\s+\((?P<year>(?:18|19|20)\d{2}[a-z]?|n\.d\.)\)\.\s+"
+        r"(?P<title>.+?)(?=\.\s+\*|\.\s+DOI:|$))$"
+    )
+
+    def index_entry(match: re.Match[str]) -> str:
+        authors = re.split(r"\s*;\s*|\s+&\s+|\s+and\s+", match.group("authors"))
+        normalized: list[str] = []
+        for author in authors:
+            author = re.sub(r"\s+", " ", author).strip(" ,")
+            if author in {"Jot, J.-M.", "Jot, J. M."}:
+                author = "Jot, Jean-Marc"
+            if author and author not in normalized:
+                normalized.append(author)
+        terms: list[tuple[str, str]] = []
+        for author in normalized:
+            terms.extend((("Authors", author), ("", author)))
+        title = _plain_index_term(match.group("title"))
+        if title:
+            terms.append(("Research papers", title))
+        commands = "\n".join(
+            rf"\index{{{_latex_index_hierarchical(category, term) if category else _latex_index_term(term)}}}"
+            for category, term in terms
+        )
+        return f"```{{=latex}}\n{commands}\n```\n\n{match.group('entry')}"
+
+    references = entry_pattern.sub(index_entry, references)
+    return markdown[:start] + references
+
+
+def _latex_index_hierarchical(category: str, term: str) -> str:
+    return f"{_latex_index_term(category)}!{_latex_index_term(term)}"
 
 
 def _index_markdown_headings(markdown: str) -> str:
@@ -629,6 +762,7 @@ def main() -> int:
     args = parser.parse_args()
 
     subprocess.run([sys.executable, str(PLUGIN_GUIDE_GENERATOR)], cwd=ROOT, check=True)
+    subprocess.run([sys.executable, str(BOOK_SUPPLEMENT_GENERATOR)], cwd=ROOT, check=True)
 
     missing = [path for path in USERGUIDE_SOURCES if not path.exists()]
     if missing:

@@ -48,6 +48,45 @@
   \vfill\clearpage
 }
 
+% A substantial lower-page learning plate keeps each Appendix B project visually
+% balanced while reinforcing the predict-build-measure-reflect method.
+\newcommand{\verbxAssignmentPlate}[2]{%
+  \begin{center}
+  \begin{tikzpicture}[x=1cm,y=1cm]
+    \path[fill=verbxPlate,draw=verbxGrid,rounded corners=8pt]
+      (0,0) rectangle (15.0,5.0);
+    \draw[verbxGold,line width=1.2pt] (0.45,4.52) -- (14.55,4.52);
+    \node[anchor=west,font=\bfseries\large,text=verbxInk] at (0.55,4.15)
+      {Project #1 laboratory cycle};
+    \node[anchor=east,font=\small\itshape,text=verbxInk!65] at (14.45,4.15)
+      {#2};
+    \node[draw=verbxBlue,line width=1.1pt,rounded corners=5pt,fill=white,
+      minimum width=2.55cm,minimum height=1.05cm,font=\bfseries,text=verbxInk]
+      at (2.15,3.05) {Predict};
+    \node[draw=verbxGold,line width=1.1pt,rounded corners=5pt,fill=white,
+      minimum width=2.55cm,minimum height=1.05cm,font=\bfseries,text=verbxInk]
+      at (5.72,3.05) {Build};
+    \node[draw=verbxTeal,line width=1.1pt,rounded corners=5pt,fill=white,
+      minimum width=2.55cm,minimum height=1.05cm,font=\bfseries,text=verbxInk]
+      at (9.29,3.05) {Measure};
+    \node[draw=verbxPlum,line width=1.1pt,rounded corners=5pt,fill=white,
+      minimum width=2.55cm,minimum height=1.05cm,font=\bfseries,text=verbxInk]
+      at (12.86,3.05) {Reflect};
+    \draw[verbx arrow] (3.47,3.05) -- (4.40,3.05);
+    \draw[verbx arrow] (7.04,3.05) -- (7.97,3.05);
+    \draw[verbx arrow] (10.61,3.05) -- (11.54,3.05);
+    \node[anchor=west,font=\small\bfseries,text=verbxInk] at (0.65,1.95)
+      {Submission audit};
+    \node[anchor=west,font=\small,text=verbxInk!65] at (0.65,1.48)
+      {\texttt{[ ]} runnable command \quad \texttt{[ ]} source + renders \quad \texttt{[ ]} analysis JSON};
+    \node[anchor=west,font=\small,text=verbxInk!65] at (0.65,1.03)
+      {\texttt{[ ]} labeled figure \quad \texttt{[ ]} level-matched listening \quad \texttt{[ ]} reproducibility check};
+    \node[anchor=west,font=\footnotesize\itshape,text=verbxInk!65] at (0.65,0.48)
+      {State the prediction before rendering; distinguish observation, measurement, and interpretation.};
+  \end{tikzpicture}
+  \end{center}
+}
+
 \newcommand{\verbxProductionVisual}[2]{%
   \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
     \verbxVisualFrame
