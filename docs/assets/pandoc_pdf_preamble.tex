@@ -2,6 +2,8 @@
 \usepackage{colortbl}
 \usepackage{ragged2e}
 \usepackage{newunicodechar}
+\usepackage{makeidx}
+\makeindex
 \newunicodechar{→}{\ensuremath{\rightarrow}}
 \setlength{\emergencystretch}{3em}
 \sloppy
@@ -63,6 +65,7 @@
 }
 
 \AtBeginDocument{
+  \hypersetup{linkcolor=verbxCover}
   \IfFileExists{fvextra.sty}{
     \RecustomVerbatimEnvironment{verbatim}{Verbatim}{
       breaklines,

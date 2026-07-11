@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parent
 DEFAULT_MD = ROOT / "docs" / "USERGUIDE.md"
 DEFAULT_PDF = ROOT / "USERGUIDE.pdf"
 PDF_PREAMBLE = ROOT / "docs" / "assets" / "pandoc_pdf_preamble.tex"
+INDEX_STYLE = ROOT / "docs" / "assets" / "verbx_index.ist"
 PLUGIN_GUIDE_GENERATOR = ROOT / "scripts_generate_plugin_guide.py"
 DEFAULT_AUTHOR = "Colby Leider"
 TEX_GYRE_FONT_DIR = (
@@ -260,6 +261,7 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
 
     markdown = re.sub(r'(?:<a\s+id="[^"]+"></a>)+', replace_anchor_run, markdown)
     markdown = _compact_illustrated_guide(markdown)
+    markdown = _add_pdf_index(markdown)
     return re.sub(
         r"^\\newpage$",
         lambda _: "```{=latex}\n\\newpage\n```",
@@ -310,6 +312,73 @@ def _compact_illustrated_guide(markdown: str) -> str:
     return markdown[:start] + compacted + markdown[end:]
 
 
+def _add_pdf_index(markdown: str) -> str:
+    """Index document headings and illustrated-guide subjects for the PDF."""
+
+    heading_pattern = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
+
+    def index_heading(match: re.Match[str]) -> str:
+        heading = match.group(0)
+        term = _plain_index_term(match.group(2))
+        if not term or term.lower() in {"contents", "index"}:
+            return heading
+        return heading + f"\n\n```{{=latex}}\n\\index{{{_latex_index_term(term)}}}\n```"
+
+    markdown = heading_pattern.sub(index_heading, markdown)
+
+    figure_pattern = re.compile(r"(?m)^(\*\*Figure\s+\d+\.\s+)(.+?)(\.\*\*)")
+
+    def index_figure(match: re.Match[str]) -> str:
+        term = _plain_index_term(match.group(2))
+        marker = f"```{{=latex}}\n\\index{{{_latex_index_term(term)}}}\n```\n\n"
+        return marker + match.group(0)
+
+    markdown = figure_pattern.sub(index_figure, markdown)
+    return (
+        markdown.rstrip()
+        + "\n\n```{=latex}\n"
+        + "\\clearpage\n"
+        + "\\phantomsection\n"
+        + "\\addcontentsline{toc}{section}{Index}\n"
+        + "\\printindex\n"
+        + "```\n"
+    )
+
+
+def _plain_index_term(value: str) -> str:
+    """Reduce Markdown heading or caption text to a readable index term."""
+
+    value = re.sub(r"\{#[^}]+\}\s*$", "", value)
+    value = re.sub(r"!\[([^]]*)\]\([^)]*\)", r"\1", value)
+    value = re.sub(r"\[([^]]+)\]\([^)]*\)", r"\1", value)
+    value = re.sub(r"<[^>]+>", "", value)
+    value = value.replace("`", "").replace("*", "").replace("_", " ")
+    value = re.sub(r"\s+", " ", value).strip(" .")
+    value = re.sub(r"^(?:\d+(?:\.\d+)*|\d+[A-Za-z])[.)]?\s+", "", value)
+    if re.fullmatch(r"(?:5\.1|7\.1|7\.1\.4)", value):
+        value = f"Surround format {value}"
+    return value
+
+
+def _latex_index_term(value: str) -> str:
+    """Escape text for both makeindex syntax and the resulting LaTeX file."""
+
+    value = value.replace('"', "").replace("!", " - ").replace("@", " at ").replace("|", " / ")
+    replacements = {
+        "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
+    }
+    return "".join(replacements.get(char, char) for char in value)
+
+
 def _render_pdf(markdown_path: Path, pdf_path: Path, author: str) -> None:
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="verbx_userguide_") as tmpdir_raw:
@@ -328,7 +397,7 @@ def _render_pdf(markdown_path: Path, pdf_path: Path, author: str) -> None:
         ]
         subprocess.run(pandoc_command, cwd=ROOT, check=True)
         _rewrite_longtable_specs(latex_path)
-        for _ in range(5):
+        for pass_index in range(5):
             subprocess.run(
                 [
                     "xelatex",
@@ -341,6 +410,12 @@ def _render_pdf(markdown_path: Path, pdf_path: Path, author: str) -> None:
                 cwd=ROOT,
                 check=True,
             )
+            if pass_index == 0:
+                subprocess.run(
+                    ["makeindex", "-s", str(INDEX_STYLE), "userguide.idx"],
+                    cwd=tmpdir,
+                    check=True,
+                )
         shutil.copy2(tmpdir / "userguide.pdf", pdf_path)
 
 
