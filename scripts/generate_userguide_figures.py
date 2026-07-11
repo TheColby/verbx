@@ -99,8 +99,26 @@ def plot_axes(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], xlab: str,
         d.line((x0, y, x1, y), fill=GRID, width=1)
     d.line((x0, y1, x1, y1), fill=INK, width=3)
     d.line((x0, y0, x0, y1), fill=INK, width=3)
-    d.text(((x0 + x1) // 2 - 70, y1 + 26), xlab, fill=MUTED, font=F_SMALL)
-    d.text((x0 - 92, (y0 + y1) // 2 - 16), ylab, fill=MUTED, font=F_SMALL)
+    axis_labels(d, box, xlab, ylab)
+
+
+def axis_labels(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], xlab: str, ylab: str) -> None:
+    """Draw centered axis labels, rotating the ordinate to preserve plot width."""
+    x0, y0, x1, y1 = box
+    x_bbox = d.textbbox((0, 0), xlab, font=F_SMALL)
+    d.text(((x0 + x1 - (x_bbox[2] - x_bbox[0])) / 2, y1 + 24), xlab, fill=MUTED, font=F_SMALL)
+
+    y_bbox = F_SMALL.getbbox(ylab)
+    label = Image.new("L", (y_bbox[2] - y_bbox[0] + 12, y_bbox[3] - y_bbox[1] + 12), 0)
+    ImageDraw.Draw(label).text((6 - y_bbox[0], 6 - y_bbox[1]), ylab, fill=255, font=F_SMALL)
+    label = label.rotate(90, expand=True)
+    d.bitmap((x0 - 72, (y0 + y1 - label.height) / 2), label, fill=MUTED)
+
+
+def chart_labels(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], xlab: str, ylab: str) -> None:
+    """Label non-line charts whose marks already provide their own baseline."""
+    x0, y0, x1, y1 = box
+    axis_labels(d, (x0, y0, x1, y1 + 42), xlab, ylab)
 
 
 def line_plot(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], xs, ys, color: str, width: int = 5) -> None:
@@ -147,15 +165,15 @@ def fig_realtime_latency() -> None:
     vals = [2.7, 5.3, 10.7, 21.3, 42.7]
     labels = ["128", "256", "512", "1024", "2048"]
     bars(d, box, vals, labels, [TEAL, BLUE, GOLD, RUST, PLUM])
-    d.text((1120, 168), "48 kHz block size", fill=MUTED, font=F_BODY)
-    d.text((180, 710), "Use the smallest stable block size your audio driver can sustain; dereverb lookahead adds on top.", fill=INK, font=F_BODY)
+    chart_labels(d, box, "Audio block size (frames at 48 kHz)", "One-block duration (ms)")
+    d.text((180, 790), "Use the smallest stable block size your audio driver can sustain; dereverb lookahead adds on top.", fill=INK, font=F_BODY)
     save(img, "02_realtime_latency.png")
 
 
 def fig_rt60_curves() -> None:
     img, d = canvas("RT60 Decay Families", "A 60 dB drop defines the nominal reverberation time.")
     box = (190, 190, 1420, 710)
-    plot_axes(d, box, "time (s)", "level (dB)")
+    plot_axes(d, box, "Time after excitation (s)", "Relative decay level (dB)")
     t = np.linspace(0, 8, 300)
     for rt, color in [(1.2, BLUE), (2.5, TEAL), (5.0, GOLD), (8.0, RUST)]:
         y = -60 * t / rt
@@ -170,7 +188,7 @@ def fig_rt60_curves() -> None:
 def fig_edc_windows() -> None:
     img, d = canvas("Energy Decay Curve Windows", "EDT, T20, and T30 fit different portions of the same EDC.")
     box = (190, 190, 1420, 700)
-    plot_axes(d, box, "time", "decay level")
+    plot_axes(d, box, "Normalized decay time (0-1)", "Energy decay level (dB)")
     t = np.linspace(0, 1, 280)
     y = -65 * (t ** 0.92) + 2 * np.sin(18 * t)
     xpix = box[0] + t * (box[2] - box[0])
@@ -198,13 +216,15 @@ def fig_fdn_matrix() -> None:
             d.rectangle((x0 + j * cell, y0 + i * cell, x0 + (j + 1) * cell - 2, y0 + (i + 1) * cell - 2), fill=color)
     d.text((150, 270), "delay lines", fill=MUTED, font=F_BODY)
     d.text((1000, 280), "lighter cells = weak coupling\nblue cells = stronger exchange", fill=INK, font=F_BODY)
+    axis_labels(d, (420, 170, 1028, 778), "Destination delay line (index)", "Source delay line (index)")
+    d.text((1030, 390), "Color scale: absolute coupling coefficient (0-1)", fill=MUTED, font=F_SMALL)
     save(img, "05_fdn_matrix_heatmap.png")
 
 
 def fig_window_functions() -> None:
     img, d = canvas("Analysis Window Options", "Different windows trade leakage for transient sharpness.")
     box = (180, 190, 1420, 700)
-    plot_axes(d, box, "sample index", "amplitude")
+    plot_axes(d, box, "Normalized sample position (0-1)", "Window amplitude (linear, 0-1)")
     x = np.linspace(0, 1, 512)
     curves = [
         ("hann", 0.5 - 0.5 * np.cos(2 * np.pi * x), BLUE),
@@ -224,7 +244,7 @@ def fig_window_functions() -> None:
 def fig_limiter_curve() -> None:
     img, d = canvas("Limiter Transfer Curves", "Soft knees preserve shape; hard ceilings prioritize safety.")
     box = (210, 190, 1350, 700)
-    plot_axes(d, box, "input dBFS", "output dBFS")
+    plot_axes(d, box, "Input level (dBFS)", "Output level (dBFS)")
     x = np.linspace(-36, 6, 400)
     curves = [
         ("hard", np.minimum(x, -1), RUST),
@@ -242,7 +262,7 @@ def fig_limiter_curve() -> None:
 def fig_ducking() -> None:
     img, d = canvas("Reverb Ducking Envelope", "Wet level backs away while the dry source is active.")
     box = (170, 190, 1420, 700)
-    plot_axes(d, box, "time", "relative level")
+    plot_axes(d, box, "Time (s)", "Relative signal level (linear, 0-1)")
     t = np.linspace(0, 8, 500)
     dry = 0.15 + 0.85 * ((np.sin(2 * np.pi * t * 0.55) > 0.2).astype(float))
     wet = 1 - 0.55 * dry
@@ -257,7 +277,7 @@ def fig_ducking() -> None:
 def fig_multiband_decay() -> None:
     img, d = canvas("Frequency-Dependent Decay", "Low, mid, and high bands can carry different RT60 targets.")
     box = (170, 190, 1420, 700)
-    plot_axes(d, box, "time (s)", "band level")
+    plot_axes(d, box, "Time after excitation (s)", "Relative band level (linear, 0-1)")
     t = np.linspace(0, 6, 300)
     bands = [("low", 5.5, BLUE), ("mid", 3.3, TEAL), ("high", 1.7, GOLD)]
     for name, rt, color in bands:
@@ -272,7 +292,7 @@ def fig_multiband_decay() -> None:
 def fig_dereverb_strength() -> None:
     img, d = canvas("Dereverb Strength vs Artifacts", "More reduction eventually trades clarity for processing damage.")
     box = (180, 190, 1420, 700)
-    plot_axes(d, box, "dereverb amount", "score")
+    plot_axes(d, box, "Dereverb amount (%)", "Perceptual score (normalized, 0-1)")
     x = np.linspace(0, 1, 300)
     clarity = 1 - np.exp(-4 * x)
     natural = 1 - x ** 2.2
@@ -309,6 +329,7 @@ def fig_ir_morph() -> None:
         d.text((x - 46, y + 54), label, fill=INK, font=F_BODY)
     d.ellipse((790 - 24, 505 - 24, 790 + 24, 505 + 24), fill=PLUM)
     d.text((830, 488), "morphed IR", fill=PLUM, font=F_BODY)
+    d.text((1000, 780), "Coordinates: normalized IR blend weights (0-1)", fill=MUTED, font=F_SMALL)
     save(img, "12_ir_morph_space.png")
 
 
@@ -334,7 +355,7 @@ def fig_ambisonics_order() -> None:
     vals = [(n + 1) ** 2 for n in orders]
     labels = [str(n) for n in orders]
     bars(d, (170, 210, 1420, 700), vals, labels, [BLUE, TEAL, GOLD, RUST, PLUM, GREEN, "#8f6f3f", "#3f7f8f"])
-    d.text((1150, 165), "order N", fill=MUTED, font=F_BODY)
+    chart_labels(d, (170, 210, 1420, 700), "Ambisonics order N (integer)", "Channel count (channels)")
     save(img, "14_ambisonics_order.png")
 
 
@@ -356,7 +377,7 @@ def fig_shimmer_path() -> None:
 def fig_room_inference() -> None:
     img, d = canvas("Room Size Inference", "RT60 plus absorption estimate maps to plausible room volume.")
     box = (210, 190, 1350, 700)
-    plot_axes(d, box, "RT60 (s)", "estimated volume")
+    plot_axes(d, box, "Measured RT60 (s)", "Estimated room volume (m³)")
     rt = np.linspace(0.2, 4.5, 200)
     for alpha, color in [(0.15, BLUE), (0.3, TEAL), (0.55, GOLD)]:
         vol = rt * (200 * alpha) / 0.161
@@ -398,7 +419,8 @@ def fig_references_map() -> None:
     vals = [100, 900]
     labels = ["curated\nannotated", "extended\nCrossref"]
     bars(d, (300, 220, 1300, 700), vals, labels, [TEAL, PLUM])
-    d.text((260, 760), "The guide now has 1,000 references total, but only the curated set is treated as implementation authority.", fill=INK, font=F_BODY)
+    chart_labels(d, (300, 220, 1300, 700), "Reference collection (category)", "Bibliography entries (count)")
+    d.text((260, 830), "The guide has 1,000 references total, but only the curated set is treated as implementation authority.", fill=INK, font=F_BODY)
     save(img, "19_reference_corpus.png")
 
 
@@ -416,13 +438,15 @@ def fig_ir_grid() -> None:
             color = [BLUE, TEAL, GOLD, RUST][(i + j) % 4]
             d.rounded_rectangle((x0 + j * cell, y0 + i * cell, x0 + (j + 1) * cell - 16, y0 + (i + 1) * cell - 16), radius=16, fill=color)
             text_center(d, (x0 + j * cell, y0 + i * cell, x0 + (j + 1) * cell - 16, y0 + (i + 1) * cell - 16), "4 IRs", fill=PAPER)
+    axis_labels(d, (420, 210, 1020, 810), "Synthesis family (category)", "Duration family (category)")
+    d.text((1070, 700), "Cell value: impulse responses (count)", fill=MUTED, font=F_SMALL)
     save(img, "20_ir_library_grid.png")
 
 
 def fig_cpu_block() -> None:
     img, d = canvas("Block Size CPU Tradeoff", "Small blocks feel fast; large blocks reduce scheduling pressure.")
     box = (170, 190, 1420, 700)
-    plot_axes(d, box, "block size", "relative value")
+    plot_axes(d, box, "Audio block size (frames)", "Normalized cost or latency (0-1)")
     x = np.array([128, 256, 512, 1024, 2048])
     cpu = np.array([1.0, 0.62, 0.38, 0.25, 0.18])
     latency = np.array([0.08, 0.16, 0.32, 0.64, 1.0])
@@ -461,13 +485,14 @@ def fig_preset_space() -> None:
         pts.append((cx + r * val * math.cos(ang), cy + r * val * math.sin(ang)))
     d.polygon(pts, fill="#d8a24d", outline=RUST)
     d.ellipse((cx - 8, cy - 8, cx + 8, cy + 8), fill=INK)
+    d.text((1030, 760), "Radial scale: normalized parameter amount (0-1)", fill=MUTED, font=F_SMALL)
     save(img, "23_preset_radar.png")
 
 
 def fig_infinite_reverb() -> None:
     img, d = canvas("Infinite-Style Reverb Modes", "Very high RT60 values behave more like sustain instruments than rooms.")
     box = (170, 190, 1420, 700)
-    plot_axes(d, box, "time", "tail energy")
+    plot_axes(d, box, "Normalized elapsed time (0-1)", "Relative tail energy (linear, 0-1)")
     t = np.linspace(0, 1, 400)
     normal = np.exp(-5 * t)
     long = np.exp(-1.3 * t)
@@ -564,14 +589,89 @@ MORE_FIGURES: tuple[tuple[str, str, str, str, int], ...] = (
 )
 
 
+# Semantic labels for every atlas chart. The third value labels heatmap color or
+# radar radius; schematics intentionally omit Cartesian axes.
+ATLAS_AXES: dict[int, tuple[str, str, str]] = {
+    25: ("Time after direct sound (ms)", "Reflection amplitude (dBFS)", ""),
+    26: ("Pre-delay (ms)", "Perceived source-room separation (normalized, 0-1)", ""),
+    27: ("Time after excitation (ms)", "Echo density (reflections/s)", ""),
+    28: ("Frequency (Hz)", "Relative damping gain (dB)", ""),
+    29: ("Modulation rate (Hz)", "Modulation depth (ms)", "Artifact risk (normalized, 0-1)"),
+    30: ("Stereo width (%)", "Inter-channel correlation (unitless, -1 to +1)", ""),
+    31: ("Inter-channel delay (ms)", "Perceptual region (category)", ""),
+    32: ("Time after transient (ms)", "Wet level (dBFS)", ""),
+    33: ("Time before transient (ms)", "Wet envelope level (linear, 0-1)", ""),
+    34: ("Frequency (Hz)", "Spectral magnitude (dBFS)", ""),
+    35: ("Normalization method (category)", "Target or measured level (dB)", ""),
+    36: ("Sample rate (kHz)", "Relative CPU cost (%)", ""),
+    37: ("Frequency (kHz)", "Alias energy (dBFS)", ""),
+    38: ("Time relative to peak (ms)", "Gain reduction (dB)", ""),
+    39: ("Dry/wet control (%)", "Channel gain (linear, 0-1)", ""),
+    40: ("Time in impulse response (ms)", "IR amplitude (dBFS)", ""),
+    41: ("Detector threshold (dBFS)", "Detected activity (%)", ""),
+    42: ("Parallel workers (count)", "Render throughput (files/min)", ""),
+    43: ("Cache condition (category)", "Elapsed processing time (%)", ""),
+    45: ("Test family (category)", "Platform or engine (category)", "Coverage (%)"),
+    46: ("Timbral brightness (normalized, 0-1)", "Spatial width (normalized, 0-1)", ""),
+    47: ("Audio block size (frames)", "Callback CPU load (%)", "Dropout risk (normalized, 0-1)"),
+    48: ("Readiness dimension (category)", "", "Completion score (normalized, 0-1)"),
+    49: ("Frequency (Hz)", "Magnitude response (dB)", ""),
+    50: ("Frequency (Hz)", "Group delay (ms)", ""),
+    51: ("FDN delay line (index)", "Delay length (samples)", ""),
+    52: ("Frequency (Hz)", "Modes per octave (count)", ""),
+    53: ("Frequency (Hz)", "Acoustic behavior (category)", ""),
+    54: ("Frequency (Hz)", "Air attenuation (dB/m)", ""),
+    55: ("Frequency band (Hz)", "Surface material (category)", "Absorption coefficient (0-1)"),
+    56: ("Energy component (category)", "Relative energy (%)", ""),
+    57: ("Source distance (m)", "Direct-to-reverberant ratio (dB)", ""),
+    58: ("Arrival angle (degrees)", "Relative microphone sensitivity (dB)", ""),
+    59: ("Time after onset (ms)", "Detector envelope (linear, 0-1)", ""),
+    60: ("Time after sidechain release (ms)", "Wet gain (dB)", ""),
+    61: ("Input level relative to threshold (dB)", "Output level (dBFS)", ""),
+    62: ("Time around sample peak (µs)", "Signal level (dBFS)", ""),
+    63: ("Program time (s)", "Integrated loudness (LUFS)", ""),
+    64: ("RMS level (dBFS)", "Peak level (dBFS)", "Crest factor (dB)"),
+    65: ("Time around transient (ms)", "Signal amplitude (linear, -1 to +1)", ""),
+    66: ("Dereverb mask strength (%)", "Artifact or suppression score (normalized, 0-1)", ""),
+    67: ("Time (s)", "Frequency (Hz)", "Residual magnitude (dBFS)"),
+    68: ("Program time (s)", "Estimated noise floor (dBFS)", ""),
+    69: ("Input channel (index)", "Output channel (index)", "Routing gain (dB)"),
+    70: ("Speaker azimuth (degrees)", "Speaker elevation (degrees)", "Relative decode energy (0-1)"),
+    71: ("Source azimuth (degrees)", "Source elevation (degrees)", "HRTF blend weight (0-1)"),
+    72: ("Speaker azimuth (degrees)", "Speaker elevation (degrees)", "Coverage state (category)"),
+    75: ("Time in impulse response (s)", "IR decay level (dBFS)", ""),
+    76: ("Normalization mode (category)", "Resulting reference level (dB)", ""),
+    77: ("IR time offset (samples)", "Partition size (samples)", ""),
+    78: ("FFT size (samples)", "Relative processing cost (%)", ""),
+    79: ("Frame batch size (frames)", "Channel batch size (channels)", "SIMD utilization (%)"),
+    80: ("Impulse-response duration (s)", "Memory bandwidth (GB/s)", ""),
+    81: ("Worker threads (count)", "Speedup (× realtime)", ""),
+    82: ("Callback time (ms)", "Budget use (%)", ""),
+    83: ("Audio block size (frames)", "XRuns (count/hour)", ""),
+    85: ("CLI family (category)", "", "Option coverage (normalized, 0-1)"),
+    86: ("Preset attribute (category)", "Preset family (category)", "Library density (presets/cell)"),
+    87: ("Schema field group (category)", "Command (category)", "Fields implemented (%)"),
+    88: ("Regression metric (category)", "Allowed deviation (%)", ""),
+    89: ("Frequency (Hz)", "Golden-output drift (dB)", ""),
+    91: ("Table column width (characters)", "Content length (characters)", "Overflow risk (normalized, 0-1)"),
+    93: ("Documentation release (version index)", "References (count)", ""),
+    96: ("Feature or backend (category)", "Operating system (category)", "Support state (category)"),
+    97: ("Error-message quality (category)", "", "Quality score (normalized, 0-1)"),
+    99: ("Maturity dimension (category)", "", "Maturity score (normalized, 0-1)"),
+    100: ("Subsystem (category)", "Verification layer (category)", "Confidence score (normalized, 0-1)"),
+}
+
+
 def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) -> None:
     img, d = canvas(title, subtitle)
     rng = np.random.default_rng(seed)
     box = (170, 190, 1420, 700)
     palette = [BLUE, TEAL, GOLD, RUST, PLUM, GREEN]
 
+    xlab, ylab, scale_lab = ATLAS_AXES.get(seed, ("Horizontal dimension (normalized, 0-1)", "Vertical dimension (normalized, 0-1)", ""))
+
     if kind in {"curve", "multi"}:
-        plot_axes(d, box, "control", "response")
+        plot_axes(d, box, xlab, ylab)
         x = np.linspace(0, 1, 360)
         count = 1 if kind == "curve" else 4
         for i in range(count):
@@ -590,10 +690,10 @@ def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) ->
         labels = ["A", "B", "C", "D", "E"]
         vals = list((rng.uniform(0.28, 1.0, size=5) * 100).astype(int))
         bars(d, box, vals, labels, palette[:5])
-        d.text((170, 750), "Relative scale normalized to the largest measured condition.", fill=INK, font=F_BODY)
+        chart_labels(d, box, xlab, ylab)
 
     elif kind == "timeline":
-        plot_axes(d, box, "time", "level")
+        plot_axes(d, box, xlab, ylab)
         x = np.linspace(0, 1, 500)
         base = np.exp(-3.5 * x)
         px = box[0] + x * (box[2] - box[0])
@@ -616,7 +716,8 @@ def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) ->
                 v = 0.65 * v + 0.35 * rng.uniform()
                 color = (int(235 - 110 * v), int(222 - 70 * v), int(190 + 55 * v))
                 d.rounded_rectangle((x0 + j * cell_w, y0 + i * cell_h, x0 + (j + 1) * cell_w - 8, y0 + (i + 1) * cell_h - 8), radius=8, fill=color)
-        d.text((280, 650), "Darker cells mark stronger risk, energy, or coverage depending on the plot.", fill=INK, font=F_BODY)
+        axis_labels(d, (280, 210, 1344, 594), xlab, ylab)
+        d.text((280, 660), f"Color scale: {scale_lab}", fill=INK, font=F_BODY)
 
     elif kind == "bands":
         x0, y0, x1, y1 = box
@@ -626,7 +727,7 @@ def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) ->
             bx1 = x0 + end * (x1 - x0)
             d.rounded_rectangle((bx0, y0, bx1, y1), radius=24, fill=color)
             text_center(d, (int(bx0), y0, int(bx1), y1), label, fill=PAPER, fnt=F_BODY)
-        d.text((x0, y1 + 36), "Increasing inter-channel delay", fill=INK, font=F_BODY)
+        axis_labels(d, box, xlab, ylab)
 
     elif kind == "stack":
         stages = ["Python", "CLI", "DSP", "analysis", "native"]
@@ -648,7 +749,7 @@ def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) ->
         d.line([tuple(p) for p in pts], fill=PLUM, width=5)
         for i, p in enumerate(pts):
             d.ellipse((p[0] - 13, p[1] - 13, p[0] + 13, p[1] + 13), fill=palette[i % len(palette)])
-        d.text((x0, y1 + 36), "Each dot is a preset state; smooth paths avoid sudden timbral jumps.", fill=INK, font=F_BODY)
+        axis_labels(d, box, xlab, ylab)
 
     elif kind == "radar":
         cx, cy, r = 800, 460, 250
@@ -662,6 +763,7 @@ def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) ->
             d.text((end[0] - 32, end[1] - 18), label, fill=INK, font=F_BODY)
             pts.append((cx + r * val * math.cos(ang), cy + r * val * math.sin(ang)))
         d.polygon(pts, fill="#8ab6a8", outline=BLUE)
+        d.text((1030, 750), f"Radial scale: {scale_lab}", fill=MUTED, font=F_SMALL)
 
     save(img, filename)
 
