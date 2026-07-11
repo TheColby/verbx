@@ -41,6 +41,7 @@ USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "docs" / "HOMEBREW.md",
     ROOT / "docs" / "benchmarks" / "README.md",
     ROOT / "docs" / "REFERENCES.md",
+    ROOT / "docs" / "MUSICAL_PIECES_APPENDIX.md",
 )
 
 
@@ -261,6 +262,11 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
 
     markdown = re.sub(r'(?:<a\s+id="[^"]+"></a>)+', replace_anchor_run, markdown)
     markdown = _compact_illustrated_guide(markdown)
+    markdown = markdown.replace(
+        "# Important Musical Pieces",
+        "```{=latex}\n\\appendix\n```\n\n# Important Musical Pieces",
+        1,
+    )
     markdown = _add_pdf_index(markdown)
     return re.sub(
         r"^\\newpage$",
@@ -315,16 +321,7 @@ def _compact_illustrated_guide(markdown: str) -> str:
 def _add_pdf_index(markdown: str) -> str:
     """Index document headings and illustrated-guide subjects for the PDF."""
 
-    heading_pattern = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
-
-    def index_heading(match: re.Match[str]) -> str:
-        heading = match.group(0)
-        term = _plain_index_term(match.group(2))
-        if not term or term.lower() in {"contents", "index"}:
-            return heading
-        return heading + f"\n\n```{{=latex}}\n\\index{{{_latex_index_term(term)}}}\n```"
-
-    markdown = heading_pattern.sub(index_heading, markdown)
+    markdown = _index_markdown_headings(markdown)
 
     figure_pattern = re.compile(r"(?m)^(\*\*Figure\s+\d+\.\s+)(.+?)(\.\*\*)")
 
@@ -334,6 +331,19 @@ def _add_pdf_index(markdown: str) -> str:
         return marker + match.group(0)
 
     markdown = figure_pattern.sub(index_figure, markdown)
+
+    appendix_start = markdown.find("# Important Musical Pieces")
+    if appendix_start != -1:
+        appendix = markdown[appendix_start:]
+        work_pattern = re.compile(r"(?m)^\*\*(?P<term>[^*\n]+?\([^)]+\))\.\*\*")
+
+        def index_work(match: re.Match[str]) -> str:
+            term = _plain_index_term(match.group("term"))
+            marker = f"```{{=latex}}\n\\index{{{_latex_index_term(term)}}}\n```\n\n"
+            return marker + match.group(0)
+
+        appendix = work_pattern.sub(index_work, appendix)
+        markdown = markdown[:appendix_start] + appendix
     return (
         markdown.rstrip()
         + "\n\n```{=latex}\n"
@@ -343,6 +353,37 @@ def _add_pdf_index(markdown: str) -> str:
         + "\\printindex\n"
         + "```\n"
     )
+
+
+def _index_markdown_headings(markdown: str) -> str:
+    """Add index markers to headings without touching fenced code examples."""
+
+    heading_pattern = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+    fence_pattern = re.compile(r"^\s*(`{3,}|~{3,})")
+    output: list[str] = []
+    active_fence: str | None = None
+
+    for line in markdown.splitlines():
+        fence_match = fence_pattern.match(line)
+        if fence_match:
+            marker = fence_match.group(1)[0]
+            active_fence = None if active_fence == marker else marker
+            output.append(line)
+            continue
+
+        output.append(line)
+        if active_fence is not None:
+            continue
+
+        heading_match = heading_pattern.match(line)
+        if not heading_match:
+            continue
+        term = _plain_index_term(heading_match.group(2))
+        if not term or term.lower() in {"contents", "index"}:
+            continue
+        output.extend(("", "```{=latex}", f"\\index{{{_latex_index_term(term)}}}", "```"))
+
+    return "\n".join(output)
 
 
 def _plain_index_term(value: str) -> str:
