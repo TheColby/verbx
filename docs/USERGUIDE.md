@@ -19124,7 +19124,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 <!-- docs/REFERENCES.md -->
 
-# verbx Academic References
+# Research Papers and References
 
 Focused bibliography for extreme reverberation DSP and reverberation research in general (algorithmic reverb, FDN, convolution/IR, late-field modeling, and room reverberation metrics).
 

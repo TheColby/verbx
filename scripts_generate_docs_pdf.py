@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -18,6 +19,7 @@ DEFAULT_PDF = ROOT / "USERGUIDE.pdf"
 PDF_PREAMBLE = ROOT / "docs" / "assets" / "pandoc_pdf_preamble.tex"
 CARD_ILLUSTRATIONS = ROOT / "docs" / "assets" / "verbx_card_illustrations.tex"
 INDEX_STYLE = ROOT / "docs" / "assets" / "verbx_index.ist"
+REFERENCE_METADATA = ROOT / "docs" / "reference_metadata.json"
 PLUGIN_GUIDE_GENERATOR = ROOT / "scripts_generate_plugin_guide.py"
 BOOK_SUPPLEMENT_GENERATOR = ROOT / "scripts_generate_book_supplements.py"
 DEFAULT_AUTHOR = "Colby Leider"
@@ -294,8 +296,8 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
         1,
     )
     markdown = markdown.replace(
-        "# verbx Academic References",
-        "```{=latex}\n\\backmatter\n```\n\n# verbx Academic References",
+        "# Research Papers and References",
+        "```{=latex}\n\\cleardoublepage\n```\n\n# Research Papers and References",
         1,
     )
     markdown = _add_pdf_index(markdown)
@@ -507,6 +509,7 @@ def _add_pdf_index(markdown: str) -> str:
     markdown = _index_cli_terms(markdown)
     markdown = _index_operational_cards(markdown)
     markdown = _index_bibliography(markdown)
+    markdown = _typeset_research_references(markdown)
 
     figure_pattern = re.compile(r"(?m)^(\*\*Figure\s+\d+\.\s+)(.+?)(\.\*\*)")
 
@@ -532,6 +535,7 @@ def _add_pdf_index(markdown: str) -> str:
     return (
         markdown.rstrip()
         + "\n\n```{=latex}\n"
+        + "\\backmatter\n"
         + "\\clearpage\n"
         + "\\phantomsection\n"
         + "\\addcontentsline{toc}{chapter}{Index}\n"
@@ -605,14 +609,14 @@ def _index_operational_cards(markdown: str) -> str:
 def _index_bibliography(markdown: str) -> str:
     """Index every parsed paper author and title, including normalized Jot entries."""
 
-    start = markdown.find("# verbx Academic References")
+    start = markdown.find("# Research Papers and References")
     if start == -1:
         return markdown
     references = markdown[start:]
     entry_pattern = re.compile(
         r"(?m)^(?P<entry>\*\*\[[^]]+\]\*\*\s+"
         r"(?P<authors>.+?)\s+\((?P<year>(?:18|19|20)\d{2}[a-z]?|n\.d\.)\)\.\s+"
-        r"(?P<title>.+?)(?=\.\s+\*|\.\s+DOI:|$))$"
+        r"(?P<title>.+?)\.\s+\*[^*]+\*\..*)$"
     )
 
     def index_entry(match: re.Match[str]) -> str:
@@ -620,6 +624,8 @@ def _index_bibliography(markdown: str) -> str:
         normalized: list[str] = []
         for author in authors:
             author = re.sub(r"\s+", " ", author).strip(" ,")
+            if author.lower() == "et al.":
+                continue
             if author in {"Jot, J.-M.", "Jot, J. M."}:
                 author = "Jot, Jean-Marc"
             if author and author not in normalized:
@@ -638,6 +644,95 @@ def _index_bibliography(markdown: str) -> str:
 
     references = entry_pattern.sub(index_entry, references)
     return markdown[:start] + references
+
+
+def _typeset_research_references(markdown: str) -> str:
+    """Render DOI records as consistent hanging bibliography entries."""
+
+    start = markdown.find("# Research Papers and References")
+    if start == -1:
+        return markdown
+    metadata: dict[str, dict[str, str]] = {}
+    if REFERENCE_METADATA.exists():
+        metadata = json.loads(REFERENCE_METADATA.read_text(encoding="utf-8"))
+    references = markdown[start:]
+    pattern = re.compile(
+        r"(?m)^\*\*\[(?P<key>[^]]+)\]\*\*\s+(?P<authors>.+?)\s+"
+        r"\((?P<year>(?:18|19|20)\d{2}[a-z]?|n\.d\.)\)\.\s+"
+        r"(?P<title>.+?)\.\s+\*(?P<venue>[^*]+)\*\.\s+"
+        r"(?:DOI:\s+\[(?P<doi>[^]]+)\]\([^)]+\)|(?P<note>\(Also listed as \[[^]]+\]\)))"
+    )
+
+    def typeset(match: re.Match[str]) -> str:
+        doi = match.group("doi") or ""
+        record = metadata.get(doi.lower(), {})
+        detail = _reference_detail(record)
+        authors = _reference_authors(match.group("authors"))
+        identifier = (
+            ". DOI: \\href{https://doi.org/"
+            + doi
+            + "}{\\nolinkurl{"
+            + doi
+            + "}}"
+            if doi
+            else ". " + _latex_text(match.group("note") or "No DOI supplied")
+        )
+        return (
+            "```{=latex}\n"
+            "\\par\\noindent\\hangindent=1.7em\\hangafter=1\n"
+            + _latex_text(authors.rstrip("."))
+            + ". ``"
+            + _latex_text(match.group("title").strip('"').rstrip("."))
+            + ("'' " if match.group("title").rstrip().endswith(("?", "!")) else ".'' ")
+            + "\\textit{"
+            + _latex_text(match.group("venue"))
+            + "}"
+            + detail
+            + identifier
+            + ", "
+            + _latex_text(match.group("year"))
+            + ".\\hfill{\\scriptsize\\color{verbxCover} ["
+            + _latex_text(match.group("key"))
+            + "]}\\par\\smallskip\n"
+            "```"
+        )
+
+    references, count = pattern.subn(typeset, references)
+    if count != 1002:
+        raise ValueError(f"Expected 1002 research references, formatted {count}")
+    return markdown[:start] + references
+
+
+def _reference_authors(value: str) -> str:
+    formatted: list[str] = []
+    for author in re.split(r"\s*;\s*", value):
+        author = author.strip()
+        if not author or author.lower() == "et al.":
+            formatted.append("et al.")
+            continue
+        if author == "Unknown authors" or "," not in author:
+            formatted.append(author)
+            continue
+        family, given = (part.strip() for part in author.split(",", 1))
+        initials = " ".join(
+            token if re.fullmatch(r"(?:[A-ZÀ-ÖØ-Þ]\.?(?:-[A-ZÀ-ÖØ-Þ]\.?)*)", token) else token[0].upper() + "."
+            for token in re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]+(?:-[A-Za-zÀ-ÖØ-öø-ÿ]+)?\.?", given)
+            if token
+        )
+        formatted.append(f"{family}, {initials}" if initials else family)
+    return "; ".join(formatted)
+
+
+def _reference_detail(record: dict[str, str]) -> str:
+    volume = record.get("volume", "")
+    issue = record.get("issue", "")
+    page = record.get("page", "").replace("-", "--")
+    if not any((volume, issue, page)):
+        return ""
+    volume_issue = volume + (f"({issue})" if issue else "")
+    if volume_issue and page:
+        return f" { _latex_text(volume_issue) }: { _latex_text(page) }"
+    return " " + _latex_text(volume_issue or page)
 
 
 def _latex_index_hierarchical(category: str, term: str) -> str:
