@@ -1,6 +1,6 @@
 # Important Musical Pieces
 
-This appendix is a practical listening canon for engineers, musicians, researchers, and plug-in designers working with reverberation. It is not a ranking and it is not a general history of Western music. The selections emphasize works in which architecture, resonance, echo, spatial placement, room tone, feedback, or artificial ambience materially changes the musical argument.
+This appendix is a practical listening canon for engineers, musicians, researchers, and plug-in designers working with reverberation. It is not a ranking and it is not a general history of Western music. Every selection uses architecture, resonance, echo, spatial placement, room tone, feedback, or artificial ambience as audible musical material: the reverberation changes rhythm, form, harmony, orchestration, drama, or the listener's sense of place.
 
 Dates identify the composition, completion, premiere, or commercially released recording most relevant to the discussion; sources sometimes differ when a work evolved across several versions. Listen to more than one performance where possible. A dry studio transfer, a reverberant concert recording, a remaster, and an immersive remix may present substantially different evidence.
 
@@ -121,6 +121,82 @@ When a named recording is central to the entry, use that recording or a document
 **Grouper, Heavy Water / I'd Rather Be Sleeping (2008).** Voice and guitar sit inside a dense veil where noise, sustain, and room-like blur are inseparable. Listen for intelligibility arriving in flashes rather than remaining constant. In verbx, combine moderate reverb with source-side filtering and saturation; an extreme RT60 alone will usually sound cleaner and less integrated than the reference principle.
 
 **FKA twigs, cellophane (2019).** Exposed vocal detail, piano, silence, and carefully scaled ambience make every decay psychologically legible. Listen for how little processing is required when arrangement leaves genuine space. Start with an almost dry vocal, add a quiet long return with substantial pre-delay, and automate only selected phrase endings rather than maintaining a constant wet bed.
+
+## Recording and YouTube Citations
+
+Links below identify the exact performance, master, or reference upload used for the listening note. **Official** means an artist, label, catalog, or automated Topic channel; **institutional** means an orchestra, broadcaster, ensemble, festival, or university channel. **Reference upload** means no stable first-party full recording was located on YouTube during this edition's link audit. Availability and territorial access can change.
+
+### Architecture as an Instrument
+
+- Tallis, Thomas. *Spem in alium*. Harry Christophers, live concert. AVROTROS Klassiek, institutional video. [YouTube](https://www.youtube.com/watch?v=QmH1nZSGIyY).
+- Gabrieli, Giovanni. *In ecclesiis*. Camerata Nova. Concert-performance reference upload. [YouTube](https://www.youtube.com/watch?v=mcfdtdQHvfQ).
+- Berlioz, Hector. *Grande Messe des morts*. WDR Radio Choir and WDR Symphony Orchestra. ARD Klassik, institutional video. [YouTube](https://www.youtube.com/watch?v=HofoFYxqIgU).
+- Ives, Charles. *The Unanswered Question*. Frankfurt Radio Symphony; Andrés Orozco-Estrada. Institutional video. [YouTube](https://www.youtube.com/watch?v=WBiL0VEttZw).
+- Vaughan Williams, Ralph. *Fantasia on a Theme by Thomas Tallis*. Kristiansand Symphony Orchestra; Tabita Berglund. Institutional video. [YouTube](https://www.youtube.com/watch?v=vcFZ-Fwj6lI).
+- Messiaen, Olivier. *Et exspecto resurrectionem mortuorum*. North Texas Wind Symphony; Eugene Migliaro Corporon, 2013. Institutional video. [YouTube](https://www.youtube.com/watch?v=nwRx8iEVwbY).
+
+### Recorded Space and Tape-Era Studio Craft
+
+- Les Paul and Mary Ford. *How High the Moon*. Remastered catalog recording. Mary Ford Topic channel, official audio. [YouTube](https://www.youtube.com/watch?v=R_MU_tywFlM).
+- Presley, Elvis. *Mystery Train*. Elvis Presley channel, official audio. [YouTube](https://www.youtube.com/watch?v=njw2oB8oRTs).
+- The Ronettes. *Be My Baby*. The Ronettes channel, official audio. [YouTube](https://www.youtube.com/watch?v=jSPpbOGnFgk).
+- The Beach Boys. *Good Vibrations*. The Beach Boys channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=jkPyB-g3asI).
+- The Beatles. *Tomorrow Never Knows*. The Beatles channel, official audio. [YouTube](https://www.youtube.com/watch?v=m4BuziKGMy4).
+- Led Zeppelin. *When the Levee Breaks*. Led Zeppelin channel, official audio. [YouTube](https://www.youtube.com/watch?v=JM3fodiK9rY).
+
+### Electroacoustic Space and Feedback
+
+- Stockhausen, Karlheinz. *Gesang der Jünglinge*. Fonurgia Nuova, reference transfer. [YouTube](https://www.youtube.com/watch?v=nffOJXcJCDg). See also the [Stockhausen complete-edition catalog](https://www.stockhausencds.com/) for the authoritative edition.
+- Stockhausen, Karlheinz. *Gruppen*. Ensemble intercontemporain, institutional performance. [YouTube](https://www.youtube.com/watch?v=34_SfP7ZCXA).
+- Varèse, Edgard. *Poème électronique*. Sebastian Ars Acoustica, reference transfer. [YouTube](https://www.youtube.com/watch?v=JLDbBqHCslw).
+- Stockhausen, Karlheinz. *Kontakte*. Ensemble Musikfabrik, institutional performance. [YouTube](https://www.youtube.com/watch?v=nbdmzSeFy_Y).
+- Xenakis, Iannis. *Persephassa*. University of Toronto Percussion, institutional performance. [YouTube](https://www.youtube.com/watch?v=kTw8gxvTA20).
+- Lucier, Alvin. *I am sitting in a room*. Reference upload of the recorded work. [YouTube](https://www.youtube.com/watch?v=fAxHlLK3Oyk). Recording history and procedure: [Lovely Music album notes](https://www.lovely.com/albumnotes/notes1013cd.html).
+
+### Dub, Echo, and the Mixing Desk
+
+- Augustus Pablo and King Tubby. *King Tubby Meets Rockers Uptown*. King Tubby Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=oxAl3Jijs20).
+- Lee “Scratch” Perry and the Upsetters. *Dread Lion*. Lee “Scratch” Perry Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=0ZuBTxyXZYs).
+- Augustus Pablo. *East of the River Nile*. Augustus Pablo Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=sDHVOQG4PYU).
+- Scientist. *Dance of the Vampires*. Reference transfer. [YouTube](https://www.youtube.com/watch?v=thJZHtrWYfg).
+- Jones, Grace. *Walking in the Rain*. Grace Jones Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=en02WmlSPLY).
+- The Orb. *Little Fluffy Clouds*. The Orb channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=KNfjpmvbQG0).
+
+### Minimalism, Ambient Music, and Slow Decay
+
+- Riley, Terry. *Poppy Nogood and the Phantom Band*. Reference transfer. [YouTube](https://www.youtube.com/watch?v=HsykERwiR2o).
+- Eno, Brian. *Discreet Music*. 2004 remaster; Brian Eno channel, official audio. [YouTube](https://www.youtube.com/watch?v=tLZtnadL1s0).
+- Reich, Steve. *Music for 18 Musicians*. Eighth Blackbird and guests; Vic Firth institutional performance. [YouTube](https://www.youtube.com/watch?v=ZXJWO2FQ16c).
+- Eno, Brian. *1/1*, from *Ambient 1: Music for Airports*. 2004 remaster; Brian Eno channel, official audio. [YouTube](https://www.youtube.com/watch?v=LKZ3fGR2SDY).
+- Budd, Harold, and Brian Eno. *First Light*. 2004 remaster; Harold Budd Topic channel, official audio. [YouTube](https://www.youtube.com/watch?v=cOWJq88uAiQ).
+- Aphex Twin. “#3” (“Rhubarb”), from *Selected Ambient Works Volume II*. Aphex Twin channel, official audio. [YouTube](https://www.youtube.com/watch?v=75O11W5EZAU).
+
+### Gated, Digital, and Alternative Production Spaces
+
+- Gabriel, Peter. *Intruder*. Peter Gabriel channel, official audio. [YouTube](https://www.youtube.com/watch?v=xvAmj3k3Imc).
+- Collins, Phil. *In the Air Tonight*. Phil Collins channel, official music video. [YouTube](https://www.youtube.com/watch?v=YkADj0TPrJA).
+- Bush, Kate. *Running Up That Hill (A Deal with God)*. 2018 remaster; Kate Bush channel, official audio. [YouTube](https://www.youtube.com/watch?v=HYwNM1t9ltI).
+- Cocteau Twins. *Carolyn's Fingers*. Cocteau Twins channel, official video. [YouTube](https://www.youtube.com/watch?v=NhGoZLudKyk).
+- My Bloody Valentine. *To Here Knows When*. Official music video distributed by UPROXX Indie Mixtape. [YouTube](https://www.youtube.com/watch?v=xdHS1sbV5xw).
+- Talk Talk. *After the Flood*. Talk Talk band channel, catalog audio. [YouTube](https://www.youtube.com/watch?v=5KDS4u8-D4Q).
+
+### Advanced Concert Spatialization
+
+- Harvey, Jonathan. *Mortuos Plango, Vivos Voco*. Jonathan Harvey Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=0T-H-fVlHE0).
+- Boulez, Pierre. *Répons*. Ensemble intercontemporain; Matthias Pintscher. Institutional performance. [YouTube](https://www.youtube.com/watch?v=OQE5TYnD58k).
+- Nono, Luigi. *Prometeo: Tragedia dell'ascolto*. New Music Ostrava, reference performance. [YouTube](https://www.youtube.com/watch?v=joteZTLpHdE). Work and premiere record: [IRCAM](https://ressources.ircam.fr/fr/work/prometeo).
+- Saariaho, Kaija. *Lichtbogen*. Wellesz Theatre, reference performance. [YouTube](https://www.youtube.com/watch?v=hQQ9-yuQf9c).
+- Haas, Georg Friedrich. *in vain*. Argento Chamber Ensemble; Michel Galante. Ensemble performance. [YouTube](https://www.youtube.com/watch?v=ZAwvWLVfSkM).
+- Neuwirth, Olga. *Le Encantadas o le avventure nel mare delle meraviglie*. Ensemble intercontemporain; Holland Festival 2016, institutional performance. [YouTube](https://www.youtube.com/watch?v=dvtz8OzUXu8). Virtual-acoustic documentation: [IRCAM](https://medias.ircam.fr/en/media/xbe47e6).
+
+### Contemporary Depth, Texture, and Immersion
+
+- Oneohtrix Point Never. *Chrome Country*. Oneohtrix Point Never channel, official audio. [YouTube](https://www.youtube.com/watch?v=1737WkBPs5o).
+- Herndon, Holly. *Chorus*. RVNG Intl., official video. [YouTube](https://www.youtube.com/watch?v=nHujh3yA3BE).
+- Björk. *Family*. One Little Independent/One Little Indian Jukebox, label audio. [YouTube](https://www.youtube.com/watch?v=wcMwXUiOaSc).
+- Burial. *Archangel*. Hyperdub, label upload. [YouTube](https://www.youtube.com/watch?v=8k_f2QK77ew).
+- Grouper. *Heavy Water / I'd Rather Be Sleeping*. Grouper Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=OLR9oEnYLxs).
+- FKA twigs. *cellophane*. FKA twigs channel, official video. [YouTube](https://www.youtube.com/watch?v=YkLjqFpBh84).
 
 ## Comparative Listening Exercises
 
