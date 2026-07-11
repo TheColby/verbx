@@ -259,12 +259,55 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
         )
 
     markdown = re.sub(r'(?:<a\s+id="[^"]+"></a>)+', replace_anchor_run, markdown)
+    markdown = _compact_illustrated_guide(markdown)
     return re.sub(
         r"^\\newpage$",
         lambda _: "```{=latex}\n\\newpage\n```",
         markdown,
         flags=re.MULTILINE,
     )
+
+
+def _compact_illustrated_guide(markdown: str) -> str:
+    """Typeset each illustrated-guide image beside its long description."""
+
+    start = markdown.find("# Illustrated Guide")
+    if start == -1:
+        return markdown
+    end = markdown.find("\n\\newpage\n", start)
+    if end == -1:
+        end = len(markdown)
+
+    chapter = markdown[start:end]
+    entry_pattern = re.compile(
+        r"(?P<image>!\[Figure\s+\d+:[^\n]+\]\([^\n]+\))\n\n"
+        r"(?P<caption>\*\*Figure\s+\d+\..*?)(?=\n\n)\n\n"
+        r"(?P<description>Read the figure.*?)(?=\n\n(?:!\[Figure|##\s)|\Z)",
+        re.DOTALL,
+    )
+
+    def compact_entry(match: re.Match[str]) -> str:
+        return (
+            "```{=latex}\n"
+            "\\par\\medskip\\noindent\n"
+            "\\begin{minipage}[t]{0.43\\textwidth}\\vspace{0pt}\n"
+            "```\n\n"
+            f"{match.group('image')}\n\n"
+            "```{=latex}\n"
+            "\\end{minipage}\\hfill\n"
+            "\\begin{minipage}[t]{0.54\\textwidth}\\vspace{0pt}\n"
+            "```\n\n"
+            f"{match.group('caption')}\n\n"
+            f"{match.group('description')}\n\n"
+            "```{=latex}\n"
+            "\\end{minipage}\\par\\medskip\n"
+            "```"
+        )
+
+    compacted, count = entry_pattern.subn(compact_entry, chapter)
+    if count != 100:
+        raise ValueError(f"Expected 100 illustrated-guide entries, found {count}")
+    return markdown[:start] + compacted + markdown[end:]
 
 
 def _render_pdf(markdown_path: Path, pdf_path: Path, author: str) -> None:

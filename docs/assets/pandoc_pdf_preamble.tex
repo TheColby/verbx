@@ -9,6 +9,9 @@
 \setlength{\LTright}{0pt}
 \definecolor{verbxTableOdd}{gray}{0.985}
 \definecolor{verbxTableEven}{gray}{0.955}
+\definecolor{verbxCover}{HTML}{123431}
+\definecolor{verbxCoverGold}{HTML}{D5A84B}
+\definecolor{verbxCoverPaper}{HTML}{F6F0E3}
 \AtBeginEnvironment{longtable}{\footnotesize}
 \AtBeginEnvironment{longtable}{\rowcolors{2}{verbxTableOdd}{verbxTableEven}}
 
@@ -73,3 +76,44 @@
     }
   }{}
 }
+
+% Replace Pandoc's sparse default title with a deliberate publication cover.
+\makeatletter
+\renewcommand{\maketitle}{%
+  \begin{titlepage}
+    \pagecolor{verbxCover}\color{verbxCoverPaper}
+    \thispagestyle{empty}
+    \vspace*{0.55in}
+    {\color{verbxCoverGold}\rule{\textwidth}{2.5pt}}\par
+    \vspace{0.38in}
+    {\fontsize{58}{62}\selectfont\bfseries verbx}\par
+    \vspace{0.06in}
+    {\fontsize{30}{35}\selectfont\scshape User Guide}\par
+    \vspace{0.28in}
+    {\color{verbxCoverGold}\rule{0.42\textwidth}{1.2pt}}\par
+    \vspace{0.42in}
+    {\fontsize{17}{23}\selectfont
+      Reverb, dereverberation, spatial audio,\\
+      analysis, automation, and plug-in design
+    }\par
+    \vfill
+    \begin{minipage}{0.78\textwidth}
+      \color{verbxCoverPaper}\large
+      Command-line workflows \quad\textcolor{verbxCoverGold}{/}\quad
+      Realtime processing\\[0.12in]
+      Impulse responses \quad\textcolor{verbxCoverGold}{/}\quad
+      AUv3 and VST3 architecture\\[0.12in]
+      Illustrated DSP and acoustic reference
+    \end{minipage}
+    \vfill
+    {\color{verbxCoverGold}\rule{\textwidth}{1.2pt}}\par
+    \vspace{0.22in}
+    {\large\bfseries \@author}\par
+    \vspace{0.05in}
+    {\large \@date}\par
+    \vspace{0.18in}
+    {\small Technical reference and production handbook}
+  \end{titlepage}
+  \pagecolor{white}\color{black}
+}
+\makeatother
