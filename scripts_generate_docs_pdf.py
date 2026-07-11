@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parent
 DEFAULT_MD = ROOT / "docs" / "USERGUIDE.md"
 DEFAULT_PDF = ROOT / "USERGUIDE.pdf"
 PDF_PREAMBLE = ROOT / "docs" / "assets" / "pandoc_pdf_preamble.tex"
+CARD_ILLUSTRATIONS = ROOT / "docs" / "assets" / "verbx_card_illustrations.tex"
 INDEX_STYLE = ROOT / "docs" / "assets" / "verbx_index.ist"
 PLUGIN_GUIDE_GENERATOR = ROOT / "scripts_generate_plugin_guide.py"
 DEFAULT_AUTHOR = "Colby Leider"
@@ -28,10 +29,10 @@ TEX_GYRE_MATH_FONT_DIR = (
 
 USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "README.md",
-    ROOT / "docs" / "PLUGIN_GUIDE.md",
     ROOT / "docs" / "PUBLIC_ALPHA_NOTES.md",
     ROOT / "docs" / "CLI_REFERENCE.md",
     ROOT / "docs" / "EXTREME_COOKBOOK.md",
+    ROOT / "docs" / "PLUGIN_GUIDE.md",
     ROOT / "docs" / "IR_SYNTHESIS.md",
     ROOT / "docs" / "AI_AUGMENTATION.md",
     ROOT / "docs" / "SCHEMA_REFERENCE.md",
@@ -40,8 +41,8 @@ USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "docs" / "FIGURES.md",
     ROOT / "docs" / "HOMEBREW.md",
     ROOT / "docs" / "benchmarks" / "README.md",
-    ROOT / "docs" / "REFERENCES.md",
     ROOT / "docs" / "MUSICAL_PIECES_APPENDIX.md",
+    ROOT / "docs" / "REFERENCES.md",
 )
 
 
@@ -80,6 +81,10 @@ def _markdown_for_userguide(source: Path) -> str:
     """Return source Markdown adjusted for its new home in docs/USERGUIDE.md."""
 
     markdown = source.read_text(encoding="utf-8")
+    if source == ROOT / "docs" / "CLI_REFERENCE.md":
+        # Rich/Typer pads captured help to terminal width; that spacing has no
+        # semantic value inside fenced blocks and makes the generated book dirty.
+        markdown = "\n".join(line.rstrip() for line in markdown.splitlines()) + "\n"
     if source == ROOT / "README.md":
         markdown = markdown.replace('src="docs/assets/', 'src="assets/')
         markdown = markdown.replace("](docs/assets/", "](assets/")
@@ -100,12 +105,24 @@ def _pandoc_base_command(markdown_path: Path, author: str) -> list[str]:
         "--toc",
         "--number-sections",
         "--standalone",
+        "--top-level-division=chapter",
         "--resource-path=.:docs:examples",
         "--metadata=title:verbx User Guide",
+        "--metadata=subtitle:Reverb, Spatial Audio, Dereverberation, and Plug-in Design",
         f"--metadata=author:{author}",
         f"--metadata=date:{generated_on}",
         "--include-in-header",
         str(PDF_PREAMBLE),
+        "--include-in-header",
+        str(CARD_ILLUSTRATIONS),
+        "-V",
+        "documentclass=book",
+        "-V",
+        "classoption=openany",
+        "-V",
+        "papersize=letter",
+        "-V",
+        "toc-depth=2",
         "-V",
         "geometry:margin=1in",
         "-V",
@@ -260,11 +277,20 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
             + "\n```"
         )
 
+    markdown = _remove_generated_pdf_preamble(markdown)
+    markdown = _add_book_parts(markdown)
     markdown = re.sub(r'(?:<a\s+id="[^"]+"></a>)+', replace_anchor_run, markdown)
     markdown = _compact_illustrated_guide(markdown)
+    markdown = _illustrate_operational_cards(markdown)
+    markdown = _strip_plugin_heading_numbers(markdown)
     markdown = markdown.replace(
         "# Important Musical Pieces",
         "```{=latex}\n\\appendix\n```\n\n# Important Musical Pieces",
+        1,
+    )
+    markdown = markdown.replace(
+        "# verbx Academic References",
+        "```{=latex}\n\\backmatter\n```\n\n# verbx Academic References",
         1,
     )
     markdown = _add_pdf_index(markdown)
@@ -274,6 +300,135 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
         markdown,
         flags=re.MULTILINE,
     )
+
+
+def _remove_generated_pdf_preamble(markdown: str) -> str:
+    """Drop the consolidated-source manifest; the book has real front matter."""
+
+    readme_start = markdown.find("\n# verbx\n")
+    return markdown[readme_start + 1 :] if readme_start != -1 else markdown
+
+
+def _add_book_parts(markdown: str) -> str:
+    """Insert the three editorial divisions used by the PDF book."""
+
+    divisions = (
+        ("# verbx\n", "User Manual and Workflows"),
+        ("# VERBX AUv3/VST3 Plug-in Handbook\n", "Plug-in Architecture and Operational Cards"),
+        ("# IR Synthesis — A Dual-Layer Reference\n", "DSP, Impulse Responses, and Technical Reference"),
+    )
+    for heading, part_title in divisions:
+        marker = f"```{{=latex}}\n\\part{{{part_title}}}\n```\n\n"
+        markdown = markdown.replace(heading, marker + heading, 1)
+    return markdown
+
+
+def _illustrate_operational_cards(markdown: str) -> str:
+    """Give every generated operational card a dedicated vector illustration."""
+
+    start = markdown.find("## 19. Production Starting-Point Cards")
+    end = markdown.find("## 32. Closing Checklist", start)
+    if start == -1 or end == -1:
+        return markdown
+
+    handbook = markdown[start:end]
+    handbook = re.sub(r"(?m)^###\s+(?:19|2[0-9]|3[01])\.\d+\s+.*?\n+", "", handbook)
+
+    section_pattern = re.compile(r"(?m)^##\s+(?:19|2[0-9]|3[01])\.\s+(.+?)\s*$")
+
+    def section_visual(match: re.Match[str]) -> str:
+        title = _latex_text(match.group(1))
+        return (
+            match.group(0)
+            + "\n\n```{=latex}\n"
+            + f"\\verbxCardSection{{{title}}}\n"
+            + "```"
+        )
+
+    handbook = section_pattern.sub(section_visual, handbook)
+
+    card_pattern = re.compile(
+        r"(?ms)^(?P<title>\*\*(?:Production|Automation|Quality|Validation|Troubleshooting|Preset|Interaction|Audition|Asset|Release|Bus|Signal-test|Triage) card.*?\*\*)\n"
+        r"(?P<body>.*?)(?=^\\newpage\s*$)"
+    )
+
+    def illustrate_card(match: re.Match[str]) -> str:
+        title_line = match.group("title")
+        title = title_line.removeprefix("**").removesuffix("**")
+        command = _card_visual_command(title)
+        return (
+            "```{=latex}\n\\clearpage\n```\n\n"
+            + title_line
+            + "\n"
+            + match.group("body").rstrip()
+            + "\n\n```{=latex}\n"
+            + "\\vfill\n"
+            + command
+            + "\n```\n\n"
+        )
+
+    handbook, card_count = card_pattern.subn(illustrate_card, handbook)
+    if card_count != 588:
+        raise ValueError(f"Expected 588 operational cards, found {card_count}")
+
+    handbook = re.sub(
+        r"(?m)^(#{2,3})\s+(?:\d+(?:\.\d+)*)\.?(?:\s+)(.+?)$",
+        r"\1 \2",
+        handbook,
+    )
+    return markdown[:start] + handbook + markdown[end:]
+
+
+def _strip_plugin_heading_numbers(markdown: str) -> str:
+    """Let the book class number structural headings without duplicated labels."""
+
+    return re.sub(
+        r"(?m)^(#{2,3})\s+(?:\d+(?:\.\d+)*)\.?(?:\s+)(.+?)$",
+        r"\1 \2",
+        markdown,
+    )
+
+
+def _card_visual_command(title: str) -> str:
+    """Map a generated card title to one of the book's diagram grammars."""
+
+    patterns: tuple[tuple[str, str], ...] = (
+        (r"Production card: (.+) in (.+)", "verbxProductionVisual"),
+        (r"Automation card: (.+) - (.+)", "verbxAutomationVisual"),
+        (r"Validation card: (.+) - (.+)", "verbxValidationVisual"),
+        (r"Preset card: (.+) / (.+)", "verbxPresetVisual"),
+        (r"Interaction card \d+: (.+) with (.+)", "verbxInteractionVisual"),
+        (r"Audition card: (.+) on (.+)", "verbxMonitoringVisual"),
+        (r"Asset card: (.+) - (.+)", "verbxAssetVisual"),
+        (r"Release card: (.+) - (.+)", "verbxReleaseVisual"),
+        (r"Bus card: (.+) - (.+)", "verbxBusVisual"),
+        (r"Signal-test card: (.+) with (.+)", "verbxSignalVisual"),
+        (r"Triage card: (.+) - (.+)", "verbxTriageVisual"),
+    )
+    for pattern, macro in patterns:
+        match = re.fullmatch(pattern, title)
+        if match:
+            left, right = (_latex_text(value) for value in match.groups())
+            return rf"\{macro}{{{left}}}{{{right}}}"
+
+    quality = re.fullmatch(r"Quality card \d+: (\d+) Hz, (.+), (\d+) frames", title)
+    if quality:
+        rate, mode, block = (_latex_text(value) for value in quality.groups())
+        return rf"\verbxQualityVisual{{{rate} Hz}}{{{mode}}}{{{block} frames}}"
+
+    troubleshooting = re.fullmatch(r"Troubleshooting card \d+: (.+)", title)
+    if troubleshooting:
+        return rf"\verbxTroubleshootingVisual{{{_latex_text(troubleshooting.group(1))}}}"
+    raise ValueError(f"No illustration mapping for card title: {title}")
+
+
+def _latex_text(value: str) -> str:
+    replacements = {
+        "\\": r"\textbackslash{}", "&": r"\&", "%": r"\%", "$": r"\$",
+        "#": r"\#", "_": r"\_", "{": r"\{", "}": r"\}",
+        "~": r"\textasciitilde{}", "^": r"\textasciicircum{}",
+    }
+    return "".join(replacements.get(char, char) for char in value)
 
 
 def _compact_illustrated_guide(markdown: str) -> str:
@@ -349,8 +504,9 @@ def _add_pdf_index(markdown: str) -> str:
         + "\n\n```{=latex}\n"
         + "\\clearpage\n"
         + "\\phantomsection\n"
-        + "\\addcontentsline{toc}{section}{Index}\n"
+        + "\\addcontentsline{toc}{chapter}{Index}\n"
         + "\\printindex\n"
+        + "\\verbxColophon\n"
         + "```\n"
     )
 
