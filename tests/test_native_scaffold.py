@@ -289,6 +289,9 @@ def test_plugin_metadata_uses_colby_leider_vendor_identity() -> None:
     assert "PLUGIN_MANUFACTURER_CODE Clby" in cmake_source
     assert 'CMAKE_OSX_ARCHITECTURES "arm64;x86_64"' in cmake_source
     assert 'CMAKE_OSX_DEPLOYMENT_TARGET "12.0"' in cmake_source
+    assert "juce_audio_plugin_client_AUv3" in cmake_source
+    assert "_NSExtensionMain" in cmake_source
+    assert "Contents/PlugIns/VERBX.appex" in cmake_source
 
 
 def test_native_render_stereo_pcm16_output(tmp_path: Path) -> None:

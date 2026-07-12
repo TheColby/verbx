@@ -26,7 +26,15 @@ package, add `-DVERBX_JUCE_SOURCE_DIR=/path/to/JUCE`.
 
 Release artifacts are written beneath
 `build/native/verbx_plugin-juce/VERBXPlugin_artefacts/Release/` as
-`Standalone/VERBX.app`, `AU/VERBX.component`, and `VST3/VERBX.vst3`.
+`Standalone/VERBX.app`, `AU/VERBX.component`, `AUv3/VERBX.appex`, and
+`VST3/VERBX.vst3`. The standalone container embeds the true AUv3 extension at
+`VERBX.app/Contents/PlugIns/VERBX.appex`; install and sign the containing app
+rather than copying the `.appex` into the AUv2 Components directory.
+
+VERBX enables JUCE's AUv3 wrapper for standard macOS CMake generators and
+supplies the app-extension entry point plus container embed step itself. This
+keeps AUv3 builds available when Xcode's project generator is unavailable while
+retaining the same JUCE processor, editor, parameter state, and DSP core.
 
 The C++ shell consumes the realtime-safe C foundation in `native/verbx_c`:
 

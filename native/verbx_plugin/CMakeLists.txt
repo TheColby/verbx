@@ -31,6 +31,24 @@ else()
   find_package(JUCE CONFIG REQUIRED)
 endif()
 
+# JUCE limits AUv3 to the Xcode generator because only Xcode embeds app
+# extensions automatically. The wrapper itself builds correctly with standard
+# macOS generators; VERBX supplies the missing container embed step below.
+if(APPLE AND NOT CMAKE_GENERATOR STREQUAL "Xcode")
+  if(NOT TARGET juce_audio_plugin_client_AUv3)
+    get_target_property(verbx_juce_plugin_client_path
+      juce::juce_audio_plugin_client INTERFACE_JUCE_MODULE_PATH)
+    get_filename_component(verbx_juce_modules_path
+      "${verbx_juce_plugin_client_path}" DIRECTORY)
+    _juce_add_plugin_wrapper_target(AUv3
+      "${verbx_juce_plugin_client_path}" "${verbx_juce_modules_path}")
+  endif()
+
+  function(_juce_get_platform_plugin_kinds out)
+    set(${out} Standalone AUv3 AU VST LV2 Unity VST3 AAX PARENT_SCOPE)
+  endfunction()
+endif()
+
 add_subdirectory(../verbx_c verbx_c_core_build)
 
 juce_add_plugin(VERBXPlugin
@@ -74,3 +92,22 @@ target_compile_definitions(VERBXPlugin
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
 )
+
+if(TARGET VERBXPlugin_AUv3 AND TARGET VERBXPlugin_Standalone
+   AND NOT CMAKE_GENERATOR STREQUAL "Xcode")
+  target_compile_options(VERBXPlugin_AUv3 PRIVATE -fapplication-extension)
+  target_link_options(VERBXPlugin_AUv3 PRIVATE
+    -fapplication-extension
+    "LINKER:-e,_NSExtensionMain"
+  )
+
+  add_custom_command(TARGET VERBXPlugin_Standalone POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E make_directory
+      "$<TARGET_BUNDLE_DIR:VERBXPlugin_Standalone>/Contents/PlugIns"
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory
+      "$<TARGET_BUNDLE_DIR:VERBXPlugin_AUv3>"
+      "$<TARGET_BUNDLE_DIR:VERBXPlugin_Standalone>/Contents/PlugIns/VERBX.appex"
+    COMMENT "Embedding VERBX AUv3 extension in the standalone container"
+    VERBATIM
+  )
+endif()

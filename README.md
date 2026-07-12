@@ -80,7 +80,8 @@ an existing checkout, use:
 The default macOS plug-in destinations are
 `~/Library/Audio/Plug-Ins/Components/VERBX.component` and
 `~/Library/Audio/Plug-Ins/VST3/VERBX.vst3`; the standalone app is installed as
-`~/Applications/VERBX.app`. Linux installs VST3 to `~/.vst3` and the standalone
+`~/Applications/VERBX.app`. That app contains and registers the true AUv3
+extension at `Contents/PlugIns/VERBX.appex`. Linux installs VST3 to `~/.vst3` and the standalone
 binary to `~/.local/bin/verbx-plugin`. Restart or rescan the audio host after
 installation. Run `./install.sh --help` for component skips, custom destination
 directories, offline operation, and build controls.
@@ -264,7 +265,9 @@ signed reinstall and Audio Unit cache rebuild on macOS:
 ```
 
 VERBX appears under the plug-in vendor **Colby Leider**. Logic and GarageBand
-use the Audio Unit build; VST3 hosts use `VERBX.vst3`. The installer now seals
+can use the AUv2 component or the AUv3 app extension; VST3 hosts use
+`VERBX.vst3`. The installer now signs the nested AUv3 extension before its
+containing app, registers it with PlugInKit, and seals
 and strictly verifies every installed macOS bundle, touches the plug-in paths,
 and restarts the Audio Component Registrar. The explicit cache-reset option
 backs up existing Apple Audio Unit cache files beneath

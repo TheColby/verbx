@@ -44,6 +44,10 @@ All notable changes to this project are documented in this file.
   long-tail W64 output.
 
 ### Added
+- Added a true macOS AUv3 app extension: the JUCE AUv3 wrapper now builds with
+  standard CMake generators, links through `NSExtensionMain`, and embeds as
+  `VERBX.app/Contents/PlugIns/VERBX.appex`. The installer nested-signs and
+  registers the extension with PlugInKit under Colby Leider.
 - Expanded `./install.sh` into a complete per-user installer for Python runtime
   extras, man pages, `verbx-c`, Release Audio Unit/VST3 bundles, and the JUCE
   standalone app, with pinned JUCE download, offline source, custom destination,

@@ -88,9 +88,17 @@ install_bundle() {
 
 sign_and_verify_bundle() {
   local bundle="$1"
+  local entitlements="${2:-}"
+  local sign_nested="${3:-1}"
+  local codesign_args=(--force --sign -)
   [[ "$OS_NAME" == Darwin ]] || return 0
   command -v codesign >/dev/null 2>&1 || die "codesign is required on macOS"
-  codesign --force --deep --sign - "$bundle"
+  [[ "$sign_nested" -eq 0 ]] || codesign_args+=(--deep)
+  if [[ -n "$entitlements" ]]; then
+    [[ -f "$entitlements" ]] || die "entitlements file not found: $entitlements"
+    codesign_args+=(--entitlements "$entitlements")
+  fi
+  codesign "${codesign_args[@]}" "$bundle"
   codesign --verify --deep --strict --verbose=2 "$bundle"
 }
 
@@ -230,7 +238,11 @@ printf '  plug-ins:    %s\n' "$([[ "$WITH_PLUGINS" -eq 1 ]] && printf yes || pri
 if [[ "$WITH_PLUGINS" -eq 1 ]]; then
   [[ "$OS_NAME" != Darwin ]] || printf '  Audio Unit:  %s/VERBX.component\n' "$AU_DIR"
   printf '  VST3:        %s/VERBX.vst3\n' "$VST3_DIR"
-  [[ "$WITH_STANDALONE" -eq 0 ]] || printf '  standalone:  %s\n' "$APP_DIR"
+  if [[ "$WITH_STANDALONE" -eq 1 ]]; then
+    printf '  standalone:  %s\n' "$APP_DIR"
+    [[ "$OS_NAME" != Darwin ]] || \
+      printf '  AUv3:        %s/VERBX.app/Contents/PlugIns/VERBX.appex\n' "$APP_DIR"
+  fi
 fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
@@ -366,8 +378,30 @@ if [[ "$WITH_PLUGINS" -eq 1 ]]; then
     if [[ "$OS_NAME" == Darwin ]]; then
       standalone_source="${artifact_root}/Standalone/VERBX.app"
       [[ -d "$standalone_source" ]] || die "standalone artifact not found: $standalone_source"
+      auv3_source="${standalone_source}/Contents/PlugIns/VERBX.appex"
+      [[ -d "$auv3_source" ]] || die "embedded AUv3 artifact not found: $auv3_source"
       install_bundle "$standalone_source" "$APP_DIR"
-      sign_and_verify_bundle "${APP_DIR}/VERBX.app"
+      installed_app="${APP_DIR}/VERBX.app"
+      installed_auv3="${installed_app}/Contents/PlugIns/VERBX.appex"
+      auv3_entitlements="${PLUGIN_BUILD_DIR}/VERBXPlugin_artefacts/JuceLibraryCode/VERBXPlugin_AUv3.entitlements"
+      sign_and_verify_bundle "$installed_auv3" "$auv3_entitlements"
+      sign_and_verify_bundle "$installed_app" "" 0
+
+      if command -v pluginkit >/dev/null 2>&1; then
+        lsregister="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+        [[ ! -x "$lsregister" ]] || "$lsregister" -f "$installed_app" >/dev/null 2>&1 || true
+        if pluginkit -a "$installed_auv3" >/dev/null 2>&1 && \
+           pluginkit -e use -i com.colbyleider.verbx.verbxAUv3 >/dev/null 2>&1; then
+          auv3_registration="$(pluginkit -m -i com.colbyleider.verbx.verbxAUv3 2>/dev/null || true)"
+        else
+          auv3_registration=""
+        fi
+        if [[ "$auv3_registration" == *"com.colbyleider.verbx.verbxAUv3"* ]]; then
+          printf 'Registered AUv3 extension: %s\n' "$installed_auv3"
+        else
+          printf 'warning: PlugInKit registration is pending; launch VERBX.app once or log out and back in.\n' >&2
+        fi
+      fi
     else
       standalone_source="${artifact_root}/Standalone/VERBX"
       [[ -x "$standalone_source" ]] || die "standalone artifact not found: $standalone_source"

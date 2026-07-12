@@ -382,8 +382,10 @@ DSP reverb family and assess which are missing or under-developed in verbx._
 ## 9. Known Constraints (Alpha)
 
 - The Python `0.7.x` line remains offline/realtime-CLI focused. The `v0.8`
-  native track now includes a usable mono/stereo AU/VST3/standalone plug-in
-  slice, but host certification and AUv3 extension packaging are not complete.
+  native track now includes a usable mono/stereo AUv2/AUv3/VST3/standalone
+  plug-in slice. The true AUv3 extension is embedded, sandbox-entitled, signed,
+  and PlugInKit-registered through its containing app; broad host certification
+  is still incomplete.
 - Native quality modes expose the intended processing target; production
   oversampling, true lookahead reverse processing, and multichannel plug-in
   layouts remain parity work.
