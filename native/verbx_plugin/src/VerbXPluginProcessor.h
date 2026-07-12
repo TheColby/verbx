@@ -2,7 +2,9 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include <array>
 #include <atomic>
+#include <cstdint>
 
 extern "C" {
 #include "verbx_c/plugin_realtime.h"
@@ -37,6 +39,8 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState& state();
+    int popAnalyzerSamples(float* destination, int maxSamples) noexcept;
+    double analyzerSampleRate() const noexcept;
 
 private:
     struct RealtimeParameterPointers {
@@ -58,9 +62,16 @@ private:
     RealtimeParameterPointers parameterPointers_{};
     verbx_plugin_realtime_context realtimeContext_{};
 
+    static constexpr std::uint32_t analyzerBufferCapacity = 1U << 15U;
+    std::array<float, analyzerBufferCapacity> analyzerBuffer_{};
+    std::atomic<std::uint32_t> analyzerWritePosition_{0U};
+    std::atomic<std::uint32_t> analyzerReadPosition_{0U};
+    std::atomic<double> analyzerSampleRate_{48000.0};
+
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void cacheParameterPointers();
     verbx_plugin_realtime_params currentRealtimeParams() const;
+    void pushAnalyzerSamples(const juce::AudioBuffer<float>& buffer) noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VerbXPluginProcessor)
 };

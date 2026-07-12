@@ -114,6 +114,10 @@ void VerbXPluginProcessor::cacheParameterPointers() {
 }
 
 void VerbXPluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
+    analyzerSampleRate_.store(sampleRate, std::memory_order_release);
+    analyzerReadPosition_.store(0U, std::memory_order_relaxed);
+    analyzerWritePosition_.store(0U, std::memory_order_release);
+
     char error[256] = {};
     verbx_plugin_realtime_config config{};
     config.host_sample_rate = static_cast<unsigned int>(sampleRate);
@@ -200,6 +204,57 @@ void VerbXPluginProcessor::processBlock(
         &params,
         nullptr
     );
+    pushAnalyzerSamples(buffer);
+}
+
+void VerbXPluginProcessor::pushAnalyzerSamples(const juce::AudioBuffer<float>& buffer) noexcept {
+    const auto channels = buffer.getNumChannels();
+    const auto frames = buffer.getNumSamples();
+    if (channels <= 0 || frames <= 0) {
+        return;
+    }
+
+    const auto write = analyzerWritePosition_.load(std::memory_order_relaxed);
+    const auto read = analyzerReadPosition_.load(std::memory_order_acquire);
+    const auto occupied = juce::jmin(write - read, analyzerBufferCapacity);
+    const auto writable = analyzerBufferCapacity - occupied;
+    const auto samplesToWrite = juce::jmin(
+        static_cast<std::uint32_t>(frames),
+        writable
+    );
+    const auto channelScale = 1.0f / static_cast<float>(channels);
+
+    for (std::uint32_t sample = 0U; sample < samplesToWrite; ++sample) {
+        float mono = 0.0f;
+        for (int channel = 0; channel < channels; ++channel) {
+            mono += buffer.getReadPointer(channel)[sample];
+        }
+        analyzerBuffer_[(write + sample) & (analyzerBufferCapacity - 1U)] = mono * channelScale;
+    }
+    analyzerWritePosition_.store(write + samplesToWrite, std::memory_order_release);
+}
+
+int VerbXPluginProcessor::popAnalyzerSamples(float* destination, int maxSamples) noexcept {
+    if (destination == nullptr || maxSamples <= 0) {
+        return 0;
+    }
+
+    const auto read = analyzerReadPosition_.load(std::memory_order_relaxed);
+    const auto write = analyzerWritePosition_.load(std::memory_order_acquire);
+    const auto available = juce::jmin(write - read, analyzerBufferCapacity);
+    const auto samplesToRead = juce::jmin(
+        static_cast<std::uint32_t>(maxSamples),
+        available
+    );
+    for (std::uint32_t sample = 0U; sample < samplesToRead; ++sample) {
+        destination[sample] = analyzerBuffer_[(read + sample) & (analyzerBufferCapacity - 1U)];
+    }
+    analyzerReadPosition_.store(read + samplesToRead, std::memory_order_release);
+    return static_cast<int>(samplesToRead);
+}
+
+double VerbXPluginProcessor::analyzerSampleRate() const noexcept {
+    return analyzerSampleRate_.load(std::memory_order_acquire);
 }
 
 juce::AudioProcessorEditor* VerbXPluginProcessor::createEditor() {

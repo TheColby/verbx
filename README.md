@@ -47,6 +47,8 @@ The first native plug-in foundation is implemented under
 - explicit Freeze and Reverse parameters
 - Target 192 kHz quality mode by default with a 32-bit-float callback contract
 - cached lock-free parameter reads on the audio callback
+- overlaid realtime post-DSP spectrum analyzer with an 8192-point Hann FFT,
+  logarithmic frequency grid, smoothed response, and peak trace
 - pass-through-safe realtime core while the native reverb DSP is moved behind
   the callback boundary
 
@@ -61,6 +63,9 @@ cmake -S native/verbx_plugin -B build/native/verbx_plugin-juce \
   -DVERBX_ENABLE_JUCE_PLUGIN=ON
 cmake --build build/native/verbx_plugin-juce --config Release
 ```
+
+Use `-DVERBX_JUCE_SOURCE_DIR=/path/to/JUCE` when building from a JUCE source
+checkout instead of an installed CMake package.
 
 ---
 

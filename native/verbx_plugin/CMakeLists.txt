@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 project(verbx_plugin VERSION 0.8.0 LANGUAGES C CXX)
 
 option(VERBX_ENABLE_JUCE_PLUGIN "Build the VERBX AU/AUv3/VST3 plug-in target" OFF)
+set(VERBX_JUCE_SOURCE_DIR "" CACHE PATH "Optional path to a JUCE source checkout")
 
 if(NOT VERBX_ENABLE_JUCE_PLUGIN)
   message(STATUS "VERBX_ENABLE_JUCE_PLUGIN is OFF; JUCE plug-in target is not built.")
@@ -13,7 +14,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(JUCE CONFIG REQUIRED)
+if(VERBX_JUCE_SOURCE_DIR)
+  add_subdirectory("${VERBX_JUCE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/JUCE")
+else()
+  find_package(JUCE CONFIG REQUIRED)
+endif()
 
 add_subdirectory(../verbx_c verbx_c_core_build)
 
@@ -46,6 +51,7 @@ target_link_libraries(VERBXPlugin
   PRIVATE
     verbx_c_core
     juce::juce_audio_utils
+    juce::juce_dsp
 )
 
 target_compile_definitions(VERBXPlugin

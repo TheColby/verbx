@@ -79,6 +79,8 @@ The first native plug-in foundation is implemented under
 - explicit Freeze and Reverse parameters
 - Target 192 kHz quality mode by default with a 32-bit-float callback contract
 - cached lock-free parameter reads on the audio callback
+- overlaid realtime post-DSP spectrum analyzer with an 8192-point Hann FFT,
+  logarithmic frequency grid, smoothed response, and peak trace
 - pass-through-safe realtime core while the native reverb DSP is moved behind
   the callback boundary
 
@@ -93,6 +95,9 @@ cmake -S native/verbx_plugin -B build/native/verbx_plugin-juce \
   -DVERBX_ENABLE_JUCE_PLUGIN=ON
 cmake --build build/native/verbx_plugin-juce --config Release
 ```
+
+Use `-DVERBX_JUCE_SOURCE_DIR=/path/to/JUCE` when building from a JUCE source
+checkout instead of an installed CMake package.
 
 ---
 
@@ -5772,7 +5777,7 @@ already exists, and the operational practices required to turn that foundation
 into a dependable AU, AUv3, VST3, and standalone product. It is deliberately
 honest about maturity. The repository contains a tested parameter manifest, a
 realtime context boundary, a guarded C++17/JUCE shell, state serialization, and
-an editor scaffold. The current realtime core is pass-through-safe; it is not
+a realtime spectrum-overlay component. The current realtime core is pass-through-safe; it is not
 yet the finished reverb engine. The full-screen image below is the approved
 visual target and a live design-prototype capture, not a screenshot of a
 shipping binary.
@@ -5818,8 +5823,12 @@ The first foundation slice is intentionally narrow and testable:
   standalone targets.
 - The processor caches atomic parameter pointers during construction so the
   callback reads values without rebuilding strings or searching parameter maps.
-- The editor is currently a resizable scaffold. The full visual prototype has
-  not yet been ported into production JUCE components.
+- The resizable editor includes a post-DSP spectrum overlay. A fixed SPSC ring
+  carries mono output snapshots off the callback; the message thread performs
+  an 8192-point Hann FFT at 30 visual frames per second, with logarithmic
+  frequency spacing, release smoothing, and a decaying peak trace.
+- The rest of the full visual prototype has not yet been ported into production
+  JUCE controls.
 
 This boundary is valuable even before the reverb DSP is connected. Host code,
 parameter identity, state recall, bus negotiation, callback constraints, and
@@ -5844,6 +5853,9 @@ cmake -S native/verbx_plugin -B build/native/verbx_plugin-juce \
   -DVERBX_ENABLE_JUCE_PLUGIN=ON
 cmake --build build/native/verbx_plugin-juce --config Release
 ```
+
+For a JUCE source checkout, add
+`-DVERBX_JUCE_SOURCE_DIR=/path/to/JUCE` to the configure command.
 
 The enabled target requests AU, AUv3, VST3, and Standalone formats. A successful
 compile is only the beginning of validation. The resulting formats must be
@@ -6035,6 +6047,12 @@ usable when its decorative visualization is disabled.
 Telemetry should be rate-limited and decoupled from audio. The editor reads
 snapshots; it does not interrogate mutable DSP structures. Closing the editor
 must not change the sound or CPU behavior of the processor.
+
+The implemented spectrum overlay follows that rule: the callback only writes
+post-DSP mono samples into a fixed lock-free ring and drops new analyzer samples
+if the display falls behind. The editor drains that ring, windows and transforms
+8192 samples, smooths the dB response, and paints the fill and peak paths at 30
+Hz. No FFT, path allocation, repaint, or UI lock occurs on the audio thread.
 
 ## 16. Compatibility Claims
 
