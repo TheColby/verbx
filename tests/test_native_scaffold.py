@@ -246,6 +246,37 @@ def test_native_install_script_installs_binary_and_man_page(tmp_path: Path) -> N
     assert version.stdout.strip() == "verbx-c 0.8.0-dev"
 
 
+def test_complete_installer_exposes_plugin_options_and_dry_run(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    script = repo_root / "install.sh"
+
+    help_result = subprocess.run(
+        [str(script), "--help"],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    assert "--juce-source" in help_result.stdout
+    assert "--skip-plugins" in help_result.stdout
+    assert "--skip-plugin-build" in help_result.stdout
+    assert "--vst3-dir" in help_result.stdout
+    assert "--dry-run" in help_result.stdout
+
+    prefix = tmp_path / "prefix"
+    plan_result = subprocess.run(
+        [str(script), "--prefix", str(prefix), "--dry-run"],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    assert f"prefix:      {prefix}" in plan_result.stdout
+    assert "Python CLI:  yes" in plan_result.stdout
+    assert "native CLI:  yes" in plan_result.stdout
+    assert "plug-ins:    yes" in plan_result.stdout
+
+
 def test_native_render_stereo_pcm16_output(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     exe = _build_native_executable(tmp_path)

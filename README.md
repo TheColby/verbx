@@ -62,7 +62,31 @@ The first native plug-in foundation is implemented under
 - 20 ms realtime parameter smoothing for host automation without zipper noise
 - complete initial 12-parameter JUCE control dock with effective-RT60 readout
 
-Repository builds do not require JUCE unless the plug-in target is enabled:
+The complete installer builds and installs the CLI, native executable, man
+pages, runtime extras, VST3, Audio Unit on macOS, and the standalone app:
+
+```bash
+./install.sh
+```
+
+If JUCE is not already available, the installer downloads the pinned JUCE
+`8.0.6` source release into `build/deps/JUCE`. For an offline installation or
+an existing checkout, use:
+
+```bash
+./install.sh --juce-source /path/to/JUCE
+```
+
+The default macOS plug-in destinations are
+`~/Library/Audio/Plug-Ins/Components/VERBX.component` and
+`~/Library/Audio/Plug-Ins/VST3/VERBX.vst3`; the standalone app is installed as
+`~/Applications/VERBX.app`. Linux installs VST3 to `~/.vst3` and the standalone
+binary to `~/.local/bin/verbx-plugin`. Restart or rescan the audio host after
+installation. Run `./install.sh --help` for component skips, custom destination
+directories, offline operation, and build controls.
+
+Repository builds do not require JUCE unless the plug-in target is enabled
+manually:
 
 ```bash
 # Verify the guarded scaffold without JUCE.
@@ -218,13 +242,19 @@ For realtime audio device support:
 pip install -e ".[realtime]"
 ```
 
-**With the install script (installs man pages too):**
+**Complete installation, including native CLI and plug-ins:**
 
 ```bash
-./install.sh --prefix "$HOME/.local"
+./install.sh
 verbx --help && man verbx-render
 man verbx-dereverb
 ```
+
+This installs the Python package with realtime and SOFA runtime extras by
+default. Use `--minimal-python`, `--skip-native`, `--skip-plugins`, `--no-man`,
+or custom `--au-dir`, `--vst3-dir`, and `--app-dir` destinations when a smaller
+or system-managed installation is preferable. Inspect the complete plan without
+changing the machine using `./install.sh --dry-run`.
 
 **With Homebrew (macOS):**
 

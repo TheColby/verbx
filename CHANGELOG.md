@@ -36,6 +36,10 @@ All notable changes to this project are documented in this file.
   long-tail W64 output.
 
 ### Added
+- Expanded `./install.sh` into a complete per-user installer for Python runtime
+  extras, man pages, `verbx-c`, Release Audio Unit/VST3 bundles, and the JUCE
+  standalone app, with pinned JUCE download, offline source, custom destination,
+  component-skip, existing-artifact, and dry-run controls.
 - Promoted the native JUCE plug-in from pass-through scaffold to an audible,
   allocation-free mono/stereo Schroeder reverb with the complete initial
   12-parameter control dock, effective-RT60 display, Freeze, reverse-style

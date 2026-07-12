@@ -11,158 +11,321 @@ usage() {
   fi
 
   cat <<EOF
-verbx install helper
+verbx complete install helper
 
-Installs the Python package and man pages from this repository.
+Installs the Python CLI, runtime extras, native CLI, man pages, and JUCE plug-ins.
 
 Usage:
   ${invocation} [options]
 
-Options:
-  --prefix PATH       Install prefix for man pages (default: ~/.local)
-  --python PATH       Python executable to use (default: python3)
-  --editable          Install package in editable mode (default)
-  --wheel             Install package as regular package (non-editable)
-  --dev               Include dev extras (.[dev]) during install
+General options:
+  --prefix PATH       CLI/native prefix (default: ~/.local)
+  --python PATH       Python executable (default: python3)
+  --editable          Install Python package in editable mode (default)
+  --wheel             Install Python package as a regular package
+  --minimal-python    Omit realtime and SOFA Python extras
+  --dev               Include Python development extras
   --skip-python-install
-                      Only install man pages; skip pip package install step
-  --no-man            Skip man page installation
-  --man-dir PATH      Override man page root (default: <prefix>/share/man)
+                      Skip the Python package
+  --skip-native       Skip the native verbx-c executable
+  --no-man            Skip all man pages
+  --man-dir PATH      Override man-page root (default: <prefix>/share/man)
+
+Plug-in options:
+  --skip-plugins      Skip JUCE plug-in build and installation
+  --skip-plugin-build Install existing Release artifacts without rebuilding
+  --plugin-build-dir PATH
+                      Plug-in build directory
+  --juce-source PATH  Use a local JUCE source checkout
+  --juce-version VER  JUCE tag downloaded when needed (default: 8.0.6)
+  --no-juce-download  Require local JUCE source or an installed JUCE package
+  --au-dir PATH       Audio Unit destination (macOS default: ~/Library/Audio/Plug-Ins/Components)
+  --vst3-dir PATH     VST3 destination (macOS: ~/Library/Audio/Plug-Ins/VST3; Linux: ~/.vst3)
+  --app-dir PATH      Standalone app destination (macOS default: ~/Applications)
+  --no-standalone     Do not install the standalone plug-in host
+  --jobs N            Parallel build jobs (default: detected CPU count)
+  --dry-run           Print the resolved installation plan and exit
   -h, --help          Show this help and exit
 
 Examples:
   ${invocation}
-  ${invocation} --dev --prefix "\$HOME/.local"
-  ${invocation} --skip-python-install --prefix "\$HOME/.local"
-  ${invocation} --wheel --no-man
+  ${invocation} --juce-source /path/to/JUCE
+  ${invocation} --wheel --prefix "\$HOME/.local"
+  ${invocation} --skip-plugin-build --skip-python-install --skip-native --no-man
+  ${invocation} --skip-plugins --dev
 EOF
+}
+
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+require_value() {
+  [[ $# -ge 2 && -n "${2:-}" ]] || die "$1 requires a value"
+}
+
+install_bundle() {
+  local source="$1"
+  local destination_dir="$2"
+  local destination temporary
+  destination="${destination_dir}/$(basename "$source")"
+  temporary="${destination}.verbx-install.$$"
+
+  mkdir -p "$destination_dir"
+  rm -rf "$temporary"
+  cp -R "$source" "$temporary"
+  rm -rf "$destination"
+  mv "$temporary" "$destination"
+  printf 'Installed %s\n' "$destination"
+}
+
+cpu_count() {
+  if command -v sysctl >/dev/null 2>&1; then
+    sysctl -n hw.logicalcpu 2>/dev/null || true
+  elif command -v nproc >/dev/null 2>&1; then
+    nproc
+  fi
 }
 
 PREFIX="${HOME}/.local"
 PYTHON_BIN="python3"
 INSTALL_MODE="editable"
+WITH_RUNTIME_EXTRAS=1
 WITH_DEV=0
 INSTALL_PYTHON=1
+WITH_NATIVE=1
 WITH_MAN=1
 MAN_DIR=""
+WITH_PLUGINS=1
+BUILD_PLUGINS=1
+PLUGIN_BUILD_DIR=""
+JUCE_SOURCE="${JUCE_SOURCE:-${JUCE_DIR:-}}"
+JUCE_VERSION="8.0.6"
+ALLOW_JUCE_DOWNLOAD=1
+AU_DIR=""
+VST3_DIR=""
+APP_DIR=""
+WITH_STANDALONE=1
+JOBS="$(cpu_count)"
+JOBS="${JOBS:-4}"
+DRY_RUN=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --prefix)
-      PREFIX="$2"
+    --prefix|--python|--man-dir|--plugin-build-dir|--juce-source|--juce-version|--au-dir|--vst3-dir|--app-dir|--jobs)
+      require_value "$1" "${2:-}"
+      case "$1" in
+        --prefix) PREFIX="$2" ;;
+        --python) PYTHON_BIN="$2" ;;
+        --man-dir) MAN_DIR="$2" ;;
+        --plugin-build-dir) PLUGIN_BUILD_DIR="$2" ;;
+        --juce-source) JUCE_SOURCE="$2" ;;
+        --juce-version) JUCE_VERSION="$2" ;;
+        --au-dir) AU_DIR="$2" ;;
+        --vst3-dir) VST3_DIR="$2" ;;
+        --app-dir) APP_DIR="$2" ;;
+        --jobs) JOBS="$2" ;;
+      esac
       shift 2
       ;;
-    --python)
-      PYTHON_BIN="$2"
-      shift 2
-      ;;
-    --editable)
-      INSTALL_MODE="editable"
-      shift
-      ;;
-    --wheel)
-      INSTALL_MODE="wheel"
-      shift
-      ;;
-    --dev)
-      WITH_DEV=1
-      shift
-      ;;
-    --skip-python-install)
-      INSTALL_PYTHON=0
-      shift
-      ;;
-    --no-man)
-      WITH_MAN=0
-      shift
-      ;;
-    --man-dir)
-      MAN_DIR="$2"
-      shift 2
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
+    --editable) INSTALL_MODE="editable"; shift ;;
+    --wheel) INSTALL_MODE="wheel"; shift ;;
+    --minimal-python) WITH_RUNTIME_EXTRAS=0; shift ;;
+    --dev) WITH_DEV=1; shift ;;
+    --skip-python-install) INSTALL_PYTHON=0; shift ;;
+    --skip-native) WITH_NATIVE=0; shift ;;
+    --no-man) WITH_MAN=0; shift ;;
+    --skip-plugins) WITH_PLUGINS=0; shift ;;
+    --skip-plugin-build) BUILD_PLUGINS=0; shift ;;
+    --no-juce-download) ALLOW_JUCE_DOWNLOAD=0; shift ;;
+    --no-standalone) WITH_STANDALONE=0; shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
+    -h|--help) usage; exit 0 ;;
     *)
-      echo "Unknown option: $1" >&2
+      printf 'Unknown option: %s\n\n' "$1" >&2
       usage >&2
       exit 2
       ;;
   esac
 done
 
-if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-  echo "Python executable not found: $PYTHON_BIN" >&2
-  exit 1
-fi
-
-if [[ -z "$MAN_DIR" ]]; then
-  MAN_DIR="${PREFIX}/share/man"
-fi
+[[ "$JOBS" =~ ^[1-9][0-9]*$ ]] || die "--jobs must be a positive integer"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$REPO_ROOT"
+PLUGIN_BUILD_DIR="${PLUGIN_BUILD_DIR:-${REPO_ROOT}/build/native/verbx_plugin-juce}"
+MAN_DIR="${MAN_DIR:-${PREFIX}/share/man}"
+OS_NAME="$(uname -s)"
 
-EXTRA=""
-if [[ "$WITH_DEV" -eq 1 ]]; then
-  EXTRA="[dev]"
+case "$OS_NAME" in
+  Darwin)
+    AU_DIR="${AU_DIR:-${HOME}/Library/Audio/Plug-Ins/Components}"
+    VST3_DIR="${VST3_DIR:-${HOME}/Library/Audio/Plug-Ins/VST3}"
+    APP_DIR="${APP_DIR:-${HOME}/Applications}"
+    ;;
+  Linux)
+    AU_DIR="${AU_DIR:-}"
+    VST3_DIR="${VST3_DIR:-${HOME}/.vst3}"
+    APP_DIR="${APP_DIR:-${PREFIX}/bin}"
+    ;;
+  *)
+    die "unsupported platform: ${OS_NAME}; use macOS or Linux"
+    ;;
+esac
+
+printf 'verbx installation plan\n'
+printf '  repository:  %s\n' "$REPO_ROOT"
+printf '  prefix:      %s\n' "$PREFIX"
+printf '  Python CLI:  %s\n' "$([[ "$INSTALL_PYTHON" -eq 1 ]] && printf yes || printf no)"
+printf '  native CLI:  %s\n' "$([[ "$WITH_NATIVE" -eq 1 ]] && printf yes || printf no)"
+printf '  man pages:   %s\n' "$([[ "$WITH_MAN" -eq 1 ]] && printf "$MAN_DIR" || printf no)"
+printf '  plug-ins:    %s\n' "$([[ "$WITH_PLUGINS" -eq 1 ]] && printf yes || printf no)"
+if [[ "$WITH_PLUGINS" -eq 1 ]]; then
+  [[ "$OS_NAME" != Darwin ]] || printf '  Audio Unit:  %s/VERBX.component\n' "$AU_DIR"
+  printf '  VST3:        %s/VERBX.vst3\n' "$VST3_DIR"
+  [[ "$WITH_STANDALONE" -eq 0 ]] || printf '  standalone:  %s\n' "$APP_DIR"
 fi
 
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  exit 0
+fi
+
+cd "$REPO_ROOT"
+
 if [[ "$INSTALL_PYTHON" -eq 1 ]]; then
-  PIP_ARGS=()
+  command -v "$PYTHON_BIN" >/dev/null 2>&1 || die "Python executable not found: $PYTHON_BIN"
+  extras=()
+  [[ "$WITH_RUNTIME_EXTRAS" -eq 0 ]] || extras+=(realtime sofa)
+  [[ "$WITH_DEV" -eq 0 ]] || extras+=(dev)
+  extra_spec=""
+  if [[ "${#extras[@]}" -gt 0 ]]; then
+    extra_spec="[$(IFS=,; printf '%s' "${extras[*]}")]"
+  fi
+
+  pip_args=()
   if "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1
 import importlib.util
 raise SystemExit(0 if importlib.util.find_spec("hatchling") is not None else 1)
 PY
   then
-    # Use local backend when available to reduce network dependency.
-    PIP_ARGS+=(--no-build-isolation)
+    pip_args+=(--no-build-isolation)
   fi
 
-  if [[ "$INSTALL_MODE" == "editable" ]]; then
-    echo "Installing verbx in editable mode..."
-    if [[ "${#PIP_ARGS[@]}" -gt 0 ]]; then
-      "$PYTHON_BIN" -m pip install "${PIP_ARGS[@]}" -e ".${EXTRA}"
-    else
-      "$PYTHON_BIN" -m pip install -e ".${EXTRA}"
-    fi
+  printf 'Installing Python CLI and extras...\n'
+  if [[ "$INSTALL_MODE" == editable ]]; then
+    "$PYTHON_BIN" -m pip install "${pip_args[@]}" -e ".${extra_spec}"
   else
-    echo "Installing verbx in wheel mode..."
-    if [[ "${#PIP_ARGS[@]}" -gt 0 ]]; then
-      "$PYTHON_BIN" -m pip install "${PIP_ARGS[@]}" ".${EXTRA}"
-    else
-      "$PYTHON_BIN" -m pip install ".${EXTRA}"
-    fi
+    "$PYTHON_BIN" -m pip install "${pip_args[@]}" ".${extra_spec}"
   fi
-else
-  echo "Skipping Python package installation (--skip-python-install)."
+fi
+
+if [[ "$WITH_NATIVE" -eq 1 ]]; then
+  native_args=(--prefix "$PREFIX" --man-dir "$MAN_DIR")
+  [[ "$WITH_MAN" -eq 1 ]] || native_args+=(--no-man)
+  "${REPO_ROOT}/scripts/install_verbx_c.sh" "${native_args[@]}"
 fi
 
 if [[ "$WITH_MAN" -eq 1 ]]; then
-  SRC_MAN_DIR="${REPO_ROOT}/man/man1"
-  DEST_MAN1_DIR="${MAN_DIR}/man1"
-  if [[ ! -d "$SRC_MAN_DIR" ]]; then
-    echo "Man source directory not found: $SRC_MAN_DIR" >&2
-    exit 1
-  fi
-
-  mkdir -p "$DEST_MAN1_DIR"
-  cp "${SRC_MAN_DIR}"/*.1 "$DEST_MAN1_DIR"/
-  echo "Installed man pages to: $DEST_MAN1_DIR"
-
+  src_man_dir="${REPO_ROOT}/man/man1"
+  dest_man1_dir="${MAN_DIR}/man1"
+  [[ -d "$src_man_dir" ]] || die "man source directory not found: $src_man_dir"
+  mkdir -p "$dest_man1_dir"
+  cp "${src_man_dir}"/*.1 "$dest_man1_dir"/
+  printf 'Installed man pages to %s\n' "$dest_man1_dir"
   if command -v mandb >/dev/null 2>&1; then
     mandb -q "$MAN_DIR" >/dev/null 2>&1 || true
   fi
 fi
 
-echo "Installation complete."
-echo
-echo "Try:"
-echo "  verbx --help"
-if [[ "$WITH_MAN" -eq 1 ]]; then
-  echo "  man verbx"
-  echo "  man verbx-render"
-  echo "  man verbx-analyze"
-  echo "  man verbx-dereverb"
+if [[ "$WITH_PLUGINS" -eq 1 ]]; then
+  command -v cmake >/dev/null 2>&1 || die "CMake 3.22 or newer is required to build plug-ins"
+
+  if [[ "$BUILD_PLUGINS" -eq 1 ]]; then
+    if [[ -z "$JUCE_SOURCE" ]]; then
+      cmake_cache="${PLUGIN_BUILD_DIR}/CMakeCache.txt"
+      if [[ -f "$cmake_cache" ]]; then
+        while IFS= read -r cache_line; do
+          case "$cache_line" in
+            VERBX_JUCE_SOURCE_DIR:PATH=*)
+              cached_juce_source="${cache_line#*=}"
+              if [[ -f "${cached_juce_source}/CMakeLists.txt" ]]; then
+                JUCE_SOURCE="$cached_juce_source"
+              fi
+              break
+              ;;
+          esac
+        done < "$cmake_cache"
+      fi
+    fi
+
+    if [[ -z "$JUCE_SOURCE" ]]; then
+      juce_candidates=(
+        "${REPO_ROOT}/JUCE"
+        "${REPO_ROOT}/build/deps/JUCE"
+        "${REPO_ROOT}/build/_deps/juce-src"
+        "${REPO_ROOT}/../JUCE"
+      )
+      for candidate in "${juce_candidates[@]}"; do
+        if [[ -f "${candidate}/CMakeLists.txt" ]]; then
+          JUCE_SOURCE="$candidate"
+          break
+        fi
+      done
+    fi
+
+    if [[ -n "$JUCE_SOURCE" ]]; then
+      [[ -f "${JUCE_SOURCE}/CMakeLists.txt" ]] || die "JUCE source checkout not found: $JUCE_SOURCE"
+    elif [[ "$ALLOW_JUCE_DOWNLOAD" -eq 1 ]]; then
+      command -v git >/dev/null 2>&1 || die "git is required to download JUCE"
+      JUCE_SOURCE="${REPO_ROOT}/build/deps/JUCE"
+      mkdir -p "$(dirname "$JUCE_SOURCE")"
+      printf 'Downloading JUCE %s...\n' "$JUCE_VERSION"
+      git clone --depth 1 --branch "$JUCE_VERSION" https://github.com/juce-framework/JUCE.git "$JUCE_SOURCE"
+    fi
+
+    configure_args=(
+      -S "${REPO_ROOT}/native/verbx_plugin"
+      -B "$PLUGIN_BUILD_DIR"
+      -DVERBX_ENABLE_JUCE_PLUGIN=ON
+      -DCMAKE_BUILD_TYPE=Release
+    )
+    [[ -z "$JUCE_SOURCE" ]] || configure_args+=("-DVERBX_JUCE_SOURCE_DIR=${JUCE_SOURCE}")
+    cmake "${configure_args[@]}"
+    cmake --build "$PLUGIN_BUILD_DIR" --config Release --parallel "$JOBS"
+  fi
+
+  artifact_root="${PLUGIN_BUILD_DIR}/VERBXPlugin_artefacts/Release"
+  vst3_source="${artifact_root}/VST3/VERBX.vst3"
+  [[ -d "$vst3_source" ]] || die "VST3 artifact not found: $vst3_source"
+  install_bundle "$vst3_source" "$VST3_DIR"
+
+  if [[ "$OS_NAME" == Darwin ]]; then
+    au_source="${artifact_root}/AU/VERBX.component"
+    [[ -d "$au_source" ]] || die "Audio Unit artifact not found: $au_source"
+    install_bundle "$au_source" "$AU_DIR"
+  fi
+
+  if [[ "$WITH_STANDALONE" -eq 1 ]]; then
+    if [[ "$OS_NAME" == Darwin ]]; then
+      standalone_source="${artifact_root}/Standalone/VERBX.app"
+      [[ -d "$standalone_source" ]] || die "standalone artifact not found: $standalone_source"
+      install_bundle "$standalone_source" "$APP_DIR"
+    else
+      standalone_source="${artifact_root}/Standalone/VERBX"
+      [[ -x "$standalone_source" ]] || die "standalone artifact not found: $standalone_source"
+      mkdir -p "$APP_DIR"
+      cp "$standalone_source" "${APP_DIR}/verbx-plugin"
+      chmod 755 "${APP_DIR}/verbx-plugin"
+      printf 'Installed %s\n' "${APP_DIR}/verbx-plugin"
+    fi
+  fi
+fi
+
+printf '\nInstallation complete.\n'
+printf 'Try:\n'
+[[ "$INSTALL_PYTHON" -eq 0 ]] || printf '  verbx --help\n'
+[[ "$WITH_NATIVE" -eq 0 ]] || printf '  %s/bin/verbx-c --help\n' "$PREFIX"
+if [[ "$WITH_PLUGINS" -eq 1 ]]; then
+  [[ "$OS_NAME" != Darwin || "$WITH_STANDALONE" -eq 0 ]] || printf '  open %q\n' "${APP_DIR}/VERBX.app"
+  printf '  Restart or rescan your audio host to discover VERBX.\n'
 fi
