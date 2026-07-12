@@ -267,7 +267,9 @@ signed reinstall and Audio Unit cache rebuild on macOS:
 
 VERBX appears under the plug-in vendor **Colby Leider**. Logic and GarageBand
 can use the AUv2 component or the AUv3 app extension; VST3 hosts use
-`VERBX.vst3`. The installer now signs the nested AUv3 extension before its
+`VERBX.vst3`. The editor opens at a host-safe 1280x720 and remains fully
+resizable down to 800x450 while preserving the full console layout. The
+installer now signs the nested AUv3 extension before its
 containing app, registers it with PlugInKit, and seals
 and strictly verifies every installed macOS bundle, touches the plug-in paths,
 and restarts the Audio Component Registrar. The explicit cache-reset option

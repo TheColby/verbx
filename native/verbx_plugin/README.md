@@ -24,6 +24,18 @@ cmake -S native/verbx_plugin -B build/native/verbx_plugin-juce \
 If JUCE is available as a source checkout rather than an installed CMake
 package, add `-DVERBX_JUCE_SOURCE_DIR=/path/to/JUCE`.
 
+For host-load diagnostics, configure with
+`-DVERBX_BUILD_HOST_SMOKE_TEST=ON`. The resulting
+`VERBXPluginHostSmoke` executable validates discovery, instantiation, editor
+creation, and one finite processing block without relying on a DAW cache:
+
+```bash
+build/native/verbx_plugin-juce/VERBXPluginHostSmoke_artefacts/Release/VERBXPluginHostSmoke \
+  VST3 "$HOME/Library/Audio/Plug-Ins/VST3/VERBX.vst3"
+build/native/verbx_plugin-juce/VERBXPluginHostSmoke_artefacts/Release/VERBXPluginHostSmoke \
+  AudioUnit 'AudioUnit:Effects/aufx,Vrbx,Clby'
+```
+
 Release artifacts are written beneath
 `build/native/verbx_plugin-juce/VERBXPlugin_artefacts/Release/` as
 `Standalone/VERBX.app`, `AU/VERBX.component`, `AUv3/VERBX.appex`, and

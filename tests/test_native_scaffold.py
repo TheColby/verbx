@@ -294,6 +294,17 @@ def test_plugin_metadata_uses_colby_leider_vendor_identity() -> None:
     assert "Contents/PlugIns/VERBX.appex" in cmake_source
 
 
+def test_plugin_editor_uses_host_safe_resizing() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    editor_source = (
+        repo_root / "native/verbx_plugin/src/VerbXPluginEditor.cpp"
+    ).read_text()
+
+    assert "setResizeLimits(800, 450, 2560, 1440)" in editor_source
+    assert "setSize(1280, 720)" in editor_source
+    assert "setFixedAspectRatio" not in editor_source
+
+
 def test_native_render_stereo_pcm16_output(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     exe = _build_native_executable(tmp_path)

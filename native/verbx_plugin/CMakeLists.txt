@@ -14,6 +14,7 @@ endif()
 project(verbx_plugin VERSION 0.8.0 LANGUAGES C CXX)
 
 option(VERBX_ENABLE_JUCE_PLUGIN "Build the VERBX AU/AUv3/VST3 plug-in target" OFF)
+option(VERBX_BUILD_HOST_SMOKE_TEST "Build the JUCE plug-in host smoke test" OFF)
 set(VERBX_JUCE_SOURCE_DIR "" CACHE PATH "Optional path to a JUCE source checkout")
 
 if(NOT VERBX_ENABLE_JUCE_PLUGIN)
@@ -92,6 +93,20 @@ target_compile_definitions(VERBXPlugin
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
 )
+
+if(VERBX_BUILD_HOST_SMOKE_TEST)
+  juce_add_console_app(VERBXPluginHostSmoke
+    PRODUCT_NAME "VERBX Plug-in Host Smoke Test"
+  )
+  target_sources(VERBXPluginHostSmoke PRIVATE src/VerbXPluginHostSmoke.cpp)
+  target_link_libraries(VERBXPluginHostSmoke PRIVATE juce::juce_audio_utils)
+  target_compile_definitions(VERBXPluginHostSmoke PRIVATE
+    JUCE_PLUGINHOST_AU=1
+    JUCE_PLUGINHOST_VST3=1
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+  )
+endif()
 
 if(TARGET VERBXPlugin_AUv3 AND TARGET VERBXPlugin_Standalone
    AND NOT CMAKE_GENERATOR STREQUAL "Xcode")

@@ -357,11 +357,10 @@ VerbXPluginEditor::VerbXPluginEditor(VerbXPluginProcessor& processor)
     addAndMakeVisible(spectrumAnalyzer_);
     configureControls();
     setResizable(true, true);
-    setResizeLimits(1184, 666, 2560, 1440);
-    if (auto* constrainer = getConstrainer()) {
-        constrainer->setFixedAspectRatio(16.0 / 9.0);
-    }
-    setSize(1728, 972);
+    // Hosts wrap editors in differently constrained windows. Keep the console
+    // responsive instead of forcing a large, fixed-ratio surface on the host.
+    setResizeLimits(800, 450, 2560, 1440);
+    setSize(1280, 720);
     startTimerHz(15);
 }
 

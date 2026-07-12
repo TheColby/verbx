@@ -5,6 +5,10 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Changed
+- Made the native editor responsive to DAW window negotiation: it now opens at
+  a host-safe 1280x720, can shrink to 800x450, and no longer forces a fixed
+  aspect-ratio constrainer that could prevent Audacity or Logic from opening
+  the plug-in window.
 - Rebuilt the native plug-in editor as the approved full-screen 16:9 spatial
   console: DXF geometry theater, loudness meters, image/ray panels, live decay
   analyzer, nine parameter cards including separate RT60 coarse/fine controls,
@@ -49,6 +53,9 @@ All notable changes to this project are documented in this file.
   long-tail W64 output.
 
 ### Added
+- Added an opt-in JUCE host smoke executable that discovers AU/VST3 bundles,
+  instantiates VERBX, creates its editor, and processes an impulse so host-load
+  regressions can be diagnosed independently of DAW caches.
 - Added a true macOS AUv3 app extension: the JUCE AUv3 wrapper now builds with
   standard CMake generators, links through `NSExtensionMain`, and embeds as
   `VERBX.app/Contents/PlugIns/VERBX.appex`. The installer nested-signs and
