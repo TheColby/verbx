@@ -268,7 +268,7 @@ def normalize_music_typography() -> None:
     path = ROOT / "docs" / "MUSICAL_PIECES_APPENDIX.md"
     text = path.read_text(encoding="utf-8")
     pattern = re.compile(
-        r"(?m)^\*\*(?P<creator>.+?),\s+(?P<title>(?!\*)[^\n]+?)\s+"
+        r"(?m)^\*\*(?P<creator>[^,\n]+),\s+(?P<title>(?!\*)[^\n]+?)\s+"
         r"\((?P<date>[^)]+)\)\.\*\*"
     )
     text = pattern.sub(
@@ -282,7 +282,45 @@ def normalize_music_typography() -> None:
         "- Aphex Twin. “#3” (“Rhubarb”), from *Selected Ambient Works Volume II*.",
         "- Aphex Twin. *#3 (Rhubarb)*, from *Selected Ambient Works Volume II*.",
     )
+    replacements = {
+        "**Brian Eno, *1/1 from Ambient 1: Music for Airports* (1978).**":
+            "**Brian Eno, *1/1*, from *Ambient 1: Music for Airports* (1978).**",
+        "**Aphex Twin, *Rhubarb* (1994).**":
+            "**Aphex Twin, *#3 (Rhubarb)* (1994).**",
+        "**Jonathan Harvey, *Mortuos Plango, *Vivos Voco** (1980).**":
+            "**Jonathan Harvey, *Mortuos Plango, Vivos Voco* (1980).**",
+        "**Luigi Nono, *Prometeo* (1981-1984).**":
+            "**Luigi Nono, *Prometeo: Tragedia dell'ascolto* (1981-1984).**",
+        "[Lovely Music notes for Lucier's I am sitting in a room]":
+            "[Lovely Music notes for Lucier's *I am sitting in a room*]",
+        "[Prometeo record]":
+            "[*Prometeo: Tragedia dell'ascolto* record]",
+        "[Le Encantadas]":
+            "[*Le Encantadas o le avventure nel mare delle meraviglie*]",
+    }
+    for original, replacement in replacements.items():
+        text = text.replace(original, replacement)
     path.write_text(text, encoding="utf-8")
+
+
+def validate_music_typography() -> None:
+    """Reject music entries whose work or album title escaped italics."""
+
+    appendix = (ROOT / "docs" / "MUSICAL_PIECES_APPENDIX.md").read_text(encoding="utf-8")
+    expansion = (ROOT / "docs" / "MUSICAL_PIECES_EXPANSION.md").read_text(encoding="utf-8")
+    malformed: list[str] = []
+    for path, text in (("appendix", appendix), ("expansion", expansion)):
+        for line_number, line in enumerate(text.splitlines(), 1):
+            if line.startswith("**") and not re.match(
+                r"^\*\*.+?, \*[^*]+\*(?:, from \*[^*]+\*)? \([^)]+\)\.\*\*",
+                line,
+            ):
+                malformed.append(f"{path}:{line_number}: {line}")
+            if line.startswith("- ") and "YouTube" in line and not re.search(r"\. \*[^*]+\*", line):
+                malformed.append(f"{path}:{line_number}: {line}")
+    if malformed:
+        details = "\n".join(malformed)
+        raise ValueError(f"Music titles must be italicized:\n{details}")
 
 
 def main() -> None:
@@ -290,6 +328,7 @@ def main() -> None:
     generate_diagrams()
     generate_projects()
     generate_music_expansion()
+    validate_music_typography()
     print("Wrote introductory diagrams, 48 listening entries, and 33 educational projects")
 
 
