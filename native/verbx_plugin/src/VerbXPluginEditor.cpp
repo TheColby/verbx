@@ -9,6 +9,80 @@ namespace {
 const auto analyzerMint = juce::Colour::fromRGB(140, 246, 210);
 const auto analyzerGold = juce::Colour::fromRGB(213, 168, 75);
 const auto analyzerInk = juce::Colour::fromRGB(5, 7, 9);
+const auto consolePanel = juce::Colour::fromRGB(12, 18, 22);
+const auto consoleLine = juce::Colour::fromRGB(71, 88, 94);
+const auto consoleText = juce::Colour::fromRGB(220, 228, 228);
+const auto consoleMuted = juce::Colour::fromRGB(132, 150, 154);
+const auto consoleCoral = juce::Colour::fromRGB(240, 112, 130);
+
+constexpr float designWidth = 1920.0f;
+constexpr float designHeight = 1080.0f;
+
+juce::Font consoleFont(float size, int style = juce::Font::plain) {
+    auto font = juce::Font(juce::FontOptions(size, style));
+    font.setTypefaceName("Avenir Next Condensed");
+    return font;
+}
+
+juce::Font dataFont(float size, int style = juce::Font::plain) {
+    auto font = juce::Font(juce::FontOptions(size, style));
+    font.setTypefaceName("Menlo");
+    return font;
+}
+
+void drawPanel(
+    juce::Graphics& graphics,
+    juce::Rectangle<float> bounds,
+    const juce::String& title,
+    const juce::String& detail = {}
+) {
+    graphics.setColour(consolePanel.withAlpha(0.92f));
+    graphics.fillRoundedRectangle(bounds, 16.0f);
+    graphics.setColour(consoleLine.withAlpha(0.42f));
+    graphics.drawRoundedRectangle(bounds.reduced(0.5f), 16.0f, 1.0f);
+    graphics.drawHorizontalLine(
+        juce::roundToInt(bounds.getY() + 42.0f),
+        bounds.getX(),
+        bounds.getRight()
+    );
+
+    graphics.setFont(dataFont(11.0f, juce::Font::bold));
+    graphics.setColour(consoleText.withAlpha(0.92f));
+    graphics.drawText(title, bounds.getX() + 16.0f, bounds.getY() + 10.0f,
+                      bounds.getWidth() - 32.0f, 22.0f, juce::Justification::centredLeft);
+    if (detail.isNotEmpty()) {
+        graphics.setColour(consoleMuted);
+        graphics.drawText(detail, bounds.getX() + 16.0f, bounds.getY() + 10.0f,
+                          bounds.getWidth() - 32.0f, 22.0f, juce::Justification::centredRight);
+    }
+}
+
+void drawDataCard(
+    juce::Graphics& graphics,
+    juce::Rectangle<float> bounds,
+    const juce::String& label,
+    const juce::String& value,
+    float level
+) {
+    graphics.setColour(juce::Colour::fromRGB(15, 21, 24));
+    graphics.fillRoundedRectangle(bounds, 12.0f);
+    graphics.setColour(consoleLine.withAlpha(0.34f));
+    graphics.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
+    graphics.setColour(consoleMuted);
+    graphics.setFont(dataFont(9.5f, juce::Font::bold));
+    graphics.drawText(label, bounds.getX() + 12.0f, bounds.getY() + 9.0f,
+                      bounds.getWidth() - 24.0f, 16.0f, juce::Justification::centredLeft);
+    graphics.setColour(consoleText);
+    graphics.setFont(consoleFont(17.0f, juce::Font::bold));
+    graphics.drawText(value, bounds.getX() + 12.0f, bounds.getY() + 30.0f,
+                      bounds.getWidth() - 24.0f, 23.0f, juce::Justification::centredLeft);
+    const auto bar = juce::Rectangle<float>(bounds.getX() + 12.0f, bounds.getBottom() - 18.0f,
+                                            bounds.getWidth() - 24.0f, 5.0f);
+    graphics.setColour(juce::Colours::white.withAlpha(0.08f));
+    graphics.fillRoundedRectangle(bar, 2.5f);
+    graphics.setColour(analyzerMint.withAlpha(0.9f));
+    graphics.fillRoundedRectangle(bar.withWidth(bar.getWidth() * juce::jlimit(0.0f, 1.0f, level)), 2.5f);
+}
 
 struct KnobDefinition {
     const char* parameterId;
@@ -28,6 +102,101 @@ constexpr std::array<KnobDefinition, 9> knobDefinitions{{
 }};
 
 } // namespace
+
+VerbXLookAndFeel::VerbXLookAndFeel() {
+    setColour(juce::Label::textColourId, consoleText);
+    setColour(juce::ComboBox::textColourId, consoleText);
+    setColour(juce::PopupMenu::backgroundColourId, consolePanel);
+    setColour(juce::PopupMenu::textColourId, consoleText);
+    setColour(juce::PopupMenu::highlightedBackgroundColourId, analyzerMint.withAlpha(0.18f));
+}
+
+void VerbXLookAndFeel::drawRotarySlider(
+    juce::Graphics& graphics,
+    int x,
+    int y,
+    int width,
+    int height,
+    float sliderPosition,
+    float rotaryStartAngle,
+    float rotaryEndAngle,
+    juce::Slider& slider
+) {
+    juce::ignoreUnused(slider);
+    const auto diameter = static_cast<float>(juce::jmin(width, height)) - 10.0f;
+    const auto bounds = juce::Rectangle<float>(
+        static_cast<float>(x) + (static_cast<float>(width) - diameter) * 0.5f,
+        static_cast<float>(y) + (static_cast<float>(height) - diameter) * 0.5f,
+        diameter,
+        diameter
+    );
+    const auto angle = rotaryStartAngle + sliderPosition * (rotaryEndAngle - rotaryStartAngle);
+
+    graphics.setColour(juce::Colours::black.withAlpha(0.42f));
+    graphics.fillEllipse(bounds.translated(0.0f, 4.0f));
+    graphics.setColour(juce::Colour::fromRGB(31, 39, 43));
+    graphics.fillEllipse(bounds);
+    graphics.setColour(consoleLine.withAlpha(0.58f));
+    graphics.drawEllipse(bounds.reduced(0.5f), 1.0f);
+
+    juce::Path valueWedge;
+    valueWedge.addPieSegment(bounds.reduced(5.0f), rotaryStartAngle, angle, 0.56f);
+    graphics.setColour(analyzerMint.withAlpha(0.96f));
+    graphics.fillPath(valueWedge);
+
+    juce::Path pointer;
+    const auto pointerLength = diameter * 0.38f;
+    pointer.addRoundedRectangle(-2.0f, -pointerLength, 4.0f, pointerLength, 2.0f);
+    graphics.setColour(consoleText.withAlpha(0.9f));
+    graphics.fillPath(pointer, juce::AffineTransform::rotation(angle).translated(bounds.getCentreX(), bounds.getCentreY()));
+    graphics.setColour(analyzerGold);
+    graphics.fillEllipse(bounds.getCentreX() - 4.5f, bounds.getCentreY() - 4.5f, 9.0f, 9.0f);
+}
+
+void VerbXLookAndFeel::drawToggleButton(
+    juce::Graphics& graphics,
+    juce::ToggleButton& button,
+    bool shouldDrawButtonAsHighlighted,
+    bool shouldDrawButtonAsDown
+) {
+    auto bounds = button.getLocalBounds().toFloat().reduced(1.0f);
+    const auto active = button.getToggleState();
+    graphics.setColour(active ? analyzerMint.withAlpha(0.18f) : consolePanel);
+    graphics.fillRoundedRectangle(bounds, bounds.getHeight() * 0.5f);
+    graphics.setColour(active ? analyzerMint.withAlpha(0.75f) : consoleLine.withAlpha(0.55f));
+    graphics.drawRoundedRectangle(bounds, bounds.getHeight() * 0.5f, shouldDrawButtonAsDown ? 2.0f : 1.0f);
+    const auto light = bounds.removeFromLeft(bounds.getHeight()).reduced(7.0f);
+    graphics.setColour(active ? analyzerMint : consoleMuted.withAlpha(0.42f));
+    graphics.fillEllipse(light);
+    graphics.setColour((shouldDrawButtonAsHighlighted ? juce::Colours::white : consoleText).withAlpha(0.92f));
+    graphics.setFont(dataFont(10.0f, juce::Font::bold));
+    graphics.drawText(button.getButtonText(), button.getLocalBounds().reduced(34, 0), juce::Justification::centredLeft);
+}
+
+void VerbXLookAndFeel::drawComboBox(
+    juce::Graphics& graphics,
+    int width,
+    int height,
+    bool isButtonDown,
+    int buttonX,
+    int buttonY,
+    int buttonWidth,
+    int buttonHeight,
+    juce::ComboBox& box
+) {
+    juce::ignoreUnused(buttonX, buttonY, buttonWidth, buttonHeight, box);
+    const auto bounds = juce::Rectangle<float>(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)).reduced(0.5f);
+    graphics.setColour(consolePanel.brighter(isButtonDown ? 0.12f : 0.05f));
+    graphics.fillRoundedRectangle(bounds, 10.0f);
+    graphics.setColour(analyzerMint.withAlpha(0.36f));
+    graphics.drawRoundedRectangle(bounds, 10.0f, 1.0f);
+    juce::Path arrow;
+    arrow.addTriangle(static_cast<float>(width - 20), static_cast<float>(height) * 0.42f,
+                      static_cast<float>(width - 10), static_cast<float>(height) * 0.42f,
+                      static_cast<float>(width - 15), static_cast<float>(height) * 0.62f);
+    graphics.setColour(analyzerMint);
+    graphics.fillPath(arrow);
+}
 
 VerbXSpectrumAnalyzer::VerbXSpectrumAnalyzer(VerbXPluginProcessor& processor)
     : processor_(processor) {
@@ -188,8 +357,11 @@ VerbXPluginEditor::VerbXPluginEditor(VerbXPluginProcessor& processor)
     addAndMakeVisible(spectrumAnalyzer_);
     configureControls();
     setResizable(true, true);
-    setResizeLimits(960, 600, 2560, 1600);
-    setSize(1560, 920);
+    setResizeLimits(1184, 666, 2560, 1440);
+    if (auto* constrainer = getConstrainer()) {
+        constrainer->setFixedAspectRatio(16.0 / 9.0);
+    }
+    setSize(1728, 972);
     startTimerHz(15);
 }
 
@@ -199,8 +371,9 @@ void VerbXPluginEditor::configureControls() {
         const auto& definition = knobDefinitions[static_cast<size_t>(index)];
         auto& knob = knobs_[static_cast<size_t>(index)];
         auto& label = knobLabels_[static_cast<size_t>(index)];
+        knob.setLookAndFeel(&lookAndFeel_);
         knob.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-        knob.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 76, 20);
+        knob.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 80, 18);
         knob.setColour(juce::Slider::rotarySliderFillColourId, analyzerMint);
         knob.setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colours::white.withAlpha(0.12f));
         knob.setColour(juce::Slider::thumbColourId, analyzerGold);
@@ -211,7 +384,7 @@ void VerbXPluginEditor::configureControls() {
 
         label.setText(definition.label, juce::dontSendNotification);
         label.setJustificationType(juce::Justification::centred);
-        label.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+        label.setFont(dataFont(9.5f, juce::Font::bold));
         label.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
         addAndMakeVisible(label);
         knobAttachments_[static_cast<size_t>(index)] = std::make_unique<SliderAttachment>(
@@ -243,6 +416,7 @@ void VerbXPluginEditor::configureControls() {
     }
 
     for (auto* button : {&freezeButton_, &reverseButton_}) {
+        button->setLookAndFeel(&lookAndFeel_);
         button->setColour(juce::ToggleButton::textColourId, juce::Colour::fromRGB(228, 240, 236));
         button->setColour(juce::ToggleButton::tickColourId, analyzerMint);
         button->setColour(juce::ToggleButton::tickDisabledColourId, juce::Colours::white.withAlpha(0.18f));
@@ -252,6 +426,7 @@ void VerbXPluginEditor::configureControls() {
     reverseAttachment_ = std::make_unique<ButtonAttachment>(state, "reverse", reverseButton_);
 
     qualityBox_.addItemList({"Host", "2x", "4x", "Target 192 kHz"}, 1);
+    qualityBox_.setLookAndFeel(&lookAndFeel_);
     qualityBox_.setColour(juce::ComboBox::backgroundColourId, analyzerInk.brighter(0.12f));
     qualityBox_.setColour(juce::ComboBox::textColourId, juce::Colour::fromRGB(228, 240, 236));
     qualityBox_.setColour(juce::ComboBox::outlineColourId, analyzerMint.withAlpha(0.35f));
@@ -260,12 +435,12 @@ void VerbXPluginEditor::configureControls() {
 
     qualityLabel_.setText("QUALITY", juce::dontSendNotification);
     qualityLabel_.setJustificationType(juce::Justification::centredLeft);
-    qualityLabel_.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+    qualityLabel_.setFont(dataFont(9.5f, juce::Font::bold));
     qualityLabel_.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
     addAndMakeVisible(qualityLabel_);
 
     rt60Readout_.setJustificationType(juce::Justification::centredRight);
-    rt60Readout_.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+    rt60Readout_.setFont(dataFont(14.0f, juce::Font::bold));
     rt60Readout_.setColour(juce::Label::textColourId, analyzerGold);
     addAndMakeVisible(rt60Readout_);
     timerCallback();
@@ -281,62 +456,289 @@ void VerbXPluginEditor::timerCallback() {
 }
 
 void VerbXPluginEditor::paint(juce::Graphics& graphics) {
-    const auto bounds = getLocalBounds().toFloat();
-    graphics.fillAll(juce::Colour::fromRGB(5, 7, 9));
-
-    graphics.setColour(juce::Colour::fromRGB(140, 246, 210));
-    graphics.setFont(juce::FontOptions(34.0f, juce::Font::bold));
-    graphics.drawText("VERBX", 28, 24, 220, 48, juce::Justification::centredLeft);
-
-    graphics.setColour(juce::Colour::fromRGB(180, 197, 200));
-    graphics.setFont(juce::FontOptions(15.0f));
-    graphics.drawText(
-        "Spatial Decay Theater | Target 192 kHz | RT60 0.01s to 360s",
-        28,
-        76,
-        static_cast<int>(bounds.getWidth()) - 56,
-        28,
-        juce::Justification::centredLeft
+    graphics.fillAll(analyzerInk);
+    const auto scale = juce::jmin(
+        static_cast<float>(getWidth()) / designWidth,
+        static_cast<float>(getHeight()) / designHeight
     );
+    const auto offsetX = (static_cast<float>(getWidth()) - designWidth * scale) * 0.5f;
+    const auto offsetY = (static_cast<float>(getHeight()) - designHeight * scale) * 0.5f;
+    juce::Graphics::ScopedSaveState state(graphics);
+    graphics.addTransform(juce::AffineTransform(scale, 0.0f, offsetX, 0.0f, scale, offsetY));
 
-    const auto console = bounds.reduced(28.0f, 130.0f);
-    graphics.setColour(juce::Colour::fromRGBA(140, 246, 210, 36));
-    graphics.fillRoundedRectangle(console, 24.0f);
-    graphics.setColour(juce::Colour::fromRGBA(232, 240, 247, 48));
-    graphics.drawRoundedRectangle(console, 24.0f, 1.0f);
+    graphics.setColour(juce::Colour::fromRGB(8, 14, 18));
+    graphics.fillRect(0.0f, 0.0f, designWidth, designHeight);
+    graphics.setColour(analyzerMint.withAlpha(0.025f));
+    for (int x = 0; x < static_cast<int>(designWidth); x += 64) {
+        graphics.drawVerticalLine(x, 0.0f, designHeight);
+    }
+    for (int y = 0; y < static_cast<int>(designHeight); y += 64) {
+        graphics.drawHorizontalLine(y, 0.0f, designWidth);
+    }
+    graphics.setColour(analyzerMint.withAlpha(0.035f));
+    graphics.fillEllipse(500.0f, -420.0f, 1100.0f, 840.0f);
 
-    graphics.setColour(juce::Colour::fromRGB(180, 197, 200).withAlpha(0.62f));
-    graphics.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-    graphics.drawText("LIVE SPECTRAL FIELD", 52, 116, 240, 18, juce::Justification::centredLeft);
+    const auto topBar = juce::Rectangle<float>(40.0f, 20.0f, 1840.0f, 72.0f);
+    graphics.setColour(juce::Colour::fromRGB(22, 29, 34).withAlpha(0.94f));
+    graphics.fillRoundedRectangle(topBar, 18.0f);
+    graphics.setColour(consoleLine.withAlpha(0.42f));
+    graphics.drawRoundedRectangle(topBar.reduced(0.5f), 18.0f, 1.0f);
+    graphics.setColour(consoleText);
+    graphics.setFont(consoleFont(29.0f, juce::Font::bold));
+    graphics.drawText("V E R B X", 60, 30, 150, 38, juce::Justification::centredLeft);
+    graphics.setColour(analyzerMint);
+    graphics.setFont(dataFont(9.0f, juce::Font::bold));
+    graphics.drawText("SPATIAL\nENGINE", 188, 38, 80, 34, juce::Justification::centredLeft);
 
-    const auto dock = getLocalBounds().toFloat().reduced(28.0f).removeFromBottom(190.0f);
-    graphics.setColour(juce::Colour::fromRGB(10, 17, 19).withAlpha(0.96f));
-    graphics.fillRoundedRectangle(dock, 18.0f);
-    graphics.setColour(analyzerMint.withAlpha(0.16f));
-    graphics.drawRoundedRectangle(dock.reduced(0.5f), 18.0f, 1.0f);
+    const auto preset = juce::Rectangle<float>(284.0f, 35.0f, 1220.0f, 42.0f);
+    graphics.setColour(juce::Colours::black.withAlpha(0.18f));
+    graphics.fillRoundedRectangle(preset, 20.0f);
+    graphics.setColour(consoleLine.withAlpha(0.34f));
+    graphics.drawRoundedRectangle(preset, 20.0f, 1.0f);
+    graphics.setColour(consoleMuted);
+    graphics.setFont(consoleFont(13.0f));
+    graphics.drawText("Preset", 304, 44, 52, 22, juce::Justification::centredLeft);
+    graphics.setColour(consoleText);
+    graphics.setFont(consoleFont(14.0f, juce::Font::bold));
+    graphics.drawText("DXF Hall  ·  Slow Bloom  ·  7.2.4", 360, 44, 470, 22, juce::Justification::centredLeft);
+    graphics.setColour(consoleMuted);
+    graphics.drawText("Browse", 1410, 44, 70, 22, juce::Justification::centredRight);
+
+    const std::array<juce::String, 3> topModes{"ALGO", "CONV", "GEO"};
+    for (size_t index = 0; index < topModes.size(); ++index) {
+        const auto mode = juce::Rectangle<float>(1538.0f + static_cast<float>(index) * 56.0f, 37.0f, 52.0f, 38.0f);
+        graphics.setColour(index == 0 ? analyzerMint.withAlpha(0.92f) : consolePanel);
+        graphics.fillRoundedRectangle(mode, 18.0f);
+        graphics.setColour(index == 0 ? analyzerInk : consoleMuted);
+        graphics.setFont(dataFont(9.0f, juce::Font::bold));
+        graphics.drawText(topModes[index], mode, juce::Justification::centred);
+    }
+    graphics.setColour(consolePanel);
+    graphics.fillRoundedRectangle(1720.0f, 37.0f, 132.0f, 38.0f, 18.0f);
+    graphics.setColour(analyzerMint);
+    graphics.fillEllipse(1735.0f, 52.0f, 8.0f, 8.0f);
+    graphics.setFont(dataFont(10.0f, juce::Font::bold));
+    graphics.drawText("LIVE", 1748, 44, 80, 22, juce::Justification::centredLeft);
+
+    const auto loudness = juce::Rectangle<float>(40.0f, 108.0f, 260.0f, 510.0f);
+    const auto theater = juce::Rectangle<float>(318.0f, 108.0f, 930.0f, 510.0f);
+    const auto imagePanel = juce::Rectangle<float>(1262.0f, 108.0f, 306.0f, 510.0f);
+    const auto spacePanel = juce::Rectangle<float>(1582.0f, 108.0f, 298.0f, 510.0f);
+    drawPanel(graphics, loudness, "LOUDNESS", "BS.1770");
+    drawPanel(graphics, theater, "SPATIAL DECAY THEATER", "GEOMETRY IS THE HERO");
+    drawPanel(graphics, imagePanel, "IMAGE", "7.2.4");
+    drawPanel(graphics, spacePanel, "SPACE", "RAY MODEL");
+
+    drawDataCard(graphics, {54.0f, 160.0f, 110.0f, 70.0f}, "INT", "-14.1", 0.72f);
+    drawDataCard(graphics, {176.0f, 160.0f, 110.0f, 70.0f}, "TP", "-1.0", 0.9f);
+    constexpr std::array<float, 8> meterValues{0.64f, 0.72f, 0.56f, 0.78f, 0.59f, 0.69f, 0.42f, 0.34f};
+    for (size_t index = 0; index < meterValues.size(); ++index) {
+        const auto x = 54.0f + static_cast<float>(index) * 29.0f;
+        const auto track = juce::Rectangle<float>(x, 245.0f, 21.0f, 240.0f);
+        graphics.setColour(juce::Colours::black.withAlpha(0.34f));
+        graphics.fillRoundedRectangle(track, 9.0f);
+        const auto fill = track.withTop(track.getBottom() - track.getHeight() * meterValues[index]);
+        juce::ColourGradient meterGradient(analyzerMint, fill.getCentreX(), fill.getBottom(),
+                                           consoleCoral, fill.getCentreX(), fill.getY(), false);
+        meterGradient.addColour(0.55, juce::Colour::fromRGB(244, 212, 104));
+        graphics.setGradientFill(meterGradient);
+        graphics.fillRoundedRectangle(fill, 8.0f);
+    }
+    const std::array<std::pair<juce::String, bool>, 3> loudnessRows{{
+        {"True Peak Limiter", true}, {"Duck Reverb", true}, {"Safety Gain     -2.0 dB", false}
+    }};
+    for (size_t index = 0; index < loudnessRows.size(); ++index) {
+        const auto y = 510.0f + static_cast<float>(index) * 31.0f;
+        graphics.setColour(consoleMuted);
+        graphics.setFont(consoleFont(12.0f));
+        graphics.drawText(loudnessRows[index].first, 54, juce::roundToInt(y), 180, 22, juce::Justification::centredLeft);
+        if (loudnessRows[index].second) {
+            graphics.setColour(analyzerMint.withAlpha(0.16f));
+            graphics.fillRoundedRectangle(245.0f, y + 2.0f, 42.0f, 20.0f, 10.0f);
+            graphics.setColour(analyzerMint);
+            graphics.fillEllipse(268.0f, y + 5.0f, 14.0f, 14.0f);
+        }
+    }
+
+    const auto shell = juce::Rectangle<float>(332.0f, 160.0f, 902.0f, 292.0f);
+    graphics.setColour(juce::Colour::fromRGB(6, 12, 16));
+    graphics.fillRoundedRectangle(shell, 14.0f);
+    graphics.setColour(analyzerMint.withAlpha(0.055f));
+    for (int x = 350; x < 1230; x += 44) graphics.drawVerticalLine(x, shell.getY(), shell.getBottom());
+    for (int y = 182; y < 450; y += 34) graphics.drawHorizontalLine(y, shell.getX(), shell.getRight());
+    graphics.setColour(consoleMuted);
+    graphics.setFont(dataFont(10.0f));
+    graphics.drawText("IMPORTED ACOUSTIC SHELL", 352, 178, 250, 18, juce::Justification::centredLeft);
+    graphics.setColour(consoleText);
+    graphics.setFont(consoleFont(19.0f, juce::Font::bold));
+    graphics.drawText("GRAND ATRIUM DXF", 352, 198, 300, 26, juce::Justification::centredLeft);
+    juce::Path room;
+    room.startNewSubPath(392.0f, 385.0f);
+    room.lineTo(468.0f, 267.0f);
+    room.lineTo(1028.0f, 232.0f);
+    room.lineTo(1148.0f, 326.0f);
+    room.lineTo(392.0f, 385.0f);
+    graphics.setColour(consoleLine.withAlpha(0.82f));
+    graphics.strokePath(room, juce::PathStrokeType(1.6f));
+    const juce::Point<float> source(782.0f, 314.0f);
+    const std::array<juce::Point<float>, 6> rayEnds{{
+        {548.0f, 166.0f}, {824.0f, 166.0f}, {1010.0f, 165.0f},
+        {1166.0f, 438.0f}, {560.0f, 448.0f}, {1008.0f, 442.0f}
+    }};
+    for (size_t index = 0; index < rayEnds.size(); ++index) {
+        graphics.setColour((index % 3 == 0 ? consoleCoral : (index % 3 == 1 ? analyzerMint : analyzerGold)).withAlpha(0.32f));
+        graphics.drawLine({source, rayEnds[index]}, 1.4f);
+    }
+    graphics.setColour(analyzerMint);
+    graphics.fillEllipse(source.x - 12.0f, source.y - 12.0f, 24.0f, 24.0f);
+    graphics.setColour(analyzerGold);
+    graphics.drawEllipse(966.0f, 275.0f, 20.0f, 20.0f, 2.0f);
+
+    for (int index = 0; index < knobCount; ++index) {
+        const auto cardX = 332.0f + static_cast<float>(index) * 99.0f;
+        graphics.setColour(juce::Colour::fromRGB(17, 23, 27));
+        graphics.fillRoundedRectangle(cardX, 468.0f, 92.0f, 136.0f, 12.0f);
+        graphics.setColour(consoleLine.withAlpha(0.32f));
+        graphics.drawRoundedRectangle(cardX + 0.5f, 468.5f, 91.0f, 135.0f, 12.0f, 1.0f);
+    }
+
+    const auto imagePlot = juce::Rectangle<float>(1276.0f, 160.0f, 278.0f, 338.0f);
+    graphics.setColour(juce::Colour::fromRGB(16, 22, 26));
+    graphics.fillRoundedRectangle(imagePlot, 14.0f);
+    graphics.setColour(consoleLine.withAlpha(0.3f));
+    graphics.drawRoundedRectangle(imagePlot, 14.0f, 1.0f);
+    const auto imageCentre = imagePlot.getCentre();
+    for (float radius : {55.0f, 92.0f, 132.0f}) {
+        graphics.setColour(consoleLine.withAlpha(0.22f));
+        graphics.drawEllipse(imageCentre.x - radius, imageCentre.y - radius,
+                             radius * 2.0f, radius * 2.0f, 1.0f);
+    }
+    for (int offset = -84; offset <= 84; offset += 42) {
+        graphics.drawVerticalLine(juce::roundToInt(imageCentre.x + static_cast<float>(offset)),
+                                  imagePlot.getY() + 38.0f, imagePlot.getBottom() - 38.0f);
+    }
+    juce::Path orbit;
+    orbit.addEllipse(imageCentre.x - 92.0f, imageCentre.y - 56.0f, 184.0f, 112.0f);
+    graphics.setColour(analyzerMint.withAlpha(0.86f));
+    graphics.strokePath(orbit, juce::PathStrokeType(2.0f));
+    drawDataCard(graphics, {1276.0f, 512.0f, 132.0f, 90.0f}, "CORR", "+0.78", 0.78f);
+    drawDataCard(graphics, {1420.0f, 512.0f, 134.0f, 90.0f}, "ORDER", "30A", 0.62f);
+
+    const auto rayPlot = juce::Rectangle<float>(1596.0f, 160.0f, 270.0f, 294.0f);
+    graphics.setColour(juce::Colour::fromRGB(16, 22, 26));
+    graphics.fillRoundedRectangle(rayPlot, 14.0f);
+    graphics.setColour(consoleLine.withAlpha(0.35f));
+    graphics.drawRoundedRectangle(rayPlot, 14.0f, 1.0f);
+    juce::Path triangle;
+    triangle.startNewSubPath(1620.0f, 426.0f);
+    triangle.lineTo(1654.0f, 244.0f);
+    triangle.lineTo(1850.0f, 386.0f);
+    triangle.closeSubPath();
+    graphics.setColour(consoleLine.withAlpha(0.8f));
+    graphics.strokePath(triangle, juce::PathStrokeType(2.0f));
+    graphics.setColour(analyzerMint.withAlpha(0.38f));
+    graphics.drawLine(1598.0f, 230.0f, 1864.0f, 385.0f, 3.0f);
+    graphics.setColour(analyzerGold.withAlpha(0.3f));
+    graphics.drawLine(1610.0f, 410.0f, 1865.0f, 186.0f, 6.0f);
+    const std::array<std::pair<juce::String, juce::String>, 3> spaceRows{{
+        {"Material", "Stone / Glass"}, {"Volume", "18,420 m3"}, {"Rays", "64k"}
+    }};
+    for (size_t index = 0; index < spaceRows.size(); ++index) {
+        const auto y = 466.0f + static_cast<float>(index) * 34.0f;
+        graphics.setColour(juce::Colour::fromRGB(18, 25, 29));
+        graphics.fillRoundedRectangle(1596.0f, y, 270.0f, 28.0f, 9.0f);
+        graphics.setFont(consoleFont(11.0f));
+        graphics.setColour(consoleMuted);
+        graphics.drawText(spaceRows[index].first, 1608, juce::roundToInt(y + 3.0f), 90, 20, juce::Justification::centredLeft);
+        graphics.setColour(analyzerMint);
+        graphics.drawText(spaceRows[index].second, 1694, juce::roundToInt(y + 3.0f), 156, 20, juce::Justification::centredRight);
+    }
+
+    const auto spectrumPanel = juce::Rectangle<float>(40.0f, 632.0f, 1840.0f, 180.0f);
+    graphics.setColour(consolePanel.withAlpha(0.9f));
+    graphics.fillRoundedRectangle(spectrumPanel, 16.0f);
+    graphics.setColour(consoleLine.withAlpha(0.4f));
+    graphics.drawRoundedRectangle(spectrumPanel.reduced(0.5f), 16.0f, 1.0f);
+    graphics.drawVerticalLine(168, spectrumPanel.getY(), spectrumPanel.getBottom());
+    graphics.drawVerticalLine(1670, spectrumPanel.getY(), spectrumPanel.getBottom());
+    graphics.setFont(dataFont(10.0f, juce::Font::bold));
+    graphics.setColour(consoleText);
+    graphics.drawText("LIVE DECAY\nSPECTRUM", 56, 652, 98, 38, juce::Justification::centredLeft);
+    graphics.setColour(consoleMuted);
+    graphics.setFont(dataFont(9.0f));
+    graphics.drawText("EDR / TAIL\nDENSITY\nMODAL BLOOM", 56, 706, 98, 62, juce::Justification::centredLeft);
+    graphics.setColour(consoleMuted);
+    graphics.setFont(dataFont(10.0f));
+    graphics.drawText("EDT", 1692, 660, 44, 20, juce::Justification::centredLeft);
+    graphics.drawText("C80", 1692, 696, 44, 20, juce::Justification::centredLeft);
+    graphics.drawText("CPU", 1692, 732, 44, 20, juce::Justification::centredLeft);
+    graphics.setColour(consoleText);
+    graphics.setFont(dataFont(16.0f, juce::Font::bold));
+    graphics.drawText("1.84s", 1740, 658, 100, 24, juce::Justification::centredLeft);
+    graphics.drawText("-2.7dB", 1740, 694, 100, 24, juce::Justification::centredLeft);
+    graphics.drawText("11%", 1740, 730, 100, 24, juce::Justification::centredLeft);
+
+    const auto expert = juce::Rectangle<float>(40.0f, 826.0f, 1840.0f, 170.0f);
+    graphics.setColour(consolePanel.withAlpha(0.92f));
+    graphics.fillRoundedRectangle(expert, 16.0f);
+    graphics.setColour(consoleLine.withAlpha(0.42f));
+    graphics.drawRoundedRectangle(expert.reduced(0.5f), 16.0f, 1.0f);
+    const std::array<juce::String, 4> tabs{{"FDN & DIFFUSION", "SHIMMER & COLOR", "DYNAMICS & TONE", "SPATIAL & GEOMETRY"}};
+    for (size_t index = 0; index < tabs.size(); ++index) {
+        const auto x = 40.0f + static_cast<float>(index) * 460.0f;
+        if (index == 0) {
+            graphics.setColour(analyzerMint.withAlpha(0.07f));
+            graphics.fillRect(x, 826.0f, 460.0f, 42.0f);
+        }
+        graphics.setColour(index == 0 ? analyzerMint : consoleMuted);
+        graphics.setFont(dataFont(10.0f, juce::Font::bold));
+        graphics.drawText(tabs[index], juce::Rectangle<float>(x, 826.0f, 460.0f, 42.0f), juce::Justification::centred);
+    }
+    const std::array<std::pair<juce::String, juce::String>, 8> cards{{
+        {"LINES", "32"}, {"MATRIX", "Hadamard"}, {"TV RATE", "0.30 Hz"}, {"TV DEPTH", "0.12"},
+        {"RAY BLEND", "42%"}, {"WALL LOSS", "0.38"}, {"IMPORT", "DXF"}, {"LATENCY", "11.6 ms"}
+    }};
+    for (size_t index = 0; index < cards.size(); ++index) {
+        const auto x = 54.0f + static_cast<float>(index) * 226.0f;
+        drawDataCard(graphics, {x, 880.0f, 212.0f, 100.0f}, cards[index].first, cards[index].second,
+                     0.24f + static_cast<float>((index * 13) % 62) / 100.0f);
+    }
+
+    graphics.setColour(consoleLine.withAlpha(0.42f));
+    graphics.drawHorizontalLine(1020, 40.0f, 1880.0f);
+    graphics.setColour(consoleMuted);
+    graphics.setFont(dataFont(9.0f));
+    graphics.drawText("48 KHZ  ·  64 SAMPLE BLOCK  ·  F32 ENGINE  ·  ZERO-COPY PARAMETER SMOOTHING",
+                      60, 1032, 800, 24, juce::Justification::centredLeft);
+    graphics.drawText("VERBX v0.8  ·  COLBY LEIDER  ·  AUv3 / VST3",
+                      1390, 1032, 450, 24, juce::Justification::centredRight);
 }
 
 void VerbXPluginEditor::resized() {
-    auto content = getLocalBounds().reduced(28);
-    content.removeFromTop(112);
-    auto controls = content.removeFromBottom(190).reduced(12, 8);
-    spectrumAnalyzer_.setBounds(content.reduced(16, 8));
+    const auto scale = juce::jmin(
+        static_cast<float>(getWidth()) / designWidth,
+        static_cast<float>(getHeight()) / designHeight
+    );
+    const auto offsetX = (static_cast<float>(getWidth()) - designWidth * scale) * 0.5f;
+    const auto offsetY = (static_cast<float>(getHeight()) - designHeight * scale) * 0.5f;
+    const auto mapBounds = [scale, offsetX, offsetY](juce::Rectangle<float> logical) {
+        return juce::Rectangle<int>(
+            juce::roundToInt(offsetX + logical.getX() * scale),
+            juce::roundToInt(offsetY + logical.getY() * scale),
+            juce::roundToInt(logical.getWidth() * scale),
+            juce::roundToInt(logical.getHeight() * scale)
+        );
+    };
 
-    auto modes = controls.removeFromRight(190).reduced(8, 4);
-    const auto knobWidth = controls.getWidth() / knobCount;
+    spectrumAnalyzer_.setBounds(mapBounds({170.0f, 642.0f, 1492.0f, 160.0f}));
     for (int index = 0; index < knobCount; ++index) {
-        auto cell = index == knobCount - 1
-            ? controls
-            : controls.removeFromLeft(knobWidth);
-        auto& label = knobLabels_[static_cast<size_t>(index)];
-        label.setBounds(cell.removeFromTop(20));
-        knobs_[static_cast<size_t>(index)].setBounds(cell.reduced(2));
+        const auto x = 336.0f + static_cast<float>(index) * 99.0f;
+        knobLabels_[static_cast<size_t>(index)].setBounds(mapBounds({x, 478.0f, 84.0f, 16.0f}));
+        knobs_[static_cast<size_t>(index)].setBounds(mapBounds({x, 495.0f, 84.0f, 102.0f}));
     }
-
-    qualityLabel_.setBounds(modes.removeFromTop(20));
-    qualityBox_.setBounds(modes.removeFromTop(30));
-    modes.removeFromTop(8);
-    freezeButton_.setBounds(modes.removeFromTop(30));
-    reverseButton_.setBounds(modes.removeFromTop(30));
-    rt60Readout_.setBounds(getWidth() - 330, 70, 300, 28);
+    qualityLabel_.setBounds(mapBounds({1598.0f, 565.0f, 62.0f, 18.0f}));
+    qualityBox_.setBounds(mapBounds({1660.0f, 558.0f, 196.0f, 32.0f}));
+    freezeButton_.setBounds(mapBounds({1598.0f, 592.0f, 122.0f, 24.0f}));
+    reverseButton_.setBounds(mapBounds({1730.0f, 592.0f, 126.0f, 24.0f}));
+    rt60Readout_.setBounds(mapBounds({900.0f, 176.0f, 306.0f, 28.0f}));
 }

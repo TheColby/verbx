@@ -34,14 +34,14 @@ verbx render voice.wav out.wav \
 
 ![VERBX full-screen AUv3 and VST3 plug-in design](docs/assets/verbx_plugin_fullscreen.png)
 
-The image above is an actual `1920x1080` capture of the current full-screen
-design prototype. It is the visual target for the plug-in, not a claim that the
-production editor is finished.
+The image above is the approved `1920x1080` visual direction for the full-screen
+spatial console.
 
-The capture below is the currently compiled JUCE standalone editor with the
-native realtime post-DSP analyzer overlay. The host has muted its input, so the
-trace correctly rests at the analyzer floor while the logarithmic grid, dB
-field, and overlay hierarchy remain visible.
+The capture below is the currently compiled JUCE editor. It now implements the
+same spatial-console composition: loudness bank, DXF geometry theater, image
+and ray-model panels, nine live parameter cards, horizontal decay analyzer,
+quality/mode controls, and lower expert sections. The host has muted its input,
+so the live analyzer trace correctly rests at its floor.
 
 ![VERBX native realtime spectrum analyzer](docs/assets/verbx_plugin_native_analyzer.jpg)
 
@@ -60,7 +60,8 @@ The first native plug-in foundation is implemented under
   scaling, RT60, damping, diffusion, width, wet/dry, Freeze, and a zero-lookahead
   reverse-style swell
 - 20 ms realtime parameter smoothing for host automation without zipper noise
-- complete initial 12-parameter JUCE control dock with effective-RT60 readout
+- full-screen 16:9 spatial-console editor with the complete initial
+  12-parameter control surface and effective-RT60 readout
 
 The complete installer builds and installs the CLI, native executable, man
 pages, runtime extras, VST3, Audio Unit on macOS, and the standalone app:

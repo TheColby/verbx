@@ -8,6 +8,40 @@
 
 class VerbXPluginProcessor;
 
+class VerbXLookAndFeel final : public juce::LookAndFeel_V4 {
+public:
+    VerbXLookAndFeel();
+
+    void drawRotarySlider(
+        juce::Graphics& graphics,
+        int x,
+        int y,
+        int width,
+        int height,
+        float sliderPosition,
+        float rotaryStartAngle,
+        float rotaryEndAngle,
+        juce::Slider& slider
+    ) override;
+    void drawToggleButton(
+        juce::Graphics& graphics,
+        juce::ToggleButton& button,
+        bool shouldDrawButtonAsHighlighted,
+        bool shouldDrawButtonAsDown
+    ) override;
+    void drawComboBox(
+        juce::Graphics& graphics,
+        int width,
+        int height,
+        bool isButtonDown,
+        int buttonX,
+        int buttonY,
+        int buttonWidth,
+        int buttonHeight,
+        juce::ComboBox& box
+    ) override;
+};
+
 class VerbXSpectrumAnalyzer final : public juce::Component, private juce::Timer {
 public:
     explicit VerbXSpectrumAnalyzer(VerbXPluginProcessor& processor);
@@ -61,6 +95,7 @@ private:
 
     VerbXPluginProcessor& processor_;
     VerbXSpectrumAnalyzer spectrumAnalyzer_;
+    VerbXLookAndFeel lookAndFeel_;
     std::array<juce::Slider, knobCount> knobs_{};
     std::array<juce::Label, knobCount> knobLabels_{};
     std::array<std::unique_ptr<SliderAttachment>, knobCount> knobAttachments_{};

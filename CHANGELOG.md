@@ -5,6 +5,11 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Changed
+- Rebuilt the native plug-in editor as the approved full-screen 16:9 spatial
+  console: DXF geometry theater, loudness meters, image/ray panels, live decay
+  analyzer, nine parameter cards including separate RT60 coarse/fine controls,
+  quality/mode controls, and expert status cards. The README now carries a real
+  capture of the compiled implementation.
 - Native plug-in metadata now identifies Colby Leider as the author/vendor,
   uses the stable `com.colbyleider.verbx` bundle identifier, and the installer
   fully signs and verifies copied macOS bundles before refreshing Audio Unit

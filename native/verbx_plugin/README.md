@@ -40,6 +40,13 @@ The C++ shell consumes the realtime-safe C foundation in `native/verbx_c`:
 
 ![Compiled VERBX realtime spectrum analyzer](../../docs/assets/verbx_plugin_native_analyzer.jpg)
 
+The compiled editor follows the approved full-screen console design rather than
+a generic plug-in control strip. A responsive 16:9 canvas presents the live DXF
+geometry theater, loudness bank, image correlation, ray model, decay spectrum,
+implemented parameter cards, quality/mode controls, and expert status cards.
+All interactive controls remain native JUCE components attached to host-visible
+parameters; decorative engineering readouts are clearly separated from them.
+
 - parameter manifest from `verbx_c/plugin_params.h`
 - realtime context API from `verbx_c/plugin_realtime.h`
 - default Target 192 kHz / 32-bit-float processing contract
