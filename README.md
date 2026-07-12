@@ -256,6 +256,21 @@ or custom `--au-dir`, `--vst3-dir`, and `--app-dir` destinations when a smaller
 or system-managed installation is preferable. Inspect the complete plan without
 changing the machine using `./install.sh --dry-run`.
 
+If VERBX does not appear after fully quitting and reopening the DAW, force a
+signed reinstall and Audio Unit cache rebuild on macOS:
+
+```bash
+./install.sh --reset-plugin-cache
+```
+
+VERBX appears under the plug-in vendor **Colby Leider**. Logic and GarageBand
+use the Audio Unit build; VST3 hosts use `VERBX.vst3`. The installer now seals
+and strictly verifies every installed macOS bundle, touches the plug-in paths,
+and restarts the Audio Component Registrar. The explicit cache-reset option
+backs up existing Apple Audio Unit cache files beneath
+`~/.local/share/verbx/cache-backups/` before clearing them. DAW-specific VST3
+caches may still require the host's “rescan all plug-ins” command.
+
 **With Homebrew (macOS):**
 
 ```bash

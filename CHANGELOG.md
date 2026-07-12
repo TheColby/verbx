@@ -5,6 +5,11 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Changed
+- Native plug-in metadata now identifies Colby Leider as the author/vendor,
+  uses the stable `com.colbyleider.verbx` bundle identifier, and the installer
+  fully signs and verifies copied macOS bundles before refreshing Audio Unit
+  discovery. An explicit `--reset-plugin-cache` recovery path backs up stale
+  Apple cache files before forcing a clean host scan.
 - `run_render_pipeline()` is now split into explicit streaming and in-memory
   stage helpers, reducing the amount of orchestration living in a single branchy
   function.

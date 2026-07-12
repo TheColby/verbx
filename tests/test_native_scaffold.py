@@ -261,6 +261,7 @@ def test_complete_installer_exposes_plugin_options_and_dry_run(tmp_path: Path) -
     assert "--skip-plugins" in help_result.stdout
     assert "--skip-plugin-build" in help_result.stdout
     assert "--vst3-dir" in help_result.stdout
+    assert "--reset-plugin-cache" in help_result.stdout
     assert "--dry-run" in help_result.stdout
 
     prefix = tmp_path / "prefix"
@@ -275,6 +276,15 @@ def test_complete_installer_exposes_plugin_options_and_dry_run(tmp_path: Path) -
     assert "Python CLI:  yes" in plan_result.stdout
     assert "native CLI:  yes" in plan_result.stdout
     assert "plug-ins:    yes" in plan_result.stdout
+
+
+def test_plugin_metadata_uses_colby_leider_vendor_identity() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    cmake_source = (repo_root / "native/verbx_plugin/CMakeLists.txt").read_text()
+
+    assert 'COMPANY_NAME "Colby Leider"' in cmake_source
+    assert 'BUNDLE_ID "com.colbyleider.verbx"' in cmake_source
+    assert "PLUGIN_MANUFACTURER_CODE Clby" in cmake_source
 
 
 def test_native_render_stereo_pcm16_output(tmp_path: Path) -> None:

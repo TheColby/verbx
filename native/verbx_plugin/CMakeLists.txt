@@ -23,7 +23,11 @@ endif()
 add_subdirectory(../verbx_c verbx_c_core_build)
 
 juce_add_plugin(VERBXPlugin
-  COMPANY_NAME "VERBX"
+  COMPANY_NAME "Colby Leider"
+  COMPANY_WEBSITE "https://github.com/TheColby/verbx"
+  COMPANY_COPYRIGHT "Copyright 2026 Colby Leider"
+  BUNDLE_ID "com.colbyleider.verbx"
+  DESCRIPTION "High-resolution realtime reverberation"
   IS_SYNTH FALSE
   NEEDS_MIDI_INPUT FALSE
   NEEDS_MIDI_OUTPUT FALSE

@@ -3,6 +3,10 @@
 This directory contains the opt-in C++/JUCE shell for the VERBX AU, AUv3,
 VST3, and standalone plug-in track.
 
+The host-visible plug-in vendor and author is **Colby Leider**. The stable
+manufacturer code remains `Clby`, and the macOS bundle identifier is
+`com.colbyleider.verbx`.
+
 Default repository builds do not require JUCE. Configure this project with
 `VERBX_ENABLE_JUCE_PLUGIN=ON` only on machines where JUCE is available through
 CMake.

@@ -43,6 +43,8 @@ Plug-in options:
   --vst3-dir PATH     VST3 destination (macOS: ~/Library/Audio/Plug-Ins/VST3; Linux: ~/.vst3)
   --app-dir PATH      Standalone app destination (macOS default: ~/Applications)
   --no-standalone     Do not install the standalone plug-in host
+  --reset-plugin-cache
+                      Back up and clear the macOS Audio Unit cache after install
   --jobs N            Parallel build jobs (default: detected CPU count)
   --dry-run           Print the resolved installation plan and exit
   -h, --help          Show this help and exit
@@ -80,6 +82,41 @@ install_bundle() {
   printf 'Installed %s\n' "$destination"
 }
 
+sign_and_verify_bundle() {
+  local bundle="$1"
+  [[ "$OS_NAME" == Darwin ]] || return 0
+  command -v codesign >/dev/null 2>&1 || die "codesign is required on macOS"
+  codesign --force --deep --sign - "$bundle"
+  codesign --verify --deep --strict --verbose=2 "$bundle"
+}
+
+refresh_macos_plugin_registry() {
+  local au_bundle="$1"
+  local vst3_bundle="$2"
+  [[ "$OS_NAME" == Darwin ]] || return 0
+
+  touch "$au_bundle" "$vst3_bundle"
+  killall AudioComponentRegistrar >/dev/null 2>&1 || true
+
+  if [[ "$RESET_PLUGIN_CACHE" -eq 1 ]]; then
+    local backup_dir cache_file
+    backup_dir="${PREFIX}/share/verbx/cache-backups/au-$(date +%Y%m%d-%H%M%S)"
+    mkdir -p "$backup_dir"
+    for cache_file in \
+      "${HOME}/Library/Caches/AudioUnitCache/com.apple.audiounits.cache" \
+      "${HOME}/Library/Caches/AudioUnitCache/com.apple.audiounits.sandboxed.cache" \
+      "${HOME}/Library/Preferences/com.apple.audio.AudioComponentCache.plist"
+    do
+      if [[ -f "$cache_file" ]]; then
+        cp "$cache_file" "$backup_dir/"
+        rm -f "$cache_file"
+      fi
+    done
+    killall -9 AudioComponentRegistrar >/dev/null 2>&1 || true
+    printf 'Backed up and cleared the Audio Unit cache at %s\n' "$backup_dir"
+  fi
+}
+
 cpu_count() {
   if command -v sysctl >/dev/null 2>&1; then
     sysctl -n hw.logicalcpu 2>/dev/null || true
@@ -107,6 +144,7 @@ AU_DIR=""
 VST3_DIR=""
 APP_DIR=""
 WITH_STANDALONE=1
+RESET_PLUGIN_CACHE=0
 JOBS="$(cpu_count)"
 JOBS="${JOBS:-4}"
 DRY_RUN=0
@@ -140,6 +178,7 @@ while [[ $# -gt 0 ]]; do
     --skip-plugin-build) BUILD_PLUGINS=0; shift ;;
     --no-juce-download) ALLOW_JUCE_DOWNLOAD=0; shift ;;
     --no-standalone) WITH_STANDALONE=0; shift ;;
+    --reset-plugin-cache) RESET_PLUGIN_CACHE=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *)
@@ -298,11 +337,15 @@ if [[ "$WITH_PLUGINS" -eq 1 ]]; then
   vst3_source="${artifact_root}/VST3/VERBX.vst3"
   [[ -d "$vst3_source" ]] || die "VST3 artifact not found: $vst3_source"
   install_bundle "$vst3_source" "$VST3_DIR"
+  installed_vst3="${VST3_DIR}/VERBX.vst3"
+  sign_and_verify_bundle "$installed_vst3"
 
   if [[ "$OS_NAME" == Darwin ]]; then
     au_source="${artifact_root}/AU/VERBX.component"
     [[ -d "$au_source" ]] || die "Audio Unit artifact not found: $au_source"
     install_bundle "$au_source" "$AU_DIR"
+    installed_au="${AU_DIR}/VERBX.component"
+    sign_and_verify_bundle "$installed_au"
   fi
 
   if [[ "$WITH_STANDALONE" -eq 1 ]]; then
@@ -310,6 +353,7 @@ if [[ "$WITH_PLUGINS" -eq 1 ]]; then
       standalone_source="${artifact_root}/Standalone/VERBX.app"
       [[ -d "$standalone_source" ]] || die "standalone artifact not found: $standalone_source"
       install_bundle "$standalone_source" "$APP_DIR"
+      sign_and_verify_bundle "${APP_DIR}/VERBX.app"
     else
       standalone_source="${artifact_root}/Standalone/VERBX"
       [[ -x "$standalone_source" ]] || die "standalone artifact not found: $standalone_source"
@@ -318,6 +362,10 @@ if [[ "$WITH_PLUGINS" -eq 1 ]]; then
       chmod 755 "${APP_DIR}/verbx-plugin"
       printf 'Installed %s\n' "${APP_DIR}/verbx-plugin"
     fi
+  fi
+
+  if [[ "$OS_NAME" == Darwin ]]; then
+    refresh_macos_plugin_registry "$installed_au" "$installed_vst3"
   fi
 fi
 
@@ -328,4 +376,6 @@ printf 'Try:\n'
 if [[ "$WITH_PLUGINS" -eq 1 ]]; then
   [[ "$OS_NAME" != Darwin || "$WITH_STANDALONE" -eq 0 ]] || printf '  open %q\n' "${APP_DIR}/VERBX.app"
   printf '  Restart or rescan your audio host to discover VERBX.\n'
+  [[ "$OS_NAME" != Darwin || "$RESET_PLUGIN_CACHE" -eq 0 ]] || \
+    printf '  The next DAW launch will rebuild the Audio Unit cache.\n'
 fi
