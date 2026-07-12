@@ -16,6 +16,13 @@
 \definecolor{verbxCover}{HTML}{123431}
 \definecolor{verbxCoverGold}{HTML}{D5A84B}
 \definecolor{verbxCoverPaper}{HTML}{F6F0E3}
+\newcounter{verbxfigure}
+\newcommand{\verbxFigureCaption}[1]{%
+  \refstepcounter{verbxfigure}%
+  \par\smallskip\noindent
+  {\footnotesize\textbf{Figure \arabic{verbxfigure}: #1}}%
+  \par\smallskip
+}
 \AtBeginEnvironment{longtable}{\footnotesize}
 \AtBeginEnvironment{longtable}{\rowcolors{2}{verbxTableOdd}{verbxTableEven}}
 

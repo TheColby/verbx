@@ -97,7 +97,7 @@ def describe(number: int, item: tuple[str, str, str, str, str, str, str]) -> str
         "Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test."
     )
     return (
-        f"**Figure {number}. {title}.** {summary} {VISUAL_LANGUAGE[kind]}{axis_sentence}\n\n"
+        f"**Figure {number}: {title}.** {summary} {VISUAL_LANGUAGE[kind]}{axis_sentence}\n\n"
         f"Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. "
         f"Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. {caveat}"
     )

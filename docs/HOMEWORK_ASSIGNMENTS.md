@@ -26,6 +26,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 1 laboratory cycle: Calibrate a Natural Room}
 \verbxAssignmentPlate{1}{Calibrate a Natural Room}
 ```
 
@@ -49,6 +50,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 2 laboratory cycle: Map the Reverb Event}
 \verbxAssignmentPlate{2}{Map the Reverb Event}
 ```
 
@@ -72,6 +74,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 3 laboratory cycle: Coarse and Fine RT60 Laboratory}
 \verbxAssignmentPlate{3}{Coarse and Fine RT60 Laboratory}
 ```
 
@@ -95,6 +98,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 4 laboratory cycle: Frequency-Dependent Decay}
 \verbxAssignmentPlate{4}{Frequency-Dependent Decay}
 ```
 
@@ -118,6 +122,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 5 laboratory cycle: Pre-Delay and Apparent Distance}
 \verbxAssignmentPlate{5}{Pre-Delay and Apparent Distance}
 ```
 
@@ -141,6 +146,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 6 laboratory cycle: Early-Reflection Geometry}
 \verbxAssignmentPlate{6}{Early-Reflection Geometry}
 ```
 
@@ -164,6 +170,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 7 laboratory cycle: Diffusion Build-Up}
 \verbxAssignmentPlate{7}{Diffusion Build-Up}
 ```
 
@@ -187,6 +194,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 8 laboratory cycle: FDN Matrix Listening Test}
 \verbxAssignmentPlate{8}{FDN Matrix Listening Test}
 ```
 
@@ -210,6 +218,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 9 laboratory cycle: Delay-Line Distribution}
 \verbxAssignmentPlate{9}{Delay-Line Distribution}
 ```
 
@@ -233,6 +242,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 10 laboratory cycle: Freeze Stability Study}
 \verbxAssignmentPlate{10}{Freeze Stability Study}
 ```
 
@@ -256,6 +266,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 11 laboratory cycle: Reverse-Reverb Design}
 \verbxAssignmentPlate{11}{Reverse-Reverb Design}
 ```
 
@@ -279,6 +290,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 12 laboratory cycle: Shimmer Feedback Safety}
 \verbxAssignmentPlate{12}{Shimmer Feedback Safety}
 ```
 
@@ -302,6 +314,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 13 laboratory cycle: Ducking as Orchestration}
 \verbxAssignmentPlate{13}{Ducking as Orchestration}
 ```
 
@@ -325,6 +338,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 14 laboratory cycle: Limiter Transparency}
 \verbxAssignmentPlate{14}{Limiter Transparency}
 ```
 
@@ -348,6 +362,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 15 laboratory cycle: Convolution Partition Plan}
 \verbxAssignmentPlate{15}{Convolution Partition Plan}
 ```
 
@@ -371,6 +386,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 16 laboratory cycle: Impulse-Response Capture}
 \verbxAssignmentPlate{16}{Impulse-Response Capture}
 ```
 
@@ -394,6 +410,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 17 laboratory cycle: IR Editing and Provenance}
 \verbxAssignmentPlate{17}{IR Editing and Provenance}
 ```
 
@@ -417,6 +434,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 18 laboratory cycle: IR Morphing Atlas}
 \verbxAssignmentPlate{18}{IR Morphing Atlas}
 ```
 
@@ -440,6 +458,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 19 laboratory cycle: Dereverberation Tradeoff}
 \verbxAssignmentPlate{19}{Dereverberation Tradeoff}
 ```
 
@@ -463,6 +482,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 20 laboratory cycle: Speech Intelligibility Study}
 \verbxAssignmentPlate{20}{Speech Intelligibility Study}
 ```
 
@@ -486,6 +506,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 21 laboratory cycle: Realtime Latency Audit}
 \verbxAssignmentPlate{21}{Realtime Latency Audit}
 ```
 
@@ -509,6 +530,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 22 laboratory cycle: Realtime Failure Injection}
 \verbxAssignmentPlate{22}{Realtime Failure Injection}
 ```
 
@@ -532,6 +554,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 23 laboratory cycle: Automation Reproducibility}
 \verbxAssignmentPlate{23}{Automation Reproducibility}
 ```
 
@@ -555,6 +578,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 24 laboratory cycle: Preset Taxonomy}
 \verbxAssignmentPlate{24}{Preset Taxonomy}
 ```
 
@@ -578,6 +602,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 25 laboratory cycle: Loudness-Matched Evaluation}
 \verbxAssignmentPlate{25}{Loudness-Matched Evaluation}
 ```
 
@@ -601,6 +626,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 26 laboratory cycle: Stereo Width Without Phase Damage}
 \verbxAssignmentPlate{26}{Stereo Width Without Phase Damage}
 ```
 
@@ -624,6 +650,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 27 laboratory cycle: Multichannel Bus Verification}
 \verbxAssignmentPlate{27}{Multichannel Bus Verification}
 ```
 
@@ -647,6 +674,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 28 laboratory cycle: Ambisonic Rotation Exercise}
 \verbxAssignmentPlate{28}{Ambisonic Rotation Exercise}
 ```
 
@@ -670,6 +698,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 29 laboratory cycle: Room-Model Inversion}
 \verbxAssignmentPlate{29}{Room-Model Inversion}
 ```
 
@@ -693,6 +722,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 30 laboratory cycle: Ray-Traced Early Field Proposal}
 \verbxAssignmentPlate{30}{Ray-Traced Early Field Proposal}
 ```
 
@@ -716,6 +746,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 31 laboratory cycle: Machine-Readable Evidence}
 \verbxAssignmentPlate{31}{Machine-Readable Evidence}
 ```
 
@@ -739,6 +770,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 32 laboratory cycle: Native Plug-in Parity Slice}
 \verbxAssignmentPlate{32}{Native Plug-in Parity Slice}
 ```
 
@@ -762,5 +794,6 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 ```{=latex}
 \vfill
+\verbxFigureCaption{Project 33 laboratory cycle: Capstone Spatial Production}
 \verbxAssignmentPlate{33}{Capstone Spatial Production}
 ```

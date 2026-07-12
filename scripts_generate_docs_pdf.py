@@ -287,8 +287,10 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
     markdown = _add_book_parts(markdown)
     markdown = _italicize_musical_titles(markdown)
     markdown = re.sub(r'(?:<a\s+id="[^"]+"></a>)+', replace_anchor_run, markdown)
+    markdown = _ensure_image_captions(markdown)
     markdown = _compact_illustrated_guide(markdown)
     markdown = _illustrate_operational_cards(markdown)
+    markdown = _convert_figure_captions(markdown)
     markdown = _strip_plugin_heading_numbers(markdown)
     markdown = markdown.replace(
         "# Important Musical Pieces",
@@ -352,6 +354,50 @@ def _italicize_musical_titles(markdown: str) -> str:
     return markdown[:start] + appendix + markdown[end:]
 
 
+def _ensure_image_captions(markdown: str) -> str:
+    """Add a descriptive caption marker after every otherwise unlabeled image."""
+
+    lines = markdown.splitlines()
+    output: list[str] = []
+    image_pattern = re.compile(r"^!\[(?P<alt>[^]]*)\]\([^)]+\)\s*$")
+    caption_pattern = re.compile(r"^\*\*(?:Figure|Block diagram)")
+    for index, line in enumerate(lines):
+        output.append(line)
+        match = image_pattern.match(line)
+        if not match:
+            continue
+        cursor = index + 1
+        while cursor < len(lines) and not lines[cursor].strip():
+            cursor += 1
+        if cursor < len(lines) and caption_pattern.match(lines[cursor]):
+            continue
+        title = re.sub(
+            r"^(?:Figure|Block diagram)\s+\d+\s*:\s*",
+            "",
+            match.group("alt"),
+            flags=re.IGNORECASE,
+        ).strip().rstrip(".") or "Illustration"
+        output.extend(("", f"**Figure: {title}.**"))
+    return "\n".join(output)
+
+
+def _convert_figure_captions(markdown: str) -> str:
+    """Replace prose caption markers with the book's global figure counter."""
+
+    pattern = re.compile(
+        r"(?m)^\*\*(?:Figure(?:\s+\d+)?|Block diagram\s+\d+)[.:]\s*"
+        r"(?P<title>.+?)\.?\*\*(?P<rest>[^\n]*)$"
+    )
+
+    def convert(match: re.Match[str]) -> str:
+        title = _latex_text(match.group("title").rstrip("."))
+        rest = match.group("rest").strip()
+        caption = f"```{{=latex}}\n\\verbxFigureCaption{{{title}}}\n```"
+        return caption + (f"\n\n{rest}" if rest else "")
+
+    return pattern.sub(convert, markdown)
+
+
 def _illustrate_operational_cards(markdown: str) -> str:
     """Give every generated operational card a dedicated vector illustration."""
 
@@ -392,6 +438,7 @@ def _illustrate_operational_cards(markdown: str) -> str:
             + match.group("body").rstrip()
             + "\n\n```{=latex}\n"
             + "\\vfill\n"
+            + f"\\verbxFigureCaption{{{_latex_text(title)} illustration}}\n"
             + command
             + "\n```\n\n"
         )
@@ -473,7 +520,8 @@ def _compact_illustrated_guide(markdown: str) -> str:
     chapter = markdown[start:end]
     entry_pattern = re.compile(
         r"(?P<image>!\[Figure\s+\d+:[^\n]+\]\([^\n]+\))\n\n"
-        r"(?P<caption>\*\*Figure\s+\d+\..*?)(?=\n\n)\n\n"
+        r"\*\*Figure\s+\d+[.:]\s+(?P<title>.+?)\.\*\*\s*"
+        r"(?P<summary>.*?)(?=\n\n)\n\n"
         r"(?P<description>Read the figure.*?)(?=\n\n(?:!\[Figure|##\s)|\Z)",
         re.DOTALL,
     )
@@ -489,7 +537,7 @@ def _compact_illustrated_guide(markdown: str) -> str:
             "\\end{minipage}\\hfill\n"
             "\\begin{minipage}[t]{0.54\\textwidth}\\vspace{0pt}\n"
             "```\n\n"
-            f"{match.group('caption')}\n\n"
+            f"**Figure: {match.group('title')}.** {match.group('summary').strip()}\n\n"
             f"{match.group('description')}\n\n"
             "```{=latex}\n"
             "\\end{minipage}\\par\\medskip\n"
@@ -511,12 +559,13 @@ def _add_pdf_index(markdown: str) -> str:
     markdown = _index_bibliography(markdown)
     markdown = _typeset_research_references(markdown)
 
-    figure_pattern = re.compile(r"(?m)^(\*\*Figure\s+\d+\.\s+)(.+?)(\.\*\*)")
+    figure_pattern = re.compile(
+        r"(?m)^(?P<command>\\verbxFigureCaption\{(?P<title>.+?)\})$"
+    )
 
     def index_figure(match: re.Match[str]) -> str:
-        term = _plain_index_term(match.group(2))
-        marker = f"```{{=latex}}\n\\index{{{_latex_index_term(term)}}}\n```\n\n"
-        return marker + match.group(0)
+        term = _plain_index_term(match.group("title"))
+        return match.group("command") + f"\n\\index{{{_latex_index_term(term)}}}"
 
     markdown = figure_pattern.sub(index_figure, markdown)
 
