@@ -5,6 +5,8 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Changed
+- Native AU/VST3 host validation now negotiates a stereo bus layout and
+  requires measurable wet-tail energy instead of checking only finite samples.
 - The macOS installer now unregisters an ad-hoc AUv3 extension so it cannot
   shadow the validated AUv2 component in Logic. AUv3 hosting is enabled with
   an explicit Apple code-signing identity, with a development-only ad-hoc

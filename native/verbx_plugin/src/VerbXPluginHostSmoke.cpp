@@ -22,6 +22,20 @@ juce::AudioPluginFormat* findFormat(
     return nullptr;
 }
 
+bool setNormalizedParameter(
+    juce::AudioProcessor& processor,
+    const juce::String& parameterName,
+    float normalizedValue
+) {
+    for (auto* parameter : processor.getParameters()) {
+        if (parameter->getName(128).equalsIgnoreCase(parameterName)) {
+            parameter->setValueNotifyingHost(normalizedValue);
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
 int main(int argc, char* argv[]) {
@@ -59,21 +73,46 @@ int main(int argc, char* argv[]) {
         return fail("instantiation failed: " + error);
     }
 
+    auto layout = instance->getBusesLayout();
+    if (layout.inputBuses.isEmpty() || layout.outputBuses.isEmpty()) {
+        return fail("processor did not expose main input/output buses");
+    }
+    layout.inputBuses.set(0, juce::AudioChannelSet::stereo());
+    layout.outputBuses.set(0, juce::AudioChannelSet::stereo());
+    if (!instance->setBusesLayout(layout)) {
+        return fail("processor rejected a stereo host layout");
+    }
+
     instance->setNonRealtime(true);
     instance->prepareToPlay(48000.0, 512);
-    juce::AudioBuffer<float> buffer(2, 512);
-    buffer.clear();
-    buffer.setSample(0, 0, 1.0f);
-    buffer.setSample(1, 0, 1.0f);
-    juce::MidiBuffer midi;
-    instance->processBlock(buffer, midi);
+    if (!setNormalizedParameter(*instance, "Pre-Delay", 0.0f)
+        || !setNormalizedParameter(*instance, "Dry", 0.0f)
+        || !setNormalizedParameter(*instance, "Wet", 1.0f)) {
+        return fail("required wet-tail parameters were unavailable");
+    }
 
-    for (int channel = 0; channel < buffer.getNumChannels(); ++channel) {
-        for (int sample = 0; sample < buffer.getNumSamples(); ++sample) {
-            if (!std::isfinite(buffer.getSample(channel, sample))) {
-                return fail("processor produced a non-finite sample");
+    juce::AudioBuffer<float> buffer(2, 512);
+    juce::MidiBuffer midi;
+    double wetEnergy = 0.0;
+    for (int block = 0; block < 64; ++block) {
+        buffer.clear();
+        if (block == 0) {
+            buffer.setSample(0, 0, 1.0f);
+            buffer.setSample(1, 0, 1.0f);
+        }
+        instance->processBlock(buffer, midi);
+        for (int channel = 0; channel < buffer.getNumChannels(); ++channel) {
+            for (int sample = 0; sample < buffer.getNumSamples(); ++sample) {
+                const auto value = buffer.getSample(channel, sample);
+                if (!std::isfinite(value)) {
+                    return fail("processor produced a non-finite sample");
+                }
+                wetEnergy += std::abs(static_cast<double>(value));
             }
         }
+    }
+    if (wetEnergy <= 0.01) {
+        return fail("processor did not produce an audible wet tail");
     }
 
     std::unique_ptr<juce::AudioProcessorEditor> editor(instance->createEditorIfNeeded());
@@ -86,7 +125,7 @@ int main(int argc, char* argv[]) {
 
     std::cout << descriptions[0]->name << " " << format->getName()
               << " loaded; editor=" << editor->getWidth() << "x"
-              << editor->getHeight() << "; impulse=finite\n";
+              << editor->getHeight() << "; wet-energy=" << wetEnergy << '\n';
     instance->releaseResources();
     return 0;
 }
