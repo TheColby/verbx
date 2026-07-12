@@ -25,6 +25,13 @@ shipping binary.
 
 ![VERBX full-screen plug-in design](assets/verbx_plugin_fullscreen.png)
 
+The next image is an actual capture of the compiled JUCE standalone editor.
+Its input is muted by the host, so the post-DSP trace sits at the analyzer floor;
+the logarithmic frequency grid and overlaid display are production C++ rather
+than browser-prototype artwork.
+
+![VERBX native realtime spectrum analyzer](assets/verbx_plugin_native_analyzer.jpg)
+
 ## 1. Product Intent
 
 VERBX is designed as a spatial architecture instrument rather than a generic

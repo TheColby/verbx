@@ -38,6 +38,13 @@ The image above is an actual `1920x1080` capture of the current full-screen
 design prototype. It is the visual target for the plug-in, not a claim that the
 production editor is finished.
 
+The capture below is the currently compiled JUCE standalone editor with the
+native realtime post-DSP analyzer overlay. The host has muted its input, so the
+trace correctly rests at the analyzer floor while the logarithmic grid, dB
+field, and overlay hierarchy remain visible.
+
+![VERBX native realtime spectrum analyzer](docs/assets/verbx_plugin_native_analyzer.jpg)
+
 The first native plug-in foundation is implemented under
 [`native/verbx_plugin`](native/verbx_plugin/README.md):
 

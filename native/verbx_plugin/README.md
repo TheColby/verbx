@@ -18,6 +18,8 @@ package, add `-DVERBX_JUCE_SOURCE_DIR=/path/to/JUCE`.
 
 The C++ shell consumes the realtime-safe C foundation in `native/verbx_c`:
 
+![Compiled VERBX realtime spectrum analyzer](../../docs/assets/verbx_plugin_native_analyzer.jpg)
+
 - parameter manifest from `verbx_c/plugin_params.h`
 - realtime context API from `verbx_c/plugin_realtime.h`
 - default Target 192 kHz / 32-bit-float processing contract
