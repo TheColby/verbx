@@ -109,6 +109,7 @@ def _pandoc_base_command(markdown_path: Path, author: str) -> list[str]:
         str(markdown_path),
         "--from=gfm+tex_math_dollars+raw_attribute",
         "--toc",
+        "--list-of-figures",
         "--number-sections",
         "--standalone",
         "--top-level-division=chapter",

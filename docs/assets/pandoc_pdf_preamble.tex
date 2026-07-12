@@ -19,6 +19,7 @@
 \newcounter{verbxfigure}
 \newcommand{\verbxFigureCaption}[1]{%
   \refstepcounter{verbxfigure}%
+  \addcontentsline{lof}{figure}{\protect\numberline{\arabic{verbxfigure}}#1}%
   \par\smallskip\noindent
   {\footnotesize\textbf{Figure \arabic{verbxfigure}: #1}}%
   \par\smallskip
@@ -50,7 +51,9 @@
 \makeatletter
 \renewcommand{\@pnumwidth}{3.5em}
 \renewcommand{\@tocrmarg}{4.5em}
+\renewcommand*\l@figure{\@dottedtocline{1}{0em}{4.2em}}
 \makeatother
+\renewcommand{\listfigurename}{Table of Figures}
 
 % Book hierarchy and running furniture.
 \titleformat{\chapter}[display]
@@ -190,6 +193,7 @@
       \textbf{Part III} & Analysis, IRs, schemas, figures, and benchmarks\\
       \textbf{Appendix A} & Important musical pieces and recording citations\\
       \textbf{Appendix B} & Thirty-three project assignments and assessment guidance\\
+      \textbf{Table of Figures} & Numbered visual titles with page references\\
       \textbf{Back matter} & Academic references, index, and colophon
     \end{tabular}
   \end{center}
