@@ -10,6 +10,23 @@ const auto analyzerMint = juce::Colour::fromRGB(140, 246, 210);
 const auto analyzerGold = juce::Colour::fromRGB(213, 168, 75);
 const auto analyzerInk = juce::Colour::fromRGB(5, 7, 9);
 
+struct KnobDefinition {
+    const char* parameterId;
+    const char* label;
+};
+
+constexpr std::array<KnobDefinition, 9> knobDefinitions{{
+    {"pre_delay_ms", "PRE-DELAY"},
+    {"room_size", "ROOM SIZE"},
+    {"rt60_coarse", "RT60 COARSE"},
+    {"rt60_fine", "RT60 FINE"},
+    {"damping", "DAMPING"},
+    {"width", "WIDTH"},
+    {"diffusion", "DIFFUSION"},
+    {"wet", "WET"},
+    {"dry", "DRY"},
+}};
+
 } // namespace
 
 VerbXSpectrumAnalyzer::VerbXSpectrumAnalyzer(VerbXPluginProcessor& processor)
@@ -169,9 +186,98 @@ void VerbXSpectrumAnalyzer::paint(juce::Graphics& graphics) {
 VerbXPluginEditor::VerbXPluginEditor(VerbXPluginProcessor& processor)
     : AudioProcessorEditor(&processor), processor_(processor), spectrumAnalyzer_(processor) {
     addAndMakeVisible(spectrumAnalyzer_);
+    configureControls();
     setResizable(true, true);
     setResizeLimits(960, 600, 2560, 1600);
     setSize(1560, 920);
+    startTimerHz(15);
+}
+
+void VerbXPluginEditor::configureControls() {
+    auto& state = processor_.state();
+    for (int index = 0; index < knobCount; ++index) {
+        const auto& definition = knobDefinitions[static_cast<size_t>(index)];
+        auto& knob = knobs_[static_cast<size_t>(index)];
+        auto& label = knobLabels_[static_cast<size_t>(index)];
+        knob.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+        knob.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 76, 20);
+        knob.setColour(juce::Slider::rotarySliderFillColourId, analyzerMint);
+        knob.setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colours::white.withAlpha(0.12f));
+        knob.setColour(juce::Slider::thumbColourId, analyzerGold);
+        knob.setColour(juce::Slider::textBoxTextColourId, juce::Colour::fromRGB(228, 240, 236));
+        knob.setColour(juce::Slider::textBoxBackgroundColourId, analyzerInk.withAlpha(0.72f));
+        knob.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+        addAndMakeVisible(knob);
+
+        label.setText(definition.label, juce::dontSendNotification);
+        label.setJustificationType(juce::Justification::centred);
+        label.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+        label.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
+        addAndMakeVisible(label);
+        knobAttachments_[static_cast<size_t>(index)] = std::make_unique<SliderAttachment>(
+            state,
+            definition.parameterId,
+            knob
+        );
+        if (index == 0) {
+            knob.textFromValueFunction = [](double value) {
+                return juce::String(value, 1) + " ms";
+            };
+        } else if (index == 2) {
+            knob.textFromValueFunction = [](double value) {
+                const auto seconds = verbx_plugin_map_rt60_seconds(value, 0.0);
+                const auto precision = seconds < 1.0 ? 3 : (seconds < 10.0 ? 2 : 1);
+                return juce::String(seconds, precision) + " s";
+            };
+        } else if (index == 3) {
+            knob.textFromValueFunction = [](double value) {
+                const auto percent = juce::roundToInt(value * 20.0);
+                return juce::String(percent >= 0 ? "+" : "") + juce::String(percent) + "%";
+            };
+        } else {
+            knob.textFromValueFunction = [](double value) {
+                return juce::String(juce::roundToInt(value * 100.0)) + "%";
+            };
+        }
+        knob.updateText();
+    }
+
+    for (auto* button : {&freezeButton_, &reverseButton_}) {
+        button->setColour(juce::ToggleButton::textColourId, juce::Colour::fromRGB(228, 240, 236));
+        button->setColour(juce::ToggleButton::tickColourId, analyzerMint);
+        button->setColour(juce::ToggleButton::tickDisabledColourId, juce::Colours::white.withAlpha(0.18f));
+        addAndMakeVisible(*button);
+    }
+    freezeAttachment_ = std::make_unique<ButtonAttachment>(state, "freeze", freezeButton_);
+    reverseAttachment_ = std::make_unique<ButtonAttachment>(state, "reverse", reverseButton_);
+
+    qualityBox_.addItemList({"Host", "2x", "4x", "Target 192 kHz"}, 1);
+    qualityBox_.setColour(juce::ComboBox::backgroundColourId, analyzerInk.brighter(0.12f));
+    qualityBox_.setColour(juce::ComboBox::textColourId, juce::Colour::fromRGB(228, 240, 236));
+    qualityBox_.setColour(juce::ComboBox::outlineColourId, analyzerMint.withAlpha(0.35f));
+    addAndMakeVisible(qualityBox_);
+    qualityAttachment_ = std::make_unique<ComboBoxAttachment>(state, "quality_mode", qualityBox_);
+
+    qualityLabel_.setText("QUALITY", juce::dontSendNotification);
+    qualityLabel_.setJustificationType(juce::Justification::centredLeft);
+    qualityLabel_.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+    qualityLabel_.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
+    addAndMakeVisible(qualityLabel_);
+
+    rt60Readout_.setJustificationType(juce::Justification::centredRight);
+    rt60Readout_.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+    rt60Readout_.setColour(juce::Label::textColourId, analyzerGold);
+    addAndMakeVisible(rt60Readout_);
+    timerCallback();
+}
+
+void VerbXPluginEditor::timerCallback() {
+    const auto seconds = processor_.effectiveRt60Seconds();
+    const auto precision = seconds < 1.0 ? 3 : (seconds < 10.0 ? 2 : 1);
+    rt60Readout_.setText(
+        "EFFECTIVE RT60  " + juce::String(seconds, precision) + " s",
+        juce::dontSendNotification
+    );
 }
 
 void VerbXPluginEditor::paint(juce::Graphics& graphics) {
@@ -202,8 +308,35 @@ void VerbXPluginEditor::paint(juce::Graphics& graphics) {
     graphics.setColour(juce::Colour::fromRGB(180, 197, 200).withAlpha(0.62f));
     graphics.setFont(juce::FontOptions(11.0f, juce::Font::bold));
     graphics.drawText("LIVE SPECTRAL FIELD", 52, 116, 240, 18, juce::Justification::centredLeft);
+
+    const auto dock = getLocalBounds().toFloat().reduced(28.0f).removeFromBottom(190.0f);
+    graphics.setColour(juce::Colour::fromRGB(10, 17, 19).withAlpha(0.96f));
+    graphics.fillRoundedRectangle(dock, 18.0f);
+    graphics.setColour(analyzerMint.withAlpha(0.16f));
+    graphics.drawRoundedRectangle(dock.reduced(0.5f), 18.0f, 1.0f);
 }
 
 void VerbXPluginEditor::resized() {
-    spectrumAnalyzer_.setBounds(getLocalBounds().reduced(44, 146));
+    auto content = getLocalBounds().reduced(28);
+    content.removeFromTop(112);
+    auto controls = content.removeFromBottom(190).reduced(12, 8);
+    spectrumAnalyzer_.setBounds(content.reduced(16, 8));
+
+    auto modes = controls.removeFromRight(190).reduced(8, 4);
+    const auto knobWidth = controls.getWidth() / knobCount;
+    for (int index = 0; index < knobCount; ++index) {
+        auto cell = index == knobCount - 1
+            ? controls
+            : controls.removeFromLeft(knobWidth);
+        auto& label = knobLabels_[static_cast<size_t>(index)];
+        label.setBounds(cell.removeFromTop(20));
+        knobs_[static_cast<size_t>(index)].setBounds(cell.reduced(2));
+    }
+
+    qualityLabel_.setBounds(modes.removeFromTop(20));
+    qualityBox_.setBounds(modes.removeFromTop(30));
+    modes.removeFromTop(8);
+    freezeButton_.setBounds(modes.removeFromTop(30));
+    reverseButton_.setBounds(modes.removeFromTop(30));
+    rt60Readout_.setBounds(getWidth() - 330, 70, 300, 28);
 }

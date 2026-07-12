@@ -4,6 +4,7 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include <array>
+#include <memory>
 
 class VerbXPluginProcessor;
 
@@ -44,7 +45,7 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VerbXSpectrumAnalyzer)
 };
 
-class VerbXPluginEditor final : public juce::AudioProcessorEditor {
+class VerbXPluginEditor final : public juce::AudioProcessorEditor, private juce::Timer {
 public:
     explicit VerbXPluginEditor(VerbXPluginProcessor& processor);
     ~VerbXPluginEditor() override = default;
@@ -53,8 +54,27 @@ public:
     void resized() override;
 
 private:
+    static constexpr int knobCount = 9;
+    using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
+    using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
+    using ComboBoxAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
+
     VerbXPluginProcessor& processor_;
     VerbXSpectrumAnalyzer spectrumAnalyzer_;
+    std::array<juce::Slider, knobCount> knobs_{};
+    std::array<juce::Label, knobCount> knobLabels_{};
+    std::array<std::unique_ptr<SliderAttachment>, knobCount> knobAttachments_{};
+    juce::ToggleButton freezeButton_{"FREEZE"};
+    juce::ToggleButton reverseButton_{"REVERSE"};
+    juce::ComboBox qualityBox_;
+    juce::Label qualityLabel_;
+    juce::Label rt60Readout_;
+    std::unique_ptr<ButtonAttachment> freezeAttachment_;
+    std::unique_ptr<ButtonAttachment> reverseAttachment_;
+    std::unique_ptr<ComboBoxAttachment> qualityAttachment_;
+
+    void timerCallback() override;
+    void configureControls();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VerbXPluginEditor)
 };

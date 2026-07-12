@@ -63,6 +63,7 @@ int main(void) {
     const float *inputs[2] = {in_l, in_r};
     float *outputs[2] = {out_l, out_r};
     size_t frame;
+    double wet_energy = 0.0;
 
     memset(&context, 0, sizeof(context));
     memset(&config, 0, sizeof(config));
@@ -124,6 +125,61 @@ int main(void) {
     if (require_true(status.latency_frames == 0U, "latency status mismatch") != 0) {
         return 1;
     }
+
+    verbx_plugin_realtime_reset(&context);
+    memset(in_l, 0, sizeof(in_l));
+    memset(in_r, 0, sizeof(in_r));
+    params.pre_delay_ms = 0.0;
+    params.room_size = 0.72;
+    params.rt60_coarse_normalized = 0.5;
+    params.rt60_fine_bipolar = 0.0;
+    params.damping = 0.41;
+    params.diffusion = 0.65;
+    params.width = 1.35;
+    params.dry = 0.0;
+    params.wet = 1.0;
+    params.freeze = 0;
+    params.reverse = 0;
+    for (frame = 0U; frame < 4096U; frame += 4U) {
+        size_t local;
+        in_l[0] = frame == 0U ? 1.0f : 0.0f;
+        in_r[0] = frame == 0U ? 1.0f : 0.0f;
+        in_l[1] = in_l[2] = in_l[3] = 0.0f;
+        in_r[1] = in_r[2] = in_r[3] = 0.0f;
+        if (require_true(
+                verbx_plugin_realtime_process(&context, inputs, outputs, 4U, 2U, &params, &status) == 0,
+                "wet impulse processing should succeed"
+            ) != 0) {
+            return 1;
+        }
+        for (local = 0U; local < 4U; ++local) {
+            wet_energy += fabs((double)out_l[local]) + fabs((double)out_r[local]);
+        }
+    }
+    if (require_true(wet_energy > 0.01, "wet impulse should produce a reverb tail") != 0) {
+        return 1;
+    }
+
+    verbx_plugin_realtime_reset(&context);
+    memset(in_l, 0, sizeof(in_l));
+    memset(in_r, 0, sizeof(in_r));
+    if (require_true(
+            verbx_plugin_realtime_process(&context, inputs, outputs, 4U, 2U, &params, &status) == 0,
+            "processing after reset should succeed"
+        ) != 0) {
+        return 1;
+    }
+    for (frame = 0U; frame < 4U; ++frame) {
+        if (require_close(out_l[frame], 0.0, 1e-12, "reset should clear left reverb state") != 0) {
+            return 1;
+        }
+        if (require_close(out_r[frame], 0.0, 1e-12, "reset should clear right reverb state") != 0) {
+            return 1;
+        }
+    }
+
+    params.dry = 1.0;
+    params.wet = 0.0;
     if (require_true(verbx_plugin_realtime_process(&context, inputs, outputs, 513U, 2U, &params, &status) != 0, "process should reject oversized blocks") != 0) {
         return 1;
     }

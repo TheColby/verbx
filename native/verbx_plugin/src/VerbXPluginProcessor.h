@@ -41,6 +41,7 @@ public:
     juce::AudioProcessorValueTreeState& state();
     int popAnalyzerSamples(float* destination, int maxSamples) noexcept;
     double analyzerSampleRate() const noexcept;
+    double effectiveRt60Seconds() const noexcept;
 
 private:
     struct RealtimeParameterPointers {

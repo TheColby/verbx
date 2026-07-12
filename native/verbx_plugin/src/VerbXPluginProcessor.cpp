@@ -257,6 +257,13 @@ double VerbXPluginProcessor::analyzerSampleRate() const noexcept {
     return analyzerSampleRate_.load(std::memory_order_acquire);
 }
 
+double VerbXPluginProcessor::effectiveRt60Seconds() const noexcept {
+    return verbx_plugin_map_rt60_seconds(
+        parameterValue(parameterPointers_.rt60Coarse),
+        parameterValue(parameterPointers_.rt60Fine)
+    );
+}
+
 juce::AudioProcessorEditor* VerbXPluginProcessor::createEditor() {
     return new VerbXPluginEditor(*this);
 }

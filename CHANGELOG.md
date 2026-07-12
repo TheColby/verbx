@@ -36,6 +36,13 @@ All notable changes to this project are documented in this file.
   long-tail W64 output.
 
 ### Added
+- Promoted the native JUCE plug-in from pass-through scaffold to an audible,
+  allocation-free mono/stereo Schroeder reverb with the complete initial
+  12-parameter control dock, effective-RT60 display, Freeze, reverse-style
+  swell, and overlaid realtime spectrum analyzer.
+- Added persistent realtime DSP state, wet-tail/reset tests, sanitizer coverage,
+  20 ms automation smoothing, and successful standalone, AU, and VST3 build
+  validation.
 - `src/verbx/core/room_geometry.py` with a reusable `RoomGeometry` dataclass,
   direct-path/pre-delay metrics, aspect-ratio analysis, and Bolt-style warnings
   for physically grounded room workflows.

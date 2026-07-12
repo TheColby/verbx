@@ -47,6 +47,7 @@ typedef struct {
     size_t channel_count;
     size_t latency_frames;
     verbx_plugin_quality_mode quality_mode;
+    void *dsp_state;
     int prepared;
 } verbx_plugin_realtime_context;
 

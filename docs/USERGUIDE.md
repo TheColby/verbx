@@ -88,8 +88,11 @@ The first native plug-in foundation is implemented under
 - cached lock-free parameter reads on the audio callback
 - overlaid realtime post-DSP spectrum analyzer with an 8192-point Hann FFT,
   logarithmic frequency grid, smoothed response, and peak trace
-- pass-through-safe realtime core while the native reverb DSP is moved behind
-  the callback boundary
+- allocation-free mono/stereo Schroeder realtime core with pre-delay, room
+  scaling, RT60, damping, diffusion, width, wet/dry, Freeze, and a zero-lookahead
+  reverse-style swell
+- 20 ms realtime parameter smoothing for host automation without zipper noise
+- complete initial 12-parameter JUCE control dock with effective-RT60 readout
 
 Repository builds do not require JUCE unless the plug-in target is enabled:
 
@@ -415,9 +418,10 @@ Current native status:
 - native JSON reports: `doctor --json-out` and `render --json-out`
 - foundational native algorithmic reverb core with float64 internal processing
 - reusable `verbx_c_core` library with a tested plug-in parameter manifest
-- realtime context API with quality-target status, latency reporting, Freeze,
-  Reverse, and pass-through-safe callback behavior
-- guarded C++/JUCE AU, AUv3, VST3, and standalone shell scaffold
+- realtime context API with persistent mono/stereo reverb state, quality-target
+  status, zero-latency reporting, Freeze, and reverse-style swell behavior
+- guarded C++/JUCE AU, AUv3, VST3, and standalone shell with the complete
+  initial control dock and realtime spectrum overlay
 - plug-in RT60 coarse/fine mapping and native render floor aligned at `0.01s`
 
 `v0.8` in scope:
@@ -5784,8 +5788,9 @@ already exists, and the operational practices required to turn that foundation
 into a dependable AU, AUv3, VST3, and standalone product. It is deliberately
 honest about maturity. The repository contains a tested parameter manifest, a
 realtime context boundary, a guarded C++17/JUCE shell, state serialization, and
-a realtime spectrum-overlay component. The current realtime core is pass-through-safe; it is not
-yet the finished reverb engine. The full-screen image below is the approved
+a realtime spectrum-overlay component, a complete initial control dock, and an
+allocation-free mono/stereo Schroeder reverb. It is a usable native engine, but
+not yet the final oversampled or multichannel architecture. The full-screen image below is the approved
 visual target and a live design-prototype capture, not a screenshot of a
 shipping binary.
 
@@ -5831,8 +5836,11 @@ The first foundation slice is intentionally narrow and testable:
   coarse/fine mapping from 0.01 seconds to 360 seconds.
 - `plugin_realtime.h` defines host configuration, realtime parameters, status,
   context lifecycle, latency accessors, and processing entry points.
-- `plugin_realtime.c` validates host configuration, rejects invalid quality
-  modes and sample-rate overflow, and provides bounded pass-through processing.
+- `plugin_realtime.c` validates host configuration, allocates persistent state
+  only during preparation, and provides bounded mono/stereo Schroeder processing
+  with pre-delay, room scale, RT60, damping, diffusion, width, wet/dry, Freeze,
+  and a zero-lookahead reverse-style swell. Continuous controls use 20 ms
+  smoothing inside the native state so host automation does not zipper.
 - `native/verbx_plugin` contains the guarded JUCE shell for AU, AUv3, VST3, and
   standalone targets.
 - The processor caches atomic parameter pointers during construction so the
@@ -5843,6 +5851,8 @@ The first foundation slice is intentionally narrow and testable:
   frequency spacing, release smoothing, and a decaying peak trace.
 - The rest of the full visual prototype has not yet been ported into production
   JUCE controls.
+- The complete initial twelve-parameter surface is attached to host automation,
+  with compact musical units and a live effective-RT60 readout.
 
 This boundary is valuable even before the reverb DSP is connected. Host code,
 parameter identity, state recall, bus negotiation, callback constraints, and

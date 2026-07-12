@@ -16,6 +16,10 @@ cmake -S native/verbx_plugin -B build/native/verbx_plugin-juce \
 If JUCE is available as a source checkout rather than an installed CMake
 package, add `-DVERBX_JUCE_SOURCE_DIR=/path/to/JUCE`.
 
+Release artifacts are written beneath
+`build/native/verbx_plugin-juce/VERBXPlugin_artefacts/Release/` as
+`Standalone/VERBX.app`, `AU/VERBX.component`, and `VST3/VERBX.vst3`.
+
 The C++ shell consumes the realtime-safe C foundation in `native/verbx_c`:
 
 ![Compiled VERBX realtime spectrum analyzer](../../docs/assets/verbx_plugin_native_analyzer.jpg)
@@ -28,5 +32,11 @@ The C++ shell consumes the realtime-safe C foundation in `native/verbx_c`:
 - realtime post-DSP spectrum overlay with a lock-free audio handoff, 8192-point
   Hann FFT, logarithmic frequency grid, smoothed response, and peak trace
 
-The current realtime core is deliberately pass-through-safe while the native
-reverb DSP is moved behind the stateful callback boundary.
+The current realtime core is an allocation-free mono/stereo Schroeder engine.
+It implements the complete initial parameter slice, including pre-delay,
+room-scaled delay geometry, logarithmic RT60, damping, diffusion, width,
+wet/dry mixing, freeze-safe feedback, and a transient-triggered reverse-style
+swell. Continuous DSP controls use 20 ms smoothing to prevent zipper noise
+during host automation. The reverse mode is a zero-lookahead musical approximation, not offline
+time reversal. Quality modes currently report the intended processing target;
+production oversampling remains a separate parity slice.

@@ -56,8 +56,11 @@ The first native plug-in foundation is implemented under
 - cached lock-free parameter reads on the audio callback
 - overlaid realtime post-DSP spectrum analyzer with an 8192-point Hann FFT,
   logarithmic frequency grid, smoothed response, and peak trace
-- pass-through-safe realtime core while the native reverb DSP is moved behind
-  the callback boundary
+- allocation-free mono/stereo Schroeder realtime core with pre-delay, room
+  scaling, RT60, damping, diffusion, width, wet/dry, Freeze, and a zero-lookahead
+  reverse-style swell
+- 20 ms realtime parameter smoothing for host automation without zipper noise
+- complete initial 12-parameter JUCE control dock with effective-RT60 readout
 
 Repository builds do not require JUCE unless the plug-in target is enabled:
 
@@ -383,9 +386,10 @@ Current native status:
 - native JSON reports: `doctor --json-out` and `render --json-out`
 - foundational native algorithmic reverb core with float64 internal processing
 - reusable `verbx_c_core` library with a tested plug-in parameter manifest
-- realtime context API with quality-target status, latency reporting, Freeze,
-  Reverse, and pass-through-safe callback behavior
-- guarded C++/JUCE AU, AUv3, VST3, and standalone shell scaffold
+- realtime context API with persistent mono/stereo reverb state, quality-target
+  status, zero-latency reporting, Freeze, and reverse-style swell behavior
+- guarded C++/JUCE AU, AUv3, VST3, and standalone shell with the complete
+  initial control dock and realtime spectrum overlay
 - plug-in RT60 coarse/fine mapping and native render floor aligned at `0.01s`
 
 `v0.8` in scope:
