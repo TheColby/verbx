@@ -7,6 +7,10 @@ The host-visible plug-in vendor and author is **Colby Leider**. The stable
 manufacturer code remains `Clby`, and the macOS bundle identifier is
 `com.colbyleider.verbx`.
 
+Fresh macOS configurations default to universal `arm64+x86_64` binaries with
+a macOS 12 deployment target, allowing discovery by native Apple Silicon and
+Rosetta-hosted DAWs.
+
 Default repository builds do not require JUCE. Configure this project with
 `VERBX_ENABLE_JUCE_PLUGIN=ON` only on machines where JUCE is available through
 CMake.

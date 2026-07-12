@@ -271,6 +271,15 @@ backs up existing Apple Audio Unit cache files beneath
 `~/.local/share/verbx/cache-backups/` before clearing them. DAW-specific VST3
 caches may still require the host's “rescan all plug-ins” command.
 
+macOS plug-ins build as universal `arm64+x86_64` binaries by default so they
+remain visible to native Apple Silicon DAWs and hosts running under Rosetta.
+The default deployment floor is macOS 12. Override these release defaults only
+when intentionally producing a narrower local build:
+
+```bash
+./install.sh --macos-architectures arm64 --macos-deployment-target 14.0
+```
+
 **With Homebrew (macOS):**
 
 ```bash

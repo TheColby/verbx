@@ -1,5 +1,16 @@
 cmake_minimum_required(VERSION 3.22)
 
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+  if(NOT CMAKE_OSX_ARCHITECTURES)
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING
+      "macOS plug-in architectures")
+  endif()
+  if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING
+      "Oldest supported macOS release")
+  endif()
+endif()
+
 project(verbx_plugin VERSION 0.8.0 LANGUAGES C CXX)
 
 option(VERBX_ENABLE_JUCE_PLUGIN "Build the VERBX AU/AUv3/VST3 plug-in target" OFF)

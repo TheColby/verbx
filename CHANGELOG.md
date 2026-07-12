@@ -10,6 +10,9 @@ All notable changes to this project are documented in this file.
   fully signs and verifies copied macOS bundles before refreshing Audio Unit
   discovery. An explicit `--reset-plugin-cache` recovery path backs up stale
   Apple cache files before forcing a clean host scan.
+- macOS AU/VST3/standalone builds now default to universal `arm64+x86_64`
+  binaries with a macOS 12 deployment target, preventing plug-in disappearance
+  when a universal DAW or scanner runs under Rosetta.
 - `run_render_pipeline()` is now split into explicit streaming and in-memory
   stage helpers, reducing the amount of orchestration living in a single branchy
   function.

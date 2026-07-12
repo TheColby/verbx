@@ -45,6 +45,10 @@ Plug-in options:
   --no-standalone     Do not install the standalone plug-in host
   --reset-plugin-cache
                       Back up and clear the macOS Audio Unit cache after install
+  --macos-architectures LIST
+                      CMake architecture list (default: arm64;x86_64)
+  --macos-deployment-target VER
+                      Oldest supported macOS version (default: 12.0)
   --jobs N            Parallel build jobs (default: detected CPU count)
   --dry-run           Print the resolved installation plan and exit
   -h, --help          Show this help and exit
@@ -145,13 +149,15 @@ VST3_DIR=""
 APP_DIR=""
 WITH_STANDALONE=1
 RESET_PLUGIN_CACHE=0
+MACOS_ARCHITECTURES="${VERBX_MACOS_ARCHITECTURES:-arm64;x86_64}"
+MACOS_DEPLOYMENT_TARGET="${VERBX_MACOS_DEPLOYMENT_TARGET:-12.0}"
 JOBS="$(cpu_count)"
 JOBS="${JOBS:-4}"
 DRY_RUN=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --prefix|--python|--man-dir|--plugin-build-dir|--juce-source|--juce-version|--au-dir|--vst3-dir|--app-dir|--jobs)
+    --prefix|--python|--man-dir|--plugin-build-dir|--juce-source|--juce-version|--au-dir|--vst3-dir|--app-dir|--macos-architectures|--macos-deployment-target|--jobs)
       require_value "$1" "${2:-}"
       case "$1" in
         --prefix) PREFIX="$2" ;;
@@ -163,6 +169,8 @@ while [[ $# -gt 0 ]]; do
         --au-dir) AU_DIR="$2" ;;
         --vst3-dir) VST3_DIR="$2" ;;
         --app-dir) APP_DIR="$2" ;;
+        --macos-architectures) MACOS_ARCHITECTURES="$2" ;;
+        --macos-deployment-target) MACOS_DEPLOYMENT_TARGET="$2" ;;
         --jobs) JOBS="$2" ;;
       esac
       shift 2
@@ -328,6 +336,12 @@ if [[ "$WITH_PLUGINS" -eq 1 ]]; then
       -DVERBX_ENABLE_JUCE_PLUGIN=ON
       -DCMAKE_BUILD_TYPE=Release
     )
+    if [[ "$OS_NAME" == Darwin ]]; then
+      configure_args+=(
+        "-DCMAKE_OSX_ARCHITECTURES=${MACOS_ARCHITECTURES}"
+        "-DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_DEPLOYMENT_TARGET}"
+      )
+    fi
     [[ -z "$JUCE_SOURCE" ]] || configure_args+=("-DVERBX_JUCE_SOURCE_DIR=${JUCE_SOURCE}")
     cmake "${configure_args[@]}"
     cmake --build "$PLUGIN_BUILD_DIR" --config Release --parallel "$JOBS"
