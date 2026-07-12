@@ -439,8 +439,8 @@ def _illustrate_operational_cards(markdown: str) -> str:
             + match.group("body").rstrip()
             + "\n\n```{=latex}\n"
             + "\\vfill\n"
-            + f"\\verbxFigureCaption{{{_latex_text(title)} illustration}}\n"
             + command
+            + f"\n\\verbxFigureCaption{{{_latex_text(title)} illustration}}"
             + "\n```\n\n"
         )
 
@@ -534,11 +534,12 @@ def _compact_illustrated_guide(markdown: str) -> str:
             "\\begin{minipage}[t]{0.43\\textwidth}\\vspace{0pt}\n"
             "```\n\n"
             f"{match.group('image')}\n\n"
+            f"**Figure: {match.group('title')}.**\n\n"
             "```{=latex}\n"
             "\\end{minipage}\\hfill\n"
             "\\begin{minipage}[t]{0.54\\textwidth}\\vspace{0pt}\n"
             "```\n\n"
-            f"**Figure: {match.group('title')}.** {match.group('summary').strip()}\n\n"
+            f"{match.group('summary').strip()}\n\n"
             f"{match.group('description')}\n\n"
             "```{=latex}\n"
             "\\end{minipage}\\par\\medskip\n"

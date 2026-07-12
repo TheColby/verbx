@@ -234,8 +234,8 @@ def generate_projects() -> None:
             "**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.", "",
             "```{=latex}",
             "\\vfill",
-            f"\\verbxFigureCaption{{Project {number} laboratory cycle: {title}}}",
             f"\\verbxAssignmentPlate{{{number}}}{{{title}}}",
+            f"\\verbxFigureCaption{{Project {number} laboratory cycle: {title}}}",
             "```", "",
         ))
     (ROOT / "docs" / "HOMEWORK_ASSIGNMENTS.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
