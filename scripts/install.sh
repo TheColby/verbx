@@ -43,6 +43,9 @@ Plug-in options:
   --vst3-dir PATH     VST3 destination (macOS: ~/Library/Audio/Plug-Ins/VST3; Linux: ~/.vst3)
   --app-dir PATH      Standalone app destination (macOS default: ~/Applications)
   --no-standalone     Do not install the standalone plug-in host
+  --codesign-identity IDENTITY
+                      Sign macOS bundles with an Apple identity (default: ad-hoc)
+  --enable-adhoc-auv3 Register AUv3 even with ad-hoc signing (development only)
   --reset-plugin-cache
                       Back up and clear the macOS Audio Unit cache after install
   --macos-architectures LIST
@@ -90,7 +93,7 @@ sign_and_verify_bundle() {
   local bundle="$1"
   local entitlements="${2:-}"
   local sign_nested="${3:-1}"
-  local codesign_args=(--force --sign -)
+  local codesign_args=(--force --sign "$CODESIGN_IDENTITY")
   [[ "$OS_NAME" == Darwin ]] || return 0
   command -v codesign >/dev/null 2>&1 || die "codesign is required on macOS"
   [[ "$sign_nested" -eq 0 ]] || codesign_args+=(--deep)
@@ -156,6 +159,8 @@ AU_DIR=""
 VST3_DIR=""
 APP_DIR=""
 WITH_STANDALONE=1
+CODESIGN_IDENTITY="${VERBX_CODESIGN_IDENTITY:--}"
+ENABLE_ADHOC_AUV3=0
 RESET_PLUGIN_CACHE=0
 MACOS_ARCHITECTURES="${VERBX_MACOS_ARCHITECTURES:-arm64;x86_64}"
 MACOS_DEPLOYMENT_TARGET="${VERBX_MACOS_DEPLOYMENT_TARGET:-12.0}"
@@ -165,7 +170,7 @@ DRY_RUN=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --prefix|--python|--man-dir|--plugin-build-dir|--juce-source|--juce-version|--au-dir|--vst3-dir|--app-dir|--macos-architectures|--macos-deployment-target|--jobs)
+    --prefix|--python|--man-dir|--plugin-build-dir|--juce-source|--juce-version|--au-dir|--vst3-dir|--app-dir|--codesign-identity|--macos-architectures|--macos-deployment-target|--jobs)
       require_value "$1" "${2:-}"
       case "$1" in
         --prefix) PREFIX="$2" ;;
@@ -177,6 +182,7 @@ while [[ $# -gt 0 ]]; do
         --au-dir) AU_DIR="$2" ;;
         --vst3-dir) VST3_DIR="$2" ;;
         --app-dir) APP_DIR="$2" ;;
+        --codesign-identity) CODESIGN_IDENTITY="$2" ;;
         --macos-architectures) MACOS_ARCHITECTURES="$2" ;;
         --macos-deployment-target) MACOS_DEPLOYMENT_TARGET="$2" ;;
         --jobs) JOBS="$2" ;;
@@ -194,6 +200,7 @@ while [[ $# -gt 0 ]]; do
     --skip-plugin-build) BUILD_PLUGINS=0; shift ;;
     --no-juce-download) ALLOW_JUCE_DOWNLOAD=0; shift ;;
     --no-standalone) WITH_STANDALONE=0; shift ;;
+    --enable-adhoc-auv3) ENABLE_ADHOC_AUV3=1; shift ;;
     --reset-plugin-cache) RESET_PLUGIN_CACHE=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -242,6 +249,13 @@ if [[ "$WITH_PLUGINS" -eq 1 ]]; then
     printf '  standalone:  %s\n' "$APP_DIR"
     [[ "$OS_NAME" != Darwin ]] || \
       printf '  AUv3:        %s/VERBX.app/Contents/PlugIns/VERBX.appex\n' "$APP_DIR"
+    if [[ "$OS_NAME" == Darwin ]]; then
+      if [[ "$CODESIGN_IDENTITY" == "-" && "$ENABLE_ADHOC_AUV3" -eq 0 ]]; then
+        printf '  AUv3 host:   disabled (ad-hoc signing; Logic uses AUv2)\n'
+      else
+        printf '  AUv3 host:   enabled\n'
+      fi
+    fi
   fi
 fi
 
@@ -390,16 +404,25 @@ if [[ "$WITH_PLUGINS" -eq 1 ]]; then
       if command -v pluginkit >/dev/null 2>&1; then
         lsregister="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
         [[ ! -x "$lsregister" ]] || "$lsregister" -f "$installed_app" >/dev/null 2>&1 || true
-        if pluginkit -a "$installed_auv3" >/dev/null 2>&1 && \
-           pluginkit -e use -i com.colbyleider.verbx.verbxAUv3 >/dev/null 2>&1; then
-          auv3_registration="$(pluginkit -m -i com.colbyleider.verbx.verbxAUv3 2>/dev/null || true)"
-        else
-          auv3_registration=""
+        auv3_enable_action="remove"
+        if [[ "$CODESIGN_IDENTITY" != "-" || "$ENABLE_ADHOC_AUV3" -eq 1 ]]; then
+          auv3_enable_action="use"
         fi
-        if [[ "$auv3_registration" == *"com.colbyleider.verbx.verbxAUv3"* ]]; then
-          printf 'Registered AUv3 extension: %s\n' "$installed_auv3"
+        if [[ "$auv3_enable_action" == "use" ]]; then
+          if pluginkit -a "$installed_auv3" >/dev/null 2>&1 && \
+             pluginkit -e use -i com.colbyleider.verbx.verbxAUv3 >/dev/null 2>&1; then
+            auv3_registration="$(pluginkit -m -i com.colbyleider.verbx.verbxAUv3 2>/dev/null || true)"
+          else
+            auv3_registration=""
+          fi
+          if [[ "$auv3_registration" == *"com.colbyleider.verbx.verbxAUv3"* ]]; then
+            printf 'Registered AUv3 extension: %s\n' "$installed_auv3"
+          else
+            printf 'warning: PlugInKit registration is pending; launch VERBX.app once or log out and back in.\n' >&2
+          fi
         else
-          printf 'warning: PlugInKit registration is pending; launch VERBX.app once or log out and back in.\n' >&2
+          pluginkit -r "$installed_auv3" >/dev/null 2>&1 || true
+          printf 'Installed AUv3 extension but unregistered ad-hoc hosting; Logic will use AUv2.\n'
         fi
       fi
     else

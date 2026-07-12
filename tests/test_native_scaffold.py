@@ -249,6 +249,7 @@ def test_native_install_script_installs_binary_and_man_page(tmp_path: Path) -> N
 def test_complete_installer_exposes_plugin_options_and_dry_run(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     script = repo_root / "install.sh"
+    installer_source = (repo_root / "scripts/install.sh").read_text()
 
     help_result = subprocess.run(
         [str(script), "--help"],
@@ -262,6 +263,9 @@ def test_complete_installer_exposes_plugin_options_and_dry_run(tmp_path: Path) -
     assert "--skip-plugin-build" in help_result.stdout
     assert "--vst3-dir" in help_result.stdout
     assert "--reset-plugin-cache" in help_result.stdout
+    assert "--codesign-identity" in help_result.stdout
+    assert "--enable-adhoc-auv3" in help_result.stdout
+    assert 'pluginkit -r "$installed_auv3"' in installer_source
     assert "--macos-architectures" in help_result.stdout
     assert "--macos-deployment-target" in help_result.stdout
     assert "--dry-run" in help_result.stdout

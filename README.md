@@ -277,6 +277,17 @@ backs up existing Apple Audio Unit cache files beneath
 `~/.local/share/verbx/cache-backups/` before clearing them. DAW-specific VST3
 caches may still require the host's “rescan all plug-ins” command.
 
+An ad-hoc-signed AUv3 can validate but still fail when Logic launches its app
+extension. To avoid shadowing the reliable AUv2 component, `./install.sh`
+installs but unregisters ad-hoc AUv3 hosting by default. Use an Apple signing
+identity for production AUv3 hosting:
+
+```bash
+./install.sh --codesign-identity "Apple Development: Your Name (TEAMID)"
+```
+
+`--enable-adhoc-auv3` is available only for local extension debugging.
+
 macOS plug-ins build as universal `arm64+x86_64` binaries by default so they
 remain visible to native Apple Silicon DAWs and hosts running under Rosetta.
 The default deployment floor is macOS 12. Override these release defaults only

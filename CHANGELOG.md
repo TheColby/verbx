@@ -5,6 +5,10 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Changed
+- The macOS installer now unregisters an ad-hoc AUv3 extension so it cannot
+  shadow the validated AUv2 component in Logic. AUv3 hosting is enabled with
+  an explicit Apple code-signing identity, with a development-only ad-hoc
+  override.
 - Made the native editor responsive to DAW window negotiation: it now opens at
   a host-safe 1280x720, can shrink to 800x450, and no longer forces a fixed
   aspect-ratio constrainer that could prevent Audacity or Logic from opening
