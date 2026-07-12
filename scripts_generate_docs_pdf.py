@@ -553,7 +553,7 @@ def _compact_illustrated_guide(markdown: str) -> str:
 
 
 def _add_pdf_index(markdown: str) -> str:
-    """Build a deep textbook index from structure, controls, cards, and citations."""
+    """Build a flat textbook index from structure, controls, cards, and citations."""
 
     markdown = _index_markdown_headings(markdown)
     markdown = _index_cli_terms(markdown)
@@ -611,7 +611,7 @@ def _index_cli_terms(markdown: str) -> str:
         if not terms:
             return []
         commands = "\n".join(
-            rf"\index{{{_latex_index_hierarchical('CLI', term)}}}" for term in terms
+            rf"\index{{{_latex_index_term(term)}}}" for term in terms
         )
         return ["", "```{=latex}", commands, "```", ""]
 
@@ -645,11 +645,9 @@ def _index_operational_cards(markdown: str) -> str:
 
     def add_marker(match: re.Match[str]) -> str:
         term = _plain_index_term(match.group("title"))
-        family = term.split(" card", 1)[0] + " cards"
         return (
             "```{=latex}\n"
-            + rf"\index{{{_latex_index_hierarchical('Operational cards', term)}}}" + "\n"
-            + rf"\index{{{_latex_index_hierarchical(family, term)}}}" + "\n"
+            + rf"\index{{{_latex_index_term(term)}}}" + "\n"
             + "```\n\n"
             + match.group(0)
         )
@@ -681,15 +679,14 @@ def _index_bibliography(markdown: str) -> str:
                 author = "Jot, Jean-Marc"
             if author and author not in normalized:
                 normalized.append(author)
-        terms: list[tuple[str, str]] = []
+        terms: list[str] = []
         for author in normalized:
-            terms.extend((("Authors", author), ("", author)))
+            terms.append(author)
         title = _plain_index_term(match.group("title"))
         if title:
-            terms.append(("Research papers", title))
+            terms.append(title)
         commands = "\n".join(
-            rf"\index{{{_latex_index_hierarchical(category, term) if category else _latex_index_term(term)}}}"
-            for category, term in terms
+            rf"\index{{{_latex_index_term(term)}}}" for term in terms
         )
         return f"```{{=latex}}\n{commands}\n```\n\n{match.group('entry')}"
 
@@ -784,10 +781,6 @@ def _reference_detail(record: dict[str, str]) -> str:
     if volume_issue and page:
         return f" { _latex_text(volume_issue) }: { _latex_text(page) }"
     return " " + _latex_text(volume_issue or page)
-
-
-def _latex_index_hierarchical(category: str, term: str) -> str:
-    return f"{_latex_index_term(category)}!{_latex_index_term(term)}"
 
 
 def _index_markdown_headings(markdown: str) -> str:
