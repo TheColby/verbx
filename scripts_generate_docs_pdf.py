@@ -304,12 +304,29 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
         1,
     )
     markdown = _add_pdf_index(markdown)
+    _validate_figure_sequence(markdown)
     return re.sub(
         r"^\\newpage$",
         lambda _: "```{=latex}\n\\newpage\n```",
         markdown,
         flags=re.MULTILINE,
     )
+
+
+def _validate_figure_sequence(markdown: str) -> None:
+    """Require one prose lead before every figure caption in document order."""
+
+    events = re.findall(r"\\verbxFigure(Lead|Caption)\{", markdown)
+    if not events or len(events) % 2:
+        raise ValueError("Every figure must have one prose lead and one caption")
+    malformed = [
+        position // 2 + 1
+        for position in range(0, len(events), 2)
+        if events[position : position + 2] != ["Lead", "Caption"]
+    ]
+    if malformed:
+        preview = ", ".join(str(number) for number in malformed[:10])
+        raise ValueError(f"Figure lead/caption order is invalid at figure(s): {preview}")
 
 
 def _remove_generated_pdf_preamble(markdown: str) -> str:
@@ -383,20 +400,32 @@ def _ensure_image_captions(markdown: str) -> str:
 
 
 def _convert_figure_captions(markdown: str) -> str:
-    """Replace prose caption markers with the book's global figure counter."""
+    """Place a numbered prose reference before each standard image and its caption below."""
 
     pattern = re.compile(
-        r"(?m)^\*\*(?:Figure(?:\s+\d+)?|Block diagram\s+\d+)[.:]\s*"
+        r"(?m)^(?P<image>!\[[^\n]*\]\([^\n]+\))\n\n"
+        r"\*\*(?:Figure(?:\s+\d+)?|Block diagram\s+\d+)[.:]\s*"
         r"(?P<title>.+?)\.?\*\*(?P<rest>[^\n]*)$"
     )
 
     def convert(match: re.Match[str]) -> str:
         title = _latex_text(match.group("title").rstrip("."))
         rest = match.group("rest").strip()
+        lead = f"```{{=latex}}\n\\verbxFigureLead{{{title}}}\n```"
         caption = f"```{{=latex}}\n\\verbxFigureCaption{{{title}}}\n```"
-        return caption + (f"\n\n{rest}" if rest else "")
+        converted = f"{lead}\n\n{match.group('image')}\n\n{caption}"
+        return converted + (f"\n\n{rest}" if rest else "")
 
-    return pattern.sub(convert, markdown)
+    markdown, count = pattern.subn(convert, markdown)
+    leftover = re.search(
+        r"(?m)^\*\*(?:Figure(?:\s+\d+)?|Block diagram\s+\d+)[.:]",
+        markdown,
+    )
+    if leftover:
+        raise ValueError("Found a figure caption without an immediately preceding image")
+    if count == 0:
+        raise ValueError("No standard image figures were converted")
+    return markdown
 
 
 def _illustrate_operational_cards(markdown: str) -> str:
@@ -439,6 +468,7 @@ def _illustrate_operational_cards(markdown: str) -> str:
             + match.group("body").rstrip()
             + "\n\n```{=latex}\n"
             + "\\vfill\n"
+            + f"\\verbxFigureLead{{{_latex_text(title)} illustration}}\n"
             + command
             + f"\n\\verbxFigureCaption{{{_latex_text(title)} illustration}}"
             + "\n```\n\n"
@@ -520,26 +550,29 @@ def _compact_illustrated_guide(markdown: str) -> str:
 
     chapter = markdown[start:end]
     entry_pattern = re.compile(
+        r"(?P<lead>The figure below introduces.*?)(?=\n\n)\n\n"
         r"(?P<image>!\[Figure\s+\d+:[^\n]+\]\([^\n]+\))\n\n"
         r"\*\*Figure\s+\d+[.:]\s+(?P<title>.+?)\.\*\*\s*"
-        r"(?P<summary>.*?)(?=\n\n)\n\n"
-        r"(?P<description>Read the figure.*?)(?=\n\n(?:!\[Figure|##\s)|\Z)",
+        r"(?P<description>Read the figure.*?)(?=\n\n(?:The figure below|##\s)|\Z)",
         re.DOTALL,
     )
 
     def compact_entry(match: re.Match[str]) -> str:
         return (
+            f"{match.group('lead').strip()}\n\n"
             "```{=latex}\n"
+            f"\\verbxFigureLead{{{_latex_text(match.group('title'))}}}\n"
             "\\par\\medskip\\noindent\n"
             "\\begin{minipage}[t]{0.43\\textwidth}\\vspace{0pt}\n"
             "```\n\n"
             f"{match.group('image')}\n\n"
-            f"**Figure: {match.group('title')}.**\n\n"
+            "```{=latex}\n"
+            f"\\verbxFigureCaption{{{_latex_text(match.group('title'))}}}\n"
+            "```\n\n"
             "```{=latex}\n"
             "\\end{minipage}\\hfill\n"
             "\\begin{minipage}[t]{0.54\\textwidth}\\vspace{0pt}\n"
             "```\n\n"
-            f"{match.group('summary').strip()}\n\n"
             f"{match.group('description')}\n\n"
             "```{=latex}\n"
             "\\end{minipage}\\par\\medskip\n"

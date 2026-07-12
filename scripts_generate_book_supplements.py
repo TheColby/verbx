@@ -205,8 +205,9 @@ def generate_diagrams() -> None:
         _png(ASSET_DIR / png_filename, title, nodes)
         lines.extend((
             f"## {title}", "",
+            f"The figure below introduces **{title}**. {description} Read it from left to right before using the detailed boundary notes beneath the visual.", "",
             f"![{title}.](assets/intro_block_diagrams/{png_filename})", "",
-            f"**Figure: {title}.** {description} The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.", "",
+            f"**Figure: {title}.** The arrows indicate processing or evidence flow, not elapsed-time scale. Every box names a boundary at which parameters, latency, channel identity, or provenance should be checked.", "",
         ))
     (ROOT / "docs" / "INTRODUCTORY_BLOCK_DIAGRAMS.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
@@ -234,6 +235,7 @@ def generate_projects() -> None:
             "**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.", "",
             "```{=latex}",
             "\\vfill",
+            f"\\verbxFigureLead{{Project {number} laboratory cycle: {title}}}",
             f"\\verbxAssignmentPlate{{{number}}}{{{title}}}",
             f"\\verbxFigureCaption{{Project {number} laboratory cycle: {title}}}",
             "```", "",

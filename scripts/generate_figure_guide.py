@@ -82,7 +82,7 @@ def metadata() -> dict[int, tuple[str, str, str, str, str, str, str]]:
     return items
 
 
-def describe(number: int, item: tuple[str, str, str, str, str, str, str]) -> str:
+def describe(item: tuple[str, str, str, str, str, str, str]) -> tuple[str, str]:
     title, summary, kind, xlab, ylab, scale, _ = item
     axis_sentence = ""
     if xlab and ylab:
@@ -96,11 +96,16 @@ def describe(number: int, item: tuple[str, str, str, str, str, str, str]) -> str
         "Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. "
         "Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test."
     )
-    return (
-        f"**Figure {number}: {title}.** {summary} {VISUAL_LANGUAGE[kind]}{axis_sentence}\n\n"
-        f"Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. "
-        f"Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. {caveat}"
+    lead = (
+        f"The figure below introduces **{title}**. {summary} "
+        f"{VISUAL_LANGUAGE[kind]}{axis_sentence}"
     )
+    follow = (
+        "Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. "
+        "Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. "
+        f"{caveat}"
+    )
+    return lead, follow
 
 
 def main() -> int:
@@ -116,7 +121,13 @@ def main() -> int:
         for number in numbers:
             item = items[number]
             title, *_, filename = item
-            lines.extend((f"![Figure {number}: {title}.](assets/userguide_figures/{filename})", "", describe(number, item), ""))
+            lead, follow = describe(item)
+            lines.extend((
+                lead, "",
+                f"![Figure {number}: {title}.](assets/userguide_figures/{filename})", "",
+                f"**Figure {number}: {title}.**", "",
+                follow, "",
+            ))
     OUTPUT.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
     print(f"Wrote {OUTPUT} with {len(items)} extended figure descriptions")
     return 0

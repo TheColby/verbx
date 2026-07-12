@@ -16,12 +16,18 @@
 \definecolor{verbxCover}{HTML}{123431}
 \definecolor{verbxCoverGold}{HTML}{D5A84B}
 \definecolor{verbxCoverPaper}{HTML}{F6F0E3}
-\newcounter{verbxfigure}
-\newcommand{\verbxFigureCaption}[1]{%
+\newcounter{verbxfigure}[chapter]
+\renewcommand{\theverbxfigure}{\thechapter-\arabic{verbxfigure}}
+\newcommand{\verbxFigureLead}[1]{%
   \refstepcounter{verbxfigure}%
-  \addcontentsline{lof}{figure}{\protect\numberline{\arabic{verbxfigure}}#1}%
   \par\smallskip\noindent
-  {\footnotesize\textbf{Figure \arabic{verbxfigure}: #1}}%
+  Figure~\theverbxfigure\ presents #1 and establishes the visual reference for the discussion that follows.%
+  \par\nopagebreak\smallskip
+}
+\newcommand{\verbxFigureCaption}[1]{%
+  \addcontentsline{lof}{figure}{\protect\numberline{\theverbxfigure}#1}%
+  \par\smallskip\noindent
+  {\footnotesize\textbf{Figure \theverbxfigure: #1}}%
   \par\smallskip
 }
 \AtBeginEnvironment{longtable}{\footnotesize}
