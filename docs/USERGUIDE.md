@@ -66,16 +66,24 @@ verbx render voice.wav out.wav \
 
 ![VERBX full-screen AUv3 and VST3 plug-in design](assets/verbx_plugin_fullscreen.png)
 
-The image above is an actual `1920x1080` capture of the current full-screen
-design prototype. It is the visual target for the plug-in, not a claim that the
-production editor is finished.
+The image above is the approved `1920x1080` visual direction for the full-screen
+spatial console.
 
-The capture below is the currently compiled JUCE standalone editor with the
-native realtime post-DSP analyzer overlay. The host has muted its input, so the
-trace correctly rests at the analyzer floor while the logarithmic grid, dB
-field, and overlay hierarchy remain visible.
+The capture below is the currently compiled JUCE editor. It now implements the
+same spatial-console composition: loudness bank, DXF geometry theater, image
+and ray-model panels, nine live parameter cards, horizontal decay analyzer,
+quality/mode controls, and lower expert sections. The host has muted its input,
+so the live analyzer trace correctly rests at its floor.
 
 ![VERBX native realtime spectrum analyzer](assets/verbx_plugin_native_analyzer.jpg)
+
+The compiled **Expert** page mirrors all nine continuous parameters as both
+rotary controls and high-resolution faders, keeps the realtime spectrum in
+view, and adds twenty native selector buttons. Its five macro banks write the
+same host-automatable state for quality, width, logarithmic decay, dry/wet
+routing, and paired damping/diffusion character settings.
+
+![VERBX compiled Expert control matrix](assets/verbx_plugin_expert.png)
 
 The first native plug-in foundation is implemented under
 [`native/verbx_plugin`](native/verbx_plugin/README.md):
@@ -92,9 +100,37 @@ The first native plug-in foundation is implemented under
   scaling, RT60, damping, diffusion, width, wet/dry, Freeze, and a zero-lookahead
   reverse-style swell
 - 20 ms realtime parameter smoothing for host automation without zipper noise
-- complete initial 12-parameter JUCE control dock with effective-RT60 readout
+- responsive Perform/Expert pages with 18 linked continuous controls and 20
+  selector buttons; no Expert control is decorative or stored outside host state
+- full-screen 16:9 spatial-console editor with the complete initial
+  12-parameter control surface and effective-RT60 readout
 
-Repository builds do not require JUCE unless the plug-in target is enabled:
+The complete installer builds and installs the CLI, native executable, man
+pages, runtime extras, VST3, Audio Unit on macOS, and the standalone app:
+
+```bash
+./install.sh
+```
+
+If JUCE is not already available, the installer downloads the pinned JUCE
+`8.0.6` source release into `build/deps/JUCE`. For an offline installation or
+an existing checkout, use:
+
+```bash
+./install.sh --juce-source /path/to/JUCE
+```
+
+The default macOS plug-in destinations are
+`~/Library/Audio/Plug-Ins/Components/VERBX.component` and
+`~/Library/Audio/Plug-Ins/VST3/VERBX.vst3`; the standalone app is installed as
+`~/Applications/VERBX.app`. That app contains and registers the true AUv3
+extension at `Contents/PlugIns/VERBX.appex`. Linux installs VST3 to `~/.vst3` and the standalone
+binary to `~/.local/bin/verbx-plugin`. Restart or rescan the audio host after
+installation. Run `./install.sh --help` for component skips, custom destination
+directories, offline operation, and build controls.
+
+Repository builds do not require JUCE unless the plug-in target is enabled
+manually:
 
 ```bash
 # Verify the guarded scaffold without JUCE.
@@ -250,12 +286,57 @@ For realtime audio device support:
 pip install -e ".[realtime]"
 ```
 
-**With the install script (installs man pages too):**
+**Complete installation, including native CLI and plug-ins:**
 
 ```bash
-./install.sh --prefix "$HOME/.local"
+./install.sh
 verbx --help && man verbx-render
 man verbx-dereverb
+```
+
+This installs the Python package with realtime and SOFA runtime extras by
+default. Use `--minimal-python`, `--skip-native`, `--skip-plugins`, `--no-man`,
+or custom `--au-dir`, `--vst3-dir`, and `--app-dir` destinations when a smaller
+or system-managed installation is preferable. Inspect the complete plan without
+changing the machine using `./install.sh --dry-run`.
+
+If VERBX does not appear after fully quitting and reopening the DAW, force a
+signed reinstall and Audio Unit cache rebuild on macOS:
+
+```bash
+./install.sh --reset-plugin-cache
+```
+
+VERBX appears under the plug-in vendor **Colby Leider**. Logic and GarageBand
+can use the AUv2 component or the AUv3 app extension; VST3 hosts use
+`VERBX.vst3`. The editor opens at a host-safe 1280x720 and remains fully
+resizable down to 800x450 while preserving the full console layout. The
+installer now signs the nested AUv3 extension before its
+containing app, registers it with PlugInKit, and seals
+and strictly verifies every installed macOS bundle, touches the plug-in paths,
+and restarts the Audio Component Registrar. The explicit cache-reset option
+backs up existing Apple Audio Unit cache files beneath
+`~/.local/share/verbx/cache-backups/` before clearing them. DAW-specific VST3
+caches may still require the host's “rescan all plug-ins” command.
+
+An ad-hoc-signed AUv3 can validate but still fail when Logic launches its app
+extension. To avoid shadowing the reliable AUv2 component, `./install.sh`
+installs but unregisters ad-hoc AUv3 hosting by default. Use an Apple signing
+identity for production AUv3 hosting:
+
+```bash
+./install.sh --codesign-identity "Apple Development: Your Name (TEAMID)"
+```
+
+`--enable-adhoc-auv3` is available only for local extension debugging.
+
+macOS plug-ins build as universal `arm64+x86_64` binaries by default so they
+remain visible to native Apple Silicon DAWs and hosts running under Rosetta.
+The default deployment floor is macOS 12. Override these release defaults only
+when intentionally producing a narrower local build:
+
+```bash
+./install.sh --macos-architectures arm64 --macos-deployment-target 14.0
 ```
 
 **With Homebrew (macOS):**
@@ -5790,9 +5871,9 @@ honest about maturity. The repository contains a tested parameter manifest, a
 realtime context boundary, a guarded C++17/JUCE shell, state serialization, and
 a realtime spectrum-overlay component, a complete initial control dock, and an
 allocation-free mono/stereo Schroeder reverb. It is a usable native engine, but
-not yet the final oversampled or multichannel architecture. The full-screen image below is the approved
-visual target and a live design-prototype capture, not a screenshot of a
-shipping binary.
+not yet the final oversampled or multichannel architecture. The full-screen
+image below is the approved visual target and a live design-prototype capture,
+not a screenshot of a shipping binary.
 
 ![VERBX full-screen plug-in design](assets/verbx_plugin_fullscreen.png)
 
@@ -5802,6 +5883,14 @@ the logarithmic frequency grid and overlaid display are production C++ rather
 than browser-prototype artwork.
 
 ![VERBX native realtime spectrum analyzer](assets/verbx_plugin_native_analyzer.jpg)
+
+The next image is generated directly from the compiled editor interaction
+smoke test. Expert mode keeps every continuous parameter available as both a
+dial and a precision fader, retains the realtime analyzer, and adds five
+four-way selector banks. These selectors write existing host state rather than
+creating hidden or decorative settings.
+
+![VERBX compiled Expert control matrix](assets/verbx_plugin_expert.png)
 
 ## 1. Product Intent
 
@@ -5814,8 +5903,10 @@ leads to three control layers:
 - A performance layer for the controls a musician or mixer reaches for during
   playback: pre-delay, room size, RT60 coarse and fine, damping, width,
   diffusion, wet, dry, Freeze, Reverse, and quality.
-- An expert layer for FDN topology, modulation, color, dynamics, geometry, and
-  spatial routing after those behaviors are realtime-safe and stable.
+- An expert layer that currently provides linked precision control and safe
+  macros for quality, width, decay, mix routing, and tail character; future FDN
+  topology, modulation, dynamics, and geometry controls land only after those
+  behaviors are realtime-safe and stable.
 - An automation layer for parameters that a host can recall and automate even
   when they are not continuously visible on the main page.
 
@@ -5849,8 +5940,9 @@ The first foundation slice is intentionally narrow and testable:
   carries mono output snapshots off the callback; the message thread performs
   an 8192-point Hann FFT at 30 visual frames per second, with logarithmic
   frequency spacing, release smoothing, and a decaying peak trace.
-- The rest of the full visual prototype has not yet been ported into production
-  JUCE controls.
+- Perform and Expert are native JUCE pages. Expert contains nine linked rotary
+  controls, nine precision faders, the live analyzer, and twenty selector
+  buttons; all write the existing APVTS host state.
 - The complete initial twelve-parameter surface is attached to host automation,
   with compact musical units and a live effective-RT60 readout.
 
@@ -6077,6 +6169,39 @@ post-DSP mono samples into a fixed lock-free ring and drops new analyzer samples
 if the display falls behind. The editor drains that ring, windows and transforms
 8192 samples, smooths the dB response, and paints the fill and peak paths at 30
 Hz. No FFT, path allocation, repaint, or UI lock occurs on the audio thread.
+
+### Expert Control Matrix
+
+Select **Expert** in the editor header to replace the visual performance
+console with a dense precision workspace. The top row contains nine rotary
+controls and the center matrix contains nine linked horizontal faders. Each
+dial/fader pair is attached to the same APVTS parameter, so moving either
+control updates host automation, the other control, saved state, and the DSP.
+The spectrum analyzer remains visible while editing.
+
+The five selector banks each provide four native buttons:
+
+- **Quality** writes Host, 2x, 4x, or Target 192 kHz policy.
+- **Width Matrix** writes calibrated Mono, Natural, Wide, or Ultra width.
+- **Decay Range** writes logarithmic Tight, Room, or Hall RT60 values; Freeze
+  also writes the separate Freeze state.
+- **Mix Routing** writes matched Dry, Insert, Parallel, or Send dry/wet pairs.
+- **Tail Character** writes matched damping/diffusion pairs for Clean, Warm,
+  Dark, or Air behavior.
+
+Selector highlighting follows current host parameter values. If automation or
+manual editing creates a value that does not exactly match a macro, the bank
+clears its highlight rather than claiming a preset that is no longer active.
+This makes the selector state descriptive, not authoritative.
+
+Numeric entry uses the units shown by the control. Enter pre-delay in
+milliseconds, RT60 directly in seconds, and Room Size, RT60 Fine, Damping,
+Width, Diffusion, Wet, and Dry as percentages. RT60 seconds are inverted through
+the logarithmic 0.01-to-360-second mapping; for example, typing `4.8 s` produces
+an effective 4.8-second decay rather than treating 4.8 as a normalized value.
+RT60 Fine uses its displayed plus-or-minus 20 percent scale. Click a dial arc
+for immediate positioning, drag vertically for precision, use the mouse wheel
+for increments, or double-click to restore the declared parameter default.
 
 ## 16. Compatibility Claims
 

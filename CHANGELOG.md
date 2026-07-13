@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Changed
+- The native editor now has a full Expert page with nine linked rotary
+  controls, nine precision faders, a live spectrum view, and twenty selector
+  buttons for quality, width, decay, mix routing, and tail character. Every
+  control writes the existing automatable host state; the UI smoke test covers
+  page switching, control visibility, dial input, and selector macros.
+- Perform and Expert text entry now parses the units shown on screen: RT60
+  seconds invert the logarithmic coarse mapping, percentages convert to native
+  ranges, and fine trim uses its displayed +/-20 percent scale. Expert selector
+  highlights now follow host automation and clear for custom parameter values.
+- Native plug-in dials now respond immediately at the clicked arc position,
+  use predictable vertical dragging, support wheel and editable text input,
+  reset on double-click, expose stable accessibility IDs, and have larger hit
+  targets. A dedicated editor smoke test verifies a real dial click reaches its
+  host-visible parameter attachment.
 - Native AU/VST3 host validation now negotiates a stereo bus layout and
   requires measurable wet-tail energy instead of checking only finite samples.
 - The macOS installer now unregisters an ad-hoc AUv3 extension so it cannot

@@ -8,6 +8,14 @@
 
 class VerbXPluginProcessor;
 
+class VerbXKnobSlider final : public juce::Slider {
+public:
+    void mouseDown(const juce::MouseEvent& event) override;
+
+private:
+    void setValueFromDialPosition(juce::Point<float> position);
+};
+
 class VerbXLookAndFeel final : public juce::LookAndFeel_V4 {
 public:
     VerbXLookAndFeel();
@@ -89,6 +97,14 @@ public:
 
 private:
     static constexpr int knobCount = 9;
+    static constexpr int expertSelectGroupCount = 5;
+    static constexpr int expertSelectsPerGroup = 4;
+    static constexpr int expertSelectButtonCount =
+        expertSelectGroupCount * expertSelectsPerGroup;
+    enum class Page {
+        perform,
+        expert,
+    };
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
     using ComboBoxAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
@@ -96,9 +112,20 @@ private:
     VerbXPluginProcessor& processor_;
     VerbXSpectrumAnalyzer spectrumAnalyzer_;
     VerbXLookAndFeel lookAndFeel_;
-    std::array<juce::Slider, knobCount> knobs_{};
+    juce::TooltipWindow tooltipWindow_;
+    Page activePage_ = Page::perform;
+    juce::TextButton performPageButton_{"PERFORM"};
+    juce::TextButton expertPageButton_{"EXPERT"};
+    std::array<VerbXKnobSlider, knobCount> knobs_{};
     std::array<juce::Label, knobCount> knobLabels_{};
     std::array<std::unique_ptr<SliderAttachment>, knobCount> knobAttachments_{};
+    std::array<VerbXKnobSlider, knobCount> expertKnobs_{};
+    std::array<juce::Label, knobCount> expertKnobLabels_{};
+    std::array<std::unique_ptr<SliderAttachment>, knobCount> expertKnobAttachments_{};
+    std::array<juce::Slider, knobCount> expertFaders_{};
+    std::array<juce::Label, knobCount> expertFaderLabels_{};
+    std::array<std::unique_ptr<SliderAttachment>, knobCount> expertFaderAttachments_{};
+    std::array<juce::TextButton, expertSelectButtonCount> expertSelectButtons_{};
     juce::ToggleButton freezeButton_{"FREEZE"};
     juce::ToggleButton reverseButton_{"REVERSE"};
     juce::ComboBox qualityBox_;
@@ -110,6 +137,13 @@ private:
 
     void timerCallback() override;
     void configureControls();
+    void configureExpertControls();
+    void updatePageVisibility();
+    void paintExpertPage(juce::Graphics& graphics);
+    void setPlainParameter(const char* parameterId, float value);
+    float plainParameter(const char* parameterId) const;
+    void selectExpertMacro(int group, int option);
+    void syncExpertMacroSelections();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VerbXPluginEditor)
 };

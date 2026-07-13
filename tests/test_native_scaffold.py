@@ -309,6 +309,32 @@ def test_plugin_editor_uses_host_safe_resizing() -> None:
     assert "setFixedAspectRatio" not in editor_source
 
 
+def test_plugin_editor_knobs_support_direct_interaction() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    editor_header = (
+        repo_root / "native/verbx_plugin/src/VerbXPluginEditor.h"
+    ).read_text()
+    editor_source = (
+        repo_root / "native/verbx_plugin/src/VerbXPluginEditor.cpp"
+    ).read_text()
+
+    assert "class VerbXKnobSlider final" in editor_header
+    assert "setValueFromDialPosition(event.position)" in editor_source
+    assert "juce::Slider::RotaryVerticalDrag" in editor_source
+    assert "setMouseDragSensitivity(180)" in editor_source
+    assert "setScrollWheelEnabled(true)" in editor_source
+    assert "setDoubleClickReturnValue" in editor_source
+    assert "setComponentID(definition.parameterId)" in editor_source
+    assert "EXPERT CONTROL MATRIX" in editor_source
+    assert "expert_knob_" in editor_source
+    assert "expert_fader_" in editor_source
+    assert "expert_select_" in editor_source
+    assert "selectExpertMacro" in editor_source
+    assert "configureParameterText" in editor_source
+    assert "syncExpertMacroSelections" in editor_source
+    assert "text.getDoubleValue() / 100.0" in editor_source
+
+
 def test_native_render_stereo_pcm16_output(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     exe = _build_native_executable(tmp_path)

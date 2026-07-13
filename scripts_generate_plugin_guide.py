@@ -20,9 +20,9 @@ honest about maturity. The repository contains a tested parameter manifest, a
 realtime context boundary, a guarded C++17/JUCE shell, state serialization, and
 a realtime spectrum-overlay component, a complete initial control dock, and an
 allocation-free mono/stereo Schroeder reverb. It is a usable native engine, but
-not yet the final oversampled or multichannel architecture. The full-screen image below is the approved
-visual target and a live design-prototype capture, not a screenshot of a
-shipping binary.
+not yet the final oversampled or multichannel architecture. The full-screen
+image below is the approved visual target and a live design-prototype capture,
+not a screenshot of a shipping binary.
 
 ![VERBX full-screen plug-in design](assets/verbx_plugin_fullscreen.png)
 
@@ -32,6 +32,14 @@ the logarithmic frequency grid and overlaid display are production C++ rather
 than browser-prototype artwork.
 
 ![VERBX native realtime spectrum analyzer](assets/verbx_plugin_native_analyzer.jpg)
+
+The next image is generated directly from the compiled editor interaction
+smoke test. Expert mode keeps every continuous parameter available as both a
+dial and a precision fader, retains the realtime analyzer, and adds five
+four-way selector banks. These selectors write existing host state rather than
+creating hidden or decorative settings.
+
+![VERBX compiled Expert control matrix](assets/verbx_plugin_expert.png)
 
 ## 1. Product Intent
 
@@ -44,8 +52,10 @@ leads to three control layers:
 - A performance layer for the controls a musician or mixer reaches for during
   playback: pre-delay, room size, RT60 coarse and fine, damping, width,
   diffusion, wet, dry, Freeze, Reverse, and quality.
-- An expert layer for FDN topology, modulation, color, dynamics, geometry, and
-  spatial routing after those behaviors are realtime-safe and stable.
+- An expert layer that currently provides linked precision control and safe
+  macros for quality, width, decay, mix routing, and tail character; future FDN
+  topology, modulation, dynamics, and geometry controls land only after those
+  behaviors are realtime-safe and stable.
 - An automation layer for parameters that a host can recall and automate even
   when they are not continuously visible on the main page.
 
@@ -79,8 +89,9 @@ The first foundation slice is intentionally narrow and testable:
   carries mono output snapshots off the callback; the message thread performs
   an 8192-point Hann FFT at 30 visual frames per second, with logarithmic
   frequency spacing, release smoothing, and a decaying peak trace.
-- The rest of the full visual prototype has not yet been ported into production
-  JUCE controls.
+- Perform and Expert are native JUCE pages. Expert contains nine linked rotary
+  controls, nine precision faders, the live analyzer, and twenty selector
+  buttons; all write the existing APVTS host state.
 - The complete initial twelve-parameter surface is attached to host automation,
   with compact musical units and a live effective-RT60 readout.
 
@@ -307,6 +318,39 @@ post-DSP mono samples into a fixed lock-free ring and drops new analyzer samples
 if the display falls behind. The editor drains that ring, windows and transforms
 8192 samples, smooths the dB response, and paints the fill and peak paths at 30
 Hz. No FFT, path allocation, repaint, or UI lock occurs on the audio thread.
+
+### Expert Control Matrix
+
+Select **Expert** in the editor header to replace the visual performance
+console with a dense precision workspace. The top row contains nine rotary
+controls and the center matrix contains nine linked horizontal faders. Each
+dial/fader pair is attached to the same APVTS parameter, so moving either
+control updates host automation, the other control, saved state, and the DSP.
+The spectrum analyzer remains visible while editing.
+
+The five selector banks each provide four native buttons:
+
+- **Quality** writes Host, 2x, 4x, or Target 192 kHz policy.
+- **Width Matrix** writes calibrated Mono, Natural, Wide, or Ultra width.
+- **Decay Range** writes logarithmic Tight, Room, or Hall RT60 values; Freeze
+  also writes the separate Freeze state.
+- **Mix Routing** writes matched Dry, Insert, Parallel, or Send dry/wet pairs.
+- **Tail Character** writes matched damping/diffusion pairs for Clean, Warm,
+  Dark, or Air behavior.
+
+Selector highlighting follows current host parameter values. If automation or
+manual editing creates a value that does not exactly match a macro, the bank
+clears its highlight rather than claiming a preset that is no longer active.
+This makes the selector state descriptive, not authoritative.
+
+Numeric entry uses the units shown by the control. Enter pre-delay in
+milliseconds, RT60 directly in seconds, and Room Size, RT60 Fine, Damping,
+Width, Diffusion, Wet, and Dry as percentages. RT60 seconds are inverted through
+the logarithmic 0.01-to-360-second mapping; for example, typing `4.8 s` produces
+an effective 4.8-second decay rather than treating 4.8 as a normalized value.
+RT60 Fine uses its displayed plus-or-minus 20 percent scale. Click a dial arc
+for immediate positioning, drag vertically for precision, use the mouse wheel
+for increments, or double-click to restore the declared parameter default.
 
 ## 16. Compatibility Claims
 

@@ -173,6 +173,13 @@ def _rewrite_longtable_specs(latex_path: Path) -> None:
             r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.22\linewidth}"
             r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.30\linewidth}@{}}"
         ),
+        r"\begin{longtable}[]{@{}lllll@{}}": (
+            r"\begin{longtable}[]{@{}>{\RaggedRight\arraybackslash\hspace{0pt}}p{0.13\linewidth}"
+            r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.22\linewidth}"
+            r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.14\linewidth}"
+            r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.10\linewidth}"
+            r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.27\linewidth}@{}}"
+        ),
     }
     for old, new in replacements.items():
         text = text.replace(old, new)

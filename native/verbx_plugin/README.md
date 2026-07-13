@@ -36,6 +36,16 @@ build/native/verbx_plugin-juce/VERBXPluginHostSmoke_artefacts/Release/VERBXPlugi
   AudioUnit 'AudioUnit:Effects/aufx,Vrbx,Clby'
 ```
 
+The same opt-in build produces `VERBXEditorInteractionSmoke`. It verifies dial
+input, page switching, linked controls, all twenty selector buttons, and macro
+writes. Passing an output path also renders a deterministic screenshot of the
+compiled Expert page without requiring a DAW or unlocked desktop:
+
+```bash
+build/native/verbx_plugin-juce/VERBXEditorInteractionSmoke_artefacts/VERBXEditorInteractionSmoke \
+  docs/assets/verbx_plugin_expert.png
+```
+
 Release artifacts are written beneath
 `build/native/verbx_plugin-juce/VERBXPlugin_artefacts/Release/` as
 `Standalone/VERBX.app`, `AU/VERBX.component`, `AUv3/VERBX.appex`, and
@@ -52,12 +62,17 @@ The C++ shell consumes the realtime-safe C foundation in `native/verbx_c`:
 
 ![Compiled VERBX realtime spectrum analyzer](../../docs/assets/verbx_plugin_native_analyzer.jpg)
 
+![Compiled VERBX Expert control matrix](../../docs/assets/verbx_plugin_expert.png)
+
 The compiled editor follows the approved full-screen console design rather than
 a generic plug-in control strip. A responsive 16:9 canvas presents the live DXF
 geometry theater, loudness bank, image correlation, ray model, decay spectrum,
 implemented parameter cards, quality/mode controls, and expert status cards.
 All interactive controls remain native JUCE components attached to host-visible
 parameters; decorative engineering readouts are clearly separated from them.
+The Expert page provides nine rotary controls, nine linked precision faders,
+the live spectrum, and five four-way selector banks for quality, width, decay,
+mix routing, and tail character.
 
 - parameter manifest from `verbx_c/plugin_params.h`
 - realtime context API from `verbx_c/plugin_realtime.h`

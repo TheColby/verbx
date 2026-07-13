@@ -101,7 +101,116 @@ constexpr std::array<KnobDefinition, 9> knobDefinitions{{
     {"dry", "DRY"},
 }};
 
+constexpr std::array<std::array<const char*, 4>, 5> expertSelectLabels{{
+    {{"HOST", "2X", "4X", "192K"}},
+    {{"MONO", "NAT", "WIDE", "ULTRA"}},
+    {{"TIGHT", "ROOM", "HALL", "FREEZE"}},
+    {{"DRY", "INSERT", "PAR", "SEND"}},
+    {{"CLEAN", "WARM", "DARK", "AIR"}},
+}};
+
+constexpr std::array<const char*, 5> expertSelectGroupLabels{{
+    "QUALITY", "WIDTH MATRIX", "DECAY RANGE", "MIX ROUTING", "TAIL CHARACTER"
+}};
+
+constexpr std::array<const char*, 5> expertSelectTooltips{{
+    "Select the host-visible internal quality policy.",
+    "Write a calibrated stereo-width value.",
+    "Write logarithmic RT60 and Freeze state.",
+    "Write a matched Dry/Wet routing pair.",
+    "Write a matched Damping/Diffusion character pair.",
+}};
+
+void configureParameterText(juce::Slider& slider, int index, bool precision) {
+    if (index == 0) {
+        slider.textFromValueFunction = [precision](double value) {
+            return juce::String(value, precision ? 2 : 1) + " ms";
+        };
+        slider.valueFromTextFunction = [](const juce::String& text) {
+            return text.getDoubleValue();
+        };
+    } else if (index == 2) {
+        slider.textFromValueFunction = [](double value) {
+            const auto seconds = verbx_plugin_map_rt60_seconds(value, 0.0);
+            const auto decimals = seconds < 1.0 ? 3 : (seconds < 10.0 ? 2 : 1);
+            return juce::String(seconds, decimals) + " s";
+        };
+        slider.valueFromTextFunction = [](const juce::String& text) {
+            const auto seconds = juce::jlimit(0.01, 360.0, text.getDoubleValue());
+            return std::log(seconds / 0.01) / std::log(360.0 / 0.01);
+        };
+    } else if (index == 3) {
+        slider.textFromValueFunction = [precision](double value) {
+            const auto percent = value * 20.0;
+            return juce::String(percent >= 0.0 ? "+" : "")
+                + juce::String(percent, precision ? 1 : 0) + "%";
+        };
+        slider.valueFromTextFunction = [](const juce::String& text) {
+            return text.getDoubleValue() / 20.0;
+        };
+    } else {
+        slider.textFromValueFunction = [precision](double value) {
+            return juce::String(value * 100.0, precision ? 1 : 0) + "%";
+        };
+        slider.valueFromTextFunction = [](const juce::String& text) {
+            return text.getDoubleValue() / 100.0;
+        };
+    }
+    slider.updateText();
+}
+
 } // namespace
+
+void VerbXKnobSlider::mouseDown(const juce::MouseEvent& event) {
+    if (isEnabled()
+        && event.mods.isLeftButtonDown()
+        && !event.mods.isPopupMenu()
+        && event.getNumberOfClicks() == 1) {
+        setValueFromDialPosition(event.position);
+    }
+
+    juce::Slider::mouseDown(event);
+}
+
+void VerbXKnobSlider::setValueFromDialPosition(juce::Point<float> position) {
+    const auto dialBounds = getLookAndFeel().getSliderLayout(*this).sliderBounds.toFloat();
+    if (!dialBounds.contains(position)) {
+        return;
+    }
+
+    const auto offset = position - dialBounds.getCentre();
+    if (offset.getDistanceSquaredFromOrigin() <= 25.0f) {
+        return;
+    }
+
+    const auto rotary = getRotaryParameters();
+    auto angle = std::atan2(static_cast<double>(offset.x), static_cast<double>(-offset.y));
+    while (angle < rotary.startAngleRadians) {
+        angle += juce::MathConstants<double>::twoPi;
+    }
+
+    if (angle > rotary.endAngleRadians) {
+        const auto distanceFromStart = std::abs(std::remainder(
+            angle - static_cast<double>(rotary.startAngleRadians),
+            juce::MathConstants<double>::twoPi
+        ));
+        const auto distanceFromEnd = std::abs(std::remainder(
+            angle - static_cast<double>(rotary.endAngleRadians),
+            juce::MathConstants<double>::twoPi
+        ));
+        angle = distanceFromStart <= distanceFromEnd
+            ? rotary.startAngleRadians
+            : rotary.endAngleRadians;
+    }
+
+    const auto proportion = juce::jlimit(
+        0.0,
+        1.0,
+        (angle - rotary.startAngleRadians)
+            / (rotary.endAngleRadians - rotary.startAngleRadians)
+    );
+    setValue(proportionOfLengthToValue(proportion), juce::sendNotificationSync);
+}
 
 VerbXLookAndFeel::VerbXLookAndFeel() {
     setColour(juce::Label::textColourId, consoleText);
@@ -353,9 +462,13 @@ void VerbXSpectrumAnalyzer::paint(juce::Graphics& graphics) {
 }
 
 VerbXPluginEditor::VerbXPluginEditor(VerbXPluginProcessor& processor)
-    : AudioProcessorEditor(&processor), processor_(processor), spectrumAnalyzer_(processor) {
+    : AudioProcessorEditor(&processor),
+      processor_(processor),
+      spectrumAnalyzer_(processor),
+      tooltipWindow_(this, 650) {
     addAndMakeVisible(spectrumAnalyzer_);
     configureControls();
+    configureExpertControls();
     setResizable(true, true);
     // Hosts wrap editors in differently constrained windows. Keep the console
     // responsive instead of forcing a large, fixed-ratio surface on the host.
@@ -366,13 +479,55 @@ VerbXPluginEditor::VerbXPluginEditor(VerbXPluginProcessor& processor)
 
 void VerbXPluginEditor::configureControls() {
     auto& state = processor_.state();
+    for (auto* button : {&performPageButton_, &expertPageButton_}) {
+        button->setClickingTogglesState(true);
+        button->setRadioGroupId(9001);
+        button->setColour(juce::TextButton::buttonColourId, consolePanel);
+        button->setColour(juce::TextButton::buttonOnColourId, analyzerMint);
+        button->setColour(juce::TextButton::textColourOffId, consoleMuted);
+        button->setColour(juce::TextButton::textColourOnId, analyzerInk);
+        addAndMakeVisible(*button);
+    }
+    performPageButton_.setComponentID("page_perform");
+    expertPageButton_.setComponentID("page_expert");
+    performPageButton_.setTooltip("Open the visual performance console.");
+    expertPageButton_.setTooltip("Open linked precision controls and selector macros.");
+    performPageButton_.setToggleState(true, juce::dontSendNotification);
+    performPageButton_.onClick = [this] {
+        activePage_ = Page::perform;
+        updatePageVisibility();
+        resized();
+        repaint();
+    };
+    expertPageButton_.onClick = [this] {
+        activePage_ = Page::expert;
+        updatePageVisibility();
+        resized();
+        repaint();
+    };
+
     for (int index = 0; index < knobCount; ++index) {
         const auto& definition = knobDefinitions[static_cast<size_t>(index)];
         auto& knob = knobs_[static_cast<size_t>(index)];
         auto& label = knobLabels_[static_cast<size_t>(index)];
         knob.setLookAndFeel(&lookAndFeel_);
-        knob.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-        knob.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 80, 18);
+        knob.setSliderStyle(juce::Slider::RotaryVerticalDrag);
+        knob.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 84, 20);
+        knob.setMouseDragSensitivity(180);
+        knob.setScrollWheelEnabled(true);
+        knob.setPopupMenuEnabled(true);
+        knob.setPopupDisplayEnabled(true, true, this, 1200);
+        knob.setMouseCursor(juce::MouseCursor::PointingHandCursor);
+        knob.setName(definition.label);
+        knob.setTitle(definition.label);
+        knob.setComponentID(definition.parameterId);
+        knob.setTooltip("Click the dial or drag vertically; scroll to adjust; double-click to reset.");
+        if (const auto* parameter = state.getParameter(definition.parameterId)) {
+            knob.setDoubleClickReturnValue(
+                true,
+                parameter->convertFrom0to1(parameter->getDefaultValue())
+            );
+        }
         knob.setColour(juce::Slider::rotarySliderFillColourId, analyzerMint);
         knob.setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colours::white.withAlpha(0.12f));
         knob.setColour(juce::Slider::thumbColourId, analyzerGold);
@@ -391,27 +546,7 @@ void VerbXPluginEditor::configureControls() {
             definition.parameterId,
             knob
         );
-        if (index == 0) {
-            knob.textFromValueFunction = [](double value) {
-                return juce::String(value, 1) + " ms";
-            };
-        } else if (index == 2) {
-            knob.textFromValueFunction = [](double value) {
-                const auto seconds = verbx_plugin_map_rt60_seconds(value, 0.0);
-                const auto precision = seconds < 1.0 ? 3 : (seconds < 10.0 ? 2 : 1);
-                return juce::String(seconds, precision) + " s";
-            };
-        } else if (index == 3) {
-            knob.textFromValueFunction = [](double value) {
-                const auto percent = juce::roundToInt(value * 20.0);
-                return juce::String(percent >= 0 ? "+" : "") + juce::String(percent) + "%";
-            };
-        } else {
-            knob.textFromValueFunction = [](double value) {
-                return juce::String(juce::roundToInt(value * 100.0)) + "%";
-            };
-        }
-        knob.updateText();
+        configureParameterText(knob, index, false);
     }
 
     for (auto* button : {&freezeButton_, &reverseButton_}) {
@@ -445,12 +580,326 @@ void VerbXPluginEditor::configureControls() {
     timerCallback();
 }
 
+void VerbXPluginEditor::configureExpertControls() {
+    auto& state = processor_.state();
+    for (int index = 0; index < knobCount; ++index) {
+        const auto& definition = knobDefinitions[static_cast<size_t>(index)];
+        auto& knob = expertKnobs_[static_cast<size_t>(index)];
+        auto& knobLabel = expertKnobLabels_[static_cast<size_t>(index)];
+        auto& fader = expertFaders_[static_cast<size_t>(index)];
+        auto& faderLabel = expertFaderLabels_[static_cast<size_t>(index)];
+
+        knob.setLookAndFeel(&lookAndFeel_);
+        knob.setSliderStyle(juce::Slider::RotaryVerticalDrag);
+        knob.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 108, 20);
+        knob.setMouseDragSensitivity(220);
+        knob.setScrollWheelEnabled(true);
+        knob.setPopupMenuEnabled(true);
+        knob.setPopupDisplayEnabled(true, true, this, 1200);
+        knob.setMouseCursor(juce::MouseCursor::PointingHandCursor);
+        knob.setName(juce::String("Expert ") + definition.label);
+        knob.setTitle(juce::String("Expert ") + definition.label);
+        knob.setComponentID(juce::String("expert_knob_") + definition.parameterId);
+        knob.setTooltip("Click the arc or drag vertically; double-click restores the parameter default.");
+        knob.setColour(juce::Slider::rotarySliderFillColourId, analyzerGold);
+        knob.setColour(juce::Slider::rotarySliderOutlineColourId, analyzerMint.withAlpha(0.20f));
+        knob.setColour(juce::Slider::thumbColourId, analyzerMint);
+        knob.setColour(juce::Slider::textBoxTextColourId, consoleText);
+        knob.setColour(juce::Slider::textBoxBackgroundColourId, analyzerInk.withAlpha(0.78f));
+        knob.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+        if (const auto* parameter = state.getParameter(definition.parameterId)) {
+            knob.setDoubleClickReturnValue(
+                true,
+                parameter->convertFrom0to1(parameter->getDefaultValue())
+            );
+        }
+        addAndMakeVisible(knob);
+
+        knobLabel.setText(definition.label, juce::dontSendNotification);
+        knobLabel.setJustificationType(juce::Justification::centred);
+        knobLabel.setFont(dataFont(9.5f, juce::Font::bold));
+        knobLabel.setColour(juce::Label::textColourId, analyzerGold);
+        addAndMakeVisible(knobLabel);
+        expertKnobAttachments_[static_cast<size_t>(index)] = std::make_unique<SliderAttachment>(
+            state,
+            definition.parameterId,
+            knob
+        );
+        configureParameterText(knob, index, true);
+
+        fader.setSliderStyle(juce::Slider::LinearHorizontal);
+        fader.setTextBoxStyle(juce::Slider::TextBoxRight, false, 92, 24);
+        fader.setMouseDragSensitivity(420);
+        fader.setScrollWheelEnabled(true);
+        fader.setPopupDisplayEnabled(true, false, this, 1000);
+        fader.setComponentID(juce::String("expert_fader_") + definition.parameterId);
+        fader.setName(juce::String("Precision ") + definition.label);
+        fader.setTitle(juce::String("Precision ") + definition.label);
+        fader.setTooltip("Precision fader for the same automatable host parameter.");
+        fader.setColour(juce::Slider::trackColourId, analyzerMint.withAlpha(0.82f));
+        fader.setColour(juce::Slider::thumbColourId, analyzerGold);
+        fader.setColour(juce::Slider::backgroundColourId, juce::Colours::white.withAlpha(0.08f));
+        fader.setColour(juce::Slider::textBoxTextColourId, consoleText);
+        fader.setColour(juce::Slider::textBoxBackgroundColourId, analyzerInk.withAlpha(0.78f));
+        fader.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+        addAndMakeVisible(fader);
+
+        faderLabel.setText(definition.label, juce::dontSendNotification);
+        faderLabel.setJustificationType(juce::Justification::centredLeft);
+        faderLabel.setFont(dataFont(9.0f, juce::Font::bold));
+        faderLabel.setColour(juce::Label::textColourId, consoleMuted);
+        addAndMakeVisible(faderLabel);
+        expertFaderAttachments_[static_cast<size_t>(index)] = std::make_unique<SliderAttachment>(
+            state,
+            definition.parameterId,
+            fader
+        );
+        configureParameterText(fader, index, true);
+    }
+
+    for (int group = 0; group < expertSelectGroupCount; ++group) {
+        for (int option = 0; option < expertSelectsPerGroup; ++option) {
+            const auto index = group * expertSelectsPerGroup + option;
+            auto& button = expertSelectButtons_[static_cast<size_t>(index)];
+            button.setButtonText(expertSelectLabels[static_cast<size_t>(group)][static_cast<size_t>(option)]);
+            button.setClickingTogglesState(true);
+            button.setRadioGroupId(9100 + group);
+            button.setComponentID("expert_select_" + juce::String(group) + "_" + juce::String(option));
+            button.setTooltip(expertSelectTooltips[static_cast<size_t>(group)]);
+            button.setColour(juce::TextButton::buttonColourId, consolePanel.brighter(0.06f));
+            button.setColour(juce::TextButton::buttonOnColourId, analyzerGold);
+            button.setColour(juce::TextButton::textColourOffId, consoleMuted);
+            button.setColour(juce::TextButton::textColourOnId, analyzerInk);
+            button.onClick = [this, group, option] { selectExpertMacro(group, option); };
+            addAndMakeVisible(button);
+        }
+    }
+    syncExpertMacroSelections();
+    updatePageVisibility();
+}
+
+void VerbXPluginEditor::setPlainParameter(const char* parameterId, float value) {
+    if (auto* parameter = processor_.state().getParameter(parameterId)) {
+        parameter->beginChangeGesture();
+        parameter->setValueNotifyingHost(parameter->convertTo0to1(value));
+        parameter->endChangeGesture();
+    }
+}
+
+float VerbXPluginEditor::plainParameter(const char* parameterId) const {
+    const auto* value = processor_.state().getRawParameterValue(parameterId);
+    return value != nullptr ? value->load(std::memory_order_relaxed) : 0.0f;
+}
+
+void VerbXPluginEditor::selectExpertMacro(int group, int option) {
+    if (group == 0) {
+        setPlainParameter("quality_mode", static_cast<float>(option));
+    } else if (group == 1) {
+        constexpr std::array<float, 4> values{0.0f, 1.0f, 1.35f, 2.0f};
+        setPlainParameter("width", values[static_cast<size_t>(option)]);
+    } else if (group == 2) {
+        constexpr std::array<double, 4> seconds{0.35, 1.9, 4.8, 360.0};
+        const auto normalized = static_cast<float>(
+            std::log(seconds[static_cast<size_t>(option)] / 0.01) / std::log(360.0 / 0.01)
+        );
+        setPlainParameter("rt60_coarse", normalized);
+        setPlainParameter("freeze", option == 3 ? 1.0f : 0.0f);
+    } else if (group == 3) {
+        constexpr std::array<float, 4> dry{1.0f, 0.78f, 1.0f, 0.0f};
+        constexpr std::array<float, 4> wet{0.0f, 0.62f, 1.0f, 1.0f};
+        setPlainParameter("dry", dry[static_cast<size_t>(option)]);
+        setPlainParameter("wet", wet[static_cast<size_t>(option)]);
+    } else if (group == 4) {
+        constexpr std::array<float, 4> damping{0.41f, 0.48f, 0.78f, 0.12f};
+        constexpr std::array<float, 4> diffusion{0.65f, 0.72f, 0.75f, 0.55f};
+        setPlainParameter("damping", damping[static_cast<size_t>(option)]);
+        setPlainParameter("diffusion", diffusion[static_cast<size_t>(option)]);
+    }
+}
+
+void VerbXPluginEditor::syncExpertMacroSelections() {
+    const auto setGroup = [this](int group, int selectedOption) {
+        for (int option = 0; option < expertSelectsPerGroup; ++option) {
+            const auto index = group * expertSelectsPerGroup + option;
+            expertSelectButtons_[static_cast<size_t>(index)].setToggleState(
+                option == selectedOption,
+                juce::dontSendNotification
+            );
+        }
+    };
+    const auto matchingOption = [](float value, const auto& values, float tolerance) {
+        for (int option = 0; option < static_cast<int>(values.size()); ++option) {
+            if (std::abs(value - static_cast<float>(values[static_cast<size_t>(option)])) <= tolerance) {
+                return option;
+            }
+        }
+        return -1;
+    };
+
+    setGroup(0, juce::jlimit(0, 3, juce::roundToInt(plainParameter("quality_mode"))));
+
+    constexpr std::array<float, 4> widths{0.0f, 1.0f, 1.35f, 2.0f};
+    setGroup(1, matchingOption(plainParameter("width"), widths, 0.001f));
+
+    if (plainParameter("freeze") >= 0.5f) {
+        setGroup(2, 3);
+    } else {
+        constexpr std::array<double, 4> seconds{0.35, 1.9, 4.8, 360.0};
+        std::array<float, 4> coarse{};
+        for (size_t index = 0; index < seconds.size(); ++index) {
+            coarse[index] = static_cast<float>(
+                std::log(seconds[index] / 0.01) / std::log(360.0 / 0.01)
+            );
+        }
+        setGroup(2, matchingOption(plainParameter("rt60_coarse"), coarse, 0.001f));
+    }
+
+    constexpr std::array<float, 4> dry{1.0f, 0.78f, 1.0f, 0.0f};
+    constexpr std::array<float, 4> wet{0.0f, 0.62f, 1.0f, 1.0f};
+    auto mixOption = -1;
+    for (int option = 0; option < 4; ++option) {
+        if (std::abs(plainParameter("dry") - dry[static_cast<size_t>(option)]) <= 0.001f
+            && std::abs(plainParameter("wet") - wet[static_cast<size_t>(option)]) <= 0.001f) {
+            mixOption = option;
+            break;
+        }
+    }
+    setGroup(3, mixOption);
+
+    constexpr std::array<float, 4> damping{0.41f, 0.48f, 0.78f, 0.12f};
+    constexpr std::array<float, 4> diffusion{0.65f, 0.72f, 0.75f, 0.55f};
+    auto characterOption = -1;
+    for (int option = 0; option < 4; ++option) {
+        if (std::abs(plainParameter("damping") - damping[static_cast<size_t>(option)]) <= 0.001f
+            && std::abs(plainParameter("diffusion") - diffusion[static_cast<size_t>(option)]) <= 0.001f) {
+            characterOption = option;
+            break;
+        }
+    }
+    setGroup(4, characterOption);
+}
+
+void VerbXPluginEditor::updatePageVisibility() {
+    const auto performVisible = activePage_ == Page::perform;
+    for (int index = 0; index < knobCount; ++index) {
+        knobs_[static_cast<size_t>(index)].setVisible(performVisible);
+        knobLabels_[static_cast<size_t>(index)].setVisible(performVisible);
+        expertKnobs_[static_cast<size_t>(index)].setVisible(!performVisible);
+        expertKnobLabels_[static_cast<size_t>(index)].setVisible(!performVisible);
+        expertFaders_[static_cast<size_t>(index)].setVisible(!performVisible);
+        expertFaderLabels_[static_cast<size_t>(index)].setVisible(!performVisible);
+    }
+    freezeButton_.setVisible(performVisible);
+    reverseButton_.setVisible(performVisible);
+    qualityBox_.setVisible(performVisible);
+    qualityLabel_.setVisible(performVisible);
+    for (auto& button : expertSelectButtons_) {
+        button.setVisible(!performVisible);
+    }
+}
+
 void VerbXPluginEditor::timerCallback() {
     const auto seconds = processor_.effectiveRt60Seconds();
     const auto precision = seconds < 1.0 ? 3 : (seconds < 10.0 ? 2 : 1);
     rt60Readout_.setText(
         "EFFECTIVE RT60  " + juce::String(seconds, precision) + " s",
         juce::dontSendNotification
+    );
+    syncExpertMacroSelections();
+}
+
+void VerbXPluginEditor::paintExpertPage(juce::Graphics& graphics) {
+    graphics.setColour(consoleText);
+    graphics.setFont(consoleFont(24.0f, juce::Font::bold));
+    graphics.drawText("EXPERT CONTROL MATRIX", 54, 112, 420, 34, juce::Justification::centredLeft);
+    graphics.setColour(consoleMuted);
+    graphics.setFont(consoleFont(12.0f));
+    graphics.drawText(
+        "Nine automatable dials, nine linked precision faders, and twenty performance selectors",
+        470,
+        117,
+        900,
+        24,
+        juce::Justification::centredLeft
+    );
+    for (int index = 0; index < knobCount; ++index) {
+        const auto x = 48.0f + static_cast<float>(index) * 204.0f;
+        const auto card = juce::Rectangle<float>(x, 154.0f, 190.0f, 176.0f);
+        graphics.setColour(juce::Colour::fromRGB(15, 22, 26));
+        graphics.fillRoundedRectangle(card, 14.0f);
+        graphics.setColour((index % 3 == 0 ? analyzerGold : analyzerMint).withAlpha(0.22f));
+        graphics.drawRoundedRectangle(card.reduced(0.5f), 14.0f, 1.0f);
+        graphics.setColour(consoleMuted.withAlpha(0.55f));
+        graphics.setFont(dataFont(7.5f, juce::Font::bold));
+        graphics.drawText(
+            "P" + juce::String(index + 1).paddedLeft('0', 2),
+            juce::roundToInt(x + 12.0f),
+            302,
+            36,
+            14,
+            juce::Justification::centredLeft
+        );
+    }
+
+    const auto analyzerPanel = juce::Rectangle<float>(48.0f, 344.0f, 1824.0f, 126.0f);
+    drawPanel(graphics, analyzerPanel, "REALTIME SPECTRUM / TAIL ENERGY", "20 HZ - 20 KHZ");
+
+    for (int index = 0; index < knobCount; ++index) {
+        const auto column = index % 3;
+        const auto row = index / 3;
+        const auto x = 48.0f + static_cast<float>(column) * 608.0f;
+        const auto y = 490.0f + static_cast<float>(row) * 104.0f;
+        const auto card = juce::Rectangle<float>(x, y, 592.0f, 88.0f);
+        graphics.setColour(juce::Colour::fromRGB(14, 21, 25));
+        graphics.fillRoundedRectangle(card, 12.0f);
+        graphics.setColour(consoleLine.withAlpha(0.28f));
+        graphics.drawRoundedRectangle(card.reduced(0.5f), 12.0f, 1.0f);
+        graphics.setColour(analyzerMint.withAlpha(0.13f));
+        graphics.fillRoundedRectangle(x + 14.0f, y + 57.0f, 554.0f, 4.0f, 2.0f);
+    }
+
+    for (int group = 0; group < expertSelectGroupCount; ++group) {
+        const auto x = 48.0f + static_cast<float>(group) * 366.0f;
+        const auto bank = juce::Rectangle<float>(x, 826.0f, 350.0f, 148.0f);
+        graphics.setColour(juce::Colour::fromRGB(17, 24, 28));
+        graphics.fillRoundedRectangle(bank, 14.0f);
+        graphics.setColour(analyzerGold.withAlpha(0.24f));
+        graphics.drawRoundedRectangle(bank.reduced(0.5f), 14.0f, 1.0f);
+        graphics.setColour(consoleMuted);
+        graphics.setFont(dataFont(9.0f, juce::Font::bold));
+        graphics.drawText(
+            expertSelectGroupLabels[static_cast<size_t>(group)],
+            juce::roundToInt(x + 14.0f),
+            842,
+            322,
+            20,
+            juce::Justification::centredLeft
+        );
+        graphics.setColour(consoleMuted.withAlpha(0.72f));
+        graphics.setFont(consoleFont(10.0f));
+        graphics.drawText(
+            group == 0 ? "Internal render policy"
+                       : group == 1 ? "Stereo field target"
+                                    : group == 2 ? "Logarithmic RT60 macro"
+                                                 : group == 3 ? "Dry / wet gain topology"
+                                                              : "Damping + diffusion pair",
+            juce::roundToInt(x + 14.0f),
+            942,
+            322,
+            18,
+            juce::Justification::centredLeft
+        );
+    }
+
+    graphics.setColour(consoleMuted);
+    graphics.setFont(dataFont(9.0f));
+    graphics.drawText(
+        "TIP  CLICK A DIAL ARC, DRAG VERTICALLY, SCROLL, OR TYPE A VALUE. DOUBLE-CLICK RESETS.",
+        54,
+        998,
+        1200,
+        24,
+        juce::Justification::centredLeft
     );
 }
 
@@ -503,21 +952,17 @@ void VerbXPluginEditor::paint(juce::Graphics& graphics) {
     graphics.setColour(consoleMuted);
     graphics.drawText("Browse", 1410, 44, 70, 22, juce::Justification::centredRight);
 
-    const std::array<juce::String, 3> topModes{"ALGO", "CONV", "GEO"};
-    for (size_t index = 0; index < topModes.size(); ++index) {
-        const auto mode = juce::Rectangle<float>(1538.0f + static_cast<float>(index) * 56.0f, 37.0f, 52.0f, 38.0f);
-        graphics.setColour(index == 0 ? analyzerMint.withAlpha(0.92f) : consolePanel);
-        graphics.fillRoundedRectangle(mode, 18.0f);
-        graphics.setColour(index == 0 ? analyzerInk : consoleMuted);
-        graphics.setFont(dataFont(9.0f, juce::Font::bold));
-        graphics.drawText(topModes[index], mode, juce::Justification::centred);
-    }
     graphics.setColour(consolePanel);
-    graphics.fillRoundedRectangle(1720.0f, 37.0f, 132.0f, 38.0f, 18.0f);
+    graphics.fillRoundedRectangle(1762.0f, 37.0f, 90.0f, 38.0f, 18.0f);
     graphics.setColour(analyzerMint);
-    graphics.fillEllipse(1735.0f, 52.0f, 8.0f, 8.0f);
+    graphics.fillEllipse(1774.0f, 52.0f, 8.0f, 8.0f);
     graphics.setFont(dataFont(10.0f, juce::Font::bold));
-    graphics.drawText("LIVE", 1748, 44, 80, 22, juce::Justification::centredLeft);
+    graphics.drawText("LIVE", 1786, 44, 54, 22, juce::Justification::centredLeft);
+
+    if (activePage_ == Page::expert) {
+        paintExpertPage(graphics);
+        return;
+    }
 
     const auto loudness = juce::Rectangle<float>(40.0f, 108.0f, 260.0f, 510.0f);
     const auto theater = juce::Rectangle<float>(318.0f, 108.0f, 930.0f, 510.0f);
@@ -729,15 +1174,56 @@ void VerbXPluginEditor::resized() {
         );
     };
 
+    performPageButton_.setBounds(mapBounds({1538.0f, 37.0f, 100.0f, 38.0f}));
+    expertPageButton_.setBounds(mapBounds({1646.0f, 37.0f, 100.0f, 38.0f}));
+    rt60Readout_.setBounds(mapBounds({900.0f, 176.0f, 306.0f, 28.0f}));
+
+    if (activePage_ == Page::expert) {
+        rt60Readout_.setBounds(mapBounds({1380.0f, 112.0f, 460.0f, 28.0f}));
+        spectrumAnalyzer_.setBounds(mapBounds({62.0f, 378.0f, 1796.0f, 78.0f}));
+        for (int index = 0; index < knobCount; ++index) {
+            const auto knobX = 63.0f + static_cast<float>(index) * 204.0f;
+            expertKnobLabels_[static_cast<size_t>(index)].setBounds(
+                mapBounds({knobX, 166.0f, 160.0f, 18.0f})
+            );
+            expertKnobs_[static_cast<size_t>(index)].setBounds(
+                mapBounds({knobX, 184.0f, 160.0f, 130.0f})
+            );
+
+            const auto column = index % 3;
+            const auto row = index / 3;
+            const auto faderX = 68.0f + static_cast<float>(column) * 608.0f;
+            const auto faderY = 500.0f + static_cast<float>(row) * 104.0f;
+            expertFaderLabels_[static_cast<size_t>(index)].setBounds(
+                mapBounds({faderX, faderY, 300.0f, 18.0f})
+            );
+            expertFaders_[static_cast<size_t>(index)].setBounds(
+                mapBounds({faderX, faderY + 22.0f, 552.0f, 42.0f})
+            );
+        }
+        for (int group = 0; group < expertSelectGroupCount; ++group) {
+            const auto bankX = 62.0f + static_cast<float>(group) * 366.0f;
+            for (int option = 0; option < expertSelectsPerGroup; ++option) {
+                const auto index = group * expertSelectsPerGroup + option;
+                expertSelectButtons_[static_cast<size_t>(index)].setBounds(mapBounds({
+                    bankX + static_cast<float>(option) * 82.0f,
+                    878.0f,
+                    76.0f,
+                    42.0f,
+                }));
+            }
+        }
+        return;
+    }
+
     spectrumAnalyzer_.setBounds(mapBounds({170.0f, 642.0f, 1492.0f, 160.0f}));
     for (int index = 0; index < knobCount; ++index) {
         const auto x = 336.0f + static_cast<float>(index) * 99.0f;
         knobLabels_[static_cast<size_t>(index)].setBounds(mapBounds({x, 478.0f, 84.0f, 16.0f}));
-        knobs_[static_cast<size_t>(index)].setBounds(mapBounds({x, 495.0f, 84.0f, 102.0f}));
+        knobs_[static_cast<size_t>(index)].setBounds(mapBounds({x - 4.0f, 491.0f, 92.0f, 110.0f}));
     }
     qualityLabel_.setBounds(mapBounds({1598.0f, 565.0f, 62.0f, 18.0f}));
     qualityBox_.setBounds(mapBounds({1660.0f, 558.0f, 196.0f, 32.0f}));
     freezeButton_.setBounds(mapBounds({1598.0f, 592.0f, 122.0f, 24.0f}));
     reverseButton_.setBounds(mapBounds({1730.0f, 592.0f, 126.0f, 24.0f}));
-    rt60Readout_.setBounds(mapBounds({900.0f, 176.0f, 306.0f, 28.0f}));
 }

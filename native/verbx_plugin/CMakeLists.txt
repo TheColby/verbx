@@ -95,6 +95,22 @@ target_compile_definitions(VERBXPlugin
 )
 
 if(VERBX_BUILD_HOST_SMOKE_TEST)
+  add_executable(VERBXEditorInteractionSmoke src/VerbXEditorInteractionSmoke.cpp)
+  set_target_properties(VERBXEditorInteractionSmoke PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/VERBXEditorInteractionSmoke_artefacts"
+  )
+  target_include_directories(VERBXEditorInteractionSmoke PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../verbx_c/include
+  )
+  target_link_libraries(VERBXEditorInteractionSmoke PRIVATE
+    VERBXPlugin
+    juce::juce_audio_utils
+  )
+  target_compile_definitions(VERBXEditorInteractionSmoke PRIVATE
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+  )
+
   juce_add_console_app(VERBXPluginHostSmoke
     PRODUCT_NAME "VERBX Plug-in Host Smoke Test"
   )

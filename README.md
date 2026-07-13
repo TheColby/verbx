@@ -45,6 +45,14 @@ so the live analyzer trace correctly rests at its floor.
 
 ![VERBX native realtime spectrum analyzer](docs/assets/verbx_plugin_native_analyzer.jpg)
 
+The compiled **Expert** page mirrors all nine continuous parameters as both
+rotary controls and high-resolution faders, keeps the realtime spectrum in
+view, and adds twenty native selector buttons. Its five macro banks write the
+same host-automatable state for quality, width, logarithmic decay, dry/wet
+routing, and paired damping/diffusion character settings.
+
+![VERBX compiled Expert control matrix](docs/assets/verbx_plugin_expert.png)
+
 The first native plug-in foundation is implemented under
 [`native/verbx_plugin`](native/verbx_plugin/README.md):
 
@@ -60,6 +68,8 @@ The first native plug-in foundation is implemented under
   scaling, RT60, damping, diffusion, width, wet/dry, Freeze, and a zero-lookahead
   reverse-style swell
 - 20 ms realtime parameter smoothing for host automation without zipper noise
+- responsive Perform/Expert pages with 18 linked continuous controls and 20
+  selector buttons; no Expert control is decorative or stored outside host state
 - full-screen 16:9 spatial-console editor with the complete initial
   12-parameter control surface and effective-RT60 readout
 
