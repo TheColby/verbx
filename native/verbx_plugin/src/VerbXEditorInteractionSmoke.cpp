@@ -19,6 +19,9 @@ int main(int argc, char* argv[]) {
     juce::ScopedJuceInitialiser_GUI juceInitialiser;
     VerbXPluginProcessor processor;
     processor.prepareToPlay(48000.0, 512);
+    if (processor.internalSampleRate() != 192000U || processor.oversamplingFactor() != 4U) {
+        return fail("default Target quality did not prepare real 4x processing");
+    }
 
     std::unique_ptr<juce::AudioProcessorEditor> editor(processor.createEditor());
     if (editor == nullptr) {
@@ -122,6 +125,28 @@ int main(int argc, char* argv[]) {
     }
     if (visibleSelectButtons != 20) {
         return fail("Expert page did not expose all 20 selector buttons");
+    }
+
+    auto* hostQualityButton = dynamic_cast<juce::Button*>(
+        editor->findChildWithID("expert_select_0_0")
+    );
+    auto* targetQualityButton = dynamic_cast<juce::Button*>(
+        editor->findChildWithID("expert_select_0_3")
+    );
+    if (hostQualityButton == nullptr || targetQualityButton == nullptr) {
+        return fail("Expert quality selectors were unavailable");
+    }
+    hostQualityButton->setToggleState(true, juce::dontSendNotification);
+    hostQualityButton->onClick();
+    juce::MessageManager::getInstance()->runDispatchLoopUntil(50);
+    if (processor.internalSampleRate() != 48000U || processor.oversamplingFactor() != 1U) {
+        return fail("Host quality selector did not asynchronously prepare host-rate processing");
+    }
+    targetQualityButton->setToggleState(true, juce::dontSendNotification);
+    targetQualityButton->onClick();
+    juce::MessageManager::getInstance()->runDispatchLoopUntil(50);
+    if (processor.internalSampleRate() != 192000U || processor.oversamplingFactor() != 4U) {
+        return fail("Target quality selector did not asynchronously restore 4x processing");
     }
 
     auto* monoWidthButton = dynamic_cast<juce::Button*>(

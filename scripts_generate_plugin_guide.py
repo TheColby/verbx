@@ -19,8 +19,9 @@ into a dependable AU, AUv3, VST3, and standalone product. It is deliberately
 honest about maturity. The repository contains a tested parameter manifest, a
 realtime context boundary, a guarded C++17/JUCE shell, state serialization, and
 a realtime spectrum-overlay component, a complete initial control dock, and an
-allocation-free mono/stereo Schroeder reverb. It is a usable native engine, but
-not yet the final oversampled or multichannel architecture. The full-screen
+allocation-free mono/stereo Schroeder reverb with real wet-path oversampling.
+It is a usable native engine, but not yet the final multichannel architecture.
+The full-screen
 image below is the approved visual target and a live design-prototype capture,
 not a screenshot of a shipping binary.
 
@@ -80,7 +81,9 @@ The first foundation slice is intentionally narrow and testable:
   only during preparation, and provides bounded mono/stereo Schroeder processing
   with pre-delay, room scale, RT60, damping, diffusion, width, wet/dry, Freeze,
   and a zero-lookahead reverse-style swell. Continuous controls use 20 ms
-  smoothing inside the native state so host automation does not zipper.
+  smoothing inside the native state so host automation does not zipper. Host,
+  2x, 4x, and Target quality modes execute that wet network at the reported
+  internal rate without callback allocation.
 - `native/verbx_plugin` contains the guarded JUCE shell for AU, AUv3, VST3, and
   standalone targets.
 - The processor caches atomic parameter pointers during construction so the
@@ -146,11 +149,14 @@ the opposite direction through compact snapshots that the editor may poll.
 ## 5. Precision And Sample Rate
 
 The DAW controls project sample rate. VERBX cannot force a host session to 192
-kHz. The default quality choice, Target 192 kHz, means that the adapter selects
-an internal rate at least as high as 192 kHz when the final oversampling engine
-is available. At a 48 kHz host rate this implies 4x processing; at 96 kHz it
-implies 2x; at 192 kHz or above it does not require an increase merely to reach
-the target.
+kHz. The default quality choice, Target 192 kHz, selects the smallest integer
+factor whose internal rate reaches or exceeds 192 kHz. At a 48 kHz host rate
+this is 4x/192 kHz; at 96 kHz it is 2x/192 kHz; at 44.1 kHz it is 5x/220.5 kHz;
+and at 192 kHz or above it does not increase the rate. Host, 2x, and 4x select
+their exact factors. The wet network uses causal linear interpolation and
+box-filter decimation, while the dry path retains the original host samples.
+Quality changes allocate and prepare away from the callback, then cross the
+processor boundary through a nonblocking atomic guard.
 
 The initial callback contract uses 32-bit float because that is the common
 native exchange type for AU/VST processing and keeps bandwidth bounded. This
@@ -243,11 +249,12 @@ should state that the change will apply on transport stop or reprepare.
 
 ![Realtime latency components](assets/userguide_figures/02_realtime_latency.png)
 
-The current foundation reports zero frames because its audio path is
-pass-through. That value is correct for the foundation and must change when
-latency-producing DSP lands. A status display should distinguish algorithmic
-latency, host block duration, device I/O latency, and end-to-end monitored
-latency; they are related but not interchangeable.
+The current realtime reverb and causal oversampling path report zero frames:
+they do not buffer future host samples. That value must change when a
+latency-producing filter, convolution partition, or bounded reverse-lookahead
+stage lands. The live status display distinguishes host and internal rates,
+factor, block size, and algorithmic latency. Device I/O and end-to-end monitored
+latency remain separate measurements.
 
 ## 11. Realtime Safety
 
@@ -440,9 +447,9 @@ SHAPES = [
 SAMPLE_RATES = [44100, 48000, 96000, 192000]
 QUALITY_MODES = [
     ("Host", "no intentional internal rate multiplication"),
-    ("2x", "twice the host rate when the production oversampler lands"),
-    ("4x", "four times the host rate when supported and affordable"),
-    ("Target 192 kHz", "the host rate or at least 192 kHz, whichever is higher"),
+    ("2x", "twice the host rate"),
+    ("4x", "four times the host rate"),
+    ("Target 192 kHz", "the smallest integer factor reaching at least 192 kHz"),
 ]
 BLOCK_SIZES = [64, 512]
 
@@ -466,12 +473,12 @@ HOST_CONTEXTS = [
 
 TROUBLESHOOTING = [
     ("The plug-in does not appear after scanning", "the binary is in the wrong format location, failed validation, or was built for the wrong architecture", "inspect the host scan log, confirm architecture and format, then rescan a clean build"),
-    ("The editor opens but audio is dry", "the current foundation is pass-through or the wet path is not connected", "confirm build maturity and inspect wet/dry status before treating this as a host fault"),
+    ("The editor opens but audio is dry", "wet gain is down, routing state is stale, or the prepared DSP context failed", "confirm Wet/Dry values, live internal-rate status, and host logs before treating this as a scanner fault"),
     ("Automation recalls the wrong control", "a parameter ID or version changed after a session was saved", "compare manifest IDs and restore stable identifiers; never repair this by reordering blindly"),
     ("A preset opens with missing geometry", "the referenced DXF/profile asset moved or its hash changed", "locate the exact asset, verify its hash, or use the stored bounded fallback profile"),
     ("CPU rises sharply at 48 kHz", "Target 192 kHz implies a 4x internal-rate goal", "compare Host and 2x modes, increase block size, and record the quality tradeoff"),
     ("CPU rises at 192 kHz", "the host is already processing a very high sample rate", "use Host mode and reduce expensive topology before changing musical controls"),
-    ("The host reports no latency", "the current pass-through foundation reports zero or the production graph did not notify the host", "measure with an impulse and compare the result with the status accessor"),
+    ("The host reports no latency", "the current causal reverb/oversampling graph is intentionally zero-lookahead or a later buffering graph did not notify the host", "measure with an impulse and compare the result with the status accessor"),
     ("Reverse feels late", "reverse processing requires a capture or lookahead window", "verify the declared reverse window and host delay compensation"),
     ("Freeze gets louder over time", "feedback energy is above a stable bound or input injection remains active", "disengage safely, lower the stored energy, and inspect freeze gain and limiter reduction"),
     ("Freeze clicks when toggled", "the mode changes coefficients or injection abruptly", "add a state transition ramp or dual-path crossfade and retest at full-scale impulses"),
@@ -656,7 +663,7 @@ def quality_cards(lines: list[str]) -> None:
             "Host": rate,
             "2x": rate * 2,
             "4x": rate * 4,
-            "Target 192 kHz": max(rate, 192000),
+            "Target 192 kHz": rate * max(1, (192000 + rate - 1) // rate),
         }[quality_name]
         block_ms = 1000.0 * block / rate
         title = f"Quality card {index}: {rate} Hz, {quality_name}, {block} frames"
@@ -668,7 +675,7 @@ def quality_cards(lines: list[str]) -> None:
         ]
         paragraphs = [
             "Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.",
-            "Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.",
+            "Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.",
             "Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.",
         ]
         card(lines, title, metadata, paragraphs)
@@ -915,7 +922,7 @@ def build_markdown() -> str:
             "- every host compatibility claim names a dated tested environment; and",
             "- installers, signatures, notarization, scanning, crash recovery, and support bundles are complete.",
             "",
-            "The foundation is the correct first step because it makes these obligations visible and testable. The next major milestone is not another screenshot or another parameter. It is a stateful native reverb core running behind this boundary with measured latency, stable transitions, and repeatable sound in a real host.",
+            "The current stateful oversampled reverb makes these obligations visible and testable. The next major milestone is bounded-lookahead reverse processing with exact host latency notification, followed by multichannel layouts and a dated compatibility matrix.",
             "",
         ]
     )

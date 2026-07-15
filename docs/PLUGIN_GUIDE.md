@@ -6,8 +6,9 @@ into a dependable AU, AUv3, VST3, and standalone product. It is deliberately
 honest about maturity. The repository contains a tested parameter manifest, a
 realtime context boundary, a guarded C++17/JUCE shell, state serialization, and
 a realtime spectrum-overlay component, a complete initial control dock, and an
-allocation-free mono/stereo Schroeder reverb. It is a usable native engine, but
-not yet the final oversampled or multichannel architecture. The full-screen
+allocation-free mono/stereo Schroeder reverb with real wet-path oversampling.
+It is a usable native engine, but not yet the final multichannel architecture.
+The full-screen
 image below is the approved visual target and a live design-prototype capture,
 not a screenshot of a shipping binary.
 
@@ -67,7 +68,9 @@ The first foundation slice is intentionally narrow and testable:
   only during preparation, and provides bounded mono/stereo Schroeder processing
   with pre-delay, room scale, RT60, damping, diffusion, width, wet/dry, Freeze,
   and a zero-lookahead reverse-style swell. Continuous controls use 20 ms
-  smoothing inside the native state so host automation does not zipper.
+  smoothing inside the native state so host automation does not zipper. Host,
+  2x, 4x, and Target quality modes execute that wet network at the reported
+  internal rate without callback allocation.
 - `native/verbx_plugin` contains the guarded JUCE shell for AU, AUv3, VST3, and
   standalone targets.
 - The processor caches atomic parameter pointers during construction so the
@@ -133,11 +136,14 @@ the opposite direction through compact snapshots that the editor may poll.
 ## 5. Precision And Sample Rate
 
 The DAW controls project sample rate. VERBX cannot force a host session to 192
-kHz. The default quality choice, Target 192 kHz, means that the adapter selects
-an internal rate at least as high as 192 kHz when the final oversampling engine
-is available. At a 48 kHz host rate this implies 4x processing; at 96 kHz it
-implies 2x; at 192 kHz or above it does not require an increase merely to reach
-the target.
+kHz. The default quality choice, Target 192 kHz, selects the smallest integer
+factor whose internal rate reaches or exceeds 192 kHz. At a 48 kHz host rate
+this is 4x/192 kHz; at 96 kHz it is 2x/192 kHz; at 44.1 kHz it is 5x/220.5 kHz;
+and at 192 kHz or above it does not increase the rate. Host, 2x, and 4x select
+their exact factors. The wet network uses causal linear interpolation and
+box-filter decimation, while the dry path retains the original host samples.
+Quality changes allocate and prepare away from the callback, then cross the
+processor boundary through a nonblocking atomic guard.
 
 The initial callback contract uses 32-bit float because that is the common
 native exchange type for AU/VST processing and keeps bandwidth bounded. This
@@ -230,11 +236,12 @@ should state that the change will apply on transport stop or reprepare.
 
 ![Realtime latency components](assets/userguide_figures/02_realtime_latency.png)
 
-The current foundation reports zero frames because its audio path is
-pass-through. That value is correct for the foundation and must change when
-latency-producing DSP lands. A status display should distinguish algorithmic
-latency, host block duration, device I/O latency, and end-to-end monitored
-latency; they are related but not interchangeable.
+The current realtime reverb and causal oversampling path report zero frames:
+they do not buffer future host samples. That value must change when a
+latency-producing filter, convolution partition, or bounded reverse-lookahead
+stage lands. The live status display distinguishes host and internal rates,
+factor, block size, and algorithmic latency. Device I/O and end-to-end monitored
+latency remain separate measurements.
 
 ## 11. Realtime Safety
 
@@ -2563,7 +2570,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2579,7 +2586,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2589,13 +2596,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 3: 44100 Hz, 2x, 64 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: 2x - twice the host rate when the production oversampler lands.
+- Quality policy: 2x - twice the host rate.
 - Expected internal-rate contract: 88200 Hz.
 - Host block duration: 1.451 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2605,13 +2612,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 4: 44100 Hz, 2x, 512 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: 2x - twice the host rate when the production oversampler lands.
+- Quality policy: 2x - twice the host rate.
 - Expected internal-rate contract: 88200 Hz.
 - Host block duration: 11.610 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2621,13 +2628,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 5: 44100 Hz, 4x, 64 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: 4x - four times the host rate when supported and affordable.
+- Quality policy: 4x - four times the host rate.
 - Expected internal-rate contract: 176400 Hz.
 - Host block duration: 1.451 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2637,13 +2644,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 6: 44100 Hz, 4x, 512 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: 4x - four times the host rate when supported and affordable.
+- Quality policy: 4x - four times the host rate.
 - Expected internal-rate contract: 176400 Hz.
 - Host block duration: 11.610 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2653,13 +2660,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 7: 44100 Hz, Target 192 kHz, 64 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: Target 192 kHz - the host rate or at least 192 kHz, whichever is higher.
-- Expected internal-rate contract: 192000 Hz.
+- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
+- Expected internal-rate contract: 220500 Hz.
 - Host block duration: 1.451 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2669,13 +2676,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 8: 44100 Hz, Target 192 kHz, 512 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: Target 192 kHz - the host rate or at least 192 kHz, whichever is higher.
-- Expected internal-rate contract: 192000 Hz.
+- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
+- Expected internal-rate contract: 220500 Hz.
 - Host block duration: 11.610 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2691,7 +2698,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2707,7 +2714,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2717,13 +2724,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 11: 48000 Hz, 2x, 64 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: 2x - twice the host rate when the production oversampler lands.
+- Quality policy: 2x - twice the host rate.
 - Expected internal-rate contract: 96000 Hz.
 - Host block duration: 1.333 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2733,13 +2740,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 12: 48000 Hz, 2x, 512 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: 2x - twice the host rate when the production oversampler lands.
+- Quality policy: 2x - twice the host rate.
 - Expected internal-rate contract: 96000 Hz.
 - Host block duration: 10.667 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2749,13 +2756,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 13: 48000 Hz, 4x, 64 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: 4x - four times the host rate when supported and affordable.
+- Quality policy: 4x - four times the host rate.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 1.333 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2765,13 +2772,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 14: 48000 Hz, 4x, 512 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: 4x - four times the host rate when supported and affordable.
+- Quality policy: 4x - four times the host rate.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 10.667 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2781,13 +2788,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 15: 48000 Hz, Target 192 kHz, 64 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: Target 192 kHz - the host rate or at least 192 kHz, whichever is higher.
+- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 1.333 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2797,13 +2804,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 16: 48000 Hz, Target 192 kHz, 512 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: Target 192 kHz - the host rate or at least 192 kHz, whichever is higher.
+- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 10.667 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2819,7 +2826,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2835,7 +2842,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2845,13 +2852,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 19: 96000 Hz, 2x, 64 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: 2x - twice the host rate when the production oversampler lands.
+- Quality policy: 2x - twice the host rate.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 0.667 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2861,13 +2868,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 20: 96000 Hz, 2x, 512 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: 2x - twice the host rate when the production oversampler lands.
+- Quality policy: 2x - twice the host rate.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 5.333 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2877,13 +2884,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 21: 96000 Hz, 4x, 64 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: 4x - four times the host rate when supported and affordable.
+- Quality policy: 4x - four times the host rate.
 - Expected internal-rate contract: 384000 Hz.
 - Host block duration: 0.667 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2893,13 +2900,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 22: 96000 Hz, 4x, 512 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: 4x - four times the host rate when supported and affordable.
+- Quality policy: 4x - four times the host rate.
 - Expected internal-rate contract: 384000 Hz.
 - Host block duration: 5.333 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2909,13 +2916,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 23: 96000 Hz, Target 192 kHz, 64 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: Target 192 kHz - the host rate or at least 192 kHz, whichever is higher.
+- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 0.667 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2925,13 +2932,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 24: 96000 Hz, Target 192 kHz, 512 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: Target 192 kHz - the host rate or at least 192 kHz, whichever is higher.
+- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 5.333 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2947,7 +2954,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2963,7 +2970,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2973,13 +2980,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 27: 192000 Hz, 2x, 64 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: 2x - twice the host rate when the production oversampler lands.
+- Quality policy: 2x - twice the host rate.
 - Expected internal-rate contract: 384000 Hz.
 - Host block duration: 0.333 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -2989,13 +2996,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 28: 192000 Hz, 2x, 512 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: 2x - twice the host rate when the production oversampler lands.
+- Quality policy: 2x - twice the host rate.
 - Expected internal-rate contract: 384000 Hz.
 - Host block duration: 2.667 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -3005,13 +3012,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 29: 192000 Hz, 4x, 64 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: 4x - four times the host rate when supported and affordable.
+- Quality policy: 4x - four times the host rate.
 - Expected internal-rate contract: 768000 Hz.
 - Host block duration: 0.333 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -3021,13 +3028,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 30: 192000 Hz, 4x, 512 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: 4x - four times the host rate when supported and affordable.
+- Quality policy: 4x - four times the host rate.
 - Expected internal-rate contract: 768000 Hz.
 - Host block duration: 2.667 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -3037,13 +3044,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 31: 192000 Hz, Target 192 kHz, 64 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: Target 192 kHz - the host rate or at least 192 kHz, whichever is higher.
+- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 0.333 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -3053,13 +3060,13 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 32: 192000 Hz, Target 192 kHz, 512 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: Target 192 kHz - the host rate or at least 192 kHz, whichever is higher.
+- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 2.667 ms before device and plug-in latency.
 
 Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.
 
-Measure CPU with the editor closed and open. When the production oversampler is connected, separate resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. If the system cannot sustain the target, show a status warning and let the user choose a lower mode.
+Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.
 
 Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.
 
@@ -3616,8 +3623,8 @@ After the root cause is fixed, add a regression below the DAW whenever possible.
 **Troubleshooting card 2: The editor opens but audio is dry**
 
 - Symptom: The editor opens but audio is dry.
-- Likely causes: the current foundation is pass-through or the wet path is not connected.
-- First recovery: confirm build maturity and inspect wet/dry status before treating this as a host fault.
+- Likely causes: wet gain is down, routing state is stale, or the prepared DSP context failed.
+- First recovery: confirm Wet/Dry values, live internal-rate status, and host logs before treating this as a scanner fault.
 
 Preserve evidence before changing the system. Record the build commit, plug-in format, host/version, sample rate, block size, bus layout, quality mode, effective RT60, asset hashes, and the exact action that triggered the problem. Save scanner output, host logs, and a minimal project when available; do not include private project audio unless it is necessary and authorized.
 
@@ -3691,7 +3698,7 @@ After the root cause is fixed, add a regression below the DAW whenever possible.
 **Troubleshooting card 7: The host reports no latency**
 
 - Symptom: The host reports no latency.
-- Likely causes: the current pass-through foundation reports zero or the production graph did not notify the host.
+- Likely causes: the current causal reverb/oversampling graph is intentionally zero-lookahead or a later buffering graph did not notify the host.
 - First recovery: measure with an impulse and compare the result with the status accessor.
 
 Preserve evidence before changing the system. Record the build commit, plug-in format, host/version, sample rate, block size, bus layout, quality mode, effective RT60, asset hashes, and the exact action that triggered the problem. Save scanner output, host logs, and a minimal project when available; do not include private project audio unless it is necessary and authorized.
@@ -10070,4 +10077,4 @@ Before calling a VERBX plug-in build production-ready, confirm:
 - every host compatibility claim names a dated tested environment; and
 - installers, signatures, notarization, scanning, crash recovery, and support bundles are complete.
 
-The foundation is the correct first step because it makes these obligations visible and testable. The next major milestone is not another screenshot or another parameter. It is a stateful native reverb core running behind this boundary with measured latency, stable transitions, and repeatable sound in a real host.
+The current stateful oversampled reverb makes these obligations visible and testable. The next major milestone is bounded-lookahead reverse processing with exact host latency notification, followed by multichannel layouts and a dated compatibility matrix.

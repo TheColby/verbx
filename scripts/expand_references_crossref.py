@@ -8,6 +8,7 @@ import html
 import json
 import re
 import time
+import unicodedata
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -16,8 +17,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCES = ROOT / "docs" / "REFERENCES.md"
 SECTION_MARKER = "## Section 10: Extended Crossref Literature Index"
-DEFAULT_TARGET_TOTAL = 1000
-DEFAULT_CURATED_TOTAL = 100
+DEFAULT_TARGET_TOTAL = 1002
+DEFAULT_CURATED_TOTAL = 102
 GENERATED_ON = "May 22, 2026"
 USER_AGENT = "verbx-reference-expander/1.0 (https://github.com/TheColby/verbx)"
 TITLE_SMALL_WORDS = {
@@ -96,13 +97,25 @@ QUERIES: tuple[tuple[str, str], ...] = (
     ("Room reverberation and room acoustics", "room acoustics reverberation time RT60"),
     ("Artificial reverberation and FDNs", "artificial reverberation feedback delay network"),
     ("Impulse responses and convolution reverb", "room impulse response convolution reverberation"),
-    ("Speech dereverberation and clarity", "speech dereverberation reverberation direct-to-reverberant ratio"),
+    (
+        "Speech dereverberation and clarity",
+        "speech dereverberation reverberation direct-to-reverberant ratio",
+    ),
     ("Spatial audio and Ambisonics", "spatial audio ambisonics reverberation auralization"),
     ("Perceptual reverberation", "perception reverberation listener envelopment clarity"),
     ("Auralization and virtual acoustics", "auralization virtual acoustics reverberation"),
-    ("Acoustic measurement and decay metrics", "energy decay curve reverberation time acoustic measurement"),
-    ("Acoustic simulation and image-source models", "image source method room acoustic simulation reverberation"),
-    ("Late reverberation modeling", "late reverberation statistical model acoustic signal processing"),
+    (
+        "Acoustic measurement and decay metrics",
+        "energy decay curve reverberation time acoustic measurement",
+    ),
+    (
+        "Acoustic simulation and image-source models",
+        "image source method room acoustic simulation reverberation",
+    ),
+    (
+        "Late reverberation modeling",
+        "late reverberation statistical model acoustic signal processing",
+    ),
 )
 
 RELEVANCE_TERMS: tuple[str, ...] = (
@@ -198,7 +211,9 @@ def _title_case_text(value: str) -> str:
         if not match:
             continue
         prefix, word, suffix = match.groups()
-        title_word = idx in {first_word, last_word} or prefix.endswith(("(", "[", "{", ":", "—", "-"))
+        title_word = idx in {first_word, last_word} or prefix.endswith(
+            ("(", "[", "{", ":", "—", "-")
+        )
         parts[idx] = f"{prefix}{_case_word(word, title_word=title_word)}{suffix}"
 
     output = "".join(parts)
@@ -354,9 +369,27 @@ def _collect_entries(target_count: int, existing_dois: set[str]) -> list[dict[st
 
 def _format_entry(index: int, entry: dict[str, str]) -> str:
     return (
-        f'**[XREF{index:04d}]** {entry["authors"]} ({entry["year"]}). '
-        f'{entry["title"]}. *{entry["container"]}*. '
-        f'DOI: [{entry["doi"]}](https://doi.org/{entry["doi"]})'
+        f"**[XREF{index:04d}]** {entry['authors']} ({entry['year']}). "
+        f"{entry['title']}. *{entry['container']}*. "
+        f"DOI: [{entry['doi']}](https://doi.org/{entry['doi']})"
+    )
+
+
+def _reference_sort_key(entry: dict[str, str]) -> tuple[str, ...]:
+    first_author = entry["authors"].split(";", 1)[0].strip()
+    surname = first_author.split(",", 1)[0].strip()
+
+    def plain(value: str) -> str:
+        value = unicodedata.normalize("NFKD", value)
+        value = "".join(char for char in value if not unicodedata.combining(char))
+        return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
+
+    return (
+        plain(entry["category"]),
+        plain(surname),
+        plain(first_author),
+        plain(entry["year"]),
+        plain(entry["title"]),
     )
 
 
@@ -386,7 +419,7 @@ def _extended_section(entries: list[dict[str, str]], curated_total: int) -> str:
     lines.extend(f"- {label}: `{query}`" for label, query in QUERIES)
     lines.extend(["", "### Extended Bibliography Entries", ""])
     current_category = ""
-    for index, entry in enumerate(entries, 1):
+    for index, entry in enumerate(sorted(entries, key=_reference_sort_key), 1):
         if entry["category"] != current_category:
             current_category = entry["category"]
             lines.extend(["", f"#### {current_category}", ""])

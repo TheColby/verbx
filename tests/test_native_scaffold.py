@@ -335,6 +335,51 @@ def test_plugin_editor_knobs_support_direct_interaction() -> None:
     assert "text.getDoubleValue() / 100.0" in editor_source
 
 
+def test_plugin_realtime_c_contract_executes(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    cc = shutil.which("cc")
+    assert cc is not None, "C compiler 'cc' is required for the realtime contract test."
+    executable = tmp_path / "test-plugin-realtime"
+
+    subprocess.run(
+        [
+            cc,
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Wpedantic",
+            "-I",
+            str(repo_root / "native/verbx_c/include"),
+            str(repo_root / "native/verbx_c/src/plugin_params.c"),
+            str(repo_root / "native/verbx_c/src/plugin_realtime.c"),
+            str(repo_root / "native/verbx_c/tests/test_plugin_realtime.c"),
+            "-lm",
+            "-o",
+            str(executable),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+    subprocess.run([str(executable)], check=True, cwd=repo_root)
+
+
+def test_plugin_quality_reprepare_stays_off_audio_thread() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    processor_header = (
+        repo_root / "native/verbx_plugin/src/VerbXPluginProcessor.h"
+    ).read_text()
+    processor_source = (
+        repo_root / "native/verbx_plugin/src/VerbXPluginProcessor.cpp"
+    ).read_text()
+
+    assert "private juce::AsyncUpdater" in processor_header
+    assert "std::atomic_flag realtimeContextGuard_" in processor_header
+    assert "triggerAsyncUpdate()" in processor_source
+    assert "suspendProcessing(true)" in processor_source
+    assert "realtimeContextGuard_.test_and_set" in processor_source
+    assert "std::mutex" not in processor_header
+
+
 def test_native_render_stereo_pcm16_output(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     exe = _build_native_executable(tmp_path)

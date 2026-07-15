@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Changed
+- Quality modes now perform real allocation-free wet-path oversampling instead
+  of reporting an aspirational internal rate. Host, 2x, and 4x use their exact
+  integer factors; Target 192 kHz chooses the smallest integer factor that
+  reaches or exceeds 192 kHz (5x/220.5 kHz for a 44.1 kHz host). Quality
+  changes reprepare off the audio thread, the dry path remains host-rate
+  transparent, and the editor reports live host/internal rates, factor, block
+  size, and zero-frame latency.
 - The native editor now has a full Expert page with nine linked rotary
   controls, nine precision faders, a live spectrum view, and twenty selector
   buttons for quality, width, decay, mix routing, and tail character. Every

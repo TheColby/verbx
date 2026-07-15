@@ -9,7 +9,8 @@
 enum {
     VERBX_PLUGIN_COMB_COUNT = 4,
     VERBX_PLUGIN_ALLPASS_COUNT = 2,
-    VERBX_PLUGIN_MAX_CHANNELS = 2
+    VERBX_PLUGIN_MAX_CHANNELS = 2,
+    VERBX_PLUGIN_TARGET_SAMPLE_RATE = 192000
 };
 
 typedef struct {
@@ -45,6 +46,7 @@ typedef struct {
     double width;
     double wet_mix;
     double dry_mix;
+    float previous_input[VERBX_PLUGIN_MAX_CHANNELS];
     int smoothing_initialized;
 } verbx_plugin_dsp_state;
 
@@ -58,17 +60,25 @@ static void set_error(char *error_message, size_t error_message_size, const char
     snprintf(error_message, error_message_size, "%s", message);
 }
 
-static unsigned int internal_rate_for_quality(unsigned int host_rate, verbx_plugin_quality_mode quality_mode) {
+static unsigned int internal_rate_for_quality(
+    unsigned int host_rate,
+    verbx_plugin_quality_mode quality_mode,
+    size_t *oversampling_factor
+) {
+    size_t factor = 1U;
     if (quality_mode == VERBX_PLUGIN_QUALITY_2X) {
-        return host_rate * 2U;
+        factor = 2U;
+    } else if (quality_mode == VERBX_PLUGIN_QUALITY_4X) {
+        factor = 4U;
+    } else if ((quality_mode == VERBX_PLUGIN_QUALITY_TARGET_192K)
+               && (host_rate < VERBX_PLUGIN_TARGET_SAMPLE_RATE)) {
+        factor = ((size_t)VERBX_PLUGIN_TARGET_SAMPLE_RATE + (size_t)host_rate - 1U)
+            / (size_t)host_rate;
     }
-    if (quality_mode == VERBX_PLUGIN_QUALITY_4X) {
-        return host_rate * 4U;
+    if (oversampling_factor != NULL) {
+        *oversampling_factor = factor;
     }
-    if (quality_mode == VERBX_PLUGIN_QUALITY_TARGET_192K) {
-        return host_rate >= 192000U ? host_rate : 192000U;
-    }
-    return host_rate;
+    return host_rate * (unsigned int)factor;
 }
 
 static size_t frames_for_ms(unsigned int sample_rate, double milliseconds, double scale) {
@@ -272,6 +282,8 @@ int verbx_plugin_realtime_prepare(
     size_t error_message_size
 ) {
     verbx_plugin_dsp_state *dsp_state;
+    unsigned int internal_sample_rate;
+    size_t oversampling_factor;
     if (context == 0) {
         set_error(error_message, error_message_size, "context must be non-null");
         return -1;
@@ -314,7 +326,12 @@ int verbx_plugin_realtime_prepare(
         context->dsp_state = NULL;
         context->prepared = 0;
     }
-    dsp_state = create_dsp_state(config->host_sample_rate, config->channel_count);
+    internal_sample_rate = internal_rate_for_quality(
+        config->host_sample_rate,
+        config->quality_mode,
+        &oversampling_factor
+    );
+    dsp_state = create_dsp_state(internal_sample_rate, config->channel_count);
     if (dsp_state == NULL) {
         set_error(error_message, error_message_size, "failed to allocate realtime DSP state");
         return -1;
@@ -322,10 +339,11 @@ int verbx_plugin_realtime_prepare(
 
     memset(context, 0, sizeof(*context));
     context->host_sample_rate = config->host_sample_rate;
-    context->internal_sample_rate = internal_rate_for_quality(config->host_sample_rate, config->quality_mode);
+    context->internal_sample_rate = internal_sample_rate;
     context->max_block_frames = config->max_block_frames;
     context->channel_count = config->channel_count;
     context->latency_frames = 0U;
+    context->oversampling_factor = oversampling_factor;
     context->quality_mode = config->quality_mode;
     context->dsp_state = dsp_state;
     context->prepared = 1;
@@ -350,6 +368,8 @@ int verbx_plugin_realtime_process(
     double wet_mix;
     double dry_mix;
     double pre_delay_ms;
+    double smoothing;
+    size_t oversampling_factor;
     size_t channel;
     size_t frame;
 
@@ -381,77 +401,104 @@ int verbx_plugin_realtime_process(
     wet_mix = verbx_plugin_clamp(params->wet, 0.0, 1.0);
     dry_mix = verbx_plugin_clamp(params->dry, 0.0, 1.0);
     pre_delay_ms = verbx_plugin_clamp(params->pre_delay_ms, 0.0, 1000.0);
+    oversampling_factor = context->oversampling_factor;
+    if (oversampling_factor == 0U) {
+        return -1;
+    }
+    smoothing = 1.0 - exp(-1.0 / (0.020 * (double)context->internal_sample_rate));
 
     for (frame = 0U; frame < frames; ++frame) {
-        float dry_values[VERBX_PLUGIN_MAX_CHANNELS] = {0.0f, 0.0f};
-        float wet_values[VERBX_PLUGIN_MAX_CHANNELS] = {0.0f, 0.0f};
-        double input_level = 0.0;
-        double smoothing = 1.0 - exp(-1.0 / (0.020 * (double)context->host_sample_rate));
-        if (dsp_state->smoothing_initialized == 0) {
-            dsp_state->pre_delay_ms = pre_delay_ms;
-            dsp_state->room_scale = room_scale;
-            dsp_state->rt60 = rt60;
-            dsp_state->damping = damping;
-            dsp_state->diffusion = diffusion;
-            dsp_state->width = width;
-            dsp_state->wet_mix = wet_mix;
-            dsp_state->dry_mix = dry_mix;
-            dsp_state->smoothing_initialized = 1;
-        } else {
-            dsp_state->pre_delay_ms += smoothing * (pre_delay_ms - dsp_state->pre_delay_ms);
-            dsp_state->room_scale += smoothing * (room_scale - dsp_state->room_scale);
-            dsp_state->rt60 += smoothing * (rt60 - dsp_state->rt60);
-            dsp_state->damping += smoothing * (damping - dsp_state->damping);
-            dsp_state->diffusion += smoothing * (diffusion - dsp_state->diffusion);
-            dsp_state->width += smoothing * (width - dsp_state->width);
-            dsp_state->wet_mix += smoothing * (wet_mix - dsp_state->wet_mix);
-            dsp_state->dry_mix += smoothing * (dry_mix - dsp_state->dry_mix);
-        }
+        float current_input[VERBX_PLUGIN_MAX_CHANNELS] = {0.0f, 0.0f};
+        double wet_accumulator[VERBX_PLUGIN_MAX_CHANNELS] = {0.0, 0.0};
+        size_t subframe;
         for (channel = 0U; channel < channels; ++channel) {
-            double stereo_scale = channel == 0U ? 1.0 : 1.09;
-            dry_values[channel] = inputs[channel][frame];
-            if (fabs((double)dry_values[channel]) > input_level) {
-                input_level = fabs((double)dry_values[channel]);
-            }
-            wet_values[channel] = process_wet_channel(
-                &dsp_state->channels[channel],
-                dry_values[channel],
-                context->host_sample_rate,
-                stereo_scale,
-                dsp_state->room_scale,
-                dsp_state->rt60,
-                dsp_state->pre_delay_ms,
-                dsp_state->damping,
-                dsp_state->diffusion,
-                params->freeze ? 1 : 0
-            );
+            current_input[channel] = inputs[channel][frame];
         }
 
-        if (params->reverse) {
-            double attack_samples = (double)context->host_sample_rate * 0.25;
-            if ((input_level >= 0.15) && (dsp_state->previous_input_level < 0.15)) {
-                dsp_state->reverse_envelope = 0.0;
+        for (subframe = 0U; subframe < oversampling_factor; ++subframe) {
+            float oversampled_input[VERBX_PLUGIN_MAX_CHANNELS] = {0.0f, 0.0f};
+            float wet_values[VERBX_PLUGIN_MAX_CHANNELS] = {0.0f, 0.0f};
+            double input_level = 0.0;
+            double position = (double)(subframe + 1U) / (double)oversampling_factor;
+
+            if (dsp_state->smoothing_initialized == 0) {
+                dsp_state->pre_delay_ms = pre_delay_ms;
+                dsp_state->room_scale = room_scale;
+                dsp_state->rt60 = rt60;
+                dsp_state->damping = damping;
+                dsp_state->diffusion = diffusion;
+                dsp_state->width = width;
+                dsp_state->wet_mix = wet_mix;
+                dsp_state->dry_mix = dry_mix;
+                dsp_state->smoothing_initialized = 1;
+            } else {
+                dsp_state->pre_delay_ms += smoothing * (pre_delay_ms - dsp_state->pre_delay_ms);
+                dsp_state->room_scale += smoothing * (room_scale - dsp_state->room_scale);
+                dsp_state->rt60 += smoothing * (rt60 - dsp_state->rt60);
+                dsp_state->damping += smoothing * (damping - dsp_state->damping);
+                dsp_state->diffusion += smoothing * (diffusion - dsp_state->diffusion);
+                dsp_state->width += smoothing * (width - dsp_state->width);
+                dsp_state->wet_mix += smoothing * (wet_mix - dsp_state->wet_mix);
+                dsp_state->dry_mix += smoothing * (dry_mix - dsp_state->dry_mix);
             }
-            dsp_state->reverse_envelope += 1.0 / attack_samples;
-            if (dsp_state->reverse_envelope > 1.0) {
+
+            for (channel = 0U; channel < channels; ++channel) {
+                double stereo_scale = channel == 0U ? 1.0 : 1.09;
+                oversampled_input[channel] = (float)(
+                    (double)dsp_state->previous_input[channel]
+                    + (((double)current_input[channel]
+                        - (double)dsp_state->previous_input[channel]) * position)
+                );
+                if (fabs((double)oversampled_input[channel]) > input_level) {
+                    input_level = fabs((double)oversampled_input[channel]);
+                }
+                wet_values[channel] = process_wet_channel(
+                    &dsp_state->channels[channel],
+                    oversampled_input[channel],
+                    context->internal_sample_rate,
+                    stereo_scale,
+                    dsp_state->room_scale,
+                    dsp_state->rt60,
+                    dsp_state->pre_delay_ms,
+                    dsp_state->damping,
+                    dsp_state->diffusion,
+                    params->freeze ? 1 : 0
+                );
+            }
+
+            if (params->reverse) {
+                double attack_samples = (double)context->internal_sample_rate * 0.25;
+                if ((input_level >= 0.15) && (dsp_state->previous_input_level < 0.15)) {
+                    dsp_state->reverse_envelope = 0.0;
+                }
+                dsp_state->reverse_envelope += 1.0 / attack_samples;
+                if (dsp_state->reverse_envelope > 1.0) {
+                    dsp_state->reverse_envelope = 1.0;
+                }
+            } else {
                 dsp_state->reverse_envelope = 1.0;
             }
-        } else {
-            dsp_state->reverse_envelope = 1.0;
-        }
-        dsp_state->previous_input_level = input_level;
+            dsp_state->previous_input_level = input_level;
 
-        if (channels == 2U) {
-            double mid = 0.5 * ((double)wet_values[0] + (double)wet_values[1]);
-            double side = 0.5 * ((double)wet_values[0] - (double)wet_values[1]) * dsp_state->width;
-            wet_values[0] = (float)(mid + side);
-            wet_values[1] = (float)(mid - side);
+            if (channels == 2U) {
+                double mid = 0.5 * ((double)wet_values[0] + (double)wet_values[1]);
+                double side = 0.5 * ((double)wet_values[0] - (double)wet_values[1])
+                    * dsp_state->width;
+                wet_values[0] = (float)(mid + side);
+                wet_values[1] = (float)(mid - side);
+            }
+            for (channel = 0U; channel < channels; ++channel) {
+                wet_accumulator[channel] += dsp_state->wet_mix
+                    * (double)wet_values[channel]
+                    * dsp_state->reverse_envelope;
+            }
         }
+
         for (channel = 0U; channel < channels; ++channel) {
-            double wet_value = (double)wet_values[channel] * dsp_state->reverse_envelope;
-            double mixed = (dsp_state->dry_mix * (double)dry_values[channel])
-                + (dsp_state->wet_mix * wet_value);
+            double mixed = (dsp_state->dry_mix * (double)current_input[channel])
+                + (wet_accumulator[channel] / (double)oversampling_factor);
             outputs[channel][frame] = (float)verbx_plugin_clamp(mixed, -4.0, 4.0);
+            dsp_state->previous_input[channel] = current_input[channel];
         }
     }
 
@@ -459,6 +506,7 @@ int verbx_plugin_realtime_process(
         status->host_sample_rate = context->host_sample_rate;
         status->internal_sample_rate = context->internal_sample_rate;
         status->latency_frames = context->latency_frames;
+        status->oversampling_factor = context->oversampling_factor;
         status->effective_rt60_seconds = verbx_plugin_map_rt60_seconds(
             params->rt60_coarse_normalized,
             params->rt60_fine_bipolar
@@ -506,6 +554,7 @@ void verbx_plugin_realtime_reset(verbx_plugin_realtime_context *context) {
     }
     state->reverse_envelope = 1.0;
     state->previous_input_level = 0.0;
+    memset(state->previous_input, 0, sizeof(state->previous_input));
     state->smoothing_initialized = 0;
 }
 
@@ -522,6 +571,13 @@ size_t verbx_plugin_realtime_latency_frames(const verbx_plugin_realtime_context 
         return 0U;
     }
     return context->latency_frames;
+}
+
+size_t verbx_plugin_realtime_oversampling_factor(const verbx_plugin_realtime_context *context) {
+    if (context == 0) {
+        return 0U;
+    }
+    return context->oversampling_factor;
 }
 
 unsigned int verbx_plugin_realtime_internal_sample_rate(const verbx_plugin_realtime_context *context) {

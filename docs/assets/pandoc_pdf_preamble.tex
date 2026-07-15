@@ -26,7 +26,7 @@
 }
 \newcommand{\verbxFigureCaption}[1]{%
   \addcontentsline{lof}{figure}{\protect\numberline{\theverbxfigure}#1}%
-  \par\smallskip\noindent
+  \par\vspace{1pt}\noindent
   {\footnotesize\textbf{Figure \theverbxfigure: #1}}%
   \par\smallskip
 }
@@ -129,13 +129,13 @@
 \makeatletter
 \renewcommand{\maketitle}{%
   \begin{titlepage}
-    \pagecolor{verbxCover}\color{verbxCoverPaper}
+    \pagecolor{white}\color{verbxCover}
     \thispagestyle{empty}
     \vspace*{0.55in}
     {\color{verbxCoverGold}\rule{\textwidth}{2.5pt}}\par
     \vspace{0.38in}
     \begin{center}
-      \colorbox{verbxCoverPaper}{\includegraphics[width=4.65in]{docs/assets/verbx_logo.png}}
+      \colorbox{white}{\includegraphics[width=4.65in]{docs/assets/verbx_logo.png}}
     \end{center}
     \vspace{0.06in}
     {\fontsize{30}{35}\selectfont\scshape User Guide}\par
@@ -148,7 +148,7 @@
     }\par
     \vfill
     \begin{minipage}{0.78\textwidth}
-      \color{verbxCoverPaper}\large
+      \color{verbxCover}\large
       Command-line workflows \quad\textcolor{verbxCoverGold}{/}\quad
       Realtime processing\\[0.12in]
       Impulse responses \quad\textcolor{verbxCoverGold}{/}\quad

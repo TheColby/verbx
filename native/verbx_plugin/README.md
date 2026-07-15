@@ -76,7 +76,8 @@ mix routing, and tail character.
 
 - parameter manifest from `verbx_c/plugin_params.h`
 - realtime context API from `verbx_c/plugin_realtime.h`
-- default Target 192 kHz / 32-bit-float processing contract
+- allocation-free Host/2x/4x/Target wet-path oversampling with a default
+  Target 192 kHz / 32-bit-float processing contract
 - RT60 coarse/fine mapping from `0.01s` to `360s`
 - visible Freeze and Reverse mode parameters
 - realtime post-DSP spectrum overlay with a lock-free audio handoff, 8192-point
@@ -88,5 +89,9 @@ room-scaled delay geometry, logarithmic RT60, damping, diffusion, width,
 wet/dry mixing, freeze-safe feedback, and a transient-triggered reverse-style
 swell. Continuous DSP controls use 20 ms smoothing to prevent zipper noise
 during host automation. The reverse mode is a zero-lookahead musical approximation, not offline
-time reversal. Quality modes currently report the intended processing target;
-production oversampling remains a separate parity slice.
+time reversal. Quality modes execute the wet network at their prepared internal
+rate using causal linear interpolation and box-filter decimation; the host-rate
+dry path remains sample-accurate. Target mode chooses the smallest integer
+factor at or above 192 kHz, so a 44.1 kHz host uses 5x/220.5 kHz. Quality
+changes are prepared off the callback and the current factor/rates are visible
+in the editor status strip.

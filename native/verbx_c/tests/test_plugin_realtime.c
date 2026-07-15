@@ -89,6 +89,9 @@ int main(void) {
     if (require_true(verbx_plugin_realtime_internal_sample_rate(&context) == 192000U, "internal sample rate mismatch") != 0) {
         return 1;
     }
+    if (require_true(verbx_plugin_realtime_oversampling_factor(&context) == 4U, "target oversampling factor mismatch") != 0) {
+        return 1;
+    }
     if (require_true(verbx_plugin_realtime_latency_frames(&context) == 0U, "latency frames mismatch") != 0) {
         return 1;
     }
@@ -123,6 +126,9 @@ int main(void) {
         return 1;
     }
     if (require_true(status.latency_frames == 0U, "latency status mismatch") != 0) {
+        return 1;
+    }
+    if (require_true(status.oversampling_factor == 4U, "status oversampling factor mismatch") != 0) {
         return 1;
     }
 
@@ -211,6 +217,9 @@ int main(void) {
     if (require_true(verbx_plugin_realtime_latency_frames(NULL) == 0U, "null context latency should be zero") != 0) {
         return 1;
     }
+    if (require_true(verbx_plugin_realtime_oversampling_factor(NULL) == 0U, "null context oversampling factor should be zero") != 0) {
+        return 1;
+    }
     if (require_true(verbx_plugin_realtime_process(&context, inputs, outputs, 4U, 2U, &params, &status) != 0, "process should reject an unprepared context") != 0) {
         return 1;
     }
@@ -268,12 +277,18 @@ int main(void) {
     if (require_true(context.internal_sample_rate == 48000U, "host quality rate mismatch") != 0) {
         return 1;
     }
+    if (require_true(context.oversampling_factor == 1U, "host quality factor mismatch") != 0) {
+        return 1;
+    }
 
     config.quality_mode = VERBX_PLUGIN_QUALITY_2X;
     if (require_true(verbx_plugin_realtime_prepare(&context, &config, error, sizeof(error)) == 0, "2x quality prepare should succeed") != 0) {
         return 1;
     }
     if (require_true(context.internal_sample_rate == 96000U, "2x quality rate mismatch") != 0) {
+        return 1;
+    }
+    if (require_true(context.oversampling_factor == 2U, "2x quality factor mismatch") != 0) {
         return 1;
     }
 
@@ -284,6 +299,21 @@ int main(void) {
     if (require_true(context.internal_sample_rate == 192000U, "4x quality rate mismatch") != 0) {
         return 1;
     }
+    if (require_true(context.oversampling_factor == 4U, "4x quality factor mismatch") != 0) {
+        return 1;
+    }
+
+    config.host_sample_rate = 44100U;
+    config.quality_mode = VERBX_PLUGIN_QUALITY_TARGET_192K;
+    if (require_true(verbx_plugin_realtime_prepare(&context, &config, error, sizeof(error)) == 0, "44.1 kHz target quality prepare should succeed") != 0) {
+        return 1;
+    }
+    if (require_true(context.internal_sample_rate == 220500U, "44.1 kHz target quality rate mismatch") != 0) {
+        return 1;
+    }
+    if (require_true(context.oversampling_factor == 5U, "44.1 kHz target quality factor mismatch") != 0) {
+        return 1;
+    }
 
     config.host_sample_rate = 384000U;
     config.quality_mode = VERBX_PLUGIN_QUALITY_TARGET_192K;
@@ -291,6 +321,9 @@ int main(void) {
         return 1;
     }
     if (require_true(context.internal_sample_rate == 384000U, "target quality should preserve a higher host rate") != 0) {
+        return 1;
+    }
+    if (require_true(context.oversampling_factor == 1U, "target quality should not downsample a higher host rate") != 0) {
         return 1;
     }
 

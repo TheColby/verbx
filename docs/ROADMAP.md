@@ -386,9 +386,10 @@ DSP reverb family and assess which are missing or under-developed in verbx._
   plug-in slice. The true AUv3 extension is embedded, sandbox-entitled, signed,
   and PlugInKit-registered through its containing app; broad host certification
   is still incomplete.
-- Native quality modes expose the intended processing target; production
-  oversampling, true lookahead reverse processing, and multichannel plug-in
-  layouts remain parity work.
+- Native quality modes now execute allocation-free wet-path oversampling at
+  Host, 2x, 4x, or the smallest integer factor at or above 192 kHz. Higher-order
+  resampling filters, true lookahead reverse processing, and multichannel
+  plug-in layouts remain parity work.
 - Very long tails remain compute-heavy; throughput depends on partition/block settings and hardware.
 - CUDA acceleration currently benefits convolution-heavy paths most.
 - Render-time sample-rate conversion is deterministic and offline-oriented.

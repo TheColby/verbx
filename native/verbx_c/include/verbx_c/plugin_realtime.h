@@ -34,6 +34,7 @@ typedef struct {
     unsigned int host_sample_rate;
     unsigned int internal_sample_rate;
     size_t latency_frames;
+    size_t oversampling_factor;
     double effective_rt60_seconds;
     verbx_plugin_quality_mode quality_mode;
     int freeze_enabled;
@@ -46,6 +47,7 @@ typedef struct {
     size_t max_block_frames;
     size_t channel_count;
     size_t latency_frames;
+    size_t oversampling_factor;
     verbx_plugin_quality_mode quality_mode;
     void *dsp_state;
     int prepared;
@@ -71,6 +73,7 @@ int verbx_plugin_realtime_process(
 void verbx_plugin_realtime_reset(verbx_plugin_realtime_context *context);
 void verbx_plugin_realtime_release(verbx_plugin_realtime_context *context);
 size_t verbx_plugin_realtime_latency_frames(const verbx_plugin_realtime_context *context);
+size_t verbx_plugin_realtime_oversampling_factor(const verbx_plugin_realtime_context *context);
 unsigned int verbx_plugin_realtime_internal_sample_rate(const verbx_plugin_realtime_context *context);
 
 #ifdef __cplusplus

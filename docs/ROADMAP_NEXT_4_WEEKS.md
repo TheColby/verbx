@@ -120,8 +120,11 @@ Use these as the working top-line priorities for the current cycle:
 - [x] Add impulse-tail/reset tests and run AddressSanitizer/UBSan coverage.
 - [ ] Repair the local Xcode framework mismatch, then generate and validate the
   AUv3 app-extension target in an AUv3-capable sandbox host.
-- [ ] Implement real oversampling for quality modes, true bounded-lookahead
-  reverse processing, multichannel layouts, and host compatibility certification.
+- [x] Implement real allocation-free wet-path oversampling for Host, 2x, 4x,
+  and Target 192 kHz modes, including off-callback quality reprepare and live
+  effective-rate/factor status.
+- [ ] Implement true bounded-lookahead reverse processing.
+- [ ] Add multichannel layouts and host compatibility certification.
 
 ---
 

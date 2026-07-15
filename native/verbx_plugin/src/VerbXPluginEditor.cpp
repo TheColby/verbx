@@ -30,6 +30,14 @@ juce::Font dataFont(float size, int style = juce::Font::plain) {
     return font;
 }
 
+juce::String sampleRateText(double sampleRate) {
+    if (sampleRate >= 1000.0) {
+        const auto decimals = std::fmod(sampleRate, 1000.0) == 0.0 ? 0 : 1;
+        return juce::String(sampleRate / 1000.0, decimals) + " KHZ";
+    }
+    return juce::String(juce::roundToInt(sampleRate)) + " HZ";
+}
+
 void drawPanel(
     juce::Graphics& graphics,
     juce::Rectangle<float> bounds,
@@ -806,6 +814,7 @@ void VerbXPluginEditor::timerCallback() {
         juce::dontSendNotification
     );
     syncExpertMacroSelections();
+    repaint();
 }
 
 void VerbXPluginEditor::paintExpertPage(juce::Graphics& graphics) {
@@ -900,6 +909,18 @@ void VerbXPluginEditor::paintExpertPage(juce::Graphics& graphics) {
         1200,
         24,
         juce::Justification::centredLeft
+    );
+    graphics.setColour(analyzerMint.withAlpha(0.82f));
+    graphics.drawText(
+        "HOST " + sampleRateText(processor_.analyzerSampleRate())
+            + "  /  INTERNAL " + sampleRateText(processor_.internalSampleRate())
+            + "  /  " + juce::String(processor_.oversamplingFactor()) + "X"
+            + "  /  " + juce::String(processor_.getLatencySamples()) + " SAMPLES LATENCY",
+        1150,
+        998,
+        700,
+        24,
+        juce::Justification::centredRight
     );
 }
 
@@ -1138,9 +1159,13 @@ void VerbXPluginEditor::paint(juce::Graphics& graphics) {
         graphics.setFont(dataFont(10.0f, juce::Font::bold));
         graphics.drawText(tabs[index], juce::Rectangle<float>(x, 826.0f, 460.0f, 42.0f), juce::Justification::centred);
     }
+    const auto latencyMilliseconds = 1000.0
+        * static_cast<double>(processor_.getLatencySamples())
+        / juce::jmax(1.0, processor_.analyzerSampleRate());
     const std::array<std::pair<juce::String, juce::String>, 8> cards{{
         {"LINES", "32"}, {"MATRIX", "Hadamard"}, {"TV RATE", "0.30 Hz"}, {"TV DEPTH", "0.12"},
-        {"RAY BLEND", "42%"}, {"WALL LOSS", "0.38"}, {"IMPORT", "DXF"}, {"LATENCY", "11.6 ms"}
+        {"RAY BLEND", "42%"}, {"WALL LOSS", "0.38"}, {"IMPORT", "DXF"},
+        {"LATENCY", juce::String(latencyMilliseconds, 2) + " ms"}
     }};
     for (size_t index = 0; index < cards.size(); ++index) {
         const auto x = 54.0f + static_cast<float>(index) * 226.0f;
@@ -1152,8 +1177,18 @@ void VerbXPluginEditor::paint(juce::Graphics& graphics) {
     graphics.drawHorizontalLine(1020, 40.0f, 1880.0f);
     graphics.setColour(consoleMuted);
     graphics.setFont(dataFont(9.0f));
-    graphics.drawText("48 KHZ  ·  64 SAMPLE BLOCK  ·  F32 ENGINE  ·  ZERO-COPY PARAMETER SMOOTHING",
-                      60, 1032, 800, 24, juce::Justification::centredLeft);
+    graphics.drawText(
+        "HOST " + sampleRateText(processor_.analyzerSampleRate())
+            + "  ·  INTERNAL " + sampleRateText(processor_.internalSampleRate())
+            + "  ·  " + juce::String(processor_.oversamplingFactor()) + "X"
+            + "  ·  " + juce::String(processor_.preparedBlockSize()) + " SAMPLE BLOCK"
+            + "  ·  F32 ENGINE",
+        60,
+        1032,
+        1000,
+        24,
+        juce::Justification::centredLeft
+    );
     graphics.drawText("VERBX v0.8  ·  COLBY LEIDER  ·  AUv3 / VST3",
                       1390, 1032, 450, 24, juce::Justification::centredRight);
 }

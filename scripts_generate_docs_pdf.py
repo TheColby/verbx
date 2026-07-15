@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -12,6 +13,8 @@ import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
+
+from PIL import Image, ImageChops
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_MD = ROOT / "docs" / "USERGUIDE.md"
@@ -22,13 +25,18 @@ INDEX_STYLE = ROOT / "docs" / "assets" / "verbx_index.ist"
 REFERENCE_METADATA = ROOT / "docs" / "reference_metadata.json"
 PLUGIN_GUIDE_GENERATOR = ROOT / "scripts_generate_plugin_guide.py"
 BOOK_SUPPLEMENT_GENERATOR = ROOT / "scripts_generate_book_supplements.py"
+LITERATURE_SORTER = ROOT / "scripts_sort_literature.py"
+REVERB_PRIMER_ASSET_GENERATOR = ROOT / "scripts" / "generate_reverb_primer_assets.py"
 DEFAULT_AUTHOR = "Colby Leider"
-TEX_GYRE_FONT_DIR = (
-    "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/tex-gyre/"
+RESEARCH_REFERENCE_PATTERN = re.compile(
+    r"(?m)^\*\*\[(?P<key>[^]]+)\]\*\*\s+(?P<authors>.+?)\s+"
+    r"\((?P<year>(?:18|19|20)\d{2}[a-z]?|n\.d\.)\)\.\s+"
+    r"(?P<title>.+?)\.\s+\*(?P<venue>[^*]+)\*\.\s+"
+    r"(?:DOI:\s+\[(?P<doi>[^]]+)\]\(https://doi\.org/(?P=doi)\)"
+    r"|(?P<note>\(Also listed as \[[^]]+\]\)))"
 )
-TEX_GYRE_MATH_FONT_DIR = (
-    "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/tex-gyre-math/"
-)
+TEX_GYRE_FONT_DIR = "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/tex-gyre/"
+TEX_GYRE_MATH_FONT_DIR = "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/tex-gyre-math/"
 
 USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "README.md",
@@ -115,7 +123,8 @@ def _pandoc_base_command(markdown_path: Path, author: str) -> list[str]:
         "--top-level-division=chapter",
         "--resource-path=.:docs:examples",
         "--metadata=title:verbx User Guide",
-        "--metadata=subtitle:Reverb, Spatial Audio, Dereverberation, Plug-in Design, and Educational Exercises",
+        "--metadata=subtitle:Reverb, Spatial Audio, Dereverberation, Plug-in Design, "
+        "and Educational Exercises",
         f"--metadata=author:{author}",
         f"--metadata=date:{generated_on}",
         "--include-in-header",
@@ -283,18 +292,16 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
     def replace_anchor_run(match: re.Match[str]) -> str:
         anchor_run = match.group(0)
         anchor_ids = re.findall(r'id="([^"]+)"', anchor_run)
-        label_lines = "\n".join(rf"\phantomsection\label{{{anchor_id}}}" for anchor_id in anchor_ids)
-        return (
-            anchor_run
-            + "\n\n```{=latex}\n"
-            + label_lines
-            + "\n```"
+        label_lines = "\n".join(
+            rf"\phantomsection\label{{{anchor_id}}}" for anchor_id in anchor_ids
         )
+        return anchor_run + "\n\n```{=latex}\n" + label_lines + "\n```"
 
     markdown = _remove_generated_pdf_preamble(markdown)
     markdown = _add_book_parts(markdown)
     markdown = _italicize_musical_titles(markdown)
     markdown = re.sub(r'(?:<a\s+id="[^"]+"></a>)+', replace_anchor_run, markdown)
+    markdown = _replace_mermaid_with_static_assets(markdown)
     markdown = _ensure_image_captions(markdown)
     markdown = _compact_illustrated_guide(markdown)
     markdown = _illustrate_operational_cards(markdown)
@@ -312,12 +319,40 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
     )
     markdown = _add_pdf_index(markdown)
     _validate_figure_sequence(markdown)
-    return re.sub(
+    markdown = re.sub(
         r"^\\newpage$",
         lambda _: "```{=latex}\n\\newpage\n```",
         markdown,
         flags=re.MULTILINE,
     )
+    _validate_fenced_blocks(markdown)
+    return markdown
+
+
+def _replace_mermaid_with_static_assets(markdown: str) -> str:
+    """Use checked-in static equivalents for Mermaid diagrams in the PDF."""
+
+    pattern = re.compile(
+        r"(?ms)^```mermaid\n(?P<body>.*?)\n```\n\n"
+        r"(?P<caption>\*\*Figure:\s+(?P<title>[^\n]+?)\.\*\*)$"
+    )
+
+    def replace(match: re.Match[str]) -> str:
+        directive = re.search(
+            r"(?m)^%% verbx-static:\s+(?P<path>\S+)\s*$",
+            match.group("body"),
+        )
+        if directive is None:
+            raise ValueError(f"Mermaid figure lacks verbx-static directive: {match.group('title')}")
+        asset = directive.group("path")
+        if not (ROOT / asset).is_file():
+            raise FileNotFoundError(f"Mermaid static asset does not exist: {asset}")
+        return f"![{match.group('title')}]({asset})\n\n{match.group('caption')}"
+
+    markdown = pattern.sub(replace, markdown)
+    if "```mermaid" in markdown:
+        raise ValueError("Found an unconverted Mermaid block in PDF Markdown")
+    return markdown
 
 
 def _validate_figure_sequence(markdown: str) -> None:
@@ -336,6 +371,27 @@ def _validate_figure_sequence(markdown: str) -> None:
         raise ValueError(f"Figure lead/caption order is invalid at figure(s): {preview}")
 
 
+def _validate_fenced_blocks(markdown: str) -> None:
+    """Reject fence corruption before Pandoc can typeset it as visible text."""
+
+    valid_fence = re.compile(r"```(?:\{=latex\}|[A-Za-z][A-Za-z0-9_+.-]*)?")
+    active_fence: tuple[int, str] | None = None
+    for line_number, line in enumerate(markdown.splitlines(), 1):
+        stripped = line.strip()
+        if not stripped.startswith("```"):
+            continue
+        if valid_fence.fullmatch(stripped) is None:
+            raise ValueError(f"Malformed Markdown fence at line {line_number}: {stripped!r}")
+        if active_fence is None:
+            active_fence = (line_number, stripped)
+        elif stripped == "```":
+            active_fence = None
+
+    if active_fence is not None:
+        line_number, fence = active_fence
+        raise ValueError(f"Unclosed Markdown fence at line {line_number}: {fence!r}")
+
+
 def _remove_generated_pdf_preamble(markdown: str) -> str:
     """Drop the consolidated-source manifest; the book has real front matter."""
 
@@ -349,7 +405,10 @@ def _add_book_parts(markdown: str) -> str:
     divisions = (
         ("# verbx\n", "User Manual and Workflows"),
         ("# VERBX AUv3/VST3 Plug-in Handbook\n", "Plug-in Architecture and Operational Cards"),
-        ("# IR Synthesis — A Dual-Layer Reference\n", "DSP, Impulse Responses, and Technical Reference"),
+        (
+            "# IR Synthesis — A Dual-Layer Reference\n",
+            "DSP, Impulse Responses, and Technical Reference",
+        ),
     )
     for heading, part_title in divisions:
         marker = f"```{{=latex}}\n\\part{{{part_title}}}\n```\n\n"
@@ -396,12 +455,17 @@ def _ensure_image_captions(markdown: str) -> str:
             cursor += 1
         if cursor < len(lines) and caption_pattern.match(lines[cursor]):
             continue
-        title = re.sub(
-            r"^(?:Figure|Block diagram)\s+\d+\s*:\s*",
-            "",
-            match.group("alt"),
-            flags=re.IGNORECASE,
-        ).strip().rstrip(".") or "Illustration"
+        title = (
+            re.sub(
+                r"^(?:Figure|Block diagram)\s+\d+\s*:\s*",
+                "",
+                match.group("alt"),
+                flags=re.IGNORECASE,
+            )
+            .strip()
+            .rstrip(".")
+            or "Illustration"
+        )
         output.extend(("", f"**Figure: {title}.**"))
     return "\n".join(output)
 
@@ -410,7 +474,7 @@ def _convert_figure_captions(markdown: str) -> str:
     """Place a numbered prose reference before each standard image and its caption below."""
 
     pattern = re.compile(
-        r"(?m)^(?P<image>!\[[^\n]*\]\([^\n]+\))\n\n"
+        r"(?m)^(?P<image>!\[[^\n]*\]\((?P<path>[^\n)]+)\))\n\n"
         r"\*\*(?:Figure(?:\s+\d+)?|Block diagram\s+\d+)[.:]\s*"
         r"(?P<title>.+?)\.?\*\*(?P<rest>[^\n]*)$"
     )
@@ -420,7 +484,27 @@ def _convert_figure_captions(markdown: str) -> str:
         rest = match.group("rest").strip()
         lead = f"```{{=latex}}\n\\verbxFigureLead{{{title}}}\n```"
         caption = f"```{{=latex}}\n\\verbxFigureCaption{{{title}}}\n```"
-        converted = f"{lead}\n\n{match.group('image')}\n\n{caption}"
+        if match.group("path").startswith(("docs/assets/reverb_primer/", "assets/reverb_primer/")):
+            asset = match.group("path")
+            figure = (
+                "```{=latex}\n"
+                "\\begin{minipage}{\\linewidth}\n"
+                f"\\verbxFigureLead{{{title}}}\n"
+                "{\\centering\n"
+                "\\includegraphics[width=\\linewidth,height=0.64\\textheight,keepaspectratio]"
+                f"{{\\detokenize{{{asset}}}}}\n"
+                "\\par}\n"
+                f"\\verbxFigureCaption{{{title}}}\n"
+                "\\end{minipage}\n"
+                "```"
+            )
+        else:
+            figure = (
+                "```{=latex}\n\\begin{samepage}\n```\n\n"
+                f"{match.group('image')}\n\n{caption}\n\n"
+                "```{=latex}\n\\end{samepage}\n```"
+            )
+        converted = figure if "reverb_primer/" in match.group("path") else f"{lead}\n\n{figure}"
         return converted + (f"\n\n{rest}" if rest else "")
 
     markdown, count = pattern.subn(convert, markdown)
@@ -432,6 +516,65 @@ def _convert_figure_captions(markdown: str) -> str:
         raise ValueError("Found a figure caption without an immediately preceding image")
     if count == 0:
         raise ValueError("No standard image figures were converted")
+    return markdown
+
+
+def _resolve_pdf_figure_asset(value: str) -> Path | None:
+    if re.match(r"^(?:https?:|data:)", value) or any(char in value for char in ('"', "'")):
+        return None
+    path = Path(value)
+    candidates = (path,) if path.is_absolute() else (ROOT / path, ROOT / "docs" / path)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.resolve()
+    return None
+
+
+def _write_trimmed_pdf_figure(source: Path, destination: Path) -> bool:
+    if source.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff"}:
+        return False
+    with Image.open(source) as opened:
+        rgba = opened.convert("RGBA")
+        flattened = Image.new("RGB", rgba.size, "white")
+        flattened.paste(rgba.convert("RGB"), mask=rgba.getchannel("A"))
+    corner = flattened.getpixel((0, 0))
+    background = Image.new("RGB", flattened.size, corner)
+    difference = ImageChops.difference(flattened, background).convert("L")
+    content_bounds = difference.point(lambda value: 255 if value > 8 else 0).getbbox()
+    if content_bounds is None:
+        return False
+    bottom = min(flattened.height, content_bounds[3] + 12)
+    if flattened.height - bottom < 8:
+        return False
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    flattened.crop((0, 0, flattened.width, bottom)).save(destination, optimize=True)
+    return True
+
+
+def _trim_pdf_figure_assets(markdown: str, output_dir: Path) -> str:
+    """Replace raster paths with copies that omit trailing background whitespace."""
+
+    cache: dict[Path, Path | None] = {}
+
+    def replace(match: re.Match[str]) -> str:
+        source = _resolve_pdf_figure_asset(match.group("path").strip())
+        if source is None:
+            return match.group(0)
+        if source not in cache:
+            digest = hashlib.sha1(str(source).encode("utf-8")).hexdigest()[:10]
+            destination = output_dir / f"{source.stem}-{digest}.png"
+            cache[source] = destination if _write_trimmed_pdf_figure(source, destination) else None
+        replacement = cache[source]
+        if replacement is None:
+            return match.group(0)
+        return f"{match.group('prefix')}{replacement.as_posix()}{match.group('suffix')}"
+
+    patterns = (
+        re.compile(r"(?P<prefix>!\[[^\n]*\]\()(?P<path>[^)\n]+)(?P<suffix>\))"),
+        re.compile(r"(?P<prefix>\\detokenize\{)(?P<path>[^}\n]+)(?P<suffix>\})"),
+    )
+    for pattern in patterns:
+        markdown = pattern.sub(replace, markdown)
     return markdown
 
 
@@ -450,17 +593,14 @@ def _illustrate_operational_cards(markdown: str) -> str:
 
     def section_visual(match: re.Match[str]) -> str:
         title = _latex_text(match.group(1))
-        return (
-            match.group(0)
-            + "\n\n```{=latex}\n"
-            + f"\\verbxCardSection{{{title}}}\n"
-            + "```"
-        )
+        return match.group(0) + "\n\n```{=latex}\n" + f"\\verbxCardSection{{{title}}}\n" + "```"
 
     handbook = section_pattern.sub(section_visual, handbook)
 
     card_pattern = re.compile(
-        r"(?ms)^(?P<title>\*\*(?:Production|Automation|Quality|Validation|Troubleshooting|Preset|Interaction|Audition|Asset|Release|Bus|Signal-test|Triage) card.*?\*\*)\n"
+        r"(?ms)^(?P<title>\*\*(?:Production|Automation|Quality|Validation|"
+        r"Troubleshooting|Preset|Interaction|Audition|Asset|Release|Bus|"
+        r"Signal-test|Triage) card.*?\*\*)\n"
         r"(?P<body>.*?)(?=^\\newpage\s*$)"
     )
 
@@ -538,9 +678,16 @@ def _card_visual_command(title: str) -> str:
 
 def _latex_text(value: str) -> str:
     replacements = {
-        "\\": r"\textbackslash{}", "&": r"\&", "%": r"\%", "$": r"\$",
-        "#": r"\#", "_": r"\_", "{": r"\{", "}": r"\}",
-        "~": r"\textasciitilde{}", "^": r"\textasciicircum{}",
+        "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
     }
     return "".join(replacements.get(char, char) for char in value)
 
@@ -601,9 +748,7 @@ def _add_pdf_index(markdown: str) -> str:
     markdown = _index_bibliography(markdown)
     markdown = _typeset_research_references(markdown)
 
-    figure_pattern = re.compile(
-        r"(?m)^(?P<command>\\verbxFigureCaption\{(?P<title>.+?)\})$"
-    )
+    figure_pattern = re.compile(r"(?m)^(?P<command>\\verbxFigureCaption\{(?P<title>.+?)\})$")
 
     def index_figure(match: re.Match[str]) -> str:
         term = _plain_index_term(match.group("title"))
@@ -650,9 +795,7 @@ def _index_cli_terms(markdown: str) -> str:
     def markers(terms: list[str]) -> list[str]:
         if not terms:
             return []
-        commands = "\n".join(
-            rf"\index{{{_latex_index_term(term)}}}" for term in terms
-        )
+        commands = "\n".join(rf"\index{{{_latex_index_term(term)}}}" for term in terms)
         return ["", "```{=latex}", commands, "```", ""]
 
     for line in markdown.splitlines():
@@ -680,14 +823,17 @@ def _index_operational_cards(markdown: str) -> str:
     """Make all 588 operational-card subjects discoverable."""
 
     pattern = re.compile(
-        r"(?m)^(?P<title>\*\*(?:Production|Automation|Quality|Validation|Troubleshooting|Preset|Interaction|Audition|Asset|Release|Bus|Signal-test|Triage) card.*?\*\*)$"
+        r"(?m)^(?P<title>\*\*(?:Production|Automation|Quality|Validation|"
+        r"Troubleshooting|Preset|Interaction|Audition|Asset|Release|Bus|"
+        r"Signal-test|Triage) card.*?\*\*)$"
     )
 
     def add_marker(match: re.Match[str]) -> str:
         term = _plain_index_term(match.group("title"))
         return (
             "```{=latex}\n"
-            + rf"\index{{{_latex_index_term(term)}}}" + "\n"
+            + rf"\index{{{_latex_index_term(term)}}}"
+            + "\n"
             + "```\n\n"
             + match.group(0)
         )
@@ -725,9 +871,7 @@ def _index_bibliography(markdown: str) -> str:
         title = _plain_index_term(match.group("title"))
         if title:
             terms.append(title)
-        commands = "\n".join(
-            rf"\index{{{_latex_index_term(term)}}}" for term in terms
-        )
+        commands = "\n".join(rf"\index{{{_latex_index_term(term)}}}" for term in terms)
         return f"```{{=latex}}\n{commands}\n```\n\n{match.group('entry')}"
 
     references = entry_pattern.sub(index_entry, references)
@@ -744,12 +888,6 @@ def _typeset_research_references(markdown: str) -> str:
     if REFERENCE_METADATA.exists():
         metadata = json.loads(REFERENCE_METADATA.read_text(encoding="utf-8"))
     references = markdown[start:]
-    pattern = re.compile(
-        r"(?m)^\*\*\[(?P<key>[^]]+)\]\*\*\s+(?P<authors>.+?)\s+"
-        r"\((?P<year>(?:18|19|20)\d{2}[a-z]?|n\.d\.)\)\.\s+"
-        r"(?P<title>.+?)\.\s+\*(?P<venue>[^*]+)\*\.\s+"
-        r"(?:DOI:\s+\[(?P<doi>[^]]+)\]\([^)]+\)|(?P<note>\(Also listed as \[[^]]+\]\)))"
-    )
 
     def typeset(match: re.Match[str]) -> str:
         doi = match.group("doi") or ""
@@ -757,11 +895,7 @@ def _typeset_research_references(markdown: str) -> str:
         detail = _reference_detail(record)
         authors = _reference_authors(match.group("authors"))
         identifier = (
-            ". DOI: \\href{https://doi.org/"
-            + doi
-            + "}{\\nolinkurl{"
-            + doi
-            + "}}"
+            ". DOI: \\href{https://doi.org/" + doi + "}{\\nolinkurl{" + doi + "}}"
             if doi
             else ". " + _latex_text(match.group("note") or "No DOI supplied")
         )
@@ -785,7 +919,7 @@ def _typeset_research_references(markdown: str) -> str:
             "```"
         )
 
-    references, count = pattern.subn(typeset, references)
+    references, count = RESEARCH_REFERENCE_PATTERN.subn(typeset, references)
     if count != 1002:
         raise ValueError(f"Expected 1002 research references, formatted {count}")
     return markdown[:start] + references
@@ -803,7 +937,9 @@ def _reference_authors(value: str) -> str:
             continue
         family, given = (part.strip() for part in author.split(",", 1))
         initials = " ".join(
-            token if re.fullmatch(r"(?:[A-ZÀ-ÖØ-Þ]\.?(?:-[A-ZÀ-ÖØ-Þ]\.?)*)", token) else token[0].upper() + "."
+            token
+            if re.fullmatch(r"(?:[A-ZÀ-ÖØ-Þ]\.?(?:-[A-ZÀ-ÖØ-Þ]\.?)*)", token)
+            else token[0].upper() + "."
             for token in re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]+(?:-[A-Za-zÀ-ÖØ-öø-ÿ]+)?\.?", given)
             if token
         )
@@ -819,7 +955,7 @@ def _reference_detail(record: dict[str, str]) -> str:
         return ""
     volume_issue = volume + (f"({issue})" if issue else "")
     if volume_issue and page:
-        return f" { _latex_text(volume_issue) }: { _latex_text(page) }"
+        return f" {_latex_text(volume_issue)}: {_latex_text(page)}"
     return " " + _latex_text(volume_issue or page)
 
 
@@ -894,8 +1030,12 @@ def _render_pdf(markdown_path: Path, pdf_path: Path, author: str) -> None:
         tmpdir = Path(tmpdir_raw)
         pdf_markdown_path = tmpdir / "userguide_pdf.md"
         latex_path = tmpdir / "userguide.tex"
+        pdf_markdown = _markdown_with_pdf_targets(
+            markdown_path.read_text(encoding="utf-8")
+        )
+        pdf_markdown = _trim_pdf_figure_assets(pdf_markdown, tmpdir / "trimmed_figures")
         pdf_markdown_path.write_text(
-            _markdown_with_pdf_targets(markdown_path.read_text(encoding="utf-8")),
+            pdf_markdown,
             encoding="utf-8",
         )
         pandoc_command = [
@@ -942,6 +1082,12 @@ def main() -> int:
 
     subprocess.run([sys.executable, str(PLUGIN_GUIDE_GENERATOR)], cwd=ROOT, check=True)
     subprocess.run([sys.executable, str(BOOK_SUPPLEMENT_GENERATOR)], cwd=ROOT, check=True)
+    subprocess.run([sys.executable, str(REVERB_PRIMER_ASSET_GENERATOR)], cwd=ROOT, check=True)
+    subprocess.run(
+        [sys.executable, str(LITERATURE_SORTER), "--check"],
+        cwd=ROOT,
+        check=True,
+    )
 
     missing = [path for path in USERGUIDE_SOURCES if not path.exists()]
     if missing:

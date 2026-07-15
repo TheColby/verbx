@@ -782,16 +782,18 @@ source links in sync.
 
 For the DSP foundations underlying this implementation:
 
+
+- Gardner, W. G. (1992). A realtime multichannel room simulation system.
+  JASA.
+- Griesinger, D. (1996). Spaciousness and envelopment in musical acoustics.
+  AES 101st Convention.
 - Jot, J.-M. & Chaigne, A. (1991). Digital delay networks for designing
   artificial reverberators. AES 90th Convention.
 - Schlecht, S. J. & Habets, E. A. P. (2017). On lossless feedback delay
   networks. IEEE Transactions on Signal Processing.
 - Valimaki, V. et al. (2012). Fifty years of artificial reverberation.
   IEEE Transactions on Audio, Speech, and Language Processing.
-- Gardner, W. G. (1992). A realtime multichannel room simulation system.
-  JASA.
-- Griesinger, D. (1996). Spaciousness and envelopment in musical acoustics.
-  AES 101st Convention.
+
 
 See `docs/REFERENCES.md` for full citation list including Modalys and
 convolution engine references.

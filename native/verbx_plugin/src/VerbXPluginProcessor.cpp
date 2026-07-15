@@ -2,6 +2,7 @@
 #include "VerbXPluginEditor.h"
 
 #include <memory>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -26,10 +27,19 @@ VerbXPluginProcessor::VerbXPluginProcessor()
                                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       parameters_(*this, nullptr, "VERBX", createParameterLayout()) {
     cacheParameterPointers();
+    requestedQualityMode_.store(
+        juce::roundToInt(parameterValue(parameterPointers_.qualityMode)),
+        std::memory_order_relaxed
+    );
+    parameters_.addParameterListener(parameterId(VERBX_PLUGIN_PARAM_QUALITY_MODE), this);
 }
 
 VerbXPluginProcessor::~VerbXPluginProcessor() {
+    parameters_.removeParameterListener(parameterId(VERBX_PLUGIN_PARAM_QUALITY_MODE), this);
+    cancelPendingUpdate();
+    acquireRealtimeContextGuard();
     verbx_plugin_realtime_release(&realtimeContext_);
+    releaseRealtimeContextGuard();
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout VerbXPluginProcessor::createParameterLayout() {
@@ -118,6 +128,22 @@ void VerbXPluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     analyzerReadPosition_.store(0U, std::memory_order_relaxed);
     analyzerWritePosition_.store(0U, std::memory_order_release);
 
+    const auto qualityMode = juce::jlimit(
+        static_cast<int>(VERBX_PLUGIN_QUALITY_HOST),
+        static_cast<int>(VERBX_PLUGIN_QUALITY_TARGET_192K),
+        juce::roundToInt(parameterValue(parameterPointers_.qualityMode))
+    );
+    preparedHostSampleRate_.store(sampleRate, std::memory_order_release);
+    preparedBlockSize_.store(juce::jmax(samplesPerBlock, 1), std::memory_order_release);
+    requestedQualityMode_.store(qualityMode, std::memory_order_release);
+    prepareRealtimeContext(sampleRate, samplesPerBlock, qualityMode);
+}
+
+void VerbXPluginProcessor::prepareRealtimeContext(
+    double sampleRate,
+    int samplesPerBlock,
+    int qualityMode
+) {
     char error[256] = {};
     verbx_plugin_realtime_config config{};
     config.host_sample_rate = static_cast<unsigned int>(sampleRate);
@@ -126,13 +152,9 @@ void VerbXPluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
         getTotalNumInputChannels(),
         getTotalNumOutputChannels()
     ));
-    const auto qualityMode = juce::jlimit(
-        static_cast<int>(VERBX_PLUGIN_QUALITY_HOST),
-        static_cast<int>(VERBX_PLUGIN_QUALITY_TARGET_192K),
-        juce::roundToInt(parameterValue(parameterPointers_.qualityMode))
-    );
     config.quality_mode = static_cast<verbx_plugin_quality_mode>(qualityMode);
 
+    acquireRealtimeContextGuard();
     const auto result = verbx_plugin_realtime_prepare(
         &realtimeContext_,
         &config,
@@ -141,13 +163,35 @@ void VerbXPluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     );
     if (result != 0) {
         verbx_plugin_realtime_release(&realtimeContext_);
+        preparedQualityMode_.store(-1, std::memory_order_release);
+        internalSampleRate_.store(0U, std::memory_order_release);
+        oversamplingFactor_.store(0U, std::memory_order_release);
+    } else {
+        preparedQualityMode_.store(qualityMode, std::memory_order_release);
+        internalSampleRate_.store(
+            verbx_plugin_realtime_internal_sample_rate(&realtimeContext_),
+            std::memory_order_release
+        );
+        oversamplingFactor_.store(
+            verbx_plugin_realtime_oversampling_factor(&realtimeContext_),
+            std::memory_order_release
+        );
     }
 
     setLatencySamples(static_cast<int>(verbx_plugin_realtime_latency_frames(&realtimeContext_)));
+    releaseRealtimeContextGuard();
 }
 
 void VerbXPluginProcessor::releaseResources() {
+    cancelPendingUpdate();
+    acquireRealtimeContextGuard();
     verbx_plugin_realtime_release(&realtimeContext_);
+    preparedHostSampleRate_.store(0.0, std::memory_order_release);
+    preparedBlockSize_.store(0, std::memory_order_release);
+    preparedQualityMode_.store(-1, std::memory_order_release);
+    internalSampleRate_.store(0U, std::memory_order_release);
+    oversamplingFactor_.store(0U, std::memory_order_release);
+    releaseRealtimeContextGuard();
 }
 
 bool VerbXPluginProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
@@ -195,6 +239,10 @@ void VerbXPluginProcessor::processBlock(
     }
 
     const auto params = currentRealtimeParams();
+    if (realtimeContextGuard_.test_and_set(std::memory_order_acquire)) {
+        pushAnalyzerSamples(buffer);
+        return;
+    }
     verbx_plugin_realtime_process(
         &realtimeContext_,
         inputs,
@@ -204,6 +252,7 @@ void VerbXPluginProcessor::processBlock(
         &params,
         nullptr
     );
+    releaseRealtimeContextGuard();
     pushAnalyzerSamples(buffer);
 }
 
@@ -262,6 +311,59 @@ double VerbXPluginProcessor::effectiveRt60Seconds() const noexcept {
         parameterValue(parameterPointers_.rt60Coarse),
         parameterValue(parameterPointers_.rt60Fine)
     );
+}
+
+unsigned int VerbXPluginProcessor::internalSampleRate() const noexcept {
+    return internalSampleRate_.load(std::memory_order_acquire);
+}
+
+size_t VerbXPluginProcessor::oversamplingFactor() const noexcept {
+    return oversamplingFactor_.load(std::memory_order_acquire);
+}
+
+int VerbXPluginProcessor::preparedBlockSize() const noexcept {
+    return preparedBlockSize_.load(std::memory_order_acquire);
+}
+
+void VerbXPluginProcessor::acquireRealtimeContextGuard() noexcept {
+    while (realtimeContextGuard_.test_and_set(std::memory_order_acquire)) {
+        std::this_thread::yield();
+    }
+}
+
+void VerbXPluginProcessor::releaseRealtimeContextGuard() noexcept {
+    realtimeContextGuard_.clear(std::memory_order_release);
+}
+
+void VerbXPluginProcessor::parameterChanged(const juce::String& changedParameterId, float newValue) {
+    if (changedParameterId != parameterId(VERBX_PLUGIN_PARAM_QUALITY_MODE)) {
+        return;
+    }
+    requestedQualityMode_.store(
+        juce::jlimit(
+            static_cast<int>(VERBX_PLUGIN_QUALITY_HOST),
+            static_cast<int>(VERBX_PLUGIN_QUALITY_TARGET_192K),
+            juce::roundToInt(newValue)
+        ),
+        std::memory_order_release
+    );
+    triggerAsyncUpdate();
+}
+
+void VerbXPluginProcessor::handleAsyncUpdate() {
+    const auto sampleRate = preparedHostSampleRate_.load(std::memory_order_acquire);
+    const auto blockSize = preparedBlockSize_.load(std::memory_order_acquire);
+    const auto qualityMode = requestedQualityMode_.load(std::memory_order_acquire);
+    if (sampleRate <= 0.0
+        || blockSize <= 0
+        || qualityMode == preparedQualityMode_.load(std::memory_order_acquire)) {
+        return;
+    }
+
+    suspendProcessing(true);
+    prepareRealtimeContext(sampleRate, blockSize, qualityMode);
+    suspendProcessing(false);
+    updateHostDisplay(juce::AudioProcessorListener::ChangeDetails().withLatencyChanged(true));
 }
 
 juce::AudioProcessorEditor* VerbXPluginProcessor::createEditor() {
