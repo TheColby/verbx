@@ -27,6 +27,7 @@ PLUGIN_GUIDE_GENERATOR = ROOT / "scripts_generate_plugin_guide.py"
 BOOK_SUPPLEMENT_GENERATOR = ROOT / "scripts_generate_book_supplements.py"
 LITERATURE_SORTER = ROOT / "scripts_sort_literature.py"
 REVERB_PRIMER_ASSET_GENERATOR = ROOT / "scripts" / "generate_reverb_primer_assets.py"
+IMMERSIVE_AUDIO_ASSET_GENERATOR = ROOT / "scripts" / "generate_immersive_audio_figures.py"
 DEFAULT_AUTHOR = "Colby Leider"
 RESEARCH_REFERENCE_PATTERN = re.compile(
     r"(?m)^\*\*\[(?P<key>[^]]+)\]\*\*\s+(?P<authors>.+?)\s+"
@@ -40,6 +41,7 @@ TEX_GYRE_MATH_FONT_DIR = "/usr/local/texlive/2025/texmf-dist/fonts/opentype/publ
 
 USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "README.md",
+    ROOT / "docs" / "IMMERSIVE_AUDIO.md",
     ROOT / "docs" / "INTRODUCTORY_BLOCK_DIAGRAMS.md",
     ROOT / "docs" / "PUBLIC_ALPHA_NOTES.md",
     ROOT / "docs" / "CLI_REFERENCE.md",
@@ -1197,6 +1199,7 @@ def main() -> int:
     subprocess.run([sys.executable, str(PLUGIN_GUIDE_GENERATOR)], cwd=ROOT, check=True)
     subprocess.run([sys.executable, str(BOOK_SUPPLEMENT_GENERATOR)], cwd=ROOT, check=True)
     subprocess.run([sys.executable, str(REVERB_PRIMER_ASSET_GENERATOR)], cwd=ROOT, check=True)
+    subprocess.run([sys.executable, str(IMMERSIVE_AUDIO_ASSET_GENERATOR)], cwd=ROOT, check=True)
     subprocess.run(
         [sys.executable, str(LITERATURE_SORTER), "--check"],
         cwd=ROOT,

@@ -1085,7 +1085,7 @@ def sonogram_figure(
     image.paste(colorbar, (bar_x0, bar_y0))
     draw.rectangle((bar_x0, bar_y0, bar_x1, bar_y1), outline=INK, width=2)
     draw.text((1452, bar_y0 - 27), "0 dB", fill=MUTED, font=F_TINY)
-    draw.text((1440, bar_y1 + 4), "-80 dB", fill=MUTED, font=F_TINY)
+    draw.text((1440, bar_y1 + 4), "–80 dB", fill=MUTED, font=F_TINY)
     save(image, name)
 
 

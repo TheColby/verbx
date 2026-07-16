@@ -10,6 +10,7 @@ reference material, and practical tips shipped in `docs/`.
 ## Included Sources
 
 - `README.md`
+- `docs/IMMERSIVE_AUDIO.md`
 - `docs/INTRODUCTORY_BLOCK_DIAGRAMS.md`
 - `docs/PUBLIC_ALPHA_NOTES.md`
 - `docs/CLI_REFERENCE.md`
@@ -249,7 +250,7 @@ verbx render in.wav conv.wav --engine conv --ir hall_ir.wav --partition-size 163
 verbx render in.wav shimmer.wav --engine algo --rt60 12 --wet 0.85 \
   --shimmer --shimmer-semitones 12 --shimmer-mix 0.35 --bloom 2.0
 
-# 4. Broadcast loudness target — -23 LUFS, -1 dBTP true peak
+# 4. Broadcast loudness target — –23 LUFS, –1 dBTP true peak
 verbx render in.wav broadcast.wav --target-lufs -23 --true-peak --target-peak-dbfs -1
 
 # 5. Extreme ambient — 90-second tail, slow evolution, near-frozen
@@ -1924,7 +1925,7 @@ Shorter delay lines require gains closer to 1.0. This is computed per line so di
 | `--comb-cloud` | flag | Optional pre-FDN comb bank | Adds metallic/dense coloration before the late field |
 | `--comb-cloud-mix` | 0–1 | Comb-cloud blend amount | Start around `0.2` before increasing line count/feedback |
 | `--damping` | 0–1 | HF rolloff in feedback loop | Higher values darken the tail faster |
-| `--fdn-rt60-tilt` | -1 to 1 | Low/high decay skew | Positive = longer lows, shorter highs |
+| `--fdn-rt60-tilt` | –1 to 1 | Low/high decay skew | Positive = longer lows, shorter highs |
 | `--fdn-link-filter` | none/lowpass/highpass | In-loop spectral shaping | Shapes the spectral flow on feedback edges |
 | `--fdn-tv-rate-hz` | 0–5 | Time-varying matrix update rate | Active only with `tv_unitary`; slow rates reduce ringing |
 | `--mod-depth-ms` | 0–10 | Delay modulation depth | Small values suppress metallic resonances |
@@ -2098,6 +2099,8 @@ Use `--bloom-mix` when you want the bloom time constant from `--bloom` but a mor
 
 For most uses, stereo output is all you need. Multichannel processing becomes relevant when you are delivering to a surround format, working in Ambisonics, or routing reverb through a spatial bus.
 
+For a complete treatment of channel beds, height layers, Ambisonics, Dolby Atmos beds and objects, binaural monitoring, DAW handoff, deliverables, and immersive QC, read [Immersive Reverb, Surround Sound, and Dolby Atmos](docs/IMMERSIVE_AUDIO.md). The chapter includes signal-flow diagrams, routing recipes, and a precise account of what verbx can and cannot author today.
+
 **Channel layouts:**
 
 | Layout | Channels | Use case |
@@ -2107,14 +2110,18 @@ For most uses, stereo output is all you need. Multichannel processing becomes re
 | `LCR` | 3 | Left/Center/Right film format |
 | `5.1` | 6 | Standard surround |
 | `7.1` | 8 | Expanded surround |
-| `7.1.2` | 10 | Surround with overhead pair |
-| `7.1.4` | 12 | Full Atmos bed format |
+| `7.1.2` | 10 | Standard Atmos bed or fixed-channel immersive bus |
+| `7.1.4` | 12 | Common Atmos monitoring/render layout; not the default Atmos bed |
 | `7.2.4` | 13 | 7-bed + dual-LFE + 4-top layout |
 | `8.0` | 8 | 8-channel bed without dedicated LFE |
 | `16.0` | 16 | Large-format discrete bed |
 | `64.4` | 68 | High-density immersive bed + top layer |
 
 Use `--input-layout` and `--output-layout` to declare channel semantics explicitly. Without them, verbx uses channel count alone, which can produce ambiguous routing for formats above stereo.
+
+**Atmos boundary:** verbx writes channel-based WAVE files, Ambisonic material, matrix-routed convolution outputs, JSON analysis, and handoff manifests. It does not currently author Dolby object trajectories, per-object binaural metadata, or a native ADM BWF/DAMF master. Prepare bed and object stems in verbx, then perform object assignment, metadata authoring, endpoint rendering, and master export in an Atmos-capable DAW and the Dolby Atmos Renderer.
+
+The distinction between a bed and a monitoring layout matters. Dolby’s standard bed is 7.1.2, while 7.1.4 commonly describes a loudspeaker render with four independently fed height speakers. verbx currently labels channels 9–10 of its symbolic `7.1.2` layout `Ltf/Rtf`; a Dolby bed expects `Ltm/Rtm` in those positions. Verify and explicitly map those channels at handoff rather than relying on channel count.
 
 For large immersive outputs (`16.0`, `64.4`), set `--ir-route-map` explicitly when the IR is mono or channel-matched to the input. Recommended defaults:
 
@@ -2131,7 +2138,7 @@ Other formats are also easy to support: the routing and DSP paths already operat
 
 ## Loudness and Metering
 
-Most audio delivered for broadcast, streaming, or film needs to hit a loudness target. EBU R128 / ITU-R BS.1770 defines integrated loudness in LUFS (Loudness Units relative to Full Scale). The practical difference between targeting -23 LUFS for broadcast and -14 LUFS for streaming can be over 9 dB of apparent level — enough to sound completely wrong in one context if mastered for the other.
+Most audio delivered for broadcast, streaming, or film needs to hit a loudness target. EBU R128 / ITU-R BS.1770 defines integrated loudness in LUFS (Loudness Units relative to Full Scale). The practical difference between targeting –23 LUFS for broadcast and –14 LUFS for streaming can be over 9 dB of apparent level — enough to sound completely wrong in one context if mastered for the other.
 
 verbx has a full loudness pipeline:
 
@@ -2142,7 +2149,7 @@ verbx has a full loudness pipeline:
 
 The loudness and peak stages are intentionally separate because they serve different goals. Loudness targeting is about program-level normalization. Peak ceiling is about short-term safety. Do not conflate them.
 
-True-peak detection uses oversampled measurement (ITU-R BS.1770). The difference between a sample peak of -0.1 dBFS and a true peak of +0.4 dBFS is invisible in sample-domain inspection but will cause clipping in AAC, MP3, and most streaming codecs. Use `--true-peak --target-peak-dbfs -1` for any output that will be transcoded.
+True-peak detection uses oversampled measurement (ITU-R BS.1770). The difference between a sample peak of –0.1 dBFS and a true peak of +0.4 dBFS is invisible in sample-domain inspection but will cause clipping in AAC, MP3, and most streaming codecs. Use `--true-peak --target-peak-dbfs -1` for any output that will be transcoded.
 
 Week 3 delivery sanity checks now fail fast when an explicit limiter threshold is above the limiter ceiling, because that silently collapses the useful gain-reduction range. Explicit container choices also need matching extensions: use `.w64` with `--output-container w64`, `.rf64` with `--output-container rf64`, or leave `--output-container auto` on when you want verbx to infer the container.
 
@@ -2242,7 +2249,7 @@ curated quick-reference for common switches.
 | `--fdn-sparse-degree` | 1–8 | Pair-mixing stages | |
 | `--fdn-link-filter` | none/lowpass/highpass | In-loop spectral shaping | |
 | `--fdn-link-filter-hz` | Hz | Link filter cutoff | |
-| `--fdn-rt60-tilt` | -1 to 1 | Low/high RT skew | Positive = longer lows |
+| `--fdn-rt60-tilt` | –1 to 1 | Low/high RT skew | Positive = longer lows |
 | `--fdn-tonal-correction-strength` | 0–1 | Decay-color equalization | Track C control |
 | `--fdn-cascade` | flag | Nested FDN injection | |
 | `--fdn-graph-topology` | ring/path/star/random | Graph topology | `graph` matrix only |
@@ -2474,7 +2481,7 @@ live dereverb path, either standalone or chained in front of the reverb engine.
 | `--fdn-sparse` / `--fdn-sparse-degree` | flag / int | Sparse feedback wiring and degree |
 | `--fdn-cascade` and friends | flag / scalars | Enable cascaded/nested FDN behavior |
 | `--fdn-rt60-low` / `--mid` / `--high` | seconds | Multiband RT60 targets |
-| `--fdn-rt60-tilt` | -1 to 1 | Tilt the decay profile across bands |
+| `--fdn-rt60-tilt` | –1 to 1 | Tilt the decay profile across bands |
 | `--fdn-link-filter*` | mode / Hz / mix | Filter energy in the feedback links |
 | `--fdn-graph-topology` / `--fdn-graph-degree` / `--fdn-graph-seed` | topology / int / int | Graph-based FDN layout controls |
 | `--fdn-matrix-morph-to` / `--fdn-matrix-morph-seconds` | matrix / seconds | Morph between matrix families during proxy synthesis |
@@ -2490,7 +2497,7 @@ live dereverb path, either standalone or chained in front of the reverb engine.
 | `--allpass-delays-ms` | comma-separated ms | Custom allpass delay times |
 | `--comb-delays-ms` | comma-separated ms | Custom FDN/comb delay times |
 | `--shimmer` and `--shimmer-*` | flag / scalars | Startup proxy shimmer block with pitch, mix, feedback, filters, spatial spread |
-| `--room-size-macro` / `--clarity-macro` / `--warmth-macro` / `--envelopment-macro` | -1 to 1 | Jot-inspired perceptual macro controls |
+| `--room-size-macro` / `--clarity-macro` / `--warmth-macro` / `--envelopment-macro` | –1 to 1 | Jot-inspired perceptual macro controls |
 | `--algo-decorrelation-front` / `--rear` / `--top` | 0–1 | Extra proxy decorrelation for immersive layouts |
 | `--unsafe-self-oscillate` / `--unsafe-loop-gain` | flag / scalar | Deliberately allow runaway feedback behavior when you really mean it |
 
@@ -2690,7 +2697,7 @@ verbx render piano.wav piano_conv.wav --engine conv --ir hall_ir.wav --ir-normal
 verbx render snare.wav snare_delay.wav --engine algo --pre-delay 1/8D --bpm 128 --rt60 1.8 --wet 0.45
 ```
 
-**Loudness-safe delivery — hits -16 LUFS with -1 dBTP ceiling:**
+**Loudness-safe delivery — hits –16 LUFS with –1 dBTP ceiling:**
 ```bash
 verbx render master.wav delivered.wav --engine algo --rt60 2.0 --wet 0.2 \
   --target-lufs -16 --true-peak --target-peak-dbfs -1
@@ -3102,6 +3109,474 @@ Additional guides in `docs/`:
 See [LICENSE](LICENSE).
 
 v0.7.7 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+
+\newpage
+
+<!-- docs/IMMERSIVE_AUDIO.md -->
+
+# Immersive Reverb, Surround Sound, and Dolby Atmos
+
+Immersive audio is not simply stereo with more loudspeakers. It is a collection of related production models that describe space in different ways: as fixed output channels, as a listener-centered sound field, or as audio objects accompanied by position metadata. Reverb exposes every difference among those models. A tail can remain tied to a channel, rotate as a scene, spread through a fixed bed, or follow an object whose final loudspeaker feeds are calculated only during rendering.
+
+This chapter explains those distinctions and turns them into practical verbx workflows. It covers conventional surround, height layouts, Ambisonics, binaural monitoring, Dolby Atmos beds and objects, reverb routing, DAW handoff, deliverables, and quality control. It also states the present product boundary plainly: **verbx can generate and process discrete multichannel audio, Ambisonic material, matrix-routed convolution, and machine-readable handoff evidence; it does not currently author Dolby object metadata or create an ADM BWF, DAMF, or IMF IAB master.** Use an Atmos-capable DAW and the Dolby Atmos Renderer for that final authoring stage.
+
+The goal is not to prescribe one spatial aesthetic. It is to make the signal path legible enough that a mix decision remains a mix decision, rather than becoming an accidental consequence of channel order, renderer behavior, bass management, or a mistaken assumption about what a file contains.
+
+## 1. Three Ways to Describe Space
+
+### 1.1 Channel-based audio
+
+A channel-based signal assigns each waveform to a named destination such as Left, Center, Right, Left Surround, or Left Top Front. Stereo, 5.1, 7.1, and a discrete 7.1.4 speaker feed are channel-based formats. Their strengths are directness and predictability: if the playback system honors the labels, the Left Surround signal reaches the left-surround path. Their limitation is that the mix is bound to the assumed loudspeaker geometry. Translating a 7.1.4 print to headphones or a smaller room requires a downmix or a separate renderer.
+
+Channel-based reverb is often the most stable choice for an enveloping late field. A diffuse return can occupy side, rear, and height channels while dry anchors remain in front. The return does not need to carry a moving trajectory; it needs a carefully designed covariance pattern, spectral balance, and decay envelope.
+
+### 1.2 Scene-based audio
+
+Scene-based systems describe a sound field around a listening point. Ambisonics is the most familiar example. Instead of storing one channel per loudspeaker, it stores spherical-harmonic components. A decoder then maps those components to the available loudspeaker array or to binaural headphones. First-Order Ambisonics (FOA) uses four components; higher orders increase spatial resolution at the cost of more channels and more demanding capture, processing, and decoding.
+
+A scene can be rotated without reauthoring every loudspeaker feed. This makes Ambisonics useful for virtual reality, 360-degree video, game ambience, acoustic documentation, and portable reverberant fields. It is not the same as Dolby Atmos object metadata. Converting an Ambisonic scene into an Atmos session requires a render or a deliberate object/bed authoring step, not a channel-label rename.
+
+### 1.3 Object-based audio
+
+An object combines an audio signal with metadata describing where and how it should render. Position, divergence or size, and binaural behavior may vary over time. The final loudspeaker feeds are computed by a renderer for the target endpoint. That target might be a 7.1.4 room, 5.1, stereo, a soundbar, or binaural headphones.
+
+Object audio is especially valuable when a sound must occupy a precise or moving location that a fixed bed cannot address independently. It is not automatically better for every reverb return. A dense, statistically diffuse late field often belongs in a bed because it should envelop rather than announce a point source. A featured reverse tail, rotating shimmer, or isolated reflection can be an excellent object because its trajectory is part of the composition.
+
+## 2. Reading Surround and Height Layout Names
+
+The notation `7.1.4` counts three groups: seven ear-level full-range channels, one low-frequency-effects channel, and four height channels. It says nothing by itself about whether the signal is a monitoring render, a DAW bus, a codec output, or an authored bed. Context matters.
+
+| Name | Nominal contents | Typical role |
+|---|---:|---|
+| `2.0` | Left, Right | Stereo delivery or monitoring |
+| `5.1` | Five full-range channels plus LFE | Broadcast, film, home-theater surround |
+| `7.1` | Seven full-range channels plus LFE | Expanded side/rear surround |
+| `7.1.2` | 7.1 plus two height channels | Standard Dolby Atmos bed; also a fixed-channel immersive bus |
+| `7.1.4` | 7.1 plus four height channels | Common Atmos monitoring and speaker-render layout; **not** the default Atmos bed |
+| `7.2.4` | Seven ear-level, two LFE, four height | Installation or custom discrete layout; not a standard Atmos bed name |
+| FOA | Four spherical-harmonic components | Portable first-order scene representation |
+
+The distinction is easier to see spatially. Figure 1 compares the ten fixed channels of a 7.1.2 bed with a 7.1.4 monitoring array. The Renderer may distribute bed and object energy among all available loudspeakers; the presence of four physical top loudspeakers does not turn the source bed into 7.1.4.
+
+![A schematic comparison of a 7.1.2 Atmos bed and a 7.1.4 monitoring layout.](assets/immersive_audio/01_bed_vs_monitor_layout.png)
+
+**Figure: Bed channels versus monitor channels.** The left plan shows the standard 7.1.2 bed concept: eight channels at or around ear level, including LFE, and two top-middle channels. The right plan shows a common 7.1.4 monitoring arrangement with separate front-top and rear-top loudspeakers. The positions are conceptual rather than installation specifications; use the room-design guidance appropriate to the renderer, room, and delivery contract.
+
+### 2.1 Channel order is part of the format
+
+For a standard Dolby 7.1.2 bed, Dolby documents the SMPTE order as `L, R, C, LFE, Ls, Rs, Lrs, Rrs, Ltm, Rtm`. Channel count alone cannot establish that order. A ten-channel WAV could contain the same signals in a different sequence and sound dramatically wrong while still opening successfully.
+
+verbx currently uses the symbolic `7.1.2` labels `L, R, C, LFE, Ls, Rs, Lrs, Rrs, Ltf, Rtf`. Therefore, when preparing a verbx `7.1.2` file for an Atmos bed, **verify and explicitly map channels 9 and 10 to the Renderer’s `Ltm` and `Rtm` inputs**. The labels are not interchangeable merely because the channel count agrees. This is a handoff requirement, not a sonic preference.
+
+Use a spoken channel-identification file or short, non-overlapping impulses before trusting a complex mix. A successful import proves only that the container is readable; it does not prove semantic routing.
+
+## 3. Dolby Atmos Architecture
+
+Dolby Atmos separates audio into beds and objects, then delegates endpoint-specific channel generation to a Renderer. According to Dolby’s current professional documentation, a typical music workflow uses one 7.1.2 bed and may use up to 118 objects within a system supporting up to 128 input paths. The exact available count can depend on how stereo objects and beds consume paths.
+
+The bed carries fixed-channel material. It is appropriate for stems whose spatial role is broad and stable: an orchestral room, diffuse crowd, ensemble ambience, or reverberant field. Objects carry audio plus metadata. They are appropriate for a featured source or effect whose authored position, size, motion, or binaural behavior must survive downstream rendering.
+
+Figure 2 shows why an Atmos master cannot be reduced to a 7.1.4 WAV. The bed, object signals, and metadata enter the Renderer separately. It can then derive multiple channel and binaural re-renders from one authored master.
+
+![A signal-flow diagram showing a 7.1.2 bed, audio objects, and metadata entering the Dolby Atmos Renderer and producing multiple endpoint renders.](assets/immersive_audio/02_atmos_renderer_architecture.png)
+
+**Figure: Dolby Atmos bed/object rendering architecture.** Fixed-channel bed audio, object audio with trajectories, and session metadata remain distinct until the Renderer. The Renderer combines them according to the target endpoint, producing outputs such as 7.1.4, 5.1, stereo, or binaural. A conventional multichannel WAV represents one channel render; it does not carry the complete object-based authoring model shown here.
+
+### 3.1 Why the 7.1.2 bed does not reach every speaker independently
+
+The standard bed provides a stable immersive foundation, but it does not offer separate fixed channels for every possible width or top-front/top-rear location. When a sound needs an independently addressable location outside the bed’s fixed destinations, author it as an object. This is one reason a hybrid mix is normal: the bed supplies continuity and envelopment while objects supply location-specific detail.
+
+### 3.2 Objects are not moving tracks by default
+
+An object may remain stationary for an entire piece. The useful property is not motion itself; it is that the Renderer receives a position and can translate it to each endpoint. Excessive motion can shrink perceived scale, distract from musical phrasing, or produce unstable binaural images. Reserve motion for an audible purpose.
+
+### 3.3 The Renderer is part of the instrument
+
+In object-based production, monitoring is already a render. A pan decision heard over 7.1.4 loudspeakers and the corresponding binaural result are two interpretations of the same metadata. Neither should be treated as a disposable preview. The production process must listen through the intended render paths early enough that translation problems can inform the mix.
+
+## 4. Reverb as an Immersive Layer
+
+Reverb contributes several perceptually distinct cues:
+
+- Early reflections communicate apparent room size, source distance, surface placement, and localization.
+- The late field communicates envelopment, decay, density, spectral absorption, and the persistence of the acoustic environment.
+- Direction-dependent decay communicates architecture: a tall reflective space may retain energy above the listener while side energy damps sooner.
+- Interchannel covariance controls whether the field feels broad, stable, phasey, collapsed, or detached.
+- Modulation and diffusion determine whether discrete echoes fuse into a field or remain audible as patterns.
+
+Treating all of those cues as one twelve-channel send leaves musical control on the table. Figure 3 presents a more useful topology. It divides the effect into early definition, a diffuse bed return, and an optional designed object return.
+
+![A hybrid immersive-reverb signal-flow diagram with separate early-reflection, diffuse-bed, and object-effect branches.](assets/immersive_audio/03_hybrid_reverb_topology.png)
+
+**Figure: Hybrid immersive-reverb topology.** A dry source feeds three sends with different perceptual jobs. Early reflections reinforce front and side localization; the diffuse late field enters a stable 7.1.2 bed return; and a special reverse, freeze, or moving tail is returned as a mono or stereo object. The Renderer combines those paths for loudspeaker and binaural endpoints. This separation prevents decorative motion from destabilizing the entire room impression.
+
+### 4.1 Front channels and the center anchor
+
+The center channel is powerful because it can create a stable screen or stage anchor. It is also easy to overload. Sending a highly correlated reverb return equally to Left, Center, and Right can build a narrow, level-heavy front image. For dialogue and lead vocals, begin with less late-field energy in Center than in Left/Right and surrounds. Preserve intelligibility with front-weighted early reflections, predelay, ducking, or spectral shaping rather than by eliminating all spatial response.
+
+### 4.2 Side and rear channels
+
+Side channels often carry the strongest envelopment cue because they stimulate lateral perception. Rear channels can extend depth, but excessive rear level can pull attention behind the listener or make the room feel detached from the source. A robust late field is usually decorrelated rather than copied. Identical tails in every channel may collapse during downmixing and can produce comb filtering or unstable images.
+
+### 4.3 Height channels
+
+Height should communicate vertical extent, overhead reflections, or a deliberate compositional gesture. Simply duplicating the bed return into top channels raises level without necessarily creating elevation. Consider later or spectrally different overhead energy, independent decorrelation, and a controlled height-to-bed ratio. In many natural rooms, the top field can be smoother and less transient-rich than the direct and early-reflection field.
+
+Four-top monitoring gives a renderer more ways to express front-to-rear height movement, but a standard 7.1.2 bed still supplies only two fixed top-middle channels. Use objects if a return must be explicitly top-front, top-rear, or moving along the ceiling.
+
+### 4.4 LFE is not bass management
+
+The LFE channel is a creative effects channel, not the destination for all low-frequency content. Bass management is a monitoring-system function that redirects low frequencies from main channels according to crossover settings. A large reverb tail can already reach the subwoofer through bass management without being sent to LFE.
+
+As a default, keep diffuse reverb out of LFE unless there is a clear artistic or delivery reason. Uncontrolled low-frequency decay consumes headroom, masks rhythm, and may translate unpredictably across systems. If LFE reverb is intentional, high-pass or band-limit it, monitor the LFE channel directly, and check the full-range re-render separately from a bass-managed room.
+
+### 4.5 Decorrelation without disconnection
+
+Immersive width requires difference among channels, but random difference is not automatically coherent. Useful decorrelation preserves a shared decay envelope and tonal identity while varying delay, modulation phase, diffusion state, or allpass structure. The goal is a single room observed from many directions, not twelve unrelated reverbs.
+
+verbx exposes front, rear, and top decorrelation controls so these regions can be tuned independently. Start conservatively, then compare the discrete layout, stereo fold-down, and binaural render. If the immersive version sounds expansive but the stereo version becomes hollow, the channel relationships are too antagonistic.
+
+## 5. What verbx Can Produce Today
+
+The following boundary is intentionally explicit.
+
+| Capability | Current status | Meaning for an Atmos workflow |
+|---|---|---|
+| Discrete multichannel WAVE rendering | Supported | Produce bed candidates, speaker prints, wet stems, and channel-identification files |
+| Named input/output layouts | Supported | Declare routing intent for common layouts rather than relying only on channel count |
+| Matrix convolution | Supported | Route each input independently to one or more output channels with an explicitly packed IR matrix |
+| Algorithmic spatial decorrelation | Supported | Shape front, rear, and top late-field relationships |
+| FOA encode, rotate, and stereo decode | Supported with documented constraints | Prepare or process a scene-based field before a separate Atmos authoring stage |
+| Higher-order Ambisonic validation and channel-order metadata | Supported where documented by the CLI | Keep scene conventions explicit during handoff |
+| JSON analysis and handoff manifests | Supported | Record channels, routing, settings, and QC evidence alongside audio |
+| Dolby object trajectories and size automation | Not currently authored | Create these in an Atmos-capable DAW |
+| Per-object Dolby binaural metadata | Not currently authored | Set and audition this in the DAW/Renderer |
+| Native ADM BWF, DAMF, or IMF IAB master | Not currently written | Export or record the master through the Dolby Atmos Renderer or an integrated authoring environment |
+| Dolby certification or delivery approval | Not implied | Follow the current distributor, label, broadcaster, studio, and Dolby requirements |
+
+A JSON sidecar can be extremely useful, but it is documentation rather than embedded Dolby metadata. Renaming a sidecar or adding the letters “ADM” to a filename does not create the required BWF metadata chunk. Likewise, a 7.1.4 WAV is a speaker-channel render, not an editable object master.
+
+## 6. Practical verbx Recipes
+
+The commands below prepare audio for immersive sessions. They do not bypass the authoring and Renderer stages.
+
+### 6.1 Create a 7.1.2 wet-bed candidate
+
+Render a discrete ten-channel return, then explicitly map the final two channels during DAW import:
+
+```bash
+verbx render source.wav wet_712.wav \
+  --engine algo \
+  --output-layout 7.1.2 \
+  --rt60 2.8 \
+  --predelay 28 \
+  --algo-decorrelation-front 0.22 \
+  --algo-decorrelation-rear 0.48 \
+  --algo-decorrelation-top 0.62 \
+  --wet 1.0 --dry 0.0 \
+  --json-out wet_712.analysis.json
+```
+
+On import, confirm `L, R, C, LFE, Ls, Rs, Lrs, Rrs` and remap verbx `Ltf, Rtf` to the intended Atmos bed `Ltm, Rtm` inputs. Do not infer the map from file width alone.
+
+### 6.2 Create a 7.1.4 speaker print
+
+Use this when a twelve-channel file is specifically required for monitoring, installation playback, or comparison. Do not call it an Atmos master:
+
+```bash
+verbx render source.wav wet_714_print.wav \
+  --engine algo \
+  --output-layout 7.1.4 \
+  --rt60 3.6 \
+  --algo-decorrelation-front 0.20 \
+  --algo-decorrelation-rear 0.52 \
+  --algo-decorrelation-top 0.70 \
+  --wet 1.0 --dry 0.0 \
+  --json-out wet_714_print.analysis.json
+```
+
+Name the file with `_print`, `_rerender`, or another unambiguous label so nobody mistakes it for a bed/object master.
+
+### 6.3 Prepare a featured object-return stem
+
+A special tail can remain mono or stereo until Atmos authoring. This preserves the DAW’s ability to attach object metadata:
+
+```bash
+verbx render vocal_throw.wav vocal_reverse_object.wav \
+  --engine algo \
+  --reverse \
+  --rt60 6.5 \
+  --predelay 90 \
+  --wet 1.0 --dry 0.0 \
+  --output-layout mono \
+  --json-out vocal_reverse_object.analysis.json
+```
+
+Import the result, assign it to an object, then author the static position or trajectory while listening through the Renderer. A stereo effect may consume two object paths; use stereo only when its internal width is essential.
+
+### 6.4 Process an FOA field
+
+For a scene-based intermediate, keep ordering and normalization explicit:
+
+```bash
+verbx render stereo_room.wav room_foa.wav \
+  --ambi-order 1 \
+  --channel-order acn \
+  --ambi-encode-from stereo \
+  --ambi-rotate-yaw-deg 25 \
+  --output-layout auto \
+  --json-out room_foa.analysis.json
+```
+
+FOA is useful when rotation and portable scene decoding matter more than sharply isolated positions. To use it in Atmos, decode or spatialize it through a compatible plug-in or DAW workflow and audition the resulting bed/object assignment. Do not relabel the four channels as an Atmos bed.
+
+### 6.5 Use a full matrix IR
+
+A true multichannel room response can encode direction-dependent coupling. For $M$ inputs and $N$ outputs, a full matrix contains $M N$ impulse responses. The file packing order must match `--ir-matrix-layout`:
+
+```bash
+verbx render input_51.wav room_matrix_714.wav \
+  --input-layout 5.1 \
+  --output-layout 7.1.4 \
+  --ir concert_hall_6x12.wav \
+  --ir-route-map full \
+  --ir-matrix-layout output-major \
+  --wet 1.0 --dry 0.0 \
+  --json-out room_matrix_714.analysis.json
+```
+
+Before using a large matrix in a mix, test one input at a time. Confirm that front impulses create the intended early and late energy, rear inputs do not swap, top outputs are truly top outputs, and no LFE row is populated unintentionally.
+
+## 7. Bed, Object, and Hybrid Reverb Strategies
+
+### 7.1 Bed return
+
+A bed return is the safest default for a shared acoustic environment. Route multiple sources to one immersive reverb, preserve a coherent decay law, and use channel-dependent decorrelation to create width. This approach conserves object paths and keeps the room stable as sources move.
+
+For orchestral or ensemble work, the bed can establish the hall while dry and early-reflection cues retain stage placement. For dialogue, a subtle bed can match production ambience or establish scene scale without attaching the entire room to a moving actor object.
+
+### 7.2 Object return
+
+An object return is useful when the reverb itself is a featured event. Examples include a freeze that rises above the listener, a reverse tail that approaches from the rear, a single reflection that traces a wall, or a transition wash that grows from near to far. Render the audio effect in verbx, then perform the object authoring in the Atmos environment.
+
+Avoid making every source’s complete late field a separate moving object. The result can consume paths, complicate metadata, and make the perceived room chase the dry source. In real rooms, direct sound localizes strongly while the late field becomes increasingly diffuse.
+
+### 7.3 Hybrid return
+
+The hybrid strategy uses a shared bed for the ordinary room and one or more objects for exceptional cues. It scales well because the bed carries statistical density while objects remain sparse and meaningful. It also translates more gracefully: if a dramatic object changes character in binaural, the foundational room remains intact.
+
+### 7.4 Stem architecture
+
+A practical immersive session might contain:
+
+- `Room_ER_front`: early reflections emphasizing front and side channels.
+- `Room_late_712`: diffuse 7.1.2 bed return.
+- `Vocal_throw_mono`: mono special-effect stem assigned to an object.
+- `Orchestra_halo_stereo`: stereo height effect assigned as a stereo object or deliberately spread into the bed.
+- `LFE_effect`: separately managed, intentional LFE-only content if required.
+- `Room_QC`: channel-identification impulses and the associated JSON report, excluded from the final program.
+
+Use names that describe both acoustic function and spatial role. “BigVerb12” is less useful than “HallLate_712Bed” when the session is reopened six months later.
+
+## 8. DAW and Renderer Handoff
+
+### 8.1 Integrated-renderer workflow
+
+In an integrated environment such as Logic Pro, assign tracks and returns to the bed or to objects, place Atmos-aware processing in the correct part of the signal path, and monitor through the project’s Dolby Atmos plug-in. Apple documents an important signal-flow distinction: processing before the Atmos plug-in operates on the bed path, while processing after it affects monitoring and channel-based bounces rather than the exported object master. Verify the current application behavior rather than assuming an ordinary surround-master insert model.
+
+Export an ADM BWF only from the supported spatial-audio export path. Apple describes that export as containing bed audio, object audio, object pan automation, and metadata. A normal multichannel bounce is a channel-based render and serves a different purpose.
+
+### 8.2 External-renderer workflow
+
+With a separate Dolby Atmos Renderer, route each bed channel and object path to its assigned Renderer input. Confirm sample rate, frame rate, synchronization, input assignment, and monitoring return before mixing. Record or export the required master through the Renderer workflow, then generate re-renders and QC material from that same authoritative master.
+
+### 8.3 Handoff package
+
+A strong handoff includes more than audio:
+
+- Clearly named mono, stereo, and multichannel WAV files.
+- A channel-order document for every file wider than stereo.
+- Sample rate, bit depth, start time, frame rate where applicable, and exact duration.
+- A verbx JSON report containing processing parameters and measured properties.
+- Dry references when the receiving mixer may need to revise the effect.
+- A short text note identifying bed candidates, object candidates, and speaker prints.
+- Channel-identification impulses or spoken IDs for nonstandard layouts.
+- The expected Atmos authoring environment and Renderer version, when contractually relevant.
+
+Do not place a speaker print and an object-master candidate in the same folder with nearly identical names. Make semantic differences visible at a glance.
+
+## 9. Monitoring and Translation
+
+No single playback path proves an immersive master. A 7.1.4 room reveals image placement and envelopment; 5.1 reveals whether height-dependent balances survive; stereo reveals center buildup, phase cancellation, and overall hierarchy; binaural reveals renderer-dependent externalization, elevation, and near/far behavior.
+
+Figure 4 frames monitoring as a loop. The same authoritative master feeds each re-render. Differences that damage the musical intent return to the source session for correction; they are not patched independently into unrelated exports.
+
+![A quality-control loop connecting a source session and reference Renderer to 7.1.4, 5.1, stereo, and binaural endpoints.](assets/immersive_audio/04_translation_qc_loop.png)
+
+**Figure: Immersive translation and quality-control loop.** The authored beds, objects, and automation feed one reference Renderer. Four representative endpoints reveal different failure modes: 7.1.4 tests the intended room image, 5.1 exposes reliance on height, stereo tests hierarchy and phase interaction, and binaural tests headphone localization and metadata behavior. Observations return to the source session so the master remains the single source of truth.
+
+### 9.1 Loudspeaker-room checks
+
+An immersive room should be calibrated, time-aligned, and level-matched according to the applicable standard and facility procedure. Check that monitoring bass management is understood and repeatable. A subwoofer response problem can be misdiagnosed as an LFE-mix problem; a mistimed height speaker can be misdiagnosed as poor elevation metadata.
+
+Walk the room after the reference-position pass. The mix need not be identical in every seat, but catastrophic localization jumps, comb filtering, or disappearing returns reveal fragile channel relationships.
+
+### 9.2 Stereo checks
+
+Listen for excessive front-center buildup, loss of ambience, hollow tonal balance, and transient smearing. A diffuse field can become quieter in stereo because decorrelated channels partially cancel or because the renderer applies conservative downmix coefficients. Correct the spatial design, not merely the stereo file, unless the delivery contract explicitly calls for a separately mastered stereo version.
+
+### 9.3 Binaural checks
+
+Binaural rendering depends on the Renderer’s head-related transfer functions and object metadata. A height cue that is obvious over loudspeakers may become subtle over headphones; a large diffuse bed may sound internalized; a near object may become distractingly intimate. Check several good headphones and avoid making decisions from a single consumer spatializer layered on top of the reference Renderer.
+
+When supported, per-object binaural modes such as Off, Near, Mid, and Far affect perceived distance. These modes are metadata decisions, not substitutions for acoustic predelay, direct-to-reverberant ratio, spectral damping, or early-reflection design.
+
+### 9.4 Renderer and consumer-device differences
+
+Soundbars, televisions, headphones, mobile devices, and theatrical systems may use different rendering strategies. The correct response is not to optimize for every device independently. Establish a defensible reference master, test the required official re-renders, and investigate only repeatable failures that compromise intent.
+
+## 10. Ambisonics and Atmos Are Complementary
+
+Ambisonics represents a listener-centered field; Atmos represents beds and objects for endpoint rendering. Both can describe immersion, but their coordinate systems and production assumptions differ.
+
+| Question | Ambisonics | Dolby Atmos |
+|---|---|---|
+| What is stored? | Spherical-harmonic scene components | Bed channels, object audio, and metadata |
+| Primary strength | Rotation and layout-independent scene decoding | Authored object placement plus broad endpoint ecosystem |
+| Spatial resolution | Increases with Ambisonic order | Depends on object/bed authoring and endpoint renderer |
+| Typical reverb use | Portable room field or environmental ambience | Bed ambience plus optional object effects |
+| Headphone output | Binaural decode of the scene | Renderer binaural output with object metadata behavior |
+| Conversion | Requires decoding or compatible spatialization | Requires an authoring decision, not relabeling |
+
+An Ambisonic room recording can become an excellent Atmos ambience after deliberate decoding and routing. One option is to decode it to a 7.1.2 bed. Another is to use an Ambisonic-capable spatializer that feeds an Atmos-compatible path. A third is to separate salient directional events as objects while retaining the diffuse field in the bed. Choose based on the scene, not on the desire to maximize the number of moving icons.
+
+## 11. Deliverables and File Types
+
+The final file format determines what remains editable and what metadata travels with the audio.
+
+### 11.1 Multichannel WAVE
+
+A conventional multichannel WAVE file carries discrete PCM channels and container metadata. It can be a bed candidate, a loudspeaker print, a re-render, an installation master, or a stem. It does not inherently carry Atmos object trajectories. Channel labels and order must be documented and verified.
+
+### 11.2 ADM BWF
+
+An ADM BWF combines PCM audio with Audio Definition Model metadata in a Broadcast Wave container. Dolby and Apple describe it as an interchange master capable of carrying bed and object audio with the associated metadata. It is not a consumer listening file and should not be confused with a normal multichannel bounce. Dolby notes that changes to an imported ADM BWF are generally made in the originating authoring application rather than edited as if it were a native Renderer session.
+
+### 11.3 DAMF
+
+A Dolby Atmos Master File set is the Renderer’s native master representation, commonly involving `.atmos`, `.audio`, and `.metadata` files. It supports continuing work in the Renderer-oriented ecosystem and can be preferable when an editable Renderer master is required.
+
+### 11.4 IMF IAB
+
+IMF Immersive Audio Bitstream packages are associated with interoperable mastering and distribution workflows. Use them only when required by the delivery specification and generated through the appropriate toolchain.
+
+Figure 5 marks the practical boundary. verbx creates audio assets and evidence on the left; the Atmos DAW and Renderer author spatial metadata and master formats on the right.
+
+![A delivery diagram separating verbx-generated audio and reports from Atmos metadata authoring and master-file generation.](assets/immersive_audio/05_delivery_boundary.png)
+
+**Figure: verbx-to-Atmos delivery boundary.** verbx can create discrete stems, Ambisonic scenes, matrix-convolved outputs, and reports that make a handoff reproducible. The receiving Atmos session assigns beds and objects, writes trajectories and binaural metadata, renders endpoints, and produces the required ADM BWF, DAMF, or IMF IAB master. The arrow represents explicit DAW import and mapping, not an automatic file conversion.
+
+## 12. Immersive Quality-Control Checklist
+
+### 12.1 Before authoring
+
+- Confirm every source file’s sample rate, bit depth, duration, start point, and channel count.
+- Read the verbx JSON report and compare it with the filename and handoff note.
+- Run a channel-identification file through the exact import route.
+- Verify whether a wide file is a bed candidate, a speaker print, an Ambisonic scene, or a matrix IR output.
+- Confirm that no limiter, normalizer, or loudness stage was applied accidentally to a wet stem.
+
+### 12.2 During Atmos authoring
+
+- Verify 7.1.2 bed order as `L, R, C, LFE, Ls, Rs, Lrs, Rrs, Ltm, Rtm` at the Renderer boundary.
+- Solo every bed channel and object input at least once.
+- Confirm mono versus stereo object assignments and path consumption.
+- Inspect object position, size, motion, and binaural metadata for unintended automation.
+- Check whether master-bus processing affects the bed, the monitor render, the exported master, or some combination.
+- Monitor both full-range and LFE paths without conflating LFE with bass management.
+
+### 12.3 Before delivery
+
+- Verify or record the final master through the authoritative Renderer workflow.
+- Play the master from beginning to end in the Renderer rather than checking only a DAW bounce.
+- Check all contractually required re-renders, including stereo and binaural where applicable.
+- Measure loudness and true peak on the deliverables required by the recipient; do not assume one target for every platform.
+- Confirm sync, frame rate, program start, tail duration, and end-of-file behavior.
+- Compare the delivered master’s metadata and duration with the source session.
+- Preserve the source session, Renderer master, verbx reports, and delivery notes together.
+
+## 13. Creative Spatial-Reverb Recipes
+
+### 13.1 Natural hall around a front ensemble
+
+Keep direct sound and the strongest early reflections in the front stage. Build the late field primarily in side, rear, and top bed channels with moderate decorrelation. Use less Center late energy than Left/Right unless the production calls for a tightly anchored acoustic. Confirm that stereo retains warmth without turning cloudy.
+
+### 13.2 Intimate vocal with an overhead halo
+
+Keep the vocal itself anchored. Send a filtered, predelayed wet stem to a stereo object or to carefully controlled top energy. The halo should respond to phrasing rather than run continuously at the same level. Duck the return during consonants and let it recover into rests. In binaural, compare Near, Mid, and Far metadata choices with the acoustic predelay; they solve different distance cues.
+
+### 13.3 Percussion room with stable transients
+
+Use short front and side early reflections to establish room size. Feed the late field after enough predelay to preserve attacks. Increase rear/top decorrelation more than front decorrelation. Keep low-frequency decay shorter than midrange decay, and avoid LFE unless a specific impact effect requires it.
+
+### 13.4 Reverse transition over the listener
+
+Render a mono or stereo reverse-reverb stem in verbx. Author it as an object that moves only during the transition, then resolves into a stable bed or dry source. Check the movement over 7.1.4 and binaural; simplify the trajectory if headphone localization becomes erratic.
+
+### 13.5 Exterior-to-interior scene change
+
+Automate the acoustic architecture rather than merely raising wet level. Begin with sparse, low-density exterior reflections. Introduce enclosed early reflections as the threshold is crossed, then lengthen and darken the late field. Keep the shared environment in the bed and reserve objects for reflections tied to visible architectural events.
+
+### 13.6 Infinite or frozen field
+
+A frozen field can occupy a bed when it represents an environment, or an object when it behaves as a featured musical entity. Watch low-frequency accumulation and interchannel correlation. A stationary, diffuse freeze often feels larger than a freeze that continuously circles the listener.
+
+## 14. Common Failure Modes
+
+### “The height disappears in stereo.”
+
+Height is not a separate axis in two-channel playback. The Renderer must express it through spectral, timing, level, and binaural cues. Strengthen the compositional hierarchy and test the reference binaural render; do not simply add top channels to the stereo mix.
+
+### “The 7.1.4 file imported, so the Atmos master is finished.”
+
+It is a channel-based speaker print. It does not contain editable object trajectories or the complete Atmos master metadata. Import stems into an Atmos authoring environment and create the required master there.
+
+### “The top-front and top-rear channels are silent in my bed.”
+
+A standard 7.1.2 bed supplies top-middle channels, not four independently addressable top channels. The Renderer maps the bed into the monitoring layout. Use objects for independently authored top-front or top-rear content.
+
+### “The room sounds huge over speakers but phasey on headphones.”
+
+Reduce antagonistic decorrelation, inspect copied channels, and compare the Renderer’s binaural output without an additional consumer spatializer. Keep the shared decay envelope coherent even when channel details differ.
+
+### “The subwoofer is full of reverb although LFE is empty.”
+
+That can be normal bass management. Full-range bed channels contain low frequencies that the monitor controller redirects below its crossover. Solo LFE and inspect the monitoring configuration before changing the mix.
+
+### “Channels 9 and 10 sound too far forward.”
+
+Check the handoff map. verbx’s current symbolic `7.1.2` utility layout labels those channels `Ltf/Rtf`, whereas a Dolby bed expects `Ltm/Rtm`. Map them explicitly and verify with identification signals.
+
+### “The ADM BWF does not reflect my last monitor-chain EQ.”
+
+Determine where the processing sits relative to the Atmos authoring and Renderer path. Monitoring or post-render processing may affect a channel bounce without changing the exported object master. Use the DAW’s official signal-flow documentation and re-export from the authoritative session.
+
+## 15. Recommended Official Reading
+
+The following primary documentation is arranged alphabetically by organization:
+
+- **Apple.** [Export a spatial audio project as an ADM BWF file in Logic Pro](https://support.apple.com/guide/logicpro/export-a-spatial-audio-project-dolby-atmos-lgcp258ed132/mac). Explains the difference between an object-based spatial export and a conventional channel bounce.
+- **Apple.** [Monitor a Spatial Audio mix in Logic Pro](https://support.apple.com/en-lamr/guide/logicpro/lgcp179f27c1/mac). Describes speaker, stereo, and binaural monitoring formats.
+- **Apple.** [Use beds and objects in Logic Pro](https://support.apple.com/en-mide/guide/logicpro/lgcp73f9b9ac/mac). Covers integrated bed/object assignment and path limits.
+- **Dolby.** [Dolby Atmos Renderer](https://professional.dolby.com/product/dolby-atmos-content-creation/dolby-atmos-renderer/). Product-level description of bed/object rendering, master creation, and re-renders.
+- **Dolby.** [How do I QC my Dolby Atmos mix?](https://professionalsupport.dolby.com/s/article/How-do-I-QC-my-Dolby-Atmos-mix). Emphasizes master verification in the Renderer and delivery-specific requirements.
+- **Dolby.** [Overview of Dolby Atmos Master File Formats](https://professionalsupport.dolby.com/s/article/Overview-of-Dolby-Atmos-Master-File-Formats). Compares ADM BWF, DAMF, and IMF IAB roles.
+- **Dolby.** [What are Beds and Objects in Dolby Atmos?](https://professionalsupport.dolby.com/s/article/What-are-Beds-and-Objects-in-Dolby-Atmos). Defines the default 7.1.2 bed and object workflow.
+- **Dolby.** [What channel order should be used for assigning bed audio to the Renderer?](https://professionalsupport.dolby.com/s/article/What-channel-order-should-be-used-for-assigning-bed-audio-to-the-Renderer). Gives the SMPTE 7.1.2 bed order used at the Renderer boundary.
+- **International Telecommunication Union.** [Recommendation ITU-R BS.2051: Advanced sound system for programme production](https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.2051-2-201807-S%21%21PDF-E.pdf). Defines reference loudspeaker-layout concepts for advanced sound systems.
+
+Specifications, application behavior, and distributor requirements change. Treat these links and the recipient’s current delivery document as authoritative for a production, and treat this chapter as an engineering and creative workflow guide.
 
 
 \newpage
@@ -6155,7 +6630,7 @@ verbx render in.wav out/020_repeat_floor.wav --engine algo --rt60 140 --repeat 3
 ```
 _What it sounds like:_ Three passes of a very long reverb, normalized to a broadcast-appropriate loudness level. Useful as a bed or texture layer.
 
-_DSP note:_ `--target-lufs -26` is roughly the integrated loudness target for film broadcast (-24 LUFS) plus a 2dB headroom buffer. Applying this to a three-pass, 140-second reverb tail ensures the output is at a known loudness level suitable for mixing into a larger context without additional gain staging.
+_DSP note:_ `--target-lufs -26` is roughly the integrated loudness target for film broadcast (–24 LUFS) plus a 2dB headroom buffer. Applying this to a three-pass, 140-second reverb tail ensures the output is at a known loudness level suitable for mixing into a larger context without additional gain staging.
 
 ---
 
@@ -6361,7 +6836,7 @@ verbx render in.wav out/038_self_repeat.wav --self-convolve --repeat 3 --normali
 ```
 _What it sounds like:_ Three passes of self-convolution. The first pass is already extreme; the second and third are increasingly abstract.
 
-_DSP note:_ Each repeat pass uses the output of the previous pass as the input to the next self-convolution. Mathematically, this raises the original spectrum to the power of 2^n (where n is the pass number). By pass three, the spectral peaks are at 2^3 = 8 times their original prominence (in log scale, +18dB relative to the original spectral balance). Per-pass normalization prevents clipping between passes.
+_DSP note:_ Each repeat pass uses the output of the previous pass as the input to the next self-convolution. Mathematically, this raises the original spectrum to the power of $2^{n}$ (where $n$ is the pass number). By pass three, the spectral peaks are at $2^{3} = 8$ times their original prominence (in log scale, +18dB relative to the original spectral balance). Per-pass normalization prevents clipping between passes.
 
 ---
 
@@ -6371,7 +6846,7 @@ verbx render in.wav out/039_self_loud.wav --self-convolve --target-lufs -16 --ta
 ```
 _What it sounds like:_ Self-convolution normalized to streaming-loudness standards. Useful when the self-convolve output needs to be delivered at a calibrated level.
 
-_DSP note:_ `-16 LUFS` is approximately the target for music streaming platforms. Combined with `-1 dBFS` true peak headroom, this configuration takes the unpredictable amplitude of self-convolution output and brings it to a usable, deliverable level. The nature of the sound is unchanged; only the gain is adjusted.
+_DSP note:_ –16 LUFS is approximately the target for music streaming platforms. Combined with –1 dBFS true peak headroom, this configuration takes the unpredictable amplitude of self-convolution output and brings it to a usable, deliverable level. The nature of the sound is unchanged; only the gain is adjusted.
 
 ---
 
@@ -6431,7 +6906,7 @@ verbx render in.wav out/043_shimmer_fifth.wav --engine algo --shimmer --shimmer-
 ```
 _What it sounds like:_ A shimmer a perfect fifth above the source. Less obviously "shimmer-y" than the octave version, more harmonically complex. Try this on minor-key source material for interesting results.
 
-_DSP note:_ Seven semitones is a perfect fifth in equal temperament. The pitch ratio is 2^(7/12) ≈ 1.498, very close to the just-intonation ratio of 3:2 (1.5). The slight deviation from pure tuning creates slow beating between the shimmer and source harmonics, which contributes to the characteristic "movement" of shimmer reverb.
+_DSP note:_ Seven semitones is a perfect fifth in equal temperament. The pitch ratio is $2^{7/12} \approx 1.498$, very close to the just-intonation ratio of 3:2 (1.5). The slight deviation from pure tuning creates slow beating between the shimmer and source harmonics, which contributes to the characteristic "movement" of shimmer reverb.
 
 ---
 
@@ -6491,7 +6966,7 @@ verbx render in.wav out/049_tilt_down.wav --engine algo --tilt -6 --highcut 4500
 ```
 _What it sounds like:_ A dark reverb with a strong low-frequency bias. The tail rumbles and warms. Good for thunder, drums, and low-frequency sound design.
 
-_DSP note:_ `--tilt -6` applies a -6dB/octave downward slope, attenuating frequencies as they increase. Combined with `--highcut 4500`, which removes everything above 4.5kHz, the result is a reverb confined to the bass and low-mid range.
+_DSP note:_ `--tilt -6` applies a –6 dB/octave downward slope, attenuating frequencies as they increase. Combined with `--highcut 4500`, which removes everything above 4.5kHz, the result is a reverb confined to the bass and low-mid range.
 
 ---
 
@@ -6519,9 +6994,9 @@ Output format matters more than most engineers think. Float32 preserves more dyn
 ```bash
 verbx render in.wav out/051_lufs_24.wav --target-lufs -24 --target-peak-dbfs -2
 ```
-_What it sounds like:_ Output normalized to -24 LUFS integrated loudness with -2 dBFS peak limit. This is a conservative broadcast target.
+_What it sounds like:_ Output normalized to –24 LUFS integrated loudness with –2 dBFS peak limit. This is a conservative broadcast target.
 
-_DSP note:_ Integrated LUFS measurement gates silence and weights frequencies according to the ITU-R BS.1770 loudness model (which de-emphasizes very low and very high frequencies relative to mid frequencies). The measurement reflects perceived loudness rather than signal amplitude. `-24 LUFS` is the US broadcast standard; the European standard is `-23 LUFS`.
+_DSP note:_ Integrated LUFS measurement gates silence and weights frequencies according to the ITU-R BS.1770 loudness model (which de-emphasizes very low and very high frequencies relative to mid frequencies). The measurement reflects perceived loudness rather than signal amplitude. –24 LUFS is the US broadcast standard; the European standard is –23 LUFS.
 
 ---
 
@@ -6531,7 +7006,7 @@ verbx render in.wav out/052_lufs_18.wav --target-lufs -18 --target-peak-dbfs -1 
 ```
 _What it sounds like:_ Music streaming target loudness with true peak limiting. Appropriate for Spotify, Apple Music, and similar platforms.
 
-_DSP note:_ True peak measurement uses oversampled analysis (typically 4x) to detect inter-sample peaks that sample-level measurement would miss. An inter-sample peak of -1 dBFS can produce a true peak well above 0 dBFS after digital-to-analog conversion, causing clipping in the playback chain. `--true-peak` engages a true peak limiter that accounts for this.
+_DSP note:_ True peak measurement uses oversampled analysis (typically 4x) to detect inter-sample peaks that sample-level measurement would miss. An inter-sample peak of –1 dBFS can produce a true peak well above 0 dBFS after digital-to-analog conversion, causing clipping in the playback chain. `--true-peak` engages a true peak limiter that accounts for this.
 
 ---
 
@@ -6539,9 +7014,9 @@ _DSP note:_ True peak measurement uses oversampled analysis (typically 4x) to de
 ```bash
 verbx render in.wav out/053_sample_peak.wav --target-peak-dbfs -0.5 --sample-peak
 ```
-_What it sounds like:_ Peak normalized to -0.5 dBFS at the sample level. This is a basic peak normalization without loudness weighting.
+_What it sounds like:_ Peak normalized to –0.5 dBFS at the sample level. This is a basic peak normalization without loudness weighting.
 
-_DSP note:_ Sample peak normalization finds the single loudest sample in the file and applies uniform gain to bring it to the specified level. It ignores loudness perception entirely — a file that is -0.5 dBFS peak could be at -35 LUFS (very quiet) or -8 LUFS (very loud) depending on its dynamic range. Use this when you need predictable amplitude, not predictable loudness.
+_DSP note:_ Sample peak normalization finds the single loudest sample in the file and applies uniform gain to bring it to the specified level. It ignores loudness perception entirely — a file that is –0.5 dBFS peak could be at –35 LUFS (very quiet) or –8 LUFS (very loud) depending on its dynamic range. Use this when you need predictable amplitude, not predictable loudness.
 
 ---
 
@@ -6549,7 +7024,7 @@ _DSP note:_ Sample peak normalization finds the single loudest sample in the fil
 ```bash
 verbx render in.wav out/054_per_pass.wav --repeat 4 --normalize-stage per-pass --repeat-target-lufs -22
 ```
-_What it sounds like:_ Four repeat passes, each normalized to -22 LUFS before the next pass begins. The loudness remains consistent across passes but the texture accumulates.
+_What it sounds like:_ Four repeat passes, each normalized to –22 LUFS before the next pass begins. The loudness remains consistent across passes but the texture accumulates.
 
 _DSP note:_ `--repeat-target-lufs -22` sets the per-pass loudness target independently from any output-stage loudness target. This is useful for repeat chains where you want to prevent energy accumulation from causing clipping in intermediate passes while still having the final output normalized differently at the output stage.
 
@@ -6609,9 +7084,9 @@ _DSP note:_ `--output-peak-norm input` measures the peak sample amplitude of the
 ```bash
 verbx render in.wav out/060_peak_target.wav --engine algo --output-peak-norm target --output-peak-target-dbfs -9
 ```
-_What it sounds like:_ The reverb output is peak-normalized to a specific absolute level of -9 dBFS.
+_What it sounds like:_ The reverb output is peak-normalized to a specific absolute level of –9 dBFS.
 
-_DSP note:_ `--output-peak-norm target` enables absolute peak normalization, and `--output-peak-target-dbfs -9` sets the target. -9 dBFS is a common bus-level target for mixing — it provides substantial headroom for subsequent processing while keeping the signal well above the noise floor. This is different from LUFS normalization: -9 dBFS peak does not guarantee any particular loudness.
+_DSP note:_ `--output-peak-norm target` enables absolute peak normalization, and `--output-peak-target-dbfs -9` sets the target. –9 dBFS is a common bus-level target for mixing — it provides substantial headroom for subsequent processing while keeping the signal well above the noise floor. This is different from LUFS normalization: –9 dBFS peak does not guarantee any particular loudness.
 
 ---
 
@@ -6701,7 +7176,7 @@ verbx ir process out/067_ir_resonator.wav out/068_ir_processed.wav --tilt -4 --n
 ```
 _What it sounds like:_ The resonator IR processed with a dark tilt and peak normalized. Ready to use as a dark, resonant convolution IR.
 
-_DSP note:_ IR processing applies DSP to the impulse response itself rather than to the output of the reverb. Tilting an IR by -4dB/octave means the convolution will produce a dark, bass-heavy reverb regardless of what the source material sounds like. Peak normalizing the IR ensures consistent output levels when the IR is used in recipe 70.
+_DSP note:_ IR processing applies DSP to the impulse response itself rather than to the output of the reverb. Tilting an IR by –4 dB/octave means the convolution will produce a dark, bass-heavy reverb regardless of what the source material sounds like. Peak normalizing the IR ensures consistent output levels when the IR is used in recipe 70.
 
 ---
 
@@ -6805,9 +7280,9 @@ _DSP note:_ The shimmer feedback path in multichannel wraps around all channels.
 ```bash
 verbx render in_5p1.wav out/077_5p1_target.wav --target-lufs -23 --target-peak-dbfs -2
 ```
-_What it sounds like:_ 5.1 loudness normalization to the European broadcast standard (-23 LUFS) with -2 dBFS peak limit.
+_What it sounds like:_ 5.1 loudness normalization to the European broadcast standard (–23 LUFS) with –2 dBFS peak limit.
 
-_DSP note:_ Integrated LUFS for multichannel uses the channel-weighting defined in ITU-R BS.1770, which applies -1.5 dB attenuation to surround channels (Ls, Rs) in the loudness measurement. This means a 5.1 mix at -23 LUFS measured will have higher actual SPL in the surrounds than a stereo mix at the same measured loudness value. Be aware of this when comparing multichannel and stereo versions.
+_DSP note:_ Integrated LUFS for multichannel uses the channel-weighting defined in ITU-R BS.1770, which applies –1.5 dB attenuation to surround channels (Ls, Rs) in the loudness measurement. This means a 5.1 mix at –23 LUFS measured will have higher actual SPL in the surrounds than a stereo mix at the same measured loudness value. Be aware of this when comparing multichannel and stereo versions.
 
 ---
 
@@ -7033,9 +7508,9 @@ _DSP note:_ Self-convolve lucky mode varies the beast-mode level, tilt, tail lim
 ```bash
 verbx render in.wav out/lucky.wav --lucky 15 --lucky-out-dir out/lucky_08 --target-lufs -20
 ```
-_What it sounds like:_ Fifteen variations, each normalized to -20 LUFS. All outputs are at a consistent loudness, making A/B comparison easier.
+_What it sounds like:_ Fifteen variations, each normalized to –20 LUFS. All outputs are at a consistent loudness, making A/B comparison easier.
 
-_DSP note:_ Applying `--target-lufs` to lucky mode normalizes each output independently after rendering. This is useful for comparative listening because the loudness differences between variations are removed, allowing you to evaluate the texture and character rather than the level. -20 LUFS is a comfortable listening level for extended auditioning.
+_DSP note:_ Applying `--target-lufs` to lucky mode normalizes each output independently after rendering. This is useful for comparative listening because the loudness differences between variations are removed, allowing you to evaluate the texture and character rather than the level. –20 LUFS is a comfortable listening level for extended auditioning.
 
 ---
 
@@ -7269,7 +7744,7 @@ stable once released because DAW automation and saved sessions depend on them.
 | `pre_delay_ms` | Gap before the reverberant field | 0 to 1000 ms | 18 ms | Delay changes require smoothing or crossfade |
 | `room_size` | Macro geometry/scale control | 0 to 1 | 0.72 | Must not resize unbounded memory in callback |
 | `rt60_coarse` | Logarithmic decay position | 0 to 1 | 0.50 | Maps to 0.01 to 360 seconds |
-| `rt60_fine` | Bipolar log trim | -1 to 1 | 0 | Applies about plus/minus 20 percent |
+| `rt60_fine` | Bipolar log trim | –1 to 1 | 0 | Applies about plus/minus 20 percent |
 | `damping` | High-frequency decay loss | 0 to 0.98 | 0.41 | Coefficients need stable interpolation |
 | `width` | Stereo/spatial spread | 0 to 2 | 1.35 | Check mono and correlation behavior |
 | `diffusion` | Echo-density macro | 0 to 1 | 0.65 | Structural changes may need a safe transition |
@@ -17515,7 +17990,7 @@ The `er_room` parameter is loosely a room-size proxy: values > 1.0 increase
 reflection amplitude, making the space feel more reverberant; values < 1.0
 create a drier early field.
 
-Stereo width is applied as pan spread per tap. Pan is sampled U[-1, 1] and
+Stereo width is applied as pan spread per tap. Pan is sampled U[–1, 1] and
 scaled by `er_stereo_width`. Left/right amplitudes use a simple linear pan law
 (not equal-power) because the taps are sparse enough that the distinction
 matters less than in dense diffuse material:
@@ -17682,7 +18157,7 @@ significant time to generate, consider archiving them before clearing.
 ### Wash / Ambient Bed (120s)
 
 For pad layers, atmospheric beds, tape-delay washout. Long RT60, high diffusion,
-gentle early reflections. Peak normalization at -1 dBFS leaves headroom for
+gentle early reflections. Peak normalization at –1 dBFS leaves headroom for
 downstream summing.
 
 ```bash
@@ -17850,7 +18325,7 @@ never really decays. Very long length with high RT60 relative to length.
 --diffusion 0.85 --density 0.8 --damping 0.15
 ```
 
-The RT60 exceeding the IR length means the decay envelope never reaches -60 dB
+The RT60 exceeding the IR length means the decay envelope never reaches –60 dB
 within the buffer — the tail is essentially flat. Combined with high diffusion
 you get a dense, white-ish wash. Works well convolved with a long pad or a
 heavily sustained note.
@@ -18173,7 +18648,7 @@ One job object per line (no wrapping object, no `"jobs"` key):
 | `fdn_lines` | integer | `8` | `1` – `64` |
 | `fdn_matrix` | string | `"hadamard"` | `"hadamard"`, `"householder"`, `"random_orthogonal"`, `"circulant"`, `"elliptic"`, `"tv_unitary"`, `"graph"`, `"sdn_hybrid"` |
 | `shimmer` | boolean | `false` | — |
-| `shimmer_semitones` | number | `12` | `-24` – `24` |
+| `shimmer_semitones` | number | `12` | `–24` – `24` |
 | `shimmer_mix` | number | `0.25` | `0.0` – `1.0` |
 | `shimmer_feedback` | number | `0.35` | `0.0` – `0.98` (safe), up to `1.25` with `unsafe_self_oscillate=true` |
 | `unsafe_self_oscillate` | boolean | `false` | Enables unsafe above-unity feedback path in algorithmic mode |
@@ -18181,7 +18656,7 @@ One job object per line (no wrapping object, no `"jobs"` key):
 | `auto_fit` | string | `"none"` | `"none"`, `"speech"`, `"music"`, `"drums"`, `"ambient"` |
 | `fdn_matrix_morph_to` | string/null | `null` | Optional matrix morph target family |
 | `fdn_matrix_morph_seconds` | number | `0.0` | `>= 0.0` |
-| `tail_stop_threshold_db` | number | `-120.0` | `-240.0` – `0.0` |
+| `tail_stop_threshold_db` | number | `–120.0` | `–240.0` – `0.0` |
 | `tail_stop_hold_ms` | number | `10.0` | `>= 0.0` |
 | `tail_stop_metric` | string | `"peak"` | `"peak"`, `"rms"` |
 | `algo_stream` | boolean | `false` | Enable algorithmic proxy streaming path |
@@ -18334,15 +18809,15 @@ Required columns: `target`, `time_s`, `value`. Optional: `interp`.
 |---|---|---|---|
 | `wet` | post | 0.0 – 1.0 | Wet mix level |
 | `dry` | post | 0.0 – 1.0 | Dry mix level |
-| `gain-db` | post | -48.0 – 24.0 | Output gain in dB |
+| `gain-db` | post | –48.0 – 24.0 | Output gain in dB |
 | `rt60` | engine | 0.1 – 3600.0 | Reverberation time in seconds |
 | `damping` | engine | 0.0 – 1.0 | High-frequency damping |
 | `room-size` | engine | 0.25 – 4.0 | Room size scalar |
-| `room-size-macro` | engine | -1.0 – 1.0 | Room size macro (normalized) |
-| `clarity-macro` | engine | -1.0 – 1.0 | Clarity macro |
-| `warmth-macro` | engine | -1.0 – 1.0 | Warmth macro |
-| `envelopment-macro` | engine | -1.0 – 1.0 | Envelopment macro |
-| `fdn-rt60-tilt` | engine | -1.0 – 1.0 | FDN RT60 spectral tilt |
+| `room-size-macro` | engine | –1.0 – 1.0 | Room size macro (normalized) |
+| `clarity-macro` | engine | –1.0 – 1.0 | Clarity macro |
+| `warmth-macro` | engine | –1.0 – 1.0 | Warmth macro |
+| `envelopment-macro` | engine | –1.0 – 1.0 | Envelopment macro |
+| `fdn-rt60-tilt` | engine | –1.0 – 1.0 | FDN RT60 spectral tilt |
 | `fdn-rt60-low` | engine | 0.1 – 3600.0 | Low-band RT60 target |
 | `fdn-rt60-mid` | engine | 0.1 – 3600.0 | Mid-band RT60 target |
 | `fdn-rt60-high` | engine | 0.1 – 3600.0 | High-band RT60 target |
@@ -18878,7 +19353,7 @@ The figure below introduces **Spatial layout families**. Listener-centered stere
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Ambisonics order channel growth**. The quadratic channel-count growth produced by the three-dimensional Ambisonics relation (N + 1)^2. Bar height encodes the quantity on the vertical axis, while each horizontal category identifies a tested or illustrative condition. The horizontal axis is **Ambisonics order N (integer)** and the vertical axis is **Channel count (channels)**.
+The figure below introduces **Ambisonics order channel growth**. The quadratic channel-count growth produced by the three-dimensional Ambisonics relation $(N + 1)^{2}$. Bar height encodes the quantity on the vertical axis, while each horizontal category identifies a tested or illustrative condition. The horizontal axis is **Ambisonics order N (integer)** and the vertical axis is **Channel count (channels)**.
 
 ![Figure 14: Ambisonics order channel growth.](assets/userguide_figures/14_ambisonics_order.png)
 
@@ -18944,7 +19419,7 @@ The figure below introduces **Modulation Depth Safety**. Depth and rate interact
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Stereo Width Correlation**. Width controls should preserve mono safety while expanding ambience. The trace shows how the vertical response changes as the horizontal control or measurement advances. The horizontal axis is **Stereo width (%)** and the vertical axis is **Inter-channel correlation (unitless, -1 to +1)**.
+The figure below introduces **Stereo Width Correlation**. Width controls should preserve mono safety while expanding ambience. The trace shows how the vertical response changes as the horizontal control or measurement advances. The horizontal axis is **Stereo width (%)** and the vertical axis is **Inter-channel correlation (unitless, –1 to +1)**.
 
 ![Figure 30: Stereo Width Correlation.](assets/userguide_figures/30_stereo_width_correlation.png)
 
@@ -19226,7 +19701,7 @@ The figure below introduces **Crest Factor Map**. Transient-heavy inputs need di
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Transient Preservation**. Dereverb should reduce tail energy without flattening attack detail. Vertical events and the envelope are positioned against a common time base, making onset, hold, and decay relationships visible. The horizontal axis is **Time around transient (ms)** and the vertical axis is **Signal amplitude (linear, -1 to +1)**.
+The figure below introduces **Transient Preservation**. Dereverb should reduce tail energy without flattening attack detail. Vertical events and the envelope are positioned against a common time base, making onset, hold, and decay relationships visible. The horizontal axis is **Time around transient (ms)** and the vertical axis is **Signal amplitude (linear, –1 to +1)**.
 
 ![Figure 65: Transient Preservation.](assets/userguide_figures/65_transient_preservation.png)
 
@@ -21304,8 +21779,8 @@ Quick-lookup table of the equations you will cite most often during development.
 | **Eyring correction** | RT60 = 0.161 V / (-S ln(1 - alpha_mean)) | Eyring (1930), see [RA2](#entry-ra2) and [RA5](#entry-ra5) | More accurate when average absorption is high (alpha > 0.3). Reduces to Sabine in the limit of low absorption. |
 | **FDN gain calibration** | $g_i = 10^{-3d_i/T_{60}}$ per delay line, where $d_i$ is delay length in seconds | Jot and Chaigne (1997), entry [95](#entry-95); Schlecht and Habets (2015), entry [39](#entry-39) | Applied per-band when using frequency-dependent absorption filters on the delay outputs. This is the central calibration formula for matching a target RT60. |
 | **EDT definition** | Early Decay Time = time for first 10 dB of decay on the energy decay curve, extrapolated to 60 dB | ISO 3382-1; summarized in entry [80](#entry-80) | EDT correlates better with perceived liveness than RT60 in spaces with non-exponential decay. |
-| **C80 (Clarity)** | C80 = 10 log10 [ integral_0^80ms h^2(t) dt / integral_80ms^inf h^2(t) dt ] (dB) | ISO 3382-1; see entry [80](#entry-80) | Ratio of early to late energy, 80 ms threshold. Positive values indicate clear/direct sound; negative values indicate reverberant/muddy. |
-| **D50 (Definition)** | D50 = integral_0^50ms h^2(t) dt / integral_0^inf h^2(t) dt | ISO 3382-1; see entry [80](#entry-80) | Fraction of total energy arriving in first 50 ms. Ranges 0-1; higher values correlate with better speech intelligibility. Uses 50 ms threshold versus C80's 80 ms. |
+| **C80 (Clarity)** | $C_{80} = 10 \log_{10}\!\left(\frac{\int_{0}^{80\,\mathrm{ms}} h^{2}(t)\,dt}{\int_{80\,\mathrm{ms}}^{\infty} h^{2}(t)\,dt}\right)\,\mathrm{dB}$ | ISO 3382-1; see entry [80](#entry-80) | Ratio of early to late energy, 80 ms threshold. Positive values indicate clear/direct sound; negative values indicate reverberant/muddy. |
+| **D50 (Definition)** | $D_{50} = \frac{\int_{0}^{50\,\mathrm{ms}} h^{2}(t)\,dt}{\int_{0}^{\infty} h^{2}(t)\,dt}$ | ISO 3382-1; see entry [80](#entry-80) | Fraction of total energy arriving in first 50 ms. Ranges 0-1; higher values correlate with better speech intelligibility. Uses 50 ms threshold versus C80's 80 ms. |
 
 ---
 

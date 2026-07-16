@@ -345,7 +345,7 @@ verbx render in.wav out/020_repeat_floor.wav --engine algo --rt60 140 --repeat 3
 ```
 _What it sounds like:_ Three passes of a very long reverb, normalized to a broadcast-appropriate loudness level. Useful as a bed or texture layer.
 
-_DSP note:_ `--target-lufs -26` is roughly the integrated loudness target for film broadcast (-24 LUFS) plus a 2dB headroom buffer. Applying this to a three-pass, 140-second reverb tail ensures the output is at a known loudness level suitable for mixing into a larger context without additional gain staging.
+_DSP note:_ `--target-lufs -26` is roughly the integrated loudness target for film broadcast (–24 LUFS) plus a 2dB headroom buffer. Applying this to a three-pass, 140-second reverb tail ensures the output is at a known loudness level suitable for mixing into a larger context without additional gain staging.
 
 ---
 
@@ -551,7 +551,7 @@ verbx render in.wav out/038_self_repeat.wav --self-convolve --repeat 3 --normali
 ```
 _What it sounds like:_ Three passes of self-convolution. The first pass is already extreme; the second and third are increasingly abstract.
 
-_DSP note:_ Each repeat pass uses the output of the previous pass as the input to the next self-convolution. Mathematically, this raises the original spectrum to the power of 2^n (where n is the pass number). By pass three, the spectral peaks are at 2^3 = 8 times their original prominence (in log scale, +18dB relative to the original spectral balance). Per-pass normalization prevents clipping between passes.
+_DSP note:_ Each repeat pass uses the output of the previous pass as the input to the next self-convolution. Mathematically, this raises the original spectrum to the power of $2^{n}$ (where $n$ is the pass number). By pass three, the spectral peaks are at $2^{3} = 8$ times their original prominence (in log scale, +18dB relative to the original spectral balance). Per-pass normalization prevents clipping between passes.
 
 ---
 
@@ -561,7 +561,7 @@ verbx render in.wav out/039_self_loud.wav --self-convolve --target-lufs -16 --ta
 ```
 _What it sounds like:_ Self-convolution normalized to streaming-loudness standards. Useful when the self-convolve output needs to be delivered at a calibrated level.
 
-_DSP note:_ `-16 LUFS` is approximately the target for music streaming platforms. Combined with `-1 dBFS` true peak headroom, this configuration takes the unpredictable amplitude of self-convolution output and brings it to a usable, deliverable level. The nature of the sound is unchanged; only the gain is adjusted.
+_DSP note:_ –16 LUFS is approximately the target for music streaming platforms. Combined with –1 dBFS true peak headroom, this configuration takes the unpredictable amplitude of self-convolution output and brings it to a usable, deliverable level. The nature of the sound is unchanged; only the gain is adjusted.
 
 ---
 
@@ -621,7 +621,7 @@ verbx render in.wav out/043_shimmer_fifth.wav --engine algo --shimmer --shimmer-
 ```
 _What it sounds like:_ A shimmer a perfect fifth above the source. Less obviously "shimmer-y" than the octave version, more harmonically complex. Try this on minor-key source material for interesting results.
 
-_DSP note:_ Seven semitones is a perfect fifth in equal temperament. The pitch ratio is 2^(7/12) ≈ 1.498, very close to the just-intonation ratio of 3:2 (1.5). The slight deviation from pure tuning creates slow beating between the shimmer and source harmonics, which contributes to the characteristic "movement" of shimmer reverb.
+_DSP note:_ Seven semitones is a perfect fifth in equal temperament. The pitch ratio is $2^{7/12} \approx 1.498$, very close to the just-intonation ratio of 3:2 (1.5). The slight deviation from pure tuning creates slow beating between the shimmer and source harmonics, which contributes to the characteristic "movement" of shimmer reverb.
 
 ---
 
@@ -681,7 +681,7 @@ verbx render in.wav out/049_tilt_down.wav --engine algo --tilt -6 --highcut 4500
 ```
 _What it sounds like:_ A dark reverb with a strong low-frequency bias. The tail rumbles and warms. Good for thunder, drums, and low-frequency sound design.
 
-_DSP note:_ `--tilt -6` applies a -6dB/octave downward slope, attenuating frequencies as they increase. Combined with `--highcut 4500`, which removes everything above 4.5kHz, the result is a reverb confined to the bass and low-mid range.
+_DSP note:_ `--tilt -6` applies a –6 dB/octave downward slope, attenuating frequencies as they increase. Combined with `--highcut 4500`, which removes everything above 4.5kHz, the result is a reverb confined to the bass and low-mid range.
 
 ---
 
@@ -709,9 +709,9 @@ Output format matters more than most engineers think. Float32 preserves more dyn
 ```bash
 verbx render in.wav out/051_lufs_24.wav --target-lufs -24 --target-peak-dbfs -2
 ```
-_What it sounds like:_ Output normalized to -24 LUFS integrated loudness with -2 dBFS peak limit. This is a conservative broadcast target.
+_What it sounds like:_ Output normalized to –24 LUFS integrated loudness with –2 dBFS peak limit. This is a conservative broadcast target.
 
-_DSP note:_ Integrated LUFS measurement gates silence and weights frequencies according to the ITU-R BS.1770 loudness model (which de-emphasizes very low and very high frequencies relative to mid frequencies). The measurement reflects perceived loudness rather than signal amplitude. `-24 LUFS` is the US broadcast standard; the European standard is `-23 LUFS`.
+_DSP note:_ Integrated LUFS measurement gates silence and weights frequencies according to the ITU-R BS.1770 loudness model (which de-emphasizes very low and very high frequencies relative to mid frequencies). The measurement reflects perceived loudness rather than signal amplitude. –24 LUFS is the US broadcast standard; the European standard is –23 LUFS.
 
 ---
 
@@ -721,7 +721,7 @@ verbx render in.wav out/052_lufs_18.wav --target-lufs -18 --target-peak-dbfs -1 
 ```
 _What it sounds like:_ Music streaming target loudness with true peak limiting. Appropriate for Spotify, Apple Music, and similar platforms.
 
-_DSP note:_ True peak measurement uses oversampled analysis (typically 4x) to detect inter-sample peaks that sample-level measurement would miss. An inter-sample peak of -1 dBFS can produce a true peak well above 0 dBFS after digital-to-analog conversion, causing clipping in the playback chain. `--true-peak` engages a true peak limiter that accounts for this.
+_DSP note:_ True peak measurement uses oversampled analysis (typically 4x) to detect inter-sample peaks that sample-level measurement would miss. An inter-sample peak of –1 dBFS can produce a true peak well above 0 dBFS after digital-to-analog conversion, causing clipping in the playback chain. `--true-peak` engages a true peak limiter that accounts for this.
 
 ---
 
@@ -729,9 +729,9 @@ _DSP note:_ True peak measurement uses oversampled analysis (typically 4x) to de
 ```bash
 verbx render in.wav out/053_sample_peak.wav --target-peak-dbfs -0.5 --sample-peak
 ```
-_What it sounds like:_ Peak normalized to -0.5 dBFS at the sample level. This is a basic peak normalization without loudness weighting.
+_What it sounds like:_ Peak normalized to –0.5 dBFS at the sample level. This is a basic peak normalization without loudness weighting.
 
-_DSP note:_ Sample peak normalization finds the single loudest sample in the file and applies uniform gain to bring it to the specified level. It ignores loudness perception entirely — a file that is -0.5 dBFS peak could be at -35 LUFS (very quiet) or -8 LUFS (very loud) depending on its dynamic range. Use this when you need predictable amplitude, not predictable loudness.
+_DSP note:_ Sample peak normalization finds the single loudest sample in the file and applies uniform gain to bring it to the specified level. It ignores loudness perception entirely — a file that is –0.5 dBFS peak could be at –35 LUFS (very quiet) or –8 LUFS (very loud) depending on its dynamic range. Use this when you need predictable amplitude, not predictable loudness.
 
 ---
 
@@ -739,7 +739,7 @@ _DSP note:_ Sample peak normalization finds the single loudest sample in the fil
 ```bash
 verbx render in.wav out/054_per_pass.wav --repeat 4 --normalize-stage per-pass --repeat-target-lufs -22
 ```
-_What it sounds like:_ Four repeat passes, each normalized to -22 LUFS before the next pass begins. The loudness remains consistent across passes but the texture accumulates.
+_What it sounds like:_ Four repeat passes, each normalized to –22 LUFS before the next pass begins. The loudness remains consistent across passes but the texture accumulates.
 
 _DSP note:_ `--repeat-target-lufs -22` sets the per-pass loudness target independently from any output-stage loudness target. This is useful for repeat chains where you want to prevent energy accumulation from causing clipping in intermediate passes while still having the final output normalized differently at the output stage.
 
@@ -799,9 +799,9 @@ _DSP note:_ `--output-peak-norm input` measures the peak sample amplitude of the
 ```bash
 verbx render in.wav out/060_peak_target.wav --engine algo --output-peak-norm target --output-peak-target-dbfs -9
 ```
-_What it sounds like:_ The reverb output is peak-normalized to a specific absolute level of -9 dBFS.
+_What it sounds like:_ The reverb output is peak-normalized to a specific absolute level of –9 dBFS.
 
-_DSP note:_ `--output-peak-norm target` enables absolute peak normalization, and `--output-peak-target-dbfs -9` sets the target. -9 dBFS is a common bus-level target for mixing — it provides substantial headroom for subsequent processing while keeping the signal well above the noise floor. This is different from LUFS normalization: -9 dBFS peak does not guarantee any particular loudness.
+_DSP note:_ `--output-peak-norm target` enables absolute peak normalization, and `--output-peak-target-dbfs -9` sets the target. –9 dBFS is a common bus-level target for mixing — it provides substantial headroom for subsequent processing while keeping the signal well above the noise floor. This is different from LUFS normalization: –9 dBFS peak does not guarantee any particular loudness.
 
 ---
 
@@ -891,7 +891,7 @@ verbx ir process out/067_ir_resonator.wav out/068_ir_processed.wav --tilt -4 --n
 ```
 _What it sounds like:_ The resonator IR processed with a dark tilt and peak normalized. Ready to use as a dark, resonant convolution IR.
 
-_DSP note:_ IR processing applies DSP to the impulse response itself rather than to the output of the reverb. Tilting an IR by -4dB/octave means the convolution will produce a dark, bass-heavy reverb regardless of what the source material sounds like. Peak normalizing the IR ensures consistent output levels when the IR is used in recipe 70.
+_DSP note:_ IR processing applies DSP to the impulse response itself rather than to the output of the reverb. Tilting an IR by –4 dB/octave means the convolution will produce a dark, bass-heavy reverb regardless of what the source material sounds like. Peak normalizing the IR ensures consistent output levels when the IR is used in recipe 70.
 
 ---
 
@@ -995,9 +995,9 @@ _DSP note:_ The shimmer feedback path in multichannel wraps around all channels.
 ```bash
 verbx render in_5p1.wav out/077_5p1_target.wav --target-lufs -23 --target-peak-dbfs -2
 ```
-_What it sounds like:_ 5.1 loudness normalization to the European broadcast standard (-23 LUFS) with -2 dBFS peak limit.
+_What it sounds like:_ 5.1 loudness normalization to the European broadcast standard (–23 LUFS) with –2 dBFS peak limit.
 
-_DSP note:_ Integrated LUFS for multichannel uses the channel-weighting defined in ITU-R BS.1770, which applies -1.5 dB attenuation to surround channels (Ls, Rs) in the loudness measurement. This means a 5.1 mix at -23 LUFS measured will have higher actual SPL in the surrounds than a stereo mix at the same measured loudness value. Be aware of this when comparing multichannel and stereo versions.
+_DSP note:_ Integrated LUFS for multichannel uses the channel-weighting defined in ITU-R BS.1770, which applies –1.5 dB attenuation to surround channels (Ls, Rs) in the loudness measurement. This means a 5.1 mix at –23 LUFS measured will have higher actual SPL in the surrounds than a stereo mix at the same measured loudness value. Be aware of this when comparing multichannel and stereo versions.
 
 ---
 
@@ -1223,9 +1223,9 @@ _DSP note:_ Self-convolve lucky mode varies the beast-mode level, tilt, tail lim
 ```bash
 verbx render in.wav out/lucky.wav --lucky 15 --lucky-out-dir out/lucky_08 --target-lufs -20
 ```
-_What it sounds like:_ Fifteen variations, each normalized to -20 LUFS. All outputs are at a consistent loudness, making A/B comparison easier.
+_What it sounds like:_ Fifteen variations, each normalized to –20 LUFS. All outputs are at a consistent loudness, making A/B comparison easier.
 
-_DSP note:_ Applying `--target-lufs` to lucky mode normalizes each output independently after rendering. This is useful for comparative listening because the loudness differences between variations are removed, allowing you to evaluate the texture and character rather than the level. -20 LUFS is a comfortable listening level for extended auditioning.
+_DSP note:_ Applying `--target-lufs` to lucky mode normalizes each output independently after rendering. This is useful for comparative listening because the loudness differences between variations are removed, allowing you to evaluate the texture and character rather than the level. –20 LUFS is a comfortable listening level for extended auditioning.
 
 ---
 

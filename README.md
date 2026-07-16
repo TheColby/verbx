@@ -217,7 +217,7 @@ verbx render in.wav conv.wav --engine conv --ir hall_ir.wav --partition-size 163
 verbx render in.wav shimmer.wav --engine algo --rt60 12 --wet 0.85 \
   --shimmer --shimmer-semitones 12 --shimmer-mix 0.35 --bloom 2.0
 
-# 4. Broadcast loudness target — -23 LUFS, -1 dBTP true peak
+# 4. Broadcast loudness target — –23 LUFS, –1 dBTP true peak
 verbx render in.wav broadcast.wav --target-lufs -23 --true-peak --target-peak-dbfs -1
 
 # 5. Extreme ambient — 90-second tail, slow evolution, near-frozen
@@ -1892,7 +1892,7 @@ Shorter delay lines require gains closer to 1.0. This is computed per line so di
 | `--comb-cloud` | flag | Optional pre-FDN comb bank | Adds metallic/dense coloration before the late field |
 | `--comb-cloud-mix` | 0–1 | Comb-cloud blend amount | Start around `0.2` before increasing line count/feedback |
 | `--damping` | 0–1 | HF rolloff in feedback loop | Higher values darken the tail faster |
-| `--fdn-rt60-tilt` | -1 to 1 | Low/high decay skew | Positive = longer lows, shorter highs |
+| `--fdn-rt60-tilt` | –1 to 1 | Low/high decay skew | Positive = longer lows, shorter highs |
 | `--fdn-link-filter` | none/lowpass/highpass | In-loop spectral shaping | Shapes the spectral flow on feedback edges |
 | `--fdn-tv-rate-hz` | 0–5 | Time-varying matrix update rate | Active only with `tv_unitary`; slow rates reduce ringing |
 | `--mod-depth-ms` | 0–10 | Delay modulation depth | Small values suppress metallic resonances |
@@ -2066,6 +2066,8 @@ Use `--bloom-mix` when you want the bloom time constant from `--bloom` but a mor
 
 For most uses, stereo output is all you need. Multichannel processing becomes relevant when you are delivering to a surround format, working in Ambisonics, or routing reverb through a spatial bus.
 
+For a complete treatment of channel beds, height layers, Ambisonics, Dolby Atmos beds and objects, binaural monitoring, DAW handoff, deliverables, and immersive QC, read [Immersive Reverb, Surround Sound, and Dolby Atmos](docs/IMMERSIVE_AUDIO.md). The chapter includes signal-flow diagrams, routing recipes, and a precise account of what verbx can and cannot author today.
+
 **Channel layouts:**
 
 | Layout | Channels | Use case |
@@ -2075,14 +2077,18 @@ For most uses, stereo output is all you need. Multichannel processing becomes re
 | `LCR` | 3 | Left/Center/Right film format |
 | `5.1` | 6 | Standard surround |
 | `7.1` | 8 | Expanded surround |
-| `7.1.2` | 10 | Surround with overhead pair |
-| `7.1.4` | 12 | Full Atmos bed format |
+| `7.1.2` | 10 | Standard Atmos bed or fixed-channel immersive bus |
+| `7.1.4` | 12 | Common Atmos monitoring/render layout; not the default Atmos bed |
 | `7.2.4` | 13 | 7-bed + dual-LFE + 4-top layout |
 | `8.0` | 8 | 8-channel bed without dedicated LFE |
 | `16.0` | 16 | Large-format discrete bed |
 | `64.4` | 68 | High-density immersive bed + top layer |
 
 Use `--input-layout` and `--output-layout` to declare channel semantics explicitly. Without them, verbx uses channel count alone, which can produce ambiguous routing for formats above stereo.
+
+**Atmos boundary:** verbx writes channel-based WAVE files, Ambisonic material, matrix-routed convolution outputs, JSON analysis, and handoff manifests. It does not currently author Dolby object trajectories, per-object binaural metadata, or a native ADM BWF/DAMF master. Prepare bed and object stems in verbx, then perform object assignment, metadata authoring, endpoint rendering, and master export in an Atmos-capable DAW and the Dolby Atmos Renderer.
+
+The distinction between a bed and a monitoring layout matters. Dolby’s standard bed is 7.1.2, while 7.1.4 commonly describes a loudspeaker render with four independently fed height speakers. verbx currently labels channels 9–10 of its symbolic `7.1.2` layout `Ltf/Rtf`; a Dolby bed expects `Ltm/Rtm` in those positions. Verify and explicitly map those channels at handoff rather than relying on channel count.
 
 For large immersive outputs (`16.0`, `64.4`), set `--ir-route-map` explicitly when the IR is mono or channel-matched to the input. Recommended defaults:
 
@@ -2099,7 +2105,7 @@ Other formats are also easy to support: the routing and DSP paths already operat
 
 ## Loudness and Metering
 
-Most audio delivered for broadcast, streaming, or film needs to hit a loudness target. EBU R128 / ITU-R BS.1770 defines integrated loudness in LUFS (Loudness Units relative to Full Scale). The practical difference between targeting -23 LUFS for broadcast and -14 LUFS for streaming can be over 9 dB of apparent level — enough to sound completely wrong in one context if mastered for the other.
+Most audio delivered for broadcast, streaming, or film needs to hit a loudness target. EBU R128 / ITU-R BS.1770 defines integrated loudness in LUFS (Loudness Units relative to Full Scale). The practical difference between targeting –23 LUFS for broadcast and –14 LUFS for streaming can be over 9 dB of apparent level — enough to sound completely wrong in one context if mastered for the other.
 
 verbx has a full loudness pipeline:
 
@@ -2110,7 +2116,7 @@ verbx has a full loudness pipeline:
 
 The loudness and peak stages are intentionally separate because they serve different goals. Loudness targeting is about program-level normalization. Peak ceiling is about short-term safety. Do not conflate them.
 
-True-peak detection uses oversampled measurement (ITU-R BS.1770). The difference between a sample peak of -0.1 dBFS and a true peak of +0.4 dBFS is invisible in sample-domain inspection but will cause clipping in AAC, MP3, and most streaming codecs. Use `--true-peak --target-peak-dbfs -1` for any output that will be transcoded.
+True-peak detection uses oversampled measurement (ITU-R BS.1770). The difference between a sample peak of –0.1 dBFS and a true peak of +0.4 dBFS is invisible in sample-domain inspection but will cause clipping in AAC, MP3, and most streaming codecs. Use `--true-peak --target-peak-dbfs -1` for any output that will be transcoded.
 
 Week 3 delivery sanity checks now fail fast when an explicit limiter threshold is above the limiter ceiling, because that silently collapses the useful gain-reduction range. Explicit container choices also need matching extensions: use `.w64` with `--output-container w64`, `.rf64` with `--output-container rf64`, or leave `--output-container auto` on when you want verbx to infer the container.
 
@@ -2210,7 +2216,7 @@ curated quick-reference for common switches.
 | `--fdn-sparse-degree` | 1–8 | Pair-mixing stages | |
 | `--fdn-link-filter` | none/lowpass/highpass | In-loop spectral shaping | |
 | `--fdn-link-filter-hz` | Hz | Link filter cutoff | |
-| `--fdn-rt60-tilt` | -1 to 1 | Low/high RT skew | Positive = longer lows |
+| `--fdn-rt60-tilt` | –1 to 1 | Low/high RT skew | Positive = longer lows |
 | `--fdn-tonal-correction-strength` | 0–1 | Decay-color equalization | Track C control |
 | `--fdn-cascade` | flag | Nested FDN injection | |
 | `--fdn-graph-topology` | ring/path/star/random | Graph topology | `graph` matrix only |
@@ -2442,7 +2448,7 @@ live dereverb path, either standalone or chained in front of the reverb engine.
 | `--fdn-sparse` / `--fdn-sparse-degree` | flag / int | Sparse feedback wiring and degree |
 | `--fdn-cascade` and friends | flag / scalars | Enable cascaded/nested FDN behavior |
 | `--fdn-rt60-low` / `--mid` / `--high` | seconds | Multiband RT60 targets |
-| `--fdn-rt60-tilt` | -1 to 1 | Tilt the decay profile across bands |
+| `--fdn-rt60-tilt` | –1 to 1 | Tilt the decay profile across bands |
 | `--fdn-link-filter*` | mode / Hz / mix | Filter energy in the feedback links |
 | `--fdn-graph-topology` / `--fdn-graph-degree` / `--fdn-graph-seed` | topology / int / int | Graph-based FDN layout controls |
 | `--fdn-matrix-morph-to` / `--fdn-matrix-morph-seconds` | matrix / seconds | Morph between matrix families during proxy synthesis |
@@ -2458,7 +2464,7 @@ live dereverb path, either standalone or chained in front of the reverb engine.
 | `--allpass-delays-ms` | comma-separated ms | Custom allpass delay times |
 | `--comb-delays-ms` | comma-separated ms | Custom FDN/comb delay times |
 | `--shimmer` and `--shimmer-*` | flag / scalars | Startup proxy shimmer block with pitch, mix, feedback, filters, spatial spread |
-| `--room-size-macro` / `--clarity-macro` / `--warmth-macro` / `--envelopment-macro` | -1 to 1 | Jot-inspired perceptual macro controls |
+| `--room-size-macro` / `--clarity-macro` / `--warmth-macro` / `--envelopment-macro` | –1 to 1 | Jot-inspired perceptual macro controls |
 | `--algo-decorrelation-front` / `--rear` / `--top` | 0–1 | Extra proxy decorrelation for immersive layouts |
 | `--unsafe-self-oscillate` / `--unsafe-loop-gain` | flag / scalar | Deliberately allow runaway feedback behavior when you really mean it |
 
@@ -2658,7 +2664,7 @@ verbx render piano.wav piano_conv.wav --engine conv --ir hall_ir.wav --ir-normal
 verbx render snare.wav snare_delay.wav --engine algo --pre-delay 1/8D --bpm 128 --rt60 1.8 --wet 0.45
 ```
 
-**Loudness-safe delivery — hits -16 LUFS with -1 dBTP ceiling:**
+**Loudness-safe delivery — hits –16 LUFS with –1 dBTP ceiling:**
 ```bash
 verbx render master.wav delivered.wav --engine algo --rt60 2.0 --wet 0.2 \
   --target-lufs -16 --true-peak --target-peak-dbfs -1

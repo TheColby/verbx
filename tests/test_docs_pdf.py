@@ -352,6 +352,59 @@ def test_documentation_avoids_plaintext_caret_delay_notation() -> None:
     assert "10^(" not in generator
 
 
+def test_userguide_sources_typeset_power_expressions_as_math() -> None:
+    fenced_code = re.compile(r"```.*?```", re.DOTALL)
+    display_math = re.compile(r"\$\$.*?\$\$", re.DOTALL)
+    inline_math = re.compile(r"(?<!\\)\$(?!\$).*?(?<!\\)\$", re.DOTALL)
+    plaintext_power = re.compile(
+        r"(?:\b[0-9A-Za-z]+|\([^()\n]+\))\s*\^\s*"
+        r"(?:\([^()\n]+\)|[-+]?[0-9A-Za-z]+)"
+    )
+
+    for source_path in DOCS_PDF.USERGUIDE_SOURCES:
+        source = source_path.read_text(encoding="utf-8")
+        prose = fenced_code.sub("", source)
+        prose = display_math.sub("", prose)
+        prose = inline_math.sub("", prose)
+        match = plaintext_power.search(prose)
+        assert match is None, (
+            f"{source_path.relative_to(REPO_ROOT)} contains a plaintext power "
+            f"expression: {match.group(0)!r}"
+        )
+
+    cookbook = (REPO_ROOT / "docs/EXTREME_COOKBOOK.md").read_text(encoding="utf-8")
+    assert r"$2^{7/12} \approx 1.498$" in cookbook
+    assert r"$2^{n}$" in cookbook
+    assert r"$2^{3} = 8$" in cookbook
+
+
+def test_userguide_sources_use_en_dash_for_displayed_negative_values() -> None:
+    fenced_code = re.compile(r"```.*?```", re.DOTALL)
+    display_math = re.compile(r"\$\$.*?\$\$", re.DOTALL)
+    inline_math = re.compile(r"(?<!\\)\$(?!\$).*?(?<!\\)\$", re.DOTALL)
+    inline_code = re.compile(r"`[^`\n]+`")
+    ascii_negative = re.compile(r"(?<![A-Za-z0-9_/.])-(?=\d)")
+    standalone_numeric_code = re.compile(r"`-[0-9][^`\n]*`")
+
+    for source_path in DOCS_PDF.USERGUIDE_SOURCES:
+        source = source_path.read_text(encoding="utf-8")
+        prose = fenced_code.sub("", source)
+        prose = display_math.sub("", prose)
+        prose = inline_math.sub("", prose)
+        prose = inline_code.sub("", prose)
+        match = ascii_negative.search(prose)
+        assert match is None, (
+            f"{source_path.relative_to(REPO_ROOT)} contains an ASCII negative "
+            f"value in displayed prose near: {prose[match.start():match.start() + 24]!r}"
+        )
+
+        match = standalone_numeric_code.search(source)
+        assert match is None, (
+            f"{source_path.relative_to(REPO_ROOT)} contains an ASCII negative "
+            f"display value: {match.group(0)!r}"
+        )
+
+
 def test_speaker_layout_figure_uses_dedicated_plan_and_elevation_renderer() -> None:
     generator = (REPO_ROOT / "scripts/generate_userguide_figures.py").read_text(
         encoding="utf-8"
@@ -381,3 +434,32 @@ def test_illustrated_guide_compactor_accepts_layout_specific_reading_instruction
     assert compacted.count(r"\begin{minipage}[t]{\linewidth}") == 1
     assert "Read each plan with front at the top" in compacted
     assert "Loudspeaker Layouts: Plan and Elevation" in compacted
+
+
+def test_immersive_audio_chapter_distinguishes_beds_objects_and_monitoring() -> None:
+    chapter_path = REPO_ROOT / "docs/IMMERSIVE_AUDIO.md"
+    chapter = chapter_path.read_text(encoding="utf-8")
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert chapter_path in DOCS_PDF.USERGUIDE_SOURCES
+    assert "standard Dolby 7.1.2 bed" in chapter
+    assert "7.1.4 monitoring array" in chapter
+    assert "does not currently author Dolby object metadata" in chapter
+    assert "ADM BWF, DAMF, or IMF IAB" in chapter
+    assert "Ltm, Rtm" in chapter
+    assert "Ltf/Rtf" in chapter
+    assert "Full Atmos bed format" not in readme
+    assert "Common Atmos monitoring/render layout" in readme
+
+    figures = [
+        "01_bed_vs_monitor_layout.png",
+        "02_atmos_renderer_architecture.png",
+        "03_hybrid_reverb_topology.png",
+        "04_translation_qc_loop.png",
+        "05_delivery_boundary.png",
+    ]
+    for filename in figures:
+        assert f"assets/immersive_audio/{filename}" in chapter
+        assert (REPO_ROOT / "docs/assets/immersive_audio" / filename).is_file()
+
+    assert chapter.count("**Figure:") == len(figures)

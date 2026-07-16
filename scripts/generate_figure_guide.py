@@ -24,7 +24,7 @@ CORE = {
     11: ("Partitioned convolution layout", "An impulse response divided into progressively larger FFT partitions to balance latency and throughput.", "schematic", "", "", ""),
     12: ("IR morphing blend space", "A conceptual interpolation triangle connecting room, plate, and cathedral impulse-response families.", "space", "Blend coordinate A (normalized, 0-1)", "Blend coordinate B (normalized, 0-1)", ""),
     13: ("Spatial layout families", "Listener-centered stereo, 5.1, and 7.1.4 speaker arrangements.", "schematic", "", "", ""),
-    14: ("Ambisonics order channel growth", "The quadratic channel-count growth produced by the three-dimensional Ambisonics relation (N + 1)^2.", "bars", "Ambisonics order N (integer)", "Channel count (channels)", ""),
+    14: ("Ambisonics order channel growth", "The quadratic channel-count growth produced by the three-dimensional Ambisonics relation $(N + 1)^{2}$.", "bars", "Ambisonics order N (integer)", "Channel count (channels)", ""),
     15: ("Shimmer feedback path", "The pitch-shift, diffusion, and feedback loop that turns late energy into a sustained harmonic layer.", "schematic", "", "", ""),
     16: ("Room size inference curves", "Sabine-style volume estimates across RT60 for three assumed mean absorption coefficients.", "multi", "Measured RT60 (s)", "Estimated room volume (m³)", ""),
     17: ("Analysis metrics dashboard", "A compact view of representative RT60, DRR, C80, peak, LUFS, and EDT fields emitted to JSON.", "dashboard", "", "", ""),

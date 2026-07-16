@@ -347,7 +347,7 @@ The `er_room` parameter is loosely a room-size proxy: values > 1.0 increase
 reflection amplitude, making the space feel more reverberant; values < 1.0
 create a drier early field.
 
-Stereo width is applied as pan spread per tap. Pan is sampled U[-1, 1] and
+Stereo width is applied as pan spread per tap. Pan is sampled U[–1, 1] and
 scaled by `er_stereo_width`. Left/right amplitudes use a simple linear pan law
 (not equal-power) because the taps are sparse enough that the distinction
 matters less than in dense diffuse material:
@@ -514,7 +514,7 @@ significant time to generate, consider archiving them before clearing.
 ### Wash / Ambient Bed (120s)
 
 For pad layers, atmospheric beds, tape-delay washout. Long RT60, high diffusion,
-gentle early reflections. Peak normalization at -1 dBFS leaves headroom for
+gentle early reflections. Peak normalization at –1 dBFS leaves headroom for
 downstream summing.
 
 ```bash
@@ -682,7 +682,7 @@ never really decays. Very long length with high RT60 relative to length.
 --diffusion 0.85 --density 0.8 --damping 0.15
 ```
 
-The RT60 exceeding the IR length means the decay envelope never reaches -60 dB
+The RT60 exceeding the IR length means the decay envelope never reaches –60 dB
 within the buffer — the tail is essentially flat. Combined with high diffusion
 you get a dense, white-ish wash. Works well convolved with a long pad or a
 heavily sustained note.

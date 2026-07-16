@@ -180,7 +180,7 @@ The figure below introduces **Spatial layout families**. Listener-centered stere
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Ambisonics order channel growth**. The quadratic channel-count growth produced by the three-dimensional Ambisonics relation (N + 1)^2. Bar height encodes the quantity on the vertical axis, while each horizontal category identifies a tested or illustrative condition. The horizontal axis is **Ambisonics order N (integer)** and the vertical axis is **Channel count (channels)**.
+The figure below introduces **Ambisonics order channel growth**. The quadratic channel-count growth produced by the three-dimensional Ambisonics relation $(N + 1)^{2}$. Bar height encodes the quantity on the vertical axis, while each horizontal category identifies a tested or illustrative condition. The horizontal axis is **Ambisonics order N (integer)** and the vertical axis is **Channel count (channels)**.
 
 ![Figure 14: Ambisonics order channel growth.](assets/userguide_figures/14_ambisonics_order.png)
 
@@ -246,7 +246,7 @@ The figure below introduces **Modulation Depth Safety**. Depth and rate interact
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Stereo Width Correlation**. Width controls should preserve mono safety while expanding ambience. The trace shows how the vertical response changes as the horizontal control or measurement advances. The horizontal axis is **Stereo width (%)** and the vertical axis is **Inter-channel correlation (unitless, -1 to +1)**.
+The figure below introduces **Stereo Width Correlation**. Width controls should preserve mono safety while expanding ambience. The trace shows how the vertical response changes as the horizontal control or measurement advances. The horizontal axis is **Stereo width (%)** and the vertical axis is **Inter-channel correlation (unitless, –1 to +1)**.
 
 ![Figure 30: Stereo Width Correlation.](assets/userguide_figures/30_stereo_width_correlation.png)
 
@@ -528,7 +528,7 @@ The figure below introduces **Crest Factor Map**. Transient-heavy inputs need di
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Transient Preservation**. Dereverb should reduce tail energy without flattening attack detail. Vertical events and the envelope are positioned against a common time base, making onset, hold, and decay relationships visible. The horizontal axis is **Time around transient (ms)** and the vertical axis is **Signal amplitude (linear, -1 to +1)**.
+The figure below introduces **Transient Preservation**. Dereverb should reduce tail energy without flattening attack detail. Vertical events and the envelope are positioned against a common time base, making onset, hold, and decay relationships visible. The horizontal axis is **Time around transient (ms)** and the vertical axis is **Signal amplitude (linear, –1 to +1)**.
 
 ![Figure 65: Transient Preservation.](assets/userguide_figures/65_transient_preservation.png)
 

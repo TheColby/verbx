@@ -187,7 +187,7 @@ stable once released because DAW automation and saved sessions depend on them.
 | `pre_delay_ms` | Gap before the reverberant field | 0 to 1000 ms | 18 ms | Delay changes require smoothing or crossfade |
 | `room_size` | Macro geometry/scale control | 0 to 1 | 0.72 | Must not resize unbounded memory in callback |
 | `rt60_coarse` | Logarithmic decay position | 0 to 1 | 0.50 | Maps to 0.01 to 360 seconds |
-| `rt60_fine` | Bipolar log trim | -1 to 1 | 0 | Applies about plus/minus 20 percent |
+| `rt60_fine` | Bipolar log trim | –1 to 1 | 0 | Applies about plus/minus 20 percent |
 | `damping` | High-frequency decay loss | 0 to 0.98 | 0.41 | Coefficients need stable interpolation |
 | `width` | Stereo/spatial spread | 0 to 2 | 1.35 | Check mono and correlation behavior |
 | `diffusion` | Echo-density macro | 0 to 1 | 0.65 | Structural changes may need a safe transition |

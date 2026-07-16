@@ -353,7 +353,7 @@ def fig_spatial_layouts() -> None:
 
 
 def fig_ambisonics_order() -> None:
-    img, d = canvas("Ambisonics Order Growth", "Channel count rises quadratically with order: (N + 1)^2.")
+    img, d = canvas("Ambisonics Order Growth", "Channel count rises quadratically with order: (N + 1)².")
     orders = list(range(0, 8))
     vals = [(n + 1) ** 2 for n in orders]
     labels = [str(n) for n in orders]
@@ -393,7 +393,7 @@ def fig_room_inference() -> None:
 
 def fig_analysis_dashboard() -> None:
     img, d = canvas("Analysis Metrics Dashboard", "The JSON sidecar converts audio into comparable acoustic metrics.")
-    metrics = [("RT60", "2.84 s", BLUE), ("DRR", "-6.1 dB", TEAL), ("C80", "-3.8 dB", GOLD), ("Peak", "-1.0 dB", RUST), ("LUFS", "-16.4", PLUM), ("EDT", "2.12 s", GREEN)]
+    metrics = [("RT60", "2.84 s", BLUE), ("DRR", "–6.1 dB", TEAL), ("C80", "–3.8 dB", GOLD), ("Peak", "–1.0 dB", RUST), ("LUFS", "–16.4", PLUM), ("EDT", "2.12 s", GREEN)]
     for i, (name, value, color) in enumerate(metrics):
         x = 120 + (i % 3) * 480
         y = 210 + (i // 3) * 250
@@ -607,7 +607,7 @@ ATLAS_AXES: dict[int, tuple[str, str, str]] = {
     27: ("Time after excitation (ms)", "Echo density (reflections/s)", ""),
     28: ("Frequency (Hz)", "Relative damping gain (dB)", ""),
     29: ("Modulation rate (Hz)", "Modulation depth (ms)", "Artifact risk (normalized, 0-1)"),
-    30: ("Stereo width (%)", "Inter-channel correlation (unitless, -1 to +1)", ""),
+    30: ("Stereo width (%)", "Inter-channel correlation (unitless, –1 to +1)", ""),
     31: ("Inter-channel delay (ms)", "Perceptual region (category)", ""),
     32: ("Time after transient (ms)", "Wet level (dBFS)", ""),
     33: ("Time before transient (ms)", "Wet envelope level (linear, 0-1)", ""),
@@ -641,7 +641,7 @@ ATLAS_AXES: dict[int, tuple[str, str, str]] = {
     62: ("Time around sample peak (µs)", "Signal level (dBFS)", ""),
     63: ("Program time (s)", "Integrated loudness (LUFS)", ""),
     64: ("RMS level (dBFS)", "Peak level (dBFS)", "Crest factor (dB)"),
-    65: ("Time around transient (ms)", "Signal amplitude (linear, -1 to +1)", ""),
+    65: ("Time around transient (ms)", "Signal amplitude (linear, –1 to +1)", ""),
     66: ("Dereverb mask strength (%)", "Artifact or suppression score (normalized, 0-1)", ""),
     67: ("Time (s)", "Frequency (Hz)", "Residual magnitude (dBFS)"),
     68: ("Program time (s)", "Estimated noise floor (dBFS)", ""),
