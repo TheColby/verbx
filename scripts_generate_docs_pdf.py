@@ -725,16 +725,16 @@ def _card_visual_command(title: str) -> str:
 
     patterns: tuple[tuple[str, str], ...] = (
         (r"Production card: (.+) in (.+)", "verbxProductionVisual"),
-        (r"Automation card: (.+) - (.+)", "verbxAutomationVisual"),
-        (r"Validation card: (.+) - (.+)", "verbxValidationVisual"),
+        (r"Automation card: (.+): (.+)", "verbxAutomationVisual"),
+        (r"Validation card: (.+): (.+)", "verbxValidationVisual"),
         (r"Preset card: (.+) / (.+)", "verbxPresetVisual"),
         (r"Interaction card \d+: (.+) with (.+)", "verbxInteractionVisual"),
         (r"Audition card: (.+) on (.+)", "verbxMonitoringVisual"),
-        (r"Asset card: (.+) - (.+)", "verbxAssetVisual"),
-        (r"Release card: (.+) - (.+)", "verbxReleaseVisual"),
-        (r"Bus card: (.+) - (.+)", "verbxBusVisual"),
+        (r"Asset card: (.+): (.+)", "verbxAssetVisual"),
+        (r"Release card: (.+): (.+)", "verbxReleaseVisual"),
+        (r"Bus card: (.+): (.+)", "verbxBusVisual"),
         (r"Signal-test card: (.+) with (.+)", "verbxSignalVisual"),
-        (r"Triage card: (.+) - (.+)", "verbxTriageVisual"),
+        (r"Triage card: (.+): (.+)", "verbxTriageVisual"),
     )
     for pattern, macro in patterns:
         match = re.fullmatch(pattern, title)

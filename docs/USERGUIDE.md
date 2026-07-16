@@ -10024,7 +10024,7 @@ Record host rate, quality mode, block size, layout, effective RT60, reported lat
 
 ### 20.1 Pre-Delay
 
-**Automation card: Pre-Delay - Slow rise**
+**Automation card: Pre-Delay: Slow rise**
 
 - Host parameter: `pre_delay_ms`.
 - Motion: move from the lower setting to the upper setting over eight or more bars.
@@ -10040,7 +10040,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Pre-Delay - Slow fall**
+**Automation card: Pre-Delay: Slow fall**
 
 - Host parameter: `pre_delay_ms`.
 - Motion: return gradually toward the dry or compact state.
@@ -10056,7 +10056,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Pre-Delay - Tempo pulse**
+**Automation card: Pre-Delay: Tempo pulse**
 
 - Host parameter: `pre_delay_ms`.
 - Motion: alternate two musically useful values on a bar or phrase boundary.
@@ -10072,7 +10072,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Pre-Delay - Scene switch**
+**Automation card: Pre-Delay: Scene switch**
 
 - Host parameter: `pre_delay_ms`.
 - Motion: change once at an arrangement boundary and hold.
@@ -10090,7 +10090,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 ### 20.2 Room Size
 
-**Automation card: Room Size - Slow rise**
+**Automation card: Room Size: Slow rise**
 
 - Host parameter: `room_size`.
 - Motion: move from the lower setting to the upper setting over eight or more bars.
@@ -10106,7 +10106,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Room Size - Slow fall**
+**Automation card: Room Size: Slow fall**
 
 - Host parameter: `room_size`.
 - Motion: return gradually toward the dry or compact state.
@@ -10122,7 +10122,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Room Size - Tempo pulse**
+**Automation card: Room Size: Tempo pulse**
 
 - Host parameter: `room_size`.
 - Motion: alternate two musically useful values on a bar or phrase boundary.
@@ -10138,7 +10138,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Room Size - Scene switch**
+**Automation card: Room Size: Scene switch**
 
 - Host parameter: `room_size`.
 - Motion: change once at an arrangement boundary and hold.
@@ -10156,7 +10156,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 ### 20.3 RT60 Coarse
 
-**Automation card: RT60 Coarse - Slow rise**
+**Automation card: RT60 Coarse: Slow rise**
 
 - Host parameter: `rt60_coarse`.
 - Motion: move from the lower setting to the upper setting over eight or more bars.
@@ -10172,7 +10172,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: RT60 Coarse - Slow fall**
+**Automation card: RT60 Coarse: Slow fall**
 
 - Host parameter: `rt60_coarse`.
 - Motion: return gradually toward the dry or compact state.
@@ -10188,7 +10188,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: RT60 Coarse - Tempo pulse**
+**Automation card: RT60 Coarse: Tempo pulse**
 
 - Host parameter: `rt60_coarse`.
 - Motion: alternate two musically useful values on a bar or phrase boundary.
@@ -10204,7 +10204,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: RT60 Coarse - Scene switch**
+**Automation card: RT60 Coarse: Scene switch**
 
 - Host parameter: `rt60_coarse`.
 - Motion: change once at an arrangement boundary and hold.
@@ -10222,7 +10222,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 ### 20.4 RT60 Fine
 
-**Automation card: RT60 Fine - Slow rise**
+**Automation card: RT60 Fine: Slow rise**
 
 - Host parameter: `rt60_fine`.
 - Motion: move from the lower setting to the upper setting over eight or more bars.
@@ -10238,7 +10238,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: RT60 Fine - Slow fall**
+**Automation card: RT60 Fine: Slow fall**
 
 - Host parameter: `rt60_fine`.
 - Motion: return gradually toward the dry or compact state.
@@ -10254,7 +10254,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: RT60 Fine - Tempo pulse**
+**Automation card: RT60 Fine: Tempo pulse**
 
 - Host parameter: `rt60_fine`.
 - Motion: alternate two musically useful values on a bar or phrase boundary.
@@ -10270,7 +10270,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: RT60 Fine - Scene switch**
+**Automation card: RT60 Fine: Scene switch**
 
 - Host parameter: `rt60_fine`.
 - Motion: change once at an arrangement boundary and hold.
@@ -10288,7 +10288,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 ### 20.5 Damping
 
-**Automation card: Damping - Slow rise**
+**Automation card: Damping: Slow rise**
 
 - Host parameter: `damping`.
 - Motion: move from the lower setting to the upper setting over eight or more bars.
@@ -10304,7 +10304,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Damping - Slow fall**
+**Automation card: Damping: Slow fall**
 
 - Host parameter: `damping`.
 - Motion: return gradually toward the dry or compact state.
@@ -10320,7 +10320,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Damping - Tempo pulse**
+**Automation card: Damping: Tempo pulse**
 
 - Host parameter: `damping`.
 - Motion: alternate two musically useful values on a bar or phrase boundary.
@@ -10336,7 +10336,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Damping - Scene switch**
+**Automation card: Damping: Scene switch**
 
 - Host parameter: `damping`.
 - Motion: change once at an arrangement boundary and hold.
@@ -10354,7 +10354,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 ### 20.6 Width
 
-**Automation card: Width - Slow rise**
+**Automation card: Width: Slow rise**
 
 - Host parameter: `width`.
 - Motion: move from the lower setting to the upper setting over eight or more bars.
@@ -10370,7 +10370,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Width - Slow fall**
+**Automation card: Width: Slow fall**
 
 - Host parameter: `width`.
 - Motion: return gradually toward the dry or compact state.
@@ -10386,7 +10386,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Width - Tempo pulse**
+**Automation card: Width: Tempo pulse**
 
 - Host parameter: `width`.
 - Motion: alternate two musically useful values on a bar or phrase boundary.
@@ -10402,7 +10402,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Width - Scene switch**
+**Automation card: Width: Scene switch**
 
 - Host parameter: `width`.
 - Motion: change once at an arrangement boundary and hold.
@@ -10420,7 +10420,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 ### 20.7 Diffusion
 
-**Automation card: Diffusion - Slow rise**
+**Automation card: Diffusion: Slow rise**
 
 - Host parameter: `diffusion`.
 - Motion: move from the lower setting to the upper setting over eight or more bars.
@@ -10436,7 +10436,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Diffusion - Slow fall**
+**Automation card: Diffusion: Slow fall**
 
 - Host parameter: `diffusion`.
 - Motion: return gradually toward the dry or compact state.
@@ -10452,7 +10452,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Diffusion - Tempo pulse**
+**Automation card: Diffusion: Tempo pulse**
 
 - Host parameter: `diffusion`.
 - Motion: alternate two musically useful values on a bar or phrase boundary.
@@ -10468,7 +10468,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Diffusion - Scene switch**
+**Automation card: Diffusion: Scene switch**
 
 - Host parameter: `diffusion`.
 - Motion: change once at an arrangement boundary and hold.
@@ -10486,7 +10486,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 ### 20.8 Wet
 
-**Automation card: Wet - Slow rise**
+**Automation card: Wet: Slow rise**
 
 - Host parameter: `wet`.
 - Motion: move from the lower setting to the upper setting over eight or more bars.
@@ -10502,7 +10502,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Wet - Slow fall**
+**Automation card: Wet: Slow fall**
 
 - Host parameter: `wet`.
 - Motion: return gradually toward the dry or compact state.
@@ -10518,7 +10518,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Wet - Tempo pulse**
+**Automation card: Wet: Tempo pulse**
 
 - Host parameter: `wet`.
 - Motion: alternate two musically useful values on a bar or phrase boundary.
@@ -10534,7 +10534,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Wet - Scene switch**
+**Automation card: Wet: Scene switch**
 
 - Host parameter: `wet`.
 - Motion: change once at an arrangement boundary and hold.
@@ -10552,7 +10552,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 ### 20.9 Dry
 
-**Automation card: Dry - Slow rise**
+**Automation card: Dry: Slow rise**
 
 - Host parameter: `dry`.
 - Motion: move from the lower setting to the upper setting over eight or more bars.
@@ -10568,7 +10568,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Dry - Slow fall**
+**Automation card: Dry: Slow fall**
 
 - Host parameter: `dry`.
 - Motion: return gradually toward the dry or compact state.
@@ -10584,7 +10584,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Dry - Tempo pulse**
+**Automation card: Dry: Tempo pulse**
 
 - Host parameter: `dry`.
 - Motion: alternate two musically useful values on a bar or phrase boundary.
@@ -10600,7 +10600,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Dry - Scene switch**
+**Automation card: Dry: Scene switch**
 
 - Host parameter: `dry`.
 - Motion: change once at an arrangement boundary and hold.
@@ -10618,7 +10618,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 ### 20.10 Freeze
 
-**Automation card: Freeze - Slow rise**
+**Automation card: Freeze: Slow rise**
 
 - Host parameter: `freeze`.
 - Motion: move from the lower setting to the upper setting over eight or more bars.
@@ -10634,7 +10634,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Freeze - Slow fall**
+**Automation card: Freeze: Slow fall**
 
 - Host parameter: `freeze`.
 - Motion: return gradually toward the dry or compact state.
@@ -10650,7 +10650,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Freeze - Tempo pulse**
+**Automation card: Freeze: Tempo pulse**
 
 - Host parameter: `freeze`.
 - Motion: alternate two musically useful values on a bar or phrase boundary.
@@ -10666,7 +10666,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Freeze - Scene switch**
+**Automation card: Freeze: Scene switch**
 
 - Host parameter: `freeze`.
 - Motion: change once at an arrangement boundary and hold.
@@ -10684,7 +10684,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 ### 20.11 Reverse
 
-**Automation card: Reverse - Slow rise**
+**Automation card: Reverse: Slow rise**
 
 - Host parameter: `reverse`.
 - Motion: move from the lower setting to the upper setting over eight or more bars.
@@ -10700,7 +10700,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Reverse - Slow fall**
+**Automation card: Reverse: Slow fall**
 
 - Host parameter: `reverse`.
 - Motion: return gradually toward the dry or compact state.
@@ -10716,7 +10716,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Reverse - Tempo pulse**
+**Automation card: Reverse: Tempo pulse**
 
 - Host parameter: `reverse`.
 - Motion: alternate two musically useful values on a bar or phrase boundary.
@@ -10732,7 +10732,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Reverse - Scene switch**
+**Automation card: Reverse: Scene switch**
 
 - Host parameter: `reverse`.
 - Motion: change once at an arrangement boundary and hold.
@@ -10750,7 +10750,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 ### 20.12 Quality
 
-**Automation card: Quality - Slow rise**
+**Automation card: Quality: Slow rise**
 
 - Host parameter: `quality_mode`.
 - Motion: move from the lower setting to the upper setting over eight or more bars.
@@ -10766,7 +10766,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Quality - Slow fall**
+**Automation card: Quality: Slow fall**
 
 - Host parameter: `quality_mode`.
 - Motion: return gradually toward the dry or compact state.
@@ -10782,7 +10782,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Quality - Tempo pulse**
+**Automation card: Quality: Tempo pulse**
 
 - Host parameter: `quality_mode`.
 - Motion: alternate two musically useful values on a bar or phrase boundary.
@@ -10798,7 +10798,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Quality - Scene switch**
+**Automation card: Quality: Scene switch**
 
 - Host parameter: `quality_mode`.
 - Motion: change once at an arrangement boundary and hold.
@@ -10819,7 +10819,7 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 **Quality card 1: 44100 Hz, Host, 64 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: Host - no intentional internal rate multiplication.
+- Quality policy: Host: no intentional internal rate multiplication.
 - Expected internal-rate contract: 44100 Hz.
 - Host block duration: 1.451 ms before device and plug-in latency.
 
@@ -10835,7 +10835,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 2: 44100 Hz, Host, 512 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: Host - no intentional internal rate multiplication.
+- Quality policy: Host: no intentional internal rate multiplication.
 - Expected internal-rate contract: 44100 Hz.
 - Host block duration: 11.610 ms before device and plug-in latency.
 
@@ -10851,7 +10851,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 3: 44100 Hz, 2x, 64 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: 2x - twice the host rate.
+- Quality policy: 2x: twice the host rate.
 - Expected internal-rate contract: 88200 Hz.
 - Host block duration: 1.451 ms before device and plug-in latency.
 
@@ -10867,7 +10867,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 4: 44100 Hz, 2x, 512 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: 2x - twice the host rate.
+- Quality policy: 2x: twice the host rate.
 - Expected internal-rate contract: 88200 Hz.
 - Host block duration: 11.610 ms before device and plug-in latency.
 
@@ -10883,7 +10883,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 5: 44100 Hz, 4x, 64 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: 4x - four times the host rate.
+- Quality policy: 4x: four times the host rate.
 - Expected internal-rate contract: 176400 Hz.
 - Host block duration: 1.451 ms before device and plug-in latency.
 
@@ -10899,7 +10899,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 6: 44100 Hz, 4x, 512 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: 4x - four times the host rate.
+- Quality policy: 4x: four times the host rate.
 - Expected internal-rate contract: 176400 Hz.
 - Host block duration: 11.610 ms before device and plug-in latency.
 
@@ -10915,7 +10915,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 7: 44100 Hz, Target 192 kHz, 64 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
+- Quality policy: Target 192 kHz: the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 220500 Hz.
 - Host block duration: 1.451 ms before device and plug-in latency.
 
@@ -10931,7 +10931,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 8: 44100 Hz, Target 192 kHz, 512 frames**
 
 - Host rate: 44100 Hz.
-- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
+- Quality policy: Target 192 kHz: the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 220500 Hz.
 - Host block duration: 11.610 ms before device and plug-in latency.
 
@@ -10947,7 +10947,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 9: 48000 Hz, Host, 64 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: Host - no intentional internal rate multiplication.
+- Quality policy: Host: no intentional internal rate multiplication.
 - Expected internal-rate contract: 48000 Hz.
 - Host block duration: 1.333 ms before device and plug-in latency.
 
@@ -10963,7 +10963,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 10: 48000 Hz, Host, 512 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: Host - no intentional internal rate multiplication.
+- Quality policy: Host: no intentional internal rate multiplication.
 - Expected internal-rate contract: 48000 Hz.
 - Host block duration: 10.667 ms before device and plug-in latency.
 
@@ -10979,7 +10979,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 11: 48000 Hz, 2x, 64 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: 2x - twice the host rate.
+- Quality policy: 2x: twice the host rate.
 - Expected internal-rate contract: 96000 Hz.
 - Host block duration: 1.333 ms before device and plug-in latency.
 
@@ -10995,7 +10995,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 12: 48000 Hz, 2x, 512 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: 2x - twice the host rate.
+- Quality policy: 2x: twice the host rate.
 - Expected internal-rate contract: 96000 Hz.
 - Host block duration: 10.667 ms before device and plug-in latency.
 
@@ -11011,7 +11011,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 13: 48000 Hz, 4x, 64 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: 4x - four times the host rate.
+- Quality policy: 4x: four times the host rate.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 1.333 ms before device and plug-in latency.
 
@@ -11027,7 +11027,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 14: 48000 Hz, 4x, 512 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: 4x - four times the host rate.
+- Quality policy: 4x: four times the host rate.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 10.667 ms before device and plug-in latency.
 
@@ -11043,7 +11043,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 15: 48000 Hz, Target 192 kHz, 64 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
+- Quality policy: Target 192 kHz: the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 1.333 ms before device and plug-in latency.
 
@@ -11059,7 +11059,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 16: 48000 Hz, Target 192 kHz, 512 frames**
 
 - Host rate: 48000 Hz.
-- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
+- Quality policy: Target 192 kHz: the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 10.667 ms before device and plug-in latency.
 
@@ -11075,7 +11075,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 17: 96000 Hz, Host, 64 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: Host - no intentional internal rate multiplication.
+- Quality policy: Host: no intentional internal rate multiplication.
 - Expected internal-rate contract: 96000 Hz.
 - Host block duration: 0.667 ms before device and plug-in latency.
 
@@ -11091,7 +11091,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 18: 96000 Hz, Host, 512 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: Host - no intentional internal rate multiplication.
+- Quality policy: Host: no intentional internal rate multiplication.
 - Expected internal-rate contract: 96000 Hz.
 - Host block duration: 5.333 ms before device and plug-in latency.
 
@@ -11107,7 +11107,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 19: 96000 Hz, 2x, 64 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: 2x - twice the host rate.
+- Quality policy: 2x: twice the host rate.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 0.667 ms before device and plug-in latency.
 
@@ -11123,7 +11123,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 20: 96000 Hz, 2x, 512 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: 2x - twice the host rate.
+- Quality policy: 2x: twice the host rate.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 5.333 ms before device and plug-in latency.
 
@@ -11139,7 +11139,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 21: 96000 Hz, 4x, 64 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: 4x - four times the host rate.
+- Quality policy: 4x: four times the host rate.
 - Expected internal-rate contract: 384000 Hz.
 - Host block duration: 0.667 ms before device and plug-in latency.
 
@@ -11155,7 +11155,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 22: 96000 Hz, 4x, 512 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: 4x - four times the host rate.
+- Quality policy: 4x: four times the host rate.
 - Expected internal-rate contract: 384000 Hz.
 - Host block duration: 5.333 ms before device and plug-in latency.
 
@@ -11171,7 +11171,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 23: 96000 Hz, Target 192 kHz, 64 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
+- Quality policy: Target 192 kHz: the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 0.667 ms before device and plug-in latency.
 
@@ -11187,7 +11187,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 24: 96000 Hz, Target 192 kHz, 512 frames**
 
 - Host rate: 96000 Hz.
-- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
+- Quality policy: Target 192 kHz: the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 5.333 ms before device and plug-in latency.
 
@@ -11203,7 +11203,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 25: 192000 Hz, Host, 64 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: Host - no intentional internal rate multiplication.
+- Quality policy: Host: no intentional internal rate multiplication.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 0.333 ms before device and plug-in latency.
 
@@ -11219,7 +11219,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 26: 192000 Hz, Host, 512 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: Host - no intentional internal rate multiplication.
+- Quality policy: Host: no intentional internal rate multiplication.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 2.667 ms before device and plug-in latency.
 
@@ -11235,7 +11235,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 27: 192000 Hz, 2x, 64 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: 2x - twice the host rate.
+- Quality policy: 2x: twice the host rate.
 - Expected internal-rate contract: 384000 Hz.
 - Host block duration: 0.333 ms before device and plug-in latency.
 
@@ -11251,7 +11251,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 28: 192000 Hz, 2x, 512 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: 2x - twice the host rate.
+- Quality policy: 2x: twice the host rate.
 - Expected internal-rate contract: 384000 Hz.
 - Host block duration: 2.667 ms before device and plug-in latency.
 
@@ -11267,7 +11267,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 29: 192000 Hz, 4x, 64 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: 4x - four times the host rate.
+- Quality policy: 4x: four times the host rate.
 - Expected internal-rate contract: 768000 Hz.
 - Host block duration: 0.333 ms before device and plug-in latency.
 
@@ -11283,7 +11283,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 30: 192000 Hz, 4x, 512 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: 4x - four times the host rate.
+- Quality policy: 4x: four times the host rate.
 - Expected internal-rate contract: 768000 Hz.
 - Host block duration: 2.667 ms before device and plug-in latency.
 
@@ -11299,7 +11299,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 31: 192000 Hz, Target 192 kHz, 64 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
+- Quality policy: Target 192 kHz: the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 0.333 ms before device and plug-in latency.
 
@@ -11315,7 +11315,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 **Quality card 32: 192000 Hz, Target 192 kHz, 512 frames**
 
 - Host rate: 192000 Hz.
-- Quality policy: Target 192 kHz - the smallest integer factor reaching at least 192 kHz.
+- Quality policy: Target 192 kHz: the smallest integer factor reaching at least 192 kHz.
 - Expected internal-rate contract: 192000 Hz.
 - Host block duration: 2.667 ms before device and plug-in latency.
 
@@ -11332,7 +11332,7 @@ Measure algorithmic plug-in latency with an impulse and compare it with the repo
 
 ### 22.1 Scan and instantiate
 
-**Validation card: Standalone - Scan and instantiate**
+**Validation card: Standalone: Scan and instantiate**
 
 - Surface: the JUCE standalone wrapper.
 - Goal: confirm the format scans, loads, and creates a stable processor/editor pair.
@@ -11348,7 +11348,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: Desktop AU - Scan and instantiate**
+**Validation card: Desktop AU: Scan and instantiate**
 
 - Surface: an Audio Unit host.
 - Goal: confirm the format scans, loads, and creates a stable processor/editor pair.
@@ -11364,7 +11364,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: AUv3 - Scan and instantiate**
+**Validation card: AUv3: Scan and instantiate**
 
 - Surface: an AUv3-capable sandboxed host.
 - Goal: confirm the format scans, loads, and creates a stable processor/editor pair.
@@ -11380,7 +11380,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: VST3 - Scan and instantiate**
+**Validation card: VST3: Scan and instantiate**
 
 - Surface: a VST3 host.
 - Goal: confirm the format scans, loads, and creates a stable processor/editor pair.
@@ -11398,7 +11398,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 ### 22.2 Parameter automation
 
-**Validation card: Standalone - Parameter automation**
+**Validation card: Standalone: Parameter automation**
 
 - Surface: the JUCE standalone wrapper.
 - Goal: write, read, trim, suspend, and replay every exposed parameter.
@@ -11414,7 +11414,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: Desktop AU - Parameter automation**
+**Validation card: Desktop AU: Parameter automation**
 
 - Surface: an Audio Unit host.
 - Goal: write, read, trim, suspend, and replay every exposed parameter.
@@ -11430,7 +11430,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: AUv3 - Parameter automation**
+**Validation card: AUv3: Parameter automation**
 
 - Surface: an AUv3-capable sandboxed host.
 - Goal: write, read, trim, suspend, and replay every exposed parameter.
@@ -11446,7 +11446,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: VST3 - Parameter automation**
+**Validation card: VST3: Parameter automation**
 
 - Surface: a VST3 host.
 - Goal: write, read, trim, suspend, and replay every exposed parameter.
@@ -11464,7 +11464,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 ### 22.3 State recall
 
-**Validation card: Standalone - State recall**
+**Validation card: Standalone: State recall**
 
 - Surface: the JUCE standalone wrapper.
 - Goal: save, close, reopen, and compare all parameters and asset identities.
@@ -11480,7 +11480,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: Desktop AU - State recall**
+**Validation card: Desktop AU: State recall**
 
 - Surface: an Audio Unit host.
 - Goal: save, close, reopen, and compare all parameters and asset identities.
@@ -11496,7 +11496,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: AUv3 - State recall**
+**Validation card: AUv3: State recall**
 
 - Surface: an AUv3-capable sandboxed host.
 - Goal: save, close, reopen, and compare all parameters and asset identities.
@@ -11512,7 +11512,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: VST3 - State recall**
+**Validation card: VST3: State recall**
 
 - Surface: a VST3 host.
 - Goal: save, close, reopen, and compare all parameters and asset identities.
@@ -11530,7 +11530,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 ### 22.4 Latency compensation
 
-**Validation card: Standalone - Latency compensation**
+**Validation card: Standalone: Latency compensation**
 
 - Surface: the JUCE standalone wrapper.
 - Goal: measure impulse alignment and compare it with the reported frame count.
@@ -11546,7 +11546,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: Desktop AU - Latency compensation**
+**Validation card: Desktop AU: Latency compensation**
 
 - Surface: an Audio Unit host.
 - Goal: measure impulse alignment and compare it with the reported frame count.
@@ -11562,7 +11562,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: AUv3 - Latency compensation**
+**Validation card: AUv3: Latency compensation**
 
 - Surface: an AUv3-capable sandboxed host.
 - Goal: measure impulse alignment and compare it with the reported frame count.
@@ -11578,7 +11578,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: VST3 - Latency compensation**
+**Validation card: VST3: Latency compensation**
 
 - Surface: a VST3 host.
 - Goal: measure impulse alignment and compare it with the reported frame count.
@@ -11596,7 +11596,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 ### 22.5 Bus negotiation
 
-**Validation card: Standalone - Bus negotiation**
+**Validation card: Standalone: Bus negotiation**
 
 - Surface: the JUCE standalone wrapper.
 - Goal: exercise supported mono/stereo layouts and reject unsupported layouts clearly.
@@ -11612,7 +11612,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: Desktop AU - Bus negotiation**
+**Validation card: Desktop AU: Bus negotiation**
 
 - Surface: an Audio Unit host.
 - Goal: exercise supported mono/stereo layouts and reject unsupported layouts clearly.
@@ -11628,7 +11628,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: AUv3 - Bus negotiation**
+**Validation card: AUv3: Bus negotiation**
 
 - Surface: an AUv3-capable sandboxed host.
 - Goal: exercise supported mono/stereo layouts and reject unsupported layouts clearly.
@@ -11644,7 +11644,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: VST3 - Bus negotiation**
+**Validation card: VST3: Bus negotiation**
 
 - Surface: a VST3 host.
 - Goal: exercise supported mono/stereo layouts and reject unsupported layouts clearly.
@@ -11662,7 +11662,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 ### 22.6 Transport changes
 
-**Validation card: Standalone - Transport changes**
+**Validation card: Standalone: Transport changes**
 
 - Surface: the JUCE standalone wrapper.
 - Goal: start, stop, loop, seek, and change tempo without corrupting the tail.
@@ -11678,7 +11678,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: Desktop AU - Transport changes**
+**Validation card: Desktop AU: Transport changes**
 
 - Surface: an Audio Unit host.
 - Goal: start, stop, loop, seek, and change tempo without corrupting the tail.
@@ -11694,7 +11694,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: AUv3 - Transport changes**
+**Validation card: AUv3: Transport changes**
 
 - Surface: an AUv3-capable sandboxed host.
 - Goal: start, stop, loop, seek, and change tempo without corrupting the tail.
@@ -11710,7 +11710,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: VST3 - Transport changes**
+**Validation card: VST3: Transport changes**
 
 - Surface: a VST3 host.
 - Goal: start, stop, loop, seek, and change tempo without corrupting the tail.
@@ -11728,7 +11728,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 ### 22.7 Sample-rate changes
 
-**Validation card: Standalone - Sample-rate changes**
+**Validation card: Standalone: Sample-rate changes**
 
 - Surface: the JUCE standalone wrapper.
 - Goal: reprepare at each supported host rate without stale buffers or status.
@@ -11744,7 +11744,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: Desktop AU - Sample-rate changes**
+**Validation card: Desktop AU: Sample-rate changes**
 
 - Surface: an Audio Unit host.
 - Goal: reprepare at each supported host rate without stale buffers or status.
@@ -11760,7 +11760,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: AUv3 - Sample-rate changes**
+**Validation card: AUv3: Sample-rate changes**
 
 - Surface: an AUv3-capable sandboxed host.
 - Goal: reprepare at each supported host rate without stale buffers or status.
@@ -11776,7 +11776,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: VST3 - Sample-rate changes**
+**Validation card: VST3: Sample-rate changes**
 
 - Surface: a VST3 host.
 - Goal: reprepare at each supported host rate without stale buffers or status.
@@ -11794,7 +11794,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 ### 22.8 Editor lifecycle
 
-**Validation card: Standalone - Editor lifecycle**
+**Validation card: Standalone: Editor lifecycle**
 
 - Surface: the JUCE standalone wrapper.
 - Goal: open, resize, close, and reopen the editor while audio remains unchanged.
@@ -11810,7 +11810,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: Desktop AU - Editor lifecycle**
+**Validation card: Desktop AU: Editor lifecycle**
 
 - Surface: an Audio Unit host.
 - Goal: open, resize, close, and reopen the editor while audio remains unchanged.
@@ -11826,7 +11826,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: AUv3 - Editor lifecycle**
+**Validation card: AUv3: Editor lifecycle**
 
 - Surface: an AUv3-capable sandboxed host.
 - Goal: open, resize, close, and reopen the editor while audio remains unchanged.
@@ -11842,7 +11842,7 @@ Mark the result pass, fail, or blocked. A pass names the tested environment and 
 
 \newpage
 
-**Validation card: VST3 - Editor lifecycle**
+**Validation card: VST3: Editor lifecycle**
 
 - Surface: a VST3 host.
 - Goal: open, resize, close, and reopen the editor while audio remains unchanged.
@@ -14342,7 +14342,7 @@ Record monitor chain, playback level, room correction, host rate, block size, qu
 
 ### 27.1 DXF room shell
 
-**Asset card: DXF room shell - Import**
+**Asset card: DXF room shell: Import**
 
 - Asset: DXF room shell.
 - Lifecycle stage: Import.
@@ -14358,7 +14358,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: DXF room shell - Validate**
+**Asset card: DXF room shell: Validate**
 
 - Asset: DXF room shell.
 - Lifecycle stage: Validate.
@@ -14374,7 +14374,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: DXF room shell - Prepare and cache**
+**Asset card: DXF room shell: Prepare and cache**
 
 - Asset: DXF room shell.
 - Lifecycle stage: Prepare and cache.
@@ -14390,7 +14390,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: DXF room shell - Recall**
+**Asset card: DXF room shell: Recall**
 
 - Asset: DXF room shell.
 - Lifecycle stage: Recall.
@@ -14408,7 +14408,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 ### 27.2 Early-reflection profile
 
-**Asset card: Early-reflection profile - Import**
+**Asset card: Early-reflection profile: Import**
 
 - Asset: Early-reflection profile.
 - Lifecycle stage: Import.
@@ -14424,7 +14424,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Early-reflection profile - Validate**
+**Asset card: Early-reflection profile: Validate**
 
 - Asset: Early-reflection profile.
 - Lifecycle stage: Validate.
@@ -14440,7 +14440,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Early-reflection profile - Prepare and cache**
+**Asset card: Early-reflection profile: Prepare and cache**
 
 - Asset: Early-reflection profile.
 - Lifecycle stage: Prepare and cache.
@@ -14456,7 +14456,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Early-reflection profile - Recall**
+**Asset card: Early-reflection profile: Recall**
 
 - Asset: Early-reflection profile.
 - Lifecycle stage: Recall.
@@ -14474,7 +14474,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 ### 27.3 Measured impulse response
 
-**Asset card: Measured impulse response - Import**
+**Asset card: Measured impulse response: Import**
 
 - Asset: Measured impulse response.
 - Lifecycle stage: Import.
@@ -14490,7 +14490,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Measured impulse response - Validate**
+**Asset card: Measured impulse response: Validate**
 
 - Asset: Measured impulse response.
 - Lifecycle stage: Validate.
@@ -14506,7 +14506,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Measured impulse response - Prepare and cache**
+**Asset card: Measured impulse response: Prepare and cache**
 
 - Asset: Measured impulse response.
 - Lifecycle stage: Prepare and cache.
@@ -14522,7 +14522,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Measured impulse response - Recall**
+**Asset card: Measured impulse response: Recall**
 
 - Asset: Measured impulse response.
 - Lifecycle stage: Recall.
@@ -14540,7 +14540,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 ### 27.4 Generated impulse response
 
-**Asset card: Generated impulse response - Import**
+**Asset card: Generated impulse response: Import**
 
 - Asset: Generated impulse response.
 - Lifecycle stage: Import.
@@ -14556,7 +14556,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Generated impulse response - Validate**
+**Asset card: Generated impulse response: Validate**
 
 - Asset: Generated impulse response.
 - Lifecycle stage: Validate.
@@ -14572,7 +14572,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Generated impulse response - Prepare and cache**
+**Asset card: Generated impulse response: Prepare and cache**
 
 - Asset: Generated impulse response.
 - Lifecycle stage: Prepare and cache.
@@ -14588,7 +14588,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Generated impulse response - Recall**
+**Asset card: Generated impulse response: Recall**
 
 - Asset: Generated impulse response.
 - Lifecycle stage: Recall.
@@ -14606,7 +14606,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 ### 27.5 Material library
 
-**Asset card: Material library - Import**
+**Asset card: Material library: Import**
 
 - Asset: Material library.
 - Lifecycle stage: Import.
@@ -14622,7 +14622,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Material library - Validate**
+**Asset card: Material library: Validate**
 
 - Asset: Material library.
 - Lifecycle stage: Validate.
@@ -14638,7 +14638,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Material library - Prepare and cache**
+**Asset card: Material library: Prepare and cache**
 
 - Asset: Material library.
 - Lifecycle stage: Prepare and cache.
@@ -14654,7 +14654,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Material library - Recall**
+**Asset card: Material library: Recall**
 
 - Asset: Material library.
 - Lifecycle stage: Recall.
@@ -14672,7 +14672,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 ### 27.6 Preset bank
 
-**Asset card: Preset bank - Import**
+**Asset card: Preset bank: Import**
 
 - Asset: Preset bank.
 - Lifecycle stage: Import.
@@ -14688,7 +14688,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Preset bank - Validate**
+**Asset card: Preset bank: Validate**
 
 - Asset: Preset bank.
 - Lifecycle stage: Validate.
@@ -14704,7 +14704,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Preset bank - Prepare and cache**
+**Asset card: Preset bank: Prepare and cache**
 
 - Asset: Preset bank.
 - Lifecycle stage: Prepare and cache.
@@ -14720,7 +14720,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Preset bank - Recall**
+**Asset card: Preset bank: Recall**
 
 - Asset: Preset bank.
 - Lifecycle stage: Recall.
@@ -14738,7 +14738,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 ### 27.7 Telemetry configuration
 
-**Asset card: Telemetry configuration - Import**
+**Asset card: Telemetry configuration: Import**
 
 - Asset: Telemetry configuration.
 - Lifecycle stage: Import.
@@ -14754,7 +14754,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Telemetry configuration - Validate**
+**Asset card: Telemetry configuration: Validate**
 
 - Asset: Telemetry configuration.
 - Lifecycle stage: Validate.
@@ -14770,7 +14770,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Telemetry configuration - Prepare and cache**
+**Asset card: Telemetry configuration: Prepare and cache**
 
 - Asset: Telemetry configuration.
 - Lifecycle stage: Prepare and cache.
@@ -14786,7 +14786,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: Telemetry configuration - Recall**
+**Asset card: Telemetry configuration: Recall**
 
 - Asset: Telemetry configuration.
 - Lifecycle stage: Recall.
@@ -14804,7 +14804,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 ### 27.8 HRTF or SOFA set
 
-**Asset card: HRTF or SOFA set - Import**
+**Asset card: HRTF or SOFA set: Import**
 
 - Asset: HRTF or SOFA set.
 - Lifecycle stage: Import.
@@ -14820,7 +14820,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: HRTF or SOFA set - Validate**
+**Asset card: HRTF or SOFA set: Validate**
 
 - Asset: HRTF or SOFA set.
 - Lifecycle stage: Validate.
@@ -14836,7 +14836,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: HRTF or SOFA set - Prepare and cache**
+**Asset card: HRTF or SOFA set: Prepare and cache**
 
 - Asset: HRTF or SOFA set.
 - Lifecycle stage: Prepare and cache.
@@ -14852,7 +14852,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 \newpage
 
-**Asset card: HRTF or SOFA set - Recall**
+**Asset card: HRTF or SOFA set: Recall**
 
 - Asset: HRTF or SOFA set.
 - Lifecycle stage: Recall.
@@ -14872,7 +14872,7 @@ Test missing, moved, corrupted, oversized, unsupported, and version-mismatched c
 
 ### 28.1 Scanning
 
-**Release card: macOS AU - Scanning**
+**Release card: macOS AU: Scanning**
 
 - Target: macOS AU.
 - Target scope: desktop Audio Unit hosts and Apple validation tooling.
@@ -14888,7 +14888,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: macOS AUv3 - Scanning**
+**Release card: macOS AUv3: Scanning**
 
 - Target: macOS AUv3.
 - Target scope: sandboxed extension lifecycle and AUv3-capable hosts.
@@ -14904,7 +14904,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: VST3 - Scanning**
+**Release card: VST3: Scanning**
 
 - Target: VST3.
 - Target scope: VST3 scanning, component/controller state, and supported desktop hosts.
@@ -14922,7 +14922,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 ### 28.2 State
 
-**Release card: macOS AU - State**
+**Release card: macOS AU: State**
 
 - Target: macOS AU.
 - Target scope: desktop Audio Unit hosts and Apple validation tooling.
@@ -14938,7 +14938,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: macOS AUv3 - State**
+**Release card: macOS AUv3: State**
 
 - Target: macOS AUv3.
 - Target scope: sandboxed extension lifecycle and AUv3-capable hosts.
@@ -14954,7 +14954,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: VST3 - State**
+**Release card: VST3: State**
 
 - Target: VST3.
 - Target scope: VST3 scanning, component/controller state, and supported desktop hosts.
@@ -14972,7 +14972,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 ### 28.3 Audio
 
-**Release card: macOS AU - Audio**
+**Release card: macOS AU: Audio**
 
 - Target: macOS AU.
 - Target scope: desktop Audio Unit hosts and Apple validation tooling.
@@ -14988,7 +14988,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: macOS AUv3 - Audio**
+**Release card: macOS AUv3: Audio**
 
 - Target: macOS AUv3.
 - Target scope: sandboxed extension lifecycle and AUv3-capable hosts.
@@ -15004,7 +15004,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: VST3 - Audio**
+**Release card: VST3: Audio**
 
 - Target: VST3.
 - Target scope: VST3 scanning, component/controller state, and supported desktop hosts.
@@ -15022,7 +15022,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 ### 28.4 Automation
 
-**Release card: macOS AU - Automation**
+**Release card: macOS AU: Automation**
 
 - Target: macOS AU.
 - Target scope: desktop Audio Unit hosts and Apple validation tooling.
@@ -15038,7 +15038,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: macOS AUv3 - Automation**
+**Release card: macOS AUv3: Automation**
 
 - Target: macOS AUv3.
 - Target scope: sandboxed extension lifecycle and AUv3-capable hosts.
@@ -15054,7 +15054,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: VST3 - Automation**
+**Release card: VST3: Automation**
 
 - Target: VST3.
 - Target scope: VST3 scanning, component/controller state, and supported desktop hosts.
@@ -15072,7 +15072,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 ### 28.5 Latency
 
-**Release card: macOS AU - Latency**
+**Release card: macOS AU: Latency**
 
 - Target: macOS AU.
 - Target scope: desktop Audio Unit hosts and Apple validation tooling.
@@ -15088,7 +15088,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: macOS AUv3 - Latency**
+**Release card: macOS AUv3: Latency**
 
 - Target: macOS AUv3.
 - Target scope: sandboxed extension lifecycle and AUv3-capable hosts.
@@ -15104,7 +15104,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: VST3 - Latency**
+**Release card: VST3: Latency**
 
 - Target: VST3.
 - Target scope: VST3 scanning, component/controller state, and supported desktop hosts.
@@ -15122,7 +15122,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 ### 28.6 Performance
 
-**Release card: macOS AU - Performance**
+**Release card: macOS AU: Performance**
 
 - Target: macOS AU.
 - Target scope: desktop Audio Unit hosts and Apple validation tooling.
@@ -15138,7 +15138,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: macOS AUv3 - Performance**
+**Release card: macOS AUv3: Performance**
 
 - Target: macOS AUv3.
 - Target scope: sandboxed extension lifecycle and AUv3-capable hosts.
@@ -15154,7 +15154,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: VST3 - Performance**
+**Release card: VST3: Performance**
 
 - Target: VST3.
 - Target scope: VST3 scanning, component/controller state, and supported desktop hosts.
@@ -15172,7 +15172,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 ### 28.7 Editor
 
-**Release card: macOS AU - Editor**
+**Release card: macOS AU: Editor**
 
 - Target: macOS AU.
 - Target scope: desktop Audio Unit hosts and Apple validation tooling.
@@ -15188,7 +15188,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: macOS AUv3 - Editor**
+**Release card: macOS AUv3: Editor**
 
 - Target: macOS AUv3.
 - Target scope: sandboxed extension lifecycle and AUv3-capable hosts.
@@ -15204,7 +15204,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: VST3 - Editor**
+**Release card: VST3: Editor**
 
 - Target: VST3.
 - Target scope: VST3 scanning, component/controller state, and supported desktop hosts.
@@ -15222,7 +15222,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 ### 28.8 Distribution
 
-**Release card: macOS AU - Distribution**
+**Release card: macOS AU: Distribution**
 
 - Target: macOS AU.
 - Target scope: desktop Audio Unit hosts and Apple validation tooling.
@@ -15238,7 +15238,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: macOS AUv3 - Distribution**
+**Release card: macOS AUv3: Distribution**
 
 - Target: macOS AUv3.
 - Target scope: sandboxed extension lifecycle and AUv3-capable hosts.
@@ -15254,7 +15254,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: VST3 - Distribution**
+**Release card: VST3: Distribution**
 
 - Target: VST3.
 - Target scope: VST3 scanning, component/controller state, and supported desktop hosts.
@@ -15272,7 +15272,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 ### 28.9 Diagnostics
 
-**Release card: macOS AU - Diagnostics**
+**Release card: macOS AU: Diagnostics**
 
 - Target: macOS AU.
 - Target scope: desktop Audio Unit hosts and Apple validation tooling.
@@ -15288,7 +15288,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: macOS AUv3 - Diagnostics**
+**Release card: macOS AUv3: Diagnostics**
 
 - Target: macOS AUv3.
 - Target scope: sandboxed extension lifecycle and AUv3-capable hosts.
@@ -15304,7 +15304,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: VST3 - Diagnostics**
+**Release card: VST3: Diagnostics**
 
 - Target: VST3.
 - Target scope: VST3 scanning, component/controller state, and supported desktop hosts.
@@ -15322,7 +15322,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 ### 28.10 Documentation
 
-**Release card: macOS AU - Documentation**
+**Release card: macOS AU: Documentation**
 
 - Target: macOS AU.
 - Target scope: desktop Audio Unit hosts and Apple validation tooling.
@@ -15338,7 +15338,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: macOS AUv3 - Documentation**
+**Release card: macOS AUv3: Documentation**
 
 - Target: macOS AUv3.
 - Target scope: sandboxed extension lifecycle and AUv3-capable hosts.
@@ -15354,7 +15354,7 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 \newpage
 
-**Release card: VST3 - Documentation**
+**Release card: VST3: Documentation**
 
 - Target: VST3.
 - Target scope: VST3 scanning, component/controller state, and supported desktop hosts.
@@ -15374,10 +15374,10 @@ After fixing a failure, rerun the focused reproduction and the neighboring gates
 
 ### 29.1 Mono
 
-**Bus card: Mono - Algorithmic**
+**Bus card: Mono: Algorithmic**
 
-- Layout: Mono - one matched input and output channel with no hidden stereo assumptions.
-- Processing mode: Algorithmic - the core FDN/diffuser path with matched input/output layout.
+- Layout: Mono: one matched input and output channel with no hidden stereo assumptions.
+- Processing mode: Algorithmic: the core FDN/diffuser path with matched input/output layout.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15390,10 +15390,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: Mono - Reverse**
+**Bus card: Mono: Reverse**
 
-- Layout: Mono - one matched input and output channel with no hidden stereo assumptions.
-- Processing mode: Reverse - the bounded reverse window, channel alignment, and reported latency.
+- Layout: Mono: one matched input and output channel with no hidden stereo assumptions.
+- Processing mode: Reverse: the bounded reverse window, channel alignment, and reported latency.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15406,10 +15406,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: Mono - Freeze**
+**Bus card: Mono: Freeze**
 
-- Layout: Mono - one matched input and output channel with no hidden stereo assumptions.
-- Processing mode: Freeze - sustained energy, channel stability, exit behavior, and safety limiting.
+- Layout: Mono: one matched input and output channel with no hidden stereo assumptions.
+- Processing mode: Freeze: sustained energy, channel stability, exit behavior, and safety limiting.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15422,10 +15422,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: Mono - Geometry or IR**
+**Bus card: Mono: Geometry or IR**
 
-- Layout: Mono - one matched input and output channel with no hidden stereo assumptions.
-- Processing mode: Geometry or IR - prepared spatial assets, channel metadata, and deterministic fallback.
+- Layout: Mono: one matched input and output channel with no hidden stereo assumptions.
+- Processing mode: Geometry or IR: prepared spatial assets, channel metadata, and deterministic fallback.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15440,10 +15440,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 ### 29.2 Stereo
 
-**Bus card: Stereo - Algorithmic**
+**Bus card: Stereo: Algorithmic**
 
-- Layout: Stereo - matched left/right buses, stable center, width, correlation, and mono fold-down.
-- Processing mode: Algorithmic - the core FDN/diffuser path with matched input/output layout.
+- Layout: Stereo: matched left/right buses, stable center, width, correlation, and mono fold-down.
+- Processing mode: Algorithmic: the core FDN/diffuser path with matched input/output layout.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15456,10 +15456,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: Stereo - Reverse**
+**Bus card: Stereo: Reverse**
 
-- Layout: Stereo - matched left/right buses, stable center, width, correlation, and mono fold-down.
-- Processing mode: Reverse - the bounded reverse window, channel alignment, and reported latency.
+- Layout: Stereo: matched left/right buses, stable center, width, correlation, and mono fold-down.
+- Processing mode: Reverse: the bounded reverse window, channel alignment, and reported latency.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15472,10 +15472,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: Stereo - Freeze**
+**Bus card: Stereo: Freeze**
 
-- Layout: Stereo - matched left/right buses, stable center, width, correlation, and mono fold-down.
-- Processing mode: Freeze - sustained energy, channel stability, exit behavior, and safety limiting.
+- Layout: Stereo: matched left/right buses, stable center, width, correlation, and mono fold-down.
+- Processing mode: Freeze: sustained energy, channel stability, exit behavior, and safety limiting.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15488,10 +15488,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: Stereo - Geometry or IR**
+**Bus card: Stereo: Geometry or IR**
 
-- Layout: Stereo - matched left/right buses, stable center, width, correlation, and mono fold-down.
-- Processing mode: Geometry or IR - prepared spatial assets, channel metadata, and deterministic fallback.
+- Layout: Stereo: matched left/right buses, stable center, width, correlation, and mono fold-down.
+- Processing mode: Geometry or IR: prepared spatial assets, channel metadata, and deterministic fallback.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15506,10 +15506,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 ### 29.3 5.1
 
-**Bus card: 5.1 - Algorithmic**
+**Bus card: 5.1: Algorithmic**
 
-- Layout: 5.1 - explicit L/R/C/LFE/Ls/Rs routing and a declared LFE policy.
-- Processing mode: Algorithmic - the core FDN/diffuser path with matched input/output layout.
+- Layout: 5.1: explicit L/R/C/LFE/Ls/Rs routing and a declared LFE policy.
+- Processing mode: Algorithmic: the core FDN/diffuser path with matched input/output layout.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15522,10 +15522,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: 5.1 - Reverse**
+**Bus card: 5.1: Reverse**
 
-- Layout: 5.1 - explicit L/R/C/LFE/Ls/Rs routing and a declared LFE policy.
-- Processing mode: Reverse - the bounded reverse window, channel alignment, and reported latency.
+- Layout: 5.1: explicit L/R/C/LFE/Ls/Rs routing and a declared LFE policy.
+- Processing mode: Reverse: the bounded reverse window, channel alignment, and reported latency.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15538,10 +15538,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: 5.1 - Freeze**
+**Bus card: 5.1: Freeze**
 
-- Layout: 5.1 - explicit L/R/C/LFE/Ls/Rs routing and a declared LFE policy.
-- Processing mode: Freeze - sustained energy, channel stability, exit behavior, and safety limiting.
+- Layout: 5.1: explicit L/R/C/LFE/Ls/Rs routing and a declared LFE policy.
+- Processing mode: Freeze: sustained energy, channel stability, exit behavior, and safety limiting.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15554,10 +15554,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: 5.1 - Geometry or IR**
+**Bus card: 5.1: Geometry or IR**
 
-- Layout: 5.1 - explicit L/R/C/LFE/Ls/Rs routing and a declared LFE policy.
-- Processing mode: Geometry or IR - prepared spatial assets, channel metadata, and deterministic fallback.
+- Layout: 5.1: explicit L/R/C/LFE/Ls/Rs routing and a declared LFE policy.
+- Processing mode: Geometry or IR: prepared spatial assets, channel metadata, and deterministic fallback.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15572,10 +15572,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 ### 29.4 7.1
 
-**Bus card: 7.1 - Algorithmic**
+**Bus card: 7.1: Algorithmic**
 
-- Layout: 7.1 - side/rear separation, normalization, and host channel-order verification.
-- Processing mode: Algorithmic - the core FDN/diffuser path with matched input/output layout.
+- Layout: 7.1: side/rear separation, normalization, and host channel-order verification.
+- Processing mode: Algorithmic: the core FDN/diffuser path with matched input/output layout.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15588,10 +15588,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: 7.1 - Reverse**
+**Bus card: 7.1: Reverse**
 
-- Layout: 7.1 - side/rear separation, normalization, and host channel-order verification.
-- Processing mode: Reverse - the bounded reverse window, channel alignment, and reported latency.
+- Layout: 7.1: side/rear separation, normalization, and host channel-order verification.
+- Processing mode: Reverse: the bounded reverse window, channel alignment, and reported latency.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15604,10 +15604,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: 7.1 - Freeze**
+**Bus card: 7.1: Freeze**
 
-- Layout: 7.1 - side/rear separation, normalization, and host channel-order verification.
-- Processing mode: Freeze - sustained energy, channel stability, exit behavior, and safety limiting.
+- Layout: 7.1: side/rear separation, normalization, and host channel-order verification.
+- Processing mode: Freeze: sustained energy, channel stability, exit behavior, and safety limiting.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15620,10 +15620,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: 7.1 - Geometry or IR**
+**Bus card: 7.1: Geometry or IR**
 
-- Layout: 7.1 - side/rear separation, normalization, and host channel-order verification.
-- Processing mode: Geometry or IR - prepared spatial assets, channel metadata, and deterministic fallback.
+- Layout: 7.1: side/rear separation, normalization, and host channel-order verification.
+- Processing mode: Geometry or IR: prepared spatial assets, channel metadata, and deterministic fallback.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15638,10 +15638,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 ### 29.5 7.1.4
 
-**Bus card: 7.1.4 - Algorithmic**
+**Bus card: 7.1.4: Algorithmic**
 
-- Layout: 7.1.4 - bed plus height routing, elevation behavior, and immersive meter coverage.
-- Processing mode: Algorithmic - the core FDN/diffuser path with matched input/output layout.
+- Layout: 7.1.4: bed plus height routing, elevation behavior, and immersive meter coverage.
+- Processing mode: Algorithmic: the core FDN/diffuser path with matched input/output layout.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15654,10 +15654,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: 7.1.4 - Reverse**
+**Bus card: 7.1.4: Reverse**
 
-- Layout: 7.1.4 - bed plus height routing, elevation behavior, and immersive meter coverage.
-- Processing mode: Reverse - the bounded reverse window, channel alignment, and reported latency.
+- Layout: 7.1.4: bed plus height routing, elevation behavior, and immersive meter coverage.
+- Processing mode: Reverse: the bounded reverse window, channel alignment, and reported latency.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15670,10 +15670,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: 7.1.4 - Freeze**
+**Bus card: 7.1.4: Freeze**
 
-- Layout: 7.1.4 - bed plus height routing, elevation behavior, and immersive meter coverage.
-- Processing mode: Freeze - sustained energy, channel stability, exit behavior, and safety limiting.
+- Layout: 7.1.4: bed plus height routing, elevation behavior, and immersive meter coverage.
+- Processing mode: Freeze: sustained energy, channel stability, exit behavior, and safety limiting.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15686,10 +15686,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: 7.1.4 - Geometry or IR**
+**Bus card: 7.1.4: Geometry or IR**
 
-- Layout: 7.1.4 - bed plus height routing, elevation behavior, and immersive meter coverage.
-- Processing mode: Geometry or IR - prepared spatial assets, channel metadata, and deterministic fallback.
+- Layout: 7.1.4: bed plus height routing, elevation behavior, and immersive meter coverage.
+- Processing mode: Geometry or IR: prepared spatial assets, channel metadata, and deterministic fallback.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15704,10 +15704,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 ### 29.6 First-order ambisonics
 
-**Bus card: First-order ambisonics - Algorithmic**
+**Bus card: First-order ambisonics: Algorithmic**
 
-- Layout: First-order ambisonics - ACN/SN3D ordering, rotation behavior, and decoder-independent energy.
-- Processing mode: Algorithmic - the core FDN/diffuser path with matched input/output layout.
+- Layout: First-order ambisonics: ACN/SN3D ordering, rotation behavior, and decoder-independent energy.
+- Processing mode: Algorithmic: the core FDN/diffuser path with matched input/output layout.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15720,10 +15720,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: First-order ambisonics - Reverse**
+**Bus card: First-order ambisonics: Reverse**
 
-- Layout: First-order ambisonics - ACN/SN3D ordering, rotation behavior, and decoder-independent energy.
-- Processing mode: Reverse - the bounded reverse window, channel alignment, and reported latency.
+- Layout: First-order ambisonics: ACN/SN3D ordering, rotation behavior, and decoder-independent energy.
+- Processing mode: Reverse: the bounded reverse window, channel alignment, and reported latency.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15736,10 +15736,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: First-order ambisonics - Freeze**
+**Bus card: First-order ambisonics: Freeze**
 
-- Layout: First-order ambisonics - ACN/SN3D ordering, rotation behavior, and decoder-independent energy.
-- Processing mode: Freeze - sustained energy, channel stability, exit behavior, and safety limiting.
+- Layout: First-order ambisonics: ACN/SN3D ordering, rotation behavior, and decoder-independent energy.
+- Processing mode: Freeze: sustained energy, channel stability, exit behavior, and safety limiting.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15752,10 +15752,10 @@ Save and reopen the host project, then change to another supported layout and ba
 
 \newpage
 
-**Bus card: First-order ambisonics - Geometry or IR**
+**Bus card: First-order ambisonics: Geometry or IR**
 
-- Layout: First-order ambisonics - ACN/SN3D ordering, rotation behavior, and decoder-independent energy.
-- Processing mode: Geometry or IR - prepared spatial assets, channel metadata, and deterministic fallback.
+- Layout: First-order ambisonics: ACN/SN3D ordering, rotation behavior, and decoder-independent energy.
+- Processing mode: Geometry or IR: prepared spatial assets, channel metadata, and deterministic fallback.
 - Foundation status: mono/stereo only; larger layouts are future validation protocols.
 - Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.
 
@@ -15774,7 +15774,7 @@ Save and reopen the host project, then change to another supported layout and ba
 
 **Signal-test card: Pre-Delay with Digital silence**
 
-- Parameter: `pre_delay_ms` - separates the direct event from the room onset.
+- Parameter: `pre_delay_ms`: separates the direct event from the room onset.
 - Signal: Digital silence.
 - Observation goal: detect denormals, stale buffers, uninitialized state, and noise-floor growth.
 - Required transition behavior: use a ramp or delay-line crossfade.
@@ -15790,7 +15790,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Pre-Delay with Single-sample impulse**
 
-- Parameter: `pre_delay_ms` - separates the direct event from the room onset.
+- Parameter: `pre_delay_ms`: separates the direct event from the room onset.
 - Signal: Single-sample impulse.
 - Observation goal: reveal latency, early reflections, channel routing, and deterministic tail shape.
 - Required transition behavior: use a ramp or delay-line crossfade.
@@ -15806,7 +15806,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Pre-Delay with Full-scale alternating impulses**
 
-- Parameter: `pre_delay_ms` - separates the direct event from the room onset.
+- Parameter: `pre_delay_ms`: separates the direct event from the room onset.
 - Signal: Full-scale alternating impulses.
 - Observation goal: stress headroom, limiter response, mode transitions, and sign symmetry.
 - Required transition behavior: use a ramp or delay-line crossfade.
@@ -15822,7 +15822,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Pre-Delay with 80 Hz sine**
 
-- Parameter: `pre_delay_ms` - separates the direct event from the room onset.
+- Parameter: `pre_delay_ms`: separates the direct event from the room onset.
 - Signal: 80 Hz sine.
 - Observation goal: expose low-frequency decay, modulation, modal buildup, and channel phase differences.
 - Required transition behavior: use a ramp or delay-line crossfade.
@@ -15838,7 +15838,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Pre-Delay with 8 kHz sine**
 
-- Parameter: `pre_delay_ms` - separates the direct event from the room onset.
+- Parameter: `pre_delay_ms`: separates the direct event from the room onset.
 - Signal: 8 kHz sine.
 - Observation goal: expose damping, interpolation, aliasing, and high-frequency stability.
 - Required transition behavior: use a ramp or delay-line crossfade.
@@ -15854,7 +15854,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Pre-Delay with Pink noise burst**
 
-- Parameter: `pre_delay_ms` - separates the direct event from the room onset.
+- Parameter: `pre_delay_ms`: separates the direct event from the room onset.
 - Signal: Pink noise burst.
 - Observation goal: show broadband spectral decay, gain behavior, and early/late balance.
 - Required transition behavior: use a ramp or delay-line crossfade.
@@ -15870,7 +15870,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Pre-Delay with Dry speech phrase**
 
-- Parameter: `pre_delay_ms` - separates the direct event from the room onset.
+- Parameter: `pre_delay_ms`: separates the direct event from the room onset.
 - Signal: Dry speech phrase.
 - Observation goal: test intelligibility, sibilance, plosives, pre-delay, and ducking behavior.
 - Required transition behavior: use a ramp or delay-line crossfade.
@@ -15886,7 +15886,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Pre-Delay with Transient drum loop**
 
-- Parameter: `pre_delay_ms` - separates the direct event from the room onset.
+- Parameter: `pre_delay_ms`: separates the direct event from the room onset.
 - Signal: Transient drum loop.
 - Observation goal: test attack preservation, density buildup, tempo interaction, and peak safety.
 - Required transition behavior: use a ramp or delay-line crossfade.
@@ -15902,7 +15902,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Pre-Delay with Sustained harmonic pad**
 
-- Parameter: `pre_delay_ms` - separates the direct event from the room onset.
+- Parameter: `pre_delay_ms`: separates the direct event from the room onset.
 - Signal: Sustained harmonic pad.
 - Observation goal: test modulation smoothness, correlation, freeze energy, and long-term stability.
 - Required transition behavior: use a ramp or delay-line crossfade.
@@ -15918,7 +15918,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Pre-Delay with Sixty-second tail capture**
 
-- Parameter: `pre_delay_ms` - separates the direct event from the room onset.
+- Parameter: `pre_delay_ms`: separates the direct event from the room onset.
 - Signal: Sixty-second tail capture.
 - Observation goal: test memory stability, decay completion, noise floor, and repeatability.
 - Required transition behavior: use a ramp or delay-line crossfade.
@@ -15936,7 +15936,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Room Size with Digital silence**
 
-- Parameter: `room_size` - changes perceived scale and reflection spacing.
+- Parameter: `room_size`: changes perceived scale and reflection spacing.
 - Signal: Digital silence.
 - Observation goal: detect denormals, stale buffers, uninitialized state, and noise-floor growth.
 - Required transition behavior: stage structural changes outside the callback.
@@ -15952,7 +15952,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Room Size with Single-sample impulse**
 
-- Parameter: `room_size` - changes perceived scale and reflection spacing.
+- Parameter: `room_size`: changes perceived scale and reflection spacing.
 - Signal: Single-sample impulse.
 - Observation goal: reveal latency, early reflections, channel routing, and deterministic tail shape.
 - Required transition behavior: stage structural changes outside the callback.
@@ -15968,7 +15968,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Room Size with Full-scale alternating impulses**
 
-- Parameter: `room_size` - changes perceived scale and reflection spacing.
+- Parameter: `room_size`: changes perceived scale and reflection spacing.
 - Signal: Full-scale alternating impulses.
 - Observation goal: stress headroom, limiter response, mode transitions, and sign symmetry.
 - Required transition behavior: stage structural changes outside the callback.
@@ -15984,7 +15984,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Room Size with 80 Hz sine**
 
-- Parameter: `room_size` - changes perceived scale and reflection spacing.
+- Parameter: `room_size`: changes perceived scale and reflection spacing.
 - Signal: 80 Hz sine.
 - Observation goal: expose low-frequency decay, modulation, modal buildup, and channel phase differences.
 - Required transition behavior: stage structural changes outside the callback.
@@ -16000,7 +16000,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Room Size with 8 kHz sine**
 
-- Parameter: `room_size` - changes perceived scale and reflection spacing.
+- Parameter: `room_size`: changes perceived scale and reflection spacing.
 - Signal: 8 kHz sine.
 - Observation goal: expose damping, interpolation, aliasing, and high-frequency stability.
 - Required transition behavior: stage structural changes outside the callback.
@@ -16016,7 +16016,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Room Size with Pink noise burst**
 
-- Parameter: `room_size` - changes perceived scale and reflection spacing.
+- Parameter: `room_size`: changes perceived scale and reflection spacing.
 - Signal: Pink noise burst.
 - Observation goal: show broadband spectral decay, gain behavior, and early/late balance.
 - Required transition behavior: stage structural changes outside the callback.
@@ -16032,7 +16032,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Room Size with Dry speech phrase**
 
-- Parameter: `room_size` - changes perceived scale and reflection spacing.
+- Parameter: `room_size`: changes perceived scale and reflection spacing.
 - Signal: Dry speech phrase.
 - Observation goal: test intelligibility, sibilance, plosives, pre-delay, and ducking behavior.
 - Required transition behavior: stage structural changes outside the callback.
@@ -16048,7 +16048,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Room Size with Transient drum loop**
 
-- Parameter: `room_size` - changes perceived scale and reflection spacing.
+- Parameter: `room_size`: changes perceived scale and reflection spacing.
 - Signal: Transient drum loop.
 - Observation goal: test attack preservation, density buildup, tempo interaction, and peak safety.
 - Required transition behavior: stage structural changes outside the callback.
@@ -16064,7 +16064,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Room Size with Sustained harmonic pad**
 
-- Parameter: `room_size` - changes perceived scale and reflection spacing.
+- Parameter: `room_size`: changes perceived scale and reflection spacing.
 - Signal: Sustained harmonic pad.
 - Observation goal: test modulation smoothness, correlation, freeze energy, and long-term stability.
 - Required transition behavior: stage structural changes outside the callback.
@@ -16080,7 +16080,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Room Size with Sixty-second tail capture**
 
-- Parameter: `room_size` - changes perceived scale and reflection spacing.
+- Parameter: `room_size`: changes perceived scale and reflection spacing.
 - Signal: Sixty-second tail capture.
 - Observation goal: test memory stability, decay completion, noise floor, and repeatability.
 - Required transition behavior: stage structural changes outside the callback.
@@ -16098,7 +16098,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Coarse with Digital silence**
 
-- Parameter: `rt60_coarse` - moves through the full logarithmic decay range.
+- Parameter: `rt60_coarse`: moves through the full logarithmic decay range.
 - Signal: Digital silence.
 - Observation goal: detect denormals, stale buffers, uninitialized state, and noise-floor growth.
 - Required transition behavior: display the effective seconds value.
@@ -16114,7 +16114,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Coarse with Single-sample impulse**
 
-- Parameter: `rt60_coarse` - moves through the full logarithmic decay range.
+- Parameter: `rt60_coarse`: moves through the full logarithmic decay range.
 - Signal: Single-sample impulse.
 - Observation goal: reveal latency, early reflections, channel routing, and deterministic tail shape.
 - Required transition behavior: display the effective seconds value.
@@ -16130,7 +16130,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Coarse with Full-scale alternating impulses**
 
-- Parameter: `rt60_coarse` - moves through the full logarithmic decay range.
+- Parameter: `rt60_coarse`: moves through the full logarithmic decay range.
 - Signal: Full-scale alternating impulses.
 - Observation goal: stress headroom, limiter response, mode transitions, and sign symmetry.
 - Required transition behavior: display the effective seconds value.
@@ -16146,7 +16146,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Coarse with 80 Hz sine**
 
-- Parameter: `rt60_coarse` - moves through the full logarithmic decay range.
+- Parameter: `rt60_coarse`: moves through the full logarithmic decay range.
 - Signal: 80 Hz sine.
 - Observation goal: expose low-frequency decay, modulation, modal buildup, and channel phase differences.
 - Required transition behavior: display the effective seconds value.
@@ -16162,7 +16162,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Coarse with 8 kHz sine**
 
-- Parameter: `rt60_coarse` - moves through the full logarithmic decay range.
+- Parameter: `rt60_coarse`: moves through the full logarithmic decay range.
 - Signal: 8 kHz sine.
 - Observation goal: expose damping, interpolation, aliasing, and high-frequency stability.
 - Required transition behavior: display the effective seconds value.
@@ -16178,7 +16178,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Coarse with Pink noise burst**
 
-- Parameter: `rt60_coarse` - moves through the full logarithmic decay range.
+- Parameter: `rt60_coarse`: moves through the full logarithmic decay range.
 - Signal: Pink noise burst.
 - Observation goal: show broadband spectral decay, gain behavior, and early/late balance.
 - Required transition behavior: display the effective seconds value.
@@ -16194,7 +16194,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Coarse with Dry speech phrase**
 
-- Parameter: `rt60_coarse` - moves through the full logarithmic decay range.
+- Parameter: `rt60_coarse`: moves through the full logarithmic decay range.
 - Signal: Dry speech phrase.
 - Observation goal: test intelligibility, sibilance, plosives, pre-delay, and ducking behavior.
 - Required transition behavior: display the effective seconds value.
@@ -16210,7 +16210,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Coarse with Transient drum loop**
 
-- Parameter: `rt60_coarse` - moves through the full logarithmic decay range.
+- Parameter: `rt60_coarse`: moves through the full logarithmic decay range.
 - Signal: Transient drum loop.
 - Observation goal: test attack preservation, density buildup, tempo interaction, and peak safety.
 - Required transition behavior: display the effective seconds value.
@@ -16226,7 +16226,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Coarse with Sustained harmonic pad**
 
-- Parameter: `rt60_coarse` - moves through the full logarithmic decay range.
+- Parameter: `rt60_coarse`: moves through the full logarithmic decay range.
 - Signal: Sustained harmonic pad.
 - Observation goal: test modulation smoothness, correlation, freeze energy, and long-term stability.
 - Required transition behavior: display the effective seconds value.
@@ -16242,7 +16242,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Coarse with Sixty-second tail capture**
 
-- Parameter: `rt60_coarse` - moves through the full logarithmic decay range.
+- Parameter: `rt60_coarse`: moves through the full logarithmic decay range.
 - Signal: Sixty-second tail capture.
 - Observation goal: test memory stability, decay completion, noise floor, and repeatability.
 - Required transition behavior: display the effective seconds value.
@@ -16260,7 +16260,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Fine with Digital silence**
 
-- Parameter: `rt60_fine` - trims decay proportionally around the coarse value.
+- Parameter: `rt60_fine`: trims decay proportionally around the coarse value.
 - Signal: Digital silence.
 - Observation goal: detect denormals, stale buffers, uninitialized state, and noise-floor growth.
 - Required transition behavior: keep zero as the exact neutral point.
@@ -16276,7 +16276,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Fine with Single-sample impulse**
 
-- Parameter: `rt60_fine` - trims decay proportionally around the coarse value.
+- Parameter: `rt60_fine`: trims decay proportionally around the coarse value.
 - Signal: Single-sample impulse.
 - Observation goal: reveal latency, early reflections, channel routing, and deterministic tail shape.
 - Required transition behavior: keep zero as the exact neutral point.
@@ -16292,7 +16292,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Fine with Full-scale alternating impulses**
 
-- Parameter: `rt60_fine` - trims decay proportionally around the coarse value.
+- Parameter: `rt60_fine`: trims decay proportionally around the coarse value.
 - Signal: Full-scale alternating impulses.
 - Observation goal: stress headroom, limiter response, mode transitions, and sign symmetry.
 - Required transition behavior: keep zero as the exact neutral point.
@@ -16308,7 +16308,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Fine with 80 Hz sine**
 
-- Parameter: `rt60_fine` - trims decay proportionally around the coarse value.
+- Parameter: `rt60_fine`: trims decay proportionally around the coarse value.
 - Signal: 80 Hz sine.
 - Observation goal: expose low-frequency decay, modulation, modal buildup, and channel phase differences.
 - Required transition behavior: keep zero as the exact neutral point.
@@ -16324,7 +16324,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Fine with 8 kHz sine**
 
-- Parameter: `rt60_fine` - trims decay proportionally around the coarse value.
+- Parameter: `rt60_fine`: trims decay proportionally around the coarse value.
 - Signal: 8 kHz sine.
 - Observation goal: expose damping, interpolation, aliasing, and high-frequency stability.
 - Required transition behavior: keep zero as the exact neutral point.
@@ -16340,7 +16340,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Fine with Pink noise burst**
 
-- Parameter: `rt60_fine` - trims decay proportionally around the coarse value.
+- Parameter: `rt60_fine`: trims decay proportionally around the coarse value.
 - Signal: Pink noise burst.
 - Observation goal: show broadband spectral decay, gain behavior, and early/late balance.
 - Required transition behavior: keep zero as the exact neutral point.
@@ -16356,7 +16356,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Fine with Dry speech phrase**
 
-- Parameter: `rt60_fine` - trims decay proportionally around the coarse value.
+- Parameter: `rt60_fine`: trims decay proportionally around the coarse value.
 - Signal: Dry speech phrase.
 - Observation goal: test intelligibility, sibilance, plosives, pre-delay, and ducking behavior.
 - Required transition behavior: keep zero as the exact neutral point.
@@ -16372,7 +16372,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Fine with Transient drum loop**
 
-- Parameter: `rt60_fine` - trims decay proportionally around the coarse value.
+- Parameter: `rt60_fine`: trims decay proportionally around the coarse value.
 - Signal: Transient drum loop.
 - Observation goal: test attack preservation, density buildup, tempo interaction, and peak safety.
 - Required transition behavior: keep zero as the exact neutral point.
@@ -16388,7 +16388,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Fine with Sustained harmonic pad**
 
-- Parameter: `rt60_fine` - trims decay proportionally around the coarse value.
+- Parameter: `rt60_fine`: trims decay proportionally around the coarse value.
 - Signal: Sustained harmonic pad.
 - Observation goal: test modulation smoothness, correlation, freeze energy, and long-term stability.
 - Required transition behavior: keep zero as the exact neutral point.
@@ -16404,7 +16404,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: RT60 Fine with Sixty-second tail capture**
 
-- Parameter: `rt60_fine` - trims decay proportionally around the coarse value.
+- Parameter: `rt60_fine`: trims decay proportionally around the coarse value.
 - Signal: Sixty-second tail capture.
 - Observation goal: test memory stability, decay completion, noise floor, and repeatability.
 - Required transition behavior: keep zero as the exact neutral point.
@@ -16422,7 +16422,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Damping with Digital silence**
 
-- Parameter: `damping` - changes high-frequency persistence.
+- Parameter: `damping`: changes high-frequency persistence.
 - Signal: Digital silence.
 - Observation goal: detect denormals, stale buffers, uninitialized state, and noise-floor growth.
 - Required transition behavior: interpolate stable filter coefficients.
@@ -16438,7 +16438,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Damping with Single-sample impulse**
 
-- Parameter: `damping` - changes high-frequency persistence.
+- Parameter: `damping`: changes high-frequency persistence.
 - Signal: Single-sample impulse.
 - Observation goal: reveal latency, early reflections, channel routing, and deterministic tail shape.
 - Required transition behavior: interpolate stable filter coefficients.
@@ -16454,7 +16454,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Damping with Full-scale alternating impulses**
 
-- Parameter: `damping` - changes high-frequency persistence.
+- Parameter: `damping`: changes high-frequency persistence.
 - Signal: Full-scale alternating impulses.
 - Observation goal: stress headroom, limiter response, mode transitions, and sign symmetry.
 - Required transition behavior: interpolate stable filter coefficients.
@@ -16470,7 +16470,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Damping with 80 Hz sine**
 
-- Parameter: `damping` - changes high-frequency persistence.
+- Parameter: `damping`: changes high-frequency persistence.
 - Signal: 80 Hz sine.
 - Observation goal: expose low-frequency decay, modulation, modal buildup, and channel phase differences.
 - Required transition behavior: interpolate stable filter coefficients.
@@ -16486,7 +16486,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Damping with 8 kHz sine**
 
-- Parameter: `damping` - changes high-frequency persistence.
+- Parameter: `damping`: changes high-frequency persistence.
 - Signal: 8 kHz sine.
 - Observation goal: expose damping, interpolation, aliasing, and high-frequency stability.
 - Required transition behavior: interpolate stable filter coefficients.
@@ -16502,7 +16502,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Damping with Pink noise burst**
 
-- Parameter: `damping` - changes high-frequency persistence.
+- Parameter: `damping`: changes high-frequency persistence.
 - Signal: Pink noise burst.
 - Observation goal: show broadband spectral decay, gain behavior, and early/late balance.
 - Required transition behavior: interpolate stable filter coefficients.
@@ -16518,7 +16518,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Damping with Dry speech phrase**
 
-- Parameter: `damping` - changes high-frequency persistence.
+- Parameter: `damping`: changes high-frequency persistence.
 - Signal: Dry speech phrase.
 - Observation goal: test intelligibility, sibilance, plosives, pre-delay, and ducking behavior.
 - Required transition behavior: interpolate stable filter coefficients.
@@ -16534,7 +16534,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Damping with Transient drum loop**
 
-- Parameter: `damping` - changes high-frequency persistence.
+- Parameter: `damping`: changes high-frequency persistence.
 - Signal: Transient drum loop.
 - Observation goal: test attack preservation, density buildup, tempo interaction, and peak safety.
 - Required transition behavior: interpolate stable filter coefficients.
@@ -16550,7 +16550,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Damping with Sustained harmonic pad**
 
-- Parameter: `damping` - changes high-frequency persistence.
+- Parameter: `damping`: changes high-frequency persistence.
 - Signal: Sustained harmonic pad.
 - Observation goal: test modulation smoothness, correlation, freeze energy, and long-term stability.
 - Required transition behavior: interpolate stable filter coefficients.
@@ -16566,7 +16566,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Damping with Sixty-second tail capture**
 
-- Parameter: `damping` - changes high-frequency persistence.
+- Parameter: `damping`: changes high-frequency persistence.
 - Signal: Sixty-second tail capture.
 - Observation goal: test memory stability, decay completion, noise floor, and repeatability.
 - Required transition behavior: interpolate stable filter coefficients.
@@ -16584,7 +16584,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Width with Digital silence**
 
-- Parameter: `width` - changes lateral energy and correlation.
+- Parameter: `width`: changes lateral energy and correlation.
 - Signal: Digital silence.
 - Observation goal: detect denormals, stale buffers, uninitialized state, and noise-floor growth.
 - Required transition behavior: monitor mono compatibility during movement.
@@ -16600,7 +16600,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Width with Single-sample impulse**
 
-- Parameter: `width` - changes lateral energy and correlation.
+- Parameter: `width`: changes lateral energy and correlation.
 - Signal: Single-sample impulse.
 - Observation goal: reveal latency, early reflections, channel routing, and deterministic tail shape.
 - Required transition behavior: monitor mono compatibility during movement.
@@ -16616,7 +16616,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Width with Full-scale alternating impulses**
 
-- Parameter: `width` - changes lateral energy and correlation.
+- Parameter: `width`: changes lateral energy and correlation.
 - Signal: Full-scale alternating impulses.
 - Observation goal: stress headroom, limiter response, mode transitions, and sign symmetry.
 - Required transition behavior: monitor mono compatibility during movement.
@@ -16632,7 +16632,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Width with 80 Hz sine**
 
-- Parameter: `width` - changes lateral energy and correlation.
+- Parameter: `width`: changes lateral energy and correlation.
 - Signal: 80 Hz sine.
 - Observation goal: expose low-frequency decay, modulation, modal buildup, and channel phase differences.
 - Required transition behavior: monitor mono compatibility during movement.
@@ -16648,7 +16648,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Width with 8 kHz sine**
 
-- Parameter: `width` - changes lateral energy and correlation.
+- Parameter: `width`: changes lateral energy and correlation.
 - Signal: 8 kHz sine.
 - Observation goal: expose damping, interpolation, aliasing, and high-frequency stability.
 - Required transition behavior: monitor mono compatibility during movement.
@@ -16664,7 +16664,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Width with Pink noise burst**
 
-- Parameter: `width` - changes lateral energy and correlation.
+- Parameter: `width`: changes lateral energy and correlation.
 - Signal: Pink noise burst.
 - Observation goal: show broadband spectral decay, gain behavior, and early/late balance.
 - Required transition behavior: monitor mono compatibility during movement.
@@ -16680,7 +16680,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Width with Dry speech phrase**
 
-- Parameter: `width` - changes lateral energy and correlation.
+- Parameter: `width`: changes lateral energy and correlation.
 - Signal: Dry speech phrase.
 - Observation goal: test intelligibility, sibilance, plosives, pre-delay, and ducking behavior.
 - Required transition behavior: monitor mono compatibility during movement.
@@ -16696,7 +16696,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Width with Transient drum loop**
 
-- Parameter: `width` - changes lateral energy and correlation.
+- Parameter: `width`: changes lateral energy and correlation.
 - Signal: Transient drum loop.
 - Observation goal: test attack preservation, density buildup, tempo interaction, and peak safety.
 - Required transition behavior: monitor mono compatibility during movement.
@@ -16712,7 +16712,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Width with Sustained harmonic pad**
 
-- Parameter: `width` - changes lateral energy and correlation.
+- Parameter: `width`: changes lateral energy and correlation.
 - Signal: Sustained harmonic pad.
 - Observation goal: test modulation smoothness, correlation, freeze energy, and long-term stability.
 - Required transition behavior: monitor mono compatibility during movement.
@@ -16728,7 +16728,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Width with Sixty-second tail capture**
 
-- Parameter: `width` - changes lateral energy and correlation.
+- Parameter: `width`: changes lateral energy and correlation.
 - Signal: Sixty-second tail capture.
 - Observation goal: test memory stability, decay completion, noise floor, and repeatability.
 - Required transition behavior: monitor mono compatibility during movement.
@@ -16746,7 +16746,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Diffusion with Digital silence**
 
-- Parameter: `diffusion` - changes echo-density buildup.
+- Parameter: `diffusion`: changes echo-density buildup.
 - Signal: Digital silence.
 - Observation goal: detect denormals, stale buffers, uninitialized state, and noise-floor growth.
 - Required transition behavior: crossfade when topology must change.
@@ -16762,7 +16762,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Diffusion with Single-sample impulse**
 
-- Parameter: `diffusion` - changes echo-density buildup.
+- Parameter: `diffusion`: changes echo-density buildup.
 - Signal: Single-sample impulse.
 - Observation goal: reveal latency, early reflections, channel routing, and deterministic tail shape.
 - Required transition behavior: crossfade when topology must change.
@@ -16778,7 +16778,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Diffusion with Full-scale alternating impulses**
 
-- Parameter: `diffusion` - changes echo-density buildup.
+- Parameter: `diffusion`: changes echo-density buildup.
 - Signal: Full-scale alternating impulses.
 - Observation goal: stress headroom, limiter response, mode transitions, and sign symmetry.
 - Required transition behavior: crossfade when topology must change.
@@ -16794,7 +16794,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Diffusion with 80 Hz sine**
 
-- Parameter: `diffusion` - changes echo-density buildup.
+- Parameter: `diffusion`: changes echo-density buildup.
 - Signal: 80 Hz sine.
 - Observation goal: expose low-frequency decay, modulation, modal buildup, and channel phase differences.
 - Required transition behavior: crossfade when topology must change.
@@ -16810,7 +16810,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Diffusion with 8 kHz sine**
 
-- Parameter: `diffusion` - changes echo-density buildup.
+- Parameter: `diffusion`: changes echo-density buildup.
 - Signal: 8 kHz sine.
 - Observation goal: expose damping, interpolation, aliasing, and high-frequency stability.
 - Required transition behavior: crossfade when topology must change.
@@ -16826,7 +16826,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Diffusion with Pink noise burst**
 
-- Parameter: `diffusion` - changes echo-density buildup.
+- Parameter: `diffusion`: changes echo-density buildup.
 - Signal: Pink noise burst.
 - Observation goal: show broadband spectral decay, gain behavior, and early/late balance.
 - Required transition behavior: crossfade when topology must change.
@@ -16842,7 +16842,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Diffusion with Dry speech phrase**
 
-- Parameter: `diffusion` - changes echo-density buildup.
+- Parameter: `diffusion`: changes echo-density buildup.
 - Signal: Dry speech phrase.
 - Observation goal: test intelligibility, sibilance, plosives, pre-delay, and ducking behavior.
 - Required transition behavior: crossfade when topology must change.
@@ -16858,7 +16858,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Diffusion with Transient drum loop**
 
-- Parameter: `diffusion` - changes echo-density buildup.
+- Parameter: `diffusion`: changes echo-density buildup.
 - Signal: Transient drum loop.
 - Observation goal: test attack preservation, density buildup, tempo interaction, and peak safety.
 - Required transition behavior: crossfade when topology must change.
@@ -16874,7 +16874,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Diffusion with Sustained harmonic pad**
 
-- Parameter: `diffusion` - changes echo-density buildup.
+- Parameter: `diffusion`: changes echo-density buildup.
 - Signal: Sustained harmonic pad.
 - Observation goal: test modulation smoothness, correlation, freeze energy, and long-term stability.
 - Required transition behavior: crossfade when topology must change.
@@ -16890,7 +16890,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Diffusion with Sixty-second tail capture**
 
-- Parameter: `diffusion` - changes echo-density buildup.
+- Parameter: `diffusion`: changes echo-density buildup.
 - Signal: Sixty-second tail capture.
 - Observation goal: test memory stability, decay completion, noise floor, and repeatability.
 - Required transition behavior: crossfade when topology must change.
@@ -16908,7 +16908,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Wet with Digital silence**
 
-- Parameter: `wet` - sets processed contribution.
+- Parameter: `wet`: sets processed contribution.
 - Signal: Digital silence.
 - Observation goal: detect denormals, stale buffers, uninitialized state, and noise-floor growth.
 - Required transition behavior: choose and document the mix law.
@@ -16924,7 +16924,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Wet with Single-sample impulse**
 
-- Parameter: `wet` - sets processed contribution.
+- Parameter: `wet`: sets processed contribution.
 - Signal: Single-sample impulse.
 - Observation goal: reveal latency, early reflections, channel routing, and deterministic tail shape.
 - Required transition behavior: choose and document the mix law.
@@ -16940,7 +16940,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Wet with Full-scale alternating impulses**
 
-- Parameter: `wet` - sets processed contribution.
+- Parameter: `wet`: sets processed contribution.
 - Signal: Full-scale alternating impulses.
 - Observation goal: stress headroom, limiter response, mode transitions, and sign symmetry.
 - Required transition behavior: choose and document the mix law.
@@ -16956,7 +16956,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Wet with 80 Hz sine**
 
-- Parameter: `wet` - sets processed contribution.
+- Parameter: `wet`: sets processed contribution.
 - Signal: 80 Hz sine.
 - Observation goal: expose low-frequency decay, modulation, modal buildup, and channel phase differences.
 - Required transition behavior: choose and document the mix law.
@@ -16972,7 +16972,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Wet with 8 kHz sine**
 
-- Parameter: `wet` - sets processed contribution.
+- Parameter: `wet`: sets processed contribution.
 - Signal: 8 kHz sine.
 - Observation goal: expose damping, interpolation, aliasing, and high-frequency stability.
 - Required transition behavior: choose and document the mix law.
@@ -16988,7 +16988,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Wet with Pink noise burst**
 
-- Parameter: `wet` - sets processed contribution.
+- Parameter: `wet`: sets processed contribution.
 - Signal: Pink noise burst.
 - Observation goal: show broadband spectral decay, gain behavior, and early/late balance.
 - Required transition behavior: choose and document the mix law.
@@ -17004,7 +17004,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Wet with Dry speech phrase**
 
-- Parameter: `wet` - sets processed contribution.
+- Parameter: `wet`: sets processed contribution.
 - Signal: Dry speech phrase.
 - Observation goal: test intelligibility, sibilance, plosives, pre-delay, and ducking behavior.
 - Required transition behavior: choose and document the mix law.
@@ -17020,7 +17020,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Wet with Transient drum loop**
 
-- Parameter: `wet` - sets processed contribution.
+- Parameter: `wet`: sets processed contribution.
 - Signal: Transient drum loop.
 - Observation goal: test attack preservation, density buildup, tempo interaction, and peak safety.
 - Required transition behavior: choose and document the mix law.
@@ -17036,7 +17036,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Wet with Sustained harmonic pad**
 
-- Parameter: `wet` - sets processed contribution.
+- Parameter: `wet`: sets processed contribution.
 - Signal: Sustained harmonic pad.
 - Observation goal: test modulation smoothness, correlation, freeze energy, and long-term stability.
 - Required transition behavior: choose and document the mix law.
@@ -17052,7 +17052,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Wet with Sixty-second tail capture**
 
-- Parameter: `wet` - sets processed contribution.
+- Parameter: `wet`: sets processed contribution.
 - Signal: Sixty-second tail capture.
 - Observation goal: test memory stability, decay completion, noise floor, and repeatability.
 - Required transition behavior: choose and document the mix law.
@@ -17070,7 +17070,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Dry with Digital silence**
 
-- Parameter: `dry` - sets direct contribution.
+- Parameter: `dry`: sets direct contribution.
 - Signal: Digital silence.
 - Observation goal: detect denormals, stale buffers, uninitialized state, and noise-floor growth.
 - Required transition behavior: preserve bypass and gain staging.
@@ -17086,7 +17086,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Dry with Single-sample impulse**
 
-- Parameter: `dry` - sets direct contribution.
+- Parameter: `dry`: sets direct contribution.
 - Signal: Single-sample impulse.
 - Observation goal: reveal latency, early reflections, channel routing, and deterministic tail shape.
 - Required transition behavior: preserve bypass and gain staging.
@@ -17102,7 +17102,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Dry with Full-scale alternating impulses**
 
-- Parameter: `dry` - sets direct contribution.
+- Parameter: `dry`: sets direct contribution.
 - Signal: Full-scale alternating impulses.
 - Observation goal: stress headroom, limiter response, mode transitions, and sign symmetry.
 - Required transition behavior: preserve bypass and gain staging.
@@ -17118,7 +17118,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Dry with 80 Hz sine**
 
-- Parameter: `dry` - sets direct contribution.
+- Parameter: `dry`: sets direct contribution.
 - Signal: 80 Hz sine.
 - Observation goal: expose low-frequency decay, modulation, modal buildup, and channel phase differences.
 - Required transition behavior: preserve bypass and gain staging.
@@ -17134,7 +17134,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Dry with 8 kHz sine**
 
-- Parameter: `dry` - sets direct contribution.
+- Parameter: `dry`: sets direct contribution.
 - Signal: 8 kHz sine.
 - Observation goal: expose damping, interpolation, aliasing, and high-frequency stability.
 - Required transition behavior: preserve bypass and gain staging.
@@ -17150,7 +17150,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Dry with Pink noise burst**
 
-- Parameter: `dry` - sets direct contribution.
+- Parameter: `dry`: sets direct contribution.
 - Signal: Pink noise burst.
 - Observation goal: show broadband spectral decay, gain behavior, and early/late balance.
 - Required transition behavior: preserve bypass and gain staging.
@@ -17166,7 +17166,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Dry with Dry speech phrase**
 
-- Parameter: `dry` - sets direct contribution.
+- Parameter: `dry`: sets direct contribution.
 - Signal: Dry speech phrase.
 - Observation goal: test intelligibility, sibilance, plosives, pre-delay, and ducking behavior.
 - Required transition behavior: preserve bypass and gain staging.
@@ -17182,7 +17182,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Dry with Transient drum loop**
 
-- Parameter: `dry` - sets direct contribution.
+- Parameter: `dry`: sets direct contribution.
 - Signal: Transient drum loop.
 - Observation goal: test attack preservation, density buildup, tempo interaction, and peak safety.
 - Required transition behavior: preserve bypass and gain staging.
@@ -17198,7 +17198,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Dry with Sustained harmonic pad**
 
-- Parameter: `dry` - sets direct contribution.
+- Parameter: `dry`: sets direct contribution.
 - Signal: Sustained harmonic pad.
 - Observation goal: test modulation smoothness, correlation, freeze energy, and long-term stability.
 - Required transition behavior: preserve bypass and gain staging.
@@ -17214,7 +17214,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Dry with Sixty-second tail capture**
 
-- Parameter: `dry` - sets direct contribution.
+- Parameter: `dry`: sets direct contribution.
 - Signal: Sixty-second tail capture.
 - Observation goal: test memory stability, decay completion, noise floor, and repeatability.
 - Required transition behavior: preserve bypass and gain staging.
@@ -17232,7 +17232,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Freeze with Digital silence**
 
-- Parameter: `freeze` - changes network energy behavior.
+- Parameter: `freeze`: changes network energy behavior.
 - Signal: Digital silence.
 - Observation goal: detect denormals, stale buffers, uninitialized state, and noise-floor growth.
 - Required transition behavior: use a debounced, smoothed mode transition.
@@ -17248,7 +17248,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Freeze with Single-sample impulse**
 
-- Parameter: `freeze` - changes network energy behavior.
+- Parameter: `freeze`: changes network energy behavior.
 - Signal: Single-sample impulse.
 - Observation goal: reveal latency, early reflections, channel routing, and deterministic tail shape.
 - Required transition behavior: use a debounced, smoothed mode transition.
@@ -17264,7 +17264,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Freeze with Full-scale alternating impulses**
 
-- Parameter: `freeze` - changes network energy behavior.
+- Parameter: `freeze`: changes network energy behavior.
 - Signal: Full-scale alternating impulses.
 - Observation goal: stress headroom, limiter response, mode transitions, and sign symmetry.
 - Required transition behavior: use a debounced, smoothed mode transition.
@@ -17280,7 +17280,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Freeze with 80 Hz sine**
 
-- Parameter: `freeze` - changes network energy behavior.
+- Parameter: `freeze`: changes network energy behavior.
 - Signal: 80 Hz sine.
 - Observation goal: expose low-frequency decay, modulation, modal buildup, and channel phase differences.
 - Required transition behavior: use a debounced, smoothed mode transition.
@@ -17296,7 +17296,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Freeze with 8 kHz sine**
 
-- Parameter: `freeze` - changes network energy behavior.
+- Parameter: `freeze`: changes network energy behavior.
 - Signal: 8 kHz sine.
 - Observation goal: expose damping, interpolation, aliasing, and high-frequency stability.
 - Required transition behavior: use a debounced, smoothed mode transition.
@@ -17312,7 +17312,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Freeze with Pink noise burst**
 
-- Parameter: `freeze` - changes network energy behavior.
+- Parameter: `freeze`: changes network energy behavior.
 - Signal: Pink noise burst.
 - Observation goal: show broadband spectral decay, gain behavior, and early/late balance.
 - Required transition behavior: use a debounced, smoothed mode transition.
@@ -17328,7 +17328,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Freeze with Dry speech phrase**
 
-- Parameter: `freeze` - changes network energy behavior.
+- Parameter: `freeze`: changes network energy behavior.
 - Signal: Dry speech phrase.
 - Observation goal: test intelligibility, sibilance, plosives, pre-delay, and ducking behavior.
 - Required transition behavior: use a debounced, smoothed mode transition.
@@ -17344,7 +17344,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Freeze with Transient drum loop**
 
-- Parameter: `freeze` - changes network energy behavior.
+- Parameter: `freeze`: changes network energy behavior.
 - Signal: Transient drum loop.
 - Observation goal: test attack preservation, density buildup, tempo interaction, and peak safety.
 - Required transition behavior: use a debounced, smoothed mode transition.
@@ -17360,7 +17360,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Freeze with Sustained harmonic pad**
 
-- Parameter: `freeze` - changes network energy behavior.
+- Parameter: `freeze`: changes network energy behavior.
 - Signal: Sustained harmonic pad.
 - Observation goal: test modulation smoothness, correlation, freeze energy, and long-term stability.
 - Required transition behavior: use a debounced, smoothed mode transition.
@@ -17376,7 +17376,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Freeze with Sixty-second tail capture**
 
-- Parameter: `freeze` - changes network energy behavior.
+- Parameter: `freeze`: changes network energy behavior.
 - Signal: Sixty-second tail capture.
 - Observation goal: test memory stability, decay completion, noise floor, and repeatability.
 - Required transition behavior: use a debounced, smoothed mode transition.
@@ -17394,7 +17394,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Reverse with Digital silence**
 
-- Parameter: `reverse` - changes the envelope and buffering model.
+- Parameter: `reverse`: changes the envelope and buffering model.
 - Signal: Digital silence.
 - Observation goal: detect denormals, stale buffers, uninitialized state, and noise-floor growth.
 - Required transition behavior: report added latency before activation.
@@ -17410,7 +17410,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Reverse with Single-sample impulse**
 
-- Parameter: `reverse` - changes the envelope and buffering model.
+- Parameter: `reverse`: changes the envelope and buffering model.
 - Signal: Single-sample impulse.
 - Observation goal: reveal latency, early reflections, channel routing, and deterministic tail shape.
 - Required transition behavior: report added latency before activation.
@@ -17426,7 +17426,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Reverse with Full-scale alternating impulses**
 
-- Parameter: `reverse` - changes the envelope and buffering model.
+- Parameter: `reverse`: changes the envelope and buffering model.
 - Signal: Full-scale alternating impulses.
 - Observation goal: stress headroom, limiter response, mode transitions, and sign symmetry.
 - Required transition behavior: report added latency before activation.
@@ -17442,7 +17442,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Reverse with 80 Hz sine**
 
-- Parameter: `reverse` - changes the envelope and buffering model.
+- Parameter: `reverse`: changes the envelope and buffering model.
 - Signal: 80 Hz sine.
 - Observation goal: expose low-frequency decay, modulation, modal buildup, and channel phase differences.
 - Required transition behavior: report added latency before activation.
@@ -17458,7 +17458,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Reverse with 8 kHz sine**
 
-- Parameter: `reverse` - changes the envelope and buffering model.
+- Parameter: `reverse`: changes the envelope and buffering model.
 - Signal: 8 kHz sine.
 - Observation goal: expose damping, interpolation, aliasing, and high-frequency stability.
 - Required transition behavior: report added latency before activation.
@@ -17474,7 +17474,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Reverse with Pink noise burst**
 
-- Parameter: `reverse` - changes the envelope and buffering model.
+- Parameter: `reverse`: changes the envelope and buffering model.
 - Signal: Pink noise burst.
 - Observation goal: show broadband spectral decay, gain behavior, and early/late balance.
 - Required transition behavior: report added latency before activation.
@@ -17490,7 +17490,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Reverse with Dry speech phrase**
 
-- Parameter: `reverse` - changes the envelope and buffering model.
+- Parameter: `reverse`: changes the envelope and buffering model.
 - Signal: Dry speech phrase.
 - Observation goal: test intelligibility, sibilance, plosives, pre-delay, and ducking behavior.
 - Required transition behavior: report added latency before activation.
@@ -17506,7 +17506,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Reverse with Transient drum loop**
 
-- Parameter: `reverse` - changes the envelope and buffering model.
+- Parameter: `reverse`: changes the envelope and buffering model.
 - Signal: Transient drum loop.
 - Observation goal: test attack preservation, density buildup, tempo interaction, and peak safety.
 - Required transition behavior: report added latency before activation.
@@ -17522,7 +17522,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Reverse with Sustained harmonic pad**
 
-- Parameter: `reverse` - changes the envelope and buffering model.
+- Parameter: `reverse`: changes the envelope and buffering model.
 - Signal: Sustained harmonic pad.
 - Observation goal: test modulation smoothness, correlation, freeze energy, and long-term stability.
 - Required transition behavior: report added latency before activation.
@@ -17538,7 +17538,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Reverse with Sixty-second tail capture**
 
-- Parameter: `reverse` - changes the envelope and buffering model.
+- Parameter: `reverse`: changes the envelope and buffering model.
 - Signal: Sixty-second tail capture.
 - Observation goal: test memory stability, decay completion, noise floor, and repeatability.
 - Required transition behavior: report added latency before activation.
@@ -17556,7 +17556,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Quality with Digital silence**
 
-- Parameter: `quality_mode` - selects the internal rate policy.
+- Parameter: `quality_mode`: selects the internal rate policy.
 - Signal: Digital silence.
 - Observation goal: detect denormals, stale buffers, uninitialized state, and noise-floor growth.
 - Required transition behavior: apply through a safe reprepare boundary.
@@ -17572,7 +17572,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Quality with Single-sample impulse**
 
-- Parameter: `quality_mode` - selects the internal rate policy.
+- Parameter: `quality_mode`: selects the internal rate policy.
 - Signal: Single-sample impulse.
 - Observation goal: reveal latency, early reflections, channel routing, and deterministic tail shape.
 - Required transition behavior: apply through a safe reprepare boundary.
@@ -17588,7 +17588,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Quality with Full-scale alternating impulses**
 
-- Parameter: `quality_mode` - selects the internal rate policy.
+- Parameter: `quality_mode`: selects the internal rate policy.
 - Signal: Full-scale alternating impulses.
 - Observation goal: stress headroom, limiter response, mode transitions, and sign symmetry.
 - Required transition behavior: apply through a safe reprepare boundary.
@@ -17604,7 +17604,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Quality with 80 Hz sine**
 
-- Parameter: `quality_mode` - selects the internal rate policy.
+- Parameter: `quality_mode`: selects the internal rate policy.
 - Signal: 80 Hz sine.
 - Observation goal: expose low-frequency decay, modulation, modal buildup, and channel phase differences.
 - Required transition behavior: apply through a safe reprepare boundary.
@@ -17620,7 +17620,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Quality with 8 kHz sine**
 
-- Parameter: `quality_mode` - selects the internal rate policy.
+- Parameter: `quality_mode`: selects the internal rate policy.
 - Signal: 8 kHz sine.
 - Observation goal: expose damping, interpolation, aliasing, and high-frequency stability.
 - Required transition behavior: apply through a safe reprepare boundary.
@@ -17636,7 +17636,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Quality with Pink noise burst**
 
-- Parameter: `quality_mode` - selects the internal rate policy.
+- Parameter: `quality_mode`: selects the internal rate policy.
 - Signal: Pink noise burst.
 - Observation goal: show broadband spectral decay, gain behavior, and early/late balance.
 - Required transition behavior: apply through a safe reprepare boundary.
@@ -17652,7 +17652,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Quality with Dry speech phrase**
 
-- Parameter: `quality_mode` - selects the internal rate policy.
+- Parameter: `quality_mode`: selects the internal rate policy.
 - Signal: Dry speech phrase.
 - Observation goal: test intelligibility, sibilance, plosives, pre-delay, and ducking behavior.
 - Required transition behavior: apply through a safe reprepare boundary.
@@ -17668,7 +17668,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Quality with Transient drum loop**
 
-- Parameter: `quality_mode` - selects the internal rate policy.
+- Parameter: `quality_mode`: selects the internal rate policy.
 - Signal: Transient drum loop.
 - Observation goal: test attack preservation, density buildup, tempo interaction, and peak safety.
 - Required transition behavior: apply through a safe reprepare boundary.
@@ -17684,7 +17684,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Quality with Sustained harmonic pad**
 
-- Parameter: `quality_mode` - selects the internal rate policy.
+- Parameter: `quality_mode`: selects the internal rate policy.
 - Signal: Sustained harmonic pad.
 - Observation goal: test modulation smoothness, correlation, freeze energy, and long-term stability.
 - Required transition behavior: apply through a safe reprepare boundary.
@@ -17700,7 +17700,7 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 **Signal-test card: Quality with Sixty-second tail capture**
 
-- Parameter: `quality_mode` - selects the internal rate policy.
+- Parameter: `quality_mode`: selects the internal rate policy.
 - Signal: Sixty-second tail capture.
 - Observation goal: test memory stability, decay completion, noise floor, and repeatability.
 - Required transition behavior: apply through a safe reprepare boundary.
@@ -17718,9 +17718,9 @@ Run with the editor closed and open, then save and reopen the host project befor
 
 ### 31.1 Pre-Delay
 
-**Triage card: Pre-Delay - Audio safety**
+**Triage card: Pre-Delay: Audio safety**
 
-- Parameter: `pre_delay_ms` - separates the direct event from the room onset.
+- Parameter: `pre_delay_ms`: separates the direct event from the room onset.
 - Failure class: Audio safety.
 - Scope: clicks, instability, non-finite output, runaway gain, channel corruption, or unreported latency.
 - Expected transition: use a ramp or delay-line crossfade.
@@ -17734,9 +17734,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Pre-Delay - State and automation**
+**Triage card: Pre-Delay: State and automation**
 
-- Parameter: `pre_delay_ms` - separates the direct event from the room onset.
+- Parameter: `pre_delay_ms`: separates the direct event from the room onset.
 - Failure class: State and automation.
 - Scope: wrong recall, parameter-ID drift, host-write mismatch, migration loss, or format disagreement.
 - Expected transition: use a ramp or delay-line crossfade.
@@ -17750,9 +17750,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Pre-Delay - User-facing behavior**
+**Triage card: Pre-Delay: User-facing behavior**
 
-- Parameter: `pre_delay_ms` - separates the direct event from the room onset.
+- Parameter: `pre_delay_ms`: separates the direct event from the room onset.
 - Failure class: User-facing behavior.
 - Scope: misleading value text, stale UI, unclear status, inaccessible control, or undocumented transition.
 - Expected transition: use a ramp or delay-line crossfade.
@@ -17768,9 +17768,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 ### 31.2 Room Size
 
-**Triage card: Room Size - Audio safety**
+**Triage card: Room Size: Audio safety**
 
-- Parameter: `room_size` - changes perceived scale and reflection spacing.
+- Parameter: `room_size`: changes perceived scale and reflection spacing.
 - Failure class: Audio safety.
 - Scope: clicks, instability, non-finite output, runaway gain, channel corruption, or unreported latency.
 - Expected transition: stage structural changes outside the callback.
@@ -17784,9 +17784,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Room Size - State and automation**
+**Triage card: Room Size: State and automation**
 
-- Parameter: `room_size` - changes perceived scale and reflection spacing.
+- Parameter: `room_size`: changes perceived scale and reflection spacing.
 - Failure class: State and automation.
 - Scope: wrong recall, parameter-ID drift, host-write mismatch, migration loss, or format disagreement.
 - Expected transition: stage structural changes outside the callback.
@@ -17800,9 +17800,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Room Size - User-facing behavior**
+**Triage card: Room Size: User-facing behavior**
 
-- Parameter: `room_size` - changes perceived scale and reflection spacing.
+- Parameter: `room_size`: changes perceived scale and reflection spacing.
 - Failure class: User-facing behavior.
 - Scope: misleading value text, stale UI, unclear status, inaccessible control, or undocumented transition.
 - Expected transition: stage structural changes outside the callback.
@@ -17818,9 +17818,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 ### 31.3 RT60 Coarse
 
-**Triage card: RT60 Coarse - Audio safety**
+**Triage card: RT60 Coarse: Audio safety**
 
-- Parameter: `rt60_coarse` - moves through the full logarithmic decay range.
+- Parameter: `rt60_coarse`: moves through the full logarithmic decay range.
 - Failure class: Audio safety.
 - Scope: clicks, instability, non-finite output, runaway gain, channel corruption, or unreported latency.
 - Expected transition: display the effective seconds value.
@@ -17834,9 +17834,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: RT60 Coarse - State and automation**
+**Triage card: RT60 Coarse: State and automation**
 
-- Parameter: `rt60_coarse` - moves through the full logarithmic decay range.
+- Parameter: `rt60_coarse`: moves through the full logarithmic decay range.
 - Failure class: State and automation.
 - Scope: wrong recall, parameter-ID drift, host-write mismatch, migration loss, or format disagreement.
 - Expected transition: display the effective seconds value.
@@ -17850,9 +17850,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: RT60 Coarse - User-facing behavior**
+**Triage card: RT60 Coarse: User-facing behavior**
 
-- Parameter: `rt60_coarse` - moves through the full logarithmic decay range.
+- Parameter: `rt60_coarse`: moves through the full logarithmic decay range.
 - Failure class: User-facing behavior.
 - Scope: misleading value text, stale UI, unclear status, inaccessible control, or undocumented transition.
 - Expected transition: display the effective seconds value.
@@ -17868,9 +17868,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 ### 31.4 RT60 Fine
 
-**Triage card: RT60 Fine - Audio safety**
+**Triage card: RT60 Fine: Audio safety**
 
-- Parameter: `rt60_fine` - trims decay proportionally around the coarse value.
+- Parameter: `rt60_fine`: trims decay proportionally around the coarse value.
 - Failure class: Audio safety.
 - Scope: clicks, instability, non-finite output, runaway gain, channel corruption, or unreported latency.
 - Expected transition: keep zero as the exact neutral point.
@@ -17884,9 +17884,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: RT60 Fine - State and automation**
+**Triage card: RT60 Fine: State and automation**
 
-- Parameter: `rt60_fine` - trims decay proportionally around the coarse value.
+- Parameter: `rt60_fine`: trims decay proportionally around the coarse value.
 - Failure class: State and automation.
 - Scope: wrong recall, parameter-ID drift, host-write mismatch, migration loss, or format disagreement.
 - Expected transition: keep zero as the exact neutral point.
@@ -17900,9 +17900,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: RT60 Fine - User-facing behavior**
+**Triage card: RT60 Fine: User-facing behavior**
 
-- Parameter: `rt60_fine` - trims decay proportionally around the coarse value.
+- Parameter: `rt60_fine`: trims decay proportionally around the coarse value.
 - Failure class: User-facing behavior.
 - Scope: misleading value text, stale UI, unclear status, inaccessible control, or undocumented transition.
 - Expected transition: keep zero as the exact neutral point.
@@ -17918,9 +17918,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 ### 31.5 Damping
 
-**Triage card: Damping - Audio safety**
+**Triage card: Damping: Audio safety**
 
-- Parameter: `damping` - changes high-frequency persistence.
+- Parameter: `damping`: changes high-frequency persistence.
 - Failure class: Audio safety.
 - Scope: clicks, instability, non-finite output, runaway gain, channel corruption, or unreported latency.
 - Expected transition: interpolate stable filter coefficients.
@@ -17934,9 +17934,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Damping - State and automation**
+**Triage card: Damping: State and automation**
 
-- Parameter: `damping` - changes high-frequency persistence.
+- Parameter: `damping`: changes high-frequency persistence.
 - Failure class: State and automation.
 - Scope: wrong recall, parameter-ID drift, host-write mismatch, migration loss, or format disagreement.
 - Expected transition: interpolate stable filter coefficients.
@@ -17950,9 +17950,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Damping - User-facing behavior**
+**Triage card: Damping: User-facing behavior**
 
-- Parameter: `damping` - changes high-frequency persistence.
+- Parameter: `damping`: changes high-frequency persistence.
 - Failure class: User-facing behavior.
 - Scope: misleading value text, stale UI, unclear status, inaccessible control, or undocumented transition.
 - Expected transition: interpolate stable filter coefficients.
@@ -17968,9 +17968,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 ### 31.6 Width
 
-**Triage card: Width - Audio safety**
+**Triage card: Width: Audio safety**
 
-- Parameter: `width` - changes lateral energy and correlation.
+- Parameter: `width`: changes lateral energy and correlation.
 - Failure class: Audio safety.
 - Scope: clicks, instability, non-finite output, runaway gain, channel corruption, or unreported latency.
 - Expected transition: monitor mono compatibility during movement.
@@ -17984,9 +17984,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Width - State and automation**
+**Triage card: Width: State and automation**
 
-- Parameter: `width` - changes lateral energy and correlation.
+- Parameter: `width`: changes lateral energy and correlation.
 - Failure class: State and automation.
 - Scope: wrong recall, parameter-ID drift, host-write mismatch, migration loss, or format disagreement.
 - Expected transition: monitor mono compatibility during movement.
@@ -18000,9 +18000,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Width - User-facing behavior**
+**Triage card: Width: User-facing behavior**
 
-- Parameter: `width` - changes lateral energy and correlation.
+- Parameter: `width`: changes lateral energy and correlation.
 - Failure class: User-facing behavior.
 - Scope: misleading value text, stale UI, unclear status, inaccessible control, or undocumented transition.
 - Expected transition: monitor mono compatibility during movement.
@@ -18018,9 +18018,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 ### 31.7 Diffusion
 
-**Triage card: Diffusion - Audio safety**
+**Triage card: Diffusion: Audio safety**
 
-- Parameter: `diffusion` - changes echo-density buildup.
+- Parameter: `diffusion`: changes echo-density buildup.
 - Failure class: Audio safety.
 - Scope: clicks, instability, non-finite output, runaway gain, channel corruption, or unreported latency.
 - Expected transition: crossfade when topology must change.
@@ -18034,9 +18034,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Diffusion - State and automation**
+**Triage card: Diffusion: State and automation**
 
-- Parameter: `diffusion` - changes echo-density buildup.
+- Parameter: `diffusion`: changes echo-density buildup.
 - Failure class: State and automation.
 - Scope: wrong recall, parameter-ID drift, host-write mismatch, migration loss, or format disagreement.
 - Expected transition: crossfade when topology must change.
@@ -18050,9 +18050,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Diffusion - User-facing behavior**
+**Triage card: Diffusion: User-facing behavior**
 
-- Parameter: `diffusion` - changes echo-density buildup.
+- Parameter: `diffusion`: changes echo-density buildup.
 - Failure class: User-facing behavior.
 - Scope: misleading value text, stale UI, unclear status, inaccessible control, or undocumented transition.
 - Expected transition: crossfade when topology must change.
@@ -18068,9 +18068,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 ### 31.8 Wet
 
-**Triage card: Wet - Audio safety**
+**Triage card: Wet: Audio safety**
 
-- Parameter: `wet` - sets processed contribution.
+- Parameter: `wet`: sets processed contribution.
 - Failure class: Audio safety.
 - Scope: clicks, instability, non-finite output, runaway gain, channel corruption, or unreported latency.
 - Expected transition: choose and document the mix law.
@@ -18084,9 +18084,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Wet - State and automation**
+**Triage card: Wet: State and automation**
 
-- Parameter: `wet` - sets processed contribution.
+- Parameter: `wet`: sets processed contribution.
 - Failure class: State and automation.
 - Scope: wrong recall, parameter-ID drift, host-write mismatch, migration loss, or format disagreement.
 - Expected transition: choose and document the mix law.
@@ -18100,9 +18100,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Wet - User-facing behavior**
+**Triage card: Wet: User-facing behavior**
 
-- Parameter: `wet` - sets processed contribution.
+- Parameter: `wet`: sets processed contribution.
 - Failure class: User-facing behavior.
 - Scope: misleading value text, stale UI, unclear status, inaccessible control, or undocumented transition.
 - Expected transition: choose and document the mix law.
@@ -18118,9 +18118,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 ### 31.9 Dry
 
-**Triage card: Dry - Audio safety**
+**Triage card: Dry: Audio safety**
 
-- Parameter: `dry` - sets direct contribution.
+- Parameter: `dry`: sets direct contribution.
 - Failure class: Audio safety.
 - Scope: clicks, instability, non-finite output, runaway gain, channel corruption, or unreported latency.
 - Expected transition: preserve bypass and gain staging.
@@ -18134,9 +18134,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Dry - State and automation**
+**Triage card: Dry: State and automation**
 
-- Parameter: `dry` - sets direct contribution.
+- Parameter: `dry`: sets direct contribution.
 - Failure class: State and automation.
 - Scope: wrong recall, parameter-ID drift, host-write mismatch, migration loss, or format disagreement.
 - Expected transition: preserve bypass and gain staging.
@@ -18150,9 +18150,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Dry - User-facing behavior**
+**Triage card: Dry: User-facing behavior**
 
-- Parameter: `dry` - sets direct contribution.
+- Parameter: `dry`: sets direct contribution.
 - Failure class: User-facing behavior.
 - Scope: misleading value text, stale UI, unclear status, inaccessible control, or undocumented transition.
 - Expected transition: preserve bypass and gain staging.
@@ -18168,9 +18168,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 ### 31.10 Freeze
 
-**Triage card: Freeze - Audio safety**
+**Triage card: Freeze: Audio safety**
 
-- Parameter: `freeze` - changes network energy behavior.
+- Parameter: `freeze`: changes network energy behavior.
 - Failure class: Audio safety.
 - Scope: clicks, instability, non-finite output, runaway gain, channel corruption, or unreported latency.
 - Expected transition: use a debounced, smoothed mode transition.
@@ -18184,9 +18184,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Freeze - State and automation**
+**Triage card: Freeze: State and automation**
 
-- Parameter: `freeze` - changes network energy behavior.
+- Parameter: `freeze`: changes network energy behavior.
 - Failure class: State and automation.
 - Scope: wrong recall, parameter-ID drift, host-write mismatch, migration loss, or format disagreement.
 - Expected transition: use a debounced, smoothed mode transition.
@@ -18200,9 +18200,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Freeze - User-facing behavior**
+**Triage card: Freeze: User-facing behavior**
 
-- Parameter: `freeze` - changes network energy behavior.
+- Parameter: `freeze`: changes network energy behavior.
 - Failure class: User-facing behavior.
 - Scope: misleading value text, stale UI, unclear status, inaccessible control, or undocumented transition.
 - Expected transition: use a debounced, smoothed mode transition.
@@ -18218,9 +18218,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 ### 31.11 Reverse
 
-**Triage card: Reverse - Audio safety**
+**Triage card: Reverse: Audio safety**
 
-- Parameter: `reverse` - changes the envelope and buffering model.
+- Parameter: `reverse`: changes the envelope and buffering model.
 - Failure class: Audio safety.
 - Scope: clicks, instability, non-finite output, runaway gain, channel corruption, or unreported latency.
 - Expected transition: report added latency before activation.
@@ -18234,9 +18234,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Reverse - State and automation**
+**Triage card: Reverse: State and automation**
 
-- Parameter: `reverse` - changes the envelope and buffering model.
+- Parameter: `reverse`: changes the envelope and buffering model.
 - Failure class: State and automation.
 - Scope: wrong recall, parameter-ID drift, host-write mismatch, migration loss, or format disagreement.
 - Expected transition: report added latency before activation.
@@ -18250,9 +18250,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Reverse - User-facing behavior**
+**Triage card: Reverse: User-facing behavior**
 
-- Parameter: `reverse` - changes the envelope and buffering model.
+- Parameter: `reverse`: changes the envelope and buffering model.
 - Failure class: User-facing behavior.
 - Scope: misleading value text, stale UI, unclear status, inaccessible control, or undocumented transition.
 - Expected transition: report added latency before activation.
@@ -18268,9 +18268,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 ### 31.12 Quality
 
-**Triage card: Quality - Audio safety**
+**Triage card: Quality: Audio safety**
 
-- Parameter: `quality_mode` - selects the internal rate policy.
+- Parameter: `quality_mode`: selects the internal rate policy.
 - Failure class: Audio safety.
 - Scope: clicks, instability, non-finite output, runaway gain, channel corruption, or unreported latency.
 - Expected transition: apply through a safe reprepare boundary.
@@ -18284,9 +18284,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Quality - State and automation**
+**Triage card: Quality: State and automation**
 
-- Parameter: `quality_mode` - selects the internal rate policy.
+- Parameter: `quality_mode`: selects the internal rate policy.
 - Failure class: State and automation.
 - Scope: wrong recall, parameter-ID drift, host-write mismatch, migration loss, or format disagreement.
 - Expected transition: apply through a safe reprepare boundary.
@@ -18300,9 +18300,9 @@ Fix the lowest shared layer that owns the invariant, then add a native regressio
 
 \newpage
 
-**Triage card: Quality - User-facing behavior**
+**Triage card: Quality: User-facing behavior**
 
-- Parameter: `quality_mode` - selects the internal rate policy.
+- Parameter: `quality_mode`: selects the internal rate policy.
 - Failure class: User-facing behavior.
 - Scope: misleading value text, stale UI, unclear status, inaccessible control, or undocumented transition.
 - Expected transition: apply through a safe reprepare boundary.
@@ -22544,24 +22544,24 @@ Quick-lookup table of the equations you will cite most often during development.
 ### By stream
 
 - `Stream R1 (reactive control hardening)`:
-  [Schlecht and Habets (2015) - time-varying FDN matrices](#ref-fdn-tv-matrix-2015),
-  [Valimaki et al. (2012) - fifty years of artificial reverberation](#ref-reverb-survey-2012)
+  [Schlecht and Habets (2015): time-varying FDN matrices](#ref-fdn-tv-matrix-2015),
+  [Valimaki et al. (2012): fifty years of artificial reverberation](#ref-reverb-survey-2012)
 - `Stream R2 (perceptual/Jot-inspired calibration)`:
-  [Jot and Chaigne (1997) - maximally diffusive FDN](#ref-jot-chaigne-1997),
-  [Valimaki et al. (2012) - fifty years of artificial reverberation](#ref-reverb-survey-2012)
+  [Jot and Chaigne (1997): maximally diffusive FDN](#ref-jot-chaigne-1997),
+  [Valimaki et al. (2012): fifty years of artificial reverberation](#ref-reverb-survey-2012)
 - `Stream R3 (IR morph productionization)`:
-  [Valimaki et al. (2012) - fifty years of artificial reverberation](#ref-reverb-survey-2012)
+  [Valimaki et al. (2012): fifty years of artificial reverberation](#ref-reverb-survey-2012)
 - `Stream R4 (next-generation topology expansion)`:
-  [Rocchesso and Smith (1997) - circulant/elliptic FDN families](#ref-fdn-circulant-elliptic-1997),
-  [Schlecht and Habets (2019) - delay feedback matrices](#ref-fdn-delay-feedback-2019)
+  [Rocchesso and Smith (1997): circulant/elliptic FDN families](#ref-fdn-circulant-elliptic-1997),
+  [Schlecht and Habets (2019): delay feedback matrices](#ref-fdn-delay-feedback-2019)
 
 ### Core canonical links
 
 
-- [Rocchesso and Smith (1997) - circulant/elliptic FDN families](#ref-fdn-circulant-elliptic-1997)
-- [Schlecht and Habets (2015) - time-varying FDN matrices](#ref-fdn-tv-matrix-2015)
-- [Schlecht and Habets (2019) - delay feedback matrices](#ref-fdn-delay-feedback-2019)
-- [Valimaki et al. (2012) - fifty years of artificial reverberation](#ref-reverb-survey-2012)
+- [Rocchesso and Smith (1997): circulant/elliptic FDN families](#ref-fdn-circulant-elliptic-1997)
+- [Schlecht and Habets (2015): time-varying FDN matrices](#ref-fdn-tv-matrix-2015)
+- [Schlecht and Habets (2019): delay feedback matrices](#ref-fdn-delay-feedback-2019)
+- [Valimaki et al. (2012): fifty years of artificial reverberation](#ref-reverb-survey-2012)
 
 
 ---
@@ -22679,7 +22679,7 @@ RT60, energy decay curves, Sabine/Eyring theory, and the physics of reverberant 
 
 > Annotation: Practitioner case study of a space with exceptionally long RT60. Context entry useful for anchoring intuition about what multi-second reverberation actually sounds like in a physical space. It helps translate abstract values such as 6, 10, or more seconds of decay into practical consequences for speech, music, crowd noise, and treatment strategy, which is useful when documenting verbx's extreme-tail and infinite-style modes.
 
-**[RA20]** Clow, S (2023). Sound Insulation Testing - Sensitivity to Reverberation Time: T30 v T20. *Autumn Conference Acoustics 2003*. DOI: [10.25144/18162](https://doi.org/10.25144/18162)
+**[RA20]** Clow, S (2023). Sound Insulation Testing: Sensitivity to Reverberation Time: T30 v T20. *Autumn Conference Acoustics 2003*. DOI: [10.25144/18162](https://doi.org/10.25144/18162)
 
 > Context entry. Compares T20 and T30 evaluation windows for building acoustics measurements. Peripheral to reverb synthesis but relevant to RT60 measurement methodology. It supports exposing multiple decay-window estimates in analysis because different windows can disagree when the noise floor, curvature, or early decay behavior contaminates a simple full-tail fit.
 
@@ -23119,7 +23119,7 @@ Discovery queries:
 
 **[XREF0347]** Andrieu, Guillaume (2020). Frequency and time-domain performance assessment of vibrating intrinsic reverberation chambers. *Electromagnetic Reverberation Chambers: Recent advances and innovative applications*. DOI: [10.1049/sbew544e_ch3](https://doi.org/10.1049/sbew544e_ch3)
 
-**[XREF0802]** Aralikatti, Rohith; Boeddeker, Christoph; Wichern, Gordon; et al. (2023). Reverberation as Supervision For Speech Separation. *ICASSP 2023 - 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10095022](https://doi.org/10.1109/icassp49357.2023.10095022)
+**[XREF0802]** Aralikatti, Rohith; Boeddeker, Christoph; Wichern, Gordon; et al. (2023). Reverberation as Supervision For Speech Separation. *ICASSP 2023: 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10095022](https://doi.org/10.1109/icassp49357.2023.10095022)
 
 **[XREF0062]** Arau, Higini (1997). Variation of the Reverberation Time of Places of Public Assembly with Audience Size. *Building Acoustics*. DOI: [10.1177/1351010x9700400202](https://doi.org/10.1177/1351010x9700400202)
 
@@ -23163,7 +23163,7 @@ Discovery queries:
 
 **[XREF0207]** Barbaresi, L.; Pettoni Possenti, V.; Scrosati, C. (2024). On the influence of reference reverberation time on façade sound insulation measurements. *Proceedings of the 10th Convention of the European Acoustics Association Forum Acusticum 2023*. DOI: [10.61782/fa.2023.0319](https://doi.org/10.61782/fa.2023.0319)
 
-**[XREF0445]** Barron, M (2023). Auditorium Acoustics - a Room Acoustician's Perspective. *Reproduced Sound 2007*. DOI: [10.25144/17744](https://doi.org/10.25144/17744)
+**[XREF0445]** Barron, M (2023). Auditorium Acoustics: a Room Acoustician's Perspective. *Reproduced Sound 2007*. DOI: [10.25144/17744](https://doi.org/10.25144/17744)
 
 **[XREF0670]** Barron, M (2024). Current Developments in Analogue Acoustic Modelling. *Room Acoustics with Emphasis on Electroacoustics 1979*. DOI: [10.25144/23453](https://doi.org/10.25144/23453)
 
@@ -23217,7 +23217,7 @@ Discovery queries:
 
 **[XREF0719]** Boothroyd, Arthur (2003). Hearing aids and room acoustics. *The Hearing Journal*. DOI: [10.1097/01.hj.0000292914.14697.ba](https://doi.org/10.1097/01.hj.0000292914.14697.ba)
 
-**[XREF0363]** Bork, I (2023). Simulation and Measurement of Auditorium Acoustics - the Round Robins on Room Acoustical Simulation. *Auditorium Acoustics 2002*. DOI: [10.25144/18317](https://doi.org/10.25144/18317)
+**[XREF0363]** Bork, I (2023). Simulation and Measurement of Auditorium Acoustics: the Round Robins on Room Acoustical Simulation. *Auditorium Acoustics 2002*. DOI: [10.25144/18317](https://doi.org/10.25144/18317)
 
 **[XREF0543]** Borkowski, Bartłomiej; Pluta, Marek (2015). Automated Measurement System for Room Acoustics – an Initial Feasibility Study. *Archives of Acoustics*. DOI: [10.1515/aoa-2015-0043](https://doi.org/10.1515/aoa-2015-0043)
 
@@ -23261,7 +23261,7 @@ Discovery queries:
 
 **[XREF0752]** Brutti, Alessio; Matassoni, Marco (2014). On the use of Early-To-Late Reverberation ratio for ASR in reverberant environments. *2014 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2014.6854481](https://doi.org/10.1109/icassp.2014.6854481)
 
-**[XREF0437]** Buen, A; Strand, L (2023). Room Acoustics in the Scene Ii in the New Oslo Opera and the Ridehuset - Two Variable Acoustics Coupled Space Venues. *Auditorium Acoustics 2008*. DOI: [10.25144/17482](https://doi.org/10.25144/17482)
+**[XREF0437]** Buen, A; Strand, L (2023). Room Acoustics in the Scene Ii in the New Oslo Opera and the Ridehuset: Two Variable Acoustics Coupled Space Venues. *Auditorium Acoustics 2008*. DOI: [10.25144/17482](https://doi.org/10.25144/17482)
 
 **[XREF0636]** Buggè, Valentina; Shtrepi, Louena; Nocerino, Giovanni; et al. (2025). Integrating design, acoustic performance and fabrication: the case of the acoustic optimization of a meeting room. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/2.0002236](https://doi.org/10.1121/2.0002236)
 
@@ -23407,7 +23407,7 @@ Discovery queries:
 
 **[XREF0569]** Deželak, Ferdinand; Čurović, Luka; Čudina, Mirko (2016). Determination of the sound energy level of a gunshot and its applications in room acoustics. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2015.12.001](https://doi.org/10.1016/j.apacoust.2015.12.001)
 
-**[XREF0811]** Dibble, K (2024). Single Figure Transmission Loss Ratings for De-Mountable Room Partitions - Are They Workable?. *Acoustics '88*. DOI: [10.25144/21787](https://doi.org/10.25144/21787)
+**[XREF0811]** Dibble, K (2024). Single Figure Transmission Loss Ratings for De-Mountable Room Partitions: Are They Workable?. *Acoustics '88*. DOI: [10.25144/21787](https://doi.org/10.25144/21787)
 
 **[XREF0563]** Dick, David A.; Vigeant, Michelle C. (2016). A comparison of measured room acoustics metrics using a spherical microphone array and conventional methods. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2016.01.008](https://doi.org/10.1016/j.apacoust.2016.01.008)
 
@@ -23429,7 +23429,7 @@ Discovery queries:
 
 **[XREF0002]** Dragonetti, Raffaele; Ianniello, Carmine; Romano, Rosario A. (2009). Reverberation time measurement by the product of two room impulse responses. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2007.12.001](https://doi.org/10.1016/j.apacoust.2007.12.001)
 
-**[XREF0129]** Drechsler, Stefan; Stephenson, Uwe M. (2013). The effect of edge caused diffusion on the reverberation time - A semi analytical approach. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4799960](https://doi.org/10.1121/1.4799960)
+**[XREF0129]** Drechsler, Stefan; Stephenson, Uwe M. (2013). The effect of edge caused diffusion on the reverberation time: A semi analytical approach. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4799960](https://doi.org/10.1121/1.4799960)
 
 **[XREF0485]** Duangpummet, Suradej; Karnjana, Jessada; Kongprawechnon, Waree; et al. (2022). Blind estimation of speech transmission index and room acoustic parameters based on the extended model of room impulse response. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2021.108372](https://doi.org/10.1016/j.apacoust.2021.108372)
 
@@ -23553,7 +23553,7 @@ Discovery queries:
 
 **[XREF0723]** Gelfand, S. A. (1977). Room reverberation effects on recognition of some consonant features. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.2016388](https://doi.org/10.1121/1.2016388)
 
-**[XREF0325]** Gelvez-Barrera, Tatiana; Leclere, Quentin; Nicolas, Barbara; et al. (2025). Time-domain Beamforming for Room Acoustics Analysis based on Reverberant Field Estimation. *ICASSP 2025 - 2025 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49660.2025.10889527](https://doi.org/10.1109/icassp49660.2025.10889527)
+**[XREF0325]** Gelvez-Barrera, Tatiana; Leclere, Quentin; Nicolas, Barbara; et al. (2025). Time-domain Beamforming for Room Acoustics Analysis based on Reverberant Field Estimation. *ICASSP 2025: 2025 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49660.2025.10889527](https://doi.org/10.1109/icassp49660.2025.10889527)
 
 **[XREF0203]** Gething, MR (2024). Computer Simulation of Reverberation from a One Dimensional Seabed. *Scattering Phenomena in Underwater Acoustics 1985*. DOI: [10.25144/23566](https://doi.org/10.25144/23566)
 
@@ -23579,11 +23579,11 @@ Discovery queries:
 
 **[XREF0379]** Goertner, Jean A. (1980). Computer Model Predictions of Ocean Basin Reverberation for Large Underwater Explosions. *Bottom-Interacting Ocean Acoustics*. DOI: [10.1007/978-1-4684-9051-0_40](https://doi.org/10.1007/978-1-4684-9051-0_40)
 
-**[XREF0681]** Goldhahn, Ryan; Hickman, Granger; Krolik, Jeffery L. (2007). Waveguide Invariant Reverberation Mitigation for Active Sonar. *2007 IEEE International Conference on Acoustics, Speech and Signal Processing - ICASSP '07*. DOI: [10.1109/icassp.2007.366392](https://doi.org/10.1109/icassp.2007.366392)
+**[XREF0681]** Goldhahn, Ryan; Hickman, Granger; Krolik, Jeffery L. (2007). Waveguide Invariant Reverberation Mitigation for Active Sonar. *2007 IEEE International Conference on Acoustics, Speech and Signal Processing: ICASSP '07*. DOI: [10.1109/icassp.2007.366392](https://doi.org/10.1109/icassp.2007.366392)
 
 **[XREF0056]** Gómez Escobar, V.; Barrigón Morillas, J.M. (2015). Analysis of intelligibility and reverberation time recommendations in educational rooms. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2015.03.001](https://doi.org/10.1016/j.apacoust.2015.03.001)
 
-**[XREF0201]** Gotz, Philipp; Tuna, Cagdas; Walther, Andreas; et al. (2022). Blind Reverberation Time Estimation in Dynamic Acoustic Conditions. *ICASSP 2022 - 2022 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp43922.2022.9746457](https://doi.org/10.1109/icassp43922.2022.9746457)
+**[XREF0201]** Gotz, Philipp; Tuna, Cagdas; Walther, Andreas; et al. (2022). Blind Reverberation Time Estimation in Dynamic Acoustic Conditions. *ICASSP 2022: 2022 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp43922.2022.9746457](https://doi.org/10.1109/icassp43922.2022.9746457)
 
 **[XREF0100]** Gou, Wenbo; Liang, Hong; Li, Hui; et al. (2026). Shallow water reverberation suppression based on a time-frequency patch tensor model for broadband active sonar systems. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2025.111144](https://doi.org/10.1016/j.apacoust.2025.111144)
 
@@ -23607,13 +23607,13 @@ Discovery queries:
 
 **[XREF0727]** Gulsrud, TE (2023). Variation of Energy-Based Room Acoustic Parameters Withing a Multipurpose Hall. *Auditorium Acoustics 2002*. DOI: [10.25144/18335](https://doi.org/10.25144/18335)
 
-**[XREF0446]** Guoqiang, Guo; Yixin, Yang; Chao, Sun (2008). Time Reversal Echo-to-reverberation Enhancement with Reverberation Nulling Constraints Based on Waveguide Invariant. *OCEANS 2008 - MTS/IEEE Kobe Techno-Ocean*. DOI: [10.1109/oceanskobe.2008.4531093](https://doi.org/10.1109/oceanskobe.2008.4531093)
+**[XREF0446]** Guoqiang, Guo; Yixin, Yang; Chao, Sun (2008). Time Reversal Echo-to-reverberation Enhancement with Reverberation Nulling Constraints Based on Waveguide Invariant. *OCEANS 2008: MTS/IEEE Kobe Techno-Ocean*. DOI: [10.1109/oceanskobe.2008.4531093](https://doi.org/10.1109/oceanskobe.2008.4531093)
 
 **[XREF0544]** Hacıhabiboğlu, Hüseyin; Murtagh, Fionn (2008). Perceptual simplification for model-based binaural room auralisation. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2007.02.006](https://doi.org/10.1016/j.apacoust.2007.02.006)
 
 **[XREF0433]** Halmrast, T; Buen, A (2023). Simplified Room Acoustic Measurements. *Auditorium Acoustics 2008*. DOI: [10.25144/17523](https://doi.org/10.25144/17523)
 
-**[XREF0102]** Hamilton, Brian (2021). 2pCA2 - Tutorial on finite-difference time-domain (FDTD) methods for room acoustics simulation. *Unspecified venue*. DOI: [10.26226/morressier.606f15dd30a2e980041f2468](https://doi.org/10.26226/morressier.606f15dd30a2e980041f2468)
+**[XREF0102]** Hamilton, Brian (2021). 2pCA2: Tutorial on finite-difference time-domain (FDTD) methods for room acoustics simulation. *Unspecified venue*. DOI: [10.26226/morressier.606f15dd30a2e980041f2468](https://doi.org/10.26226/morressier.606f15dd30a2e980041f2468)
 
 **[XREF0469]** Hamilton, Brian (2021). Tutorial on finite-difference time-domain (FDTD) methods for room acoustics simulation. *The Journal of the Acoustical Society of America*. DOI: [10.1121/10.0004614](https://doi.org/10.1121/10.0004614)
 
@@ -23633,7 +23633,7 @@ Discovery queries:
 
 **[XREF0252]** Hartmann, William (2024). The effect of reverberation time on the spatial relationships between interaural differences in a room. *The Journal of the Acoustical Society of America*. DOI: [10.1121/10.0035047](https://doi.org/10.1121/10.0035047)
 
-**[XREF0881]** Hashemgeloogerdi, Sahar; Braun, Sebastian (2020). Joint Beamforming and Reverberation Cancellation Using a Constrained Kalman Filter With Multichannel Linear Prediction. *ICASSP 2020 - 2020 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp40776.2020.9053785](https://doi.org/10.1109/icassp40776.2020.9053785)
+**[XREF0881]** Hashemgeloogerdi, Sahar; Braun, Sebastian (2020). Joint Beamforming and Reverberation Cancellation Using a Constrained Kalman Filter With Multichannel Linear Prediction. *ICASSP 2020: 2020 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp40776.2020.9053785](https://doi.org/10.1109/icassp40776.2020.9053785)
 
 **[XREF0028]** Hastings, Mardi C.; Godfrey, Richard D. (1997). Reverberation Room Survey and Qualification According to ASTM C 423. *Noise Control and Acoustics*. DOI: [10.1115/imece1997-1032](https://doi.org/10.1115/imece1997-1032)
 
@@ -23665,7 +23665,7 @@ Discovery queries:
 
 **[XREF0265]** Honghu, Zhang; Jia, Yan; Jianxin, Peng (2019). Chinese speech intelligibility of elderly people in environments combining reverberation and noise. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2019.02.002](https://doi.org/10.1016/j.apacoust.2019.02.002)
 
-**[XREF0473]** Hoover, K. Anthony; Ellison, Steve (2013). Electronically variable room acoustics - motivations and challenges. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4800309](https://doi.org/10.1121/1.4800309)
+**[XREF0473]** Hoover, K. Anthony; Ellison, Steve (2013). Electronically variable room acoustics: motivations and challenges. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4800309](https://doi.org/10.1121/1.4800309)
 
 **[XREF0155]** Hopper, H; Thompson, D; Holland, K (2023). Reverberation Enhancement in Music Practice Rooms. *Acoustics 2011*. DOI: [10.25144/17063](https://doi.org/10.25144/17063)
 
@@ -23683,7 +23683,7 @@ Discovery queries:
 
 **[XREF0541]** Hudson, R.R. (1973). The reduction of camera fan noise in a photoprint room. *Applied Acoustics*. DOI: [10.1016/0003-682x(73)90013-3](https://doi.org/10.1016/0003-682x(73)90013-3)
 
-**[XREF0161]** Huisman, WHT (2024). Reverberation and Attenuation by Trees: Measured and Modelled. *Spring Conference - Acoustics '89*. DOI: [10.25144/21624](https://doi.org/10.25144/21624)
+**[XREF0161]** Huisman, WHT (2024). Reverberation and Attenuation by Trees: Measured and Modelled. *Spring Conference: Acoustics '89*. DOI: [10.25144/21624](https://doi.org/10.25144/21624)
 
 **[XREF0336]** Hursky, Paul; Abawi, Ahmad T. (2013). Reverberation modeling on graphics processing units (GPUs). *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4800712](https://doi.org/10.1121/1.4800712)
 
@@ -23745,7 +23745,7 @@ Discovery queries:
 
 **[XREF0896]** Kalinova, Klara (2023). The Application of Nanofibrous Resonant Membranes for Room Acoustics. *Nanomaterials*. DOI: [10.3390/nano13061115](https://doi.org/10.3390/nano13061115)
 
-**[XREF0821]** Kamble, Madhu R.; Patil, Hemant A. (2019). Analysis of Reverberation via Teager Energy Features for Replay Spoof Speech Detection. *ICASSP 2019 - 2019 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2019.8683830](https://doi.org/10.1109/icassp.2019.8683830)
+**[XREF0821]** Kamble, Madhu R.; Patil, Hemant A. (2019). Analysis of Reverberation via Teager Energy Features for Replay Spoof Speech Detection. *ICASSP 2019: 2019 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2019.8683830](https://doi.org/10.1109/icassp.2019.8683830)
 
 **[XREF0820]** Kamisiński, Tadeusz; Brawata, Krzysztof; Pilch, Adam; et al. (2012). Test Signal Selection for Determining the Sound Scattering Coefficient in a Reverberation Chamber. *Archives of Acoustics*. DOI: [10.2478/v10168-012-0051-2](https://doi.org/10.2478/v10168-012-0051-2)
 
@@ -23827,7 +23827,7 @@ Discovery queries:
 
 **[XREF0596]** Koyama, Shoichi; Daudet, Laurent (2017). Comparison of reverberation models for sparse sound field decomposition. *2017 IEEE Workshop on Applications of Signal Processing to Audio and Acoustics (WASPAA)*. DOI: [10.1109/waspaa.2017.8170026](https://doi.org/10.1109/waspaa.2017.8170026)
 
-**[XREF0416]** Kozlowski, Piotr Z. (2018). How to Adjust Room Acoustics to Multifunctional Use at Music Venues. *2018 Joint Conference - Acoustics*. DOI: [10.1109/acoustics.2018.8502383](https://doi.org/10.1109/acoustics.2018.8502383)
+**[XREF0416]** Kozlowski, Piotr Z. (2018). How to Adjust Room Acoustics to Multifunctional Use at Music Venues. *2018 Joint Conference: Acoustics*. DOI: [10.1109/acoustics.2018.8502383](https://doi.org/10.1109/acoustics.2018.8502383)
 
 **[XREF0007]** Kraszewski, Jarosław (2012). Computing Reverberation Time in a 3D Room Model Using a Finite Difference Method Applied for the Diffusion Equation. *Archives of Acoustics*. DOI: [10.2478/v10168-012-0023-6](https://doi.org/10.2478/v10168-012-0023-6)
 
@@ -23943,13 +23943,13 @@ Discovery queries:
 
 **[XREF0833]** Li, Junfeng; Xia, Risheng; Yan, Yonghong (2012). A hybrid approach for simulation of room reverberation. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.4707996](https://doi.org/10.1121/1.4707996)
 
-**[XREF0248]** Li, Song; Schlieper, Roman; Peissig, Jurgen (2019). A Hybrid Method for Blind Estimation of Frequency Dependent Reverberation Time Using Speech Signals. *ICASSP 2019 - 2019 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2019.8682661](https://doi.org/10.1109/icassp.2019.8682661)
+**[XREF0248]** Li, Song; Schlieper, Roman; Peissig, Jurgen (2019). A Hybrid Method for Blind Estimation of Frequency Dependent Reverberation Time Using Speech Signals. *ICASSP 2019: 2019 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2019.8682661](https://doi.org/10.1109/icassp.2019.8682661)
 
 **[XREF0190]** Li, Yue; Meyer, Julie; Lokki, Tapio; et al. (2022). Benchmarking of finite-difference time-domain method and fast multipole boundary element method for room acoustics. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2022.108662](https://doi.org/10.1016/j.apacoust.2022.108662)
 
 **[XREF0278]** Li, Yue; Meyer, Julie; Lokki, Tapio; et al. (2022). Corrigendum to “Benchmarking of finite-difference time-domain method and fast multipole boundary element method for room acoustics” [Appl. Acoust. 191 (2022) 108662]. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2022.108789](https://doi.org/10.1016/j.apacoust.2022.108789)
 
-**[XREF0644]** Li, Zhiyu; Yue, Xinwen; Zhao, Shenghui; et al. (2026). Multimodal Deep Learning Method for Real-Time Spatial Room Impulse Response Computing. *ICASSP 2026 - 2026 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp55912.2026.11463810](https://doi.org/10.1109/icassp55912.2026.11463810)
+**[XREF0644]** Li, Zhiyu; Yue, Xinwen; Zhao, Shenghui; et al. (2026). Multimodal Deep Learning Method for Real-Time Spatial Room Impulse Response Computing. *ICASSP 2026: 2026 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp55912.2026.11463810](https://doi.org/10.1109/icassp55912.2026.11463810)
 
 **[XREF0324]** Lim, Felicia; Naylor, Patrick A.; Thomas, Mark R. P.; et al. (2015). Acoustic blur kernel with sliding window for blind estimation of reverberation time. *2015 IEEE Workshop on Applications of Signal Processing to Audio and Acoustics (WASPAA)*. DOI: [10.1109/waspaa.2015.7336904](https://doi.org/10.1109/waspaa.2015.7336904)
 
@@ -23997,7 +23997,7 @@ Discovery queries:
 
 **[XREF0592]** Macadam, J.A. (1976). The measurement of sound radiation from room surfaces in lightweight buildings. *Applied Acoustics*. DOI: [10.1016/0003-682x(76)90002-5](https://doi.org/10.1016/0003-682x(76)90002-5)
 
-**[XREF0639]** Maciejewski, Matthew (2026). Single-Microphone Audio Point Source Discriminative Localization from Reverberation Late Tail Estimation. *ICASSP 2026 - 2026 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp55912.2026.11461520](https://doi.org/10.1109/icassp55912.2026.11461520)
+**[XREF0639]** Maciejewski, Matthew (2026). Single-Microphone Audio Point Source Discriminative Localization from Reverberation Late Tail Estimation. *ICASSP 2026: 2026 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp55912.2026.11461520](https://doi.org/10.1109/icassp55912.2026.11461520)
 
 **[XREF0663]** Mackenzie, RK; Mackenzie, CM (2024). Masking Sound: Current Research. *Room Acoustics with Emphasis on Electroacoustics 1979*. DOI: [10.25144/23456](https://doi.org/10.25144/23456)
 
@@ -24069,7 +24069,7 @@ Discovery queries:
 
 **[XREF0310]** Meyer, Erwin; Neumann, Ernst-Georg (1972). Room Acoustics. *Physical and Applied Acoustics*. DOI: [10.1016/b978-0-12-493150-3.50008-4](https://doi.org/10.1016/b978-0-12-493150-3.50008-4)
 
-**[XREF0345]** Meyer, J (2023). The St Michaelis Church in LÜNEBERG - an Example for Changing Room Acoustics. *Auditorium Acoustics 2008*. DOI: [10.25144/17498](https://doi.org/10.25144/17498)
+**[XREF0345]** Meyer, J (2023). The St Michaelis Church in LÜNEBERG: an Example for Changing Room Acoustics. *Auditorium Acoustics 2008*. DOI: [10.25144/17498](https://doi.org/10.25144/17498)
 
 **[XREF0343]** Meyer, Jürgen (2009). Foundations of Room Acoustics. *Acoustics and the Performance of Music*. DOI: [10.1007/978-0-387-09517-2_5](https://doi.org/10.1007/978-0-387-09517-2_5)
 
@@ -24085,7 +24085,7 @@ Discovery queries:
 
 **[XREF0039]** Mijić, M. (1994). Gun-to-noise differences in the dwelling rooms reverberation time measurement. *Applied Acoustics*. DOI: [10.1016/0003-682x(94)90069-8](https://doi.org/10.1016/0003-682x(94)90069-8)
 
-**[XREF0082]** Mikulski, Witold; Radosz, Jan (2011). Acoustics of Classrooms in Primary Schools - Results of the Reverberation Time and the Speech Transmission Index Assessments in Selected Buildings. *Archives of Acoustics*. DOI: [10.2478/v10168-011-0052-6](https://doi.org/10.2478/v10168-011-0052-6)
+**[XREF0082]** Mikulski, Witold; Radosz, Jan (2011). Acoustics of Classrooms in Primary Schools: Results of the Reverberation Time and the Speech Transmission Index Assessments in Selected Buildings. *Archives of Acoustics*. DOI: [10.2478/v10168-011-0052-6](https://doi.org/10.2478/v10168-011-0052-6)
 
 **[XREF0525]** Miles, Ronald N. (2020). Geometrical Room Acoustics. *Mechanical Engineering Series*. DOI: [10.1007/978-3-030-22676-3_8](https://doi.org/10.1007/978-3-030-22676-3_8)
 
@@ -24123,7 +24123,7 @@ Discovery queries:
 
 **[XREF0689]** Morgenstern, Hai; Rafaely, Boaz (2013). Enhanced spatial analysis of room acoustics using acoustic multiple-input multiple-output (MIMO) systems. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4798988](https://doi.org/10.1121/1.4798988)
 
-**[XREF0186]** Mornington-West, A; Bray, JA (2024). Acoustic Reverberation Kit - a New Tool, to Assist in Acoustic Measurements. *Acoustics '84 (Microprocessor and Computer Applications in Acoustics)*. DOI: [10.25144/22563](https://doi.org/10.25144/22563)
+**[XREF0186]** Mornington-West, A; Bray, JA (2024). Acoustic Reverberation Kit: a New Tool, to Assist in Acoustic Measurements. *Acoustics '84 (Microprocessor and Computer Applications in Acoustics)*. DOI: [10.25144/22563](https://doi.org/10.25144/22563)
 
 **[XREF0261]** Möser, Michael (2004). Fundamentals of Room Acoustics. *Engineering Acoustics*. DOI: [10.1007/978-3-662-05391-1_7](https://doi.org/10.1007/978-3-662-05391-1_7)
 
@@ -24447,7 +24447,7 @@ Discovery queries:
 
 **[XREF0105]** Spa, Carlos; Garriga, Adan; Escolano, Jose (2010). Impedance boundary conditions for pseudo-spectral time-domain methods in room acoustics. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2009.11.015](https://doi.org/10.1016/j.apacoust.2009.11.015)
 
-**[XREF0886]** Støfringsdal, B (2023). Integrated Room Acoustic and Electro-Acoustic Design - the Concert Venue at Rockheim, Norway. *Auditorium Acoustics 2011*. DOI: [10.25144/16821](https://doi.org/10.25144/16821)
+**[XREF0886]** Støfringsdal, B (2023). Integrated Room Acoustic and Electro-Acoustic Design: the Concert Venue at Rockheim, Norway. *Auditorium Acoustics 2011*. DOI: [10.25144/16821](https://doi.org/10.25144/16821)
 
 **[XREF0452]** Staffeldt, Henrik (1993). Modelling of room acoustics and loudspeakers in JBL's complex array design program CADP2. *Applied Acoustics*. DOI: [10.1016/0003-682x(93)90050-g](https://doi.org/10.1016/0003-682x(93)90050-g)
 
@@ -24641,7 +24641,7 @@ Discovery queries:
 
 **[XREF0495]** Unknown authors (2014). Physics of small room soundelds. *Acoustics of Small Rooms*. DOI: [10.1201/b16866-5](https://doi.org/10.1201/b16866-5)
 
-**[XREF0438]** Unknown authors (2014). - Room Acoustics. *Acoustic Analyses Using Matlab and Ansys*. DOI: [10.1201/b17825-13](https://doi.org/10.1201/b17825-13)
+**[XREF0438]** Unknown authors (2014). Room Acoustics. *Acoustic Analyses Using Matlab and Ansys*. DOI: [10.1201/b17825-13](https://doi.org/10.1201/b17825-13)
 
 **[XREF0225]** Unknown authors (2014). Room Acoustics, Fifth Edition. *Unspecified venue*. DOI: [10.1201/9781482266450](https://doi.org/10.1201/9781482266450)
 
@@ -24743,7 +24743,7 @@ Discovery queries:
 
 **[XREF0471]** Way, Evelyn (2022). Evaluating the reverberation chamber as a small room: How room dimensions affect the generalization of testing results. *The Journal of the Acoustical Society of America*. DOI: [10.1121/10.0015476](https://doi.org/10.1121/10.0015476)
 
-**[XREF0880]** Webb, Craig J.; Bilbao, Stefan (2011). Computing room acoustics with CUDA - 3D FDTD schemes with boundary losses and viscosity. *2011 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2011.5946404](https://doi.org/10.1109/icassp.2011.5946404)
+**[XREF0880]** Webb, Craig J.; Bilbao, Stefan (2011). Computing room acoustics with CUDA: 3D FDTD schemes with boundary losses and viscosity. *2011 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2011.5946404](https://doi.org/10.1109/icassp.2011.5946404)
 
 **[XREF0275]** Wen, Jimi Y.C.; Habets, Emanuel A.P.; Naylor, Patrick A. (2008). Blind estimation of reverberation time based on the distribution of signal decay rates. *2008 IEEE International Conference on Acoustics, Speech and Signal Processing*. DOI: [10.1109/icassp.2008.4517613](https://doi.org/10.1109/icassp.2008.4517613)
 
@@ -24797,7 +24797,7 @@ Discovery queries:
 
 **[XREF0643]** Xie, Yuan; Zou, Tao (2024). Adaptive Time-Frequency Blind Source Separation in High Reverberation and Echo Environments. *Unspecified venue*. DOI: [10.2139/ssrn.4952969](https://doi.org/10.2139/ssrn.4952969)
 
-**[XREF0373]** Xiong, Feifei; Dong, Minya; Zhou, Kechenying; et al. (2023). Deep Subband Network for Joint Suppression of Echo, Noise and Reverberation in Real-Time Fullband Speech Communication. *ICASSP 2023 - 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10096067](https://doi.org/10.1109/icassp49357.2023.10096067)
+**[XREF0373]** Xiong, Feifei; Dong, Minya; Zhou, Kechenying; et al. (2023). Deep Subband Network for Joint Suppression of Echo, Noise and Reverberation in Real-Time Fullband Speech Communication. *ICASSP 2023: 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10096067](https://doi.org/10.1109/icassp49357.2023.10096067)
 
 **[XREF0152]** Xiong, Feifei; Goetze, Stefan; Meyer, Bernd T. (2013). Blind estimation of reverberation time based on spectro-temporal modulation filtering. *2013 IEEE International Conference on Acoustics, Speech and Signal Processing*. DOI: [10.1109/icassp.2013.6637686](https://doi.org/10.1109/icassp.2013.6637686)
 
@@ -24857,7 +24857,7 @@ Discovery queries:
 
 **[XREF0058]** Zhou, Fulin; Wang, Bin; Fan, Jun (2016). Simulation study on measuring structural surface impedance in air reverberation room. *2016 IEEE/OES China Ocean Acoustics (COA)*. DOI: [10.1109/coa.2016.7535820](https://doi.org/10.1109/coa.2016.7535820)
 
-**[XREF0149]** Zhou, Rui; Zhu, Wenye; Li, Xiaofei (2023). Speech Dereverberation with a Reverberation Time Shortening Target. *ICASSP 2023 - 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10096164](https://doi.org/10.1109/icassp49357.2023.10096164)
+**[XREF0149]** Zhou, Rui; Zhu, Wenye; Li, Xiaofei (2023). Speech Dereverberation with a Reverberation Time Shortening Target. *ICASSP 2023: 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10096164](https://doi.org/10.1109/icassp49357.2023.10096164)
 
 **[XREF0063]** Zhou, Xiaoru; Späh, Moritz; Hengst, Klaudius; et al. (2021). Predicting the reverberation time in rectangular rooms with non-uniform absorption distribution. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2020.107539](https://doi.org/10.1016/j.apacoust.2020.107539)
 
