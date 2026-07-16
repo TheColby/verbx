@@ -111,7 +111,7 @@ verbx render guitar.wav shoegaze.wav --engine algo \
 
 This section sits between the building blocks and the recipes because the way you listen matters as much as the settings you use.
 
-**For algorithmic reverbs (section 1):** Listen for the density of the diffusion network. A well-tuned algo reverb should feel like a continuous fog rather than a series of distinct echoes. Listen for colorations in the decay — most algo engines have a characteristic tone that emerges around 3-6 seconds of tail. High `--beast-mode` values will push the feedback networks toward instability; you will hear this as a shift from smooth decay to a kind of churning or fluttering texture.
+**For algorithmic reverbs (section 1):** Listen for the density of the diffusion network. A well-tuned algo reverb should feel like a continuous fog rather than a series of distinct echoes. Listen for colorations in the decay — most algo engines have a characteristic tone that emerges around 3–6 seconds of tail. High `--beast-mode` values will push the feedback networks toward instability; you will hear this as a shift from smooth decay to a kind of churning or fluttering texture.
 
 **For freeze and repeat chains (section 2):** The transition point between the frozen segment and the incoming signal is the interesting moment. Listen for phase artifacts at loop boundaries, for build-up of low-mid energy across repeats, and for how the freeze interacts with the original signal's wet/dry balance. Repeat chains tend to accumulate energy — listen for how normalization (or its absence) shapes the perceived loudness arc.
 
@@ -125,11 +125,11 @@ This section sits between the building blocks and the recipes because the way yo
 
 ---
 
-## Section 1: Algorithmic Extremes (Recipes 1-10)
+## Section 1: Algorithmic Extremes (Recipes 1–10)
 
 Algorithmic reverb builds synthetic spaces using networks of delay lines, all-pass filters, and feedback matrices — no recorded impulse required. This makes it fast to iterate and infinitely malleable, but it also means the "space" it simulates is fundamentally fictional. That is its power. In film post, algo reverbs are used for sci-fi environments, supernatural spaces, and any situation where the reverb needs to be emotionally correct rather than acoustically accurate. In electronic music, they are the texture underneath ambient pads, the wash behind a snare, the infinite hallway a note disappears into.
 
-The `--beast-mode` flag increases the density and complexity of the internal diffusion network. Low values (1-4) are broadly useful. Values above 8 begin to produce audible coloration. Values above 12 are genuinely unstable on some inputs and will produce results that range from magnificent to unusable.
+The `--beast-mode` flag increases the density and complexity of the internal diffusion network. Low values (1–4) are broadly useful. Values above 8 begin to produce audible coloration. Values above 12 are genuinely unstable on some inputs and will produce results that range from magnificent to unusable.
 
 ---
 
@@ -231,7 +231,7 @@ verbx render in.wav out/010_algo_mud.wav --engine algo --rt60 110 --lowcut 30 --
 ```
 _What it sounds like:_ A thick, dark, low-mid reverb that eliminates almost all high-frequency content. Like being inside a concrete room full of water.
 
-_DSP note:_ The combined effect of `--highcut 1800` and `--tilt -5` aggressively attenuates frequencies above 1.8kHz. The result is a reverb that exists almost entirely in the 30-1800Hz band. Long RT60 in this band produces the characteristic "mud" of untreated room reverb. Useful for horror sound design, industrial textures, and sub-bass reinforcement.
+_DSP note:_ The combined effect of `--highcut 1800` and `--tilt -5` aggressively attenuates frequencies above 1.8kHz. The result is a reverb that exists almost entirely in the 30–1800Hz band. Long RT60 in this band produces the characteristic "mud" of untreated room reverb. Useful for horror sound design, industrial textures, and sub-bass reinforcement.
 
 ---
 
@@ -243,7 +243,7 @@ Repeat chains stack the entire render output and re-process it. This accumulates
 
 ---
 
-## Section 2: Freeze and Repeat Chains (Recipes 11-20)
+## Section 2: Freeze and Repeat Chains (Recipes 11–20)
 
 Freeze workflows are central to ambient music production and sound design for picture. The ability to hold a moment of audio indefinitely — creating a synthetic drone from a single phrase, or sustaining a room ambience between cuts — is one of the more practically useful things `verbx` does. Repeat chains go further, iterating the reverb process multiple times and creating layered, progressively transformed textures. In scoring, this is used to build tension by accumulating reverberant energy. In experimental music, it is used to watch a source material destroy itself through repeated convolution.
 
@@ -357,7 +357,7 @@ The interesting edge cases come from using IRs that are not captured from real s
 
 ---
 
-## Section 3: Convolution Heavy Modes (Recipes 21-30)
+## Section 3: Convolution Heavy Modes (Recipes 21–30)
 
 Convolution is the workhorse of post-production reverb. It is what music supervisors use when they need a score to sound like it was performed in a specific church. It is what sound designers use when they need a gunshot to sound like it happened in a parking garage rather than a foley stage. The goal is accuracy and plausibility, and when it works well, it is invisible.
 
@@ -465,7 +465,7 @@ _DSP note:_ `--output-peak-norm input` measures the peak amplitude of the input 
 
 ---
 
-## Section 4: Self-Convolution and Feedback Smear (Recipes 31-40)
+## Section 4: Self-Convolution and Feedback Smear (Recipes 31–40)
 
 Self-convolution is where things get genuinely experimental. Using the audio as its own impulse response creates a spectral feedback loop — the signal's frequency peaks are amplified and its nulls are deepened, producing a transformation that is related to but distinct from the source. It is not a reverb in any conventional sense. It is more like the audio reflecting itself into a new shape.
 
@@ -575,7 +575,7 @@ _DSP note:_ Beast-mode 40 is at the edge of numerical stability for most input s
 
 ---
 
-## Section 5: Shimmer, Comb Cloud, Ducking, Bloom, and Tilt (Recipes 41-50)
+## Section 5: Shimmer, Comb Cloud, Ducking, Bloom, and Tilt (Recipes 41–50)
 
 These five tools are the texture controls. Shimmer adds pitched content. Comb cloud adds time-domain metallic density. Duck subtracts. Bloom delays and builds. Tilt tilts. Each has a clear sonic function that can be grasped immediately, but the interesting work happens at the intersections — when comb cloud roughens a pristine FDN tail, when shimmer feeds into a bloomed reverb, or when duck is combined with slow attack times and long tails.
 
@@ -697,7 +697,7 @@ _DSP note:_ The signal chain here is complex: the source is passed into the algo
 
 ---
 
-## Section 6: Loudness and Output Format (Recipes 51-60)
+## Section 6: Loudness and Output Format (Recipes 51–60)
 
 Loudness normalization is one of those topics that sounds boring until you work in a context where it matters — and then it is everything. Streaming platforms, broadcast, cinema, and immersive audio all have different integrated loudness targets, true peak limits, and gating rules. This section covers the practical configurations for common delivery requirements, as well as the edge cases where you want no normalization at all.
 
@@ -805,13 +805,13 @@ _DSP note:_ `--output-peak-norm target` enables absolute peak normalization, and
 
 ---
 
-## Section 7: Synthetic IR Generation (Recipes 61-70)
+## Section 7: Synthetic IR Generation (Recipes 61–70)
 
 Generating synthetic impulse responses is where `verbx` overlaps with acoustic modeling. Rather than measuring a real space, these commands synthesize IRs from mathematical models — Feedback Delay Networks, stochastic noise models, and modal synthesis. The results range from plausible-but-not-real-sounding rooms to completely abstract spectral transformers.
 
 The practical value of synthetic IRs is flexibility: you can tune the RT60, the modal density, the fundamental resonant frequency, and the reflection pattern, all without access to a real space. For science fiction and fantasy sound design, this is invaluable. For electronic music, it allows creating reverbs that are tuned to the key of the track. For theatrical foley, it allows matching a reverb exactly to the visual environment.
 
-The workflow in recipes 61-70 forms a complete IR generation and processing pipeline: generate, process, analyze, then use.
+The workflow in recipes 61–70 forms a complete IR generation and processing pipeline: generate, process, analyze, then use.
 
 ---
 
@@ -851,7 +851,7 @@ verbx ir gen out/064_ir_modal.wav --mode modal --length 90 --modal-count 96 --se
 ```
 _What it sounds like:_ A modal IR — synthesized from 96 resonant modes. Depending on the source material, you will hear clear resonant frequencies in the reverb tail.
 
-_DSP note:_ Modal synthesis generates an IR as a sum of decaying sinusoids, each at a different frequency (mode) with a different amplitude and decay rate. 96 modes is relatively dense — individual modes may not be distinguishable. At lower mode counts (8-16), the individual resonances are clearly audible and the "room" sounds like a resonator rather than a space.
+_DSP note:_ Modal synthesis generates an IR as a sum of decaying sinusoids, each at a different frequency (mode) with a different amplitude and decay rate. 96 modes is relatively dense — individual modes may not be distinguishable. At lower mode counts (8–16), the individual resonances are clearly audible and the "room" sounds like a resonator rather than a space.
 
 ---
 
@@ -909,7 +909,7 @@ _DSP note:_ IR analysis typically measures RT20, RT30, RT60 (derived from the de
 ```bash
 verbx render in.wav out/070_ir_render.wav --engine conv --ir out/068_ir_processed.wav --repeat 2
 ```
-_What it sounds like:_ The input processed with the custom IR we generated and processed in recipes 67-68, repeated twice. This completes the synthetic IR pipeline.
+_What it sounds like:_ The input processed with the custom IR we generated and processed in recipes 67–68, repeated twice. This completes the synthetic IR pipeline.
 
 _DSP note:_ This is the payoff of the IR generation workflow. The convolution engine uses the processed synthetic IR as if it were a measured room IR. Two repeat passes mean the input is convolved twice with the resonant, dark-tilted synthetic IR, producing a dense, colored reverb with the resonator's character amplified.
 
@@ -923,7 +923,7 @@ For the algorithmic multichannel recipes, pay attention to the relationship betw
 
 ---
 
-## Section 8: Multichannel and Spatial Processing (Recipes 71-80)
+## Section 8: Multichannel and Spatial Processing (Recipes 71–80)
 
 Multichannel reverb is a workflow unto itself. The spatial distribution of reverb energy — which sounds arrive from which directions, how the early reflections establish the size and shape of the space, how the late field wraps around the listener — is as important as the RT60 or the dry/wet balance. Bad multichannel reverb sounds like stereo reverb playing from four speakers. Good multichannel reverb sounds like being inside a space.
 
@@ -975,7 +975,7 @@ _DSP note:_ Beast-mode 12 in multichannel increases the diffusion network comple
 ```bash
 verbx render in_5p1.wav out/075_5p1_freeze.wav --engine algo --freeze --start 3 --end 4.5 --repeat 2
 ```
-_What it sounds like:_ A frozen 5.1 pad extracted from the 3-4.5 second range, repeated twice. Creates a multichannel ambient drone.
+_What it sounds like:_ A frozen 5.1 pad extracted from the 3–4.5 second range, repeated twice. Creates a multichannel ambient drone.
 
 _DSP note:_ Freeze in multichannel mode extracts the specified window from all channels simultaneously, maintaining the spatial coherence of the frozen segment. The frozen loop, when processed through the algo reverb, produces a reverberant pad that preserves the original spatial distribution of the source material.
 
@@ -1031,9 +1031,9 @@ _DSP note:_ 240-second tail-limit on an 8-channel 48kHz float32 file is approxim
 
 ---
 
-## Section 9: Analysis, Suggestion, and Batch Tools (Recipes 81-90)
+## Section 9: Analysis, Suggestion, and Batch Tools (Recipes 81–90)
 
-The analysis and batch tools are where `verbx` starts to function as a production pipeline rather than a single-render tool. These commands are less dramatic than the extremes in sections 1-8, but they are often more useful in practice. Understanding what your audio contains before applying reverb is good engineering. Batching a large set of renders with known parameters is how you scale up to feature-length projects.
+The analysis and batch tools are where `verbx` starts to function as a production pipeline rather than a single-render tool. These commands are less dramatic than the extremes in sections 1–8, but they are often more useful in practice. Understanding what your audio contains before applying reverb is good engineering. Batching a large set of renders with known parameters is how you scale up to feature-length projects.
 
 The `suggest` command is worth studying — it uses analysis of the input to generate parameter recommendations, which can be a useful starting point for creative decisions or a sanity check on aggressive settings.
 
@@ -1095,7 +1095,7 @@ verbx batch template > out/086_manifest.json
 ```
 _What it sounds like:_ No audio output. Generates a template batch manifest JSON file.
 
-_DSP note:_ The manifest file defines a list of render jobs with all parameters specified. The template contains example entries for each engine type and common parameter configurations. Edit the manifest to define your actual batch before running recipes 87-88.
+_DSP note:_ The manifest file defines a list of render jobs with all parameters specified. The template contains example entries for each engine type and common parameter configurations. Edit the manifest to define your actual batch before running recipes 87–88.
 
 ---
 
@@ -1139,7 +1139,7 @@ _DSP note:_ Clearing the cache forces recomputation of IR FFTs on the next rende
 
 ---
 
-## Section 10: Lucky-Mode Wildcards (Recipes 91-100)
+## Section 10: Lucky-Mode Wildcards (Recipes 91–100)
 
 Lucky mode is what happens when you hand the parameter space to the engine and say "find something interesting." It randomizes settings within configured bounds and generates a specified number of variations in a single run. It is not random in the degenerate sense — the parameter space is constrained to avoid unlistenable results — but it covers territory you would not explore by hand.
 
@@ -1253,7 +1253,7 @@ _DSP note:_ A 100-variation lucky set with a fixed seed is a complete exploratio
 
 ## Notes for Large Runs
 
-Start with a small lucky count (3-5) to confirm runtime and output size before committing to a 50 or 100-variation run.
+Start with a small lucky count (3–5) to confirm runtime and output size before committing to a 50 or 100-variation run.
 
 Use `--no-progress` in log-friendly batch environments. The progress bar uses terminal control codes that corrupt plain-text logs.
 
@@ -1261,6 +1261,6 @@ Fix `--lucky-seed` whenever reproducibility matters. Document the seed alongside
 
 Monitor storage. Long tails, high repeat counts, and multichannel outputs in float format accumulate quickly. A batch of 100 stereo float32 files at 3 minutes each is approximately 34GB at 48kHz.
 
-The `verbx cache info` and `verbx cache clear` commands (recipes 89-90) are useful before and after large batch runs. Clear the cache if disk space is constrained; leave it in place if you will be reusing the same IRs across multiple batches.
+The `verbx cache info` and `verbx cache clear` commands (recipes 89–90) are useful before and after large batch runs. Clear the cache if disk space is constrained; leave it in place if you will be reusing the same IRs across multiple batches.
 
 When a run produces something you want to keep, immediately rename the output file out of the numbered sequence. The output directory will be overwritten if you rerun the batch with the same output path.

@@ -88,11 +88,11 @@ def test_pdf_markdown_has_no_parenthesized_doi_fence_artifacts() -> None:
 
 def test_musical_work_titles_remain_italic_in_pdf_index() -> None:
     term = DOCS_PDF._musical_index_term(
-        "Karlheinz Stockhausen, *Kontakte* (1958-1960)"
+        "Karlheinz Stockhausen, *Kontakte* (1958–1960)"
     )
 
-    assert term.startswith("Karlheinz Stockhausen, Kontakte (1958-1960)@")
-    assert r"Karlheinz Stockhausen, \textit{Kontakte} (1958-1960)" in term
+    assert term.startswith("Karlheinz Stockhausen, Kontakte (1958–1960)@")
+    assert r"Karlheinz Stockhausen, \textit{Kontakte} (1958–1960)" in term
 
 
 def test_musical_workflow_titles_are_italicized_in_sources() -> None:
@@ -112,6 +112,22 @@ def test_every_extreme_cookbook_recipe_has_a_title() -> None:
     assert [int(number) for number, _title in recipes] == list(range(1, 101))
     assert all(title.strip() for _number, title in recipes)
     assert re.search(r"^\*\*Recipe \d+\*\*$", cookbook, flags=re.MULTILINE) is None
+
+
+def test_reader_facing_numeric_ranges_use_en_dashes() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    cookbook = (REPO_ROOT / "docs/EXTREME_COOKBOOK.md").read_text(encoding="utf-8")
+    figure_generator = (REPO_ROOT / "scripts/generate_userguide_figures.py").read_text(
+        encoding="utf-8"
+    )
+
+    for start in range(1, 100, 10):
+        assert f"Recipes {start}–{start + 9}" in cookbook
+    assert re.search(r"Recipes \d+-\d+", cookbook) is None
+    assert "Minute 0–5" in readme
+    assert "Early reflections<br/>10–80 ms" in readme
+    assert "(0-1)" not in figure_generator
+    assert "(0–1)" in figure_generator
 
 
 def test_code_example_leads_reserve_space_and_forbid_boundary_breaks() -> None:

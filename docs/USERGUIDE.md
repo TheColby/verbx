@@ -456,7 +456,7 @@ Current stabilization status:
   realtime device failures are clearer, render long-tail flows have fail-fast
   safeguards or early status output, and render/realtime/dereverb emit
   machine-readable reports where applicable.
-- CLI/docs/test consolidation is complete for Weeks 1-3 of the short-horizon
+- CLI/docs/test consolidation is complete for Weeks 1–3 of the short-horizon
   plan: shared validators are extracted, generated docs/PDF are in sync, and
   focused regression coverage covers realtime, dereverb, limiter, and long-tail
   behaviors.
@@ -620,7 +620,7 @@ produce different direct-to-reverberant balances when the source or listener mov
 %% verbx-static: docs/assets/reverb_primer/01_acoustic_event_anatomy.png
 flowchart LR
     S["Sound source"] --> D["Direct path"]
-    S --> E["Early reflections<br/>10-80 ms"]
+    S --> E["Early reflections<br/>10–80 ms"]
     S --> L["Late diffuse field"]
     D --> R["Listener or microphone"]
     E --> R
@@ -796,7 +796,7 @@ verbx render examples/audio/realistic_music_dry.wav /tmp/music_hall.wav \
 
 For a Romantic cadence, increase RT60 before increasing wet level. For a contrapuntal
 passage, reduce wet level and length, or use ducking so each attack remains legible.
-Treat pre-delay as phrasing space: 20-35 ms can separate the hammer or pluck from the
+Treat pre-delay as phrasing space: 20–35 ms can separate the hammer or pluck from the
 room without making the response feel like a discrete echo.
 
 #### Example 3: Drums, Early Reflections, and Groove
@@ -1627,7 +1627,7 @@ energy across changing modal bases. The design goal is often to move slowly enou
 the listener hears a living space rather than a pitch effect.
 
 `--fdn-tv-rate-hz` controls update rate and `--fdn-tv-depth` controls how far the matrix
-moves from its base state. At 0.05-0.3 Hz, motion unfolds over several seconds. That is
+moves from its base state. At 0.05–0.3 Hz, motion unfolds over several seconds. That is
 appropriate for long ambient tails. Faster rates can become audible animation and may
 be exactly right for sound design.
 
@@ -1737,41 +1737,41 @@ The following laboratory turns the chapter into an audible sequence. Use headpho
 and loudspeakers if possible; keep output level fixed; preserve every render and JSON
 sidecar.
 
-#### Minute 0-5: Identify the Three Regions
+#### Minute 0–5: Identify the Three Regions
 
 Render the dry click through a one-second room at 100 percent wet. Mark direct onset,
 the first visible reflections, and the point where individual arrivals become a dense
 tail. Change only pre-delay and repeat. The late decay should remain similar while the
 relationship between source and room changes.
 
-#### Minute 5-10: Isolate Diffusion
+#### Minute 5–10: Isolate Diffusion
 
 Render a rimshot or click with zero, two, four, and eight allpass stages. Keep RT60 and
 matrix fixed. Listen for loss of attack definition, flutter reduction, and buildup
 speed. Choose the lowest stage count that supplies the density the source needs.
 
-#### Minute 10-15: Compare Matrix Families
+#### Minute 10–15: Compare Matrix Families
 
 Use a sparse major seventh chord and an eight-second tail. Compare Hadamard, circulant,
 random orthogonal, and time-varying unitary matrices. Write three adjectives for each
 without looking at the option name. Then inspect sonograms and ask whether visible
 modal ridges agree with what you heard.
 
-#### Minute 15-20: Design Frequency-Dependent Decay
+#### Minute 15–20: Design Frequency-Dependent Decay
 
 Set low, middle, and high RT60 values equal. Then shorten only the high band; next,
 lengthen only the low band. Listen through the complete final tail. The point is not to
 find a universal curve but to learn how decay spectrum changes perceived material and
 scale.
 
-#### Minute 20-25: Make the Return a Musical Voice
+#### Minute 20–25: Make the Return a Musical Voice
 
 Put verbx on a 100 percent wet auxiliary return. Send only the final note of every
 four-bar phrase. Then leave the send constant and automate the return instead. Compare
 the two gestures. One controls what the room remembers; the other controls when the
 memory is revealed.
 
-#### Minute 25-30: Enter Extreme Time Safely
+#### Minute 25–30: Enter Extreme Time Safely
 
 Render one stable chord into a 60-second time-varying FDN. Leave at least 90 seconds of
 silence after the source. Write floating-point audio and a JSON report. Inspect peak,
@@ -2056,7 +2056,7 @@ Use it when the base algorithmic tail feels too smooth or too well-behaved:
 - frozen, haunted, or intentionally "wrong" ambience
 - pre-shimmer thickening before harmonic coloration
 
-Start conservatively. `--comb-cloud-mix 0.15-0.35` is usually enough. Higher `--comb-cloud-feedback` values push the sound toward ringing and resonant buildup.
+Start conservatively. `--comb-cloud-mix 0.15–0.35` is usually enough. Higher `--comb-cloud-feedback` values push the sound toward ringing and resonant buildup.
 
 ```bash
 --comb-cloud --comb-cloud-count 24 --comb-cloud-feedback 0.35 --comb-cloud-mix 0.25
@@ -6395,7 +6395,7 @@ verbx render guitar.wav shoegaze.wav --engine algo \
 
 This section sits between the building blocks and the recipes because the way you listen matters as much as the settings you use.
 
-**For algorithmic reverbs (section 1):** Listen for the density of the diffusion network. A well-tuned algo reverb should feel like a continuous fog rather than a series of distinct echoes. Listen for colorations in the decay — most algo engines have a characteristic tone that emerges around 3-6 seconds of tail. High `--beast-mode` values will push the feedback networks toward instability; you will hear this as a shift from smooth decay to a kind of churning or fluttering texture.
+**For algorithmic reverbs (section 1):** Listen for the density of the diffusion network. A well-tuned algo reverb should feel like a continuous fog rather than a series of distinct echoes. Listen for colorations in the decay — most algo engines have a characteristic tone that emerges around 3–6 seconds of tail. High `--beast-mode` values will push the feedback networks toward instability; you will hear this as a shift from smooth decay to a kind of churning or fluttering texture.
 
 **For freeze and repeat chains (section 2):** The transition point between the frozen segment and the incoming signal is the interesting moment. Listen for phase artifacts at loop boundaries, for build-up of low-mid energy across repeats, and for how the freeze interacts with the original signal's wet/dry balance. Repeat chains tend to accumulate energy — listen for how normalization (or its absence) shapes the perceived loudness arc.
 
@@ -6409,11 +6409,11 @@ This section sits between the building blocks and the recipes because the way yo
 
 ---
 
-## Section 1: Algorithmic Extremes (Recipes 1-10)
+## Section 1: Algorithmic Extremes (Recipes 1–10)
 
 Algorithmic reverb builds synthetic spaces using networks of delay lines, all-pass filters, and feedback matrices — no recorded impulse required. This makes it fast to iterate and infinitely malleable, but it also means the "space" it simulates is fundamentally fictional. That is its power. In film post, algo reverbs are used for sci-fi environments, supernatural spaces, and any situation where the reverb needs to be emotionally correct rather than acoustically accurate. In electronic music, they are the texture underneath ambient pads, the wash behind a snare, the infinite hallway a note disappears into.
 
-The `--beast-mode` flag increases the density and complexity of the internal diffusion network. Low values (1-4) are broadly useful. Values above 8 begin to produce audible coloration. Values above 12 are genuinely unstable on some inputs and will produce results that range from magnificent to unusable.
+The `--beast-mode` flag increases the density and complexity of the internal diffusion network. Low values (1–4) are broadly useful. Values above 8 begin to produce audible coloration. Values above 12 are genuinely unstable on some inputs and will produce results that range from magnificent to unusable.
 
 ---
 
@@ -6515,7 +6515,7 @@ verbx render in.wav out/010_algo_mud.wav --engine algo --rt60 110 --lowcut 30 --
 ```
 _What it sounds like:_ A thick, dark, low-mid reverb that eliminates almost all high-frequency content. Like being inside a concrete room full of water.
 
-_DSP note:_ The combined effect of `--highcut 1800` and `--tilt -5` aggressively attenuates frequencies above 1.8kHz. The result is a reverb that exists almost entirely in the 30-1800Hz band. Long RT60 in this band produces the characteristic "mud" of untreated room reverb. Useful for horror sound design, industrial textures, and sub-bass reinforcement.
+_DSP note:_ The combined effect of `--highcut 1800` and `--tilt -5` aggressively attenuates frequencies above 1.8kHz. The result is a reverb that exists almost entirely in the 30–1800Hz band. Long RT60 in this band produces the characteristic "mud" of untreated room reverb. Useful for horror sound design, industrial textures, and sub-bass reinforcement.
 
 ---
 
@@ -6527,7 +6527,7 @@ Repeat chains stack the entire render output and re-process it. This accumulates
 
 ---
 
-## Section 2: Freeze and Repeat Chains (Recipes 11-20)
+## Section 2: Freeze and Repeat Chains (Recipes 11–20)
 
 Freeze workflows are central to ambient music production and sound design for picture. The ability to hold a moment of audio indefinitely — creating a synthetic drone from a single phrase, or sustaining a room ambience between cuts — is one of the more practically useful things `verbx` does. Repeat chains go further, iterating the reverb process multiple times and creating layered, progressively transformed textures. In scoring, this is used to build tension by accumulating reverberant energy. In experimental music, it is used to watch a source material destroy itself through repeated convolution.
 
@@ -6641,7 +6641,7 @@ The interesting edge cases come from using IRs that are not captured from real s
 
 ---
 
-## Section 3: Convolution Heavy Modes (Recipes 21-30)
+## Section 3: Convolution Heavy Modes (Recipes 21–30)
 
 Convolution is the workhorse of post-production reverb. It is what music supervisors use when they need a score to sound like it was performed in a specific church. It is what sound designers use when they need a gunshot to sound like it happened in a parking garage rather than a foley stage. The goal is accuracy and plausibility, and when it works well, it is invisible.
 
@@ -6749,7 +6749,7 @@ _DSP note:_ `--output-peak-norm input` measures the peak amplitude of the input 
 
 ---
 
-## Section 4: Self-Convolution and Feedback Smear (Recipes 31-40)
+## Section 4: Self-Convolution and Feedback Smear (Recipes 31–40)
 
 Self-convolution is where things get genuinely experimental. Using the audio as its own impulse response creates a spectral feedback loop — the signal's frequency peaks are amplified and its nulls are deepened, producing a transformation that is related to but distinct from the source. It is not a reverb in any conventional sense. It is more like the audio reflecting itself into a new shape.
 
@@ -6859,7 +6859,7 @@ _DSP note:_ Beast-mode 40 is at the edge of numerical stability for most input s
 
 ---
 
-## Section 5: Shimmer, Comb Cloud, Ducking, Bloom, and Tilt (Recipes 41-50)
+## Section 5: Shimmer, Comb Cloud, Ducking, Bloom, and Tilt (Recipes 41–50)
 
 These five tools are the texture controls. Shimmer adds pitched content. Comb cloud adds time-domain metallic density. Duck subtracts. Bloom delays and builds. Tilt tilts. Each has a clear sonic function that can be grasped immediately, but the interesting work happens at the intersections — when comb cloud roughens a pristine FDN tail, when shimmer feeds into a bloomed reverb, or when duck is combined with slow attack times and long tails.
 
@@ -6981,7 +6981,7 @@ _DSP note:_ The signal chain here is complex: the source is passed into the algo
 
 ---
 
-## Section 6: Loudness and Output Format (Recipes 51-60)
+## Section 6: Loudness and Output Format (Recipes 51–60)
 
 Loudness normalization is one of those topics that sounds boring until you work in a context where it matters — and then it is everything. Streaming platforms, broadcast, cinema, and immersive audio all have different integrated loudness targets, true peak limits, and gating rules. This section covers the practical configurations for common delivery requirements, as well as the edge cases where you want no normalization at all.
 
@@ -7089,13 +7089,13 @@ _DSP note:_ `--output-peak-norm target` enables absolute peak normalization, and
 
 ---
 
-## Section 7: Synthetic IR Generation (Recipes 61-70)
+## Section 7: Synthetic IR Generation (Recipes 61–70)
 
 Generating synthetic impulse responses is where `verbx` overlaps with acoustic modeling. Rather than measuring a real space, these commands synthesize IRs from mathematical models — Feedback Delay Networks, stochastic noise models, and modal synthesis. The results range from plausible-but-not-real-sounding rooms to completely abstract spectral transformers.
 
 The practical value of synthetic IRs is flexibility: you can tune the RT60, the modal density, the fundamental resonant frequency, and the reflection pattern, all without access to a real space. For science fiction and fantasy sound design, this is invaluable. For electronic music, it allows creating reverbs that are tuned to the key of the track. For theatrical foley, it allows matching a reverb exactly to the visual environment.
 
-The workflow in recipes 61-70 forms a complete IR generation and processing pipeline: generate, process, analyze, then use.
+The workflow in recipes 61–70 forms a complete IR generation and processing pipeline: generate, process, analyze, then use.
 
 ---
 
@@ -7135,7 +7135,7 @@ verbx ir gen out/064_ir_modal.wav --mode modal --length 90 --modal-count 96 --se
 ```
 _What it sounds like:_ A modal IR — synthesized from 96 resonant modes. Depending on the source material, you will hear clear resonant frequencies in the reverb tail.
 
-_DSP note:_ Modal synthesis generates an IR as a sum of decaying sinusoids, each at a different frequency (mode) with a different amplitude and decay rate. 96 modes is relatively dense — individual modes may not be distinguishable. At lower mode counts (8-16), the individual resonances are clearly audible and the "room" sounds like a resonator rather than a space.
+_DSP note:_ Modal synthesis generates an IR as a sum of decaying sinusoids, each at a different frequency (mode) with a different amplitude and decay rate. 96 modes is relatively dense — individual modes may not be distinguishable. At lower mode counts (8–16), the individual resonances are clearly audible and the "room" sounds like a resonator rather than a space.
 
 ---
 
@@ -7193,7 +7193,7 @@ _DSP note:_ IR analysis typically measures RT20, RT30, RT60 (derived from the de
 ```bash
 verbx render in.wav out/070_ir_render.wav --engine conv --ir out/068_ir_processed.wav --repeat 2
 ```
-_What it sounds like:_ The input processed with the custom IR we generated and processed in recipes 67-68, repeated twice. This completes the synthetic IR pipeline.
+_What it sounds like:_ The input processed with the custom IR we generated and processed in recipes 67–68, repeated twice. This completes the synthetic IR pipeline.
 
 _DSP note:_ This is the payoff of the IR generation workflow. The convolution engine uses the processed synthetic IR as if it were a measured room IR. Two repeat passes mean the input is convolved twice with the resonant, dark-tilted synthetic IR, producing a dense, colored reverb with the resonator's character amplified.
 
@@ -7207,7 +7207,7 @@ For the algorithmic multichannel recipes, pay attention to the relationship betw
 
 ---
 
-## Section 8: Multichannel and Spatial Processing (Recipes 71-80)
+## Section 8: Multichannel and Spatial Processing (Recipes 71–80)
 
 Multichannel reverb is a workflow unto itself. The spatial distribution of reverb energy — which sounds arrive from which directions, how the early reflections establish the size and shape of the space, how the late field wraps around the listener — is as important as the RT60 or the dry/wet balance. Bad multichannel reverb sounds like stereo reverb playing from four speakers. Good multichannel reverb sounds like being inside a space.
 
@@ -7259,7 +7259,7 @@ _DSP note:_ Beast-mode 12 in multichannel increases the diffusion network comple
 ```bash
 verbx render in_5p1.wav out/075_5p1_freeze.wav --engine algo --freeze --start 3 --end 4.5 --repeat 2
 ```
-_What it sounds like:_ A frozen 5.1 pad extracted from the 3-4.5 second range, repeated twice. Creates a multichannel ambient drone.
+_What it sounds like:_ A frozen 5.1 pad extracted from the 3–4.5 second range, repeated twice. Creates a multichannel ambient drone.
 
 _DSP note:_ Freeze in multichannel mode extracts the specified window from all channels simultaneously, maintaining the spatial coherence of the frozen segment. The frozen loop, when processed through the algo reverb, produces a reverberant pad that preserves the original spatial distribution of the source material.
 
@@ -7315,9 +7315,9 @@ _DSP note:_ 240-second tail-limit on an 8-channel 48kHz float32 file is approxim
 
 ---
 
-## Section 9: Analysis, Suggestion, and Batch Tools (Recipes 81-90)
+## Section 9: Analysis, Suggestion, and Batch Tools (Recipes 81–90)
 
-The analysis and batch tools are where `verbx` starts to function as a production pipeline rather than a single-render tool. These commands are less dramatic than the extremes in sections 1-8, but they are often more useful in practice. Understanding what your audio contains before applying reverb is good engineering. Batching a large set of renders with known parameters is how you scale up to feature-length projects.
+The analysis and batch tools are where `verbx` starts to function as a production pipeline rather than a single-render tool. These commands are less dramatic than the extremes in sections 1–8, but they are often more useful in practice. Understanding what your audio contains before applying reverb is good engineering. Batching a large set of renders with known parameters is how you scale up to feature-length projects.
 
 The `suggest` command is worth studying — it uses analysis of the input to generate parameter recommendations, which can be a useful starting point for creative decisions or a sanity check on aggressive settings.
 
@@ -7379,7 +7379,7 @@ verbx batch template > out/086_manifest.json
 ```
 _What it sounds like:_ No audio output. Generates a template batch manifest JSON file.
 
-_DSP note:_ The manifest file defines a list of render jobs with all parameters specified. The template contains example entries for each engine type and common parameter configurations. Edit the manifest to define your actual batch before running recipes 87-88.
+_DSP note:_ The manifest file defines a list of render jobs with all parameters specified. The template contains example entries for each engine type and common parameter configurations. Edit the manifest to define your actual batch before running recipes 87–88.
 
 ---
 
@@ -7423,7 +7423,7 @@ _DSP note:_ Clearing the cache forces recomputation of IR FFTs on the next rende
 
 ---
 
-## Section 10: Lucky-Mode Wildcards (Recipes 91-100)
+## Section 10: Lucky-Mode Wildcards (Recipes 91–100)
 
 Lucky mode is what happens when you hand the parameter space to the engine and say "find something interesting." It randomizes settings within configured bounds and generates a specified number of variations in a single run. It is not random in the degenerate sense — the parameter space is constrained to avoid unlistenable results — but it covers territory you would not explore by hand.
 
@@ -7537,7 +7537,7 @@ _DSP note:_ A 100-variation lucky set with a fixed seed is a complete exploratio
 
 ## Notes for Large Runs
 
-Start with a small lucky count (3-5) to confirm runtime and output size before committing to a 50 or 100-variation run.
+Start with a small lucky count (3–5) to confirm runtime and output size before committing to a 50 or 100-variation run.
 
 Use `--no-progress` in log-friendly batch environments. The progress bar uses terminal control codes that corrupt plain-text logs.
 
@@ -7545,7 +7545,7 @@ Fix `--lucky-seed` whenever reproducibility matters. Document the seed alongside
 
 Monitor storage. Long tails, high repeat counts, and multichannel outputs in float format accumulate quickly. A batch of 100 stereo float32 files at 3 minutes each is approximately 34GB at 48kHz.
 
-The `verbx cache info` and `verbx cache clear` commands (recipes 89-90) are useful before and after large batch runs. Clear the cache if disk space is constrained; leave it in place if you will be reusing the same IRs across multiple batches.
+The `verbx cache info` and `verbx cache clear` commands (recipes 89–90) are useful before and after large batch runs. Clear the cache if disk space is constrained; leave it in place if you will be reusing the same IRs across multiple batches.
 
 When a run produces something you want to keep, immediately rename the output file out of the numbered sequence. The output directory will be overwritten if you rerun the batch with the same output path.
 
@@ -19223,7 +19223,7 @@ The figure below introduces **$T_{60}$ decay families**. Idealized decay slopes 
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Energy decay curve fitting windows**. The EDT, $T_{20}$, and $T_{30}$ regression regions used to estimate decay from different portions of an energy decay curve. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Normalized decay time (0-1)** and the vertical axis is **Energy decay level (dB)**.
+The figure below introduces **Energy decay curve fitting windows**. The EDT, $T_{20}$, and $T_{30}$ regression regions used to estimate decay from different portions of an energy decay curve. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Normalized decay time (0–1)** and the vertical axis is **Energy decay level (dB)**.
 
 ![Figure 4: Energy decay curve fitting windows.](assets/userguide_figures/04_edc_fit_windows.png)
 
@@ -19231,7 +19231,7 @@ The figure below introduces **Energy decay curve fitting windows**. The EDT, $T_
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Frequency-dependent decay bands**. Low-, mid-, and high-frequency tails with different nominal decay constants. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Time after excitation (s)** and the vertical axis is **Relative band level (linear, 0-1)**.
+The figure below introduces **Frequency-dependent decay bands**. Low-, mid-, and high-frequency tails with different nominal decay constants. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Time after excitation (s)** and the vertical axis is **Relative band level (linear, 0–1)**.
 
 ![Figure 9: Frequency-dependent decay bands.](assets/userguide_figures/09_multiband_decay.png)
 
@@ -19257,7 +19257,7 @@ Read the figure from the labeled input or independent dimension toward the repor
 
 ## Algorithms and Processing
 
-The figure below introduces **Feedback matrix texture heatmap**. A 16 by 16 orthogonal feedback matrix illustrating weak and strong coupling among FDN delay lines. Each cell combines one horizontal and one vertical condition; color encodes the third quantity named in the scale label. The horizontal axis is **Destination delay line (index)** and the vertical axis is **Source delay line (index)**. The color or radial scale reports **Absolute coupling coefficient (0-1)**.
+The figure below introduces **Feedback matrix texture heatmap**. A 16 by 16 orthogonal feedback matrix illustrating weak and strong coupling among FDN delay lines. Each cell combines one horizontal and one vertical condition; color encodes the third quantity named in the scale label. The horizontal axis is **Destination delay line (index)** and the vertical axis is **Source delay line (index)**. The color or radial scale reports **Absolute coupling coefficient (0–1)**.
 
 ![Figure 5: Feedback matrix texture heatmap.](assets/userguide_figures/05_fdn_matrix_heatmap.png)
 
@@ -19273,7 +19273,7 @@ The figure below introduces **Partitioned convolution layout**. An impulse respo
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **IR morphing blend space**. A conceptual interpolation triangle connecting room, plate, and cathedral impulse-response families. Points and paths occupy a two-dimensional design space; proximity indicates similar states, not physical distance. The horizontal axis is **Blend coordinate $A$ (normalized, 0-1)** and the vertical axis is **Blend coordinate $B$ (normalized, 0-1)**.
+The figure below introduces **IR morphing blend space**. A conceptual interpolation triangle connecting room, plate, and cathedral impulse-response families. Points and paths occupy a two-dimensional design space; proximity indicates similar states, not physical distance. The horizontal axis is **Blend coordinate $A$ (normalized, 0–1)** and the vertical axis is **Blend coordinate $B$ (normalized, 0–1)**.
 
 ![Figure 12: IR morphing blend space.](assets/userguide_figures/12_ir_morph_space.png)
 
@@ -19289,7 +19289,7 @@ The figure below introduces **Shimmer feedback path**. The pitch-shift, diffusio
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Infinite-style reverb tail behavior**. Ordinary, extreme, and freeze-like tail energy compared over normalized time. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Normalized elapsed time (0-1)** and the vertical axis is **Relative tail energy (linear, 0-1)**.
+The figure below introduces **Infinite-style reverb tail behavior**. Ordinary, extreme, and freeze-like tail energy compared over normalized time. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Normalized elapsed time (0–1)** and the vertical axis is **Relative tail energy (linear, 0–1)**.
 
 ![Figure 24: Infinite-style reverb tail behavior.](assets/userguide_figures/24_infinite_reverb.png)
 
@@ -19299,7 +19299,7 @@ Read the figure from the labeled input or independent dimension toward the repor
 
 ## Controls and Tradeoffs
 
-The figure below introduces **Analysis window function shapes**. Hann, Blackman, Kaiser, and Tukey tapers plotted over a common normalized frame. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Normalized sample position (0-1)** and the vertical axis is **Window amplitude (linear, 0-1)**.
+The figure below introduces **Analysis window function shapes**. Hann, Blackman, Kaiser, and Tukey tapers plotted over a common normalized frame. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Normalized sample position (0–1)** and the vertical axis is **Window amplitude (linear, 0–1)**.
 
 ![Figure 6: Analysis window function shapes.](assets/userguide_figures/06_window_functions.png)
 
@@ -19315,7 +19315,7 @@ The figure below introduces **Limiter transfer curves**. Hard, soft-knee, and tr
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Reverb ducking envelope**. Dry-source activity and the resulting attenuation of the wet return over an eight-second example. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Time (s)** and the vertical axis is **Relative signal level (linear, 0-1)**.
+The figure below introduces **Reverb ducking envelope**. Dry-source activity and the resulting attenuation of the wet return over an eight-second example. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Time (s)** and the vertical axis is **Relative signal level (linear, 0–1)**.
 
 ![Figure 8: Reverb ducking envelope.](assets/userguide_figures/08_ducking_envelope.png)
 
@@ -19323,7 +19323,7 @@ The figure below introduces **Reverb ducking envelope**. Dry-source activity and
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Dereverb strength versus artifact tradeoff**. The competing trends of clarity, naturalness, and aggregate usefulness as reduction strength increases. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Dereverb amount (%)** and the vertical axis is **Perceptual score (normalized, 0-1)**.
+The figure below introduces **Dereverb strength versus artifact tradeoff**. The competing trends of clarity, naturalness, and aggregate usefulness as reduction strength increases. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Dereverb amount (%)** and the vertical axis is **Perceptual score (normalized, 0–1)**.
 
 ![Figure 10: Dereverb strength versus artifact tradeoff.](assets/userguide_figures/10_dereverb_tradeoff.png)
 
@@ -19331,7 +19331,7 @@ The figure below introduces **Dereverb strength versus artifact tradeoff**. The 
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Block size CPU and latency tradeoff**. Normalized scheduling pressure and block latency plotted against common audio buffer sizes. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Audio block size (frames)** and the vertical axis is **Normalized cost or latency (0-1)**.
+The figure below introduces **Block size CPU and latency tradeoff**. Normalized scheduling pressure and block latency plotted against common audio buffer sizes. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Audio block size (frames)** and the vertical axis is **Normalized cost or latency (0–1)**.
 
 ![Figure 21: Block size CPU and latency tradeoff.](assets/userguide_figures/21_cpu_block_tradeoff.png)
 
@@ -19339,7 +19339,7 @@ The figure below introduces **Block size CPU and latency tradeoff**. Normalized 
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Preset design radar**. A five-axis profile for time, tone, width, motion, and safety. Each spoke is a named category and distance from the center is the normalized radial score. The color or radial scale reports **Normalized parameter amount (0-1)**.
+The figure below introduces **Preset design radar**. A five-axis profile for time, tone, width, motion, and safety. Each spoke is a named category and distance from the center is the normalized radial score. The color or radial scale reports **Normalized parameter amount (0–1)**.
 
 ![Figure 23: Preset design radar.](assets/userguide_figures/23_preset_radar.png)
 
@@ -19391,7 +19391,7 @@ The figure below introduces **Early Reflection Timing**. Tap spacing sketches pe
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Pre-Delay Perception**. A few milliseconds can separate source presence from room size. The trace shows how the vertical response changes as the horizontal control or measurement advances. The horizontal axis is **Pre-delay (ms)** and the vertical axis is **Perceived source-room separation (normalized, 0-1)**.
+The figure below introduces **Pre-Delay Perception**. A few milliseconds can separate source presence from room size. The trace shows how the vertical response changes as the horizontal control or measurement advances. The horizontal axis is **Pre-delay (ms)** and the vertical axis is **Perceived source-room separation (normalized, 0–1)**.
 
 ![Figure 26: Pre-Delay Perception.](assets/userguide_figures/26_predelay_perception.png)
 
@@ -19415,7 +19415,7 @@ The figure below introduces **Damping EQ Targets**. Low, mid, and high shelves s
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Modulation Depth Safety**. Depth and rate interact: motion is useful until pitch smear takes over. Each cell combines one horizontal and one vertical condition; color encodes the third quantity named in the scale label. The horizontal axis is **Modulation rate (Hz)** and the vertical axis is **Modulation depth (ms)**. The color or radial scale reports **Artifact risk (normalized, 0-1)**.
+The figure below introduces **Modulation Depth Safety**. Depth and rate interact: motion is useful until pitch smear takes over. Each cell combines one horizontal and one vertical condition; color encodes the third quantity named in the scale label. The horizontal axis is **Modulation rate (Hz)** and the vertical axis is **Modulation depth (ms)**. The color or radial scale reports **Artifact risk (normalized, 0–1)**.
 
 ![Figure 29: Modulation Depth Safety.](assets/userguide_figures/29_modulation_depth_safety.png)
 
@@ -19447,7 +19447,7 @@ The figure below introduces **Gate Tail Shapes**. Classic gated reverb depends o
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Reverse Reverb Envelope**. Reverse tails rise into the transient instead of decaying away from it. The trace shows how the vertical response changes as the horizontal control or measurement advances. The horizontal axis is **Time before transient (ms)** and the vertical axis is **Wet envelope level (linear, 0-1)**.
+The figure below introduces **Reverse Reverb Envelope**. Reverse tails rise into the transient instead of decaying away from it. The trace shows how the vertical response changes as the horizontal control or measurement advances. The horizontal axis is **Time before transient (ms)** and the vertical axis is **Wet envelope level (linear, 0–1)**.
 
 ![Figure 33: Reverse Reverb Envelope.](assets/userguide_figures/33_reverse_reverb_envelope.png)
 
@@ -19495,7 +19495,7 @@ The figure below introduces **Lookahead Limiter Timing**. Lookahead catches peak
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Dry/Wet Crossfade Laws**. Linear, equal-power, and DJ-style blends feel different near the center. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Dry/wet control (%)** and the vertical axis is **Channel gain (linear, 0-1)**.
+The figure below introduces **Dry/Wet Crossfade Laws**. Linear, equal-power, and DJ-style blends feel different near the center. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Dry/wet control (%)** and the vertical axis is **Channel gain (linear, 0–1)**.
 
 ![Figure 39: Dry/Wet Crossfade Laws.](assets/userguide_figures/39_dry_wet_crossfade_laws.png)
 
@@ -19551,7 +19551,7 @@ The figure below introduces **Test Matrix Coverage**. Golden audio, CLI smoke, r
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Preset Morph Trajectory**. Morph paths should move smoothly through perceptual control space. Points and paths occupy a two-dimensional design space; proximity indicates similar states, not physical distance. The horizontal axis is **Timbral brightness (normalized, 0-1)** and the vertical axis is **Spatial width (normalized, 0-1)**.
+The figure below introduces **Preset Morph Trajectory**. Morph paths should move smoothly through perceptual control space. Points and paths occupy a two-dimensional design space; proximity indicates similar states, not physical distance. The horizontal axis is **Timbral brightness (normalized, 0–1)** and the vertical axis is **Spatial width (normalized, 0–1)**.
 
 ![Figure 46: Preset Morph Trajectory.](assets/userguide_figures/46_preset_morph_trajectory.png)
 
@@ -19559,7 +19559,7 @@ The figure below introduces **Preset Morph Trajectory**. Morph paths should move
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Realtime Dropout Risk**. CPU load, block size, and driver buffers define the danger zone. Each cell combines one horizontal and one vertical condition; color encodes the third quantity named in the scale label. The horizontal axis is **Audio block size (frames)** and the vertical axis is **Callback CPU load (%)**. The color or radial scale reports **Dropout risk (normalized, 0-1)**.
+The figure below introduces **Realtime Dropout Risk**. CPU load, block size, and driver buffers define the danger zone. Each cell combines one horizontal and one vertical condition; color encodes the third quantity named in the scale label. The horizontal axis is **Audio block size (frames)** and the vertical axis is **Callback CPU load (%)**. The color or radial scale reports **Dropout risk (normalized, 0–1)**.
 
 ![Figure 47: Realtime Dropout Risk.](assets/userguide_figures/47_realtime_dropout_risk.png)
 
@@ -19567,7 +19567,7 @@ The figure below introduces **Realtime Dropout Risk**. CPU load, block size, and
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Release Readiness Dashboard**. The release gate is healthiest when docs, tests, render, and realtime agree. Each spoke is a named category and distance from the center is the normalized radial score. The color or radial scale reports **Completion score (normalized, 0-1)**.
+The figure below introduces **Release Readiness Dashboard**. The release gate is healthiest when docs, tests, render, and realtime agree. Each spoke is a named category and distance from the center is the normalized radial score. The color or radial scale reports **Completion score (normalized, 0–1)**.
 
 ![Figure 48: Release Readiness Dashboard.](assets/userguide_figures/48_release_readiness_dashboard.png)
 
@@ -19625,7 +19625,7 @@ The figure below introduces **Air Absorption Roll-Off**. Long bright tails need 
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Material Absorption Map**. Wall, carpet, curtain, and glass assumptions shape decay by band. Each cell combines one horizontal and one vertical condition; color encodes the third quantity named in the scale label. The horizontal axis is **Frequency band (Hz)** and the vertical axis is **Surface material (category)**. The color or radial scale reports **Absorption coefficient (0-1)**.
+The figure below introduces **Material Absorption Map**. Wall, carpet, curtain, and glass assumptions shape decay by band. Each cell combines one horizontal and one vertical condition; color encodes the third quantity named in the scale label. The horizontal axis is **Frequency band (Hz)** and the vertical axis is **Surface material (category)**. The color or radial scale reports **Absorption coefficient (0–1)**.
 
 ![Figure 55: Material Absorption Map.](assets/userguide_figures/55_material_absorption_map.png)
 
@@ -19657,7 +19657,7 @@ The figure below introduces **Mic Pattern Pickup**. Cardioid, omni, and figure-e
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Sidechain Detector Modes**. Peak and RMS detectors react on different musical timescales. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Time after onset (ms)** and the vertical axis is **Detector envelope (linear, 0-1)**.
+The figure below introduces **Sidechain Detector Modes**. Peak and RMS detectors react on different musical timescales. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Time after onset (ms)** and the vertical axis is **Detector envelope (linear, 0–1)**.
 
 ![Figure 59: Sidechain Detector Modes.](assets/userguide_figures/59_sidechain_detector_modes.png)
 
@@ -19713,7 +19713,7 @@ The figure below introduces **Transient Preservation**. Dereverb should reduce t
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Dereverb Mask Strength**. Mask aggressiveness governs the speech-cleanup versus artifact tradeoff. The trace shows how the vertical response changes as the horizontal control or measurement advances. The horizontal axis is **Dereverb mask strength (%)** and the vertical axis is **Artifact or suppression score (normalized, 0-1)**.
+The figure below introduces **Dereverb Mask Strength**. Mask aggressiveness governs the speech-cleanup versus artifact tradeoff. The trace shows how the vertical response changes as the horizontal control or measurement advances. The horizontal axis is **Dereverb mask strength (%)** and the vertical axis is **Artifact or suppression score (normalized, 0–1)**.
 
 ![Figure 66: Dereverb Mask Strength.](assets/userguide_figures/66_dereverb_mask_strength.png)
 
@@ -19745,7 +19745,7 @@ The figure below introduces **Multichannel Routing Matrix**. Channel maps keep i
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Ambisonic Decode Spread**. Decode spread converts abstract soundfield order into speaker energy. Points and paths occupy a two-dimensional design space; proximity indicates similar states, not physical distance. The horizontal axis is **Speaker azimuth (degrees)** and the vertical axis is **Speaker elevation (degrees)**. The color or radial scale reports **Relative decode energy (0-1)**.
+The figure below introduces **Ambisonic Decode Spread**. Decode spread converts abstract soundfield order into speaker energy. Points and paths occupy a two-dimensional design space; proximity indicates similar states, not physical distance. The horizontal axis is **Speaker azimuth (degrees)** and the vertical axis is **Speaker elevation (degrees)**. The color or radial scale reports **Relative decode energy (0–1)**.
 
 ![Figure 70: Ambisonic Decode Spread.](assets/userguide_figures/70_ambisonic_decode_spread.png)
 
@@ -19753,7 +19753,7 @@ The figure below introduces **Ambisonic Decode Spread**. Decode spread converts 
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Binaural HRTF Blend**. HRTF blending needs smooth interpolation across azimuth and elevation. Points and paths occupy a two-dimensional design space; proximity indicates similar states, not physical distance. The horizontal axis is **Source azimuth (degrees)** and the vertical axis is **Source elevation (degrees)**. The color or radial scale reports **HRTF blend weight (0-1)**.
+The figure below introduces **Binaural HRTF Blend**. HRTF blending needs smooth interpolation across azimuth and elevation. Points and paths occupy a two-dimensional design space; proximity indicates similar states, not physical distance. The horizontal axis is **Source azimuth (degrees)** and the vertical axis is **Source elevation (degrees)**. The color or radial scale reports **HRTF blend weight (0–1)**.
 
 ![Figure 71: Binaural HRTF Blend.](assets/userguide_figures/71_binaural_hrtf_blend.png)
 
@@ -19865,7 +19865,7 @@ The figure below introduces **Device Buffer Stack**. Round-trip latency is the s
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **CLI Option Families**. Render, analysis, IR, limiter, realtime, and batch flags cluster by job. Each spoke is a named category and distance from the center is the normalized radial score. The color or radial scale reports **Option coverage (normalized, 0-1)**.
+The figure below introduces **CLI Option Families**. Render, analysis, IR, limiter, realtime, and batch flags cluster by job. Each spoke is a named category and distance from the center is the normalized radial score. The color or radial scale reports **Option coverage (normalized, 0–1)**.
 
 ![Figure 85: CLI Option Families.](assets/userguide_figures/85_cli_option_families.png)
 
@@ -19913,7 +19913,7 @@ The figure below introduces **Documentation Build Pipeline**. Markdown, figures,
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Table Wrap Stress Test**. Long CLI options and URLs need wrapping before they hit the page edge. Each cell combines one horizontal and one vertical condition; color encodes the third quantity named in the scale label. The horizontal axis is **Table column width (characters)** and the vertical axis is **Content length (characters)**. The color or radial scale reports **Overflow risk (normalized, 0-1)**.
+The figure below introduces **Table Wrap Stress Test**. Long CLI options and URLs need wrapping before they hit the page edge. Each cell combines one horizontal and one vertical condition; color encodes the third quantity named in the scale label. The horizontal axis is **Table column width (characters)** and the vertical axis is **Content length (characters)**. The color or radial scale reports **Overflow risk (normalized, 0–1)**.
 
 ![Figure 91: Table Wrap Stress Test.](assets/userguide_figures/91_table_wrap_stress_test.png)
 
@@ -19961,7 +19961,7 @@ The figure below introduces **Platform Support Grid**. macOS, Linux, and Windows
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Error Message Quality**. Good CLI errors name the bad input, likely cause, and next command. Each spoke is a named category and distance from the center is the normalized radial score. The color or radial scale reports **Quality score (normalized, 0-1)**.
+The figure below introduces **Error Message Quality**. Good CLI errors name the bad input, likely cause, and next command. Each spoke is a named category and distance from the center is the normalized radial score. The color or radial scale reports **Quality score (normalized, 0–1)**.
 
 ![Figure 97: Error Message Quality.](assets/userguide_figures/97_error_message_quality.png)
 
@@ -19977,7 +19977,7 @@ The figure below introduces **User Workflow Map**. Explore, render, analyze, com
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Feature Maturity Radar**. Stable, beta, experimental, and roadmap features need distinct labeling. Each spoke is a named category and distance from the center is the normalized radial score. The color or radial scale reports **Maturity score (normalized, 0-1)**.
+The figure below introduces **Feature Maturity Radar**. Stable, beta, experimental, and roadmap features need distinct labeling. Each spoke is a named category and distance from the center is the normalized radial score. The color or radial scale reports **Maturity score (normalized, 0–1)**.
 
 ![Figure 99: Feature Maturity Radar.](assets/userguide_figures/99_feature_maturity_radar.png)
 
@@ -19985,7 +19985,7 @@ The figure below introduces **Feature Maturity Radar**. Stable, beta, experiment
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **End-to-End Confidence Map**. The full system is healthiest when audio, docs, tests, and packaging align. Each cell combines one horizontal and one vertical condition; color encodes the third quantity named in the scale label. The horizontal axis is **Subsystem (category)** and the vertical axis is **Verification layer (category)**. The color or radial scale reports **Confidence score (normalized, 0-1)**.
+The figure below introduces **End-to-End Confidence Map**. The full system is healthiest when audio, docs, tests, and packaging align. Each cell combines one horizontal and one vertical condition; color encodes the third quantity named in the scale label. The horizontal axis is **Subsystem (category)** and the vertical axis is **Verification layer (category)**. The color or radial scale reports **Confidence score (normalized, 0–1)**.
 
 ![Figure 100: End-to-End Confidence Map.](assets/userguide_figures/100_end_to_end_confidence_map.png)
 
@@ -20165,13 +20165,13 @@ When a named recording is central to the entry, use that recording or a document
 
 ## Electroacoustic Space and Feedback
 
-**Karlheinz Stockhausen, *Gesang der Jünglinge* (1955-1956).** Electronic sound and a recorded boy's voice move through a multichannel field, making trajectory and location structural parameters. Listen for timbral transitions that are reinforced by spatial transitions. In verbx, distribute several related source transformations around an ambisonic or surround layout and preserve common spectral landmarks so motion reads as continuity rather than random panning.
+**Karlheinz Stockhausen, *Gesang der Jünglinge* (1955–1956).** Electronic sound and a recorded boy's voice move through a multichannel field, making trajectory and location structural parameters. Listen for timbral transitions that are reinforced by spatial transitions. In verbx, distribute several related source transformations around an ambisonic or surround layout and preserve common spectral landmarks so motion reads as continuity rather than random panning.
 
-**Karlheinz Stockhausen, *Gruppen* (1955-1957).** Three orchestras with three conductors surround the audience and exchange blocks of tempo, density, and color. Listen for mass moving between ensembles and for events that only make sense as spatial simultaneities. Use three buses with independent early fields and a shared late field; automate source-group routing rather than relying only on a master-width control.
+**Karlheinz Stockhausen, *Gruppen* (1955–1957).** Three orchestras with three conductors surround the audience and exchange blocks of tempo, density, and color. Listen for mass moving between ensembles and for events that only make sense as spatial simultaneities. Use three buses with independent early fields and a shared late field; automate source-group routing rather than relying only on a master-width control.
 
 **Edgard Varèse, *Poème électronique* (1958).** Conceived for the Philips Pavilion, the work binds electronic montage to a purpose-built architectural and loudspeaker environment. Listen for abrupt scale changes, trajectories, and sound masses that imply spaces larger or stranger than the playback room. Create a sequence of short rendered scenes using sharply contrasting IRs, then crossfade only where the composition calls for continuity.
 
-**Karlheinz Stockhausen, *Kontakte* (1958-1960).** Electronic gestures rotate, accelerate, and transform while percussion and piano connect synthetic and acoustic time. Listen to spatial movement as a form of articulation. A useful study maps one modulation source to position, brightness, and pre-delay with different depths, producing related motion without making every parameter trace the same curve.
+**Karlheinz Stockhausen, *Kontakte* (1958–1960).** Electronic gestures rotate, accelerate, and transform while percussion and piano connect synthetic and acoustic time. Listen to spatial movement as a form of articulation. A useful study maps one modulation source to position, brightness, and pre-delay with different depths, producing related motion without making every parameter trace the same curve.
 
 **Iannis Xenakis, *Persephassa* (1969).** Six percussionists surround the audience, allowing rhythmic patterns to become rotations and distributed masses. Listen for speed inferred from sequential attacks rather than from a continuously moving source. Recreate the principle with six discrete positions, very short directional early reflections, and a common late field that does not blur the attack order.
 
@@ -20193,7 +20193,7 @@ When a named recording is central to the entry, use that recording or a document
 
 ## Minimalism, Ambient Music, and Slow Decay
 
-**Terry Riley, *Poppy Nogood and the Phantom Band* (1967-1969).** Repetition and tape-delay accumulation create lines that remember their recent past. Listen for the point where echo stops reading as accompaniment and becomes counterpoint. Build a bounded delay-reverb loop with gradual filtering, then compare a fixed feedback value with a carefully performed feedback envelope.
+**Terry Riley, *Poppy Nogood and the Phantom Band* (1967–1969).** Repetition and tape-delay accumulation create lines that remember their recent past. Listen for the point where echo stops reading as accompaniment and becomes counterpoint. Build a bounded delay-reverb loop with gradual filtering, then compare a fixed feedback value with a carefully performed feedback envelope.
 
 **Brian Eno, *Discreet Music* (1975).** Long tape-delay systems and sparse source material establish a process that can unfold without conventional foreground development. Listen for change at the scale of minutes and for the musical value of near-stasis. In verbx, use deterministic modulation, a long but finite RT60, conservative high-frequency content, and a one-minute analysis window rather than judging from a five-second excerpt.
 
@@ -20223,9 +20223,9 @@ When a named recording is central to the entry, use that recording or a document
 
 **Jonathan Harvey, *Mortuos Plango, Vivos Voco* (1980).** Bell spectra and a boy's voice are analyzed, transformed, and projected through an eight-channel electronic space. Listen for movement that follows spectral identity rather than mimicking a traveling point source. Build related IR or resonator states from one spectral family and move between them with smooth, phase-conscious interpolation.
 
-**Pierre Boulez, *Repons* (1981-1984).** Soloists, ensemble, live electronics, and loudspeaker placement create call-and-response across physical and transformed spaces. Listen to the distinction between a player's local sound and its electronic continuation around the hall. Design separate early and late spatial paths, report their latency explicitly, and test whether transformed responses remain rhythmically attached to the initiating gesture.
+**Pierre Boulez, *Repons* (1981–1984).** Soloists, ensemble, live electronics, and loudspeaker placement create call-and-response across physical and transformed spaces. Listen to the distinction between a player's local sound and its electronic continuation around the hall. Design separate early and late spatial paths, report their latency explicitly, and test whether transformed responses remain rhythmically attached to the initiating gesture.
 
-**Luigi Nono, *Prometeo: Tragedia dell'ascolto* (1981-1984).** Nono's "tragedy of listening" distributes performers and live electronics through an acoustic structure conceived with the venue; IRCAM documents the 1984 San Lorenzo premiere and four instrumental groups in its [work record](https://ressources.ircam.fr/fr/work/prometeo). Listen for fragile sounds whose location and audibility demand attention. Use low-noise sources, subtle movement, and calibrated monitoring rather than exaggerated effects.
+**Luigi Nono, *Prometeo: Tragedia dell'ascolto* (1981–1984).** Nono's "tragedy of listening" distributes performers and live electronics through an acoustic structure conceived with the venue; IRCAM documents the 1984 San Lorenzo premiere and four instrumental groups in its [work record](https://ressources.ircam.fr/fr/work/prometeo). Listen for fragile sounds whose location and audibility demand attention. Use low-noise sources, subtle movement, and calibrated monitoring rather than exaggerated effects.
 
 **Kaija Saariaho, *Lichtbogen* (1986).** Instrumental color and live electronics evolve as a continuous spectral and spatial fabric. Listen for transitions where electronic extension is difficult to separate from instrumental resonance. In verbx, derive damping, modulation, and spatial-width automation from one slow control curve, but scale each destination differently to avoid obvious lockstep motion.
 
@@ -21784,7 +21784,7 @@ Quick-lookup table of the equations you will cite most often during development.
 | **FDN gain calibration** | $g_i = 10^{-3d_i/T_{60}}$ per delay line, where $d_i$ is delay length in seconds | Jot and Chaigne (1997), entry [95](#entry-95); Schlecht and Habets (2015), entry [39](#entry-39) | Applied per-band when using frequency-dependent absorption filters on the delay outputs. This is the central calibration formula for matching a target RT60. |
 | **EDT definition** | Early Decay Time = time for first 10 dB of decay on the energy decay curve, extrapolated to 60 dB | ISO 3382-1; summarized in entry [80](#entry-80) | EDT correlates better with perceived liveness than RT60 in spaces with non-exponential decay. |
 | **C80 (Clarity)** | $C_{80} = 10 \log_{10}\!\left(\frac{\int_{0}^{80\,\mathrm{ms}} h^{2}(t)\,dt}{\int_{80\,\mathrm{ms}}^{\infty} h^{2}(t)\,dt}\right)\,\mathrm{dB}$ | ISO 3382-1; see entry [80](#entry-80) | Ratio of early to late energy, 80 ms threshold. Positive values indicate clear/direct sound; negative values indicate reverberant/muddy. |
-| **D50 (Definition)** | $D_{50} = \frac{\int_{0}^{50\,\mathrm{ms}} h^{2}(t)\,dt}{\int_{0}^{\infty} h^{2}(t)\,dt}$ | ISO 3382-1; see entry [80](#entry-80) | Fraction of total energy arriving in first 50 ms. Ranges 0-1; higher values correlate with better speech intelligibility. Uses 50 ms threshold versus C80's 80 ms. |
+| **D50 (Definition)** | $D_{50} = \frac{\int_{0}^{50\,\mathrm{ms}} h^{2}(t)\,dt}{\int_{0}^{\infty} h^{2}(t)\,dt}$ | ISO 3382-1; see entry [80](#entry-80) | Fraction of total energy arriving in first 50 ms. Ranges 0–1; higher values correlate with better speech intelligibility. Uses 50 ms threshold versus C80's 80 ms. |
 
 ---
 
