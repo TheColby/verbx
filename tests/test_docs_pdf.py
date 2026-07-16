@@ -380,6 +380,7 @@ def test_pdf_edition_notice_includes_publication_location() -> None:
     )
 
     assert "Digital book edition: \\@date.\\\\\n    Miami, Florida USA" in preamble
+    assert preamble.count("Copyright \\textcopyright\\ 2026 Colby Leider.") == 2
 
 
 def test_title_page_describes_musical_production_and_audio_ai() -> None:
@@ -485,12 +486,13 @@ def test_reverb_primer_has_textbook_depth_and_complete_figure_set() -> None:
     primer = readme[start:end]
 
     words = re.findall(r"\b[\w'-]+\b", primer)
-    assert len(words) >= 13000
+    assert len(words) >= 19000
     assert "### Musical Examples" in primer
     assert "### DSP Overview" in primer
-    assert primer.count("```mermaid") == 15
+    assert "### The Science and DSP of Dereverberation" in primer
+    assert primer.count("```mermaid") == 19
     assert len(re.findall(r"^!\[", primer, flags=re.MULTILINE)) == 18
-    assert len(re.findall(r"^\*\*Figure:", primer, flags=re.MULTILINE)) == 33
+    assert len(re.findall(r"^\*\*Figure:", primer, flags=re.MULTILINE)) == 37
     assert "Schroeder_Reverberators.html" in primer
 
     for topic in (
@@ -506,8 +508,54 @@ def test_reverb_primer_has_textbook_depth_and_complete_figure_set() -> None:
         "Measuring Decay with Backward Integration",
         "Realtime Scheduling and End-to-End Latency",
         "Verification: Close the Loop Between Math and Listening",
+        "Delayed Linear Prediction and WPE",
+        "Multichannel Spatial Dereverberation",
+        "Neural and Hybrid Methods",
+        "Evaluating Dereverberation Scientifically",
     ):
         assert topic in primer
+
+
+def test_dereverberation_science_section_is_extensive_and_reproducible() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    start = readme.index("### The Science and DSP of Dereverberation")
+    end = readme.index("### A Thirty-Minute Reverb Laboratory", start)
+    section = readme[start:end]
+
+    words = re.findall(r"\b[\w'-]+\b", section)
+    assert len(words) >= 6000
+    assert section.count("```mermaid") == 4
+    assert section.count("**Figure:") == 4
+    assert "ill-posed inverse" in section
+    assert "problem**, not a literal undo button" in section
+    assert "G_{\\lambda}(e^{j\\omega})" in section
+    assert "J_f(\\boldsymbol{g}_f)" in section
+    assert "L_{\\mathrm{total}}" in section
+    assert "deterministic STFT late-tail suppressor" in section
+    assert "It is **not** currently a WPE solver" in section
+    assert "verbx dereverb location_dialogue.wav" in section
+    assert "verbx realtime --live-mode dereverb" in section
+    assert "verbx analyze location_dialogue.dereverb.wav" in section
+
+    asset_names = (
+        "34_dereverb_inverse_problem.png",
+        "35_statistical_dereverb_estimator.png",
+        "36_wpe_prediction_loop.png",
+        "37_multichannel_dereverb_stack.png",
+    )
+    for asset_name in asset_names:
+        asset_path = REPO_ROOT / "docs/assets/reverb_primer" / asset_name
+        assert asset_path.is_file()
+        assert f"docs/assets/reverb_primer/{asset_name}" in section
+
+    for doi in (
+        "10.1109/29.1509",
+        "10.1109/LSP.2009.2024796",
+        "10.1109/TASL.2010.2052251",
+        "10.1186/s13634-016-0306-6",
+        "10.21437/Interspeech.2018-2196",
+    ):
+        assert doi in section
 
 
 def test_reverb_primer_mermaid_assets_convert_for_pdf() -> None:
@@ -517,24 +565,24 @@ def test_reverb_primer_mermaid_assets_convert_for_pdf() -> None:
     primer = readme[start:end]
 
     paths = re.findall(r"^%% verbx-static:\s+(\S+)$", primer, flags=re.MULTILINE)
-    assert len(paths) == 15
+    assert len(paths) == 19
     for path in paths:
         assert (REPO_ROOT / path).is_file()
 
     converted = DOCS_PDF._replace_mermaid_with_static_assets(primer)
     assert "```mermaid" not in converted
-    assert converted.count("docs/assets/reverb_primer/") == 33
-    assert converted.count("**Figure:") == 33
+    assert converted.count("docs/assets/reverb_primer/") == 37
+    assert converted.count("**Figure:") == 37
 
     generated_paths = re.findall(r"\]\((docs/assets/reverb_primer/[^)]+)\)", converted)
-    assert len(generated_paths) == 33
+    assert len(generated_paths) == 37
     for path in generated_paths:
         assert (REPO_ROOT / path).is_file()
 
     pdf_ready = DOCS_PDF._convert_figure_captions(converted)
-    assert pdf_ready.count(r"\begin{minipage}{\linewidth}") == 33
-    assert pdf_ready.count(r"\end{minipage}") == 33
-    assert pdf_ready.count(r"\includegraphics") == 33
+    assert pdf_ready.count(r"\begin{minipage}{\linewidth}") == 37
+    assert pdf_ready.count(r"\end{minipage}") == 37
+    assert pdf_ready.count(r"\includegraphics") == 37
     assert "![" not in pdf_ready
     first_group = pdf_ready.index(r"\begin{minipage}{\linewidth}")
     first_lead = pdf_ready.index(r"\verbxFigureLead")
@@ -545,8 +593,8 @@ def test_reverb_primer_mermaid_assets_convert_for_pdf() -> None:
 
     consolidated = converted.replace("(docs/assets/reverb_primer/", "(assets/reverb_primer/")
     consolidated_ready = DOCS_PDF._convert_figure_captions(consolidated)
-    assert consolidated_ready.count(r"\begin{minipage}{\linewidth}") == 33
-    assert consolidated_ready.count(r"\includegraphics") == 33
+    assert consolidated_ready.count(r"\begin{minipage}{\linewidth}") == 37
+    assert consolidated_ready.count(r"\includegraphics") == 37
 
 
 def test_pdf_figure_assets_trim_trailing_background(tmp_path: Path) -> None:

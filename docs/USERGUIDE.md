@@ -2400,6 +2400,814 @@ an unintended level jump. The final mixers add the projected wet signals to thei
 counterparts after recursion, preserving one acoustic identity and predictable fold-down
 behavior.
 
+### The Science and DSP of Dereverberation
+
+Dereverberation asks a harder question than reverberation synthesis. A reverb processor
+starts with a comparatively clean signal and a known algorithm or impulse response;
+dereverberation starts with only the mixture that reached a microphone and tries to infer
+which part belonged to the source before the room prolonged it. The dry performance, room
+response, source position, microphone response, background noise, and often even the number
+of active sources are unknown. Many different combinations of those latent quantities can
+produce nearly the same recording. Dereverberation is therefore an **ill-posed inverse
+problem**, not a literal undo button.
+
+That distinction sets the standard for honest use. A successful processor can reduce late
+energy, restore temporal contrast, improve speech intelligibility, and make a close source
+feel less distant. It cannot generally recover the exact pressure waveform that would have
+been recorded in an anechoic chamber. The most useful scientific question is consequently
+not “Did all reverb disappear?” but “Which acoustic component was estimated, under which
+assumptions, at what cost in distortion, spatial fidelity, and latency?”
+
+#### The Forward Acoustic Model
+
+For one stationary source and one microphone, the standard discrete-time model is
+
+$$
+y[n] = \sum_{q=0}^{L_h-1} h[q]x[n-q] + v[n]
+     = (h*x)[n] + v[n],
+$$
+
+where $x[n]$ is the unknown dry source, $h[n]$ is the room impulse response, $v[n]$ is
+additive noise, and $y[n]$ is the observed microphone signal. The convolution is long:
+a 1.5 s response at 48 kHz contains 72,000 samples before accounting for an even longer
+noise floor. With $S$ sources and $M$ microphones, the model becomes
+
+$$
+y_m[n] = \sum_{s=1}^{S}(h_{m,s}*x_s)[n] + v_m[n],
+\qquad m = 1,\ldots,M.
+$$
+
+Every source-to-microphone path has its own response $h_{m,s}[n]$. If a talker moves, a
+door opens, or a handheld microphone rotates, that response is time varying rather than a
+fixed convolution. The familiar linear time-invariant model remains valuable, but its
+limits should be visible whenever a method is evaluated on real capture.
+
+For dereverberation, the room response is commonly partitioned at an early/late boundary
+$n_e$:
+
+$$
+h[n] = h_{\mathrm{early}}[n] + h_{\mathrm{late}}[n],
+$$
+
+$$
+y[n] = x_{\mathrm{early}}[n] + r_{\mathrm{late}}[n] + v[n].
+$$
+
+Here $x_{\mathrm{early}}[n]=(h_{\mathrm{early}}*x)[n]$ is usually the desired signal,
+not merely the mathematically dry source. It retains the direct arrival and a short early
+window because those components support loudness, localization, source width, and
+naturalness. The interference term $r_{\mathrm{late}}[n]$ contains delayed replicas that
+smear later phonemes, notes, and transients. The boundary is task dependent: speech
+systems often preserve tens of milliseconds, while music restoration may preserve more
+of a room's early signature.
+
+The following figure places the unknown quantities around the one observation actually
+available to a blind estimator. Its non-linear layout is important: neither the room nor
+the source lies in a simple known processing chain at restoration time.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/34_dereverb_inverse_problem.png
+flowchart TB
+    X["Dry source x[n]"] --> Y["Observed microphone signal y[n]"]
+    H["Room response h[n]"] --> Y
+    V["Noise v[n]"] --> Y
+    Y --> E["Regularized estimator"]
+    P["Acoustic and source priors"] --> E
+    E --> XH["Estimated source"]
+    E --> R["Residual late field"]
+```
+
+**Figure: Dereverberation formulated as inference of a dry or early source from a reverberant, noisy observation using acoustic assumptions and regularization.**
+
+**How to read this figure.** The upper paths describe physical capture; the lower paths
+describe inference. Only $y[n]$ is observed. A processor must supply assumptions about
+decay, source statistics, sparsity, spatial covariance, or training data before it can
+separate an estimate from the residual. Stronger assumptions can produce stronger
+suppression, but they also create stronger failure modes when the recording violates them.
+
+#### Why Exact Inverse Filtering Usually Fails
+
+If $h[n]$ were perfectly known, one might propose the inverse filter
+$G(z)=1/H(z)$ so that $G(z)H(z)=1$. Three problems make that expression a poor general
+solution. First, measured room responses contain deep spectral notches. Dividing by a
+small $|H(e^{j\omega})|$ gives enormous gain and amplifies microphone noise, quantization,
+and response-estimation error. Second, a room response is commonly nonminimum phase. Its
+inverse may be unstable if zeros lie outside the unit circle, or noncausal if a stable
+inverse is constructed by moving energy before the direct arrival. Third, a room response
+is position specific. A filter that inverts one source/receiver pair can worsen a signal
+captured a few centimeters away.
+
+A regularized frequency-domain inverse makes the compromise explicit:
+
+$$
+G_{\lambda}(e^{j\omega}) =
+\frac{H^*(e^{j\omega})}
+{|H(e^{j\omega})|^2 + \lambda(\omega)}.
+$$
+
+When $|H|^2$ is large relative to $\lambda$, the expression approaches an inverse. Near
+a notch, the regularizer prevents explosive gain. The function $\lambda(\omega)$ may
+encode expected noise, uncertainty, perceptual weighting, or a hard robustness floor.
+This is closely related to Wiener deconvolution, where the regularizer is a ratio of noise
+and source power spectra. It also exposes the unavoidable bias/variance tradeoff: more
+regularization leaves more room coloration; less regularization may reduce coloration on
+one measurement while producing noise and instability elsewhere.
+
+Multichannel inverse filtering can be better conditioned because several microphone paths
+need not share the same zeros. The multiple-input/output inverse theorem method seeks FIR
+filters whose combined channel response approximates a delayed impulse. Miyoshi and
+Kaneda's formulation is foundational here. Yet it still needs measured or estimated room
+responses, accurate channel synchronization, and a sufficiently stationary geometry.
+It is best understood as **room-response equalization or shortening with known transfer
+functions**, not as a universal blind dereverberator.
+
+Blind methods avoid claiming that $h[n]$ is known. They estimate only a useful component:
+late-reverberant power, a delayed linear prediction, a time-frequency mask, a spatial
+filter, or a learned mapping. This narrower goal is why practical dereverberation can work
+despite the impossibility of exact blind inversion.
+
+#### Statistical Science of the Late Field
+
+After sufficient mixing time, a room's late field is often approximated as diffuse,
+noise-like, and exponentially decaying. If $T_{60}$ is the reverberation time, an idealized
+amplitude envelope is
+
+$$
+a(t)=10^{-3t/T_{60}},
+$$
+
+and its energy envelope is
+
+$$
+a^2(t)=10^{-6t/T_{60}}=e^{-t/\tau_E},
+\qquad
+\tau_E=\frac{T_{60}}{6\ln 10}.
+$$
+
+This does not say that every late sample follows a smooth exponential. Individual samples
+remain stochastic and interference produces fluctuations. The claim is about expected
+energy over an ensemble or local time-frequency region. Real rooms also decay at different
+rates by frequency, and low-frequency modes may violate diffuse-field assumptions
+entirely. Erkelens and Heusdens model this frequency dependence explicitly; Habets develops
+the statistical framework into practical late-reverberation estimators.
+
+In an STFT indexed by frequency bin $k$ and frame $l$, write
+
+$$
+Y_{k,l}=X_{k,l}+R_{k,l}+V_{k,l}.
+$$
+
+A simple late-power tracker uses delayed observations as evidence for energy that may still
+be arriving from earlier source frames:
+
+$$
+\widehat{\lambda}_{r,k,l}
+=\alpha_k\widehat{\lambda}_{r,k,l-1}
++(1-\alpha_k)c_k|Y_{k,l-D}|^2.
+$$
+
+The delay $D$ protects the direct and early portion; the coefficient $\alpha_k$ smooths
+the estimate; $c_k$ maps delayed energy to an expected residual according to decay rate.
+A longer $T_{60}$ implies slower forgetting. Frequency-dependent $\alpha_k$ or $c_k$
+allows a bright room, dark room, or strongly modal low end to be represented more honestly
+than one broadband constant.
+
+This model fails predictably. A sustained organ tone looks like persistent source energy
+and persistent late energy at once. A noise burst can be mistaken for a diffuse tail. A
+new note arriving while the old note decays violates the simple delayed-cause narrative.
+Nonstationary background noise biases the tail estimate upward. These are not merely tuning
+problems; they are ambiguities in the evidence. A robust implementation therefore bounds
+gain, smooths estimates, preserves a residual floor, and reports its assumptions.
+
+#### Spectral Suppression and Wiener Estimation
+
+Once desired and late-reverberant power estimates are available, a Wiener-style gain can
+be formed as
+
+$$
+G_{k,l}^{\mathrm W}
+=\frac{\widehat{\lambda}_{x,k,l}}
+{\widehat{\lambda}_{x,k,l}+\widehat{\lambda}_{r,k,l}
++\widehat{\lambda}_{v,k,l}}
+=\frac{\xi_{k,l}}{1+\xi_{k,l}},
+$$
+
+where $\xi_{k,l}$ is an a priori desired-to-interference ratio. The estimate is
+$\widehat{X}_{k,l}=G_{k,l}^{\mathrm W}Y_{k,l}$. A spectral-subtraction alternative uses
+
+$$
+|\widehat{X}_{k,l}|^p
+=\max\!\left(
+|Y_{k,l}|^p-\beta\widehat{\lambda}_{r,k,l},
+G_{\min}^{p}|Y_{k,l}|^p
+\right),
+$$
+
+with $p=1$ for magnitude subtraction or $p=2$ for power subtraction. The oversubtraction
+factor $\beta$ controls aggressiveness and $G_{\min}$ prevents complete spectral holes.
+Both families normally reuse the observed phase because estimating clean phase is much
+harder. That phase reuse is one reason a strongly processed signal can remain smeared or
+phaselike even after its magnitude envelope looks cleaner.
+
+The following figure shows the estimator as two evidence paths meeting at a bounded gain,
+rather than as a magical “remove room” block.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/35_statistical_dereverb_estimator.png
+flowchart LR
+    Y["STFT frame Y(k,l)"] --> D["Delayed history"]
+    D --> R["Late-field PSD estimate"]
+    Y --> X["Desired PSD estimate"]
+    R --> G["Bounded gain G(k,l)"]
+    X --> G
+    Y --> G
+    G --> O["iSTFT and overlap-add"]
+```
+
+**Figure: Statistical late-reverberation suppression using delayed spectral evidence, desired-signal evidence, a bounded time-frequency gain, and overlap-add resynthesis.**
+
+**How to read this figure.** The upper branch estimates interference from past frames;
+the lower branch estimates what should survive now. Their ratio drives the gain. The
+unprocessed STFT also reaches the gain because suppression scales observed complex bins
+rather than synthesizing an unrelated waveform. Resynthesis must use a compatible window
+and hop so the overlap-add sum remains level and free of modulation.
+
+The engineering details determine whether the equations sound acceptable. Frequency-only
+smoothing reduces isolated “musical noise” tones but can blur narrow harmonics. Time
+smoothing reduces pumping but lets late energy leak through attacks. A gain floor protects
+room tone and consonant texture but limits maximum reduction. Attack/release asymmetry can
+open quickly for new direct sound while closing slowly on the estimated tail. Stereo-linked
+gains protect the image; independent gains can remove more channel-specific energy but make
+a centered source wander.
+
+This is the family implemented by the current `verbx dereverb` command and the live
+dereverb front end. It is a deterministic STFT late-tail suppressor with `wiener` and
+`spectral_sub` gain laws. It is **not** currently a WPE solver, measured-RIR inverse, source
+separator, or neural dry-signal generator. The distinction matters when interpreting its
+controls:
+
+| verbx control | Estimation role | Audible risk when pushed |
+|---|---|---|
+| `--strength` | Scales estimated late-field removal | Hollow tone, transient thinning, modulation |
+| `--floor` | Sets $G_{\min}$, the minimum residual gain | Higher values leave tail; lower values expose musical noise |
+| `--window-ms` | Sets time/frequency analysis resolution | Long windows smear attacks; short windows weaken bass resolution |
+| `--hop-ms` | Sets estimator update and overlap cadence | Large hops make gains coarse; incompatible hops fail validation |
+| `--tail-ms` | Sets the late-energy tracking horizon | Too long mistakes sustain for room; too short misses slow decay |
+| `--pre-emphasis` | Changes weighting before estimation | Excess values exaggerate sibilance and sensor noise |
+| `--max-atten-db` | Caps maximum suppression | A high cap increases artifacts; a low cap limits clarity gain |
+| `--stereo-link` | Couples channel gain decisions | Linking preserves image but may retain asymmetric room energy |
+| `--mix` | Blends processed and latency-aligned original | Partial mix restores naturalness and some reverberation |
+
+The safest strategy is to begin with moderate strength, a nonzero floor, and a partial
+mix. Increase reduction while listening to sibilants, cymbal decays, piano attacks, and
+stereo ambience, not only to steady vowels. A setting that improves a spectrogram may
+still damage musical phrasing.
+
+#### Delayed Linear Prediction and WPE
+
+Weighted prediction error (WPE) approaches late reverberation from a different direction.
+Instead of estimating a scalar late-power spectrum and attenuating bins, it models late
+reverberation as a delayed linear prediction from prior STFT frames. The key insight is that
+the direct and early components belong close to the current source event, while the late
+field remains correlated with older microphone observations.
+
+For $M$ microphones, stack the current observations into
+$\boldsymbol{y}_{t,f}\in\mathbb{C}^{M}$. Construct a delayed history vector
+$\overline{\boldsymbol{y}}_{t-\Delta,f}$ from $K$ prediction taps beginning $\Delta$
+frames in the past. A selected output channel can then be modeled as
+
+$$
+Y_{t,f}=X_{t,f}+
+\boldsymbol{g}_f^{\mathsf H}
+\overline{\boldsymbol{y}}_{t-\Delta,f},
+$$
+
+so the dereverberated estimate is the prediction error
+
+$$
+\widehat{X}_{t,f}=Y_{t,f}-
+\boldsymbol{g}_f^{\mathsf H}
+\overline{\boldsymbol{y}}_{t-\Delta,f}.
+$$
+
+The prediction delay $\Delta$ is not an implementation nuisance. It defines what the
+algorithm protects. If $\Delta$ is too small, the predictor explains and subtracts direct
+or useful early energy. Attacks become dull and source color changes. If $\Delta$ is too
+large, a portion of harmful late energy lies outside the model and survives. Prediction
+order $K$ similarly trades model capacity against computation, adaptation speed, and
+overfitting.
+
+Ordinary least squares is biased toward high-energy frames. WPE assumes that the desired
+speech or source coefficient is a zero-mean complex Gaussian with time-varying variance
+$\lambda_{t,f}$ and minimizes
+
+$$
+J_f(\boldsymbol{g}_f)=
+\sum_t
+\frac{
+\left|Y_{t,f}-\boldsymbol{g}_f^{\mathsf H}
+\overline{\boldsymbol{y}}_{t-\Delta,f}\right|^2
+}{\lambda_{t,f}}.
+$$
+
+For fixed variances this is weighted least squares. For fixed predictor coefficients, the
+residual supplies an updated variance estimate. Batch WPE alternates those steps, usually
+for several iterations. The inverse-variance weighting prevents high-power source frames
+from dominating the filter and arises naturally from maximum-likelihood estimation under
+the time-varying Gaussian model described by Nakatani and colleagues.
+
+Define the weighted covariance and cross-correlation
+
+$$
+\boldsymbol{R}_f=
+\sum_t\frac{
+\overline{\boldsymbol{y}}_{t-\Delta,f}
+\overline{\boldsymbol{y}}_{t-\Delta,f}^{\mathsf H}}
+{\lambda_{t,f}},
+\qquad
+\boldsymbol{p}_f=
+\sum_t\frac{
+\overline{\boldsymbol{y}}_{t-\Delta,f}Y_{t,f}^*}
+{\lambda_{t,f}}.
+$$
+
+Then $\boldsymbol{g}_f=\boldsymbol{R}_f^{-1}\boldsymbol{p}_f$, although a numerical
+implementation should solve the linear system rather than form an explicit inverse.
+Diagonal loading, condition-number checks, and finite-value guards are essential when the
+history is poorly excited or channels are nearly redundant.
+
+The following figure separates WPE's undelayed reference, delayed predictor, and iterative
+variance path. That feedback relation is the reason WPE is more than a fixed comb-cancellation
+filter.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/36_wpe_prediction_loop.png
+flowchart TB
+    Y["Microphone STFT y(t,f)"] --> H["Delay Delta and stack history"]
+    H --> P["Weighted predictor g(f)"]
+    Y --> U["Undelayed reference Y(t,f)"]
+    U --> E["Prediction-error residual"]
+    P --> E
+    E --> L["Source variance lambda(t,f)"]
+    L --> P
+```
+
+**Figure: WPE delayed-prediction topology in which past multichannel frames estimate the late field, the current reference supplies the desired event, and residual variance reweights the predictor.**
+
+**How to read this figure.** The middle horizontal route predicts late energy from frames
+older than $\Delta$; the upper route protects the undelayed observation; the lower route
+closes the statistical iteration. Subtraction occurs only after delayed prediction, so
+the topology explicitly distinguishes a current onset from its older reverberant history.
+
+Single-channel WPE can work because one channel still contains temporal predictability,
+but multichannel WPE has a richer basis and can exploit spatial diversity. Batch WPE sees
+the whole utterance and can iterate toward a strong estimate; online WPE must update
+statistics recursively and accept an adaptation lag. Recursive least squares, recursive
+covariance updates, or Kalman formulations reduce memory and delay but introduce forgetting
+factors and tracking tradeoffs. Caroselli and colleagues demonstrate adaptive WPE for
+large-scale recognition, while Nakatani and Kinoshita formulate frame-by-frame low-latency
+joint processing.
+
+WPE also has characteristic failure modes. A predictor can suppress sustained harmonic
+material because periodic music is itself predictable. Rapid movement invalidates its
+filter before adaptation catches up. Background noise corrupts covariance and variance
+estimates. Very long filters become computationally expensive: for each frequency, the
+history dimension grows with $MK$, and a dense solve scales steeply with that dimension.
+Practical systems therefore regularize, limit order, update less frequently than every
+sample, and sometimes estimate source variance with a neural network.
+
+#### Multichannel Spatial Dereverberation
+
+Multiple microphones do more than provide more samples. They observe different mixtures
+of the same direct source and reflected field. Direct sound from a compact source has a
+structured steering vector; a sufficiently diffuse late field has a different spatial
+covariance; directional interferers differ again. Spatial filtering can exploit those
+differences even when their spectra overlap.
+
+For STFT observation vector $\boldsymbol{y}_{t,f}$, the spatial covariance is
+
+$$
+\boldsymbol{R}_{yy,f}=
+\mathbb{E}\{\boldsymbol{y}_{t,f}\boldsymbol{y}_{t,f}^{\mathsf H}\}.
+$$
+
+If a desired steering vector $\boldsymbol{d}_f$ and interference covariance
+$\boldsymbol{R}_{vv,f}$ are available, an MVDR beamformer uses
+
+$$
+\boldsymbol{w}_{\mathrm{MVDR},f}=
+\frac{\boldsymbol{R}_{vv,f}^{-1}\boldsymbol{d}_f}
+{\boldsymbol{d}_f^{\mathsf H}\boldsymbol{R}_{vv,f}^{-1}\boldsymbol{d}_f}.
+$$
+
+The denominator enforces unity response in the desired direction while minimizing output
+power attributed to interference. A multichannel Wiener filter relaxes the distortionless
+constraint to minimize mean-square error. Weighted power minimization distortionless
+response (WPD) convolutional beamforming unifies delayed dereverberation and spatial
+filtering in one spatio-temporal objective.
+
+These methods are complementary rather than interchangeable. WPE attacks temporal
+predictability in the late tail. Beamforming attacks spatial directions and covariance
+structure. Applying WPE before a spatial filter can shorten the effective response and
+improve covariance estimates; joint formulations can avoid a suboptimal fixed cascade.
+Drude and colleagues report that integrating WPE with neural beamforming outperforms the
+standalone components in their far-field recognition experiments. That result is evidence
+for the tested conditions, not a promise that every musical array recording benefits from
+the same ordering.
+
+The following figure shows the two evidence streams that a serious multichannel system
+must maintain: calibrated geometry and spatial statistics above, delayed temporal
+prediction below.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/37_multichannel_dereverb_stack.png
+flowchart LR
+    A["Microphone array y1 through yM"] --> C["Clock gain and geometry validation"]
+    A --> W["Multichannel WPE"]
+    C --> R["Spatial covariance estimates"]
+    W --> B["MVDR MWF or WPD filter"]
+    R --> B
+    B --> O["Dereverberated spatial output"]
+```
+
+**Figure: A multichannel dereverberation stack combining array calibration, delayed late-tail prediction, spatial covariance estimation, and distortion-controlled beamforming.**
+
+**How to read this figure.** The lower path shortens temporal reverberation; the upper path
+describes array geometry and spatial energy. The spatial filter needs both. A channel-count
+increase is not automatically useful: unsynchronized clocks, mismatched gains, unknown
+microphone positions, or poor aperture can make the additional covariance unreliable.
+
+For music and immersive production, the target output also needs definition. Collapsing a
+concert recording to one beamformed channel may improve speechlike clarity while destroying
+ensemble width and hall envelopment. A stereo or Ambisonic dereverberator should preserve
+interchannel level, time, phase, and diffuseness cues intentionally. Gains may be linked,
+estimated in a mid/side basis, or constrained by a multichannel target covariance. Every
+choice decides which part of “the room” is unwanted and which part is artistic evidence.
+
+#### Neural and Hybrid Methods
+
+Neural dereverberation learns a mapping from reverberant observations to a chosen target.
+The model may estimate a complex ratio mask, desired magnitude, clean waveform, room
+response, source variance for WPE, or spatial covariance for beamforming. Architectures
+include convolutional and recurrent networks, temporal convolutional networks,
+transformers, complex-valued mask estimators, and waveform-domain encoder/decoders.
+
+Supervision makes the target question unavoidable. An anechoic target asks the model to
+remove both early and late room energy. An “early” target preserves the response up to a
+chosen boundary. A close-microphone target includes that microphone's coloration and
+bleed. A studio stem may contain processing absent from the distant observation. These are
+different inverse problems. Training labels that silently mix them teach inconsistent
+behavior.
+
+Neural systems can use source regularities unavailable to blind statistical estimators.
+A speech model learns phonetic and harmonic structure; a music model can learn attacks,
+sustain, and instrument spectra. That prior can reconstruct plausible detail after severe
+smearing. It can also hallucinate plausible but incorrect consonants, suppress unfamiliar
+instruments, or imprint the training corpus's room and microphone biases. For archival,
+forensic, scientific, and classical-music work, plausibility is not equivalent to fidelity.
+
+Hybrid systems keep an interpretable acoustic core and learn the hard statistics around it.
+A network may estimate $\lambda_{t,f}$ for WPE, generate masks for covariance estimation,
+predict $T_{60}$ and direct-to-reverberant ratio, or synthesize a virtual second channel for
+multichannel WPE. Yang and Chang's virtual acoustic channel expansion is one example;
+neural-network-assisted Kalman WPE is another. These designs can retain a known prediction
+topology while improving source/noise discrimination.
+
+Real-time neural deployment adds constraints beyond model accuracy. Look-ahead, receptive
+field, frame accumulation, accelerator transfer, dynamic allocation, denormal handling,
+and worst-case execution time all affect audio safety. A model reporting a small arithmetic
+cost can still miss a callback deadline because of memory traffic or runtime scheduling.
+Any future neural `verbx` mode should publish model identity, target definition, causal
+context, algorithmic delay, hardware, confidence, and deterministic fallback behavior in
+its JSON report.
+
+#### Psychoacoustics: What Should Be Removed?
+
+The ear does not classify all reflections as damage. Early lateral reflections can increase
+apparent source width and support intelligibility; a moderate room response can make speech
+or music sound natural. Late energy is more likely to fill temporal gaps, reduce modulation
+depth, mask following consonants, and fuse successive notes. But listeners also adapt to a
+room, and context changes perceived reverberance. The perceptually optimal estimate is often
+an early response, not an anechoic signal.
+
+Speech illustrates temporal masking clearly. Energy from a vowel extends into the weaker
+consonant that follows it. The consonant may still exist physically, yet its contrast is
+reduced by the vowel's late field. Dereverberation restores modulation depth by attenuating
+that older energy. Music complicates the rule: the same overlap may be legato, resonance,
+or orchestration rather than interference. A piano pedal and a cathedral tail both prolong
+energy, but only one is a room response. An estimator driven only by predictability can
+damage both.
+
+Direct-to-reverberant ratio (DRR), early-to-late ratio, clarity $C_{50}$ or $C_{80}$, and
+modulation transfer describe different perceptual axes from $T_{60}$. Two recordings can
+share one decay time while one has a strong direct onset and the other sounds distant.
+Reducing $T_{60}$ alone does not guarantee restored presence. Conversely, increasing the
+early-to-late ratio by suppressing only late energy may improve clarity without changing
+the fitted slope of the residual decay very much.
+
+Tsilfidis and Mourjopoulos explicitly connect late suppression to perceptual reverberation
+modeling. Their work supports a product principle: the goal should be selective reduction
+of harmful audible late energy, not maximizing numerical attenuation. The best setting is
+often the lowest strength that reveals articulation without advertising the processor.
+
+#### Artifacts and the Quality Frontier
+
+Dereverberation sits on a Pareto frontier. More late-tail reduction normally increases at
+least one cost: coloration, transient damage, background-noise modulation, spatial change,
+or latency. There is no single strength value that optimizes every source and task.
+
+| Artifact | DSP cause | Diagnostic source | Conservative remedy |
+|---|---|---|---|
+| Musical noise | Isolated time-frequency gains fluctuate around estimation errors | Sustained noise, cymbal tail, breath | Raise floor; smooth gains; reduce strength |
+| Phasiness | Observed phase is retained while magnitude changes rapidly | Solo voice, strings, stereo room tone | Increase time smoothing; use partial mix |
+| Transient erosion | Predictor or long window treats onset energy as late field | Castanets, piano, consonants | Shorten window; protect delay; reduce order or strength |
+| Spectral holes | Oversubtraction drives narrow bins near zero | Harmonic sweep, pink noise | Cap attenuation; use Wiener gain; raise floor |
+| Pumping | Tail estimate follows source envelope too directly | Speech pauses, kick pattern | Lengthen release/tracker; reduce strength |
+| Image wobble | Channels receive unrelated gain trajectories | Centered mono source in stereo ambience | Link gains or constrain spatial covariance |
+| Noise breathing | Noise is classified as source in one frame and late field in another | HVAC, preamp hiss, location bed | Estimate noise separately; retain stable floor |
+| Comb coloration | Inaccurate inverse or prediction cancels correlated direct energy | Sweeps, sustained vowels | Increase regularization or prediction delay |
+| Over-dry isolation | Useful early room cues are removed with the tail | Chamber music, location dialogue | Preserve early target; lower mix or strength |
+
+Listening tests should include bypass matched for loudness. Dereverberated output often
+sounds “better” simply because transients become louder or average level changes. Match
+integrated loudness and peak headroom before judging clarity. Also audition the residual
+$y[n]-\widehat{x}[n]$. A good residual should sound predominantly like diffuse late energy;
+recognizable dry words, melody, or attacks reveal source cancellation.
+
+#### Causality, Adaptation, and End-to-End Latency
+
+Offline algorithms may inspect future samples, estimate statistics over a complete file,
+iterate until convergence, and use zero-phase filtering. A real-time processor must commit
+to output before that future exists. “Real-time” only means processing keeps pace; it does
+not mean zero latency. The end-to-end monitoring delay is approximately
+
+$$
+L_{\mathrm{total}}=
+L_{\mathrm{ADC}}+L_{\mathrm{input\ buffer}}+L_{\mathrm{analysis}}
++L_{\mathrm{algorithm}}+L_{\mathrm{output\ buffer}}+L_{\mathrm{DAC}},
+$$
+
+plus any operating-system safety offsets, resampling, aggregate-device buffering, plugin
+host compensation, and wireless transport. A dereverberator can control only part of this
+sum.
+
+For an STFT processor, a causal window of $N$ samples must be filled before its complete
+spectrum is available. A centered STFT adds future look-ahead and is unsuitable for strict
+live monitoring unless that delay is accepted. Overlap-add emits updates every hop $H$,
+while driver callbacks arrive in blocks of $B$ samples. If $B$ is not compatible with $H$,
+the implementation needs an internal adapter or must reject the configuration. `verbx`
+currently chooses fail-fast validation for the live dereverb path: the block size must be
+divisible by the resolved hop size.
+
+At 48 kHz, a 12 ms window is approximately 576 samples and a 4 ms hop is approximately
+192 samples. A 384-sample callback block contains two complete hops. This does **not** imply
+that total acoustic round-trip latency is exactly 12 ms or 8 ms. Driver input/output
+buffers and converter safety offsets remain device dependent, and the analysis/resynthesis
+implementation can add a window-related delay. The trustworthy measurement is a physical
+loopback: feed a pulse through the complete input, processor, host, and output chain; record
+both the reference and return; find their sample offset; repeat under realistic load; and
+report median plus worst case.
+
+WPE introduces a second time scale: statistical adaptation. A causal WPE output may have a
+small signal-path delay while its covariance and source variance need many frames to become
+reliable. After a source moves or speech begins, quality ramps toward steady state. That
+adaptation lag is not always counted as algorithmic latency, but it affects perceived
+responsiveness and should be reported. Neural methods similarly separate look-ahead from
+state warm-up and accelerator scheduling.
+
+Low latency and deep suppression conflict. Short windows react quickly but have broad
+frequency bins, making low-frequency decay harder to distinguish. Short predictors adapt
+quickly but model less of the tail. Small smoothers preserve attacks but allow estimate
+variance to modulate the output. A live preset should be judged under deadline pressure and
+dropout monitoring, not only by processing a file faster than its duration.
+
+#### Evaluating Dereverberation Scientifically
+
+No one metric establishes success. Evaluation should combine acoustic quantities,
+signal-reconstruction metrics, downstream task performance, artifact measures, and
+controlled listening. Each answers a different question.
+
+**Paired intrusive evaluation** is possible when a dry or early target is known and aligned.
+Synthetic tests convolve a clean source with measured or simulated room responses, then
+compare the estimate with the original target. Scale-invariant signal-to-distortion ratio
+(SI-SDR) measures reconstruction after removing a scalar gain ambiguity, but it can punish
+benign spatial or equalization differences and reward solutions that do not sound natural.
+Short-time objective intelligibility (STOI) and perceptual evaluation of speech quality
+(PESQ) are speech oriented; neither should be treated as a music-quality score.
+
+**Non-intrusive evaluation** is needed for ordinary recordings with no dry reference. The
+speech-to-reverberation modulation energy ratio (SRMR) uses modulation spectra to estimate
+reverberation-related smearing. Blind $T_{60}$, DRR, or early-to-late estimators can compare
+before and after, but processing may violate the statistical model used by the estimator.
+An algorithm can “game” a proxy by reshaping modulation or spectral energy without restoring
+the source. Non-intrusive values are evidence, not ground truth.
+
+**Room-acoustic evaluation** is strongest when an impulse response is available. Backward
+Schroeder integration yields an energy-decay curve from which EDT, $T_{20}$, and $T_{30}$
+can be fitted. Clarity indices compare early and late energy:
+
+$$
+C_{t_e}=10\log_{10}
+\frac{\int_0^{t_e}h^2(t)\,dt}
+{\int_{t_e}^{\infty}h^2(t)\,dt},
+$$
+
+with $t_e=50$ ms commonly used for speech and $t_e=80$ ms for music. A dereverberator aimed
+at late suppression should normally increase early-to-late clarity, though its output is
+not itself a pristine room impulse response if the method is nonlinear or signal dependent.
+
+**Task evaluation** asks whether the processing helps the intended system. For distant
+speech recognition, report word error rate across rooms, distances, speakers, and noise
+conditions. The REVERB Challenge established paired simulated and real-room test conditions
+and made clear that enhancement scores and recognition outcomes need not rank systems in
+the same order. For dialogue editing, test transcription and listener effort. For source
+separation, test leakage and source fidelity. For music, use trained listeners and include
+transient, sustained, sparse, dense, mono, stereo, and immersive material.
+
+**Listening evaluation** should be randomized, loudness matched, and preferably hidden.
+A MUSHRA-style panel can include reverberant input, one or more estimates, the known early
+target when available, and an intentionally poor anchor. Ask separate questions for
+reverberation reduction, speech clarity, timbral fidelity, spatial stability, transient
+quality, and overall preference. A single “quality” score hides the tradeoff the experiment
+is meant to expose.
+
+Every report should preserve the input hash, sample rate, channel layout, algorithm and
+version, complete parameters, random seed if any, processing mode, machine, wall-clock
+speed, algorithmic delay, measured loopback delay when relevant, and metric definitions.
+Without that provenance, small score differences are not reproducible science.
+
+#### A Reproducible verbx Workflow
+
+Start by preserving the original and measuring what can be measured honestly. For program
+audio, label blind room estimates as estimates rather than treating them like measured IR
+parameters:
+
+```bash
+verbx analyze location_dialogue.wav --input-kind program --edr --room \
+  --json-out reports/location_dialogue.before.json
+```
+
+Render a conservative Wiener pass to 32-bit floating-point WAV and preserve a structured
+processing report:
+
+```bash
+verbx dereverb location_dialogue.wav location_dialogue.dereverb.wav \
+  --mode wiener --strength 0.75 --floor 0.08 \
+  --window-ms 20 --hop-ms 5 --tail-ms 120 \
+  --pre-emphasis 0.15 --mix 0.9 --out-subtype float32 \
+  --json-out reports/location_dialogue.dereverb.json
+```
+
+Analyze the result separately so processing metadata and measured output evidence remain
+distinct records:
+
+```bash
+verbx analyze location_dialogue.dereverb.wav --input-kind program --edr --room \
+  --json-out reports/location_dialogue.after.json
+```
+
+Then make at least three loudness-matched auditions: bypass, conservative processing, and
+a deliberately stronger setting. The stronger setting identifies the artifact boundary;
+it is not automatically the deliverable. Listen to the residual as well as the output.
+For stereo material, compare linked and unlinked behavior while watching a phase-correlation
+or vectorscope display.
+
+For live monitoring, begin with a device list and use wired input/output paths:
+
+```bash
+verbx realtime --list-devices
+```
+
+```bash
+verbx realtime --live-mode dereverb \
+  --input-device "Built-in Microphone" --output-device "Headphones" \
+  --sample-rate 48000 --block-size 384 \
+  --dereverb-mode wiener --dereverb-strength 0.75 \
+  --dereverb-floor 0.08 --dereverb-window-ms 12 \
+  --dereverb-hop-ms 4 --dereverb-tail-ms 90 \
+  --dereverb-max-atten-db 15 --dereverb-stereo-link
+```
+
+Measure physical round-trip delay before performance use. Bluetooth devices can add far
+more latency than the DSP and should not be used to characterize the processor. If a DAW
+hosts the plugin path, measure that host and buffer configuration rather than transferring
+a standalone CLI number to it.
+
+The experiment matrix below is more informative than searching for one universal preset:
+
+| Dimension | Minimum useful conditions | What it reveals |
+|---|---|---|
+| Source | Speech, percussion, piano, sustained strings, dense mix | Source-prior and transient failures |
+| Room | Short dry room, medium room, long diffuse hall, modal small room | Model mismatch and decay tracking |
+| Distance | Near, medium, far | DRR dependence |
+| Noise | Quiet, stationary noise, changing noise | Tail/noise confusion |
+| Channels | Mono, stereo linked, stereo independent | Spatial stability |
+| Strength | Bypass, conservative, nominal, stress | Artifact frontier |
+| Mode | Wiener, spectral subtraction | Gain-law dependence |
+| Metric | Clarity, blind decay, residual, listening, task score | Agreement and disagreement between evidence |
+
+#### Limits, Safety, and Claims
+
+Dereverberation cannot separate every process that prolongs sound. Instrument resonance,
+sustain pedal, chorus, delay, compression release, distortion, audience noise, and the
+room may overlap. A single microphone provides no label saying which decay is artistic.
+Aggressive processing of a mastered recording can remove intentional production ambience
+and expose edits or noise that the ambience masked.
+
+The processor also cannot repair clipping, recover bandwidth removed before capture, or
+infer a unique dry waveform from a fully smeared mixture. It may improve intelligibility
+without making audio studio-dry, or make audio sound drier while decreasing fidelity. Those
+outcomes are not contradictions because “reverberation amount,” “clarity,” and
+“reconstruction accuracy” are different dimensions.
+
+For forensic or evidentiary use, retain the original, process only a copy, preserve hashes
+and parameters, and describe the method as enhancement rather than recovery of fact. For
+machine-learning datasets, keep dry/reverberant pairing and train/validation/test room
+separation intact; otherwise room leakage can make a model appear to generalize. For
+archival music, prefer reversible conservative passes and document the artistic decision.
+
+The current `verbx` implementation should therefore be described precisely as deterministic
+spectral late-tail suppression. Its controls are designed to expose the reduction/artifact
+tradeoff and produce machine-readable reports. WPE, multichannel convolutional beamforming,
+measured inverse filtering, and neural restoration are discussed here because they define
+the scientific field and roadmap, not because the CLI silently substitutes those methods.
+
+#### Selected Primary Literature
+
+The following works are ordered alphabetically by first author. Appendix C contains the
+guide's larger annotated bibliography and cross-references [PE3], [PE4], [PE9], [SR1], and
+related room-acoustic sources.
+
+Allen, J. B.; Berkley, D. A. “Image method for efficiently simulating small-room
+acoustics.” *The Journal of the Acoustical Society of America* 65(4): 943–950. DOI:
+[10.1121/1.382599](https://doi.org/10.1121/1.382599), 1979.
+
+Caroselli, J.; Shafran, I.; Narayanan, A.; Rose, R. “Adaptive multichannel
+dereverberation for automatic speech recognition.” *Proceedings of Interspeech 2017*:
+3877–3881. DOI:
+[10.21437/Interspeech.2017-1791](https://doi.org/10.21437/Interspeech.2017-1791), 2017.
+
+Drude, L.; Boeddeker, C.; Heymann, J.; Haeb-Umbach, R.; Kinoshita, K.; Delcroix, M.;
+Nakatani, T. “Integrating neural network based beamforming and weighted prediction error
+dereverberation.” *Proceedings of Interspeech 2018*: 3043–3047. DOI:
+[10.21437/Interspeech.2018-2196](https://doi.org/10.21437/Interspeech.2018-2196), 2018.
+
+Erkelens, J. S.; Heusdens, R. “A statistical room impulse response model with frequency
+dependent reverberation time for single-microphone late reverberation suppression.”
+*Proceedings of Interspeech 2011*: 2273–2276. DOI:
+[10.21437/Interspeech.2011-82](https://doi.org/10.21437/Interspeech.2011-82), 2011.
+
+Falk, T. H.; Zheng, C.; Chan, W.-Y. “A non-intrusive quality and intelligibility measure
+of reverberant and dereverberated speech.” *IEEE Transactions on Audio, Speech, and
+Language Processing* 18(7): 1766–1774. DOI:
+[10.1109/TASL.2010.2052247](https://doi.org/10.1109/TASL.2010.2052247), 2010.
+
+Habets, E. A. P. “Speech dereverberation using statistical reverberation models.” In
+Naylor, P. A.; Gaubitch, N. D., eds., *Speech Dereverberation*: 57–93. DOI:
+[10.1007/978-1-84996-056-4_3](https://doi.org/10.1007/978-1-84996-056-4_3), 2010.
+
+Habets, E. A. P.; Gannot, S.; Cohen, I. “Late reverberant spectral variance estimation
+based on a statistical model.” *IEEE Signal Processing Letters* 16(9): 770–773. DOI:
+[10.1109/LSP.2009.2024796](https://doi.org/10.1109/LSP.2009.2024796), 2009.
+
+Kinoshita, K.; Delcroix, M.; Gannot, S.; Habets, E. A. P.; Haeb-Umbach, R.; Kellermann,
+W.; Leutnant, V.; Maas, R.; Nakatani, T.; Raj, B.; Sehr, A.; Yoshioka, T. “A summary of
+the REVERB challenge: state-of-the-art and remaining challenges in reverberant speech
+processing research.” *EURASIP Journal on Advances in Signal Processing* 2016: 7. DOI:
+[10.1186/s13634-016-0306-6](https://doi.org/10.1186/s13634-016-0306-6), 2016.
+
+Miyoshi, M.; Kaneda, Y. “Inverse filtering of room acoustics.” *IEEE Transactions on
+Acoustics, Speech, and Signal Processing* 36(2): 145–152. DOI:
+[10.1109/29.1509](https://doi.org/10.1109/29.1509), 1988.
+
+Nakatani, T.; Kinoshita, K. “Simultaneous denoising and dereverberation for low-latency
+applications using frame-by-frame online unified convolutional beamformer.” *Proceedings
+of Interspeech 2019*: 111–115. DOI:
+[10.21437/Interspeech.2019-1286](https://doi.org/10.21437/Interspeech.2019-1286), 2019.
+
+Nakatani, T.; Yoshioka, T.; Kinoshita, K.; Miyoshi, M.; Juang, B.-H. “Speech
+dereverberation based on variance-normalized delayed linear prediction.” *IEEE
+Transactions on Audio, Speech, and Language Processing* 18(7): 1717–1731. DOI:
+[10.1109/TASL.2010.2052251](https://doi.org/10.1109/TASL.2010.2052251), 2010.
+
+Naylor, P. A.; Gaubitch, N. D., eds. *Speech Dereverberation*. London: Springer. DOI:
+[10.1007/978-1-84996-056-4](https://doi.org/10.1007/978-1-84996-056-4), 2010.
+
+Tsilfidis, A.; Mourjopoulos, J. “Blind single-channel suppression of late reverberation
+based on perceptual reverberation modeling.” *The Journal of the Acoustical Society of
+America* 129(3): 1439–1451. DOI:
+[10.1121/1.3533690](https://doi.org/10.1121/1.3533690), 2011.
+
+Yang, J.-Y.; Chang, J.-H. “Virtual acoustic channel expansion based on neural networks
+for weighted prediction error-based speech dereverberation.” *Proceedings of Interspeech
+2020*: 3930–3934. DOI:
+[10.21437/Interspeech.2020-1553](https://doi.org/10.21437/Interspeech.2020-1553), 2020.
+
+Yoshioka, T.; Nakatani, T. “Generalization of multi-channel linear prediction methods for
+blind MIMO impulse response shortening.” *IEEE Transactions on Audio, Speech, and Language
+Processing* 20(10): 2707–2720. DOI:
+[10.1109/TASL.2012.2210879](https://doi.org/10.1109/TASL.2012.2210879), 2012.
+
 ### A Thirty-Minute Reverb Laboratory
 
 The following laboratory turns the chapter into an audible sequence. Use headphones
