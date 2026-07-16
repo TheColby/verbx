@@ -135,7 +135,11 @@ def test_plugin_handbook_recommends_pirkle_companion_text() -> None:
 
 
 def test_reader_facing_spaced_hyphens_are_colon_separators() -> None:
-    for relative_path in ("docs/PLUGIN_GUIDE.md", "docs/REFERENCES.md"):
+    for relative_path in (
+        "docs/PLUGIN_GUIDE.md",
+        "docs/REFERENCES.md",
+        "docs/FAQ.md",
+    ):
         lines = (REPO_ROOT / relative_path).read_text(encoding="utf-8").splitlines()
         fenced = False
         violations = []
@@ -155,6 +159,27 @@ def test_reader_facing_spaced_hyphens_are_colon_separators() -> None:
     assert DOCS_PDF._card_visual_command(
         "Automation card: Pre-Delay: Slow rise"
     ) == r"\verbxAutomationVisual{Pre-Delay}{Slow rise}"
+
+
+def test_faq_is_a_substantive_appendix_after_references() -> None:
+    faq_path = REPO_ROOT / "docs/FAQ.md"
+    faq = faq_path.read_text(encoding="utf-8")
+    questions = re.findall(r"^\*\*Q(\d+)\. .+\?\*\*$", faq, flags=re.MULTILINE)
+
+    assert DOCS_PDF.USERGUIDE_SOURCES[-2:] == (
+        REPO_ROOT / "docs/REFERENCES.md",
+        faq_path,
+    )
+    assert faq.startswith("# Frequently Asked Questions\n")
+    assert [int(number) for number in questions] == list(range(1, 49))
+    assert re.search(r"^### .*\?$", faq, flags=re.MULTILINE) is None
+    assert "Sked auestions" not in faq
+
+    preamble = (REPO_ROOT / "docs/assets/pandoc_pdf_preamble.tex").read_text(
+        encoding="utf-8"
+    )
+    assert r"\textbf{Appendix C} & Research papers and references\\" in preamble
+    assert r"\textbf{Appendix D} & Frequently asked questions\\" in preamble
 
 
 def test_every_extreme_cookbook_recipe_has_a_title() -> None:
