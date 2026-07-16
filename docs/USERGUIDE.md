@@ -2066,7 +2066,7 @@ Practical tip: comb cloud and shimmer solve different problems. Comb cloud thick
 
 ### Freeze / Repeat
 
-`--freeze` locks onto a segment of audio (defined by `--start` and `--end` in seconds) and loops it through the reverb engine with an equal-power crossfade at loop boundaries. This produces sustained, near-static textures. `--repeat N` runs the full render chain N times sequentially, each pass using the output of the previous as input — an iterative reprocessing that progressively imprints the room resonance on the source. Classic application: Alvin Lucier's "I Am Sitting in a Room" technique.
+`--freeze` locks onto a segment of audio (defined by `--start` and `--end` in seconds) and loops it through the reverb engine with an equal-power crossfade at loop boundaries. This produces sustained, near-static textures. `--repeat N` runs the full render chain N times sequentially, each pass using the output of the previous as input — an iterative reprocessing that progressively imprints the room resonance on the source. Classic application: Alvin Lucier's *I Am Sitting in a Room* technique.
 
 Use `--output-peak-norm input` with repeat chains to keep levels stable across passes.
 
@@ -5876,13 +5876,13 @@ These five recipes are the canonical musical examples used in the public alpha
 launch narrative. They are maintained in `README.md` and mirrored here so they
 do not drift.
 
-**1) Alvin Lucier / I Am Sitting in a Room (iterative room resonance)**
+**1) Alvin Lucier / *I Am Sitting in a Room* (iterative room resonance)**
 ```bash
 verbx render voice.wav lucier_7pass.wav --engine algo --rt60 4.5 \
   --wet 1.0 --dry 0.0 --repeat 7 --fdn-lines 16 --fdn-matrix hadamard --lowcut 60
 ```
 
-**2) Brian Eno / Discreet Music (ambient loopbed)**
+**2) Brian Eno / *Discreet Music* (ambient loopbed)**
 ```bash
 verbx render input.wav eno_ambient.wav --engine algo --rt60 12.0 \
   --wet 0.92 --dry 0.08 --damping 0.25 --pre-delay-ms 35 \
@@ -5890,7 +5890,7 @@ verbx render input.wav eno_ambient.wav --engine algo --rt60 12.0 \
   --target-lufs -22 --target-peak-dbfs -2
 ```
 
-**3) Pauline Oliveros / Deep Listening (extended drone-space)**
+**3) Pauline Oliveros / *Deep Listening* (extended drone-space)**
 ```bash
 verbx render drone.wav deep_listening.wav --engine algo --rt60 18.0 \
   --wet 0.95 --dry 0.10 --fdn-lines 32 --fdn-matrix hadamard \

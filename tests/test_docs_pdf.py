@@ -78,6 +78,25 @@ def test_pdf_markdown_has_no_parenthesized_doi_fence_artifacts() -> None:
     DOCS_PDF._validate_fenced_blocks(rendered)
 
 
+def test_musical_work_titles_remain_italic_in_pdf_index() -> None:
+    term = DOCS_PDF._musical_index_term(
+        "Karlheinz Stockhausen, *Kontakte* (1958-1960)"
+    )
+
+    assert term.startswith("Karlheinz Stockhausen, Kontakte (1958-1960)@")
+    assert r"Karlheinz Stockhausen, \textit{Kontakte} (1958-1960)" in term
+
+
+def test_musical_workflow_titles_are_italicized_in_sources() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    cookbook = (REPO_ROOT / "docs/EXTREME_COOKBOOK.md").read_text(encoding="utf-8")
+
+    assert "Alvin Lucier's *I Am Sitting in a Room* technique" in readme
+    assert "Alvin Lucier / *I Am Sitting in a Room*" in cookbook
+    assert "Brian Eno / *Discreet Music*" in cookbook
+    assert "Pauline Oliveros / *Deep Listening*" in cookbook
+
+
 def test_code_example_leads_reserve_space_and_forbid_boundary_breaks() -> None:
     source = (
         "Installation text.\n\n"
@@ -295,12 +314,27 @@ def test_reverb_primer_math_labels_use_positioned_scripts() -> None:
         draw, "C_L^T", PRIMER_ASSETS.F_FLOW
     )
 
-    assert any(
-        text == "\N{MINUS SIGN}M" and y < 0 for text, _, _, y in exponent_runs
-    )
+    assert any(text == "\N{EN DASH}" and y < 0 for text, _, _, y in exponent_runs)
     assert any(text == "L" and y > 0 for text, _, _, y in matrix_runs)
     assert any(text == "T" and y < 0 for text, _, _, y in matrix_runs)
+    variable_runs = [
+        (text, selected_font)
+        for text, selected_font, _, _ in exponent_runs + matrix_runs
+        if any(character.isalpha() for character in text)
+    ]
+    assert variable_runs
+    assert all(
+        "italic" in selected_font.getname()[1].lower()
+        for _, selected_font in variable_runs
+    )
     assert all("^" not in text and "_" not in text for text, *_ in exponent_runs + matrix_runs)
+
+
+def test_expanded_fdn_projection_and_gain_boxes_do_not_overlap() -> None:
+    projection = PRIMER_ASSETS.FDN_OUTPUT_PROJECTION_BOX
+    gain = PRIMER_ASSETS.FDN_GAIN_BOX
+
+    assert projection[3] + 20 <= gain[1]
 
 
 def test_documentation_avoids_plaintext_caret_delay_notation() -> None:
@@ -312,6 +346,8 @@ def test_documentation_avoids_plaintext_caret_delay_notation() -> None:
     assert "z^-" not in readme
     assert "z^-" not in generator
     assert '"$z^{-M}$"' in generator
+    assert '"$M$\\N{EN DASH}sample delay"' in generator
+    assert "\\N{MINUS SIGN}" not in generator
     assert "10^(" not in readme
     assert "10^(" not in generator
 

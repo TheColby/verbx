@@ -17,6 +17,9 @@ AUDIO = ROOT / "examples" / "audio"
 
 WIDTH = 1600
 HEIGHT = 940
+FDN_OUTPUT_PROJECTION_BOX = (1620, 10, 1940, 160)
+FDN_GAIN_BOX = (1660, 190, 1900, 720)
+FDN_MATRIX_BOX = (2050, 190, 2290, 720)
 WHITE = "#ffffff"
 INK = "#123431"
 MUTED = "#526762"
@@ -29,15 +32,26 @@ CREAM = "#f8f4ea"
 PALE_GREEN = "#e8f0ed"
 
 
-def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+def font(
+    size: int,
+    bold: bool = False,
+    italic: bool = False,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    georgia_style = {
+        (False, False): "Georgia.ttf",
+        (True, False): "Georgia Bold.ttf",
+        (False, True): "Georgia Italic.ttf",
+        (True, True): "Georgia Bold Italic.ttf",
+    }[(bold, italic)]
+    arial_style = {
+        (False, False): "Arial.ttf",
+        (True, False): "Arial Bold.ttf",
+        (False, True): "Arial Italic.ttf",
+        (True, True): "Arial Bold Italic.ttf",
+    }[(bold, italic)]
     candidates = [
-        "/System/Library/Fonts/Supplemental/New Century Schoolbook.ttc",
-        "/System/Library/Fonts/Supplemental/Georgia Bold.ttf"
-        if bold
-        else "/System/Library/Fonts/Supplemental/Georgia.ttf",
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
-        if bold
-        else "/System/Library/Fonts/Supplemental/Arial.ttf",
+        f"/System/Library/Fonts/Supplemental/{georgia_style}",
+        f"/System/Library/Fonts/Supplemental/{arial_style}",
     ]
     for candidate in candidates:
         try:
@@ -63,6 +77,13 @@ def _scaled_font(
     if isinstance(selected_font, ImageFont.FreeTypeFont):
         return selected_font.font_variant(size=max(8, round(selected_font.size * scale)))
     return selected_font
+
+
+def _italic_font(selected_font: ImageFont.ImageFont) -> ImageFont.ImageFont:
+    if not isinstance(selected_font, ImageFont.FreeTypeFont):
+        return selected_font
+    _, style = selected_font.getname()
+    return font(selected_font.size, bold="bold" in style.lower(), italic=True)
 
 
 def _script_group(value: str, start: int) -> tuple[str, int]:
@@ -97,9 +118,18 @@ def _math_runs(
         while index < len(value) and value[index] not in "^_{}":
             index += 1
         if index > start:
-            text = value[start:index].replace("-", "\N{MINUS SIGN}")
-            runs.append((text, selected_font, x, 0.0))
-            x += draw.textlength(text, font=selected_font)
+            text = value[start:index].replace("-", "\N{EN DASH}")
+            run_start = 0
+            while run_start < len(text):
+                alphabetic = text[run_start].isalpha()
+                run_end = run_start + 1
+                while run_end < len(text) and text[run_end].isalpha() == alphabetic:
+                    run_end += 1
+                run_text = text[run_start:run_end]
+                run_font = _italic_font(selected_font) if alphabetic else selected_font
+                runs.append((run_text, run_font, x, 0.0))
+                x += draw.textlength(run_text, font=run_font)
+                run_start = run_end
         if index >= len(value):
             break
         if value[index] in "{}":
@@ -177,8 +207,25 @@ def _line_size(
     value: str,
     selected_font: ImageFont.ImageFont,
 ) -> tuple[float, float]:
-    if value.startswith("$") and value.endswith("$"):
+    if value.startswith("$") and value.endswith("$") and value.count("$") == 2:
         return _math_size(draw, value[1:-1], selected_font)
+    if "$" in value:
+        segments = value.split("$")
+        sizes = [
+            _math_size(draw, segment, selected_font)
+            if index % 2
+            else _plain_text_size(draw, segment, selected_font)
+            for index, segment in enumerate(segments)
+        ]
+        return sum(width for width, _ in sizes), max(height for _, height in sizes)
+    return _plain_text_size(draw, value, selected_font)
+
+
+def _plain_text_size(
+    draw: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> tuple[float, float]:
     bounds = draw.textbbox((0, 0), value, font=selected_font)
     return bounds[2] - bounds[0], bounds[3] - bounds[1]
 
@@ -191,7 +238,7 @@ def _draw_line(
     fill: str,
     selected_font: ImageFont.ImageFont,
 ) -> None:
-    if value.startswith("$") and value.endswith("$"):
+    if value.startswith("$") and value.endswith("$") and value.count("$") == 2:
         _draw_math(
             draw,
             position,
@@ -199,6 +246,37 @@ def _draw_line(
             fill=fill,
             selected_font=selected_font,
         )
+    elif "$" in value:
+        segments = value.split("$")
+        sizes = [
+            _math_size(draw, segment, selected_font)
+            if index % 2
+            else _plain_text_size(draw, segment, selected_font)
+            for index, segment in enumerate(segments)
+        ]
+        line_height = max(height for _, height in sizes)
+        x = position[0]
+        for index, (segment, (segment_width, segment_height)) in enumerate(
+            zip(segments, sizes, strict=True)
+        ):
+            y = position[1] + (line_height - segment_height) / 2
+            if index % 2:
+                _draw_math(
+                    draw,
+                    (x, y),
+                    segment,
+                    fill=fill,
+                    selected_font=selected_font,
+                )
+            else:
+                bounds = draw.textbbox((0, 0), segment, font=selected_font)
+                draw.text(
+                    (x, y - bounds[1]),
+                    segment,
+                    fill=fill,
+                    font=selected_font,
+                )
+            x += segment_width
     else:
         draw.text(position, value, fill=fill, font=selected_font)
 
@@ -343,7 +421,14 @@ def diagram(
         if label:
             x = (start[0] + end[0]) / 2
             y = (start[1] + end[1]) / 2 - 25
-            draw.text((x - 35, y), label, fill=MUTED, font=F_SMALL)
+            label_width, _ = _line_size(draw, label, F_SMALL)
+            _draw_line(
+                draw,
+                (x - label_width / 2, y),
+                label,
+                fill=MUTED,
+                selected_font=F_SMALL,
+            )
     for source_name, target_name, label in feedback_edges or []:
         source = nodes[source_name][1]
         target = nodes[target_name][1]
@@ -353,7 +438,14 @@ def diagram(
         points = [start, (start[0], loop_y), (end[0], loop_y), end]
         draw.line(points, fill=RUST, width=4, joint="curve")
         _arrow(draw, points[-2], points[-1], color=RUST)
-        draw.text(((start[0] + end[0]) / 2 - 45, loop_y + 10), label, fill=RUST, font=F_SMALL)
+        label_width, _ = _line_size(draw, label, F_SMALL)
+        _draw_line(
+            draw,
+            ((start[0] + end[0] - label_width) / 2, loop_y + 10),
+            label,
+            fill=RUST,
+            selected_font=F_SMALL,
+        )
     for label, box, accent in nodes.values():
         _node(draw, box, label, accent)
     save(image, name)
@@ -447,14 +539,18 @@ def _flow_arrow(
 
 
 def _flow_note(draw: ImageDraw.ImageDraw, value: str) -> None:
-    draw.text((70, 840), value, fill=MUTED, font=F_FLOW_SMALL)
+    _draw_line(draw, (70, 840), value, fill=MUTED, selected_font=F_FLOW_SMALL)
 
 
 def flowgraph_feedback_comb() -> None:
     image, draw = _flow_canvas()
     _flow_sum(draw, (550, 380))
-    _flow_box(draw, (900, 280, 1330, 480), ("$z^{-M}$", "M-sample delay"))
-    _flow_box(draw, (1160, 640, 1450, 780), ("g", "loop gain"))
+    _flow_box(
+        draw,
+        (900, 280, 1330, 480),
+        ("$z^{-M}$", "$M$\N{EN DASH}sample delay"),
+    )
+    _flow_box(draw, (1160, 640, 1450, 780), ("$g$", "loop gain"))
     _flow_arrow(draw, (80, 380), (505, 380), "$x[n]$")
     _flow_arrow(draw, (595, 380), (900, 380), "$w[n]$")
     _flow_arrow(draw, (1330, 380), (1980, 380), "$y[n]$")
@@ -462,7 +558,8 @@ def flowgraph_feedback_comb() -> None:
     _flow_arrow(draw, (1160, 710), (550, 425), "$gy[n]$", label_offset=(0, 28))
     _draw_fraction(draw, (2010, 305), "H(z)=", "1", "1-gz^{-M}", selected_font=F_FLOW)
     _flow_note(
-        draw, "Feedback comb: each loop traversal adds M samples and multiplies amplitude by g."
+        draw,
+        "Feedback comb: each loop traversal adds $M$ samples and multiplies amplitude by $g$.",
     )
     save(image, "23_feedback_comb_flowgraph.png")
 
@@ -470,9 +567,13 @@ def flowgraph_feedback_comb() -> None:
 def flowgraph_schroeder_allpass() -> None:
     image, draw = _flow_canvas()
     _flow_sum(draw, (470, 330))
-    _flow_box(draw, (760, 230, 1180, 430), ("$z^{-M}$", "M-sample delay"))
-    _flow_box(draw, (770, 600, 1040, 740), ("-g", "feedforward"))
-    _flow_box(draw, (1260, 600, 1530, 740), ("g", "feedback"))
+    _flow_box(
+        draw,
+        (760, 230, 1180, 430),
+        ("$z^{-M}$", "$M$\N{EN DASH}sample delay"),
+    )
+    _flow_box(draw, (770, 600, 1040, 740), ("$-g$", "feedforward"))
+    _flow_box(draw, (1260, 600, 1530, 740), ("$g$", "feedback"))
     _flow_sum(draw, (1770, 330))
     _flow_arrow(draw, (70, 330), (425, 330), "$x[n]$")
     _flow_arrow(draw, (515, 330), (760, 330), "$w[n]$")
@@ -499,9 +600,9 @@ def flowgraph_schroeder_allpass() -> None:
 def flowgraph_parameterized_schroeder() -> None:
     image, draw = _flow_canvas()
     allpasses = [
-        ((150, 320, 470, 500), ("AP", "N=337, g=0.70")),
-        ((540, 320, 860, 500), ("AP", "N=113, g=0.70")),
-        ((930, 320, 1250, 500), ("AP", "N=41, g=0.70")),
+        ((150, 320, 470, 500), ("AP", "$N$=337, $g$=0.70")),
+        ((540, 320, 860, 500), ("AP", "$N$=113, $g$=0.70")),
+        ((930, 320, 1250, 500), ("AP", "$N$=41, $g$=0.70")),
     ]
     for box, lines in allpasses:
         _flow_box(draw, box, lines)
@@ -517,15 +618,19 @@ def flowgraph_parameterized_schroeder() -> None:
     row_centers = (145, 330, 515, 700)
     for index, (delay, gain, y) in enumerate(zip(delays, gains, row_centers, strict=True), 1):
         _flow_arrow(draw, (bus_x, y), (1420, y))
-        _flow_box(draw, (1420, y - 65, 1850, y + 65), ("FBCF", f"N={delay}, g={gain:.3f}"))
-        _flow_arrow(draw, (1850, y), (2010, y), f"x{index}", label_offset=(0, -38))
+        _flow_box(
+            draw,
+            (1420, y - 65, 1850, y + 65),
+            ("FBCF", f"$N$={delay}, $g$={gain:.3f}"),
+        )
+        _flow_arrow(draw, (1850, y), (2010, y), f"$x_{index}$", label_offset=(0, -38))
 
-    _flow_box(draw, (2010, 75, 2250, 770), ("H4 / 2", "output matrix"))
+    _flow_box(draw, (2010, 75, 2250, 770), ("$H_4/2$", "output matrix"))
     for index, y in enumerate(row_centers):
         _flow_arrow(draw, (2250, y), (2560, y), f"Out{chr(65 + index)}")
     _flow_note(
         draw,
-        "Illustrative 48 kHz, T60=2.4 s design; values demonstrate notation "
+        "Illustrative 48 kHz, $T_{60}$=2.4 s design; values demonstrate notation "
         "and are not verbx defaults.",
     )
     save(image, "25_parameterized_schroeder_flowgraph.png")
@@ -533,29 +638,33 @@ def flowgraph_parameterized_schroeder() -> None:
 
 def flowgraph_expanded_fdn() -> None:
     image, draw = _flow_canvas()
-    _flow_box(draw, (80, 340, 290, 500), ("B", "input projection"))
+    _flow_box(draw, (80, 340, 290, 500), ("$B$", "input projection"))
     _flow_sum(draw, (440, 420))
-    _flow_arrow(draw, (10, 420), (80, 420), "x[n]")
-    _flow_arrow(draw, (290, 420), (395, 420), "u[n]")
+    _flow_arrow(draw, (10, 420), (80, 420), "$x[n]$")
+    _flow_arrow(draw, (290, 420), (395, 420), "$u[n]$")
     delay_rows = (150, 330, 510, 690)
     draw.line((485, 420, 610, 420), fill="black", width=5)
     draw.line((610, 150, 610, 690), fill="black", width=5)
     for index, y in enumerate(delay_rows, 1):
         _flow_arrow(draw, (610, y), (720, y))
-        _flow_box(draw, (720, y - 58, 1010, y + 58), (f"$z^{{-m_{index}}}$", "delay line"))
+        _flow_box(
+            draw,
+            (720, y - 58, 1010, y + 58),
+            (f"$z^{{-m_{index}}}$", f"delay $m_{index}$"),
+        )
         _flow_arrow(draw, (1010, y), (1110, y), f"$s_{index}$", label_offset=(0, -36))
         _flow_box(draw, (1110, y - 58, 1410, y + 58), (f"$H_{index}(z)$", "loop damping"))
         _flow_arrow(draw, (1410, y), (1530, y))
     draw.line((1530, 150, 1530, 690), fill="black", width=5)
-    _flow_box(draw, (1660, 120, 1900, 720), ("G", "RT60 gains"))
-    _flow_arrow(draw, (1530, 420), (1660, 420), "N-vector")
-    _flow_box(draw, (2050, 120, 2290, 720), ("M", "unitary matrix"))
-    _flow_arrow(draw, (1900, 420), (2050, 420), "G s[n]")
+    _flow_box(draw, FDN_GAIN_BOX, ("$G$", "RT60 gains"))
+    _flow_arrow(draw, (1530, 420), (1660, 420), "$N$-vector")
+    _flow_box(draw, FDN_MATRIX_BOX, ("$M$", "unitary matrix"))
+    _flow_arrow(draw, (1900, 420), (2050, 420), "$G s[n]$")
     draw.line((2290, 420, 2400, 420, 2400, 805, 440, 805, 440, 465), fill="black", width=5)
     _flow_arrow(draw, (1530, 270), (1660, 270))
-    _flow_box(draw, (1660, 20, 1900, 95), ("$C^T$", "output projection"))
-    draw.line((1530, 150, 1600, 150, 1600, 58, 1660, 58), fill="black", width=5)
-    _flow_arrow(draw, (1900, 58), (2440, 58), "y[n]")
+    _flow_box(draw, FDN_OUTPUT_PROJECTION_BOX, ("$C^T$", "output projection"))
+    draw.line((1530, 150, 1580, 150, 1580, 85, 1620, 85), fill="black", width=5)
+    _flow_arrow(draw, (1940, 85), (2440, 85), "$y[n]$")
     _flow_note(
         draw,
         "Expanded FDN: unequal delays, per-line damping, RT60 gains, unitary "
@@ -581,7 +690,7 @@ def flowgraph_multiband_loop_filter() -> None:
         _flow_box(draw, (1200, y - 65, 1800, y + 65), (gain_name,))
         _flow_arrow(draw, (1800, y), (2110, 420))
     _flow_sum(draw, (2155, 420))
-    _flow_arrow(draw, (2200, 420), (2550, 420), "conditioned line i")
+    _flow_arrow(draw, (2200, 420), (2550, 420), "conditioned line $i$")
     _flow_note(
         draw,
         "Frequency-dependent loop loss: each crossover band receives its own "
@@ -634,10 +743,10 @@ def _generate_detailed_schroeder_diagram() -> None:
         (1365, 385, 1505, 535),
     )
     comb_specs = (
-        ("FBCF 1\nM=1499 samples\ng=0.914", 245),
-        ("FBCF 2\nM=1601 samples\ng=0.908", 385),
-        ("FBCF 3\nM=1877 samples\ng=0.894", 535),
-        ("FBCF 4\nM=2137 samples\ng=0.880", 675),
+        ("FBCF 1\n$M$=1499 samples\n$g$=0.914", 245),
+        ("FBCF 2\n$M$=1601 samples\n$g$=0.908", 385),
+        ("FBCF 3\n$M$=1877 samples\n$g$=0.894", 535),
+        ("FBCF 4\n$M$=2137 samples\n$g$=0.880", 675),
     )
     fan_out_x = 410
     sum_bus_x = 835
@@ -661,9 +770,9 @@ def _generate_detailed_schroeder_diagram() -> None:
     _node(draw, sum_box, "Sum", RUST)
 
     allpass_specs = (
-        ("AP 1\nM=337\ng=0.70", allpass_boxes[0]),
-        ("AP 2\nM=113\ng=0.70", allpass_boxes[1]),
-        ("AP 3\nM=41\ng=0.70", allpass_boxes[2]),
+        ("AP 1\n$M$=337\n$g$=0.70", allpass_boxes[0]),
+        ("AP 2\n$M$=113\n$g$=0.70", allpass_boxes[1]),
+        ("AP 3\n$M$=41\n$g$=0.70", allpass_boxes[2]),
     )
     _arrow(draw, (sum_box[2], 460), (allpass_boxes[0][0], 460), color=MUTED)
     for index, (label, box) in enumerate(allpass_specs):
@@ -672,12 +781,13 @@ def _generate_detailed_schroeder_diagram() -> None:
             _arrow(draw, (box[2], 460), (allpass_boxes[index + 1][0], 460), color=MUTED)
     _arrow(draw, (allpass_boxes[-1][2], 460), (1570, 460), color=MUTED)
     draw.text((1508, 420), "Wet out", fill=MUTED, font=F_TINY)
-    draw.text(
+    _draw_line(
+        draw,
         (70, 780),
-        "Illustrative 48 kHz, T60=2.4 s values; M is delay length and g is loop "
+        "Illustrative 48 kHz, $T_{60}$=2.4 s values; $M$ is delay length and $g$ is loop "
         "gain, not a verbx preset.",
         fill=MUTED,
-        font=F_SMALL,
+        selected_font=F_SMALL,
     )
     save(image, "02_schroeder_reverberator.png")
 
@@ -689,36 +799,36 @@ def _generate_remaining_diagrams() -> None:
         "Feedback Comb Filter",
         "A delayed, attenuated copy returns to the input and creates a modal series.",
         {
-            "input": ("x[n]", (100, 350, 280, 470), BLUE),
+            "input": ("$x[n]$", (100, 350, 280, 470), BLUE),
             "sum": ("+", (390, 350, 550, 470), TEAL),
             "delay": ("Delay\n$z^{-M}$", (700, 350, 940, 470), GOLD),
-            "output": ("y[n]", (1110, 350, 1290, 470), INK),
-            "gain": ("Feedback gain\ng", (700, 640, 940, 760), RUST),
+            "output": ("$y[n]$", (1110, 350, 1290, 470), INK),
+            "gain": ("Feedback gain\n$g$", (700, 640, 940, 760), RUST),
         },
         [("input", "sum", ""), ("sum", "delay", ""), ("delay", "output", "")],
-        [("delay", "gain", "loop"), ("gain", "sum", "g y[n-M]")],
+        [("delay", "gain", "loop"), ("gain", "sum", "$g y[n-M]$")],
     )
     diagram(
         "04_schroeder_allpass.png",
         "Schroeder Allpass Diffuser",
         "Feedforward and feedback paths preserve magnitude while rotating phase.",
         {
-            "input": ("x[n]", (80, 350, 260, 470), BLUE),
+            "input": ("$x[n]$", (80, 350, 260, 470), BLUE),
             "split": ("Split", (350, 350, 530, 470), TEAL),
             "delay": ("Delay\n$z^{-M}$", (690, 250, 930, 370), GOLD),
-            "direct": ("Direct gain\n-g", (690, 520, 930, 640), RUST),
+            "direct": ("Direct gain\n$-g$", (690, 520, 930, 640), RUST),
             "sum": ("+", (1090, 350, 1250, 470), TEAL),
-            "output": ("y[n]", (1360, 350, 1530, 470), INK),
+            "output": ("$y[n]$", (1360, 350, 1530, 470), INK),
         },
         [
             ("input", "split", ""),
             ("split", "delay", "delayed"),
             ("split", "direct", "direct"),
             ("delay", "sum", "+1"),
-            ("direct", "sum", "-g"),
+            ("direct", "sum", "$-g$"),
             ("sum", "output", ""),
         ],
-        [("delay", "split", "g feedback")],
+        [("delay", "split", "$g$ feedback")],
     )
     diagram(
         "05_allpass_diffusion_network.png",
@@ -743,17 +853,17 @@ def _generate_remaining_diagrams() -> None:
         "Feedback Delay Network (FDN)",
         "A vector feedback loop separates delay distribution, decay, and mixing topology.",
         {
-            "input": ("Input\nprojection B", (45, 350, 275, 490), BLUE),
+            "input": ("Input\nprojection $B$", (45, 350, 275, 490), BLUE),
             "sum": ("Vector sum", (350, 350, 570, 490), TEAL),
-            "delays": ("Delay bank D(z)\nN unequal lines", (650, 315, 930, 525), GOLD),
-            "filters": ("Damping +\nRT60 gains G", (1010, 315, 1260, 525), RUST),
-            "output": ("Output\nprojection C", (1340, 350, 1560, 490), INK),
-            "matrix": ("Orthonormal feedback matrix M", (720, 665, 1190, 790), TEAL),
+            "delays": ("Delay bank $D(z)$\n$N$ unequal lines", (650, 315, 930, 525), GOLD),
+            "filters": ("Damping +\nRT60 gains $G$", (1010, 315, 1260, 525), RUST),
+            "output": ("Output\nprojection $C$", (1340, 350, 1560, 490), INK),
+            "matrix": ("Orthonormal feedback matrix $M$", (720, 665, 1190, 790), TEAL),
         },
         [
-            ("input", "sum", "u[n]"),
+            ("input", "sum", "$u[n]$"),
             ("sum", "delays", "state"),
-            ("delays", "filters", "N lines"),
+            ("delays", "filters", "$N$ lines"),
             ("filters", "output", "wet"),
         ],
         [("filters", "matrix", "mix"), ("matrix", "sum", "feedback")],

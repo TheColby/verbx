@@ -854,8 +854,8 @@ def _add_pdf_index(markdown: str) -> str:
         work_pattern = re.compile(r"(?m)^\*\*(?P<term>.+?\([^)]+\))\.\*\*")
 
         def index_work(match: re.Match[str]) -> str:
-            term = _plain_index_term(match.group("term"))
-            marker = f"```{{=latex}}\n\\index{{{_latex_index_term(term)}}}\n```\n\n"
+            term = _musical_index_term(match.group("term"))
+            marker = f"```{{=latex}}\n\\index{{{term}}}\n```\n\n"
             return marker + match.group(0)
 
         appendix = work_pattern.sub(index_work, appendix)
@@ -1095,6 +1095,28 @@ def _plain_index_term(value: str) -> str:
     if re.fullmatch(r"(?:5\.1|7\.1|7\.1\.4)", value):
         value = f"Surround format {value}"
     return value
+
+
+def _musical_index_term(value: str) -> str:
+    """Keep a work title italic while sorting its index entry as plain text."""
+
+    match = re.fullmatch(
+        r"(?P<creator>.+),\s+\*(?P<title>.+)\*\s+\((?P<date>[^)]+)\)",
+        value,
+    )
+    if match is None:
+        return _latex_index_term(_plain_index_term(value))
+
+    sort_key = _latex_index_term(_plain_index_term(value))
+    display = (
+        _latex_text(match.group("creator"))
+        + ", \\textit{"
+        + _latex_text(match.group("title"))
+        + "} ("
+        + _latex_text(match.group("date"))
+        + ")"
+    )
+    return f"{sort_key}@{display}"
 
 
 def _latex_index_term(value: str) -> str:
