@@ -684,7 +684,9 @@ the listening appendix. Each sonogram plots time in seconds along the horizontal
 frequency in hertz on a logarithmic vertical axis, and level in decibels relative to
 the loudest time-frequency cell. Light gold marks stronger energy; dark green marks
 weaker energy. A sonogram cannot replace listening, but it makes note overlap, spectral
-decay, and sustained resonances visible.
+decay, and sustained resonances visible. Every paired figure uses one shared time scale
+from zero to the longer recording's endpoint. When the shorter recording ends, its panel
+continues at the –80 dB floor instead of stretching the source to fill the plot.
 
 #### Listening Method: Compare Dry, Wet-Only, and Context
 
