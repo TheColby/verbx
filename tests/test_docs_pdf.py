@@ -72,6 +72,60 @@ COMPOSITION_PROJECT_TITLES = (
 )
 
 
+def test_rt60_section_3_2_is_a_substantial_textbook_treatment() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    start = readme.index("### RT60\n")
+    end = readme.index("### Impulse Responses\n", start)
+    section = readme[start:end]
+    words = re.findall(r"\b[\w’'-]+\b", section)
+    image_paths = re.findall(r"^!\[[^]]+\]\(([^)]+)\)$", section, flags=re.MULTILINE)
+    captioned_images = re.findall(
+        r"^!\[[^]]+\]\([^)]+\)\n\n\*\*Figure: .+\.\*\*$",
+        section,
+        flags=re.MULTILINE,
+    )
+
+    assert len(words) >= 4500
+    assert image_paths == [
+        "docs/assets/userguide_figures/03_rt60_decay_families.png",
+        "docs/assets/userguide_figures/04_edc_fit_windows.png",
+        "docs/assets/userguide_figures/09_multiband_decay.png",
+        "docs/assets/userguide_figures/24_infinite_reverb.png",
+    ]
+    assert len(captioned_images) == 4
+    for number, image_path in enumerate(image_paths, start=1):
+        assert section.index(f"Figure 3-{number}") < section.index(f"]({image_path})")
+        assert (REPO_ROOT / image_path).is_file()
+
+    for topic in (
+        "Decibels, Energy, and the Meaning of",
+        "From Room Physics to Reverberation Time",
+        "RT60 Inside a Feedback Delay Network",
+        "Measuring RT60 from an Impulse Response",
+        "Frequency-Dependent and Multiband Decay",
+        "Non-Diffuse Rooms, Modes, and Coupled Slopes",
+        "RT60 Is Not Wetness, Distance, or Clarity",
+        "Extreme RT60, Freeze, and Infinite-Style Behavior",
+        "Musical Time and RT60",
+        "Practical verbx Workflows",
+        "Common Interpretation Failures",
+        "Selected Primary Literature",
+    ):
+        assert topic in section
+
+    for technical_detail in (
+        r"E(t)=\int_t^{\infty}h^2(\tau)\,d\tau",
+        r"g_i=10^{-\frac{3m_i}{F_sT_{60}}}",
+        "0.161\\frac{V}{-S\\ln(1-\\overline{\\alpha})},\n$$",
+        r"T_{\mathrm{beat}}=\frac{60}{B}",
+        "verbx render in.wav out_multiband.wav",
+        "verbx analyze study_hall.wav --input-kind ir --edr --room",
+        "10.1121/1.1909343",
+        "10.1109/97.623041",
+    ):
+        assert technical_detail in section
+
+
 def test_parenthesized_doi_reference_is_matched_atomically() -> None:
     reference = (
         "**[XREF0794]** Rutkowski, Leon (1996). A comparison of transfer functions. "
