@@ -214,6 +214,19 @@ def test_pdf_preamble_prevents_widows_orphans_and_stranded_headings() -> None:
         assert rule in preamble
 
 
+def test_table_of_figures_starts_on_a_new_page(tmp_path: Path) -> None:
+    latex_path = tmp_path / "guide.tex"
+    latex_path.write_text(
+        "\\tableofcontents\n}\n\\listoffigures\n\\mainmatter\n",
+        encoding="utf-8",
+    )
+
+    DOCS_PDF._force_table_of_figures_page_break(latex_path)
+
+    latex = latex_path.read_text(encoding="utf-8")
+    assert "\\tableofcontents\n}\n\\clearpage\n\\listoffigures" in latex
+
+
 def test_reverb_primer_has_textbook_depth_and_complete_figure_set() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     start = readme.index("## What Is Reverb? (and Why Does verbx Sound Different)")

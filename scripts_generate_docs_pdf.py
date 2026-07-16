@@ -1153,6 +1153,17 @@ def _latex_index_term(value: str) -> str:
     return "".join(replacements.get(char, char) for char in value)
 
 
+def _force_table_of_figures_page_break(latex_path: Path) -> None:
+    latex = latex_path.read_text(encoding="utf-8")
+    marker = "\n\\listoffigures\n"
+    if latex.count(marker) != 1:
+        raise ValueError("Expected exactly one body-level \\listoffigures command")
+    latex_path.write_text(
+        latex.replace(marker, "\n\\clearpage\n\\listoffigures\n", 1),
+        encoding="utf-8",
+    )
+
+
 def _render_pdf(markdown_path: Path, pdf_path: Path, author: str) -> None:
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="verbx_userguide_") as tmpdir_raw:
@@ -1174,6 +1185,7 @@ def _render_pdf(markdown_path: Path, pdf_path: Path, author: str) -> None:
             str(latex_path),
         ]
         subprocess.run(pandoc_command, cwd=ROOT, check=True)
+        _force_table_of_figures_page_break(latex_path)
         _rewrite_longtable_specs(latex_path)
         for pass_index in range(5):
             subprocess.run(
