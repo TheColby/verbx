@@ -39,6 +39,7 @@ RESEARCH_REFERENCE_PATTERN = re.compile(
 )
 TEX_GYRE_FONT_DIR = "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/tex-gyre/"
 TEX_GYRE_MATH_FONT_DIR = "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/tex-gyre-math/"
+HOMEBREW_SOURCE = ROOT / "docs" / "HOMEBREW.md"
 
 USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "README.md",
@@ -54,13 +55,18 @@ USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "docs" / "IR_MORPH_QA.md",
     ROOT / "docs" / "SOFA_FEASIBILITY.md",
     ROOT / "docs" / "FIGURES.md",
-    ROOT / "docs" / "HOMEBREW.md",
     ROOT / "docs" / "benchmarks" / "README.md",
     ROOT / "docs" / "MUSICAL_PIECES_APPENDIX.md",
     ROOT / "docs" / "MUSICAL_PIECES_EXPANSION.md",
     ROOT / "docs" / "HOMEWORK_ASSIGNMENTS.md",
     ROOT / "docs" / "REFERENCES.md",
     ROOT / "docs" / "FAQ.md",
+)
+CHAPTER_ONE_SUPPLEMENTS: tuple[Path, ...] = (HOMEBREW_SOURCE,)
+USERGUIDE_INCLUDED_SOURCES: tuple[Path, ...] = (
+    USERGUIDE_SOURCES[0],
+    *CHAPTER_ONE_SUPPLEMENTS,
+    *USERGUIDE_SOURCES[1:],
 )
 
 
@@ -83,7 +89,7 @@ def _build_markdown(author: str) -> str:
         "## Included Sources",
         "",
     ]
-    lines.extend(f"- `{_rel(path)}`" for path in USERGUIDE_SOURCES)
+    lines.extend(f"- `{_rel(path)}`" for path in USERGUIDE_INCLUDED_SOURCES)
     lines.extend(["", "---", ""])
 
     for index, source in enumerate(USERGUIDE_SOURCES):
@@ -106,7 +112,53 @@ def _markdown_for_userguide(source: Path) -> str:
     if source == ROOT / "README.md":
         markdown = markdown.replace('src="docs/assets/', 'src="assets/')
         markdown = markdown.replace("](docs/assets/", "](assets/")
+        anchor = "Homebrew maintainer details: [`docs/HOMEBREW.md`](docs/HOMEBREW.md)"
+        replacement = (
+            "Homebrew maintainer and release details are consolidated below.\n\n"
+            f"{_homebrew_chapter_one_supplement()}"
+        )
+        if anchor not in markdown:
+            raise ValueError("README Homebrew insertion anchor is missing")
+        markdown = markdown.replace(anchor, replacement, 1)
     return markdown
+
+
+def _homebrew_chapter_one_supplement() -> str:
+    """Embed the nonduplicated Homebrew material under Chapter 1."""
+
+    markdown = HOMEBREW_SOURCE.read_text(encoding="utf-8")
+    section_start = markdown.find("## Maintainer Workflow")
+    if section_start < 0:
+        raise ValueError("Homebrew maintainer section is missing")
+
+    maintenance = _demote_markdown_headings(markdown[section_start:].rstrip())
+    return (
+        "## Homebrew Distribution and Release Maintenance\n\n"
+        "The installation commands above cover the user path. The tap's release, "
+        "automation, and compatibility details follow for maintainers and packagers. "
+        "The published tap formula lives at `Formula/verbx.rb` in "
+        "`TheColby/homebrew-verbx`.\n\n"
+        f"{maintenance}"
+    )
+
+
+def _demote_markdown_headings(markdown: str) -> str:
+    """Demote prose headings by one level without touching fenced code."""
+
+    output: list[str] = []
+    fence: str | None = None
+    for line in markdown.splitlines():
+        stripped = line.lstrip()
+        marker = stripped[:3]
+        if marker in {"```", "~~~"}:
+            if fence is None:
+                fence = marker
+            elif fence == marker:
+                fence = None
+        elif fence is None and re.match(r"^#{1,5}\s", line):
+            line = f"#{line}"
+        output.append(line)
+    return "\n".join(output)
 
 
 def _write_markdown(path: Path, author: str) -> None:
@@ -1244,7 +1296,7 @@ def main() -> int:
         check=True,
     )
 
-    missing = [path for path in USERGUIDE_SOURCES if not path.exists()]
+    missing = [path for path in USERGUIDE_INCLUDED_SOURCES if not path.exists()]
     if missing:
         for path in missing:
             print(f"Missing USERGUIDE source: {_rel(path)}", file=sys.stderr)

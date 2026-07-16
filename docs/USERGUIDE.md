@@ -10,6 +10,7 @@ reference material, and practical tips shipped in `docs/`.
 ## Included Sources
 
 - `README.md`
+- `docs/HOMEBREW.md`
 - `docs/IMMERSIVE_AUDIO.md`
 - `docs/INTRODUCTORY_BLOCK_DIAGRAMS.md`
 - `docs/PUBLIC_ALPHA_NOTES.md`
@@ -22,7 +23,6 @@ reference material, and practical tips shipped in `docs/`.
 - `docs/IR_MORPH_QA.md`
 - `docs/SOFA_FEASIBILITY.md`
 - `docs/FIGURES.md`
-- `docs/HOMEBREW.md`
 - `docs/benchmarks/README.md`
 - `docs/MUSICAL_PIECES_APPENDIX.md`
 - `docs/MUSICAL_PIECES_EXPANSION.md`
@@ -370,7 +370,52 @@ brew install --build-from-source ./packaging/homebrew/verbx.rb
 
 **Requirements:** Python 3.11+, `libsndfile` on system path. Optional: `numba` (faster algorithmic path), `cupy` (CUDA convolution), `h5py` (SOFA import/extract via `verbx ir sofa-*`), `sounddevice` (realtime input/output via `verbx realtime`).
 
-Homebrew maintainer details: [`docs/HOMEBREW.md`](docs/HOMEBREW.md)
+Homebrew maintainer and release details are consolidated below.
+
+## Homebrew Distribution and Release Maintenance
+
+The installation commands above cover the user path. The tap's release, automation, and compatibility details follow for maintainers and packagers. The published tap formula lives at `Formula/verbx.rb` in `TheColby/homebrew-verbx`.
+
+### Maintainer Workflow
+
+1. Refresh formula pins for a new release tag:
+
+```bash
+./scripts/refresh_homebrew_formula.sh 0.7.7
+```
+
+2. Commit formula changes in this repo:
+
+```bash
+git add packaging/homebrew/verbx.rb scripts/refresh_homebrew_formula.sh docs/HOMEBREW.md
+git commit -m "chore(homebrew): refresh formula for v0.7.7"
+```
+
+3. Ensure tap repo formula is updated and pushed.
+
+### Release Automation
+
+`.github/workflows/release.yml` includes gated tap sync:
+
+- Trigger: tag push (`v*`)
+- Job: `sync-homebrew-tap`
+- Requires secret: `HOMEBREW_TAP_TOKEN` (when sync required)
+- Optional variable: `HOMEBREW_TAP_REPO` (default `TheColby/homebrew-verbx`)
+- Policy variable: `RELEASE_REQUIRE_HOMEBREW` (`true` by default)
+
+Behavior:
+
+- `RELEASE_REQUIRE_HOMEBREW=true` (default): release fails if token is missing.
+- `RELEASE_REQUIRE_HOMEBREW=false`: sync is skipped when token is missing.
+
+### Compatibility Notes
+
+- Formula pins Python resources using `brew update-python-resources`.
+- `numba`/`llvmlite`/`scikit-learn` are intentionally excluded from Homebrew
+  resources to avoid fragile compiler-bound builds in common macOS
+  environments.
+- Core DSP paths are unaffected; shimmer remains available with librosa and
+  falls back gracefully when acceleration dependencies are absent.
 
 If `verbx` is not found after install, add `~/.local/bin` to your PATH:
 
@@ -21489,74 +21534,6 @@ The figure below introduces **End-to-End Confidence Map**. The full system is he
 **Figure 100: End-to-End Confidence Map.**
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
-
-
-\newpage
-
-<!-- docs/HOMEBREW.md -->
-
-# Homebrew Support
-
-`verbx` supports Homebrew distribution through the tap formula at:
-
-- `TheColby/homebrew-verbx`
-- Formula path: `Formula/verbx.rb`
-
-## User Install (macOS)
-
-```bash
-brew tap thecolby/verbx
-brew install thecolby/verbx/verbx
-verbx version
-```
-
-If the tap is unavailable in your environment, you can install from the formula
-in this repository:
-
-```bash
-brew install --build-from-source ./packaging/homebrew/verbx.rb
-```
-
-## Maintainer Workflow
-
-1. Refresh formula pins for a new release tag:
-
-```bash
-./scripts/refresh_homebrew_formula.sh 0.7.7
-```
-
-2. Commit formula changes in this repo:
-
-```bash
-git add packaging/homebrew/verbx.rb scripts/refresh_homebrew_formula.sh docs/HOMEBREW.md
-git commit -m "chore(homebrew): refresh formula for v0.7.7"
-```
-
-3. Ensure tap repo formula is updated and pushed.
-
-## Release Automation
-
-`.github/workflows/release.yml` includes gated tap sync:
-
-- Trigger: tag push (`v*`)
-- Job: `sync-homebrew-tap`
-- Requires secret: `HOMEBREW_TAP_TOKEN` (when sync required)
-- Optional variable: `HOMEBREW_TAP_REPO` (default `TheColby/homebrew-verbx`)
-- Policy variable: `RELEASE_REQUIRE_HOMEBREW` (`true` by default)
-
-Behavior:
-
-- `RELEASE_REQUIRE_HOMEBREW=true` (default): release fails if token is missing.
-- `RELEASE_REQUIRE_HOMEBREW=false`: sync is skipped when token is missing.
-
-## Compatibility Notes
-
-- Formula pins Python resources using `brew update-python-resources`.
-- `numba`/`llvmlite`/`scikit-learn` are intentionally excluded from Homebrew
-  resources to avoid fragile compiler-bound builds in common macOS
-  environments.
-- Core DSP paths are unaffected; shimmer remains available with librosa and
-  falls back gracefully when acceleration dependencies are absent.
 
 
 \newpage
