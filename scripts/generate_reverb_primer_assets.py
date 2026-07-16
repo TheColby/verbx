@@ -956,9 +956,113 @@ def _generate_remaining_diagrams() -> None:
     )
 
 
+def _generate_dsp_extension_diagrams() -> None:
+    diagram(
+        "29_modulated_delay_control.png",
+        "Modulated Delay: Audio and Control Paths",
+        "Parameter smoothing and fractional interpolation keep moving delays continuous.",
+        {
+            "input": ("Audio\ninput", (55, 480, 245, 610), BLUE),
+            "write": ("Delay-buffer\nwrite", (360, 480, 620, 610), TEAL),
+            "read": ("Fractional\nread", (790, 480, 1050, 610), GOLD),
+            "output": ("Audio\noutput", (1300, 480, 1510, 610), INK),
+            "control": ("Automation /\nLFO target", (360, 190, 620, 320), RUST),
+            "smooth": ("Control-rate\nsmoother", (790, 190, 1050, 320), TEAL),
+        },
+        [
+            ("input", "write", "samples"),
+            ("write", "read", "circular memory"),
+            ("read", "output", "interpolated"),
+            ("control", "smooth", "target delay"),
+            ("smooth", "read", "$d[n]$"),
+        ],
+    )
+    diagram(
+        "30_fdn_design_coordinates.png",
+        "Five Design Coordinates of an FDN",
+        "Timing, coupling, loss, excitation, and observation jointly determine the tail.",
+        {
+            "state": ("Recursive\nFDN state", (650, 390, 950, 555), RUST),
+            "input": ("Input\nprojection $B$", (75, 405, 345, 540), BLUE),
+            "delays": ("Unequal delays\n$m_1 … m_N$", (650, 160, 950, 295), GOLD),
+            "matrix": ("Feedback\nmatrix $M$", (1190, 175, 1490, 310), TEAL),
+            "loss": ("Loop filters\nand gains $G$", (1190, 655, 1490, 790), RUST),
+            "output": ("Output\nprojection $C^T$", (650, 655, 950, 790), INK),
+        },
+        [
+            ("input", "state", "excitation"),
+            ("delays", "state", "modal timing"),
+            ("matrix", "state", "coupling"),
+            ("loss", "state", "decay"),
+            ("state", "output", "observation"),
+        ],
+    )
+    diagram(
+        "31_energy_decay_measurement.png",
+        "From Impulse Response to Decay Metrics",
+        "Backward energy integration turns a measured response into fitted decay slopes.",
+        {
+            "ir": ("Impulse\nresponse $h[n]$", (75, 220, 320, 355), BLUE),
+            "square": ("Energy\n$h^2[n]$", (505, 220, 750, 355), TEAL),
+            "integrate": ("Backward\nintegration", (930, 220, 1190, 355), GOLD),
+            "db": ("Normalize and\nconvert to dB", (1260, 540, 1530, 675), RUST),
+            "fit": ("Fit EDT, $T_{20}$,\nand $T_{30}$ slopes", (760, 540, 1040, 675), TEAL),
+            "report": ("$T_{60}$, clarity,\nand confidence", (210, 540, 510, 675), INK),
+        },
+        [
+            ("ir", "square", "sample energy"),
+            ("square", "integrate", "future energy"),
+            ("integrate", "db", "decay curve"),
+            ("db", "fit", "valid windows"),
+            ("fit", "report", "estimates"),
+        ],
+    )
+    diagram(
+        "32_hybrid_early_late_reverb.png",
+        "Hybrid Early and Late Reverberation",
+        "A measured onset and an algorithmic tail can share one spatial output stage.",
+        {
+            "source": ("Source", (55, 405, 250, 535), BLUE),
+            "split": ("Band-limited\nenergy split", (365, 390, 635, 550), TEAL),
+            "early": ("Measured or\nray-traced early IR", (785, 195, 1085, 350), GOLD),
+            "late": ("Algorithmic FDN\nlate field", (785, 600, 1085, 755), RUST),
+            "join": ("Time and level\ntransition", (1220, 390, 1495, 550), TEAL),
+            "decode": ("Stereo / immersive\nprojection", (1220, 680, 1495, 820), INK),
+        },
+        [
+            ("source", "split", "direct"),
+            ("split", "early", "geometry"),
+            ("split", "late", "diffuse energy"),
+            ("early", "join", "early field"),
+            ("late", "join", "late field"),
+            ("join", "decode", "coherent state"),
+        ],
+    )
+    diagram(
+        "33_dsp_validation_loop.png",
+        "The Reverb DSP Validation Loop",
+        "A trustworthy design closes the loop between targets, measurements, and listening.",
+        {
+            "design": ("Topology and\nparameter target", (140, 190, 450, 340), BLUE),
+            "probe": ("Impulse, burst,\nand music probes", (1120, 190, 1430, 340), GOLD),
+            "measure": ("Decay, spectrum,\nlevel, and latency", (1120, 610, 1430, 760), RUST),
+            "listen": ("Critical listening\nand failure notes", (140, 610, 450, 760), TEAL),
+            "decision": ("Accept, revise,\nor bound", (645, 400, 955, 550), INK),
+        },
+        [
+            ("design", "probe", "render deterministically"),
+            ("probe", "measure", "analyze"),
+            ("measure", "decision", "compare targets"),
+            ("decision", "listen", "audition"),
+            ("listen", "design", "revise"),
+        ],
+    )
+
+
 def generate_high_level_diagrams() -> None:
     _generate_acoustic_diagram()
     _generate_remaining_diagrams()
+    _generate_dsp_extension_diagrams()
 
 
 def generate_technical_flowgraphs() -> None:
@@ -1244,7 +1348,7 @@ def main() -> int:
     generate_high_level_diagrams()
     generate_technical_flowgraphs()
     generate_sonograms()
-    print(f"Wrote 10 diagrams, 6 technical flowgraphs, and 12 sonograms to {OUT.relative_to(ROOT)}")
+    print(f"Wrote 15 diagrams, 6 technical flowgraphs, and 12 sonograms to {OUT.relative_to(ROOT)}")
     return 0
 
 

@@ -1163,6 +1163,126 @@ junctions, and output matrices. The figures are original verbx diagrams with ind
 example values. Read arrows as signal paths, $z^{-M}$ as a delay of $M$ samples, circles
 as sums, and a returning path as state that will affect a future output sample.
 
+#### Discrete-Time Foundations: Samples, Delays, and State
+
+A digital reverberator does not manipulate a continuous acoustic field directly. It
+updates a finite collection of numbers at the sample rate. If the sample rate is $f_s$
+hertz, sample $n$ occurs at time
+
+$$
+t_n = \frac{n}{f_s}.
+$$
+
+One sample therefore represents $1/f_s$ seconds. At 48 kHz, a 1 ms delay contains 48
+samples; at 192 kHz, the same physical delay contains 192 samples. The acoustic time is
+unchanged, but memory use and the number of arithmetic operations both increase. This
+distinction matters when a preset is moved between sample rates: delays expressed in
+samples must be recalculated from their intended duration rather than copied unchanged.
+
+The elementary delay operator is
+
+$$
+D_M(z)=z^{-M},
+$$
+
+which means “return the sample written $M$ updates earlier.” In code, that operation is
+usually a circular buffer with one write pointer and one or more read pointers. The
+buffer is state: its contents summarize enough of the past to determine future output.
+Recursive reverberators contain many such state variables, so a parameter change can
+affect audio written before the change as well as audio arriving afterward.
+
+Three implementation scales should remain conceptually separate:
+
+| Scale | Typical unit | What it controls |
+|---|---:|---|
+| Sample | samples or microseconds | Delay indexing, interpolation, phase, and causality |
+| Block | frames or milliseconds | Host scheduling, FFT partitions, automation updates, and latency |
+| Musical event | beats or seconds | Pre-delay, buildup, phrase overlap, and audible decay |
+
+A robust design converts user-facing time values into sample-domain state once per
+block or parameter event, then performs the inner audio loop without allocations. It
+also records which quantities are sample-rate dependent. A 2.4-second RT60 is a physical
+target; a 1,499-sample comb delay is a topology choice tied to one sample rate.
+
+#### Difference Equations, Transfer Functions, and Impulse Responses
+
+A block diagram, a difference equation, and a transfer function describe the same
+linear time-invariant system from different viewpoints. Consider
+
+$$
+y[n]=x[n]+g\,y[n-M].
+$$
+
+The difference equation is closest to code: read one delayed value, multiply by $g$,
+add the current input, and write the result. Taking the $z$ transform gives
+
+$$
+Y(z)=X(z)+g z^{-M}Y(z),
+$$
+
+and therefore
+
+$$
+H(z)=\frac{Y(z)}{X(z)}=\frac{1}{1-gz^{-M}}.
+$$
+
+Expanding the denominator as a geometric series gives
+
+$$
+H(z)=1+gz^{-M}+g^2z^{-2M}+g^3z^{-3M}+\cdots,
+$$
+
+which is the $z$-domain statement of the audible echo train. This three-way translation
+is a useful debugging method. If a diagram suggests one sign, the equation another, and
+the impulse response a third, the implementation is not merely “voiced differently”;
+one representation is wrong.
+
+#### Poles, Stability, and Decay
+
+The poles of a recursive filter describe the modes that can continue after the input
+stops. For the feedback comb, the pole condition is
+
+$$
+z^M=g.
+$$
+
+There are $M$ roots distributed around the complex plane. Their angles determine modal
+frequencies, while their common radius is $|g|^{1/M}$. Poles near the unit circle decay
+slowly; poles outside it grow. The practical stability requirement $|g|<1$ is therefore
+not an arbitrary range check but a statement that every circulation must lose energy.
+
+An FDN replaces one scalar pole family with the roots of a matrix-delay characteristic
+equation. The same geometric intuition survives: delay lengths distribute modal angles,
+the feedback matrix couples modes, and loop filters pull pole radii inward by
+frequency-dependent amounts. RT60 is a perceptual summary of those radii, not a complete
+description of the pole pattern. Two networks can share the same fitted RT60 while one
+rings at several exposed frequencies and the other decays smoothly.
+
+For extreme decay times, stability margin becomes an audible design parameter. A target
+of 360 seconds places loop gains extraordinarily close to unity. Parameter interpolation,
+filter normalization, matrix orthogonality, denormal handling, and limiter placement all
+matter because a tiny systematic gain error can persist through thousands of loops.
+
+#### Echo Density, Modal Density, and Mixing Time
+
+Echo density asks how many distinguishable arrivals occur in a time interval. Modal
+density asks how many resonant modes occupy a frequency interval. They are related but
+not interchangeable. A signal can have many temporal arrivals yet retain colored modes,
+or have many modes but a conspicuously sparse onset.
+
+The early response is usually nonstationary: arrivals become more frequent as reflection
+order increases. After a mixing time, individual paths are no longer the useful mental
+model and the response behaves statistically. A digital design recreates this transition
+with tapped delays, nested diffusers, scattering, or an FDN whose recirculations rapidly
+multiply path combinations. The goal is not maximum density at sample zero. The goal is
+the right density trajectory for the apparent source distance and enclosure size.
+
+Use a click to hear temporal sparsity and a sustained chord to hear modal sparsity. On
+the click, listen for flutter and repeated gaps. On the chord, listen for stable tones
+that outlive neighboring partials. Increasing allpass depth may solve the first problem
+without solving the second; changing delays or feedback topology may solve the second
+without producing a convincing onset.
+
 #### Feedback Comb Filters: Duration and Modes
 
 A feedback comb filter delays its output, scales it, and adds it back to the input. Its
@@ -1436,6 +1556,135 @@ matrices reduce obvious regularity. Graph-derived matrices make connectivity a d
 parameter. Time-varying unitary matrices alter the modal basis slowly while retaining
 controlled loop energy.
 
+#### The Five Independent Design Coordinates of an FDN
+
+It is tempting to identify an FDN by line count alone, but five coordinate systems act
+together: delay timing, feedback coupling, loop loss, input excitation, and output
+observation. Figure below places those choices around the recursive state. Changing any
+one can alter the result even when the other four are held fixed.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/30_fdn_design_coordinates.png
+flowchart TB
+    D["Unequal delays<br/>m1 … mN"] --> S["Recursive FDN state"]
+    B["Input projection B"] --> S
+    M["Feedback matrix M"] --> S
+    G["Loop filters and gains G"] --> S
+    S --> C["Output projection Cᵀ"]
+```
+
+**Figure: Five design coordinates that jointly determine an FDN late field.**
+
+**How to read this figure.** The central state is not itself a sound-quality control.
+The delay set gives the state its temporal memory; the matrix redistributes that memory;
+the loop filters decide what survives; the input vector decides which modal combinations
+are excited; and the output vector decides which combinations are observed. This is why
+changing only $\boldsymbol{C}$ can alter stereo width without moving the network's poles,
+whereas changing $\boldsymbol{M}$ can alter both modal structure and energy exchange.
+
+The five coordinates suggest a disciplined design order:
+
+1. Choose delay durations for the desired scale and modal distribution.
+2. Choose a feedback matrix with known energy behavior.
+3. Calibrate broadband or multiband loop loss from the target decay.
+4. Choose an input projection that excites the state without privileged lines.
+5. Choose output projections that create the required channel image and fold-down.
+
+Randomizing all five at once may produce an interesting preset, but it makes a failure
+difficult to diagnose. A controlled listening comparison changes one coordinate at a
+time and uses the same impulse, chord, level, and output projection.
+
+#### Delay-Set Design and Number-Theoretic Structure
+
+Each delay line contributes a recurrence period and a family of modes. Equal or simply
+related delays cause recirculating paths to coincide; the network then reveals a common
+period as flutter, pitched ringing, or cyclic stereo motion. Pairwise coprime lengths
+are a useful starting heuristic, but primality alone does not guarantee a good network.
+The complete coupled pole pattern also depends on the matrix, gains, and projections.
+
+For a line of $m_i$ samples, the uncoupled comb spacing is approximately
+
+$$
+\Delta f_i=\frac{f_s}{m_i}.
+$$
+
+Longer delays create closer modes and slower recurrence. Shorter delays create wider
+spacing and faster buildup. A practical set spans a modest range around a size target
+rather than clustering at one length. Excessive spread can make branches decay with
+perceptibly different granularity even when their RT60 gains are calibrated correctly.
+
+Delay selection should satisfy several constraints at once:
+
+| Constraint | Purpose | Failure symptom |
+|---|---|---|
+| No zero or sub-sample line | Preserve causality and valid memory access | Instability or duplicated direct sound |
+| Few shared factors | Reduce coincident recurrences | Flutter or rhythmic ringing |
+| Bounded minimum delay | Limit high modal spacing | Audible isolated modes |
+| Bounded maximum delay | Control buildup and memory | Late, disconnected tail onset |
+| Sample-rate rescaling | Preserve physical durations | Preset changes size with sample rate |
+
+When a sample-rate conversion rounds several durations to nearby integers, recheck the
+set rather than assuming its number-theoretic relationships survived. Deterministic
+rounding and a stored seed make the resulting topology reproducible.
+
+#### Feedback Matrices, Energy, and Eigenstructure
+
+If the matrix is orthonormal,
+
+$$
+\boldsymbol{M}^{\mathsf T}\boldsymbol{M}=\boldsymbol{I},
+$$
+
+then it preserves Euclidean vector energy before loop loss. This separation is valuable:
+the matrix controls redistribution while $\boldsymbol{G}$ controls decay. A matrix need not
+be dense to be lossless, and a dense matrix is not automatically well conditioned.
+
+The spectral radius
+
+$$
+\rho(\boldsymbol{A})=\max_k |\lambda_k(\boldsymbol{A})|
+$$
+
+provides one stability check for a frequency-independent state transition
+$\boldsymbol{A}$. With delays and loop filters, the complete condition is frequency
+dependent, but the intuition remains: no recirculating eigenmode may receive net gain
+at any frequency. Numerical verification should therefore sweep the loop filters as
+well as checking the nominal matrix.
+
+| Matrix family | Coupling character | Useful reason to choose it |
+|---|---|---|
+| Hadamard | Dense, balanced signed mixing | Predictable diffusion and efficient transforms |
+| Householder | Structured global reflection | Low arithmetic cost with full-state interaction |
+| Circulant | Translation-invariant row structure | Controlled eigenstructure and repeatable color |
+| Random orthogonal | Irregular dense coupling | Reduced visible symmetry with energy preservation |
+| Sparse graph-derived | Local or clustered exchange | Deliberate pathways and unusual spatial textures |
+| Time-varying unitary | Slowly changing modal basis | Reduced stationary ringing in long exposed tails |
+
+Orthonormality is a starting condition, not a listening verdict. A lossless matrix can
+still align poorly with a delay set or projection vector. Conversely, a deliberately
+structured matrix may be musically useful precisely because it does not erase every
+pathway at once.
+
+#### Input and Output Projections
+
+The input projection $\boldsymbol{B}$ distributes source energy among delay lines. A vector
+with one nonzero entry excites the network from one point; a dense balanced vector begins
+with broader excitation. Multiple input channels use a matrix whose columns describe
+distinct injection patterns. Those columns should be normalized so adding channels does
+not silently increase loop energy.
+
+The output projection $\boldsymbol{C}^{\mathsf T}$ observes the state. It can be changed
+without changing the internal recurrence, which makes projection a powerful spatial
+design layer. Left and right vectors should share the same late history while weighting
+components differently enough to avoid mono duplication. Immersive outputs extend the
+same principle to side, rear, and height channels.
+
+Projection quality is measured as well as heard. Inspect channel RMS balance,
+cross-correlation, interchannel coherence by frequency, and mono fold-down. A return can
+sound impressively wide in isolation yet collapse unevenly or lose low-frequency energy
+when summed. Normalized signed projections usually provide a safer starting point than
+independent random reverbs per channel.
+
 #### Frequency-Dependent Decay in an FDN
 
 Real materials absorb frequency bands differently, and air attenuates high frequencies
@@ -1493,6 +1742,118 @@ verbx render music.wav /tmp/multiband_hall.wav \
 Listen after the source stops. During the phrase, masking may hide a low-frequency
 problem that becomes obvious only in the final decay.
 
+#### Moving Delays, Fractional Reads, and Interpolation
+
+A delay specified in milliseconds rarely lands on an integer sample, and a modulated
+delay changes continuously. If its desired length is $d[n]$ samples, the processor reads
+the circular buffer at a fractional position. Writing
+
+$$
+d[n]=M[n]+\mu[n], \qquad 0\leq\mu[n]<1,
+$$
+
+separates the integer offset $M[n]$ from fractional part $\mu[n]$. Linear interpolation
+uses the two neighboring samples:
+
+$$
+y[n]=(1-\mu[n])x[n-M[n]]+\mu[n]x[n-M[n]-1].
+$$
+
+It is inexpensive and continuous, but its magnitude response changes with fractional
+position. Higher-order Lagrange interpolation improves high-frequency magnitude
+accuracy. A Thiran allpass interpolator prioritizes phase and delay accuracy while
+maintaining unit magnitude. The right choice depends on whether the moving read is a
+creative chorus-like voice, a subtle anti-ringing modulation, or a precision physical
+delay.
+
+Figure below separates the audio-rate memory path from the slower control path. They
+meet only at the interpolated read head.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/29_modulated_delay_control.png
+flowchart LR
+    X["Audio input"] --> W["Delay-buffer write"]
+    W --> R["Fractional read"]
+    R --> Y["Audio output"]
+    P["Automation or LFO target"] --> S["Control-rate smoother"]
+    S --> R
+```
+
+**Figure: Separate audio and control paths for a smoothly modulated fractional delay.**
+
+**How to read this figure.** Audio is written into circular memory at the sample rate.
+The target delay arrives from automation or an oscillator, passes through a smoother,
+and controls the read position. The smoother prevents a discontinuous pointer jump;
+the interpolator reconstructs a continuous value between stored samples. Neither block
+is optional when the delay moves during audible output.
+
+A changing delay introduces pitch shift because the read head moves relative to the
+write head. Slow shallow motion can decorrelate modes without calling attention to
+itself. Fast or deep motion becomes chorus, vibrato, or Doppler-like sweep. In an FDN,
+different lines should not move in lockstep unless coherent pitch motion is intended.
+The total modulation must also respect minimum and maximum delay bounds so the read head
+never crosses invalid memory or overtakes the write head.
+
+#### Parameter Smoothing and Host Automation
+
+Hosts can deliver a new parameter target once per block, at sample offsets within a
+block, or at irregular GUI rates. Applying a discontinuous target directly to a gain,
+delay, filter coefficient, or matrix can create clicks or temporarily invalidate a
+stable design. A one-pole smoother is
+
+$$
+p[n]=a\,p[n-1]+(1-a)p_{\mathrm{target}}[n],
+$$
+
+with
+
+$$
+a=e^{-1/(\tau f_s)},
+$$
+
+where $\tau$ is a smoothing time constant. Linear ramps are also useful when an exact
+arrival time matters. Gains may be smoothed in decibels or amplitude depending on the
+desired perceptual trajectory; frequencies are often smoother in logarithmic space;
+RT60 is best mapped through a bounded logarithmic parameter before loop gains are
+recalculated.
+
+Recursive parameters need special care. Interpolating directly between two unrelated
+orthogonal matrices does not generally remain orthogonal. Safer strategies interpolate
+a constrained rotation, crossfade between complete networks, or update through a
+factorization whose intermediate states preserve the required energy property. Similar
+care applies to loop-filter coefficients: every intermediate filter must remain stable,
+not only the endpoints.
+
+Smoothing has a musical cost. A 500 ms ramp is click-free but can miss a sixteenth-note
+gesture; a 1 ms ramp may preserve timing but reveal zippering on a 360-second tail.
+Document smoothing times as part of the DSP contract and test automation at different
+host block sizes.
+
+#### Early Reflections and the Early-to-Late Transition
+
+Early reflections carry geometry. Their delays and directions communicate source
+distance, nearby boundaries, and room shape before the late field becomes statistically
+dense. A tapped delay line can render a designed pattern; an image-source or ray-tracing
+model can derive paths from geometry; a measured IR can supply the complete onset.
+
+Each early tap can be represented as
+
+$$
+y_q[n]=a_q\,F_q(z)x[n-m_q],
+$$
+
+where $m_q$ is path delay, $a_q$ is spreading and reflection loss, and $F_q(z)$ models
+frequency-dependent boundary absorption. Multichannel rendering adds a directional
+projection for each path. The tap list should not merely be randomized: arrival order,
+level decay, spectral darkening, and lateral distribution jointly establish a plausible
+enclosure.
+
+The handoff to the late field is a crossfade in statistical description, not necessarily
+one literal splice sample. If the FDN begins too early and too densely, the source seems
+embedded in an abstract wash. If it begins too late, the early response sounds like a
+cluster of echoes followed by a separate effect. Match energy, spectrum, spatial width,
+and density across a transition region.
+
 #### Convolution and Partitioned FFT Processing
 
 Convolution reverb uses an impulse response measured in a real room or designed by a
@@ -1523,10 +1884,270 @@ Longer partitions improve efficiency but increase buffering. Convolution reprodu
 captured linear response exactly within numerical and routing limits, but ordinary
 convolution cannot continuously change that response without interpolation or a new IR.
 
+For an FIR of length $L$, direct convolution evaluates
+
+$$
+y[n]=\sum_{k=0}^{L-1}h[k]x[n-k],
+$$
+
+which costs $L$ multiply-accumulates per output sample. A two-second mono IR at 192 kHz
+contains 384,000 taps; direct evaluation is therefore wasteful even before multichannel
+routing. FFT convolution groups samples into blocks and uses the convolution theorem,
+
+$$
+Y_r[k]=X_r[k]H[k],
+$$
+
+where $r$ identifies a processing block and $k$ an FFT bin. The apparent simplicity of
+that multiplication hides the scheduler that aligns past input spectra with every IR
+partition.
+
+In overlap-save processing, the FFT length must include enough historical samples to
+avoid circular-convolution contamination. The invalid prefix is discarded and only the
+new valid samples are emitted. The implementation must define whether reported latency
+includes host buffering, input accumulation, FFT scheduling, and output staging; “zero
+latency convolution” usually means that an initial direct or very small partition is
+processed before larger tail partitions, not that no buffering exists anywhere.
+
+Uniform and nonuniform partitioning trade simplicity against efficiency:
+
+| Partition plan | Latency behavior | Computational behavior |
+|---|---|---|
+| Uniform small blocks | Low and constant | Many FFTs for the complete tail |
+| Uniform large blocks | Higher and constant | Better throughput for long IRs |
+| Direct head plus FFT tail | Very low onset latency | More scheduler complexity |
+| Geometrically growing blocks | Small early, efficient late | Multiple FFT sizes and deadlines |
+
+A practical nonuniform design might process the first few milliseconds directly, the
+next region in 64- or 128-sample partitions, and the distant tail in progressively
+larger blocks. Late partitions have more wall-clock time before their contribution is
+needed, so they can be computed less frequently without delaying the direct onset.
+
+#### Matrix Convolution and Immersive Routing
+
+A multichannel IR is a matrix of filters. For $M$ inputs and $N$ outputs,
+
+$$
+Y_j(z)=\sum_{i=1}^{M}H_{ji}(z)X_i(z), \qquad j=1,\ldots,N.
+$$
+
+The off-diagonal filters are not optional decoration: they encode cross-channel energy
+that helps a measured room feel coherent. A stereo-to-Atmos bed renderer may require
+many simultaneous convolution paths, so partition spectra should be shared and batched
+rather than invoking an unrelated mono convolver for every route.
+
+Channel metadata is part of the DSP. A mathematically correct matrix with incorrect
+ordering can send left energy to a height channel or swap ambisonic components. Tests
+should use labeled impulses, one active input at a time, and verify arrival time, level,
+and polarity at every output. Fold-down and binaural decode tests reveal errors that may
+be hard to identify while monitoring the full array.
+
+#### Impulse-Response Conditioning
+
+An IR often needs preparation before it becomes a production filter. Remove unintended
+leading silence while preserving true propagation delay. Remove DC, but do not erase a
+legitimate very-low-frequency room mode. Apply fades only where measurement noise or a
+truncation edge would otherwise circulate. Normalize according to the intended contract:
+peak normalization preserves headroom, energy normalization supports comparable wet
+levels, and neither reproduces an absolute acoustic calibration by itself.
+
+Sample-rate conversion must use sufficient stop-band attenuation because any resampling
+artifact becomes part of every processed signal. Channel lengths should be aligned, and
+metadata should record sample rate, channel order, direct-arrival position, normalization
+policy, and provenance. An IR library without these facts may sound useful but is not a
+reproducible measurement collection.
+
 Choose convolution when the identity of a measured space matters. Choose algorithmic
 FDN processing when RT60, matrix motion, modulation, or extreme duration must change
 during the sound. Hybrid workflows often use a short measured early response followed
 by an algorithmic late field.
+
+#### Hybrid Reverberation: Geometry First, Statistics Later
+
+A hybrid processor uses the representation best suited to each time region. A measured,
+image-source, or ray-traced response supplies direct and early paths. A recursive network
+supplies the late field at a fraction of the storage cost and remains continuously
+controllable. Figure below shows both branches rejoining before one spatial projection.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/32_hybrid_early_late_reverb.png
+flowchart LR
+    X["Source"] --> S["Energy split"]
+    S --> E["Measured or ray-traced early IR"]
+    S --> L["Algorithmic FDN late field"]
+    E --> J["Time and level transition"]
+    L --> J
+    J --> D["Stereo or immersive projection"]
+```
+
+**Figure: Hybrid reverberator combining geometrical early energy with an algorithmic late field.**
+
+**How to read this figure.** The upper branch preserves identifiable paths and directional
+cues. The lower branch turns diffuse energy into a controllable recursive tail. The join
+is responsible for matching arrival density, spectrum, energy, and spatial character;
+the final decoder presents one coherent room rather than two stacked effects.
+
+Hybrid calibration begins by selecting a transition interval, then matching the late
+network to the measured energy-decay slope and spectrum around that interval. Excite the
+FDN with a decorrelated version of the final early energy rather than an unrelated dry
+copy when continuity matters. Preserve deterministic seeds so a rebuilt hybrid IR does
+not change every time documentation, tests, or presets are regenerated.
+
+#### Measuring Decay with Backward Integration
+
+RT60 should be measured from the response, not assumed from a parameter label. Schroeder
+backward integration estimates the energy remaining after time index $n$:
+
+$$
+E[n]=\sum_{k=n}^{L-1}h^2[k].
+$$
+
+The normalized energy-decay curve is
+
+$$
+L_E[n]=10\log_{10}\!\left(\frac{E[n]}{E[0]}\right).
+$$
+
+A straight line is fitted over a valid decay interval and extrapolated to –60 dB. EDT
+typically fits 0 to –10 dB; $T_{20}$ uses –5 to –25 dB; $T_{30}$ uses –5 to –35 dB. Those labels
+describe fitting windows, not the amount of audio that must literally reach –60 dB.
+Agreement among estimates suggests a reasonably exponential decay. Large disagreement
+may reveal multiple slopes, a noisy tail, gating, or a source that was not impulsive.
+
+Figure below traces the complete analysis path from response samples to reported
+metrics. Every transformation should preserve enough metadata to explain a failed fit.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/31_energy_decay_measurement.png
+flowchart TB
+    H["Impulse response h[n]"] --> Q["Energy h²[n]"]
+    Q --> I["Backward integration"]
+    I --> D["Normalize and convert to dB"]
+    D --> F["Fit EDT, T₂₀, and T₃₀ slopes"]
+    F --> R["T₆₀, clarity, and confidence"]
+```
+
+**Figure: Measurement pipeline from an impulse response to fitted reverberation metrics.**
+
+**How to read this figure.** Squaring removes polarity and produces instantaneous energy.
+Backward integration accumulates all future energy at each time. Decibel normalization
+turns exponential decay into an approximately straight line. The fitter selects only
+valid dynamic ranges and reports both estimates and confidence instead of forcing one
+number from an inadequate tail.
+
+Noise-floor handling is essential. Once integrated room energy approaches integrated
+background noise, the curve bends and a naive regression overestimates decay. A robust
+analyzer estimates the noise floor, limits the fitting range, reports the achieved
+dynamic range, and refuses a $T_{30}$ estimate when 30 reliable decibels are unavailable.
+Band-limited measurements should also report filter center frequencies and bandwidths.
+
+Decay time is only one descriptor. Clarity compares early and late energy:
+
+$$
+C_t=10\log_{10}\!\left(
+\frac{\sum_{n=0}^{n_t}h^2[n]}
+{\sum_{n=n_t+1}^{L-1}h^2[n]}
+\right),
+$$
+
+where $t$ is commonly 50 ms for speech or 80 ms for music. Definition $D_{50}$ expresses
+the first 50 ms as a fraction of total energy, and center time $T_s$ measures the energy-
+weighted temporal centroid. These metrics can disagree productively: a room may have a
+long RT60 yet retain useful clarity because its direct and early energy is strong.
+
+#### Numerical Precision, Denormals, and State Safety
+
+Recursive reverberators magnify small implementation choices because state circulates.
+Double precision reduces accumulated coefficient and summation error, especially when
+loop gains approach one, but it does not excuse unstable filters or an energy-increasing
+matrix. Every processing format still needs explicit bounds and failure behavior.
+
+Subnormal floating-point values can appear near the end of a long decay. Some processors
+handle them slowly; others flush them to zero. A reverb can avoid pathological tails by
+using supported flush-to-zero modes, adding an inaudible terminating rule below a defined
+threshold, or proving that the target platform handles denormals efficiently. The policy
+must not create a visible gate at normal listening levels.
+
+State safety includes:
+
+- finite-value checks at control boundaries rather than expensive checks on every sample;
+- bounded delay indices and validated circular-buffer lengths;
+- stable intermediate coefficients throughout automation ramps;
+- deterministic reset behavior for transport starts, sample-rate changes, and preset loads;
+- explicit handling of NaN and infinity before they enter recursive memory;
+- limiter and loudness stages outside the FDN loop unless nonlinear feedback is intentional.
+
+A limiter inside the recursive loop changes the system into a nonlinear reverberator.
+That may be a creative instrument, but its RT60 formula and superposition assumptions no
+longer apply. A safety limiter after wet/dry mixing controls delivery level without
+rewriting the late-field poles.
+
+#### Realtime Scheduling and End-to-End Latency
+
+The audio callback has a deadline: one host block must finish before the device needs the
+next block. If the block contains $B$ samples at sample rate $f_s$, its wall-clock budget
+is
+
+$$
+T_{\mathrm{block}}=\frac{B}{f_s}.
+$$
+
+At 192 kHz, a 64-sample block allows only 0.333 ms. CPU averages are insufficient; the
+worst callback matters. File I/O, memory allocation, locks, console output, JSON writing,
+and device discovery do not belong in that deadline.
+
+End-to-end monitoring latency includes input conversion and safety buffers, host input
+buffering, plug-in delay, host output buffering, and output conversion. An algorithmic
+FDN can add zero samples of lookahead while the complete system still has several blocks
+of latency. Partitioned convolution may add one partition or use a direct head to reduce
+its reported delay. A limiter with lookahead adds its own explicit samples. Report these
+components separately so users can distinguish DSP latency from device configuration.
+
+Block-size invariance is a release requirement. Rendering the same deterministic input
+with 32-, 64-, 256-, and 1,024-sample blocks should not change steady parameters, decay
+calibration, or automation timing beyond documented interpolation rules. Differences
+often reveal state reset errors, block-rate smoothing, or FFT partition misalignment.
+
+#### Verification: Close the Loop Between Math and Listening
+
+No single test establishes reverb quality. An impulse exposes topology, a burst exposes
+buildup, a sine sweep exposes linear response, a sustained chord exposes modes, speech
+exposes masking, percussion exposes density, and a long silence exposes numerical decay.
+Figure below organizes these probes into a repeatable engineering loop.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/33_dsp_validation_loop.png
+flowchart TB
+    D["Topology and parameter target"] --> P["Impulse, burst, and music probes"]
+    P --> M["Decay, spectrum, level, and latency"]
+    M --> A["Accept, revise, or bound"]
+    A --> L["Critical listening and failure notes"]
+    L --> D
+```
+
+**Figure: Closed DSP validation loop connecting deterministic probes, measurements, and listening.**
+
+**How to read this figure.** A design target creates deterministic renders. Analysis
+compares those renders with numerical bounds. Listening identifies perceptual failures
+that one metric cannot summarize. The decision either accepts the design, constrains its
+valid range, or feeds a specific failure back into topology and parameter choices.
+
+A minimal verification matrix includes:
+
+| Probe | Measure | Listen for |
+|---|---|---|
+| Unit impulse | Peak, first arrival, RT60, decay linearity | Flutter, isolated echoes, abrupt ending |
+| Log sweep | Magnitude and phase response | Narrow resonances and spectral tilt |
+| Sustained sine or chord | Mode balance and stationarity | Ringing, beating, unintended chorus |
+| Percussion | Echo-density growth and peak headroom | Attack loss, groove smear, pumping |
+| Speech | C50, intelligibility, wet envelope | Consonant masking and sibilant tails |
+| Silence after excitation | DC, denormals, final energy | Noise growth, gate, failure to terminate |
+| Multichannel impulses | Route matrix and correlation | Swaps, polarity errors, weak fold-down |
+
+The JSON report is evidence, not decoration. Store sample rate, block size, seed,
+topology, matrix family, delay set, smoothing policy, output format, measured latency,
+decay estimates, and warnings. A listening observation becomes actionable when another
+developer can recreate the exact state that produced it.
 
 #### The Complete verbx Algorithmic Path
 
