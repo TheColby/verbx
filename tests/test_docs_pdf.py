@@ -195,6 +195,16 @@ def test_title_page_uses_white_background() -> None:
     assert r"\pagecolor{verbxCover}" not in title_page
 
 
+def test_pdf_author_credit_includes_academic_credential() -> None:
+    preamble = (REPO_ROOT / "docs/assets/pandoc_pdf_preamble.tex").read_text(
+        encoding="utf-8"
+    )
+
+    assert DOCS_PDF.DEFAULT_AUTHOR == "Colby Leider, PhD"
+    assert r"Documentation and software by \@author." in preamble
+    assert r"\@author \quad / \quad \@date" in preamble
+
+
 def test_pdf_preamble_prevents_widows_orphans_and_stranded_headings() -> None:
     preamble = (REPO_ROOT / "docs/assets/pandoc_pdf_preamble.tex").read_text(
         encoding="utf-8"

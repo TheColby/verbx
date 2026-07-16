@@ -28,7 +28,7 @@ BOOK_SUPPLEMENT_GENERATOR = ROOT / "scripts_generate_book_supplements.py"
 LITERATURE_SORTER = ROOT / "scripts_sort_literature.py"
 REVERB_PRIMER_ASSET_GENERATOR = ROOT / "scripts" / "generate_reverb_primer_assets.py"
 IMMERSIVE_AUDIO_ASSET_GENERATOR = ROOT / "scripts" / "generate_immersive_audio_figures.py"
-DEFAULT_AUTHOR = "Colby Leider"
+DEFAULT_AUTHOR = "Colby Leider, PhD"
 RESEARCH_REFERENCE_PATTERN = re.compile(
     r"(?m)^\*\*\[(?P<key>[^]]+)\]\*\*\s+(?P<authors>.+?)\s+"
     r"\((?P<year>(?:18|19|20)\d{2}[a-z]?|n\.d\.)\)\.\s+"
