@@ -29,7 +29,6 @@ from typing import Any, Literal, TypedDict, cast
 import numpy as np
 import soundfile as sf
 import typer
-from click.core import ParameterSource
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -5757,7 +5756,9 @@ def _param_is_default(ctx: typer.Context, param_name: str) -> bool:
         source = ctx.get_parameter_source(param_name)
     except Exception:
         return True
-    return source in {None, ParameterSource.DEFAULT}
+    # Typer 0.27 vendors Click and returns a distinct ParameterSource enum class.
+    # Compare the stable member name instead of relying on cross-package identity.
+    return source is None or getattr(source, "name", None) == "DEFAULT"
 
 
 def _normalize_output_quality_preset_name(value: str) -> str:

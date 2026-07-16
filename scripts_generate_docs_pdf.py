@@ -557,7 +557,7 @@ def _convert_figure_captions(markdown: str) -> str:
     )
 
     def convert(match: re.Match[str]) -> str:
-        title = _latex_text(match.group("title").rstrip("."))
+        title = _latex_text_with_inline_math(match.group("title").rstrip("."))
         rest = match.group("rest").strip()
         lead = f"```{{=latex}}\n\\verbxFigureLead{{{title}}}\n```"
         caption = f"```{{=latex}}\n\\verbxFigureCaption{{{title}}}\n```"
@@ -769,6 +769,18 @@ def _latex_text(value: str) -> str:
     return "".join(replacements.get(char, char) for char in value)
 
 
+def _latex_text_with_inline_math(value: str) -> str:
+    """Escape caption prose while preserving delimited LaTeX math."""
+
+    segments = value.split("$")
+    if len(segments) % 2 == 0:
+        raise ValueError(f"Unbalanced inline-math delimiter in figure caption: {value!r}")
+    return "".join(
+        f"${segment}$" if index % 2 else _latex_text(segment)
+        for index, segment in enumerate(segments)
+    )
+
+
 def _compact_illustrated_guide(markdown: str) -> str:
     """Typeset each illustrated-guide image beside its long description."""
 
@@ -791,17 +803,18 @@ def _compact_illustrated_guide(markdown: str) -> str:
 
     def compact_entry(match: re.Match[str]) -> str:
         title = match.group("title")
+        latex_title = _latex_text_with_inline_math(title)
         if title == "Loudspeaker Layouts: Plan and Elevation":
             return (
                 f"{match.group('lead').strip()}\n\n"
                 "```{=latex}\n"
-                f"\\verbxFigureLead{{{_latex_text(title)}}}\n"
+                f"\\verbxFigureLead{{{latex_title}}}\n"
                 "\\par\\medskip\\noindent\n"
                 "\\begin{minipage}[t]{\\linewidth}\\vspace{0pt}\n"
                 "```\n\n"
                 f"{match.group('image')}\n\n"
                 "```{=latex}\n"
-                f"\\verbxFigureCaption{{{_latex_text(title)}}}\n"
+                f"\\verbxFigureCaption{{{latex_title}}}\n"
                 "\\end{minipage}\\par\\medskip\n"
                 "```\n\n"
                 f"{match.group('description')}"
@@ -809,13 +822,13 @@ def _compact_illustrated_guide(markdown: str) -> str:
         return (
             f"{match.group('lead').strip()}\n\n"
             "```{=latex}\n"
-            f"\\verbxFigureLead{{{_latex_text(title)}}}\n"
+            f"\\verbxFigureLead{{{latex_title}}}\n"
             "\\par\\medskip\\noindent\n"
             "\\begin{minipage}[t]{0.43\\textwidth}\\vspace{0pt}\n"
             "```\n\n"
             f"{match.group('image')}\n\n"
             "```{=latex}\n"
-            f"\\verbxFigureCaption{{{_latex_text(title)}}}\n"
+            f"\\verbxFigureCaption{{{latex_title}}}\n"
             "```\n\n"
             "```{=latex}\n"
             "\\end{minipage}\\hfill\n"

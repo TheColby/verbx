@@ -26,6 +26,14 @@ assert ASSET_SPEC is not None and ASSET_SPEC.loader is not None
 PRIMER_ASSETS = importlib.util.module_from_spec(ASSET_SPEC)
 ASSET_SPEC.loader.exec_module(PRIMER_ASSETS)
 
+FIGURE_SPEC = importlib.util.spec_from_file_location(
+    "generate_userguide_figures",
+    REPO_ROOT / "scripts/generate_userguide_figures.py",
+)
+assert FIGURE_SPEC is not None and FIGURE_SPEC.loader is not None
+USERGUIDE_FIGURES = importlib.util.module_from_spec(FIGURE_SPEC)
+FIGURE_SPEC.loader.exec_module(USERGUIDE_FIGURES)
+
 COMPOSITION_PROJECT_TITLES = (
     "Compose with Infinite Sustain",
     "Reverse-Reverb Phrase Study",
@@ -330,6 +338,101 @@ def test_reverb_primer_math_labels_use_positioned_scripts() -> None:
     assert all("^" not in text and "_" not in text for text, *_ in exponent_runs + matrix_runs)
 
 
+def test_illustrated_guide_math_segments_use_true_italic_fonts() -> None:
+    segments = USERGUIDE_FIGURES._rich_segments(
+        "Ambisonics order $N$; absorption $\\alpha$",
+        USERGUIDE_FIGURES.F_SMALL,
+    )
+
+    roman_runs = [selected_font for text, selected_font in segments if "order" in text]
+    variable_runs = [
+        selected_font
+        for text, selected_font in segments
+        if text in {"N", "α"}
+    ]
+
+    assert roman_runs
+    assert variable_runs
+    assert all("italic" not in selected_font.getname()[1].lower() for selected_font in roman_runs)
+    assert all("italic" in selected_font.getname()[1].lower() for selected_font in variable_runs)
+
+    image = Image.new("RGB", (400, 120), "white")
+    draw = ImageDraw.Draw(image)
+    script_runs, _, _, _ = USERGUIDE_FIGURES._math_layout(
+        draw,
+        "T_{60}",
+        USERGUIDE_FIGURES.F_SMALL,
+    )
+    indexed_runs, _, _, _ = USERGUIDE_FIGURES._math_layout(
+        draw,
+        "A_k",
+        USERGUIDE_FIGURES.F_SMALL,
+    )
+    powered_runs, _, _, _ = USERGUIDE_FIGURES._math_layout(
+        draw,
+        "2^{7/12}",
+        USERGUIDE_FIGURES.F_SMALL,
+    )
+
+    assert any(text == "60" and y > 0 for text, _, _, y in script_runs)
+    assert any(
+        text == "T" and "italic" in selected_font.getname()[1].lower()
+        for text, selected_font, _, _ in script_runs
+    )
+    assert any(text == "k" and y > 0 for text, _, _, y in indexed_runs)
+    assert any(
+        text == "A" and "italic" in selected_font.getname()[1].lower()
+        for text, selected_font, _, _ in indexed_runs
+    )
+    assert any(text == "7/12" and y < 0 for text, _, _, y in powered_runs)
+    assert all("_" not in text and "^" not in text for text, *_ in indexed_runs + powered_runs)
+
+
+def test_book_sources_mark_mathematical_variables_as_inline_math() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    ir_synthesis = (REPO_ROOT / "docs/IR_SYNTHESIS.md").read_text(encoding="utf-8")
+    references = (REPO_ROOT / "docs/REFERENCES.md").read_text(encoding="utf-8")
+    primer_generator = (
+        REPO_ROOT / "scripts/generate_reverb_primer_assets.py"
+    ).read_text(encoding="utf-8")
+    figure_guide = (REPO_ROOT / "scripts/generate_figure_guide.py").read_text(
+        encoding="utf-8"
+    )
+    figure_generator = (
+        REPO_ROOT / "scripts/generate_userguide_figures.py"
+    ).read_text(encoding="utf-8")
+
+    for expected in (
+        "full $M$-input-to-$N$-output matrix routing",
+        "delay length $M$ and loop gain $g$",
+        "an explicit internal state, $M$-sample delay",
+        "fully coupled $N$-line FDN",
+    ):
+        assert expected in readme
+
+    for expected in (
+        "An impulse response $h[n]$",
+        "a set of $N$\ndelay lines",
+        "mixing matrix $M$",
+        "degree $k$ introduces $k$ cross-connections",
+        "Lower $Q$ (5–15)",
+        "$A_k$, frequency $f_k$, phase $\\phi_k$, and time constant $\\tau_k$",
+    ):
+        assert expected in ir_synthesis
+
+    assert "h_k[n] = A_k" in ir_synthesis
+    assert "e^{-n/\\tau_k}" in ir_synthesis
+    assert "$T_{60}=0.161V/A$" in references
+    assert "$T_{60}=0.161V/[-S\\ln(1-\\bar{\\alpha})]$" in references
+    assert '"IR partitions\\n$H_0$  $H_1$  ...  $H_K$"' in primer_generator
+    assert '("fft", "parts", "$X[k]$")' in primer_generator
+    assert '"Ambisonics order $N$ (integer)"' in figure_guide
+    assert '"Blend coordinate $A$' in figure_guide
+    assert '"$T_{60}$ Decay Families"' in figure_generator
+    assert '("$C_{80}$", "–3.8 dB", GOLD)' in figure_generator
+    assert '("$G$", "$T_{60}$ gains")' in primer_generator
+
+
 def test_expanded_fdn_projection_and_gain_boxes_do_not_overlap() -> None:
     projection = PRIMER_ASSETS.FDN_OUTPUT_PROJECTION_BOX
     gain = PRIMER_ASSETS.FDN_GAIN_BOX
@@ -434,6 +537,17 @@ def test_illustrated_guide_compactor_accepts_layout_specific_reading_instruction
     assert compacted.count(r"\begin{minipage}[t]{\linewidth}") == 1
     assert "Read each plan with front at the top" in compacted
     assert "Loudspeaker Layouts: Plan and Elevation" in compacted
+    assert r"\verbxFigureLead{$T_{60}$ decay families}" in compacted
+    assert r"\verbxFigureCaption{$T_{60}$ decay families}" in compacted
+    assert r"\$T\_\{60\}\$ decay families" not in compacted
+
+
+def test_latex_caption_text_preserves_positioned_scripts() -> None:
+    rendered = DOCS_PDF._latex_text_with_inline_math(
+        r"Amplitude $A_k$ & decay $e^{-n/\tau_k}$"
+    )
+
+    assert rendered == r"Amplitude $A_k$ \& decay $e^{-n/\tau_k}$"
 
 
 def test_immersive_audio_chapter_distinguishes_beds_objects_and_monitoring() -> None:

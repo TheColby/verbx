@@ -14,7 +14,7 @@
 
 You can batch reverberate a directory of audio files to create lush Dolby Atmos beds. Or use it as part of your corpus-augmentation workflow for audio AI projects.
 
-Under the hood, everything runs in 64-bit floating point. The algorithmic engine is built around a configurable Feedback Delay Network with eight matrix families, multiband decay, optional pre-FDN comb-cloud coloration, and optional time-varying behavior. The convolution engine uses partitioned FFT with optional CUDA acceleration and full M-input-to-N-output matrix routing. Both engines share the same diffusion, shimmer, ducking, freeze, loudness, and spatial controls.
+Under the hood, everything runs in 64-bit floating point. The algorithmic engine is built around a configurable Feedback Delay Network with eight matrix families, multiband decay, optional pre-FDN comb-cloud coloration, and optional time-varying behavior. The convolution engine uses partitioned FFT with optional CUDA acceleration and full $M$-input-to-$N$-output matrix routing. Both engines share the same diffusion, shimmer, ducking, freeze, loudness, and spatial controls.
 
 The latest `v0.7.7` work also starts to bridge pure parametric design with
 explicit acoustics. There is now a reusable room-geometry model for dimensions,
@@ -1154,7 +1154,7 @@ flowchart LR
     G --> S
 ```
 
-**Figure: Feedback comb filter with delay length M and loop gain g.**
+**Figure: Feedback comb filter with delay length $M$ and loop gain $g$.**
 
 **How to read this figure.** Every trip around the loop adds $M$ samples of time and a
 factor of $g$. If $|g|<1$, the loop decays; if $|g|=1$, it is theoretically lossless;
@@ -1169,7 +1169,7 @@ sample-by-sample difference equation or checking which sample is multiplied by $
 
 ![Implementation-level feedback comb signal flowgraph](docs/assets/reverb_primer/23_feedback_comb_flowgraph.png)
 
-**Figure: Implementation-level feedback comb flowgraph with an explicit internal state, M-sample delay, loop gain, and transfer function.**
+**Figure: Implementation-level feedback comb flowgraph with an explicit internal state, $M$-sample delay, loop gain, and transfer function.**
 
 **How to read this flowgraph.** The summing junction forms $w[n]$ from the new input and
 the attenuated delayed output. The delay emits $y[n]=w[n-M]$; that value branches to the
@@ -1342,17 +1342,17 @@ them.
 A simplified state description is
 
 $$
-\mathbf{s}[n+1] = \mathbf{G}\mathbf{M}\mathbf{D}(z)\mathbf{s}[n]
-                  + \mathbf{B}x[n],
+\boldsymbol{s}[n+1] = \boldsymbol{G}\boldsymbol{M}\boldsymbol{D}(z)\boldsymbol{s}[n]
+                  + \boldsymbol{B}x[n],
 $$
 
 $$
-y[n] = \mathbf{C}^{\mathsf T}\mathbf{D}(z)\mathbf{s}[n] + d\,x[n],
+y[n] = \boldsymbol{C}^{\mathsf T}\boldsymbol{D}(z)\boldsymbol{s}[n] + d\,x[n],
 $$
 
-where $\mathbf{D}(z)$ is the bank of unequal delays, $\mathbf{M}$ is the feedback
-matrix, $\mathbf{G}$ contains decay gains or filters, $\mathbf{B}$ injects the source,
-and $\mathbf{C}$ projects the state to output channels.
+where $\boldsymbol{D}(z)$ is the bank of unequal delays, $\boldsymbol{M}$ is the feedback
+matrix, $\boldsymbol{G}$ contains decay gains or filters, $\boldsymbol{B}$ injects the source,
+and $\boldsymbol{C}$ projects the state to output channels.
 
 The Mermaid diagram below makes the vector feedback loop explicit.
 
@@ -1386,11 +1386,11 @@ stand for an arbitrary $N$-line network, not a four-line limit.
 
 **Figure: Expanded FDN flowgraph with input projection, unequal delay lines, per-line damping, RT60 gains, unitary feedback matrix, and output projection.**
 
-**How to read this flowgraph.** Projection $\mathbf{B}$ distributes the scalar input into
+**How to read this flowgraph.** Projection $\boldsymbol{B}$ distributes the scalar input into
 the vector sum. Each row delays one state component by $m_i$ samples and filters it with
-$H_i(z)$. The gain block $\mathbf{G}$ calibrates loss, after which unitary matrix
-$\mathbf{M}$ redistributes energy before the vector returns to the input sum. Output
-projection $\mathbf{C}^{\mathsf T}$ observes the delayed state without replacing the
+$H_i(z)$. The gain block $\boldsymbol{G}$ calibrates loss, after which unitary matrix
+$\boldsymbol{M}$ redistributes energy before the vector returns to the input sum. Output
+projection $\boldsymbol{C}^{\mathsf T}$ observes the delayed state without replacing the
 feedback path. That separation lets a designer change stereo or immersive presentation
 without changing the poles that govern the late decay.
 
@@ -1691,7 +1691,7 @@ recursive state so mix automation cannot alter decay stability.
 **Figure: Stereo output projection from a shared eight-line FDN state through normalized signed vectors and independent dry-wet output mixers.**
 
 **How to read this flowgraph.** Every state component contributes to both wet channels,
-but the signs in $\mathbf{C}_L^{\mathsf T}$ and $\mathbf{C}_R^{\mathsf T}$ differ. The
+but the signs in $\boldsymbol{C}_L^{\mathsf T}$ and $\boldsymbol{C}_R^{\mathsf T}$ differ. The
 channels therefore share one decay history while emphasizing different modal
 combinations. Normalization prevents channel count or coefficient choice from creating
 an unintended level jump. The final mixers add the projected wet signals to their dry
@@ -1781,7 +1781,7 @@ time.
 
 **For beginners:** Algorithmic reverb synthesizes the space from scratch using delay networks and filters. It does not need an external file, responds instantly to parameter changes, and can produce decay times no physical room could sustain. Convolution reverb applies a pre-recorded impulse response — a measurement of what a specific room does to a click — to your audio. The result sounds like the space where the IR was recorded.
 
-**For experts:** The algorithmic engine in verbx uses a Schroeder allpass diffusion stage feeding a fully coupled N-line FDN with configurable feedback matrix. Convolution uses uniformly-partitioned overlap-save FFT with optional CUDA acceleration via CuPy. The two engines share the same pre-delay, shimmer, freeze, ducking, bloom, tilt, loudness, and spatial stages. Use `--engine auto` and verbx selects based on whether an IR is present.
+**For experts:** The algorithmic engine in verbx uses a Schroeder allpass diffusion stage feeding a fully coupled $N$-line FDN with configurable feedback matrix. Convolution uses uniformly-partitioned overlap-save FFT with optional CUDA acceleration via CuPy. The two engines share the same pre-delay, shimmer, freeze, ducking, bloom, tilt, loudness, and spatial stages. Use `--engine auto` and verbx selects based on whether an IR is present.
 
 Choose algorithmic when you want extreme lengths, animated or time-varying decay, spaces that do not exist, low storage overhead. Choose convolution when you want: the character of a specific real or designed space, exact linear reproduction of an IR, or multichannel matrix routing from a measured space.
 
@@ -1839,25 +1839,25 @@ input
 
 Delay notation: $z^{-N}$ means an integer-sample delay of $N$ samples.
 
-**FDN mechanics:** At each sample, the FDN reads from $N$ delay lines, applies per-line damping and DC blocking, multiplies by the gain diagonal $\mathbf{G}$, multiplies by the feedback matrix $\mathbf{M}$, adds the injected excitation from the diffusion stage, and writes back to the delays. The matrix $\mathbf{M}$ must be orthonormal (or nearly so) to preserve energy over long tails; verbx orthonormalizes all matrix families before use. The state update is:
+**FDN mechanics:** At each sample, the FDN reads from $N$ delay lines, applies per-line damping and DC blocking, multiplies by the gain diagonal $\boldsymbol{G}$, multiplies by the feedback matrix $\boldsymbol{M}$, adds the injected excitation from the diffusion stage, and writes back to the delays. The matrix $\boldsymbol{M}$ must be orthonormal (or nearly so) to preserve energy over long tails; verbx orthonormalizes all matrix families before use. The state update is:
 
 $$
-\mathbf{y}[n] = \mathbf{D}\!\left(\mathbf{x}_{\mathrm{fb}}[n]\right)
+\boldsymbol{y}[n] = \boldsymbol{D}\!\left(\boldsymbol{x}_{\mathrm{fb}}[n]\right)
 $$
 
 $$
-\mathbf{x}_{\mathrm{fb}}[n+1] = \mathbf{G}\mathbf{M}\mathbf{y}[n] + \mathbf{u}[n]
+\boldsymbol{x}_{\mathrm{fb}}[n+1] = \boldsymbol{G}\boldsymbol{M}\boldsymbol{y}[n] + \boldsymbol{u}[n]
 $$
 
 where:
 
 - $n$ is the discrete-time sample index.
-- $\mathbf{x}_{\mathrm{fb}}[n]$ is the feedback-state vector before loop conditioning.
-- $\mathbf{y}[n]$ is the conditioned state after $\mathbf{D}(\cdot)$.
-- $\mathbf{D}(\cdot)$ is per-line loop conditioning (damping + DC blocking).
-- $\mathbf{G}$ is the diagonal RT60 gain matrix with entries $g_i$.
-- $\mathbf{M}$ is the orthonormal feedback mixing matrix.
-- $\mathbf{u}[n]$ is the post-diffusion excitation injected into the loop.
+- $\boldsymbol{x}_{\mathrm{fb}}[n]$ is the feedback-state vector before loop conditioning.
+- $\boldsymbol{y}[n]$ is the conditioned state after $\boldsymbol{D}(\cdot)$.
+- $\boldsymbol{D}(\cdot)$ is per-line loop conditioning (damping + DC blocking).
+- $\boldsymbol{G}$ is the diagonal RT60 gain matrix with entries $g_i$.
+- $\boldsymbol{M}$ is the orthonormal feedback mixing matrix.
+- $\boldsymbol{u}[n]$ is the post-diffusion excitation injected into the loop.
 
 **FDN gain calibration:** For delay line $i$ with period $d_i$ seconds and target decay $T_{60}$:
 
@@ -1871,7 +1871,7 @@ Shorter delay lines require gains closer to 1.0. This is computed per line so di
 
 | Matrix | Sound character | Math note |
 |---|---|---|
-| `hadamard` | Even, neutral density | `N x N` Walsh-Hadamard; valid for power-of-2 line counts |
+| `hadamard` | Even, neutral density | $N \times N$ Walsh-Hadamard; valid for power-of-2 line counts |
 | `householder` | Similar to Hadamard, slightly more uniform | Householder reflection matrix |
 | `random_orthogonal` | Unpredictable coloration | QR decomposition of random normal matrix |
 | `circulant` | Periodic, regular resonance | Diagonalized by DFT; controlled frequency-domain structure |
@@ -2093,13 +2093,13 @@ The distinction between a bed and a monitoring layout matters. Dolby’s standar
 For large immersive outputs (`16.0`, `64.4`), set `--ir-route-map` explicitly when the IR is mono or channel-matched to the input. Recommended defaults:
 
 - `--ir-route-map broadcast` for mono/channel-matched IRs
-- `--ir-route-map full` for matrix-packed `M x N` IRs
+- `--ir-route-map full` for matrix-packed $M \times N$ IRs
 
 Other formats are also easy to support: the routing and DSP paths already operate on arbitrary channel counts, and new symbolic layout names are straightforward to add when you need explicit semantics.
 
 **Ambisonics:** verbx supports First-Order Ambisonics (FOA) with ACN channel ordering and SN3D/N3D/FuMa normalization. Use `--ambi-order 1` to declare FOA mode. `--ambi-encode-from stereo` encodes a stereo input into FOA before processing; `--ambi-decode-to stereo` decodes back out after. `--ambi-rotate-yaw-deg` applies rotation in the Ambisonics domain — useful for spatial orientation of the reverb field relative to a listener position. FUMA is FOA-only; ACN with SN3D is the standard workflow for most Ambisonics toolchains.
 
-**IR matrix routing for surround:** If your IR file contains `M x N` channels (for $M$ input and $N$ output channels), declare the packing order with `--ir-matrix-layout`. Output-major packing stores all inputs for output 0 first, then all inputs for output 1, etc. (channel index $oM + i$). Input-major stores all outputs for input 0 first (channel index $iN + o$). A 5.1 input to 5.1 output full-matrix IR has 36 channels; a diagonal (same IR per channel) has 6. The routing is explicit: verbx does not guess.
+**IR matrix routing for surround:** If your IR file contains $M \times N$ channels (for $M$ input and $N$ output channels), declare the packing order with `--ir-matrix-layout`. Output-major packing stores all inputs for output 0 first, then all inputs for output 1, etc. (channel index $oM + i$). Input-major stores all outputs for input 0 first (channel index $iN + o$). A 5.1 input to 5.1 output full-matrix IR has 36 channels; a diagonal (same IR per channel) has 6. The routing is explicit: verbx does not guess.
 
 ---
 

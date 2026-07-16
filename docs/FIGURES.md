@@ -38,15 +38,15 @@ Read the figure from the labeled input or independent dimension toward the repor
 
 ## Reverb Physics and Analysis
 
-The figure below introduces **RT60 decay families**. Idealized decay slopes for several nominal reverberation times, each reaching a 60 dB loss at its labeled RT60. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Time after excitation (s)** and the vertical axis is **Relative decay level (dB)**.
+The figure below introduces **$T_{60}$ decay families**. Idealized decay slopes for several nominal reverberation times, each reaching a 60 dB loss at its labeled $T_{60}$. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Time after excitation (s)** and the vertical axis is **Relative decay level (dB)**.
 
-![Figure 3: RT60 decay families.](assets/userguide_figures/03_rt60_decay_families.png)
+![Figure 3: $T_{60}$ decay families.](assets/userguide_figures/03_rt60_decay_families.png)
 
-**Figure 3: RT60 decay families.**
+**Figure 3: $T_{60}$ decay families.**
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Energy decay curve fitting windows**. The EDT, T20, and T30 regression regions used to estimate decay from different portions of an energy decay curve. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Normalized decay time (0-1)** and the vertical axis is **Energy decay level (dB)**.
+The figure below introduces **Energy decay curve fitting windows**. The EDT, $T_{20}$, and $T_{30}$ regression regions used to estimate decay from different portions of an energy decay curve. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Normalized decay time (0-1)** and the vertical axis is **Energy decay level (dB)**.
 
 ![Figure 4: Energy decay curve fitting windows.](assets/userguide_figures/04_edc_fit_windows.png)
 
@@ -62,7 +62,7 @@ The figure below introduces **Frequency-dependent decay bands**. Low-, mid-, and
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Room size inference curves**. Sabine-style volume estimates across RT60 for three assumed mean absorption coefficients. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Measured RT60 (s)** and the vertical axis is **Estimated room volume (m³)**.
+The figure below introduces **Room size inference curves**. Sabine-style volume estimates across $T_{60}$ for three assumed mean absorption coefficients. The colored traces share one coordinate system so their slopes, crossings, and endpoints can be compared directly. The horizontal axis is **Measured $T_{60}$ (s)** and the vertical axis is **Estimated room volume (m³)**.
 
 ![Figure 16: Room size inference curves.](assets/userguide_figures/16_room_size_inference.png)
 
@@ -70,7 +70,7 @@ The figure below introduces **Room size inference curves**. Sabine-style volume 
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Analysis metrics dashboard**. A compact view of representative RT60, DRR, C80, peak, LUFS, and EDT fields emitted to JSON. Each card reports a separate metric with its own printed unit, so card size and position do not encode magnitude. It has no numeric axes because it is a structural diagram rather than a measurement plot.
+The figure below introduces **Analysis metrics dashboard**. A compact view of representative $T_{60}$, DRR, $C_{80}$, peak, LUFS, and EDT fields emitted to JSON. Each card reports a separate metric with its own printed unit, so card size and position do not encode magnitude. It has no numeric axes because it is a structural diagram rather than a measurement plot.
 
 ![Figure 17: Analysis metrics dashboard.](assets/userguide_figures/17_analysis_dashboard.png)
 
@@ -96,7 +96,7 @@ The figure below introduces **Partitioned convolution layout**. An impulse respo
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **IR morphing blend space**. A conceptual interpolation triangle connecting room, plate, and cathedral impulse-response families. Points and paths occupy a two-dimensional design space; proximity indicates similar states, not physical distance. The horizontal axis is **Blend coordinate A (normalized, 0-1)** and the vertical axis is **Blend coordinate B (normalized, 0-1)**.
+The figure below introduces **IR morphing blend space**. A conceptual interpolation triangle connecting room, plate, and cathedral impulse-response families. Points and paths occupy a two-dimensional design space; proximity indicates similar states, not physical distance. The horizontal axis is **Blend coordinate $A$ (normalized, 0-1)** and the vertical axis is **Blend coordinate $B$ (normalized, 0-1)**.
 
 ![Figure 12: IR morphing blend space.](assets/userguide_figures/12_ir_morph_space.png)
 
@@ -180,7 +180,7 @@ The figure below introduces **Spatial layout families**. Listener-centered stere
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Ambisonics order channel growth**. The quadratic channel-count growth produced by the three-dimensional Ambisonics relation $(N + 1)^{2}$. Bar height encodes the quantity on the vertical axis, while each horizontal category identifies a tested or illustrative condition. The horizontal axis is **Ambisonics order N (integer)** and the vertical axis is **Channel count (channels)**.
+The figure below introduces **Ambisonics order channel growth**. The quadratic channel-count growth produced by the three-dimensional Ambisonics relation $(N + 1)^{2}$. Bar height encodes the quantity on the vertical axis, while each horizontal category identifies a tested or illustrative condition. The horizontal axis is **Ambisonics order $N$ (integer)** and the vertical axis is **Channel count (channels)**.
 
 ![Figure 14: Ambisonics order channel growth.](assets/userguide_figures/14_ambisonics_order.png)
 

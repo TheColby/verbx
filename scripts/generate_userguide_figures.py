@@ -27,12 +27,32 @@ GREEN = "#4f8a42"
 PAPER = "#fffaf0"
 
 
-def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+def font(
+    size: int,
+    bold: bool = False,
+    italic: bool = False,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    schola_style = "bolditalic" if bold and italic else "bold" if bold else "italic" if italic else "regular"
+    georgia_style = (
+        "Georgia Bold Italic.ttf"
+        if bold and italic
+        else "Georgia Bold.ttf"
+        if bold
+        else "Georgia Italic.ttf"
+        if italic
+        else "Georgia.ttf"
+    )
     candidates = [
-        "/System/Library/Fonts/Supplemental/New Century Schoolbook.ttc",
-        "/System/Library/Fonts/Supplemental/Georgia.ttf",
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
-        "/Library/Fonts/Arial Bold.ttf" if bold else "/Library/Fonts/Arial.ttf",
+        *(
+            [
+                "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/tex-gyre/"
+                f"texgyreschola-{schola_style}.otf",
+                f"/Library/Fonts/texgyreschola-{schola_style}.otf",
+            ]
+            if italic
+            else ["/System/Library/Fonts/Supplemental/New Century Schoolbook.ttc"]
+        ),
+        f"/System/Library/Fonts/Supplemental/{georgia_style}",
     ]
     for path in candidates:
         try:
@@ -52,13 +72,233 @@ F_CHANNEL = font(17, True)
 F_TINY = font(15)
 
 
+def _italic_font(selected_font: ImageFont.ImageFont) -> ImageFont.ImageFont:
+    if not isinstance(selected_font, ImageFont.FreeTypeFont):
+        return selected_font
+    _, style = selected_font.getname()
+    return font(selected_font.size, bold="bold" in style.lower(), italic=True)
+
+
+def _math_text(value: str) -> str:
+    """Convert the small TeX subset used in chart labels to display glyphs."""
+
+    return (
+        value.replace(r"\alpha", "α")
+        .replace(r"\beta", "β")
+        .replace(r"\tau", "τ")
+        .replace("-", "\N{EN DASH}")
+    )
+
+
+def _scaled_font(selected_font: ImageFont.ImageFont, scale: float) -> ImageFont.ImageFont:
+    if isinstance(selected_font, ImageFont.FreeTypeFont):
+        return selected_font.font_variant(size=max(8, round(selected_font.size * scale)))
+    return selected_font
+
+
+def _script_group(value: str, start: int) -> tuple[str, int]:
+    if start >= len(value):
+        return "", start
+    if value[start] != "{":
+        return value[start], start + 1
+
+    depth = 1
+    index = start + 1
+    while index < len(value) and depth:
+        if value[index] == "{":
+            depth += 1
+        elif value[index] == "}":
+            depth -= 1
+        index += 1
+    return value[start + 1:index - 1], index
+
+
+def _math_runs(
+    d: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> tuple[list[tuple[str, ImageFont.ImageFont, float, float]], float]:
+    runs: list[tuple[str, ImageFont.ImageFont, float, float]] = []
+    x = 0.0
+    index = 0
+    while index < len(value):
+        start = index
+        while index < len(value) and value[index] not in "^_{}":
+            index += 1
+        if index > start:
+            text = _math_text(value[start:index])
+            run_start = 0
+            while run_start < len(text):
+                alphabetic = text[run_start].isalpha()
+                run_end = run_start + 1
+                while run_end < len(text) and text[run_end].isalpha() == alphabetic:
+                    run_end += 1
+                run_text = text[run_start:run_end]
+                run_font = _italic_font(selected_font) if alphabetic else selected_font
+                runs.append((run_text, run_font, x, 0.0))
+                x += d.textlength(run_text, font=run_font)
+                run_start = run_end
+        if index >= len(value):
+            break
+        if value[index] in "{}":
+            index += 1
+            continue
+
+        script_x = x
+        script_width = 0.0
+        while index < len(value) and value[index] in "^_":
+            operator = value[index]
+            content, index = _script_group(value, index + 1)
+            script_font = _scaled_font(selected_font, 0.64)
+            child_runs, child_width = _math_runs(d, content, script_font)
+            baseline_offset = (
+                -0.52 * getattr(selected_font, "size", 20)
+                if operator == "^"
+                else 0.32 * getattr(selected_font, "size", 20)
+            )
+            runs.extend(
+                (text, run_font, script_x + run_x, run_y + baseline_offset)
+                for text, run_font, run_x, run_y in child_runs
+            )
+            script_width = max(script_width, child_width)
+        x = script_x + script_width
+    return runs, x
+
+
+def _math_layout(
+    d: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> tuple[list[tuple[str, ImageFont.ImageFont, float, float]], float, float, float]:
+    runs, width = _math_runs(d, value, selected_font)
+    bounds = [
+        d.textbbox((run_x, run_y), text, font=run_font, anchor="ls")
+        for text, run_font, run_x, run_y in runs
+        if text
+    ]
+    if not bounds:
+        return runs, width, 0.0, 0.0
+    return runs, width, min(item[1] for item in bounds), max(item[3] for item in bounds)
+
+
+def _math_size(
+    d: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> tuple[float, float]:
+    _, width, top, bottom = _math_layout(d, value, selected_font)
+    return width, bottom - top
+
+
+def _draw_math(
+    d: ImageDraw.ImageDraw,
+    position: tuple[float, float],
+    value: str,
+    *,
+    fill: str,
+    selected_font: ImageFont.ImageFont,
+) -> None:
+    runs, _, top, _ = _math_layout(d, value, selected_font)
+    baseline = position[1] - top
+    for text, run_font, run_x, run_y in runs:
+        d.text(
+            (position[0] + run_x, baseline + run_y),
+            text,
+            fill=fill,
+            font=run_font,
+            anchor="ls",
+        )
+
+
+def _rich_segments(
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> list[tuple[str, ImageFont.ImageFont]]:
+    segments = value.split("$")
+    if len(segments) % 2 == 0:
+        raise ValueError(f"Unbalanced inline-math delimiter in figure label: {value!r}")
+    return [
+        (_math_text(segment), _italic_font(selected_font))
+        if index % 2
+        else (segment, selected_font)
+        for index, segment in enumerate(segments)
+        if segment
+    ]
+
+
+def rich_text_size(
+    d: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> tuple[float, float]:
+    segments = value.split("$")
+    if len(segments) % 2 == 0:
+        raise ValueError(f"Unbalanced inline-math delimiter in figure label: {value!r}")
+    sizes = [
+        _math_size(d, segment, selected_font)
+        if index % 2
+        else (
+            (bounds := d.textbbox((0, 0), segment, font=selected_font))[2] - bounds[0],
+            bounds[3] - bounds[1],
+        )
+        for index, segment in enumerate(segments)
+    ]
+    return sum(width for width, _ in sizes), max((height for _, height in sizes), default=0)
+
+
+def draw_rich_text(
+    d: ImageDraw.ImageDraw,
+    position: tuple[float, float],
+    value: str,
+    *,
+    fill: str,
+    selected_font: ImageFont.ImageFont,
+) -> None:
+    segments = value.split("$")
+    if len(segments) % 2 == 0:
+        raise ValueError(f"Unbalanced inline-math delimiter in figure label: {value!r}")
+    sizes = [
+        _math_size(d, segment, selected_font)
+        if index % 2
+        else (
+            (bounds := d.textbbox((0, 0), segment, font=selected_font))[2] - bounds[0],
+            bounds[3] - bounds[1],
+        )
+        for index, segment in enumerate(segments)
+    ]
+    line_height = max((height for _, height in sizes), default=0)
+    x = position[0]
+    for index, (segment, (segment_width, segment_height)) in enumerate(
+        zip(segments, sizes, strict=True)
+    ):
+        y = position[1] + (line_height - segment_height) / 2
+        if index % 2:
+            _draw_math(
+                d,
+                (x, y),
+                segment,
+                fill=fill,
+                selected_font=selected_font,
+            )
+        else:
+            bounds = d.textbbox((0, 0), segment, font=selected_font)
+            d.text((x, y - bounds[1]), segment, fill=fill, font=selected_font)
+        x += segment_width
+
+
 def canvas(title: str, subtitle: str = "") -> tuple[Image.Image, ImageDraw.ImageDraw]:
     img = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(img)
     d.rectangle((0, 0, W, 118), fill="#efe2cb")
-    d.text((64, 34), title, fill=INK, font=F_TITLE)
+    if "$" in title:
+        draw_rich_text(d, (64, 34), title, fill=INK, selected_font=F_TITLE)
+    else:
+        d.text((64, 34), title, fill=INK, font=F_TITLE)
     if subtitle:
-        d.text((66, 92), subtitle, fill=MUTED, font=F_SMALL)
+        if "$" in subtitle:
+            draw_rich_text(d, (66, 92), subtitle, fill=MUTED, selected_font=F_SMALL)
+        else:
+            d.text((66, 92), subtitle, fill=MUTED, font=F_SMALL)
     return img, d
 
 
@@ -69,13 +309,24 @@ def save(img: Image.Image, name: str) -> None:
 
 def text_center(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], text: str, fill: str = INK, fnt=F_BODY) -> None:
     lines = text.split("\n")
-    heights = [d.textbbox((0, 0), line, font=fnt)[3] for line in lines]
+    if "$" not in text:
+        heights = [d.textbbox((0, 0), line, font=fnt)[3] for line in lines]
+        total = sum(heights) + (len(lines) - 1) * 8
+        y = (box[1] + box[3] - total) / 2
+        for line, height in zip(lines, heights, strict=False):
+            bbox = d.textbbox((0, 0), line, font=fnt)
+            x = (box[0] + box[2] - (bbox[2] - bbox[0])) / 2
+            d.text((x, y), line, fill=fill, font=fnt)
+            y += height + 8
+        return
+
+    sizes = [rich_text_size(d, line, fnt) for line in lines]
+    heights = [height for _, height in sizes]
     total = sum(heights) + (len(lines) - 1) * 8
     y = (box[1] + box[3] - total) / 2
-    for line, height in zip(lines, heights, strict=False):
-        bbox = d.textbbox((0, 0), line, font=fnt)
-        x = (box[0] + box[2] - (bbox[2] - bbox[0])) / 2
-        d.text((x, y), line, fill=fill, font=fnt)
+    for line, (width, _), height in zip(lines, sizes, heights, strict=False):
+        x = (box[0] + box[2] - width) / 2
+        draw_rich_text(d, (x, y), line, fill=fill, selected_font=fnt)
         y += height + 8
 
 
@@ -109,12 +360,35 @@ def plot_axes(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], xlab: str,
 def axis_labels(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], xlab: str, ylab: str) -> None:
     """Draw centered axis labels, rotating the ordinate to preserve plot width."""
     x0, y0, x1, y1 = box
-    x_bbox = d.textbbox((0, 0), xlab, font=F_SMALL)
-    d.text(((x0 + x1 - (x_bbox[2] - x_bbox[0])) / 2, y1 + 24), xlab, fill=MUTED, font=F_SMALL)
+    if "$" not in xlab and "$" not in ylab:
+        x_bbox = d.textbbox((0, 0), xlab, font=F_SMALL)
+        d.text(((x0 + x1 - (x_bbox[2] - x_bbox[0])) / 2, y1 + 24), xlab, fill=MUTED, font=F_SMALL)
 
-    y_bbox = F_SMALL.getbbox(ylab)
-    label = Image.new("L", (y_bbox[2] - y_bbox[0] + 12, y_bbox[3] - y_bbox[1] + 12), 0)
-    ImageDraw.Draw(label).text((6 - y_bbox[0], 6 - y_bbox[1]), ylab, fill=255, font=F_SMALL)
+        y_bbox = F_SMALL.getbbox(ylab)
+        label = Image.new("L", (y_bbox[2] - y_bbox[0] + 12, y_bbox[3] - y_bbox[1] + 12), 0)
+        ImageDraw.Draw(label).text((6 - y_bbox[0], 6 - y_bbox[1]), ylab, fill=255, font=F_SMALL)
+        label = label.rotate(90, expand=True)
+        d.bitmap((x0 - 72, (y0 + y1 - label.height) / 2), label, fill=MUTED)
+        return
+
+    x_width, _ = rich_text_size(d, xlab, F_SMALL)
+    draw_rich_text(
+        d,
+        ((x0 + x1 - x_width) / 2, y1 + 24),
+        xlab,
+        fill=MUTED,
+        selected_font=F_SMALL,
+    )
+
+    y_width, y_height = rich_text_size(d, ylab, F_SMALL)
+    label = Image.new("L", (math.ceil(y_width) + 12, math.ceil(y_height) + 12), 0)
+    draw_rich_text(
+        ImageDraw.Draw(label),
+        (6, 6),
+        ylab,
+        fill="white",
+        selected_font=F_SMALL,
+    )
     label = label.rotate(90, expand=True)
     d.bitmap((x0 - 72, (y0 + y1 - label.height) / 2), label, fill=MUTED)
 
@@ -175,22 +449,37 @@ def fig_realtime_latency() -> None:
 
 
 def fig_rt60_curves() -> None:
-    img, d = canvas("RT60 Decay Families", "A 60 dB drop defines the nominal reverberation time.")
+    img, d = canvas("$T_{60}$ Decay Families", "A 60 dB drop defines the nominal $T_{60}$.")
     box = (190, 190, 1420, 710)
     plot_axes(d, box, "Time after excitation (s)", "Relative decay level (dB)")
     t = np.linspace(0, 8, 300)
-    for rt, color in [(1.2, BLUE), (2.5, TEAL), (5.0, GOLD), (8.0, RUST)]:
+    curves = [
+        (1.2, 0.65, BLUE),
+        (2.5, 1.55, TEAL),
+        (5.0, 3.4, GOLD),
+        (8.0, 5.9, RUST),
+    ]
+    for rt, label_time, color in curves:
         y = -60 * t / rt
         y = np.maximum(y, -72)
         px = box[0] + t / 8 * (box[2] - box[0])
         py = box[3] - (y + 72) / 72 * (box[3] - box[1])
         d.line(list(zip(px, py, strict=False)), fill=color, width=5)
-        d.text((box[2] - 170, int(py[min(len(py)-1, int(rt / 8 * 299))]) - 16), f"{rt:g}s", fill=color, font=F_SMALL)
+        label_level = -60 * label_time / rt
+        label_x = box[0] + label_time / 8 * (box[2] - box[0])
+        label_y = box[3] - (label_level + 72) / 72 * (box[3] - box[1])
+        draw_rich_text(
+            d,
+            (label_x + 14, label_y - 22),
+            f"$T_{{60}}$ = {rt:g} s",
+            fill=color,
+            selected_font=F_SMALL,
+        )
     save(img, "03_rt60_decay_families.png")
 
 
 def fig_edc_windows() -> None:
-    img, d = canvas("Energy Decay Curve Windows", "EDT, T20, and T30 fit different portions of the same EDC.")
+    img, d = canvas("Energy Decay Curve Windows", "EDT, $T_{20}$, and $T_{30}$ fit different portions of the same EDC.")
     box = (190, 190, 1420, 700)
     plot_axes(d, box, "Normalized decay time (0-1)", "Energy decay level (dB)")
     t = np.linspace(0, 1, 280)
@@ -198,10 +487,14 @@ def fig_edc_windows() -> None:
     xpix = box[0] + t * (box[2] - box[0])
     ypix = box[3] - (y + 70) / 72 * (box[3] - box[1])
     d.line(list(zip(xpix, ypix, strict=False)), fill=BLUE, width=6)
-    for _start, end, label, color in [(0, 10, "EDT", TEAL), (5, 25, "T20", GOLD), (5, 35, "T30", RUST)]:
+    for _start, end, label, color in [
+        (0, 10, "EDT", TEAL),
+        (5, 25, "$T_{20}$", GOLD),
+        (5, 35, "$T_{30}$", RUST),
+    ]:
         yy = box[3] - ((-end) + 70) / 72 * (box[3] - box[1])
         d.line((box[0], yy, box[2], yy), fill=color, width=2)
-        d.text((box[2] - 95, yy - 24), label, fill=color, font=F_BODY)
+        draw_rich_text(d, (box[2] - 110, yy - 24), label, fill=color, selected_font=F_BODY)
     save(img, "04_edc_fit_windows.png")
 
 
@@ -279,7 +572,7 @@ def fig_ducking() -> None:
 
 
 def fig_multiband_decay() -> None:
-    img, d = canvas("Frequency-Dependent Decay", "Low, mid, and high bands can carry different RT60 targets.")
+    img, d = canvas("Frequency-Dependent Decay", "Low, mid, and high bands can carry different $T_{60}$ targets.")
     box = (170, 190, 1420, 700)
     plot_axes(d, box, "Time after excitation (s)", "Relative band level (linear, 0-1)")
     t = np.linspace(0, 6, 300)
@@ -289,7 +582,7 @@ def fig_multiband_decay() -> None:
         px = box[0] + t / 6 * (box[2] - box[0])
         py = box[3] - y * (box[3] - box[1])
         d.line(list(zip(px, py, strict=False)), fill=color, width=5)
-        d.text((1120, int(py[120]) - 18), f"{name}: {rt}s", fill=color, font=F_BODY)
+        draw_rich_text(d, (1050, int(py[120]) - 18), f"{name}: $T_{{60}}$ = {rt} s", fill=color, selected_font=F_BODY)
     save(img, "09_multiband_decay.png")
 
 
@@ -317,10 +610,16 @@ def fig_partitioned_convolution() -> None:
     for i, (w, c) in enumerate(zip(widths, colors, strict=False)):
         y = y0 + i * 72
         d.rounded_rectangle((x0, y, x0 + w, y + 42), radius=10, fill=c)
-        d.text((x0 + w + 24, y + 8), f"partition {i}: {2 ** (i + 8)} samples", fill=INK, font=F_BODY)
+        draw_rich_text(d, (x0 + w + 24, y + 8), f"partition $i$ = {i}: {2 ** (i + 8)} samples", fill=INK, selected_font=F_BODY)
     arrow(d, (880, 335), (1210, 335), MUTED)
     node(d, (1220, 270, 1480, 410), "FFT blocks\n+ overlap-add", PLUM)
-    d.text((950, 540), "Smaller first partitions reduce perceived latency; larger late partitions reduce CPU.", fill=INK, font=F_BODY)
+    text_center(
+        d,
+        (900, 500, 1510, 650),
+        "Smaller first partitions reduce perceived latency;\nlarger late partitions reduce CPU.",
+        fill=INK,
+        fnt=F_BODY,
+    )
     save(img, "11_partitioned_convolution.png")
 
 
@@ -354,12 +653,12 @@ def fig_spatial_layouts() -> None:
 
 
 def fig_ambisonics_order() -> None:
-    img, d = canvas("Ambisonics Order Growth", "Channel count rises quadratically with order: (N + 1)².")
+    img, d = canvas("Ambisonics Order Growth", "Channel count rises quadratically with order: $(N + 1)^{2}$.")
     orders = list(range(0, 8))
     vals = [(n + 1) ** 2 for n in orders]
     labels = [str(n) for n in orders]
     bars(d, (170, 210, 1420, 700), vals, labels, [BLUE, TEAL, GOLD, RUST, PLUM, GREEN, "#8f6f3f", "#3f7f8f"])
-    chart_labels(d, (170, 210, 1420, 700), "Ambisonics order N (integer)", "Channel count (channels)")
+    chart_labels(d, (170, 210, 1420, 700), "Ambisonics order $N$ (integer)", "Channel count (channels)")
     save(img, "14_ambisonics_order.png")
 
 
@@ -379,27 +678,27 @@ def fig_shimmer_path() -> None:
 
 
 def fig_room_inference() -> None:
-    img, d = canvas("Room Size Inference", "RT60 plus absorption estimate maps to plausible room volume.")
+    img, d = canvas("Room Size Inference", "$T_{60}$ plus absorption estimate maps to plausible room volume.")
     box = (210, 190, 1350, 700)
-    plot_axes(d, box, "Measured RT60 (s)", "Estimated room volume (m³)")
+    plot_axes(d, box, "Measured $T_{60}$ (s)", "Estimated room volume (m³)")
     rt = np.linspace(0.2, 4.5, 200)
     for alpha, color in [(0.15, BLUE), (0.3, TEAL), (0.55, GOLD)]:
         vol = rt * (200 * alpha) / 0.161
         px = box[0] + (rt - rt.min()) / (rt.max() - rt.min()) * (box[2] - box[0])
         py = box[3] - (vol - vol.min()) / (2800 - vol.min()) * (box[3] - box[1])
         d.line(list(zip(px, py, strict=False)), fill=color, width=5)
-        d.text((1080, int(py[130]) - 20), f"alpha {alpha}", fill=color, font=F_BODY)
+        draw_rich_text(d, (1080, int(py[130]) - 20), f"$\\alpha$ = {alpha}", fill=color, selected_font=F_BODY)
     save(img, "16_room_size_inference.png")
 
 
 def fig_analysis_dashboard() -> None:
     img, d = canvas("Analysis Metrics Dashboard", "The JSON sidecar converts audio into comparable acoustic metrics.")
-    metrics = [("RT60", "2.84 s", BLUE), ("DRR", "–6.1 dB", TEAL), ("C80", "–3.8 dB", GOLD), ("Peak", "–1.0 dB", RUST), ("LUFS", "–16.4", PLUM), ("EDT", "2.12 s", GREEN)]
+    metrics = [("$T_{60}$", "2.84 s", BLUE), ("DRR", "–6.1 dB", TEAL), ("$C_{80}$", "–3.8 dB", GOLD), ("Peak", "–1.0 dB", RUST), ("LUFS", "–16.4", PLUM), ("EDT", "2.12 s", GREEN)]
     for i, (name, value, color) in enumerate(metrics):
         x = 120 + (i % 3) * 480
         y = 210 + (i // 3) * 250
         d.rounded_rectangle((x, y, x + 380, y + 180), radius=24, fill=PAPER, outline=color, width=5)
-        d.text((x + 28, y + 28), name, fill=MUTED, font=F_BODY)
+        draw_rich_text(d, (x + 28, y + 28), name, fill=MUTED, selected_font=F_BODY)
         d.text((x + 28, y + 82), value, fill=color, font=F_TITLE)
     save(img, "17_analysis_dashboard.png")
 
@@ -494,7 +793,7 @@ def fig_preset_space() -> None:
 
 
 def fig_infinite_reverb() -> None:
-    img, d = canvas("Infinite-Style Reverb Modes", "Very high RT60 values behave more like sustain instruments than rooms.")
+    img, d = canvas("Infinite-Style Reverb Modes", "Very high $T_{60}$ values behave more like sustain instruments than rooms.")
     box = (170, 190, 1420, 700)
     plot_axes(d, box, "Normalized elapsed time (0-1)", "Relative tail energy (linear, 0-1)")
     t = np.linspace(0, 1, 400)

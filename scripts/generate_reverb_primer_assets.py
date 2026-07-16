@@ -71,9 +71,7 @@ F_FLOW_BOLD = font(34, True)
 F_FLOW_SMALL = font(25)
 
 
-def _scaled_font(
-    selected_font: ImageFont.ImageFont, scale: float
-) -> ImageFont.ImageFont:
+def _scaled_font(selected_font: ImageFont.ImageFont, scale: float) -> ImageFont.ImageFont:
     if isinstance(selected_font, ImageFont.FreeTypeFont):
         return selected_font.font_variant(size=max(8, round(selected_font.size * scale)))
     return selected_font
@@ -488,10 +486,7 @@ def _flow_box(
 ) -> None:
     draw.rectangle(box, fill=WHITE, outline="black", width=6)
     fonts = (F_FLOW_BOLD, *(F_FLOW_SMALL for _ in lines[1:]))
-    sizes = [
-        _line_size(draw, line, selected)
-        for line, selected in zip(lines, fonts, strict=True)
-    ]
+    sizes = [_line_size(draw, line, selected) for line, selected in zip(lines, fonts, strict=True)]
     heights = [item[1] for item in sizes]
     total_height = sum(heights) + 11 * (len(lines) - 1)
     y = (box[1] + box[3] - total_height) / 2
@@ -625,7 +620,7 @@ def flowgraph_parameterized_schroeder() -> None:
         )
         _flow_arrow(draw, (1850, y), (2010, y), f"$x_{index}$", label_offset=(0, -38))
 
-    _flow_box(draw, (2010, 75, 2250, 770), ("$H_4/2$", "output matrix"))
+    _flow_box(draw, (2010, 75, 2250, 770), ("$H_{4/2}$", "output matrix"))
     for index, y in enumerate(row_centers):
         _flow_arrow(draw, (2250, y), (2560, y), f"Out{chr(65 + index)}")
     _flow_note(
@@ -656,18 +651,18 @@ def flowgraph_expanded_fdn() -> None:
         _flow_box(draw, (1110, y - 58, 1410, y + 58), (f"$H_{index}(z)$", "loop damping"))
         _flow_arrow(draw, (1410, y), (1530, y))
     draw.line((1530, 150, 1530, 690), fill="black", width=5)
-    _flow_box(draw, FDN_GAIN_BOX, ("$G$", "RT60 gains"))
+    _flow_box(draw, FDN_GAIN_BOX, ("$G$", "$T_{60}$ gains"))
     _flow_arrow(draw, (1530, 420), (1660, 420), "$N$-vector")
     _flow_box(draw, FDN_MATRIX_BOX, ("$M$", "unitary matrix"))
     _flow_arrow(draw, (1900, 420), (2050, 420), "$G s[n]$")
     draw.line((2290, 420, 2400, 420, 2400, 805, 440, 805, 440, 465), fill="black", width=5)
     _flow_arrow(draw, (1530, 270), (1660, 270))
-    _flow_box(draw, FDN_OUTPUT_PROJECTION_BOX, ("$C^T$", "output projection"))
+    _flow_box(draw, FDN_OUTPUT_PROJECTION_BOX, ("$C^{T}$", "output projection"))
     draw.line((1530, 150, 1580, 150, 1580, 85, 1620, 85), fill="black", width=5)
     _flow_arrow(draw, (1940, 85), (2440, 85), "$y[n]$")
     _flow_note(
         draw,
-        "Expanded FDN: unequal delays, per-line damping, RT60 gains, unitary "
+        "Expanded FDN: unequal delays, per-line damping, $T_{60}$ gains, unitary "
         "feedback, and output projection.",
     )
     save(image, "26_expanded_fdn_flowgraph.png")
@@ -792,6 +787,31 @@ def _generate_detailed_schroeder_diagram() -> None:
     save(image, "02_schroeder_reverberator.png")
 
 
+def _generate_partitioned_convolution_diagram() -> None:
+    diagram(
+        "08_partitioned_convolution.png",
+        "Partitioned Convolution Reverb",
+        "Short front partitions reduce latency while long FFT partitions carry the tail.",
+        {
+            "input": ("Input\nblocks", (60, 350, 260, 490), BLUE),
+            "fft": ("FFT", (340, 350, 520, 490), TEAL),
+            "parts": (
+                "IR partitions\n$H_0$  $H_1$  ...  $H_K$",
+                (610, 300, 900, 540),
+                GOLD,
+            ),
+            "mac": ("Complex multiply\n+ overlap-save", (990, 315, 1260, 525), RUST),
+            "ifft": ("IFFT", (1350, 350, 1535, 490), INK),
+        },
+        [
+            ("input", "fft", "$P$ samples"),
+            ("fft", "parts", "$X[k]$"),
+            ("parts", "mac", "sum"),
+            ("mac", "ifft", "wet"),
+        ],
+    )
+
+
 def _generate_remaining_diagrams() -> None:
     _generate_detailed_schroeder_diagram()
     diagram(
@@ -856,7 +876,7 @@ def _generate_remaining_diagrams() -> None:
             "input": ("Input\nprojection $B$", (45, 350, 275, 490), BLUE),
             "sum": ("Vector sum", (350, 350, 570, 490), TEAL),
             "delays": ("Delay bank $D(z)$\n$N$ unequal lines", (650, 315, 930, 525), GOLD),
-            "filters": ("Damping +\nRT60 gains $G$", (1010, 315, 1260, 525), RUST),
+            "filters": ("Damping +\n$T_{60}$ gains $G$", (1010, 315, 1260, 525), RUST),
             "output": ("Output\nprojection $C$", (1340, 350, 1560, 490), INK),
             "matrix": ("Orthonormal feedback matrix $M$", (720, 665, 1190, 790), TEAL),
         },
@@ -875,9 +895,9 @@ def _generate_remaining_diagrams() -> None:
         {
             "state": ("Delay-line\nstate", (70, 350, 290, 490), BLUE),
             "split": ("Crossover\nfilter bank", (380, 350, 620, 490), TEAL),
-            "low": ("Low band\nRT60 5.0 s", (730, 180, 990, 300), GOLD),
-            "mid": ("Mid band\nRT60 3.0 s", (730, 350, 990, 470), TEAL),
-            "high": ("High band\nRT60 1.4 s", (730, 520, 990, 640), RUST),
+            "low": ("Low band\n$T_{60}$ = 5.0 s", (730, 180, 990, 300), GOLD),
+            "mid": ("Mid band\n$T_{60}$ = 3.0 s", (730, 350, 990, 470), TEAL),
+            "high": ("High band\n$T_{60}$ = 1.4 s", (730, 520, 990, 640), RUST),
             "sum": ("Band sum", (1110, 350, 1325, 490), BLUE),
             "matrix": ("Feedback\nmatrix", (1405, 350, 1560, 490), INK),
         },
@@ -892,24 +912,7 @@ def _generate_remaining_diagrams() -> None:
             ("sum", "matrix", ""),
         ],
     )
-    diagram(
-        "08_partitioned_convolution.png",
-        "Partitioned Convolution Reverb",
-        "Short front partitions reduce latency while long FFT partitions carry the tail.",
-        {
-            "input": ("Input\nblocks", (60, 350, 260, 490), BLUE),
-            "fft": ("FFT", (340, 350, 520, 490), TEAL),
-            "parts": ("IR partitions\nH0 H1 ... HK", (610, 300, 900, 540), GOLD),
-            "mac": ("Complex multiply\n+ overlap-save", (990, 315, 1260, 525), RUST),
-            "ifft": ("IFFT", (1350, 350, 1535, 490), INK),
-        },
-        [
-            ("input", "fft", "P samples"),
-            ("fft", "parts", "X[k]"),
-            ("parts", "mac", "sum"),
-            ("mac", "ifft", "wet"),
-        ],
-    )
+    _generate_partitioned_convolution_diagram()
     diagram(
         "09_verbx_hybrid_path.png",
         "verbx Algorithmic Signal Path",
