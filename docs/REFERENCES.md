@@ -59,7 +59,7 @@ Quick-lookup table of the equations you will cite most often during development.
 | **FDN gain calibration** | $g_i = 10^{-3d_i/T_{60}}$ per delay line, where $d_i$ is delay length in seconds | Jot and Chaigne (1997), entry [95](#entry-95); Schlecht and Habets (2015), entry [39](#entry-39) | Applied per-band when using frequency-dependent absorption filters on the delay outputs. This is the central calibration formula for matching a target RT60. |
 | **EDT definition** | Early Decay Time = time for first 10 dB of decay on the energy decay curve, extrapolated to 60 dB | ISO 3382-1; summarized in entry [80](#entry-80) | EDT correlates better with perceived liveness than RT60 in spaces with non-exponential decay. |
 | **C80 (Clarity)** | $C_{80} = 10 \log_{10}\!\left(\frac{\int_{0}^{80\,\mathrm{ms}} h^{2}(t)\,dt}{\int_{80\,\mathrm{ms}}^{\infty} h^{2}(t)\,dt}\right)\,\mathrm{dB}$ | ISO 3382-1; see entry [80](#entry-80) | Ratio of early to late energy, 80 ms threshold. Positive values indicate clear/direct sound; negative values indicate reverberant/muddy. |
-| **D50 (Definition)** | $D_{50} = \frac{\int_{0}^{50\,\mathrm{ms}} h^{2}(t)\,dt}{\int_{0}^{\infty} h^{2}(t)\,dt}$ | ISO 3382-1; see entry [80](#entry-80) | Fraction of total energy arriving in first 50 ms. Ranges 0-1; higher values correlate with better speech intelligibility. Uses 50 ms threshold versus C80's 80 ms. |
+| **D50 (Definition)** | $D_{50} = \frac{\int_{0}^{50\,\mathrm{ms}} h^{2}(t)\,dt}{\int_{0}^{\infty} h^{2}(t)\,dt}$ | ISO 3382-1; see entry [80](#entry-80) | Fraction of total energy arriving in first 50 ms. Ranges 0–1; higher values correlate with better speech intelligibility. Uses 50 ms threshold versus C80's 80 ms. |
 
 ---
 

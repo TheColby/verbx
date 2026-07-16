@@ -527,8 +527,8 @@ def normalize_music_typography() -> None:
             "**Aphex Twin, *#3 (Rhubarb)* (1994).**",
         "**Jonathan Harvey, *Mortuos Plango, *Vivos Voco** (1980).**":
             "**Jonathan Harvey, *Mortuos Plango, Vivos Voco* (1980).**",
-        "**Luigi Nono, *Prometeo* (1981-1984).**":
-            "**Luigi Nono, *Prometeo: Tragedia dell'ascolto* (1981-1984).**",
+        "**Luigi Nono, *Prometeo* (1981–1984).**":
+            "**Luigi Nono, *Prometeo: Tragedia dell'ascolto* (1981–1984).**",
         "[Lovely Music notes for Lucier's I am sitting in a room]":
             "[Lovely Music notes for Lucier's *I am sitting in a room*]",
         "[Prometeo record]":

@@ -423,7 +423,7 @@ Current stabilization status:
   realtime device failures are clearer, render long-tail flows have fail-fast
   safeguards or early status output, and render/realtime/dereverb emit
   machine-readable reports where applicable.
-- CLI/docs/test consolidation is complete for Weeks 1-3 of the short-horizon
+- CLI/docs/test consolidation is complete for Weeks 1–3 of the short-horizon
   plan: shared validators are extracted, generated docs/PDF are in sync, and
   focused regression coverage covers realtime, dereverb, limiter, and long-tail
   behaviors.
@@ -587,7 +587,7 @@ produce different direct-to-reverberant balances when the source or listener mov
 %% verbx-static: docs/assets/reverb_primer/01_acoustic_event_anatomy.png
 flowchart LR
     S["Sound source"] --> D["Direct path"]
-    S --> E["Early reflections<br/>10-80 ms"]
+    S --> E["Early reflections<br/>10–80 ms"]
     S --> L["Late diffuse field"]
     D --> R["Listener or microphone"]
     E --> R
@@ -763,7 +763,7 @@ verbx render examples/audio/realistic_music_dry.wav /tmp/music_hall.wav \
 
 For a Romantic cadence, increase RT60 before increasing wet level. For a contrapuntal
 passage, reduce wet level and length, or use ducking so each attack remains legible.
-Treat pre-delay as phrasing space: 20-35 ms can separate the hammer or pluck from the
+Treat pre-delay as phrasing space: 20–35 ms can separate the hammer or pluck from the
 room without making the response feel like a discrete echo.
 
 #### Example 3: Drums, Early Reflections, and Groove
@@ -1594,7 +1594,7 @@ energy across changing modal bases. The design goal is often to move slowly enou
 the listener hears a living space rather than a pitch effect.
 
 `--fdn-tv-rate-hz` controls update rate and `--fdn-tv-depth` controls how far the matrix
-moves from its base state. At 0.05-0.3 Hz, motion unfolds over several seconds. That is
+moves from its base state. At 0.05–0.3 Hz, motion unfolds over several seconds. That is
 appropriate for long ambient tails. Faster rates can become audible animation and may
 be exactly right for sound design.
 
@@ -1704,41 +1704,41 @@ The following laboratory turns the chapter into an audible sequence. Use headpho
 and loudspeakers if possible; keep output level fixed; preserve every render and JSON
 sidecar.
 
-#### Minute 0-5: Identify the Three Regions
+#### Minute 0–5: Identify the Three Regions
 
 Render the dry click through a one-second room at 100 percent wet. Mark direct onset,
 the first visible reflections, and the point where individual arrivals become a dense
 tail. Change only pre-delay and repeat. The late decay should remain similar while the
 relationship between source and room changes.
 
-#### Minute 5-10: Isolate Diffusion
+#### Minute 5–10: Isolate Diffusion
 
 Render a rimshot or click with zero, two, four, and eight allpass stages. Keep RT60 and
 matrix fixed. Listen for loss of attack definition, flutter reduction, and buildup
 speed. Choose the lowest stage count that supplies the density the source needs.
 
-#### Minute 10-15: Compare Matrix Families
+#### Minute 10–15: Compare Matrix Families
 
 Use a sparse major seventh chord and an eight-second tail. Compare Hadamard, circulant,
 random orthogonal, and time-varying unitary matrices. Write three adjectives for each
 without looking at the option name. Then inspect sonograms and ask whether visible
 modal ridges agree with what you heard.
 
-#### Minute 15-20: Design Frequency-Dependent Decay
+#### Minute 15–20: Design Frequency-Dependent Decay
 
 Set low, middle, and high RT60 values equal. Then shorten only the high band; next,
 lengthen only the low band. Listen through the complete final tail. The point is not to
 find a universal curve but to learn how decay spectrum changes perceived material and
 scale.
 
-#### Minute 20-25: Make the Return a Musical Voice
+#### Minute 20–25: Make the Return a Musical Voice
 
 Put verbx on a 100 percent wet auxiliary return. Send only the final note of every
 four-bar phrase. Then leave the send constant and automate the return instead. Compare
 the two gestures. One controls what the room remembers; the other controls when the
 memory is revealed.
 
-#### Minute 25-30: Enter Extreme Time Safely
+#### Minute 25–30: Enter Extreme Time Safely
 
 Render one stable chord into a 60-second time-varying FDN. Leave at least 90 seconds of
 silence after the source. Write floating-point audio and a JSON report. Inspect peak,
@@ -2023,7 +2023,7 @@ Use it when the base algorithmic tail feels too smooth or too well-behaved:
 - frozen, haunted, or intentionally "wrong" ambience
 - pre-shimmer thickening before harmonic coloration
 
-Start conservatively. `--comb-cloud-mix 0.15-0.35` is usually enough. Higher `--comb-cloud-feedback` values push the sound toward ringing and resonant buildup.
+Start conservatively. `--comb-cloud-mix 0.15–0.35` is usually enough. Higher `--comb-cloud-feedback` values push the sound toward ringing and resonant buildup.
 
 ```bash
 --comb-cloud --comb-cloud-count 24 --comb-cloud-feedback 0.35 --comb-cloud-mix 0.25

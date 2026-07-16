@@ -464,7 +464,7 @@ def _generate_acoustic_diagram() -> None:
         },
         [
             ("source", "direct", "milliseconds"),
-            ("source", "early", "10-80 ms"),
+            ("source", "early", "10–80 ms"),
             ("source", "late", "dense tail"),
             ("direct", "listener", ""),
             ("early", "listener", ""),
@@ -904,7 +904,7 @@ def _generate_remaining_diagrams() -> None:
         [
             ("state", "split", ""),
             ("split", "low", "< 250 Hz"),
-            ("split", "mid", "250-4k"),
+            ("split", "mid", "250–4k"),
             ("split", "high", "> 4 kHz"),
             ("low", "sum", ""),
             ("mid", "sum", ""),
