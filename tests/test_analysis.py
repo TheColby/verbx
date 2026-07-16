@@ -4,6 +4,7 @@ import numpy as np
 
 from verbx.analysis.analyzer import AudioAnalyzer
 from verbx.analysis.framewise import framewise_metrics
+from verbx.analysis.reverb_metrics import extract_reverb_metrics
 
 EXPECTED_KEYS = {
     "duration",
@@ -57,6 +58,43 @@ def test_analyzer_edr_keys() -> None:
     assert "edr_rt60_high_s" in metrics
     assert "edr_valid_bins" in metrics
     assert metrics["edr_valid_bins"] >= 0.0
+
+
+def test_reverb_metrics_recover_known_exponential_rt60() -> None:
+    sr = 16_000
+    expected_rt60 = 1.2
+    t = np.arange(sr * 3, dtype=np.float64) / float(sr)
+    decay = np.power(10.0, -3.0 * t / expected_rt60)
+    audio = (decay * np.sin(2.0 * np.pi * 997.0 * t))[:, np.newaxis]
+    audio[0, 0] = 1.0
+
+    metrics = extract_reverb_metrics(audio, sr, input_kind="ir")
+
+    assert metrics["reverb_input_kind"] == "impulse_response"
+    assert metrics["reverb_rt60_fit"] == "t30"
+    assert abs(float(metrics["reverb_rt60_seconds"]) - expected_rt60) < 0.02
+    assert float(metrics["reverb_decay_fit_r2"]) > 0.999
+    assert metrics["reverb_confidence"] == "high"
+
+
+def test_reverb_metrics_align_decay_to_peak_after_leading_silence() -> None:
+    sr = 8_000
+    leading_frames = sr // 4
+    t = np.arange(sr * 2, dtype=np.float64) / float(sr)
+    tail = np.power(10.0, -3.0 * t / 0.8) * np.cos(2.0 * np.pi * 503.0 * t)
+    audio = np.concatenate((np.zeros(leading_frames), tail))[:, np.newaxis]
+
+    metrics = extract_reverb_metrics(audio, sr, input_kind="ir")
+
+    assert abs(float(metrics["reverb_decay_start_seconds"]) - 0.25) < (1.0 / sr)
+    assert abs(float(metrics["reverb_rt60_seconds"]) - 0.8) < 0.03
+
+
+def test_reverb_metrics_reject_unknown_input_kind() -> None:
+    audio = np.ones((512, 1), dtype=np.float64)
+
+    with np.testing.assert_raises_regex(ValueError, "--input-kind must be one of"):
+        extract_reverb_metrics(audio, 48_000, input_kind="field-recording")
 
 
 def test_framewise_modulation_metrics_present() -> None:

@@ -261,20 +261,72 @@ JSON produced by `verbx analyze --json-out <file>`.
 
 ```json
 {
+  "schema": "analyze-report-v1",
+  "source": {
+    "path": "/absolute/path/hall_ir.wav",
+    "sample_rate_hz": 48000,
+    "channels": 2,
+    "frames": 241536,
+    "duration_seconds": 5.032
+  },
+  "analysis": {
+    "reverb": true,
+    "input_kind": "ir",
+    "direct_window_ms": 2.5,
+    "loudness": false,
+    "edr": true,
+    "room": false,
+    "ambi_order": 0,
+    "ambi_normalization": "auto",
+    "channel_order": "auto"
+  },
   "sample_rate": 48000,
   "channels": 2,
   "metrics": {
     "duration": 5.032,
-    "rms": 0.1234,
-    "peak": 0.876,
+    "reverb_rt60_seconds": 1.842,
+    "reverb_rt60_fit": "t30",
+    "reverb_decay_fit_r2": 0.994,
+    "reverb_c80_db": 1.73,
+    "reverb_confidence": "high",
     "...": "..."
   }
 }
 ```
 
-All `metrics` values are floats unless `--room` is also passed, in which case
-the room-estimate string fields (`room_class`, `room_confidence`,
-`room_estimation_method`) appear as strings.
+`sample_rate` and `channels` remain at the top level for compatibility with the
+pre-v1 shape. New readers should use `source`. Metric values are floats except
+for classification, fit-method, interpretation, and confidence fields.
+
+### Default reverb fields
+
+| Key | Unit/values | Description |
+|---|---|---|
+| `reverb_rt60_seconds` | s | Selected broadband RT60 estimate; T30 preferred, then T20, then EDT |
+| `reverb_rt60_fit` | `t30`, `t20`, `edt`, `none` | Regression window selected for RT60 |
+| `reverb_edt_seconds` | s | Early Decay Time extrapolated from 0 to –10 dB |
+| `reverb_t20_seconds` | s | RT60 extrapolated from the –5 to –25 dB fit |
+| `reverb_t30_seconds` | s | RT60 extrapolated from the –5 to –35 dB fit |
+| `reverb_decay_fit_r2` | 0–1 | Coefficient of determination for the selected decay fit |
+| `reverb_decay_range_db` | dB | Peak-to-tail-noise range available in the file |
+| `reverb_noise_floor_dbfs` | dBFS | RMS level of the final ten percent of the peak-aligned tail |
+| `reverb_c50_db` | dB | $C_{50}$ early/late energy ratio at 50 ms |
+| `reverb_c80_db` | dB | $C_{80}$ early/late energy ratio at 80 ms |
+| `reverb_d50_percent` | % | $D_{50}$ energy arriving in the first 50 ms |
+| `reverb_center_time_ms` | ms | Energy-weighted temporal center of the response |
+| `reverb_direct_to_reverberant_db` | dB | Direct-window energy versus the remaining tail |
+| `reverb_iacc_early` | 0–1 | Maximum early L/R cross-correlation within ±1 ms |
+| `reverb_decay_start_seconds` | s | Strongest-event location used to align the decay |
+| `reverb_tail_duration_seconds` | s | Available signal duration after decay alignment |
+| `reverb_input_kind` | `impulse_response`, `program_audio` | Resolved source classification |
+| `reverb_interpretation` | string | Indicates room-acoustic or program-audio interpretation |
+| `reverb_confidence_score` | 0–1 | Composite fit, range, duration, and source-suitability score |
+| `reverb_confidence` | `high`, `medium`, `low` | Human-readable confidence label |
+
+These fields are present by default. Pass `--no-reverb` to omit them. For
+program audio, the analyzer reports peak-aligned estimates; standards-oriented
+clarity, definition, DRR, and RT measurements require a suitable impulse
+response and controlled measurement procedure.
 
 ---
 

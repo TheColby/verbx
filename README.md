@@ -2523,15 +2523,49 @@ verbx realtime --live-mode dereverb-reverb --engine algo \
 
 `verbx analyze INFILE [options]`
 
-Outputs loudness, peak, spectral, and decay metrics. Key flags:
+Extracts reverb and general audio metrics directly from WAV, FLAC, AIFF, OGG,
+CAF, and other libsndfile-supported files. Reverb analysis is enabled by
+default. The analyzer aligns the strongest event, builds a backward-integrated
+Schroeder energy-decay curve, fits EDT/T20/T30 slopes, and selects the deepest
+reliable fit as its broadband RT60 estimate.
 
-| Switch | What it produces |
-|---|---|
-| `--lufs` | Integrated LUFS, true peak, LRA |
-| `--edr` | Frequency-dependent RT60 estimates via Schroeder backward integration |
-| `--frames-out path` | Per-frame CSV with time-varying descriptors |
-| `--json-out path` | Full metric payload in JSON |
-| `--ambi-order N` | Ambisonics spatial metrics for HOA assets |
+Analyze a captured impulse response and write a machine-readable report:
+
+```bash
+verbx analyze hall_ir.wav --input-kind ir --edr --room \
+  --json-out reports/hall_ir.analysis.json
+```
+
+Analyze a reverberant music or field recording while explicitly qualifying the
+result as a program-audio estimate:
+
+```bash
+verbx analyze wet_mix.wav --input-kind program --lufs \
+  --direct-window-ms 3.0 --json-out reports/wet_mix.analysis.json
+```
+
+The default reverb block reports selected RT60 plus EDT, T20, T30, decay-fit
+$R^2$, usable decay range, noise floor, $C_{50}$, $C_{80}$, $D_{50}$, center
+time, direct-to-reverberant ratio, early IACC, input classification, and a
+confidence score. `--input-kind auto` distinguishes IR-like signals from
+program audio; use `ir` or `program` when you know the source type. Clarity,
+definition, and DRR are conventional room-acoustic quantities for an impulse
+response. On program audio they are peak-aligned diagnostic estimates, not a
+standards-compliant room measurement.
+
+Key flags:
+
+- `--reverb` / `--no-reverb`: enable or suppress the default broadband reverb-metric block.
+- `--input-kind auto, ir, program`: select automatic classification, an impulse response, or program audio.
+- `--direct-window-ms N`: set the direct-sound window used for the DRR estimate; default `2.5` ms.
+- `--lufs`: add integrated LUFS, true peak, and LRA.
+- `--edr`: add frequency-dependent RT60 estimates via Schroeder backward integration.
+- `--room`: add estimated dimensions, volume, absorption, critical distance, class, and confidence.
+- `--frames-out path`: write per-frame CSV with time-varying descriptors.
+- `--json-out path`: atomically write an `analyze-report-v1` JSON report with source metadata, settings, and all metrics.
+- `--ambi-order N`: add Ambisonics spatial metrics for HOA assets.
+
+For a compact legacy feature-only run, use `verbx analyze in.wav --no-reverb`.
 
 ---
 
@@ -3044,6 +3078,10 @@ Report security issues via [SECURITY.md](SECURITY.md). See [CODE_OF_CONDUCT.md](
 ## References and Further Reading
 
 Full bibliography: [docs/REFERENCES.md](docs/REFERENCES.md)
+
+Key book:
+
+- **Pirkle (2019)** — *[Designing Audio Effect Plugins in C++: For AAX, AU, and VST3 with DSP Theory](https://www.routledge.com/Designing-Audio-Effect-Plugins-in-C-For-AAX-AU-and-VST3-with-DSP-Theory/Pirkle/p/book/9781138591899)*, 2nd ed., Routledge. Recommended companion reading for plug-in anatomy, API-independent DSP cores, host integration, parameter handling, GUI design, and the implementation of delay, reverb, and dynamics processors.
 
 Key papers:
 

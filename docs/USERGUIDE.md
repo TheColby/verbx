@@ -2556,15 +2556,49 @@ verbx realtime --live-mode dereverb-reverb --engine algo \
 
 `verbx analyze INFILE [options]`
 
-Outputs loudness, peak, spectral, and decay metrics. Key flags:
+Extracts reverb and general audio metrics directly from WAV, FLAC, AIFF, OGG,
+CAF, and other libsndfile-supported files. Reverb analysis is enabled by
+default. The analyzer aligns the strongest event, builds a backward-integrated
+Schroeder energy-decay curve, fits EDT/T20/T30 slopes, and selects the deepest
+reliable fit as its broadband RT60 estimate.
 
-| Switch | What it produces |
-|---|---|
-| `--lufs` | Integrated LUFS, true peak, LRA |
-| `--edr` | Frequency-dependent RT60 estimates via Schroeder backward integration |
-| `--frames-out path` | Per-frame CSV with time-varying descriptors |
-| `--json-out path` | Full metric payload in JSON |
-| `--ambi-order N` | Ambisonics spatial metrics for HOA assets |
+Analyze a captured impulse response and write a machine-readable report:
+
+```bash
+verbx analyze hall_ir.wav --input-kind ir --edr --room \
+  --json-out reports/hall_ir.analysis.json
+```
+
+Analyze a reverberant music or field recording while explicitly qualifying the
+result as a program-audio estimate:
+
+```bash
+verbx analyze wet_mix.wav --input-kind program --lufs \
+  --direct-window-ms 3.0 --json-out reports/wet_mix.analysis.json
+```
+
+The default reverb block reports selected RT60 plus EDT, T20, T30, decay-fit
+$R^2$, usable decay range, noise floor, $C_{50}$, $C_{80}$, $D_{50}$, center
+time, direct-to-reverberant ratio, early IACC, input classification, and a
+confidence score. `--input-kind auto` distinguishes IR-like signals from
+program audio; use `ir` or `program` when you know the source type. Clarity,
+definition, and DRR are conventional room-acoustic quantities for an impulse
+response. On program audio they are peak-aligned diagnostic estimates, not a
+standards-compliant room measurement.
+
+Key flags:
+
+- `--reverb` / `--no-reverb`: enable or suppress the default broadband reverb-metric block.
+- `--input-kind auto, ir, program`: select automatic classification, an impulse response, or program audio.
+- `--direct-window-ms N`: set the direct-sound window used for the DRR estimate; default `2.5` ms.
+- `--lufs`: add integrated LUFS, true peak, and LRA.
+- `--edr`: add frequency-dependent RT60 estimates via Schroeder backward integration.
+- `--room`: add estimated dimensions, volume, absorption, critical distance, class, and confidence.
+- `--frames-out path`: write per-frame CSV with time-varying descriptors.
+- `--json-out path`: atomically write an `analyze-report-v1` JSON report with source metadata, settings, and all metrics.
+- `--ambi-order N`: add Ambisonics spatial metrics for HOA assets.
+
+For a compact legacy feature-only run, use `verbx analyze in.wav --no-reverb`.
 
 ---
 
@@ -3077,6 +3111,10 @@ Report security issues via [SECURITY.md](SECURITY.md). See [CODE_OF_CONDUCT.md](
 ## References and Further Reading
 
 Full bibliography: [docs/REFERENCES.md](docs/REFERENCES.md)
+
+Key book:
+
+- **Pirkle (2019)** — *[Designing Audio Effect Plugins in C++: For AAX, AU, and VST3 with DSP Theory](https://www.routledge.com/Designing-Audio-Effect-Plugins-in-C-For-AAX-AU-and-VST3-with-DSP-Theory/Pirkle/p/book/9781138591899)*, 2nd ed., Routledge. Recommended companion reading for plug-in anatomy, API-independent DSP cores, host integration, parameter handling, GUI design, and the implementation of delay, reverb, and dynamics processors.
 
 Key papers:
 
@@ -5173,36 +5211,60 @@ Do not edit manually.
 │ *    infile      <path>  [required]                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json-out                  <path>                                           │
-│ --lufs                                             Include                   │
-│                                                    LUFS/true-peak/LRA        │
-│                                                    metrics.                  │
-│ --edr                                              Include EDR (Energy Decay │
-│                                                    Relief) summary metrics.  │
-│ --frames-out                <path>                                           │
-│ --ambi-order                <int range> [0<=x<=7]  Enable Ambisonics spatial │
-│                                                    metrics for the given     │
-│                                                    order.                    │
-│                                                    [default: 0]              │
-│ --ambi-normalization        <auto|sn3d|n3d|fuma>   Ambisonics normalization  │
-│                                                    convention for analysis   │
-│                                                    mode.                     │
-│                                                    [default: auto]           │
-│ --channel-order             <auto|acn|fuma>        Ambisonics channel order  │
-│                                                    convention for analysis   │
-│                                                    mode.                     │
-│                                                    [default: auto]           │
-│ --room                                             Estimate room size,       │
-│                                                    dimensions, absorption,   │
-│                                                    critical distance, and    │
-│                                                    class from the signal's   │
-│                                                    reverberant decay         │
-│                                                    characteristics. Works    │
-│                                                    best on reverberant       │
-│                                                    recordings or rendered    │
-│                                                    impulse responses.        │
-│ --help                                             Show this message and     │
-│                                                    exit.                     │
+│ --json-out                            <path>                                 │
+│ --reverb               --no-reverb                       Include             │
+│                                                          peak-aligned        │
+│                                                          RT60/EDT/T20/T30,   │
+│                                                          clarity,            │
+│                                                          definition,         │
+│                                                          center-time, DRR,   │
+│                                                          confidence, and     │
+│                                                          early-IACC metrics. │
+│                                                          [default: reverb]   │
+│ --input-kind                          <str>              Reverb-analysis     │
+│                                                          source model: auto, │
+│                                                          ir, or program.     │
+│                                                          [default: auto]     │
+│ --direct-window-ms                    <float range>      Direct-sound        │
+│                                       [0.1<=x<=100.0]    integration window  │
+│                                                          used for the DRR    │
+│                                                          estimate.           │
+│                                                          [default: 2.5]      │
+│ --lufs                                                   Include             │
+│                                                          LUFS/true-peak/LRA  │
+│                                                          metrics.            │
+│ --edr                                                    Include EDR (Energy │
+│                                                          Decay Relief)       │
+│                                                          summary metrics.    │
+│ --frames-out                          <path>                                 │
+│ --ambi-order                          <int range>        Enable Ambisonics   │
+│                                       [0<=x<=7]          spatial metrics for │
+│                                                          the given order.    │
+│                                                          [default: 0]        │
+│ --ambi-normalizati…                   <auto|sn3d|n3d|fu  Ambisonics          │
+│                                       ma>                normalization       │
+│                                                          convention for      │
+│                                                          analysis mode.      │
+│                                                          [default: auto]     │
+│ --channel-order                       <auto|acn|fuma>    Ambisonics channel  │
+│                                                          order convention    │
+│                                                          for analysis mode.  │
+│                                                          [default: auto]     │
+│ --room                                                   Estimate room size, │
+│                                                          dimensions,         │
+│                                                          absorption,         │
+│                                                          critical distance,  │
+│                                                          and class from the  │
+│                                                          signal's            │
+│                                                          reverberant decay   │
+│                                                          characteristics.    │
+│                                                          Works best on       │
+│                                                          reverberant         │
+│                                                          recordings or       │
+│                                                          rendered impulse    │
+│                                                          responses.          │
+│ --help                                                   Show this message   │
+│                                                          and exit.           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -7608,6 +7670,20 @@ accuracy. A geometry display is useful only when it corresponds to validated
 room metadata, an early-reflection model, or a deterministic imported asset.
 The display should state whether it is showing a parametric room, a DXF-derived
 profile, a measured impulse response, or an illustrative preview.
+
+### Recommended Companion Text
+
+Will C. Pirkle's *[Designing Audio Effect Plugins in C++: For AAX, AU, and VST3
+with DSP Theory](https://www.routledge.com/Designing-Audio-Effect-Plugins-in-C-For-AAX-AU-and-VST3-with-DSP-Theory/Pirkle/p/book/9781138591899)*,
+2nd edition (Routledge, 2019), is the recommended companion text for this
+handbook. Its treatment of plug-in anatomy, an API-independent processing core,
+host wrappers, parameters, GUI design, delay structures, reverberation, and
+dynamics provides a useful engineering vocabulary for the boundaries described
+here. VERBX does not adopt Pirkle's example framework wholesale: its C realtime
+contract, JUCE adapter, parameter manifest, state format, analyzer telemetry,
+and validation matrix remain repository-specific designs. Readers should use
+the book for the broader implementation discipline and this handbook for the
+exact VERBX contracts.
 
 ## 2. What Exists In The Repository
 
@@ -18840,20 +18916,72 @@ JSON produced by `verbx analyze --json-out <file>`.
 
 ```json
 {
+  "schema": "analyze-report-v1",
+  "source": {
+    "path": "/absolute/path/hall_ir.wav",
+    "sample_rate_hz": 48000,
+    "channels": 2,
+    "frames": 241536,
+    "duration_seconds": 5.032
+  },
+  "analysis": {
+    "reverb": true,
+    "input_kind": "ir",
+    "direct_window_ms": 2.5,
+    "loudness": false,
+    "edr": true,
+    "room": false,
+    "ambi_order": 0,
+    "ambi_normalization": "auto",
+    "channel_order": "auto"
+  },
   "sample_rate": 48000,
   "channels": 2,
   "metrics": {
     "duration": 5.032,
-    "rms": 0.1234,
-    "peak": 0.876,
+    "reverb_rt60_seconds": 1.842,
+    "reverb_rt60_fit": "t30",
+    "reverb_decay_fit_r2": 0.994,
+    "reverb_c80_db": 1.73,
+    "reverb_confidence": "high",
     "...": "..."
   }
 }
 ```
 
-All `metrics` values are floats unless `--room` is also passed, in which case
-the room-estimate string fields (`room_class`, `room_confidence`,
-`room_estimation_method`) appear as strings.
+`sample_rate` and `channels` remain at the top level for compatibility with the
+pre-v1 shape. New readers should use `source`. Metric values are floats except
+for classification, fit-method, interpretation, and confidence fields.
+
+### Default reverb fields
+
+| Key | Unit/values | Description |
+|---|---|---|
+| `reverb_rt60_seconds` | s | Selected broadband RT60 estimate; T30 preferred, then T20, then EDT |
+| `reverb_rt60_fit` | `t30`, `t20`, `edt`, `none` | Regression window selected for RT60 |
+| `reverb_edt_seconds` | s | Early Decay Time extrapolated from 0 to –10 dB |
+| `reverb_t20_seconds` | s | RT60 extrapolated from the –5 to –25 dB fit |
+| `reverb_t30_seconds` | s | RT60 extrapolated from the –5 to –35 dB fit |
+| `reverb_decay_fit_r2` | 0–1 | Coefficient of determination for the selected decay fit |
+| `reverb_decay_range_db` | dB | Peak-to-tail-noise range available in the file |
+| `reverb_noise_floor_dbfs` | dBFS | RMS level of the final ten percent of the peak-aligned tail |
+| `reverb_c50_db` | dB | $C_{50}$ early/late energy ratio at 50 ms |
+| `reverb_c80_db` | dB | $C_{80}$ early/late energy ratio at 80 ms |
+| `reverb_d50_percent` | % | $D_{50}$ energy arriving in the first 50 ms |
+| `reverb_center_time_ms` | ms | Energy-weighted temporal center of the response |
+| `reverb_direct_to_reverberant_db` | dB | Direct-window energy versus the remaining tail |
+| `reverb_iacc_early` | 0–1 | Maximum early L/R cross-correlation within ±1 ms |
+| `reverb_decay_start_seconds` | s | Strongest-event location used to align the decay |
+| `reverb_tail_duration_seconds` | s | Available signal duration after decay alignment |
+| `reverb_input_kind` | `impulse_response`, `program_audio` | Resolved source classification |
+| `reverb_interpretation` | string | Indicates room-acoustic or program-audio interpretation |
+| `reverb_confidence_score` | 0–1 | Composite fit, range, duration, and source-suitability score |
+| `reverb_confidence` | `high`, `medium`, `low` | Human-readable confidence label |
+
+These fields are present by default. Pass `--no-reverb` to omit them. For
+program audio, the analyzer reports peak-aligned estimates; standards-oriented
+clarity, definition, DRR, and RT measurements require a suitable impulse
+response and controlled measurement procedure.
 
 ---
 

@@ -86,6 +86,23 @@ def test_pdf_markdown_has_no_parenthesized_doi_fence_artifacts() -> None:
     DOCS_PDF._validate_fenced_blocks(rendered)
 
 
+def test_cli_index_markers_do_not_split_markdown_tables() -> None:
+    source = """| Switch | Description |
+|---|---|
+| `--alpha` | First option |
+| `--beta` | Second option |
+
+After the table.
+"""
+
+    rendered = DOCS_PDF._index_cli_terms(source)
+
+    table = rendered.split("\n\n```{=latex}", 1)[0]
+    assert table == source.split("\n\n", 1)[0]
+    assert rendered.index(r"\index{--alpha}") > rendered.index("| `--beta`")
+    assert rendered.index(r"\index{--beta}") > rendered.index("| `--beta`")
+
+
 def test_musical_work_titles_remain_italic_in_pdf_index() -> None:
     term = DOCS_PDF._musical_index_term(
         "Karlheinz Stockhausen, *Kontakte* (1958–1960)"
@@ -103,6 +120,16 @@ def test_musical_workflow_titles_are_italicized_in_sources() -> None:
     assert "Alvin Lucier / *I Am Sitting in a Room*" in cookbook
     assert "Brian Eno / *Discreet Music*" in cookbook
     assert "Pauline Oliveros / *Deep Listening*" in cookbook
+
+
+def test_plugin_handbook_recommends_pirkle_companion_text() -> None:
+    handbook = DOCS_PDF._markdown_for_userguide(REPO_ROOT / "docs/PLUGIN_GUIDE.md")
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    title = "Designing Audio Effect Plugins in C++"
+    assert title in handbook
+    assert title in readme
+    assert "2nd edition (Routledge, 2019)" in handbook
 
 
 def test_every_extreme_cookbook_recipe_has_a_title() -> None:

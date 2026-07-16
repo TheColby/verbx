@@ -149,6 +149,9 @@ def generate_ir(
 def analyze_file(
     path: str | Path,
     *,
+    include_reverb: bool = True,
+    reverb_input_kind: str = "auto",
+    reverb_direct_window_ms: float = 2.5,
     include_loudness: bool = False,
     include_edr: bool = False,
     ambi_order: int | None = None,
@@ -161,6 +164,14 @@ def analyze_file(
     ----------
     path:
         Path to the audio file to analyze.
+    include_reverb:
+        Enable broadband RT60, decay-fit, clarity, definition, DRR, and
+        early-spatial metrics. Enabled by default for the public file API.
+    reverb_input_kind:
+        Source model for reverb analysis: ``"auto"``, ``"ir"``, or
+        ``"program"``.
+    reverb_direct_window_ms:
+        Direct-sound integration window used for the DRR estimate.
     include_loudness:
         Enable EBU R128 metrics: integrated LUFS, true-peak dBTP, and
         loudness range (LRA). Adds ~20-40 % runtime overhead.
@@ -200,6 +211,9 @@ def analyze_file(
         sr,
         include_loudness=include_loudness,
         include_edr=include_edr,
+        include_reverb=include_reverb,
+        reverb_input_kind=reverb_input_kind,
+        reverb_direct_window_ms=reverb_direct_window_ms,
         ambi_order=ambi_order,
         ambi_normalization=ambi_normalization,
         ambi_channel_order=ambi_channel_order,

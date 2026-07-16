@@ -80,6 +80,11 @@ All notable changes to this project are documented in this file.
   long-tail W64 output.
 
 ### Added
+- `verbx analyze` now extracts a default reverb-metrics block from audio files:
+  peak-aligned EDT/T20/T30 and selected RT60, decay-fit quality, C50/C80,
+  D50, center time, DRR, early IACC, source classification, and confidence.
+  Its atomic `analyze-report-v1` JSON preserves legacy top-level fields while
+  adding source metadata and effective analysis settings.
 - Added an opt-in JUCE host smoke executable that discovers AU/VST3 bundles,
   instantiates VERBX, creates its editor, and processes an impulse so host-load
   regressions can be diagnosed independently of DAW caches.
