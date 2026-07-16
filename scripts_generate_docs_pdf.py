@@ -59,6 +59,7 @@ USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "docs" / "MUSICAL_PIECES_EXPANSION.md",
     ROOT / "docs" / "HOMEWORK_ASSIGNMENTS.md",
     ROOT / "docs" / "REFERENCES.md",
+    ROOT / "docs" / "FAQ.md",
 )
 
 
