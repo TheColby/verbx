@@ -318,12 +318,12 @@ def test_reverb_primer_has_textbook_depth_and_complete_figure_set() -> None:
     primer = readme[start:end]
 
     words = re.findall(r"\b[\w'-]+\b", primer)
-    assert len(words) >= 8000
+    assert len(words) >= 13000
     assert "### Musical Examples" in primer
     assert "### DSP Overview" in primer
-    assert primer.count("```mermaid") == 10
+    assert primer.count("```mermaid") == 15
     assert len(re.findall(r"^!\[", primer, flags=re.MULTILINE)) == 18
-    assert len(re.findall(r"^\*\*Figure:", primer, flags=re.MULTILINE)) == 28
+    assert len(re.findall(r"^\*\*Figure:", primer, flags=re.MULTILINE)) == 33
     assert "Schroeder_Reverberators.html" in primer
 
     for topic in (
@@ -332,7 +332,13 @@ def test_reverb_primer_has_textbook_depth_and_complete_figure_set() -> None:
         "Allpass Networks",
         "The Schroeder Reverberator",
         "Feedback Delay Networks",
+        "Delay-Set Design and Number-Theoretic Structure",
+        "Moving Delays, Fractional Reads, and Interpolation",
         "Convolution and Partitioned FFT Processing",
+        "Matrix Convolution and Immersive Routing",
+        "Measuring Decay with Backward Integration",
+        "Realtime Scheduling and End-to-End Latency",
+        "Verification: Close the Loop Between Math and Listening",
     ):
         assert topic in primer
 
@@ -344,24 +350,24 @@ def test_reverb_primer_mermaid_assets_convert_for_pdf() -> None:
     primer = readme[start:end]
 
     paths = re.findall(r"^%% verbx-static:\s+(\S+)$", primer, flags=re.MULTILINE)
-    assert len(paths) == 10
+    assert len(paths) == 15
     for path in paths:
         assert (REPO_ROOT / path).is_file()
 
     converted = DOCS_PDF._replace_mermaid_with_static_assets(primer)
     assert "```mermaid" not in converted
-    assert converted.count("docs/assets/reverb_primer/") == 28
-    assert converted.count("**Figure:") == 28
+    assert converted.count("docs/assets/reverb_primer/") == 33
+    assert converted.count("**Figure:") == 33
 
     generated_paths = re.findall(r"\]\((docs/assets/reverb_primer/[^)]+)\)", converted)
-    assert len(generated_paths) == 28
+    assert len(generated_paths) == 33
     for path in generated_paths:
         assert (REPO_ROOT / path).is_file()
 
     pdf_ready = DOCS_PDF._convert_figure_captions(converted)
-    assert pdf_ready.count(r"\begin{minipage}{\linewidth}") == 28
-    assert pdf_ready.count(r"\end{minipage}") == 28
-    assert pdf_ready.count(r"\includegraphics") == 28
+    assert pdf_ready.count(r"\begin{minipage}{\linewidth}") == 33
+    assert pdf_ready.count(r"\end{minipage}") == 33
+    assert pdf_ready.count(r"\includegraphics") == 33
     assert "![" not in pdf_ready
     first_group = pdf_ready.index(r"\begin{minipage}{\linewidth}")
     first_lead = pdf_ready.index(r"\verbxFigureLead")
@@ -372,8 +378,8 @@ def test_reverb_primer_mermaid_assets_convert_for_pdf() -> None:
 
     consolidated = converted.replace("(docs/assets/reverb_primer/", "(assets/reverb_primer/")
     consolidated_ready = DOCS_PDF._convert_figure_captions(consolidated)
-    assert consolidated_ready.count(r"\begin{minipage}{\linewidth}") == 28
-    assert consolidated_ready.count(r"\includegraphics") == 28
+    assert consolidated_ready.count(r"\begin{minipage}{\linewidth}") == 33
+    assert consolidated_ready.count(r"\includegraphics") == 33
 
 
 def test_pdf_figure_assets_trim_trailing_background(tmp_path: Path) -> None:
