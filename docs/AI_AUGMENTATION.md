@@ -1,66 +1,290 @@
 # AI Research and Data Augmentation
 
-`verbx` includes a deterministic batch augmentation workflow for ML datasets.
+`verbx` is both a production reverb system and a deterministic acoustic-data generator. The
+same controls used to design a vocal plate, a drum room, or a long diffuse field can create
+reproducible variations for Audio AI and machine-learning research. Chapter 11 explains how
+to turn that capability into defensible datasets, how to avoid leakage, how to select labels,
+how to audit a regeneration, and how to evaluate whether augmentation improves a model
+rather than merely increasing the number of files.
 
-## What this solves
+The implementation boundary is important. `verbx batch augment` renders audio and emits
+lineage, summary, quality, and provenance artifacts. It does **not** train a neural network,
+choose a loss function, license source material, or prove that synthetic rooms transfer to
+recorded rooms. Those responsibilities remain with the researcher or production team. The
+goal is a reliable acoustic layer that can be connected to PyTorch, JAX, TensorFlow, scikit-learn,
+or a custom training system without hiding how each example was made.
 
-- Generate many reverberant variants per clean source with fixed random seeds.
-- Keep train/val/test split and label metadata attached to every rendered file.
-- Export machine-friendly run artifacts (`JSONL` manifest + summary JSON).
-- Emit split-level QA bundle artifacts (quality summaries + class-balance tables).
-- Export optional dataset-card Markdown and per-output metrics CSV artifacts.
-- Enforce split-isolation by default to reduce accidental train/val/test leakage.
-- Optionally copy dry sources into the output tree for paired clean/wet training.
+## The acoustic dataset as an evidence chain
 
-## Commands
+An audio file alone is not a research dataset. A useful example also needs a stable source
+identity, a split assignment, a label policy, a resolved render configuration, a generation
+status, and enough provenance to reconstruct the plan. Figure 11-1 shows the full chain. The
+audio corpus and evidence bundle travel together into the model experiment; the held-out
+evaluation then tests whether the learned behavior survives new sources and rooms.
 
-### 1) Emit a manifest template
+![Evidence chain from lawful dry sources and a seeded manifest through deterministic verbx rendering, paired audio and metadata artifacts, model training, and held-out evaluation.](assets/ai_augmentation/01_dataset_evidence_chain.png)
+
+**Figure: The Chapter 11 evidence chain. A source file enters only after licensing and split assignment. The manifest records profile, seed, labels, and overrides; verbx expands that description into deterministic render plans. Audio outputs and machine-readable evidence are separate products of one generation event, and both are required to interpret a model result.**
+
+This chain supports four distinct claims, which should not be confused:
+
+- **Generation reproducibility:** the same manifest, seed, source bytes, and software behavior
+  expand to the same plan.
+- **Dataset identity:** a provenance digest identifies the canonical manifest and source-file
+  signatures used for one corpus generation.
+- **Experiment reproducibility:** model code, dependencies, initialization, optimizer state,
+  hardware behavior, and training order are also recorded outside verbx.
+- **Scientific validity:** the evaluation design demonstrates that the synthetic variation
+  represents the deployment problem closely enough to improve a relevant outcome.
+
+The first two claims are directly supported by verbx. The latter two require an experiment
+protocol. A hash can prove that two teams started from the same bytes; it cannot prove that
+their room distribution was realistic or that their metric captures musical quality.
+
+## Signal model and the unit of augmentation
+
+For a time-invariant room model, a reverberant observation may be written as
+
+$$
+y_c[n] = \sum_{q=1}^{Q} \sum_{m=0}^{M-1} h_{cq}[m]x_q[n-m] + v_c[n],
+$$
+
+where $x_q[n]$ is source channel $q$, $h_{cq}[m]$ is the room or effect response from source
+channel $q$ to output channel $c$, and $v_c[n]$ is additive interference. An algorithmic
+reverberator does not need to materialize one fixed $h_{cq}[m]$ internally; it may generate the
+same class of response with delay lines, filters, modulation, and feedback state. For dataset
+design, the important object is the **resolved transformation**: the source identity, parameter
+vector, seed, output format, and success state that produced $y_c[n]$.
+
+A single manifest job is a source-level declaration. If a job requests $K$ variants, verbx
+creates $K$ descendant plans. For source index $i$ and zero-based variant index $k$, the current
+seed rule is deterministic:
+
+$$
+s_{i,k} = s_0 + 100003i + k,
+$$
+
+where $s_0$ is the manifest seed. This rule keeps variants reproducible and separates the
+pseudorandom stream of one source from its neighbors. The per-variant JSONL record stores the
+resolved seed, profile, archetype, output path, labels, tags, source metadata, render
+configuration, attempts, duration, and error state.
+
+### Labels generated by control and labels measured from audio
+
+Chapter 11 distinguishes three label classes:
+
+1. **Control labels** are parameters requested from the renderer, such as configured RT60,
+   wet gain, damping, pre-delay, FDN matrix, and line count.
+2. **Measured labels** are quantities estimated from the rendered waveform, such as an RT60
+   estimate, early-to-late ratio, spectral centroid, stereo coherence, or integrated loudness.
+3. **Semantic labels** describe the source or task, such as speaker, instrument, genre, room
+   class, language, recording session, or production role.
+
+A configured RT60 is not automatically the same as an RT60 estimated from program material.
+The source may stop before a full decay is observable, the direct signal may dominate, and a
+frequency-dependent or modulated tail may not fit one broadband exponential. Use control labels
+for known-generation supervision and measured labels for waveform evidence. If a model predicts
+physical room quantities, validate those targets against measured impulse responses rather than
+assuming that a renderer control is a calibrated architectural measurement.
+
+## Split first, augment second
+
+The most damaging augmentation error is often not a bad parameter range; it is leakage. If an
+utterance, singer, song, stem, session, room, or impulse response contributes descendants to
+both training and test sets, the model can recognize shared content instead of learning robust
+acoustics. The score may improve while real-world generalization becomes worse.
+
+Figure 11-2 illustrates the safe order. Assign a source group to train, validation, or test once,
+then keep every dry copy and every reverberant descendant inside that boundary. The default
+`--verify-split-isolation` guard rejects a repeated source ID or resolved input path that appears
+in more than one split.
+
+![Three isolated train, validation, and test regions, each containing source groups whose generated variants remain within the parent region.](assets/ai_augmentation/02_split_isolation_map.png)
+
+**Figure: Split-before-augmentation design. Each source group produces several variants, but no arrow crosses a split boundary. In real corpora, the grouping key may need to represent a performer, song, session, room, microphone setup, or impulse response rather than merely a file path. The built-in guard catches repeated IDs and paths; the research manifest must encode the larger identity correctly.**
+
+### Choose the leakage unit for the task
+
+| Task | Minimum grouping unit | Stronger held-out unit | Typical hidden leakage |
+|---|---|---|---|
+| ASR or keyword spotting | utterance family | speaker and recording session | adjacent cuts from one take |
+| Speaker recognition | speaker | speaker plus room/session | the same room noise in every split |
+| Music tagging | full recording | artist, album, or production session | excerpts from one master |
+| Source separation | song and stem set | artist or multitrack session | mixtures sharing the same stems |
+| Drum transcription | performance take | drummer, kit, and room | duplicated one-shots |
+| Room estimation | source recording | physical room and microphone geometry | multiple positions from one room |
+| Dereverberation | clean source | source identity plus room response | one dry target convolved many ways |
+| Acoustic retrieval | recording event | site and capture session | repeated ambience beds |
+
+`--allow-split-overlap` exists for intentional experiments, such as measuring room transfer while
+holding linguistic content constant. It should be an explicit exception documented in the
+dataset card, not a convenient way around a validation error. When overlap is allowed, report
+exactly which identity is shared and which factor remains held out.
+
+## Supervision geometries
+
+The same rendered output can serve different learning problems, but each problem needs a
+different target. Figure 11-3 maps one dry-to-wet render onto five common supervision choices.
+Design the target before generation; otherwise a large corpus may be unusable because the
+necessary dry pair, parameter field, or grouping key was not preserved.
+
+![A dry signal passes through a known reverb renderer to make wet audio, which branches toward waveform, acoustic parameter, room-class, embedding, and control targets.](assets/ai_augmentation/04_supervision_geometry.png)
+
+**Figure: Supervision geometry for Audio AI. Paired enhancement uses the dry waveform as the target. Estimation uses known controls or measured metrics. Classification uses a defensible room archetype or semantic category. Contrastive learning treats related acoustic views as positives. Neural control prediction maps audio back to a renderer parameter vector. One file may participate in several tasks, but the validity of each target must be argued separately.**
+
+### Paired waveform supervision
+
+Use `--copy-dry` when every wet output needs an accessible clean reference. This geometry suits
+dereverberation, enhancement, room transfer, and objective waveform comparisons. Preserve exact
+alignment: a model trained with sample losses or short-time Fourier transform losses should not
+be forced to learn an accidental trim, delay, or resampling difference. For tails that extend
+beyond the dry signal, define whether the target is padded dry audio, a fixed analysis window,
+or a loss mask that excludes unsupported time regions.
+
+### Scalar and vector regression
+
+Known render controls can supervise RT60, pre-delay, wet depth, damping, width, FDN topology,
+or a composite parameter vector. Use bounded or transformed targets where the geometry warrants
+it. RT60 covers orders of magnitude, so $\log T_{60}$ often produces a better-conditioned
+regression target than raw seconds. Circular angles need periodic losses; categorical matrices
+need classification or embeddings rather than pretending their names form a numeric scale.
+
+### Framewise targets
+
+Time-varying room estimation, adaptive dereverberation, and online control models require targets
+aligned to frames rather than one label per file. The current augmentation manifest records one
+resolved render configuration per variant. If parameters are automated within a render, archive
+the automation file and derive the target timeline with the same frame origin, hop size, and
+sample rate used by the model. Never interpolate categorical topology changes as if they were
+continuous values.
+
+### Contrastive and metric learning
+
+Two descendants of one source can be a positive pair when the goal is content invariance, while
+descendants from different sources can be negatives. That choice is reversed for room retrieval,
+where recordings sharing an acoustic transformation may be positives even when their content
+differs. Declare whether the embedding should preserve content, performer identity, room,
+production style, or some factorized combination. A contrastive pipeline without an explicit
+invariance statement tends to learn the easiest shared artifact.
+
+### Multi-task learning
+
+Multi-task models can jointly predict acoustic parameters, source labels, and a restored waveform.
+This may regularize a representation, but it also couples label quality. A noisy broadband RT60
+estimate can damage an otherwise useful enhancement objective. Record loss weights, target
+normalization, missing-label masks, and task-specific validation metrics so that one aggregate
+loss does not conceal a failed head.
+
+## Audio AI task map
+
+Figure 11-4 summarizes the main applications supported by a deterministic acoustic generator.
+The map is intentionally broader than dereverberation: reverberation changes intelligibility,
+source separation, instrument recognition, scene identity, retrieval, and creative control.
+
+![A central verbx acoustic-variant generator connects to ASR, enhancement, room estimation, music understanding, neural reverb control, and acoustic retrieval.](assets/ai_augmentation/12_audio_ai_application_map.png)
+
+**Figure: Applications to Audio AI and machine learning. The central renderer supplies controlled acoustic variants. The surrounding tasks use those variants differently: some seek invariance to room, some estimate the room, some remove it, and some learn to reproduce or control it. A corpus designed for one arrow should not be assumed valid for all others.**
+
+The task-to-evidence matrix in Figure 11-5 makes those differences operational. A held-out room
+dimension is important for every task, but dry pairs, analysis metrics, and listening tests have
+different priority depending on the model objective.
+
+![Matrix of six Audio AI tasks against dry pairs, wet audio, render labels, analysis metrics, held-out rooms, and listening tests.](assets/ai_augmentation/05_task_evidence_matrix.png)
+
+**Figure: Task-to-evidence matrix. Dark cells indicate evidence that is usually required, pale cells indicate useful support, and cream cells are task-dependent. Neural reverb design requires both technical and perceptual evidence; ASR robustness may be validated primarily by recognition performance, while dereverberation also needs paired targets and artifact review.**
+
+## Built-in profile families
+
+`verbx` currently ships three profile families. A profile first samples an archetype according
+to its weight, then samples numeric parameters uniformly inside that archetype's bounds and
+categorical parameters uniformly from its allowed choices. Integer ranges, including FDN line
+counts, include both endpoints. Job-level options override sampled values, and manifest defaults
+override the profile before job-specific overrides are applied.
+
+Figure 11-6 plots the outer RT60 and pre-delay envelopes. These rectangles show the union of a
+profile's archetype ranges, not a probability density. The archetype weights and internal bounds
+determine the actual distribution.
+
+![RT60 in seconds on the horizontal axis and pre-delay in milliseconds on the vertical axis, with rectangles for the ASR, drums, and music profile envelopes.](assets/ai_augmentation/03_profile_envelopes.png)
+
+**Figure: Outer parameter envelopes of the three built-in profiles. The ASR family spans approximately 0.18–3.40 seconds and 0–52 milliseconds; the drum family emphasizes 0.22–3.20 seconds and 0–34 milliseconds; the music family extends to 6.00 seconds and 80 milliseconds. Other dimensions such as wet/dry balance, damping, width, matrix family, and FDN line count are sampled jointly through the selected archetype.**
+
+### `asr-reverb-v1`
+
+This profile favors speech robustness with three archetypes:
+
+| Archetype | Weight | RT60 (s) | Pre-delay (ms) | Wet | Dry | FDN lines |
+|---|---:|---:|---:|---:|---:|---:|
+| booth | 0.34 | 0.18–0.65 | 0–12 | 0.10–0.28 | 0.82–1.00 | 6–10 |
+| room | 0.43 | 0.45–1.65 | 4–24 | 0.18–0.42 | 0.72–1.00 | 8–14 |
+| hall | 0.23 | 1.40–3.40 | 18–52 | 0.28–0.58 | 0.62–0.92 | 10–18 |
+
+Use it for ASR, keyword spotting, speaker models, speech embeddings, and speech-oriented room
+estimation. It does not add background noise by itself. If deployment includes HVAC, street,
+crowd, or device noise, add a separately seeded noise stage and record signal-to-noise ratio as
+another factor. Keep the room and noise seeds independent so they can be ablated.
+
+### `music-reverb-v1`
+
+This profile allows broader stereo width, longer tails, and wetter balances:
+
+| Archetype | Weight | RT60 (s) | Pre-delay (ms) | Wet | Dry | FDN lines |
+|---|---:|---:|---:|---:|---:|---:|
+| plate | 0.32 | 0.70–2.20 | 6–22 | 0.24–0.50 | 0.62–0.92 | 8–16 |
+| chamber | 0.38 | 1.30–3.10 | 12–42 | 0.28–0.60 | 0.54–0.88 | 10–20 |
+| long hall | 0.30 | 2.60–6.00 | 24–80 | 0.34–0.72 | 0.40–0.78 | 12–24 |
+
+Use it for music tagging, instrument recognition, source separation, acoustic-style retrieval,
+mix translation, and neural effect control. The profile describes production-like algorithmic
+spaces, not an unbiased survey of physical rooms. A serious transfer study should reserve
+measured room impulse responses, real studio returns, or independent plug-ins for evaluation.
+
+### `drums-room-v1`
+
+This profile retains a stronger direct component and shorter pre-delay for transient-rich material:
+
+| Archetype | Weight | RT60 (s) | Pre-delay (ms) | Wet | Dry | FDN lines |
+|---|---:|---:|---:|---:|---:|---:|
+| tight room | 0.52 | 0.22–0.95 | 0–10 | 0.12–0.34 | 0.84–1.00 | 6–12 |
+| studio room | 0.33 | 0.62–1.70 | 4–18 | 0.22–0.46 | 0.68–0.96 | 8–16 |
+| arena | 0.15 | 1.50–3.20 | 12–34 | 0.28–0.58 | 0.52–0.86 | 10–20 |
+
+Use it for onset detection, beat tracking, drum transcription, drum replacement, groove
+classification, and transient-aware separation. If the target task depends on close-mic bleed,
+overhead geometry, or kit-piece directionality, those factors require multitrack or spatial data
+beyond a single rendered mix.
+
+### Profile selection is a hypothesis
+
+A built-in profile is a documented starting distribution, not a universal truth. Before a large
+run, compare its generated metrics with a small deployment sample. If real speech rooms cluster
+around shorter RT60 values than the profile, or production music contains brighter plate tails,
+change the manifest overrides or create a balanced mixture of runs. Record the difference as a
+dataset version rather than silently editing a prior manifest.
+
+## Manifest design
+
+Generate a current template rather than copying an old blog post or help transcript:
 
 ```bash
 verbx batch augment-template > augment_manifest.json
+verbx batch augment-profiles --json > augmentation_profiles.json
 ```
 
-### 1b) Inspect built-in profile families
-
-```bash
-verbx batch augment-profiles
-verbx batch augment-profiles --json
-```
-
-### 2) Run augmentation
-
-```bash
-verbx batch augment augment_manifest.json \
-  --jobs 8 \
-  --copy-dry \
-  --dataset-card-out out/DATASET_CARD.md \
-  --metrics-csv-out out/augmentation_metrics.csv \
-  --qa-bundle-out out/augmentation_qa_bundle.json \
-  --provenance-hash \
-  --summary-out out/augmentation_summary.json \
-  --jsonl-out out/augmentation_manifest.jsonl
-```
-
-### 3) Dry-run planning only
-
-```bash
-verbx batch augment augment_manifest.json --dry-run
-```
-
-## Manifest format
+A practical manifest can mix source-level metadata, job-specific labels, and controlled
+overrides while leaving most acoustic variation to the profile:
 
 ```json
 {
   "version": "0.7",
-  "dataset_name": "verbx_augmented_set",
+  "dataset_name": "studio_voice_rooms_v1",
   "profile": "asr-reverb-v1",
-  "seed": 20260314,
-  "variants_per_input": 4,
-  "output_root": "augmented_out",
-  "write_analysis": false,
+  "seed": 20260716,
+  "variants_per_input": 6,
+  "output_root": "out/studio_voice_rooms_v1",
+  "write_analysis": true,
   "default_options": {
     "engine": "algo",
-    "repeat": 1,
     "target_sr": 48000,
     "output_subtype": "float32",
     "normalize_stage": "none",
@@ -68,54 +292,575 @@ verbx batch augment augment_manifest.json --dry-run
   },
   "jobs": [
     {
-      "id": "utt_0001",
-      "infile": "data/clean/utt_0001.wav",
+      "id": "voice_session_001_take_04",
+      "infile": "data/clean/session_001/take_04.wav",
       "split": "train",
-      "label": "speaker_a",
-      "tags": ["speech", "clean"],
-      "variants": 6,
-      "options": {"rt60": 1.1},
-      "metadata": {"speaker_id": "spk_a", "language": "en"}
+      "label": "soprano",
+      "tags": ["voice", "sustained", "studio"],
+      "variants": 8,
+      "metadata": {
+        "performer_id": "performer_014",
+        "session_id": "session_001",
+        "language": "it"
+      }
+    },
+    {
+      "id": "voice_session_019_take_02",
+      "infile": "data/clean/session_019/take_02.wav",
+      "split": "test",
+      "label": "baritone",
+      "tags": ["voice", "transient", "studio"],
+      "variants": 8,
+      "options": {
+        "rt60": 2.4,
+        "pre_delay_ms": 36.0
+      },
+      "metadata": {
+        "performer_id": "performer_031",
+        "session_id": "session_019",
+        "language": "en"
+      }
     }
   ]
 }
 ```
 
-## Built-in profiles
+The second job fixes RT60 and pre-delay, but other profile dimensions still vary. This is useful
+for a controlled slice, although it changes the joint distribution. If the intent is a fully
+fixed acoustic condition, override every relevant parameter or generate an explicit batch render
+manifest instead of assuming that two controls determine the room.
 
-- `asr-reverb-v1`: speech robustness (booth/room/hall-like ranges).
-- `music-reverb-v1`: music training (plate/chamber/long-hall ranges).
-- `drums-room-v1`: transient-preserving drum-room ranges.
+### Manifest field responsibilities
 
-## Output artifacts
+| Field | Scope | Research use |
+|---|---|---|
+| `dataset_name` | corpus | stable human-readable dataset identity |
+| `profile` | corpus or CLI override | named acoustic sampling family |
+| `seed` | corpus or CLI override | root of deterministic variant seeds |
+| `variants_per_input` | corpus, job, or CLI | default descendant count |
+| `output_root` | corpus or CLI | destination tree |
+| `write_analysis` | corpus or CLI | per-output analysis sidecars |
+| `default_options` | corpus | shared render configuration |
+| `jobs[].id` | source | leakage guard and lineage key |
+| `jobs[].split` | source | train, validation, test, or custom split |
+| `jobs[].label` | source | primary class label |
+| `jobs[].tags` | source | searchable secondary categories |
+| `jobs[].metadata` | source | task-specific structured context |
+| `jobs[].options` | source | acoustic overrides for one source group |
 
-- Rendered audio:
-  - `<output_root>/<split>/<source>__<archetype>__aNNN.wav`
-- Optional copied dry files:
-  - `<output_root>/<split>/<source>__dry.wav`
-- Metadata JSONL:
-  - one row per rendered variant with `source_id`, `split`, `label`, `tags`,
-    sampled `render_config`, deterministic `seed`, and success/error status
-- Summary JSON:
-  - aggregate counts (`planned/success/failed`) plus split/label/archetype/tag counts
-- QA bundle JSON:
-  - split-level metric summaries and split/global class-balance tables
-  - when `--baseline-summary` is provided, includes regeneration deltas
-- Optional dataset card:
-  - markdown file documenting generation settings and distribution summary
-- Optional metrics CSV:
-  - per-output scalar features for QA, filtering, and dataset debugging
-- Optional provenance hash:
-  - deterministic manifest+input signature for external dataset registries
+Paths relative to the manifest resolve from the manifest directory. Output extensions may be
+WAV, FLAC, AIFF, OGG, or CAF. For training pipelines that depend on exact floating-point samples,
+prefer WAV float32 and preserve the generated file rather than transcoding it later.
 
-## Reproducibility notes
+## Plan, smoke test, then render
 
-- Identical manifest + seed + inputs => identical augmentation plans.
-- Use `--profile`, `--seed`, or `--variants-per-input` to override manifest values
-  without editing files.
-- Set `default_options.target_sr` when you need a uniform output sample rate
-  across mixed-rate source corpora.
-- Default split guard enforces one source ID/input path per split. Use
-  `--allow-split-overlap` only when intentional cross-split reuse is required.
-- Use `--baseline-summary <previous_summary.json>` to compare class-balance drift
-  between regeneration runs.
+Large augmentation should be a staged operation. First inspect the expanded plan without writing
+audio:
+
+```bash
+verbx batch augment augment_manifest.json \
+  --dry-run \
+  --copy-dry \
+  --jobs 8 \
+  --schedule longest-first
+```
+
+The dry run validates paths, split isolation, profile selection, source identities, output
+collisions, and descendant counts. It also makes the scale visible before storage is consumed.
+Next, run a small manifest containing at least one source from every split and label family.
+Listen to dry/wet pairs, inspect the JSONL rows, and verify that a training loader can parse the
+output tree. Only then expand to the complete corpus.
+
+A production run with the full evidence set is:
+
+```bash
+verbx batch augment augment_manifest.json \
+  --jobs 8 \
+  --schedule longest-first \
+  --retries 1 \
+  --copy-dry \
+  --write-analysis \
+  --dataset-card-out out/studio_voice_rooms_v1/DATASET_CARD.md \
+  --metrics-csv-out out/studio_voice_rooms_v1/metrics.csv \
+  --metrics-include-loudness \
+  --qa-bundle-out out/studio_voice_rooms_v1/qa_bundle.json \
+  --provenance-hash \
+  --summary-out out/studio_voice_rooms_v1/summary.json \
+  --jsonl-out out/studio_voice_rooms_v1/records.jsonl
+```
+
+`--metrics-include-loudness` adds slower loudness, true-peak, and loudness-range analysis. Use
+`--metrics-fast` for exploratory runs. Keep fail-fast behavior while establishing a pipeline.
+For unattended generation, `--continue-on-error` can preserve successful work, but leave
+`--fail-if-any-failed` enabled so orchestration still receives a nonzero result when any example
+failed.
+
+## Output artifacts and directory contract
+
+Rendered audio is written under `<output_root>/<split>/`. The filename includes a source index,
+sanitized source ID, sampled archetype, and one-based variant number. With `--copy-dry`, the dry
+source is copied once per source group into the same split tree. Analysis sidecars, when enabled,
+are stored under `<output_root>/analysis/`.
+
+The main machine-readable artifacts are:
+
+- **`augmentation_manifest.jsonl`:** one record per planned variant, including paths, labels,
+  tags, source metadata, profile, archetype, seed, resolved render configuration, success,
+  attempts, duration, and error.
+- **`augmentation_summary.json`:** aggregate planned, successful, failed, source, split, label,
+  archetype, and tag counts plus scheduling context and output paths.
+- **`augmentation_qa_bundle.json`:** split-level acoustic summaries, split-by-label counts, and
+  optional baseline deltas.
+- **Dataset card:** Markdown identity, generation settings, split distributions, parameter
+  envelope, and links to evidence artifacts.
+- **Metrics CSV:** per-output acoustic features suitable for plotting, filtering, or joining to
+  experiment results.
+- **Provenance entry:** canonical manifest hash, source signatures, source count, and combined
+  SHA-256 dataset-generation identity.
+
+Treat JSONL as the authoritative join table. Training code should not infer labels by parsing a
+filename when the same information exists as a typed field. Filenames are convenient for humans;
+records are safer for schema evolution.
+
+## Corpus size and storage planning
+
+If $N$ source jobs each request $K$ variants, the wet-output count is
+
+$$
+N_{\mathrm{wet}} = \sum_{i=1}^{N} K_i,
+$$
+
+which reduces to $NK$ when every job uses the same count. Figure 11-7 shows this multiplicative
+growth for two, four, and eight variants per source. Dry copies add at most one file per source;
+analysis sidecars can add one file per wet output.
+
+![Line chart with clean-source files on the horizontal axis and rendered wet-output files on the vertical axis for two, four, and eight variants per source.](assets/ai_augmentation/06_corpus_growth.png)
+
+**Figure: Corpus growth in files. One thousand sources produce 2,000, 4,000, or 8,000 wet outputs at two, four, or eight variants per source. The chart excludes dry copies, analysis JSON, metadata, checkpoints, and model-ready feature caches. Audio duration and sample format determine bytes, so file count is only the first storage estimate.**
+
+For uncompressed floating-point audio, a rough payload estimate is
+
+$$
+B \approx f_s \cdot T \cdot C \cdot \frac{b}{8},
+$$
+
+where $f_s$ is sample rate in hertz, $T$ is duration in seconds, $C$ is channel count, and $b$ is
+bits per sample. Add filesystem overhead and account for tails that extend the output duration.
+At 192 kHz, stereo float32 audio consumes four times the sample payload of 48 kHz stereo float32
+audio. Use the sample rate required by the model and target deployment; the book's 192 kHz
+production default is not automatically the right dataset default.
+
+### Shard by evidence boundary, not arbitrary file count
+
+When a corpus must be sharded, keep all descendants of a source together and store a shard-level
+index containing source IDs and record hashes. This prevents a downstream loader from assigning
+related variants to different distributed workers in ways that accidentally alter sampling
+balance. Preserve a global JSONL manifest even when audio is packed into tar archives, object
+storage, or a feature database.
+
+## Quality gates
+
+A successful process exit means the renderer completed; it does not mean every output is suitable
+for training. Figure 11-8 presents a quality funnel. Each stage may exclude examples, and every
+exclusion should be recorded rather than silently deleting a file.
+
+![Funnel from planned variants through rendered, audio-valid, acoustically plausible, split-clean, and training-ready stages.](assets/ai_augmentation/07_quality_gate_funnel.png)
+
+**Figure: Quality-gate funnel. The widest stage is the deterministic plan. Render failures, invalid audio, implausible metrics, split contamination, or incomplete evidence reduce the set. The final training-ready corpus is intentionally narrower and carries its dataset card, hashes, labels, and an audited listening sample.**
+
+### Gate 1: plan integrity
+
+- Every input exists and resolves to the intended file.
+- Every source ID is stable, unique at the chosen grouping level, and isolated by split.
+- No output path equals an input path.
+- Variant counts, output format, target sample rate, and profile match the experiment plan.
+- Dataset and manifest versions are immutable once a run begins.
+
+### Gate 2: render integrity
+
+- Planned count equals successful count unless a documented exclusion policy applies.
+- Failed rows include an actionable error and are not fed to training.
+- Retries are reported; repeated transient failures may indicate storage or resource pressure.
+- Output duration is compatible with the model loader and tail policy.
+
+### Gate 3: audio integrity
+
+- Samples are finite and channel counts are expected.
+- Files are not silent, truncated, unexpectedly clipped, or encoded in a surprise subtype.
+- Sample rate and frame count match the JSONL or analysis metadata.
+- Dry/wet pairs share the intended alignment and source identity.
+
+### Gate 4: acoustic plausibility
+
+The metrics CSV and QA bundle can summarize `rt60_estimate_seconds`,
+`early_late_ratio_db`, `stereo_width`, `stereo_coherence`, `spectral_centroid`,
+`spectral_flatness`, `dynamic_range`, and `lufs_integrated` by split. These are diagnostic
+features, not universal pass criteria. Build thresholds from the declared profile and task. A
+wide stereo field may be correct for music and invalid for a mono ASR experiment.
+
+### Gate 5: human audit
+
+Listen to a stratified sample from every split, archetype, severity bucket, and source class.
+Include the shortest and longest RT60, driest and wettest mix, narrowest and widest image, and
+every categorical FDN matrix. Record audible defects with the JSONL `augment_index` so they can
+be traced to the exact plan.
+
+## Regeneration and distribution drift
+
+Re-running a corpus with a new source inventory or profile can preserve technical success while
+changing class balance. Pass a prior summary or QA bundle with `--baseline-summary` to compute
+split-level and global count and ratio deltas. Figure 11-9 shows how those deltas should be read.
+
+![Grouped bar chart of illustrative speech, music, and effects class-ratio changes across train, validation, and test splits, with percentage points on the vertical axis.](assets/ai_augmentation/08_regeneration_drift.png)
+
+**Figure: Conceptual regeneration-drift review. Bars above zero indicate a larger class share than the baseline; bars below zero indicate a smaller share. The plotted values are illustrative, not verbx measurements. The actual QA bundle reports exact current, baseline, count-delta, ratio, and ratio-delta fields for every label represented in each split.**
+
+Use the baseline comparison for more than class labels. Preserve a compact external report for
+parameter histograms, duration, source language, performer, instrument, and room identity. The
+current QA bundle gives min, max, and mean for supported acoustic metrics; downstream notebooks
+can join the metrics CSV for quantiles, histograms, and two-sample tests.
+
+Do not compare only global totals. A stable overall soprano/baritone ratio can conceal a test set
+that lost most baritone examples. Review every split independently, then review interaction slices
+such as label by archetype or source type by severity.
+
+## Application protocols
+
+### ASR, keyword spotting, and speech embeddings
+
+Begin with `asr-reverb-v1`, preserve transcripts and speaker IDs in `metadata`, and group by
+speaker or session before augmentation. Report word error rate or task error separately for dry,
+short, medium, and long reverberation. Include a clean-only training baseline, an augmented model,
+and a matched-size baseline that repeats clean examples so gains cannot be attributed only to
+more optimizer steps.
+
+For streaming ASR, test the exact chunk and state policy used at deployment. Long tails cross
+chunk boundaries and interact with endpointing. A model that performs well on isolated files may
+fail when reverb state continues across speech segments.
+
+### Speaker recognition and diarization
+
+The desired representation should preserve speaker identity while discarding room. Put all audio
+from one speaker in one split, and check whether microphones or sessions form shortcuts. Evaluate
+same-speaker trials across different rooms and different-speaker trials inside the same room. If
+the model improves only when room and speaker remain correlated, augmentation has reinforced the
+wrong cue.
+
+### Dereverberation and speech enhancement
+
+Use copied dry targets and record whether the wet input includes only reverb or also noise. Keep
+reverb-only, noise-only, and combined conditions as separate ablations. Evaluate waveform or
+spectral error, intelligibility or recognition performance, and artifact rate. A model can reduce
+late energy while introducing musical noise, transient holes, phase distortion, or an unnaturally
+close voice. Human listening remains necessary.
+
+For causal models, restrict the receptive field and algorithmic latency in the experiment report.
+An offline network with future context is not a valid baseline for a low-latency realtime product.
+
+### Blind RT60, DRR, and early-to-late estimation
+
+Use log-scaled RT60 targets and report errors by phonetic or musical content, duration, and
+severity. Joint prediction of RT60 and early-to-late ratio can expose contradictory estimates.
+Compare control labels with waveform-derived metrics, but do not train and evaluate on the same
+estimator's output without acknowledging circularity.
+
+The blind-estimation literature in Appendix C includes work by Deng, Mack, Habets, Xiong,
+Goetze, Kollmeier, Lollmann, Brendel, Kellermann, and others. Use those methods to define
+non-neural and neural baselines rather than comparing only against a mean predictor.
+
+### Music tagging and instrument recognition
+
+Use `music-reverb-v1`, but split by recording or artist before cutting excerpts. Preserve genre,
+instrument, artist, album, session, and production metadata when lawful. Report whether the model
+becomes invariant to room while retaining production-relevant style. For tasks where reverb is
+part of the label, complete invariance may be undesirable.
+
+Musical examples require special caution because algorithmic reverb can change onset density,
+harmonic masking, stereo width, and perceived tempo. Test percussive, sustained, sparse, and dense
+material separately. A tagging model may improve on sustained instruments while losing transient
+classification accuracy.
+
+### Music source separation
+
+Apply reverb at the correct point in the mixture graph. Reverberating the final mix teaches a
+different problem from reverberating stems independently before summation. Real productions may
+share one room across sources, use separate sends, or combine close and room microphones. Encode
+the intended geometry and keep stems, mixtures, dry targets, and render records synchronized.
+
+Evaluate scale-invariant distortion metrics only alongside perceptual and spatial checks. A
+separator can achieve a better scalar score by narrowing stereo ambience or discarding a late
+tail that belongs musically to the source.
+
+### Drum transcription and onset detection
+
+Use `drums-room-v1` and preserve onset labels at the dry-signal timeline. Confirm whether pre-delay
+or rendering changes effective alignment for the feature extractor. Report performance by kit
+piece, velocity, density, room archetype, and RT60. Long arena variants are a useful stress slice,
+but they should not dominate training unless deployment contains similar spaces.
+
+### Acoustic scene classification and room retrieval
+
+For scene classification, room is evidence rather than nuisance. Use different source content in
+the same acoustic class so the model cannot identify a scene from one repeated signal. For room
+retrieval, define positives by room or parameter neighborhood and negatives by acoustically
+distinct rooms. Reserve real measured rooms as a transfer test whenever possible.
+
+### Neural reverb, matching, and parameter inference
+
+A neural reverb may predict audio directly, predict verbx controls, or learn a residual around a
+deterministic renderer. Parameter prediction preserves an interpretable interface but inherits
+the renderer's model class. Audio prediction can represent more detail but is harder to constrain
+and validate. A hybrid model can predict early reflections or spectral corrections while verbx
+provides a stable late field.
+
+Evaluate parameter error, waveform behavior, stability under automation, and blinded musical
+preference. Two parameter vectors can sound similar, and a low parameter error can sound worse
+than a different vector that matches the perceptual target.
+
+### Generative audio and controllable music systems
+
+Reverb augmentation can teach a generator to separate musical content from production space or
+to condition on spatial intent. Preserve dry and wet versions when rights permit, and use clear
+conditioning fields such as `room_archetype`, `rt60_seconds`, `pre_delay_ms`, and `wet_depth`.
+Do not label a synthetic long hall as a specific real venue. If text prompts are generated, state
+that they describe a renderer condition rather than a measured site.
+
+### Audio forensics and recording provenance
+
+Reverberation carries information about recording environment, but synthetic augmentation can
+also create shortcuts. A forensic model may learn verbx's matrix families instead of general room
+structure. Hold out the complete generator family, test on measured recordings, and avoid claims
+about authenticity based only on synthetic validation. The provenance hash documents the
+augmentation corpus; it is not a forensic watermark in the rendered audio.
+
+## Evaluation as a grid, not one score
+
+Model performance should be conditioned on both source novelty and room novelty. Figure 11-10
+defines a practical evaluation grid. Every cell should report the task metric and sample count;
+the unseen-source, unseen-room cells are usually the most informative transfer test.
+
+![Evaluation grid with four source and room novelty combinations as rows and dry through extreme reverberation severity as columns.](assets/ai_augmentation/09_evaluation_grid.png)
+
+**Figure: Domain-by-severity evaluation grid. Columns progress from dry through increasingly severe reverberation, while rows separate seen and unseen source/room combinations. The colors indicate increasing challenge, not measured performance. Report individual cells before any weighted mean so failures in unseen long or extreme rooms remain visible.**
+
+### Severity buckets
+
+Define severity before examining model results. A speech study might use dry, short below 0.6
+seconds, medium 0.6–1.5 seconds, long 1.5–3.0 seconds, and extreme above 3.0 seconds. A music
+study may need different boundaries and additional wet-depth or early-to-late bins. Store the
+bucket rule in experiment configuration, not only in plotting code.
+
+### Task metrics
+
+| Task | Primary metric examples | Required companion analysis |
+|---|---|---|
+| ASR | word or character error rate | error by speaker, room, duration, and severity |
+| Keyword spotting | false accept/reject, area under curve | threshold stability by room |
+| Dereverberation | spectral/waveform distance, recognition score | artifact listening and latency |
+| Room estimation | log-RT60 error, DRR error, class accuracy | calibration and confidence intervals |
+| Separation | source distortion or perceptual score | stereo image and tail preservation |
+| Music tagging | macro F1 or mean average precision | artist/session leakage audit |
+| Retrieval | recall at rank, mean reciprocal rank | room-held-out and generator-held-out tests |
+| Neural reverb | control error, spectral/decay distance | blinded preference and stability |
+
+Use paired statistical tests when the same evaluation examples are processed by two systems.
+Bootstrap over the correct independent unit: speakers for speaker-held-out ASR, songs for music,
+or rooms for room-transfer studies. Bootstrapping thousands of correlated variants as though they
+were independent produces confidence intervals that are too narrow.
+
+## Ablation studies
+
+An augmentation study should isolate which acoustic variation helps. Figure 11-11 gives a five-run
+ladder: no augmentation, decay only, decay plus distance cue, the full algorithmic profile, and a
+full profile evaluated with measured-room holdout.
+
+![Ablation matrix showing when decay, distance, color, topology, and measured room impulse responses are included across five experiment stages.](assets/ai_augmentation/11_ablation_design.png)
+
+**Figure: Reverb-augmentation ablation ladder. Each row adds one evidence-bearing family while source splits, training budget, model architecture, and evaluation grid remain fixed. The final row introduces measured room impulse responses as a transfer condition rather than treating synthetic success as the endpoint.**
+
+A complete ablation table should include:
+
+- clean-only training with matched optimizer steps;
+- duplicated-clean training with matched example count;
+- one-factor RT60 augmentation;
+- RT60 plus pre-delay or early/late control;
+- full profile variation;
+- profile variation without matrix diversity;
+- profile variation without stereo-width variation;
+- an independent convolution or measured-RIR condition;
+- an unseen generator or plug-in condition;
+- deployment recordings when rights and privacy permit.
+
+Keep seeds fixed across comparable runs so the source and archetype sequence changes only where
+the ablation requires it. If removing a factor changes the number of files, match training steps
+or sampling weights. Report both the best checkpoint and a predefined selection rule to avoid
+choosing a different favorable epoch for every condition.
+
+## Reproducibility and provenance
+
+`--provenance-hash` canonicalizes the JSON manifest when possible, computes signatures for unique
+source files, includes their resolved paths and audio metadata, and combines those records with
+the planned record count. Figure 11-12 shows how that dataset-generation identity relates to the
+downstream experiment report.
+
+![Lineage graph from source signatures and canonical manifest through a provenance hash to rendered audio, JSONL records, and an experiment report.](assets/ai_augmentation/10_reproducibility_lineage.png)
+
+**Figure: Reproducibility lineage. Source SHA-256 signatures and canonical manifest content form the dataset-generation identity. Rendered audio and JSONL records feed an experiment report that must additionally preserve code, environment, model configuration, and metrics. The verbx hash establishes generation inputs; it does not by itself capture every training variable.**
+
+Archive the following together:
+
+1. the exact source manifest;
+2. the exported profile definitions;
+3. JSONL records and summary JSON;
+4. QA bundle, metrics CSV, and dataset card;
+5. provenance payload and source-access policy;
+6. verbx version and installation lockfile;
+7. training configuration, code commit, environment, and random seeds;
+8. evaluation inventory and exclusion list;
+9. plots generated from immutable evidence tables;
+10. a short listening audit with stable variant IDs.
+
+Absolute source paths are included in current signatures for local reproducibility. When sharing
+a dataset externally, publish a path-remapping policy or content-addressed source registry rather
+than assuming another machine has the same directory layout. Do not publish private paths or
+source bytes that the dataset license forbids.
+
+## Scaling and operational behavior
+
+### Parallel workers
+
+`--jobs 0` selects an automatic worker count. Explicit worker counts are better for controlled
+benchmarks. Rendering can become limited by CPU, memory bandwidth, storage throughput, or file
+creation rather than arithmetic alone. Measure end-to-end examples per second and error rate,
+not only processor utilization.
+
+### Scheduling
+
+`longest-first` is the default and often reduces the tail of mixed-duration runs by starting
+expensive jobs early. `shortest-first` provides quick early outputs and can be useful for smoke
+tests. `fifo` preserves manifest order. Scheduling should not change variant content, but it can
+change completion order, resource pressure, and which files exist when an interrupted run stops.
+
+### Retries and failures
+
+Retries are appropriate for transient filesystem or resource failures, not deterministic invalid
+configuration. A repeated success after retry should remain visible in `attempts`. If a render
+fails because the input is corrupt, fix or exclude the source with a recorded reason rather than
+raising retry count.
+
+### Analysis cost
+
+Per-output waveform analysis can be a substantial second pass. Use fast metrics during parameter
+development, then enable loudness metrics for the release corpus. If a downstream feature
+extractor already computes equivalent quantities, decide which implementation is authoritative
+and compare a sample before discarding verbx metrics.
+
+### Versioning
+
+Use immutable dataset names such as `speech_rooms_v1` and `speech_rooms_v2`, not a mutable `latest`
+directory. A regeneration with different sources, profile bounds, verbx version, sample rate, or
+label policy is a new dataset version even if filenames are similar. Preserve baseline summaries
+so drift is reviewable.
+
+## Lawful and ethical dataset practice
+
+Synthetic acoustics do not remove the obligations attached to source audio. Confirm rights for
+reproduction, transformation, model training, and distribution separately. A license that permits
+listening or research access may not permit publishing augmented copies. Dataset cards should name
+the source license category, access restrictions, retention policy, and whether dry audio is
+redistributed or must be reconstructed by an authorized user.
+
+For speech, protect identity and sensitive content. Avoid embedding personal names or private
+paths in public metadata. For music, preserve attribution and do not imply that a synthetic room
+is part of the original recording. For cultural or site-specific recordings, document consent and
+context rather than treating acoustic variation as detached raw material.
+
+Bias can enter through both content and acoustics. Speaker demographics, languages, genres,
+instruments, recording devices, rooms, and production conventions may be unequally represented.
+An apparently balanced label table can still put one population mostly in long rooms or noisy
+conditions. Audit intersections, not only marginal counts.
+
+## Failure modes and corrective actions
+
+**The validation score is excellent, but deployment is poor.** Check performer, song, session,
+room, and generator leakage. Add an unseen-room and unseen-generator test. Verify that excerpts
+from the same master did not cross splits.
+
+**The model predicts the archetype but not real room behavior.** It may recognize matrix color or
+profile-specific parameter correlations. Hold out matrix families, use measured RIRs, and compare
+against another renderer.
+
+**Dereverberation sounds phasey despite better metrics.** Add spatial, transient, and listening
+criteria. Confirm dry/wet alignment. Reduce reliance on a pointwise waveform loss that punishes
+perceptually acceptable phase differences.
+
+**RT60 regression fails on short clips.** The clip may contain insufficient decay evidence.
+Stratify by duration and source activity, use confidence targets, or exclude windows without an
+observable decay interval.
+
+**Class balance changed after regeneration.** Compare the QA bundle to the baseline, inspect
+split-specific ratio deltas, and version the corpus. Do not repair only the global total.
+
+**The corpus is too large to iterate.** Build a miniature manifest that preserves every split,
+label, archetype, and severity bucket. Validate loaders and metrics there before the release run.
+
+**Two machines create different model results from the same corpus.** Confirm audio and JSONL
+hashes first, then inspect training dependencies, nondeterministic kernels, data-loader order,
+precision, and checkpoint selection. Dataset determinism and optimizer determinism are separate.
+
+**A profile override unexpectedly narrows variation.** Remember the precedence order: sampled
+profile values are followed by manifest defaults and then job-specific options. An override fixes
+that field for all affected descendants.
+
+## A reproducible research protocol
+
+The following protocol turns Chapter 11 into an experiment that can be reviewed by another team.
+
+1. **State the deployment question.** Name the source domain, acoustic domain, realtime or offline
+   constraint, and primary outcome.
+2. **Declare the independent unit.** Choose speaker, song, session, room, or another grouping key.
+3. **Freeze source splits.** Save the source inventory before rendering any variant.
+4. **Choose supervision.** Specify dry pairs, control labels, measured labels, semantic labels,
+   and any framewise targets.
+5. **Export profile definitions.** Archive `verbx batch augment-profiles --json` with the study.
+6. **Write the manifest.** Include stable IDs, lawful metadata, tags, and immutable dataset name.
+7. **Dry-run the plan.** Review counts, paths, split isolation, and parameter overrides.
+8. **Render a stratified smoke set.** Exercise every split, class, archetype, format, and loader.
+9. **Run the full corpus.** Emit JSONL, summary, QA, metrics, dataset card, and provenance.
+10. **Apply quality gates.** Record exclusions by `augment_index` and preserve the pre-filter table.
+11. **Train matched baselines.** Match source split, optimizer budget, and checkpoint selection.
+12. **Evaluate the full grid.** Report unseen sources, unseen rooms, and severity buckets.
+13. **Perform ablations.** Isolate decay, distance, color, topology, and real-room transfer.
+14. **Listen.** Audit restoration and creative tasks with randomized, level-matched examples.
+15. **Publish evidence.** Include code commit, environment, manifest, hashes, and limitations.
+
+## Chapter 11 checklist
+
+- [ ] Source rights cover transformation, training, and intended distribution.
+- [ ] The split unit matches the scientific claim.
+- [ ] Every descendant remains in its parent source split.
+- [ ] Control, measured, and semantic labels are distinguished.
+- [ ] A dry-run count and storage estimate were reviewed.
+- [ ] A stratified smoke corpus passed loader and listening checks.
+- [ ] JSONL, summary, QA, metrics, card, and provenance outputs are archived.
+- [ ] Failed or excluded examples retain stable IDs and reasons.
+- [ ] Baselines match training budget and source inventory.
+- [ ] Evaluation includes unseen sources and unseen rooms.
+- [ ] Metrics are reported by severity and important intersection slices.
+- [ ] At least one independent renderer or measured-room condition tests transfer.
+- [ ] Creative or restorative outputs receive a blinded listening audit.
+- [ ] Dataset and experiment versions are immutable and citable.
+
+## Literature bridge
+
+Appendix C, Section 7 collects machine-learning and blind-estimation literature directly relevant
+to this chapter. It includes CRNN-based online RT60 estimation, joint RT60 and early-to-late
+estimation, late-reverberation PSD estimation with denoising autoencoders, room-aware speech
+models, reverberation-controllable voice conversion, and non-neural maximum-likelihood baselines.
+Appendix C, Section 8 adds speech intelligibility and room-acoustic context. Those papers should
+guide baseline selection and failure analysis; the verbx profile families are generation tools,
+not substitutes for the literature or for measured-room evaluation.
+
+The central principle is simple: augmentation is useful when it changes the training evidence in
+a controlled way and the improvement survives a genuinely new acoustic domain. More files are
+not the objective. Better, auditable generalization is.
