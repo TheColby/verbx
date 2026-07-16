@@ -2,13 +2,42 @@
 \usepackage{colortbl}
 \usepackage{ragged2e}
 \usepackage{newunicodechar}
+\usepackage{makeidx}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{etoolbox}
+\usepackage{needspace}
+\makeindex
 \newunicodechar{→}{\ensuremath{\rightarrow}}
 \setlength{\emergencystretch}{3em}
 \sloppy
+\raggedbottom
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
+\brokenpenalty=10000
+\interfootnotelinepenalty=10000
 \setlength{\LTleft}{0pt}
 \setlength{\LTright}{0pt}
 \definecolor{verbxTableOdd}{gray}{0.985}
 \definecolor{verbxTableEven}{gray}{0.955}
+\definecolor{verbxCover}{HTML}{123431}
+\definecolor{verbxCoverGold}{HTML}{D5A84B}
+\definecolor{verbxCoverPaper}{HTML}{F6F0E3}
+\newcounter{verbxfigure}[chapter]
+\renewcommand{\theverbxfigure}{\thechapter-\arabic{verbxfigure}}
+\newcommand{\verbxFigureLead}[1]{%
+  \refstepcounter{verbxfigure}%
+  \par\smallskip\noindent
+  Figure~\theverbxfigure\ presents #1 and establishes the visual reference for the discussion that follows.%
+  \par\nopagebreak\smallskip
+}
+\newcommand{\verbxFigureCaption}[1]{%
+  \addcontentsline{lof}{figure}{\protect\numberline{\theverbxfigure}#1}%
+  \par\vspace{1pt}\noindent
+  {\footnotesize\textbf{Figure \theverbxfigure: #1}}%
+  \par\smallskip
+}
 \AtBeginEnvironment{longtable}{\footnotesize}
 \AtBeginEnvironment{longtable}{\rowcolors{2}{verbxTableOdd}{verbxTableEven}}
 
@@ -17,6 +46,7 @@
 % entries do not collide with the page number column.
 \usepackage{tocloft}
 \setlength{\cftsecnumwidth}{3.4em}
+\setlength{\cftchapnumwidth}{3.2em}
 \setlength{\cftsubsecnumwidth}{4.2em}
 \setlength{\cftsubsubsecnumwidth}{5.2em}
 \setlength{\cftsecindent}{0em}
@@ -24,6 +54,8 @@
 \setlength{\cftsubsubsecindent}{3.2em}
 \setlength{\cftbeforesecskip}{0.16em}
 \renewcommand{\cftdotsep}{1.4}
+\renewcommand{\cftchapfont}{\small\bfseries}
+\renewcommand{\cftchappagefont}{\small\bfseries}
 \renewcommand{\cftsecfont}{\small}
 \renewcommand{\cftsecpagefont}{\small}
 \renewcommand{\cftsubsecfont}{\small}
@@ -33,7 +65,36 @@
 \makeatletter
 \renewcommand{\@pnumwidth}{3.5em}
 \renewcommand{\@tocrmarg}{4.5em}
+\renewcommand*\l@figure{\@dottedtocline{1}{0em}{4.2em}}
 \makeatother
+\renewcommand{\listfigurename}{Table of Figures}
+
+% Book hierarchy and running furniture.
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries\color{verbxCover}}
+  {\filleft\fontsize{16}{18}\selectfont\scshape\chaptertitlename\ \thechapter}
+  {0.45ex}
+  {\titlerule[1.2pt]\vspace{0.75ex}\fontsize{30}{35}\selectfont}
+\titlespacing*{\chapter}{0pt}{-18pt}{28pt}
+\pretocmd{\section}{\Needspace{6\baselineskip}}{}{}
+\pretocmd{\subsection}{\Needspace{5\baselineskip}}{}{}
+\pretocmd{\subsubsection}{\Needspace{4\baselineskip}}{}{}
+\titleformat{\part}[display]
+  {\centering\normalfont\bfseries\color{verbxCover}}
+  {\fontsize{18}{21}\selectfont\scshape\partname\ \thepart}
+  {1.0ex}
+  {\color{verbxCoverGold}\titlerule[2pt]\vspace{1.2ex}\fontsize{34}{40}\selectfont}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE]{\small\scshape verbx User Guide}
+\fancyhead[RO]{\small\nouppercase{\leftmark}}
+\fancyfoot[LE,RO]{\thepage}
+\renewcommand{\headrulewidth}{0.35pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyfoot[LE,RO]{\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+}
 
 % Wrap long command examples and other verbatim blocks instead of letting them
 % run off the page in the generated PDF.
@@ -60,6 +121,7 @@
 }
 
 \AtBeginDocument{
+  \hypersetup{linkcolor=verbxCover}
   \IfFileExists{fvextra.sty}{
     \RecustomVerbatimEnvironment{verbatim}{Verbatim}{
       breaklines,
@@ -73,3 +135,114 @@
     }
   }{}
 }
+
+% Publication front matter: title, imprint, and edition note.
+\makeatletter
+\renewcommand{\maketitle}{%
+  \begin{titlepage}
+    \pagecolor{white}\color{verbxCover}
+    \thispagestyle{empty}
+    \vspace*{0.55in}
+    {\color{verbxCoverGold}\rule{\textwidth}{2.5pt}}\par
+    \vspace{0.38in}
+    \begin{center}
+      \colorbox{white}{\includegraphics[width=4.65in]{docs/assets/verbx_logo.png}}
+    \end{center}
+    \vspace{0.06in}
+    {\fontsize{30}{35}\selectfont\scshape User Guide}\par
+    \vspace{0.28in}
+    {\color{verbxCoverGold}\rule{0.42\textwidth}{1.2pt}}\par
+    \vspace{0.42in}
+    {\fontsize{17}{23}\selectfont
+      Reverb, dereverberation, spatial audio,\\
+      analysis, automation, and plug-in design
+    }\par
+    \vfill
+    \begin{minipage}{0.78\textwidth}
+      \color{verbxCover}\large
+      Command-line workflows \quad\textcolor{verbxCoverGold}{/}\quad
+      Realtime processing\\[0.12in]
+      Impulse responses \quad\textcolor{verbxCoverGold}{/}\quad
+      AUv3 and VST3 architecture\\[0.12in]
+      Illustrated DSP and acoustic reference
+    \end{minipage}
+    \vfill
+    {\color{verbxCoverGold}\rule{\textwidth}{1.2pt}}\par
+    \vspace{0.22in}
+    {\large\bfseries \@author}\par
+    \vspace{0.05in}
+    {\large \@date}\par
+    \vspace{0.18in}
+    {\small Technical reference and production handbook, with educational exercises}
+  \end{titlepage}
+  \pagecolor{white}\color{black}
+  \clearpage
+  \thispagestyle{empty}
+  \vspace*{\fill}
+  {\small
+    \textbf{verbx User Guide}\\[0.14in]
+    Reverb, Spatial Audio, Dereverberation, Plug-in Design, and Educational Exercises\\[0.3in]
+    Documentation and software by Colby Leider.\\
+    Digital book edition: \@date.\\[0.25in]
+    The verbx source repository and documentation are distributed under the
+    MIT License; see the repository \texttt{LICENSE} file for the complete terms.\\[0.25in]
+    Repository: \url{https://github.com/TheColby/verbx}\\
+    No part of a cited recording, score, or third-party artwork is reproduced in this book.\\[0.35in]
+    Typeset and generated from the repository source.}
+  \clearpage
+  \chapter*{About This Edition}
+  \addcontentsline{toc}{chapter}{About This Edition}
+  This book combines the verbx command-line manual, plug-in architecture handbook,
+  production and validation cards, illustrated DSP atlas, impulse-response guidance,
+  academic references, and a listening appendix devoted to music in which reverberation
+  is part of the composition or production.
+
+  The software is evolving. Statements marked as protocols, foundations, beta behavior,
+  or future work are not compatibility certifications. Commands, schemas, figures, and
+  generated cards are rebuilt from the same repository so that the book can be audited
+  alongside the code.
+
+  \vspace{0.25in}
+  \begin{center}
+    \begin{tabular}{@{}ll@{}}
+      \textbf{Part I} & Installation, CLI workflows, and sound design\\
+      \textbf{Part II} & AUv3/VST3 architecture and operational cards\\
+      \textbf{Part III} & Analysis, IRs, schemas, figures, and benchmarks\\
+      \textbf{Appendix A} & Important musical pieces and recording citations\\
+      \textbf{Appendix B} & Thirty-three project assignments and assessment guidance\\
+      \textbf{Table of Figures} & Numbered visual titles with page references\\
+      \textbf{Back matter} & Academic references, index, and colophon
+    \end{tabular}
+  \end{center}
+  \clearpage
+}
+
+\newcommand{\verbxColophon}{%
+  \clearpage
+  \chapter*{Colophon}
+  \addcontentsline{toc}{chapter}{Colophon}
+  This digital book was generated on \@date\ from Markdown and repository assets by
+  \texttt{scripts\_generate\_docs\_pdf.py}. Pandoc 3.8.2 assembled the manuscript;
+  XeLaTeX and TeX Live 2025 produced the PDF; MakeIndex generated the back-of-book index;
+  and TikZ drew the operational-card illustrations as resolution-independent vectors.
+
+  The text face is TeX Gyre Schola, an open typeface in the New Century Schoolbook
+  tradition. Menlo is used for commands and code. The page is U.S. Letter with a book
+  hierarchy, roman-numbered front matter, arabic-numbered main matter, lettered appendices,
+  and two-column index. Tables use alternating neutral fills; diagrams use the verbx teal,
+  gold, rust, blue, plum, and sage palette.
+
+  The illustrated atlas is generated by \texttt{scripts/generate\_userguide\_figures.py}.
+  The 588 operational cards are generated by \texttt{scripts\_generate\_plugin\_guide.py}
+  and composed one card per page with one of thirteen semantic vector-diagram families.
+  The consolidated Markdown remains available at \texttt{docs/USERGUIDE.md}.
+
+  \vfill
+  \begin{center}
+    {\color{verbxCoverGold}\rule{0.45\textwidth}{1.2pt}}\\[0.2in]
+    \textsc{verbx User Guide}\\
+    Colby Leider \quad / \quad \@date\\
+    \url{https://github.com/TheColby/verbx}
+  \end{center}
+}
+\makeatother

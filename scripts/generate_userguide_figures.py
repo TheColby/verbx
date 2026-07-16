@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import itertools
 import math
 from pathlib import Path
 
@@ -26,12 +27,32 @@ GREEN = "#4f8a42"
 PAPER = "#fffaf0"
 
 
-def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+def font(
+    size: int,
+    bold: bool = False,
+    italic: bool = False,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    schola_style = "bolditalic" if bold and italic else "bold" if bold else "italic" if italic else "regular"
+    georgia_style = (
+        "Georgia Bold Italic.ttf"
+        if bold and italic
+        else "Georgia Bold.ttf"
+        if bold
+        else "Georgia Italic.ttf"
+        if italic
+        else "Georgia.ttf"
+    )
     candidates = [
-        "/System/Library/Fonts/Supplemental/New Century Schoolbook.ttc",
-        "/System/Library/Fonts/Supplemental/Georgia.ttf",
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
-        "/Library/Fonts/Arial Bold.ttf" if bold else "/Library/Fonts/Arial.ttf",
+        *(
+            [
+                "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/tex-gyre/"
+                f"texgyreschola-{schola_style}.otf",
+                f"/Library/Fonts/texgyreschola-{schola_style}.otf",
+            ]
+            if italic
+            else ["/System/Library/Fonts/Supplemental/New Century Schoolbook.ttc"]
+        ),
+        f"/System/Library/Fonts/Supplemental/{georgia_style}",
     ]
     for path in candidates:
         try:
@@ -46,15 +67,238 @@ F_SUB = font(28)
 F_BODY = font(24)
 F_SMALL = font(20)
 F_MONO = font(22)
+F_PANEL = font(28, True)
+F_CHANNEL = font(17, True)
+F_TINY = font(15)
+
+
+def _italic_font(selected_font: ImageFont.ImageFont) -> ImageFont.ImageFont:
+    if not isinstance(selected_font, ImageFont.FreeTypeFont):
+        return selected_font
+    _, style = selected_font.getname()
+    return font(selected_font.size, bold="bold" in style.lower(), italic=True)
+
+
+def _math_text(value: str) -> str:
+    """Convert the small TeX subset used in chart labels to display glyphs."""
+
+    return (
+        value.replace(r"\alpha", "α")
+        .replace(r"\beta", "β")
+        .replace(r"\tau", "τ")
+        .replace("-", "\N{EN DASH}")
+    )
+
+
+def _scaled_font(selected_font: ImageFont.ImageFont, scale: float) -> ImageFont.ImageFont:
+    if isinstance(selected_font, ImageFont.FreeTypeFont):
+        return selected_font.font_variant(size=max(8, round(selected_font.size * scale)))
+    return selected_font
+
+
+def _script_group(value: str, start: int) -> tuple[str, int]:
+    if start >= len(value):
+        return "", start
+    if value[start] != "{":
+        return value[start], start + 1
+
+    depth = 1
+    index = start + 1
+    while index < len(value) and depth:
+        if value[index] == "{":
+            depth += 1
+        elif value[index] == "}":
+            depth -= 1
+        index += 1
+    return value[start + 1:index - 1], index
+
+
+def _math_runs(
+    d: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> tuple[list[tuple[str, ImageFont.ImageFont, float, float]], float]:
+    runs: list[tuple[str, ImageFont.ImageFont, float, float]] = []
+    x = 0.0
+    index = 0
+    while index < len(value):
+        start = index
+        while index < len(value) and value[index] not in "^_{}":
+            index += 1
+        if index > start:
+            text = _math_text(value[start:index])
+            run_start = 0
+            while run_start < len(text):
+                alphabetic = text[run_start].isalpha()
+                run_end = run_start + 1
+                while run_end < len(text) and text[run_end].isalpha() == alphabetic:
+                    run_end += 1
+                run_text = text[run_start:run_end]
+                run_font = _italic_font(selected_font) if alphabetic else selected_font
+                runs.append((run_text, run_font, x, 0.0))
+                x += d.textlength(run_text, font=run_font)
+                run_start = run_end
+        if index >= len(value):
+            break
+        if value[index] in "{}":
+            index += 1
+            continue
+
+        script_x = x
+        script_width = 0.0
+        while index < len(value) and value[index] in "^_":
+            operator = value[index]
+            content, index = _script_group(value, index + 1)
+            script_font = _scaled_font(selected_font, 0.64)
+            child_runs, child_width = _math_runs(d, content, script_font)
+            baseline_offset = (
+                -0.52 * getattr(selected_font, "size", 20)
+                if operator == "^"
+                else 0.32 * getattr(selected_font, "size", 20)
+            )
+            runs.extend(
+                (text, run_font, script_x + run_x, run_y + baseline_offset)
+                for text, run_font, run_x, run_y in child_runs
+            )
+            script_width = max(script_width, child_width)
+        x = script_x + script_width
+    return runs, x
+
+
+def _math_layout(
+    d: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> tuple[list[tuple[str, ImageFont.ImageFont, float, float]], float, float, float]:
+    runs, width = _math_runs(d, value, selected_font)
+    bounds = [
+        d.textbbox((run_x, run_y), text, font=run_font, anchor="ls")
+        for text, run_font, run_x, run_y in runs
+        if text
+    ]
+    if not bounds:
+        return runs, width, 0.0, 0.0
+    return runs, width, min(item[1] for item in bounds), max(item[3] for item in bounds)
+
+
+def _math_size(
+    d: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> tuple[float, float]:
+    _, width, top, bottom = _math_layout(d, value, selected_font)
+    return width, bottom - top
+
+
+def _draw_math(
+    d: ImageDraw.ImageDraw,
+    position: tuple[float, float],
+    value: str,
+    *,
+    fill: str,
+    selected_font: ImageFont.ImageFont,
+) -> None:
+    runs, _, top, _ = _math_layout(d, value, selected_font)
+    baseline = position[1] - top
+    for text, run_font, run_x, run_y in runs:
+        d.text(
+            (position[0] + run_x, baseline + run_y),
+            text,
+            fill=fill,
+            font=run_font,
+            anchor="ls",
+        )
+
+
+def _rich_segments(
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> list[tuple[str, ImageFont.ImageFont]]:
+    segments = value.split("$")
+    if len(segments) % 2 == 0:
+        raise ValueError(f"Unbalanced inline-math delimiter in figure label: {value!r}")
+    return [
+        (_math_text(segment), _italic_font(selected_font))
+        if index % 2
+        else (segment, selected_font)
+        for index, segment in enumerate(segments)
+        if segment
+    ]
+
+
+def rich_text_size(
+    d: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> tuple[float, float]:
+    segments = value.split("$")
+    if len(segments) % 2 == 0:
+        raise ValueError(f"Unbalanced inline-math delimiter in figure label: {value!r}")
+    sizes = [
+        _math_size(d, segment, selected_font)
+        if index % 2
+        else (
+            (bounds := d.textbbox((0, 0), segment, font=selected_font))[2] - bounds[0],
+            bounds[3] - bounds[1],
+        )
+        for index, segment in enumerate(segments)
+    ]
+    return sum(width for width, _ in sizes), max((height for _, height in sizes), default=0)
+
+
+def draw_rich_text(
+    d: ImageDraw.ImageDraw,
+    position: tuple[float, float],
+    value: str,
+    *,
+    fill: str,
+    selected_font: ImageFont.ImageFont,
+) -> None:
+    segments = value.split("$")
+    if len(segments) % 2 == 0:
+        raise ValueError(f"Unbalanced inline-math delimiter in figure label: {value!r}")
+    sizes = [
+        _math_size(d, segment, selected_font)
+        if index % 2
+        else (
+            (bounds := d.textbbox((0, 0), segment, font=selected_font))[2] - bounds[0],
+            bounds[3] - bounds[1],
+        )
+        for index, segment in enumerate(segments)
+    ]
+    line_height = max((height for _, height in sizes), default=0)
+    x = position[0]
+    for index, (segment, (segment_width, segment_height)) in enumerate(
+        zip(segments, sizes, strict=True)
+    ):
+        y = position[1] + (line_height - segment_height) / 2
+        if index % 2:
+            _draw_math(
+                d,
+                (x, y),
+                segment,
+                fill=fill,
+                selected_font=selected_font,
+            )
+        else:
+            bounds = d.textbbox((0, 0), segment, font=selected_font)
+            d.text((x, y - bounds[1]), segment, fill=fill, font=selected_font)
+        x += segment_width
 
 
 def canvas(title: str, subtitle: str = "") -> tuple[Image.Image, ImageDraw.ImageDraw]:
     img = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(img)
     d.rectangle((0, 0, W, 118), fill="#efe2cb")
-    d.text((64, 34), title, fill=INK, font=F_TITLE)
+    if "$" in title:
+        draw_rich_text(d, (64, 34), title, fill=INK, selected_font=F_TITLE)
+    else:
+        d.text((64, 34), title, fill=INK, font=F_TITLE)
     if subtitle:
-        d.text((66, 92), subtitle, fill=MUTED, font=F_SMALL)
+        if "$" in subtitle:
+            draw_rich_text(d, (66, 92), subtitle, fill=MUTED, selected_font=F_SMALL)
+        else:
+            d.text((66, 92), subtitle, fill=MUTED, font=F_SMALL)
     return img, d
 
 
@@ -65,13 +309,24 @@ def save(img: Image.Image, name: str) -> None:
 
 def text_center(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], text: str, fill: str = INK, fnt=F_BODY) -> None:
     lines = text.split("\n")
-    heights = [d.textbbox((0, 0), line, font=fnt)[3] for line in lines]
+    if "$" not in text:
+        heights = [d.textbbox((0, 0), line, font=fnt)[3] for line in lines]
+        total = sum(heights) + (len(lines) - 1) * 8
+        y = (box[1] + box[3] - total) / 2
+        for line, height in zip(lines, heights, strict=False):
+            bbox = d.textbbox((0, 0), line, font=fnt)
+            x = (box[0] + box[2] - (bbox[2] - bbox[0])) / 2
+            d.text((x, y), line, fill=fill, font=fnt)
+            y += height + 8
+        return
+
+    sizes = [rich_text_size(d, line, fnt) for line in lines]
+    heights = [height for _, height in sizes]
     total = sum(heights) + (len(lines) - 1) * 8
     y = (box[1] + box[3] - total) / 2
-    for line, height in zip(lines, heights):
-        bbox = d.textbbox((0, 0), line, font=fnt)
-        x = (box[0] + box[2] - (bbox[2] - bbox[0])) / 2
-        d.text((x, y), line, fill=fill, font=fnt)
+    for line, (width, _), height in zip(lines, sizes, heights, strict=False):
+        x = (box[0] + box[2] - width) / 2
+        draw_rich_text(d, (x, y), line, fill=fill, selected_font=fnt)
         y += height + 8
 
 
@@ -99,8 +354,49 @@ def plot_axes(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], xlab: str,
         d.line((x0, y, x1, y), fill=GRID, width=1)
     d.line((x0, y1, x1, y1), fill=INK, width=3)
     d.line((x0, y0, x0, y1), fill=INK, width=3)
-    d.text(((x0 + x1) // 2 - 70, y1 + 26), xlab, fill=MUTED, font=F_SMALL)
-    d.text((x0 - 92, (y0 + y1) // 2 - 16), ylab, fill=MUTED, font=F_SMALL)
+    axis_labels(d, box, xlab, ylab)
+
+
+def axis_labels(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], xlab: str, ylab: str) -> None:
+    """Draw centered axis labels, rotating the ordinate to preserve plot width."""
+    x0, y0, x1, y1 = box
+    if "$" not in xlab and "$" not in ylab:
+        x_bbox = d.textbbox((0, 0), xlab, font=F_SMALL)
+        d.text(((x0 + x1 - (x_bbox[2] - x_bbox[0])) / 2, y1 + 24), xlab, fill=MUTED, font=F_SMALL)
+
+        y_bbox = F_SMALL.getbbox(ylab)
+        label = Image.new("L", (y_bbox[2] - y_bbox[0] + 12, y_bbox[3] - y_bbox[1] + 12), 0)
+        ImageDraw.Draw(label).text((6 - y_bbox[0], 6 - y_bbox[1]), ylab, fill=255, font=F_SMALL)
+        label = label.rotate(90, expand=True)
+        d.bitmap((x0 - 72, (y0 + y1 - label.height) / 2), label, fill=MUTED)
+        return
+
+    x_width, _ = rich_text_size(d, xlab, F_SMALL)
+    draw_rich_text(
+        d,
+        ((x0 + x1 - x_width) / 2, y1 + 24),
+        xlab,
+        fill=MUTED,
+        selected_font=F_SMALL,
+    )
+
+    y_width, y_height = rich_text_size(d, ylab, F_SMALL)
+    label = Image.new("L", (math.ceil(y_width) + 12, math.ceil(y_height) + 12), 0)
+    draw_rich_text(
+        ImageDraw.Draw(label),
+        (6, 6),
+        ylab,
+        fill="white",
+        selected_font=F_SMALL,
+    )
+    label = label.rotate(90, expand=True)
+    d.bitmap((x0 - 72, (y0 + y1 - label.height) / 2), label, fill=MUTED)
+
+
+def chart_labels(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], xlab: str, ylab: str) -> None:
+    """Label non-line charts whose marks already provide their own baseline."""
+    x0, y0, x1, y1 = box
+    axis_labels(d, (x0, y0, x1, y1 + 42), xlab, ylab)
 
 
 def line_plot(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], xs, ys, color: str, width: int = 5) -> None:
@@ -109,7 +405,7 @@ def line_plot(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], xs, ys, co
     ys = np.asarray(ys)
     px = x0 + (xs - xs.min()) / (xs.max() - xs.min()) * (x1 - x0)
     py = y1 - (ys - ys.min()) / (ys.max() - ys.min()) * (y1 - y0)
-    d.line(list(zip(px, py)), fill=color, width=width, joint="curve")
+    d.line(list(zip(px, py, strict=False)), fill=color, width=width, joint="curve")
 
 
 def bars(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], vals, labels, colors) -> None:
@@ -118,7 +414,7 @@ def bars(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], vals, labels, c
     n = len(vals)
     gap = 18
     bw = ((x1 - x0) - gap * (n - 1)) / n
-    for i, (v, label, color) in enumerate(zip(vals, labels, colors)):
+    for i, (v, label, color) in enumerate(zip(vals, labels, colors, strict=False)):
         bx0 = x0 + i * (bw + gap)
         bx1 = bx0 + bw
         by0 = y1 - v / maxv * (y1 - y0)
@@ -132,9 +428,9 @@ def fig_signal_flow() -> None:
     boxes = [(70, 280, 270, 400), (355, 280, 555, 400), (640, 280, 840, 400), (925, 280, 1125, 400), (1210, 280, 1410, 400)]
     labels = ["Input\nWAV/FLAC", "Preflight\n+ config", "Engine\nconv/algo", "Post FX\nlimit/loud", "Output\n+ JSON"]
     colors = [BLUE, TEAL, GOLD, RUST, PLUM]
-    for b, label, c in zip(boxes, labels, colors):
+    for b, label, c in zip(boxes, labels, colors, strict=False):
         node(d, b, label, c)
-    for a, b in zip(boxes[:-1], boxes[1:]):
+    for a, b in itertools.pairwise(boxes):
         arrow(d, (a[2] + 12, (a[1] + a[3]) // 2), (b[0] - 14, (b[1] + b[3]) // 2), MUTED)
     d.rounded_rectangle((180, 560, 1360, 720), radius=28, outline=GRID, width=4, fill="#f3ead9")
     text_center(d, (180, 560, 1360, 720), "Progress bars, deterministic seeds, analysis sidecars, and reproducible CLI options\nwrap the signal path so renders can be audited later.", fill=INK)
@@ -147,39 +443,58 @@ def fig_realtime_latency() -> None:
     vals = [2.7, 5.3, 10.7, 21.3, 42.7]
     labels = ["128", "256", "512", "1024", "2048"]
     bars(d, box, vals, labels, [TEAL, BLUE, GOLD, RUST, PLUM])
-    d.text((1120, 168), "48 kHz block size", fill=MUTED, font=F_BODY)
-    d.text((180, 710), "Use the smallest stable block size your audio driver can sustain; dereverb lookahead adds on top.", fill=INK, font=F_BODY)
+    chart_labels(d, box, "Audio block size (frames at 48 kHz)", "One-block duration (ms)")
+    d.text((180, 790), "Use the smallest stable block size your audio driver can sustain; dereverb lookahead adds on top.", fill=INK, font=F_BODY)
     save(img, "02_realtime_latency.png")
 
 
 def fig_rt60_curves() -> None:
-    img, d = canvas("RT60 Decay Families", "A 60 dB drop defines the nominal reverberation time.")
+    img, d = canvas("$T_{60}$ Decay Families", "A 60 dB drop defines the nominal $T_{60}$.")
     box = (190, 190, 1420, 710)
-    plot_axes(d, box, "time (s)", "level (dB)")
+    plot_axes(d, box, "Time after excitation (s)", "Relative decay level (dB)")
     t = np.linspace(0, 8, 300)
-    for rt, color in [(1.2, BLUE), (2.5, TEAL), (5.0, GOLD), (8.0, RUST)]:
+    curves = [
+        (1.2, 0.65, BLUE),
+        (2.5, 1.55, TEAL),
+        (5.0, 3.4, GOLD),
+        (8.0, 5.9, RUST),
+    ]
+    for rt, label_time, color in curves:
         y = -60 * t / rt
         y = np.maximum(y, -72)
         px = box[0] + t / 8 * (box[2] - box[0])
         py = box[3] - (y + 72) / 72 * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
-        d.text((box[2] - 170, int(py[min(len(py)-1, int(rt / 8 * 299))]) - 16), f"{rt:g}s", fill=color, font=F_SMALL)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
+        label_level = -60 * label_time / rt
+        label_x = box[0] + label_time / 8 * (box[2] - box[0])
+        label_y = box[3] - (label_level + 72) / 72 * (box[3] - box[1])
+        draw_rich_text(
+            d,
+            (label_x + 14, label_y - 22),
+            f"$T_{{60}}$ = {rt:g} s",
+            fill=color,
+            selected_font=F_SMALL,
+        )
     save(img, "03_rt60_decay_families.png")
 
 
 def fig_edc_windows() -> None:
-    img, d = canvas("Energy Decay Curve Windows", "EDT, T20, and T30 fit different portions of the same EDC.")
+    img, d = canvas("Energy Decay Curve Windows", "EDT, $T_{20}$, and $T_{30}$ fit different portions of the same EDC.")
     box = (190, 190, 1420, 700)
-    plot_axes(d, box, "time", "decay level")
+    plot_axes(d, box, "Normalized decay time (0-1)", "Energy decay level (dB)")
     t = np.linspace(0, 1, 280)
     y = -65 * (t ** 0.92) + 2 * np.sin(18 * t)
     xpix = box[0] + t * (box[2] - box[0])
     ypix = box[3] - (y + 70) / 72 * (box[3] - box[1])
-    d.line(list(zip(xpix, ypix)), fill=BLUE, width=6)
-    for start, end, label, color in [(0, 10, "EDT", TEAL), (5, 25, "T20", GOLD), (5, 35, "T30", RUST)]:
+    d.line(list(zip(xpix, ypix, strict=False)), fill=BLUE, width=6)
+    for _start, end, label, color in [
+        (0, 10, "EDT", TEAL),
+        (5, 25, "$T_{20}$", GOLD),
+        (5, 35, "$T_{30}$", RUST),
+    ]:
         yy = box[3] - ((-end) + 70) / 72 * (box[3] - box[1])
         d.line((box[0], yy, box[2], yy), fill=color, width=2)
-        d.text((box[2] - 95, yy - 24), label, fill=color, font=F_BODY)
+        draw_rich_text(d, (box[2] - 110, yy - 24), label, fill=color, selected_font=F_BODY)
     save(img, "04_edc_fit_windows.png")
 
 
@@ -198,13 +513,15 @@ def fig_fdn_matrix() -> None:
             d.rectangle((x0 + j * cell, y0 + i * cell, x0 + (j + 1) * cell - 2, y0 + (i + 1) * cell - 2), fill=color)
     d.text((150, 270), "delay lines", fill=MUTED, font=F_BODY)
     d.text((1000, 280), "lighter cells = weak coupling\nblue cells = stronger exchange", fill=INK, font=F_BODY)
+    axis_labels(d, (420, 170, 1028, 778), "Destination delay line (index)", "Source delay line (index)")
+    d.text((1030, 390), "Color scale: absolute coupling coefficient (0-1)", fill=MUTED, font=F_SMALL)
     save(img, "05_fdn_matrix_heatmap.png")
 
 
 def fig_window_functions() -> None:
     img, d = canvas("Analysis Window Options", "Different windows trade leakage for transient sharpness.")
     box = (180, 190, 1420, 700)
-    plot_axes(d, box, "sample index", "amplitude")
+    plot_axes(d, box, "Normalized sample position (0-1)", "Window amplitude (linear, 0-1)")
     x = np.linspace(0, 1, 512)
     curves = [
         ("hann", 0.5 - 0.5 * np.cos(2 * np.pi * x), BLUE),
@@ -212,10 +529,10 @@ def fig_window_functions() -> None:
         ("kaiser", np.kaiser(512, 8), GOLD),
         ("tukey", np.where(x < .2, .5 * (1 + np.cos(np.pi * (x / .2 - 1))), np.where(x > .8, .5 * (1 + np.cos(np.pi * ((x - .8) / .2))), 1)), RUST),
     ]
-    for name, y, color in curves:
+    for _name, y, color in curves:
         px = box[0] + x * (box[2] - box[0])
         py = box[3] - y * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=4)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=4)
     for i, (name, _, color) in enumerate(curves):
         d.text((1030, 220 + i * 44), name, fill=color, font=F_BODY)
     save(img, "06_window_functions.png")
@@ -224,17 +541,17 @@ def fig_window_functions() -> None:
 def fig_limiter_curve() -> None:
     img, d = canvas("Limiter Transfer Curves", "Soft knees preserve shape; hard ceilings prioritize safety.")
     box = (210, 190, 1350, 700)
-    plot_axes(d, box, "input dBFS", "output dBFS")
+    plot_axes(d, box, "Input level (dBFS)", "Output level (dBFS)")
     x = np.linspace(-36, 6, 400)
     curves = [
         ("hard", np.minimum(x, -1), RUST),
         ("soft", -1 - 10 * np.log10(1 + 10 ** ((-1 - x) / 10)), GOLD),
         ("transparent", np.where(x < -6, x, -6 + (x + 6) * 0.45), TEAL),
     ]
-    for name, y, color in curves:
+    for _name, y, color in curves:
         px = box[0] + (x - x.min()) / (x.max() - x.min()) * (box[2] - box[0])
         py = box[3] - (y - (-36)) / (6 - (-36)) * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
     d.text((980, 235), "hard ceiling\nsoft knee\ntransparent", fill=INK, font=F_BODY)
     save(img, "07_limiter_transfer.png")
 
@@ -242,37 +559,37 @@ def fig_limiter_curve() -> None:
 def fig_ducking() -> None:
     img, d = canvas("Reverb Ducking Envelope", "Wet level backs away while the dry source is active.")
     box = (170, 190, 1420, 700)
-    plot_axes(d, box, "time", "relative level")
+    plot_axes(d, box, "Time (s)", "Relative signal level (linear, 0-1)")
     t = np.linspace(0, 8, 500)
     dry = 0.15 + 0.85 * ((np.sin(2 * np.pi * t * 0.55) > 0.2).astype(float))
     wet = 1 - 0.55 * dry
     for y, color, label, yoff in [(dry, BLUE, "dry source", 0), (wet, RUST, "ducked wet", 46)]:
         px = box[0] + t / t.max() * (box[2] - box[0])
         py = box[3] - y * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
         d.text((1100, 230 + yoff), label, fill=color, font=F_BODY)
     save(img, "08_ducking_envelope.png")
 
 
 def fig_multiband_decay() -> None:
-    img, d = canvas("Frequency-Dependent Decay", "Low, mid, and high bands can carry different RT60 targets.")
+    img, d = canvas("Frequency-Dependent Decay", "Low, mid, and high bands can carry different $T_{60}$ targets.")
     box = (170, 190, 1420, 700)
-    plot_axes(d, box, "time (s)", "band level")
+    plot_axes(d, box, "Time after excitation (s)", "Relative band level (linear, 0-1)")
     t = np.linspace(0, 6, 300)
     bands = [("low", 5.5, BLUE), ("mid", 3.3, TEAL), ("high", 1.7, GOLD)]
     for name, rt, color in bands:
         y = np.exp(-t / rt)
         px = box[0] + t / 6 * (box[2] - box[0])
         py = box[3] - y * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
-        d.text((1120, int(py[120]) - 18), f"{name}: {rt}s", fill=color, font=F_BODY)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
+        draw_rich_text(d, (1050, int(py[120]) - 18), f"{name}: $T_{{60}}$ = {rt} s", fill=color, selected_font=F_BODY)
     save(img, "09_multiband_decay.png")
 
 
 def fig_dereverb_strength() -> None:
     img, d = canvas("Dereverb Strength vs Artifacts", "More reduction eventually trades clarity for processing damage.")
     box = (180, 190, 1420, 700)
-    plot_axes(d, box, "dereverb amount", "score")
+    plot_axes(d, box, "Dereverb amount (%)", "Perceptual score (normalized, 0-1)")
     x = np.linspace(0, 1, 300)
     clarity = 1 - np.exp(-4 * x)
     natural = 1 - x ** 2.2
@@ -280,7 +597,7 @@ def fig_dereverb_strength() -> None:
     for y, color, label, yoff in [(clarity, TEAL, "clarity", 0), (natural, GOLD, "naturalness", 46), (useful, RUST, "sweet spot", 92)]:
         px = box[0] + x * (box[2] - box[0])
         py = box[3] - y * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
         d.text((1070, 240 + yoff), label, fill=color, font=F_BODY)
     save(img, "10_dereverb_tradeoff.png")
 
@@ -290,13 +607,19 @@ def fig_partitioned_convolution() -> None:
     x0, y0 = 120, 250
     widths = [120, 160, 220, 280, 360, 440]
     colors = [BLUE, TEAL, GOLD, RUST, PLUM, GREEN]
-    for i, (w, c) in enumerate(zip(widths, colors)):
+    for i, (w, c) in enumerate(zip(widths, colors, strict=False)):
         y = y0 + i * 72
         d.rounded_rectangle((x0, y, x0 + w, y + 42), radius=10, fill=c)
-        d.text((x0 + w + 24, y + 8), f"partition {i}: {2 ** (i + 8)} samples", fill=INK, font=F_BODY)
+        draw_rich_text(d, (x0 + w + 24, y + 8), f"partition $i$ = {i}: {2 ** (i + 8)} samples", fill=INK, selected_font=F_BODY)
     arrow(d, (880, 335), (1210, 335), MUTED)
     node(d, (1220, 270, 1480, 410), "FFT blocks\n+ overlap-add", PLUM)
-    d.text((950, 540), "Smaller first partitions reduce perceived latency; larger late partitions reduce CPU.", fill=INK, font=F_BODY)
+    text_center(
+        d,
+        (900, 500, 1510, 650),
+        "Smaller first partitions reduce perceived latency;\nlarger late partitions reduce CPU.",
+        fill=INK,
+        fnt=F_BODY,
+    )
     save(img, "11_partitioned_convolution.png")
 
 
@@ -309,6 +632,7 @@ def fig_ir_morph() -> None:
         d.text((x - 46, y + 54), label, fill=INK, font=F_BODY)
     d.ellipse((790 - 24, 505 - 24, 790 + 24, 505 + 24), fill=PLUM)
     d.text((830, 488), "morphed IR", fill=PLUM, font=F_BODY)
+    d.text((1000, 780), "Coordinates: normalized IR blend weights (0-1)", fill=MUTED, font=F_SMALL)
     save(img, "12_ir_morph_space.png")
 
 
@@ -329,12 +653,12 @@ def fig_spatial_layouts() -> None:
 
 
 def fig_ambisonics_order() -> None:
-    img, d = canvas("Ambisonics Order Growth", "Channel count rises quadratically with order: (N + 1)^2.")
+    img, d = canvas("Ambisonics Order Growth", "Channel count rises quadratically with order: $(N + 1)^{2}$.")
     orders = list(range(0, 8))
     vals = [(n + 1) ** 2 for n in orders]
     labels = [str(n) for n in orders]
     bars(d, (170, 210, 1420, 700), vals, labels, [BLUE, TEAL, GOLD, RUST, PLUM, GREEN, "#8f6f3f", "#3f7f8f"])
-    d.text((1150, 165), "order N", fill=MUTED, font=F_BODY)
+    chart_labels(d, (170, 210, 1420, 700), "Ambisonics order $N$ (integer)", "Channel count (channels)")
     save(img, "14_ambisonics_order.png")
 
 
@@ -343,9 +667,9 @@ def fig_shimmer_path() -> None:
     boxes = [(120, 300, 330, 420), (430, 300, 640, 420), (740, 300, 950, 420), (1050, 300, 1260, 420)]
     labels = ["wet tail", "pitch\nshift", "diffuse\nagain", "feedback\nmix"]
     colors = [BLUE, GOLD, TEAL, RUST]
-    for b, l, c in zip(boxes, labels, colors):
-        node(d, b, l, c)
-    for a, b in zip(boxes[:-1], boxes[1:]):
+    for box, label, color in zip(boxes, labels, colors, strict=False):
+        node(d, box, label, color)
+    for a, b in itertools.pairwise(boxes):
         arrow(d, (a[2] + 10, 360), (b[0] - 12, 360), MUTED)
     arrow(d, (1155, 430), (220, 520), PLUM)
     arrow(d, (220, 520), (220, 430), PLUM)
@@ -354,27 +678,27 @@ def fig_shimmer_path() -> None:
 
 
 def fig_room_inference() -> None:
-    img, d = canvas("Room Size Inference", "RT60 plus absorption estimate maps to plausible room volume.")
+    img, d = canvas("Room Size Inference", "$T_{60}$ plus absorption estimate maps to plausible room volume.")
     box = (210, 190, 1350, 700)
-    plot_axes(d, box, "RT60 (s)", "estimated volume")
+    plot_axes(d, box, "Measured $T_{60}$ (s)", "Estimated room volume (m³)")
     rt = np.linspace(0.2, 4.5, 200)
     for alpha, color in [(0.15, BLUE), (0.3, TEAL), (0.55, GOLD)]:
         vol = rt * (200 * alpha) / 0.161
         px = box[0] + (rt - rt.min()) / (rt.max() - rt.min()) * (box[2] - box[0])
         py = box[3] - (vol - vol.min()) / (2800 - vol.min()) * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
-        d.text((1080, int(py[130]) - 20), f"alpha {alpha}", fill=color, font=F_BODY)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
+        draw_rich_text(d, (1080, int(py[130]) - 20), f"$\\alpha$ = {alpha}", fill=color, selected_font=F_BODY)
     save(img, "16_room_size_inference.png")
 
 
 def fig_analysis_dashboard() -> None:
     img, d = canvas("Analysis Metrics Dashboard", "The JSON sidecar converts audio into comparable acoustic metrics.")
-    metrics = [("RT60", "2.84 s", BLUE), ("DRR", "-6.1 dB", TEAL), ("C80", "-3.8 dB", GOLD), ("Peak", "-1.0 dB", RUST), ("LUFS", "-16.4", PLUM), ("EDT", "2.12 s", GREEN)]
+    metrics = [("$T_{60}$", "2.84 s", BLUE), ("DRR", "–6.1 dB", TEAL), ("$C_{80}$", "–3.8 dB", GOLD), ("Peak", "–1.0 dB", RUST), ("LUFS", "–16.4", PLUM), ("EDT", "2.12 s", GREEN)]
     for i, (name, value, color) in enumerate(metrics):
         x = 120 + (i % 3) * 480
         y = 210 + (i // 3) * 250
         d.rounded_rectangle((x, y, x + 380, y + 180), radius=24, fill=PAPER, outline=color, width=5)
-        d.text((x + 28, y + 28), name, fill=MUTED, font=F_BODY)
+        draw_rich_text(d, (x + 28, y + 28), name, fill=MUTED, selected_font=F_BODY)
         d.text((x + 28, y + 82), value, fill=color, font=F_TITLE)
     save(img, "17_analysis_dashboard.png")
 
@@ -398,7 +722,8 @@ def fig_references_map() -> None:
     vals = [100, 900]
     labels = ["curated\nannotated", "extended\nCrossref"]
     bars(d, (300, 220, 1300, 700), vals, labels, [TEAL, PLUM])
-    d.text((260, 760), "The guide now has 1,000 references total, but only the curated set is treated as implementation authority.", fill=INK, font=F_BODY)
+    chart_labels(d, (300, 220, 1300, 700), "Reference collection (category)", "Bibliography entries (count)")
+    d.text((260, 830), "The guide has 1,000 references total, but only the curated set is treated as implementation authority.", fill=INK, font=F_BODY)
     save(img, "19_reference_corpus.png")
 
 
@@ -416,20 +741,22 @@ def fig_ir_grid() -> None:
             color = [BLUE, TEAL, GOLD, RUST][(i + j) % 4]
             d.rounded_rectangle((x0 + j * cell, y0 + i * cell, x0 + (j + 1) * cell - 16, y0 + (i + 1) * cell - 16), radius=16, fill=color)
             text_center(d, (x0 + j * cell, y0 + i * cell, x0 + (j + 1) * cell - 16, y0 + (i + 1) * cell - 16), "4 IRs", fill=PAPER)
+    axis_labels(d, (420, 210, 1020, 810), "Synthesis family (category)", "Duration family (category)")
+    d.text((1070, 700), "Cell value: impulse responses (count)", fill=MUTED, font=F_SMALL)
     save(img, "20_ir_library_grid.png")
 
 
 def fig_cpu_block() -> None:
     img, d = canvas("Block Size CPU Tradeoff", "Small blocks feel fast; large blocks reduce scheduling pressure.")
     box = (170, 190, 1420, 700)
-    plot_axes(d, box, "block size", "relative value")
+    plot_axes(d, box, "Audio block size (frames)", "Normalized cost or latency (0-1)")
     x = np.array([128, 256, 512, 1024, 2048])
     cpu = np.array([1.0, 0.62, 0.38, 0.25, 0.18])
     latency = np.array([0.08, 0.16, 0.32, 0.64, 1.0])
     for y, color, label, yoff in [(cpu, TEAL, "CPU pressure", 0), (latency, RUST, "latency", 46)]:
         px = box[0] + (np.log2(x) - 7) / 4 * (box[2] - box[0])
         py = box[3] - y * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=6)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=6)
         d.text((1030, 250 + yoff), label, fill=color, font=F_BODY)
     save(img, "21_cpu_block_tradeoff.png")
 
@@ -453,7 +780,7 @@ def fig_preset_space() -> None:
     axes = [("time", -90), ("tone", -18), ("width", 54), ("motion", 126), ("safety", 198)]
     values = [0.86, 0.62, 0.78, 0.48, 0.72]
     pts = []
-    for (label, deg), val in zip(axes, values):
+    for (label, deg), val in zip(axes, values, strict=False):
         ang = math.radians(deg)
         end = (cx + r * math.cos(ang), cy + r * math.sin(ang))
         d.line((cx, cy, end[0], end[1]), fill=GRID, width=3)
@@ -461,13 +788,14 @@ def fig_preset_space() -> None:
         pts.append((cx + r * val * math.cos(ang), cy + r * val * math.sin(ang)))
     d.polygon(pts, fill="#d8a24d", outline=RUST)
     d.ellipse((cx - 8, cy - 8, cx + 8, cy + 8), fill=INK)
+    d.text((1030, 760), "Radial scale: normalized parameter amount (0-1)", fill=MUTED, font=F_SMALL)
     save(img, "23_preset_radar.png")
 
 
 def fig_infinite_reverb() -> None:
-    img, d = canvas("Infinite-Style Reverb Modes", "Very high RT60 values behave more like sustain instruments than rooms.")
+    img, d = canvas("Infinite-Style Reverb Modes", "Very high $T_{60}$ values behave more like sustain instruments than rooms.")
     box = (170, 190, 1420, 700)
-    plot_axes(d, box, "time", "tail energy")
+    plot_axes(d, box, "Normalized elapsed time (0-1)", "Relative tail energy (linear, 0-1)")
     t = np.linspace(0, 1, 400)
     normal = np.exp(-5 * t)
     long = np.exp(-1.3 * t)
@@ -475,7 +803,7 @@ def fig_infinite_reverb() -> None:
     for y, color, label, yoff in [(normal, BLUE, "room", 0), (long, GOLD, "extreme", 46), (freeze, PLUM, "infinite/freeze", 92)]:
         px = box[0] + t * (box[2] - box[0])
         py = box[3] - y * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
         d.text((1060, 230 + yoff), label, fill=color, font=F_BODY)
     save(img, "24_infinite_reverb.png")
 
@@ -532,7 +860,14 @@ MORE_FIGURES: tuple[tuple[str, str, str, str, int], ...] = (
     ("Multichannel Routing Matrix", "Channel maps keep immersive and stereo renders auditable.", "69_multichannel_routing_matrix.png", "heat", 69),
     ("Ambisonic Decode Spread", "Decode spread converts abstract soundfield order into speaker energy.", "70_ambisonic_decode_spread.png", "space", 70),
     ("Binaural HRTF Blend", "HRTF blending needs smooth interpolation across azimuth and elevation.", "71_binaural_hrtf_blend.png", "space", 71),
-    ("Speaker Layout Coverage", "Layout diagrams catch missing or mislabeled channels before render.", "72_speaker_layout_coverage.png", "space", 72),
+    (
+        "Loudspeaker Layouts: Plan and Elevation",
+        "Nominal channel bearings for stereo, 5.1, and 7.1.4, with the immersive "
+        "height layer shown separately.",
+        "72_speaker_layout_coverage.png",
+        "layout",
+        72,
+    ),
     ("IR Capture Checklist", "Capture quality depends on sweep level, silence, trim, and calibration.", "73_ir_capture_checklist.png", "stack", 73),
     ("Sweep Deconvolution Path", "Measured IRs move through sweep, inverse filter, trim, and normalize steps.", "74_sweep_deconvolution_path.png", "stack", 74),
     ("IR Tail Trim Decision", "Trim should stop after useful decay, not after the first low-energy valley.", "75_ir_tail_trim_decision.png", "timeline", 75),
@@ -564,14 +899,262 @@ MORE_FIGURES: tuple[tuple[str, str, str, str, int], ...] = (
 )
 
 
+# Semantic labels for every atlas chart. The third value labels heatmap color or
+# radar radius; schematics intentionally omit Cartesian axes.
+ATLAS_AXES: dict[int, tuple[str, str, str]] = {
+    25: ("Time after direct sound (ms)", "Reflection amplitude (dBFS)", ""),
+    26: ("Pre-delay (ms)", "Perceived source-room separation (normalized, 0-1)", ""),
+    27: ("Time after excitation (ms)", "Echo density (reflections/s)", ""),
+    28: ("Frequency (Hz)", "Relative damping gain (dB)", ""),
+    29: ("Modulation rate (Hz)", "Modulation depth (ms)", "Artifact risk (normalized, 0-1)"),
+    30: ("Stereo width (%)", "Inter-channel correlation (unitless, –1 to +1)", ""),
+    31: ("Inter-channel delay (ms)", "Perceptual region (category)", ""),
+    32: ("Time after transient (ms)", "Wet level (dBFS)", ""),
+    33: ("Time before transient (ms)", "Wet envelope level (linear, 0-1)", ""),
+    34: ("Frequency (Hz)", "Spectral magnitude (dBFS)", ""),
+    35: ("Normalization method (category)", "Target or measured level (dB)", ""),
+    36: ("Sample rate (kHz)", "Relative CPU cost (%)", ""),
+    37: ("Frequency (kHz)", "Alias energy (dBFS)", ""),
+    38: ("Time relative to peak (ms)", "Gain reduction (dB)", ""),
+    39: ("Dry/wet control (%)", "Channel gain (linear, 0-1)", ""),
+    40: ("Time in impulse response (ms)", "IR amplitude (dBFS)", ""),
+    41: ("Detector threshold (dBFS)", "Detected activity (%)", ""),
+    42: ("Parallel workers (count)", "Render throughput (files/min)", ""),
+    43: ("Cache condition (category)", "Elapsed processing time (%)", ""),
+    45: ("Test family (category)", "Platform or engine (category)", "Coverage (%)"),
+    46: ("Timbral brightness (normalized, 0-1)", "Spatial width (normalized, 0-1)", ""),
+    47: ("Audio block size (frames)", "Callback CPU load (%)", "Dropout risk (normalized, 0-1)"),
+    48: ("Readiness dimension (category)", "", "Completion score (normalized, 0-1)"),
+    49: ("Frequency (Hz)", "Magnitude response (dB)", ""),
+    50: ("Frequency (Hz)", "Group delay (ms)", ""),
+    51: ("FDN delay line (index)", "Delay length (samples)", ""),
+    52: ("Frequency (Hz)", "Modes per octave (count)", ""),
+    53: ("Frequency (Hz)", "Acoustic behavior (category)", ""),
+    54: ("Frequency (Hz)", "Air attenuation (dB/m)", ""),
+    55: ("Frequency band (Hz)", "Surface material (category)", "Absorption coefficient (0-1)"),
+    56: ("Energy component (category)", "Relative energy (%)", ""),
+    57: ("Source distance (m)", "Direct-to-reverberant ratio (dB)", ""),
+    58: ("Arrival angle (degrees)", "Relative microphone sensitivity (dB)", ""),
+    59: ("Time after onset (ms)", "Detector envelope (linear, 0-1)", ""),
+    60: ("Time after sidechain release (ms)", "Wet gain (dB)", ""),
+    61: ("Input level relative to threshold (dB)", "Output level (dBFS)", ""),
+    62: ("Time around sample peak (µs)", "Signal level (dBFS)", ""),
+    63: ("Program time (s)", "Integrated loudness (LUFS)", ""),
+    64: ("RMS level (dBFS)", "Peak level (dBFS)", "Crest factor (dB)"),
+    65: ("Time around transient (ms)", "Signal amplitude (linear, –1 to +1)", ""),
+    66: ("Dereverb mask strength (%)", "Artifact or suppression score (normalized, 0-1)", ""),
+    67: ("Time (s)", "Frequency (Hz)", "Residual magnitude (dBFS)"),
+    68: ("Program time (s)", "Estimated noise floor (dBFS)", ""),
+    69: ("Input channel (index)", "Output channel (index)", "Routing gain (dB)"),
+    70: ("Speaker azimuth (degrees)", "Speaker elevation (degrees)", "Relative decode energy (0-1)"),
+    71: ("Source azimuth (degrees)", "Source elevation (degrees)", "HRTF blend weight (0-1)"),
+    72: ("", "", ""),
+    75: ("Time in impulse response (s)", "IR decay level (dBFS)", ""),
+    76: ("Normalization mode (category)", "Resulting reference level (dB)", ""),
+    77: ("IR time offset (samples)", "Partition size (samples)", ""),
+    78: ("FFT size (samples)", "Relative processing cost (%)", ""),
+    79: ("Frame batch size (frames)", "Channel batch size (channels)", "SIMD utilization (%)"),
+    80: ("Impulse-response duration (s)", "Memory bandwidth (GB/s)", ""),
+    81: ("Worker threads (count)", "Speedup (× realtime)", ""),
+    82: ("Callback time (ms)", "Budget use (%)", ""),
+    83: ("Audio block size (frames)", "XRuns (count/hour)", ""),
+    85: ("CLI family (category)", "", "Option coverage (normalized, 0-1)"),
+    86: ("Preset attribute (category)", "Preset family (category)", "Library density (presets/cell)"),
+    87: ("Schema field group (category)", "Command (category)", "Fields implemented (%)"),
+    88: ("Regression metric (category)", "Allowed deviation (%)", ""),
+    89: ("Frequency (Hz)", "Golden-output drift (dB)", ""),
+    91: ("Table column width (characters)", "Content length (characters)", "Overflow risk (normalized, 0-1)"),
+    93: ("Documentation release (version index)", "References (count)", ""),
+    96: ("Feature or backend (category)", "Operating system (category)", "Support state (category)"),
+    97: ("Error-message quality (category)", "", "Quality score (normalized, 0-1)"),
+    99: ("Maturity dimension (category)", "", "Maturity score (normalized, 0-1)"),
+    100: ("Subsystem (category)", "Verification layer (category)", "Confidence score (normalized, 0-1)"),
+}
+
+
+def _polar_position(
+    center: tuple[int, int], radius: float, azimuth_degrees: float
+) -> tuple[float, float]:
+    angle = math.radians(azimuth_degrees)
+    return center[0] + radius * math.sin(angle), center[1] - radius * math.cos(angle)
+
+
+def _speaker_mark(
+    d: ImageDraw.ImageDraw,
+    center: tuple[float, float],
+    label: str,
+    color: str,
+) -> None:
+    x, y = center
+    radius = 20 if len(label) <= 2 else 23
+    d.ellipse((x - radius, y - radius, x + radius, y + radius), fill=color)
+    text_center(
+        d,
+        (int(x - radius), int(y - radius), int(x + radius), int(y + radius)),
+        label,
+        fill=PAPER,
+        fnt=F_CHANNEL,
+    )
+
+
+def _listener_mark(d: ImageDraw.ImageDraw, center: tuple[int, int]) -> None:
+    x, y = center
+    d.ellipse((x - 25, y - 25, x + 25, y + 25), fill=PAPER, outline=INK, width=4)
+    d.arc((x - 35, y - 16, x - 20, y + 16), 90, 270, fill=INK, width=3)
+    d.arc((x + 20, y - 16, x + 35, y + 16), -90, 90, fill=INK, width=3)
+    arrow(d, (x, y - 30), (x, y - 58), INK, 3)
+
+
+def _speaker_plan(
+    d: ImageDraw.ImageDraw,
+    *,
+    center: tuple[int, int],
+    title: str,
+    speakers: tuple[tuple[str, float, str], ...],
+    lfe: bool,
+) -> None:
+    cx, cy = center
+    radius = 150
+    frame = (cx - 225, 172, cx + 225, 650)
+    d.rounded_rectangle(frame, radius=24, fill=PAPER, outline=GRID, width=3)
+    title_box = d.textbbox((0, 0), title, font=F_PANEL)
+    d.text((cx - (title_box[2] - title_box[0]) / 2, 192), title, fill=INK, font=F_PANEL)
+    d.text((cx - 52, 228), "FRONT / 0°", fill=MUTED, font=F_TINY)
+    d.ellipse(
+        (cx - radius, cy - radius, cx + radius, cy + radius),
+        outline=GRID,
+        width=3,
+    )
+    d.line((cx, cy - radius, cx, cy + radius), fill=GRID, width=2)
+    d.line((cx - radius, cy, cx + radius, cy), fill=GRID, width=2)
+    d.text((cx - 48, cy + radius - 25), "REAR / 180°", fill=MUTED, font=F_TINY)
+    _listener_mark(d, center)
+
+    for label, azimuth, layer in speakers:
+        speaker_radius = 92 if layer == "height" else radius
+        position = _polar_position(center, speaker_radius, azimuth)
+        d.line((cx, cy, position[0], position[1]), fill="#dbe2de", width=2)
+        color = GOLD if layer == "height" else TEAL if "s" in label.lower() else BLUE
+        _speaker_mark(d, position, label, color)
+
+    if lfe:
+        d.rounded_rectangle(
+            (frame[0] + 18, frame[3] - 62, frame[0] + 112, frame[3] - 18),
+            radius=12,
+            fill=RUST,
+        )
+        text_center(
+            d,
+            (frame[0] + 18, frame[3] - 62, frame[0] + 112, frame[3] - 18),
+            "LFE",
+            fill=PAPER,
+            fnt=F_CHANNEL,
+        )
+        d.text(
+            (frame[0] + 122, frame[3] - 50),
+            "non-positional",
+            fill=MUTED,
+            font=F_TINY,
+        )
+
+
+def fig_speaker_layout_coverage(filename: str = "72_speaker_layout_coverage.png") -> None:
+    img, d = canvas(
+        "Loudspeaker Layouts: Plan and Elevation",
+        "Channel labels show nominal listener-relative bearings; connecting lines are "
+        "bearing guides, not signal flow.",
+    )
+    _speaker_plan(
+        d,
+        center=(275, 420),
+        title="Stereo / 2.0",
+        speakers=(("L", -30, "bed"), ("R", 30, "bed")),
+        lfe=False,
+    )
+    _speaker_plan(
+        d,
+        center=(800, 420),
+        title="5.1 Bed",
+        speakers=(
+            ("L", -30, "bed"),
+            ("C", 0, "bed"),
+            ("R", 30, "bed"),
+            ("Ls", -110, "bed"),
+            ("Rs", 110, "bed"),
+        ),
+        lfe=True,
+    )
+    _speaker_plan(
+        d,
+        center=(1325, 420),
+        title="7.1.4 Immersive",
+        speakers=(
+            ("L", -30, "bed"),
+            ("C", 0, "bed"),
+            ("R", 30, "bed"),
+            ("Lss", -90, "bed"),
+            ("Rss", 90, "bed"),
+            ("Lrs", -135, "bed"),
+            ("Rrs", 135, "bed"),
+            ("Ltf", -45, "height"),
+            ("Rtf", 45, "height"),
+            ("Ltr", -135, "height"),
+            ("Rtr", 135, "height"),
+        ),
+        lfe=True,
+    )
+
+    d.rounded_rectangle(
+        (65, 682, 1535, 860),
+        radius=22,
+        fill="#efe4cd",
+        outline=GRID,
+        width=3,
+    )
+    d.text((95, 706), "KEY", fill=INK, font=F_PANEL)
+    _speaker_mark(d, (125, 770), "L", BLUE)
+    d.text((158, 758), "front / center bed", fill=INK, font=F_SMALL)
+    _speaker_mark(d, (125, 820), "Ls", TEAL)
+    d.text((158, 808), "side / rear bed", fill=INK, font=F_SMALL)
+    _speaker_mark(d, (425, 770), "Ltf", GOLD)
+    d.text((460, 758), "height channel", fill=INK, font=F_SMALL)
+    d.rounded_rectangle((402, 802, 448, 838), radius=9, fill=RUST)
+    d.text((460, 808), "LFE has no bearing", fill=INK, font=F_SMALL)
+
+    elevation_title = "7.1.4 SIDE ELEVATION"
+    elevation_box = d.textbbox((0, 0), elevation_title, font=F_PANEL)
+    d.text(
+        (1110 - (elevation_box[2] - elevation_box[0]) / 2, 695),
+        elevation_title,
+        fill=INK,
+        font=F_PANEL,
+    )
+    listener = (1110, 815)
+    d.line((755, 815, 1480, 815), fill=MUTED, width=3)
+    _listener_mark(d, listener)
+    for x in (835, 1385):
+        d.line((listener[0], listener[1], x, 815), fill="#dbe2de", width=2)
+        _speaker_mark(d, (x, 815), "bed", TEAL)
+    for x in (1045, 1175):
+        d.line((listener[0], listener[1], x, 750), fill="#dbe2de", width=2)
+        _speaker_mark(d, (x, 750), "top", GOLD)
+    d.text((1210, 741), "height: +45°", fill=MUTED, font=F_TINY)
+    save(img, filename)
+
+
 def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) -> None:
+    if kind == "layout":
+        fig_speaker_layout_coverage(filename)
+        return
     img, d = canvas(title, subtitle)
     rng = np.random.default_rng(seed)
     box = (170, 190, 1420, 700)
     palette = [BLUE, TEAL, GOLD, RUST, PLUM, GREEN]
 
+    xlab, ylab, scale_lab = ATLAS_AXES.get(seed, ("Horizontal dimension (normalized, 0-1)", "Vertical dimension (normalized, 0-1)", ""))
+
     if kind in {"curve", "multi"}:
-        plot_axes(d, box, "control", "response")
+        plot_axes(d, box, xlab, ylab)
         x = np.linspace(0, 1, 360)
         count = 1 if kind == "curve" else 4
         for i in range(count):
@@ -582,7 +1165,7 @@ def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) ->
                 y = 1 - y
             px = box[0] + x * (box[2] - box[0])
             py = box[3] - y * (box[3] - box[1])
-            d.line(list(zip(px, py)), fill=palette[i], width=5)
+            d.line(list(zip(px, py, strict=False)), fill=palette[i], width=5)
         for i, color in enumerate(palette[:count]):
             d.text((1040, 225 + i * 42), f"trace {i + 1}", fill=color, font=F_BODY)
 
@@ -590,15 +1173,15 @@ def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) ->
         labels = ["A", "B", "C", "D", "E"]
         vals = list((rng.uniform(0.28, 1.0, size=5) * 100).astype(int))
         bars(d, box, vals, labels, palette[:5])
-        d.text((170, 750), "Relative scale normalized to the largest measured condition.", fill=INK, font=F_BODY)
+        chart_labels(d, box, xlab, ylab)
 
     elif kind == "timeline":
-        plot_axes(d, box, "time", "level")
+        plot_axes(d, box, xlab, ylab)
         x = np.linspace(0, 1, 500)
         base = np.exp(-3.5 * x)
         px = box[0] + x * (box[2] - box[0])
         py = box[3] - base * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=BLUE, width=5)
+        d.line(list(zip(px, py, strict=False)), fill=BLUE, width=5)
         for i, tap in enumerate(np.sort(rng.uniform(0.05, 0.9, size=10))):
             height = rng.uniform(0.18, 0.86)
             tx = box[0] + tap * (box[2] - box[0])
@@ -616,7 +1199,8 @@ def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) ->
                 v = 0.65 * v + 0.35 * rng.uniform()
                 color = (int(235 - 110 * v), int(222 - 70 * v), int(190 + 55 * v))
                 d.rounded_rectangle((x0 + j * cell_w, y0 + i * cell_h, x0 + (j + 1) * cell_w - 8, y0 + (i + 1) * cell_h - 8), radius=8, fill=color)
-        d.text((280, 650), "Darker cells mark stronger risk, energy, or coverage depending on the plot.", fill=INK, font=F_BODY)
+        axis_labels(d, (280, 210, 1344, 594), xlab, ylab)
+        d.text((280, 660), f"Color scale: {scale_lab}", fill=INK, font=F_BODY)
 
     elif kind == "bands":
         x0, y0, x1, y1 = box
@@ -626,7 +1210,7 @@ def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) ->
             bx1 = x0 + end * (x1 - x0)
             d.rounded_rectangle((bx0, y0, bx1, y1), radius=24, fill=color)
             text_center(d, (int(bx0), y0, int(bx1), y1), label, fill=PAPER, fnt=F_BODY)
-        d.text((x0, y1 + 36), "Increasing inter-channel delay", fill=INK, font=F_BODY)
+        axis_labels(d, box, xlab, ylab)
 
     elif kind == "stack":
         stages = ["Python", "CLI", "DSP", "analysis", "native"]
@@ -648,20 +1232,21 @@ def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) ->
         d.line([tuple(p) for p in pts], fill=PLUM, width=5)
         for i, p in enumerate(pts):
             d.ellipse((p[0] - 13, p[1] - 13, p[0] + 13, p[1] + 13), fill=palette[i % len(palette)])
-        d.text((x0, y1 + 36), "Each dot is a preset state; smooth paths avoid sudden timbral jumps.", fill=INK, font=F_BODY)
+        axis_labels(d, box, xlab, ylab)
 
     elif kind == "radar":
         cx, cy, r = 800, 460, 250
         axes = ["docs", "tests", "render", "rt", "native", "release"]
         vals = rng.uniform(0.52, 0.95, size=len(axes))
         pts = []
-        for i, (label, val) in enumerate(zip(axes, vals)):
+        for i, (label, val) in enumerate(zip(axes, vals, strict=False)):
             ang = -math.pi / 2 + 2 * math.pi * i / len(axes)
             end = (cx + r * math.cos(ang), cy + r * math.sin(ang))
             d.line((cx, cy, end[0], end[1]), fill=GRID, width=3)
             d.text((end[0] - 32, end[1] - 18), label, fill=INK, font=F_BODY)
             pts.append((cx + r * val * math.cos(ang), cy + r * val * math.sin(ang)))
         d.polygon(pts, fill="#8ab6a8", outline=BLUE)
+        d.text((1030, 750), f"Radial scale: {scale_lab}", fill=MUTED, font=F_SMALL)
 
     save(img, filename)
 

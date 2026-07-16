@@ -79,6 +79,8 @@ fi
   -I "${repo_root}/native/verbx_c/include" \
   "${repo_root}/native/verbx_c/src/audio.c" \
   "${repo_root}/native/verbx_c/src/algo_reverb.c" \
+  "${repo_root}/native/verbx_c/src/plugin_params.c" \
+  "${repo_root}/native/verbx_c/src/plugin_realtime.c" \
   "${repo_root}/native/verbx_c/src/render.c" \
   "${repo_root}/native/verbx_c/src/wav_io.c" \
   "${repo_root}/native/verbx_c/src/main.c" \

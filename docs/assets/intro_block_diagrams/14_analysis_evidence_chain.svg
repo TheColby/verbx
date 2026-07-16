@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300">
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#123431"/></marker></defs>
+<rect width="1200" height="300" rx="26" fill="#f6f0e3"/>
+<text x="60" y="55" font-family="Georgia,serif" font-size="30" font-weight="700" fill="#123431">Analysis evidence chain</text>
+<path d="M60 76 H1140" stroke="#d59a22" stroke-width="5"/>
+<rect x="46" y="130" width="188" height="76" rx="14" fill="#fff" stroke="#267f9a" stroke-width="4"/>
+<text x="140.0" y="164" text-anchor="middle" font-family="Georgia,serif" font-size="20" fill="#123431">Rendered audio</text>
+<path d="M241 168.0 H269" stroke="#123431" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="276" y="130" width="188" height="76" rx="14" fill="#fff" stroke="#d59a22" stroke-width="4"/>
+<text x="370.0" y="164" text-anchor="middle" font-family="Georgia,serif" font-size="20" fill="#123431">Metrics</text>
+<path d="M471 168.0 H499" stroke="#123431" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="506" y="130" width="188" height="76" rx="14" fill="#fff" stroke="#c75b3c" stroke-width="4"/>
+<text x="600.0" y="164" text-anchor="middle" font-family="Georgia,serif" font-size="20" fill="#123431">Thresholds</text>
+<path d="M701 168.0 H729" stroke="#123431" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="736" y="130" width="188" height="76" rx="14" fill="#fff" stroke="#29a391" stroke-width="4"/>
+<text x="830.0" y="164" text-anchor="middle" font-family="Georgia,serif" font-size="20" fill="#123431">Warnings</text>
+<path d="M931 168.0 H959" stroke="#123431" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="966" y="130" width="188" height="76" rx="14" fill="#fff" stroke="#7151a3" stroke-width="4"/>
+<text x="1060.0" y="164" text-anchor="middle" font-family="Georgia,serif" font-size="20" fill="#123431">JSON report</text>
+</svg>

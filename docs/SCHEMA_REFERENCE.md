@@ -73,7 +73,7 @@ One job object per line (no wrapping object, no `"jobs"` key):
 | `fdn_lines` | integer | `8` | `1` – `64` |
 | `fdn_matrix` | string | `"hadamard"` | `"hadamard"`, `"householder"`, `"random_orthogonal"`, `"circulant"`, `"elliptic"`, `"tv_unitary"`, `"graph"`, `"sdn_hybrid"` |
 | `shimmer` | boolean | `false` | — |
-| `shimmer_semitones` | number | `12` | `-24` – `24` |
+| `shimmer_semitones` | number | `12` | `–24` – `24` |
 | `shimmer_mix` | number | `0.25` | `0.0` – `1.0` |
 | `shimmer_feedback` | number | `0.35` | `0.0` – `0.98` (safe), up to `1.25` with `unsafe_self_oscillate=true` |
 | `unsafe_self_oscillate` | boolean | `false` | Enables unsafe above-unity feedback path in algorithmic mode |
@@ -81,7 +81,7 @@ One job object per line (no wrapping object, no `"jobs"` key):
 | `auto_fit` | string | `"none"` | `"none"`, `"speech"`, `"music"`, `"drums"`, `"ambient"` |
 | `fdn_matrix_morph_to` | string/null | `null` | Optional matrix morph target family |
 | `fdn_matrix_morph_seconds` | number | `0.0` | `>= 0.0` |
-| `tail_stop_threshold_db` | number | `-120.0` | `-240.0` – `0.0` |
+| `tail_stop_threshold_db` | number | `–120.0` | `–240.0` – `0.0` |
 | `tail_stop_hold_ms` | number | `10.0` | `>= 0.0` |
 | `tail_stop_metric` | string | `"peak"` | `"peak"`, `"rms"` |
 | `algo_stream` | boolean | `false` | Enable algorithmic proxy streaming path |
@@ -234,15 +234,15 @@ Required columns: `target`, `time_s`, `value`. Optional: `interp`.
 |---|---|---|---|
 | `wet` | post | 0.0 – 1.0 | Wet mix level |
 | `dry` | post | 0.0 – 1.0 | Dry mix level |
-| `gain-db` | post | -48.0 – 24.0 | Output gain in dB |
+| `gain-db` | post | –48.0 – 24.0 | Output gain in dB |
 | `rt60` | engine | 0.1 – 3600.0 | Reverberation time in seconds |
 | `damping` | engine | 0.0 – 1.0 | High-frequency damping |
 | `room-size` | engine | 0.25 – 4.0 | Room size scalar |
-| `room-size-macro` | engine | -1.0 – 1.0 | Room size macro (normalized) |
-| `clarity-macro` | engine | -1.0 – 1.0 | Clarity macro |
-| `warmth-macro` | engine | -1.0 – 1.0 | Warmth macro |
-| `envelopment-macro` | engine | -1.0 – 1.0 | Envelopment macro |
-| `fdn-rt60-tilt` | engine | -1.0 – 1.0 | FDN RT60 spectral tilt |
+| `room-size-macro` | engine | –1.0 – 1.0 | Room size macro (normalized) |
+| `clarity-macro` | engine | –1.0 – 1.0 | Clarity macro |
+| `warmth-macro` | engine | –1.0 – 1.0 | Warmth macro |
+| `envelopment-macro` | engine | –1.0 – 1.0 | Envelopment macro |
+| `fdn-rt60-tilt` | engine | –1.0 – 1.0 | FDN RT60 spectral tilt |
 | `fdn-rt60-low` | engine | 0.1 – 3600.0 | Low-band RT60 target |
 | `fdn-rt60-mid` | engine | 0.1 – 3600.0 | Mid-band RT60 target |
 | `fdn-rt60-high` | engine | 0.1 – 3600.0 | High-band RT60 target |

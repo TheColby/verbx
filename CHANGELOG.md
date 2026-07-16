@@ -5,6 +5,50 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Changed
+- Quality modes now perform real allocation-free wet-path oversampling instead
+  of reporting an aspirational internal rate. Host, 2x, and 4x use their exact
+  integer factors; Target 192 kHz chooses the smallest integer factor that
+  reaches or exceeds 192 kHz (5x/220.5 kHz for a 44.1 kHz host). Quality
+  changes reprepare off the audio thread, the dry path remains host-rate
+  transparent, and the editor reports live host/internal rates, factor, block
+  size, and zero-frame latency.
+- The native editor now has a full Expert page with nine linked rotary
+  controls, nine precision faders, a live spectrum view, and twenty selector
+  buttons for quality, width, decay, mix routing, and tail character. Every
+  control writes the existing automatable host state; the UI smoke test covers
+  page switching, control visibility, dial input, and selector macros.
+- Perform and Expert text entry now parses the units shown on screen: RT60
+  seconds invert the logarithmic coarse mapping, percentages convert to native
+  ranges, and fine trim uses its displayed +/-20 percent scale. Expert selector
+  highlights now follow host automation and clear for custom parameter values.
+- Native plug-in dials now respond immediately at the clicked arc position,
+  use predictable vertical dragging, support wheel and editable text input,
+  reset on double-click, expose stable accessibility IDs, and have larger hit
+  targets. A dedicated editor smoke test verifies a real dial click reaches its
+  host-visible parameter attachment.
+- Native AU/VST3 host validation now negotiates a stereo bus layout and
+  requires measurable wet-tail energy instead of checking only finite samples.
+- The macOS installer now unregisters an ad-hoc AUv3 extension so it cannot
+  shadow the validated AUv2 component in Logic. AUv3 hosting is enabled with
+  an explicit Apple code-signing identity, with a development-only ad-hoc
+  override.
+- Made the native editor responsive to DAW window negotiation: it now opens at
+  a host-safe 1280x720, can shrink to 800x450, and no longer forces a fixed
+  aspect-ratio constrainer that could prevent Audacity or Logic from opening
+  the plug-in window.
+- Rebuilt the native plug-in editor as the approved full-screen 16:9 spatial
+  console: DXF geometry theater, loudness meters, image/ray panels, live decay
+  analyzer, nine parameter cards including separate RT60 coarse/fine controls,
+  quality/mode controls, and expert status cards. The README now carries a real
+  capture of the compiled implementation.
+- Native plug-in metadata now identifies Colby Leider as the author/vendor,
+  uses the stable `com.colbyleider.verbx` bundle identifier, and the installer
+  fully signs and verifies copied macOS bundles before refreshing Audio Unit
+  discovery. An explicit `--reset-plugin-cache` recovery path backs up stale
+  Apple cache files before forcing a clean host scan.
+- macOS AU/VST3/standalone builds now default to universal `arm64+x86_64`
+  binaries with a macOS 12 deployment target, preventing plug-in disappearance
+  when a universal DAW or scanner runs under Rosetta.
 - `run_render_pipeline()` is now split into explicit streaming and in-memory
   stage helpers, reducing the amount of orchestration living in a single branchy
   function.
@@ -36,6 +80,24 @@ All notable changes to this project are documented in this file.
   long-tail W64 output.
 
 ### Added
+- Added an opt-in JUCE host smoke executable that discovers AU/VST3 bundles,
+  instantiates VERBX, creates its editor, and processes an impulse so host-load
+  regressions can be diagnosed independently of DAW caches.
+- Added a true macOS AUv3 app extension: the JUCE AUv3 wrapper now builds with
+  standard CMake generators, links through `NSExtensionMain`, and embeds as
+  `VERBX.app/Contents/PlugIns/VERBX.appex`. The installer nested-signs and
+  registers the extension with PlugInKit under Colby Leider.
+- Expanded `./install.sh` into a complete per-user installer for Python runtime
+  extras, man pages, `verbx-c`, Release Audio Unit/VST3 bundles, and the JUCE
+  standalone app, with pinned JUCE download, offline source, custom destination,
+  component-skip, existing-artifact, and dry-run controls.
+- Promoted the native JUCE plug-in from pass-through scaffold to an audible,
+  allocation-free mono/stereo Schroeder reverb with the complete initial
+  12-parameter control dock, effective-RT60 display, Freeze, reverse-style
+  swell, and overlaid realtime spectrum analyzer.
+- Added persistent realtime DSP state, wet-tail/reset tests, sanitizer coverage,
+  20 ms automation smoothing, and successful standalone, AU, and VST3 build
+  validation.
 - `src/verbx/core/room_geometry.py` with a reusable `RoomGeometry` dataclass,
   direct-path/pre-delay metrics, aspect-ratio analysis, and Bolt-style warnings
   for physically grounded room workflows.

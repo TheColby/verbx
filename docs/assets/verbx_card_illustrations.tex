@@ -1,0 +1,280 @@
+% Vector illustration system for the generated operational cards.
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,calc,positioning,shapes.geometric}
+
+\definecolor{verbxInk}{HTML}{17302D}
+\definecolor{verbxTeal}{HTML}{2A9D8F}
+\definecolor{verbxBlue}{HTML}{277A93}
+\definecolor{verbxGold}{HTML}{D09A2D}
+\definecolor{verbxRust}{HTML}{BC5638}
+\definecolor{verbxPlum}{HTML}{74549A}
+\definecolor{verbxSage}{HTML}{7FA38E}
+\definecolor{verbxPlate}{HTML}{F4EBDD}
+\definecolor{verbxGrid}{HTML}{D8CDBB}
+
+\tikzset{
+  verbx frame/.style={rounded corners=9pt, fill=verbxPlate, draw=verbxGrid, line width=0.8pt},
+  verbx node/.style={rounded corners=6pt, fill=white, draw=verbxInk, line width=0.8pt,
+    minimum height=0.8cm, align=center, font=\small\bfseries},
+  verbx arrow/.style={-{Latex[length=2.8mm]}, line width=1.1pt, draw=verbxInk},
+  verbx label/.style={font=\scriptsize\scshape, text=verbxInk},
+  verbx note/.style={font=\scriptsize, text=verbxInk, align=center},
+}
+
+\newcommand{\verbxVisualFrame}{%
+  \fill[verbx frame] (0,0) rectangle (15.4,5.8);
+  \draw[verbxGold, line width=2pt] (0.45,5.28) -- (14.95,5.28);
+}
+
+\newcommand{\verbxCardSection}[1]{%
+  \vfill
+  \begin{center}
+  \begin{tikzpicture}[x=1cm,y=1cm]
+    \fill[rounded corners=14pt, verbxInk] (0,0) rectangle (15.4,10.4);
+    \draw[verbxGold,line width=2.5pt] (0.8,9.45)--(14.6,9.45);
+    \node[text=white,font=\fontsize{25}{29}\selectfont\bfseries,align=left,text width=12.8cm,anchor=west]
+      at (0.9,8.25) {#1};
+    \node[text=verbxGold,font=\large\scshape,anchor=west] at (0.9,7.25)
+      {Operational reference cards};
+    \draw[verbxTeal,line width=2pt] (1.1,4.8) .. controls (3.0,7.0) and (4.2,2.5) .. (6.3,4.8)
+      .. controls (8.2,6.9) and (9.5,2.7) .. (11.4,4.8)
+      .. controls (12.5,5.7) and (13.5,4.0) .. (14.3,4.8);
+    \foreach \x/\c in {1.2/verbxBlue,3.6/verbxTeal,6.0/verbxGold,8.4/verbxRust,10.8/verbxPlum,13.2/verbxSage}
+      \fill[\c] (\x,1.15) rectangle +(1.45,1.25);
+    \node[text=white,font=\small,anchor=west] at (0.9,0.48)
+      {Starting point \quad / \quad listening method \quad / \quad verification evidence};
+  \end{tikzpicture}
+  \end{center}
+  \vfill\clearpage
+}
+
+% A substantial lower-page learning plate keeps each Appendix B project visually
+% balanced while reinforcing the predict-build-measure-reflect method.
+\newcommand{\verbxAssignmentPlate}[2]{%
+  \begin{center}
+  \begin{tikzpicture}[x=1cm,y=1cm]
+    \path[fill=verbxPlate,draw=verbxGrid,rounded corners=8pt]
+      (0,0) rectangle (15.0,5.0);
+    \draw[verbxGold,line width=1.2pt] (0.45,4.52) -- (14.55,4.52);
+    \node[anchor=west,font=\bfseries\large,text=verbxInk] at (0.55,4.15)
+      {Project #1 laboratory cycle};
+    \node[anchor=east,font=\small\itshape,text=verbxInk!65] at (14.45,4.15)
+      {#2};
+    \node[draw=verbxBlue,line width=1.1pt,rounded corners=5pt,fill=white,
+      minimum width=2.55cm,minimum height=1.05cm,font=\bfseries,text=verbxInk]
+      at (2.15,3.05) {Predict};
+    \node[draw=verbxGold,line width=1.1pt,rounded corners=5pt,fill=white,
+      minimum width=2.55cm,minimum height=1.05cm,font=\bfseries,text=verbxInk]
+      at (5.72,3.05) {Build};
+    \node[draw=verbxTeal,line width=1.1pt,rounded corners=5pt,fill=white,
+      minimum width=2.55cm,minimum height=1.05cm,font=\bfseries,text=verbxInk]
+      at (9.29,3.05) {Measure};
+    \node[draw=verbxPlum,line width=1.1pt,rounded corners=5pt,fill=white,
+      minimum width=2.55cm,minimum height=1.05cm,font=\bfseries,text=verbxInk]
+      at (12.86,3.05) {Reflect};
+    \draw[verbx arrow] (3.47,3.05) -- (4.40,3.05);
+    \draw[verbx arrow] (7.04,3.05) -- (7.97,3.05);
+    \draw[verbx arrow] (10.61,3.05) -- (11.54,3.05);
+    \node[anchor=west,font=\small\bfseries,text=verbxInk] at (0.65,1.95)
+      {Submission audit};
+    \node[anchor=west,font=\small,text=verbxInk!65] at (0.65,1.48)
+      {\texttt{[ ]} runnable command \quad \texttt{[ ]} source + renders \quad \texttt{[ ]} analysis JSON};
+    \node[anchor=west,font=\small,text=verbxInk!65] at (0.65,1.03)
+      {\texttt{[ ]} labeled figure \quad \texttt{[ ]} level-matched listening \quad \texttt{[ ]} reproducibility check};
+    \node[anchor=west,font=\footnotesize\itshape,text=verbxInk!65] at (0.65,0.48)
+      {State the prediction before rendering; distinguish observation, measurement, and interpretation.};
+  \end{tikzpicture}
+  \end{center}
+}
+
+\newcommand{\verbxProductionVisual}[2]{%
+  \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
+    \verbxVisualFrame
+    \node[verbx node,draw=verbxBlue,text width=2.3cm] (source) at (1.8,2.8) {#1};
+    \draw[verbx arrow,draw=verbxBlue] (3.05,2.8)--(4.35,2.8);
+    \draw[verbxGold,line width=1.2pt] (4.45,1.05) rectangle (10.25,4.55);
+    \node[verbx label] at (7.35,4.22) {#2};
+    \fill[verbxRust] (5.15,2.75) circle (0.11);
+    \fill[verbxTeal] (9.45,2.75) circle (0.11);
+    \draw[verbxBlue,line width=1pt] (5.15,2.75)--(7.3,4.15)--(9.45,2.75);
+    \draw[verbxTeal,line width=1pt] (5.15,2.75)--(7.3,1.45)--(9.45,2.75);
+    \draw[verbx arrow,draw=verbxRust] (10.4,2.8)--(11.5,2.8);
+    \draw[verbxPlum,line width=1.4pt,smooth] plot[samples=70,domain=0:2.7]
+      (11.55+\x,{2.8+0.72*exp(-0.55*\x)*sin(520*\x)});
+    \node[verbx note] at (2.0,1.0) {direct source};
+    \node[verbx note] at (7.3,0.62) {early geometry};
+    \node[verbx note] at (12.9,1.0) {late field};
+  \end{tikzpicture}\end{center}
+}
+
+\newcommand{\verbxAutomationVisual}[2]{%
+  \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
+    \verbxVisualFrame
+    \draw[->,verbxInk,line width=1pt] (1.2,1.0)--(14.25,1.0) node[below,verbx label]{host time};
+    \draw[->,verbxInk,line width=1pt] (1.2,1.0)--(1.2,4.75) node[above,verbx label]{value};
+    \draw[verbxTeal,line width=2.2pt,smooth] plot coordinates
+      {(1.3,1.35)(3.0,1.5)(4.6,2.05)(6.3,3.1)(8.2,4.15)(10.0,3.45)(12.0,4.35)(14.0,3.9)};
+    \foreach \x/\y in {1.3/1.35,4.6/2.05,8.2/4.15,12/4.35,14/3.9}
+      \fill[verbxGold] (\x,\y) circle (0.11);
+    \node[verbx node,draw=verbxTeal,text width=3.0cm] at (4.0,4.55) {#1};
+    \node[verbx node,draw=verbxGold,text width=3.0cm] at (11.2,2.05) {#2};
+  \end{tikzpicture}\end{center}
+}
+
+\newcommand{\verbxQualityVisual}[3]{%
+  \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
+    \verbxVisualFrame
+    \node[verbx node,draw=verbxBlue,text width=2.4cm] (host) at (1.8,3.1) {host\\#1};
+    \node[verbx node,draw=verbxGold,text width=2.5cm] (policy) at (5.6,3.1) {quality\\#2};
+    \node[verbx node,draw=verbxTeal,text width=2.5cm] (block) at (9.45,3.1) {callback\\#3};
+    \node[verbx node,draw=verbxRust,text width=2.3cm] (out) at (13.35,3.1) {latency\\report};
+    \draw[verbx arrow] (host)--(policy); \draw[verbx arrow] (policy)--(block); \draw[verbx arrow] (block)--(out);
+    \foreach \x/\h/\c in {1.0/0.45/verbxBlue,2.0/0.75/verbxBlue,3.0/1.05/verbxGold,4.0/1.4/verbxGold,5.0/1.8/verbxTeal,6.0/2.1/verbxTeal}
+      \fill[\c] (7.6+\x,0.65) rectangle +(0.58,\h/2);
+    \node[verbx note] at (4.0,1.0) {rate policy and block deadline remain separate};
+  \end{tikzpicture}\end{center}
+}
+
+\newcommand{\verbxValidationVisual}[2]{%
+  \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
+    \verbxVisualFrame
+    \node[verbx node,draw=verbxBlue,text width=2.3cm] (host) at (1.7,2.8) {#1};
+    \node[verbx node,draw=verbxGold,text width=2.3cm] (scan) at (5.1,2.8) {instantiate\\and prepare};
+    \node[verbx node,draw=verbxTeal,text width=2.5cm] (test) at (8.9,2.8) {#2};
+    \node[diamond,aspect=1.7,fill=white,draw=verbxRust,line width=1pt,font=\small\bfseries,align=center] (gate) at (12.5,2.8) {evidence};
+    \draw[verbx arrow] (host)--(scan); \draw[verbx arrow] (scan)--(test); \draw[verbx arrow] (test)--(gate);
+    \node[verbx note] at (7.2,1.05) {fresh process \quad deterministic input \quad retained logs};
+  \end{tikzpicture}\end{center}
+}
+
+\newcommand{\verbxTroubleshootingVisual}[1]{%
+  \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
+    \verbxVisualFrame
+    \node[regular polygon,regular polygon sides=3,fill=verbxGold,draw=verbxRust,minimum size=1.7cm] (warn) at (1.65,3.0) {!};
+    \node[verbx node,draw=verbxRust,text width=4.0cm] (symptom) at (4.6,3.0) {#1};
+    \node[verbx node,draw=verbxBlue,text width=2.4cm] (isolate) at (9.0,3.85) {isolate\\one variable};
+    \node[verbx node,draw=verbxTeal,text width=2.4cm] (recover) at (12.7,3.0) {recover\\and verify};
+    \node[verbx node,draw=verbxPlum,text width=2.4cm] (record) at (9.0,1.65) {preserve\\evidence};
+    \draw[verbx arrow] (warn)--(symptom); \draw[verbx arrow] (symptom)--(isolate); \draw[verbx arrow] (symptom)--(record);
+    \draw[verbx arrow] (isolate)--(recover); \draw[verbx arrow] (record)--(recover);
+  \end{tikzpicture}\end{center}
+}
+
+\newcommand{\verbxPresetVisual}[2]{%
+  \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
+    \verbxVisualFrame
+    \coordinate (c) at (7.7,2.75);
+    \foreach \a/\lab in {90/time,18/tone,-54/width,-126/motion,162/safety}{
+      \draw[verbxGrid,line width=1pt] (c)--++(\a:2.1);
+      \node[verbx label] at ($(c)+(\a:2.48)$) {\lab};
+    }
+    \fill[verbxGold,opacity=.42] ($(c)+(90:1.75)$)--($(c)+(18:1.25)$)--($(c)+(-54:1.75)$)--($(c)+(-126:1.05)$)--($(c)+(162:1.55)$)--cycle;
+    \draw[verbxRust,line width=1.5pt] ($(c)+(90:1.75)$)--($(c)+(18:1.25)$)--($(c)+(-54:1.75)$)--($(c)+(-126:1.05)$)--($(c)+(162:1.55)$)--cycle;
+    \node[verbx node,draw=verbxBlue,text width=2.7cm] at (2.2,3.15) {#1};
+    \node[verbx node,draw=verbxTeal,text width=2.7cm] at (13.15,3.15) {#2};
+    \node[verbx note] at (2.2,1.25) {family identity}; \node[verbx note] at (13.15,1.25) {variant direction};
+  \end{tikzpicture}\end{center}
+}
+
+\newcommand{\verbxInteractionVisual}[2]{%
+  \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
+    \verbxVisualFrame
+    \draw[verbxBlue,line width=3pt] (2.3,3.0) circle (0.85); \draw[verbxBlue,line width=2pt] (2.3,3.0)--++(55:0.65);
+    \draw[verbxRust,line width=3pt] (5.2,3.0) circle (0.85); \draw[verbxRust,line width=2pt] (5.2,3.0)--++(125:0.65);
+    \node[verbx note,text width=2.4cm] at (2.3,1.65) {#1}; \node[verbx note,text width=2.4cm] at (5.2,1.65) {#2};
+    \draw[verbx arrow] (6.25,3.0)--(7.45,3.0);
+    \foreach \x in {0,...,4} \foreach \y in {0,...,3}{
+      \pgfmathsetmacro\shade{20+12*\x+8*\y}
+      \fill[verbxTeal!\shade!verbxPlate] (7.7+0.72*\x,1.35+0.72*\y) rectangle +(0.58,0.58);
+    }
+    \draw[verbx arrow] (11.25,3.0)--(12.2,3.0);
+    \draw[verbxPlum,line width=1.6pt,smooth] plot[samples=45,domain=0:1.8] (12.3+\x,{3+0.8*sin(600*\x)*exp(-0.7*\x)});
+    \node[verbx note] at (9.2,0.85) {four corners \quad center \quad opposing move};
+  \end{tikzpicture}\end{center}
+}
+
+\newcommand{\verbxMonitoringVisual}[2]{%
+  \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
+    \verbxVisualFrame
+    \node[verbx node,draw=verbxBlue,text width=2.5cm] (source) at (1.9,3.0) {#1};
+    \node[verbx node,draw=verbxGold,text width=2.5cm] (room) at (5.5,3.0) {VERBX\\room field};
+    \node[verbx node,draw=verbxTeal,text width=2.8cm] (monitor) at (9.5,3.0) {#2};
+    \node[circle,fill=white,draw=verbxPlum,line width=1.2pt,minimum size=1.35cm,font=\small\bfseries] (listener) at (13.25,3.0) {listener};
+    \draw[verbx arrow] (source)--(room); \draw[verbx arrow] (room)--(monitor); \draw[verbx arrow] (monitor)--(listener);
+    \node[verbx note] at (7.7,1.05) {calibrate \quad loudness-match \quad translate \quad reopen};
+  \end{tikzpicture}\end{center}
+}
+
+\newcommand{\verbxAssetVisual}[2]{%
+  \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
+    \verbxVisualFrame
+    \node[verbx node,draw=verbxBlue,text width=2.5cm] (asset) at (1.8,3.0) {#1};
+    \node[verbx node,draw=verbxGold,text width=2.3cm] (validate) at (5.0,3.0) {#2};
+    \node[verbx node,draw=verbxRust,text width=2.3cm] (hash) at (8.2,3.0) {canonicalize\\and hash};
+    \node[verbx node,draw=verbxTeal,text width=2.3cm] (prepare) at (11.4,3.0) {immutable\\prepared form};
+    \node[verbx node,draw=verbxPlum,text width=1.7cm] (swap) at (14.2,3.0) {safe\\swap};
+    \draw[verbx arrow] (asset)--(validate); \draw[verbx arrow] (validate)--(hash); \draw[verbx arrow] (hash)--(prepare); \draw[verbx arrow] (prepare)--(swap);
+    \node[verbx note] at (7.7,1.0) {management thread only \quad bounded inputs \quad explicit fallback};
+  \end{tikzpicture}\end{center}
+}
+
+\newcommand{\verbxReleaseVisual}[2]{%
+  \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
+    \verbxVisualFrame
+    \node[verbx node,draw=verbxBlue,text width=2.6cm] at (2.0,4.0) {#1};
+    \node[verbx node,draw=verbxGold,text width=2.6cm] at (2.0,2.2) {#2};
+    \foreach \y/\lab/\c in {4.25/build/verbxBlue,3.35/test/verbxTeal,2.45/sign/verbxGold,1.55/audit/verbxRust}{
+      \draw[\c,line width=1.4pt] (5.1,\y) rectangle +(0.52,0.52);
+      \draw[\c,line width=1.6pt] (5.18,\y+0.25)--(5.31,\y+0.09)--(5.55,\y+0.42);
+      \node[anchor=west,verbx label] at (5.9,\y+0.26) {\lab};
+    }
+    \draw[verbx arrow] (8.0,3.0)--(10.0,3.0);
+    \node[diamond,aspect=1.5,fill=verbxTeal!25,draw=verbxTeal,line width=1.2pt,font=\bfseries] at (11.3,3.0) {gate};
+    \draw[verbx arrow] (12.5,3.0)--(14.2,3.0);
+    \node[verbx label] at (13.3,3.65) {evidence};
+  \end{tikzpicture}\end{center}
+}
+
+\newcommand{\verbxBusVisual}[2]{%
+  \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
+    \verbxVisualFrame
+    \node[verbx node,draw=verbxBlue,text width=2.4cm] at (1.8,3.0) {#1};
+    \foreach \y in {0,...,4} \node[circle,fill=verbxBlue,minimum size=0.18cm] (i\y) at (4.4,1.35+0.72*\y) {};
+    \foreach \y in {0,...,4} \node[circle,fill=verbxRust,minimum size=0.18cm] (o\y) at (11.0,1.35+0.72*\y) {};
+    \foreach \a in {0,...,4} \foreach \b in {0,...,4}
+      \draw[verbxTeal!45,line width=0.45pt] (i\a)--(o\b);
+    \node[verbx node,draw=verbxGold,text width=2.5cm] at (7.7,4.35) {#2};
+    \node[verbx node,draw=verbxPlum,text width=2.2cm] at (13.55,3.0) {meter\\and verify};
+    \draw[verbx arrow] (11.2,3.0)--(12.35,3.0);
+    \node[verbx note] at (7.7,0.75) {channel order \quad gain \quad latency \quad fold-down};
+  \end{tikzpicture}\end{center}
+}
+
+\newcommand{\verbxSignalVisual}[2]{%
+  \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
+    \verbxVisualFrame
+    \draw[verbxBlue,line width=1.6pt,smooth] plot[samples=70,domain=0:3.2] (0.7+\x,{3+0.75*sin(620*\x)});
+    \node[verbx note,text width=3.1cm] at (2.3,1.4) {#2};
+    \draw[verbx arrow] (4.25,3.0)--(5.25,3.0);
+    \node[verbx node,draw=verbxGold,text width=2.5cm] at (6.8,3.0) {#1};
+    \draw[verbx arrow] (8.3,3.0)--(9.25,3.0);
+    \draw[verbxRust,line width=1.6pt,smooth] plot[samples=70,domain=0:3.2]
+      (9.35+\x,{3+0.75*exp(-0.36*\x)*sin(620*\x)});
+    \node[verbx node,draw=verbxTeal,text width=1.9cm] at (13.7,3.0) {capture\\metrics};
+    \draw[verbx arrow] (12.65,3.0)--(12.75,3.0);
+    \node[verbx note] at (7.7,0.8) {default \quad minimum \quad midpoint \quad maximum \quad transition};
+  \end{tikzpicture}\end{center}
+}
+
+\newcommand{\verbxTriageVisual}[2]{%
+  \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
+    \verbxVisualFrame
+    \node[verbx node,draw=verbxRust,text width=2.6cm] (failure) at (1.9,3.0) {#1\\#2};
+    \node[verbx node,draw=verbxBlue,text width=2.2cm] (capture) at (5.0,4.0) {freeze build\\capture case};
+    \node[verbx node,draw=verbxGold,text width=2.2cm] (boundary) at (8.2,3.0) {find first\\bad boundary};
+    \node[verbx node,draw=verbxTeal,text width=2.2cm] (fix) at (11.4,4.0) {fix shared\\invariant};
+    \node[verbx node,draw=verbxPlum,text width=2.2cm] (regress) at (13.8,2.0) {native test\\host smoke};
+    \draw[verbx arrow] (failure)--(capture); \draw[verbx arrow] (capture)--(boundary); \draw[verbx arrow] (boundary)--(fix); \draw[verbx arrow] (fix)--(regress);
+    \draw[verbx arrow,draw=verbxRust,dashed] (regress.south west) .. controls (9.2,0.55) and (4.0,0.5) .. (failure.south);
+  \end{tikzpicture}\end{center}
+}

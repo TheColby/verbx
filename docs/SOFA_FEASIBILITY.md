@@ -98,5 +98,6 @@ IR matrices**, then expand convention coverage incrementally. This matches
 
 ## References
 
-- SOFA project: <https://www.sofaconventions.org/>
+
 - AES69 (SOFA standard family): <https://www.aes.org/publications/standards/search.cfm?docID=99>
+- SOFA project: <https://www.sofaconventions.org/>

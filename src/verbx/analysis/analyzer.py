@@ -10,7 +10,6 @@ import numpy as np
 import numpy.typing as npt
 
 from verbx.analysis.edr import edr_summary
-from verbx.analysis.room_size import estimate_room_size
 from verbx.analysis.features_spectral import (
     spectral_bandwidth,
     spectral_centroid,
@@ -36,6 +35,7 @@ from verbx.analysis.features_time import (
     transient_density,
     zero_crossing_rate,
 )
+from verbx.analysis.room_size import estimate_room_size
 from verbx.analysis.spatial_metrics import compute_ambisonic_metrics
 from verbx.core.loudness import integrated_lufs, loudness_range_lu, sample_peak_dbfs, true_peak_dbfs
 

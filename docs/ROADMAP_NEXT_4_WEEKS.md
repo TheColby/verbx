@@ -3,7 +3,7 @@
 _Execution checklist derived from the active roadmap in `README.md`,
 `CHANGELOG.md`, and `docs/ROADMAP.md`._
 
-_Last updated: 2026-06-25._
+_Last updated: 2026-07-12._
 
 ---
 
@@ -107,6 +107,24 @@ Use these as the working top-line priorities for the current cycle:
   - [ ] native render + doctor + analysis
   - [x] hybrid wrapper phase before full replacement
 - [x] Document the chosen `v0.8` parity scope in `README.md` and `docs/ROADMAP.md`.
+
+### Native Plug-in Slice
+
+- [x] Replace pass-through processing with persistent, allocation-free
+  mono/stereo Schroeder DSP.
+- [x] Connect all twelve initial parameters to audible DSP or host quality
+  state, with 20 ms smoothing for continuous controls.
+- [x] Add the complete initial JUCE control dock, effective-RT60 readout, and
+  realtime post-DSP spectrum overlay.
+- [x] Build and validate standalone, AU, and VST3 Release artifacts.
+- [x] Add impulse-tail/reset tests and run AddressSanitizer/UBSan coverage.
+- [ ] Repair the local Xcode framework mismatch, then generate and validate the
+  AUv3 app-extension target in an AUv3-capable sandbox host.
+- [x] Implement real allocation-free wet-path oversampling for Host, 2x, 4x,
+  and Target 192 kHz modes, including off-callback quality reprepare and live
+  effective-rate/factor status.
+- [ ] Implement true bounded-lookahead reverse processing.
+- [ ] Add multichannel layouts and host compatibility certification.
 
 ---
 
