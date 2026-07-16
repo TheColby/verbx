@@ -18,6 +18,14 @@ assert MODULE_SPEC is not None and MODULE_SPEC.loader is not None
 DOCS_PDF = importlib.util.module_from_spec(MODULE_SPEC)
 MODULE_SPEC.loader.exec_module(DOCS_PDF)
 
+ASSET_SPEC = importlib.util.spec_from_file_location(
+    "generate_reverb_primer_assets",
+    REPO_ROOT / "scripts/generate_reverb_primer_assets.py",
+)
+assert ASSET_SPEC is not None and ASSET_SPEC.loader is not None
+PRIMER_ASSETS = importlib.util.module_from_spec(ASSET_SPEC)
+ASSET_SPEC.loader.exec_module(PRIMER_ASSETS)
+
 COMPOSITION_PROJECT_TITLES = (
     "Compose with Infinite Sustain",
     "Reverse-Reverb Phrase Study",
@@ -70,6 +78,44 @@ def test_pdf_markdown_has_no_parenthesized_doi_fence_artifacts() -> None:
     DOCS_PDF._validate_fenced_blocks(rendered)
 
 
+def test_code_example_leads_reserve_space_and_forbid_boundary_breaks() -> None:
+    source = (
+        "Installation text.\n\n"
+        "**With Homebrew (macOS):**\n\n"
+        "```bash\nbrew install verbx\n```\n"
+    )
+
+    rendered = DOCS_PDF._keep_code_leads_with_examples(source)
+
+    assert rendered.index(r"\Needspace{7\baselineskip}") < rendered.index(
+        "**With Homebrew (macOS):**"
+    )
+    assert rendered.index("**With Homebrew (macOS):**") < rendered.index(
+        r"\nopagebreak[4]"
+    )
+    assert rendered.index(r"\nopagebreak[4]") < rendered.index("```bash")
+    DOCS_PDF._validate_fenced_blocks(rendered)
+
+
+def test_reverb_primer_is_promoted_to_a_standalone_pdf_chapter() -> None:
+    source = (
+        "# verbx\n\n"
+        "## What Is Reverb? (and Why Does verbx Sound Different)\n\n"
+        "Primer.\n\n"
+        "### Musical Examples\n\n"
+        "#### Listening Test\n\n"
+        "## Core Concepts\n\n"
+        "Reference.\n"
+    )
+
+    rendered = DOCS_PDF._promote_reverb_primer_to_chapter(source)
+
+    assert "# What Is Reverb? (and Why Does verbx Sound Different)" in rendered
+    assert "## Musical Examples" in rendered
+    assert "### Listening Test" in rendered
+    assert "# verbx Reference\n\n## Core Concepts" in rendered
+
+
 def test_malformed_fence_suffix_is_rejected() -> None:
     with pytest.raises(ValueError, match="Malformed Markdown fence"):
         DOCS_PDF._validate_fenced_blocks("```{=latex}\n\\index{Example}\n```00028-x)\n")
@@ -104,12 +150,41 @@ def test_main_bibliography_preserves_all_reference_ids() -> None:
     assert "bringing the guide bibliography to 1,002 total entries" in references
 
 
+def test_reference_reading_note_is_not_a_setext_heading() -> None:
+    references = (REPO_ROOT / "docs/REFERENCES.md").read_text(encoding="utf-8")
+
+    assert "The best survey of the field in existence" not in references
+    assert (
+        "A historical survey connecting mechanical, algorithmic, convolution, "
+        "and perceptual reverberation.\n\n---"
+    ) in references
+
+
 def test_title_page_uses_white_background() -> None:
     preamble = (REPO_ROOT / "docs/assets/pandoc_pdf_preamble.tex").read_text(encoding="utf-8")
     title_page = preamble.split(r"\begin{titlepage}", 1)[1].split(r"\end{titlepage}", 1)[0]
 
     assert r"\pagecolor{white}\color{verbxCover}" in title_page
     assert r"\pagecolor{verbxCover}" not in title_page
+
+
+def test_pdf_preamble_prevents_widows_orphans_and_stranded_headings() -> None:
+    preamble = (REPO_ROOT / "docs/assets/pandoc_pdf_preamble.tex").read_text(
+        encoding="utf-8"
+    )
+
+    for rule in (
+        r"\raggedbottom",
+        r"\clubpenalty=10000",
+        r"\widowpenalty=10000",
+        r"\displaywidowpenalty=10000",
+        r"\brokenpenalty=10000",
+        r"\interfootnotelinepenalty=10000",
+        r"\pretocmd{\section}{\Needspace{6\baselineskip}}{}{}",
+        r"\pretocmd{\subsection}{\Needspace{5\baselineskip}}{}{}",
+        r"\pretocmd{\subsubsection}{\Needspace{4\baselineskip}}{}{}",
+    ):
+        assert rule in preamble
 
 
 def test_reverb_primer_has_textbook_depth_and_complete_figure_set() -> None:
@@ -207,3 +282,66 @@ def test_reverb_primer_assets_have_tight_caption_edges() -> None:
         bounds = difference.getbbox()
         assert bounds is not None
         assert image.height - bounds[3] <= 24, path.name
+
+
+def test_reverb_primer_math_labels_use_positioned_scripts() -> None:
+    image = Image.new("RGB", (800, 300), "white")
+    draw = ImageDraw.Draw(image)
+
+    exponent_runs, _, _, _ = PRIMER_ASSETS._math_layout(
+        draw, "z^{-M}", PRIMER_ASSETS.F_FLOW
+    )
+    matrix_runs, _, _, _ = PRIMER_ASSETS._math_layout(
+        draw, "C_L^T", PRIMER_ASSETS.F_FLOW
+    )
+
+    assert any(
+        text == "\N{MINUS SIGN}M" and y < 0 for text, _, _, y in exponent_runs
+    )
+    assert any(text == "L" and y > 0 for text, _, _, y in matrix_runs)
+    assert any(text == "T" and y < 0 for text, _, _, y in matrix_runs)
+    assert all("^" not in text and "_" not in text for text, *_ in exponent_runs + matrix_runs)
+
+
+def test_documentation_avoids_plaintext_caret_delay_notation() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    generator = (REPO_ROOT / "scripts/generate_reverb_primer_assets.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "z^-" not in readme
+    assert "z^-" not in generator
+    assert '"$z^{-M}$"' in generator
+    assert "10^(" not in readme
+    assert "10^(" not in generator
+
+
+def test_speaker_layout_figure_uses_dedicated_plan_and_elevation_renderer() -> None:
+    generator = (REPO_ROOT / "scripts/generate_userguide_figures.py").read_text(
+        encoding="utf-8"
+    )
+    figure_guide = (REPO_ROOT / "scripts/generate_figure_guide.py").read_text(
+        encoding="utf-8"
+    )
+    figures = (REPO_ROOT / "docs/FIGURES.md").read_text(encoding="utf-8")
+
+    assert "def fig_speaker_layout_coverage" in generator
+    assert '"72_speaker_layout_coverage.png",\n        "layout",' in generator
+    assert "rng.uniform(size=(9, 2))" in generator
+    assert 'if kind == "layout":' in generator
+    assert '"layout": (' in figure_guide
+    assert '"Listener-centered plan views encode nominal azimuth' in figure_guide
+    assert "Loudspeaker Layouts: Plan and Elevation" in figures
+    assert "Radial lines indicate nominal bearing only" in figures
+    assert "Coverage state (category)" not in figures
+
+
+def test_illustrated_guide_compactor_accepts_layout_specific_reading_instructions() -> None:
+    figures = (REPO_ROOT / "docs/FIGURES.md").read_text(encoding="utf-8")
+
+    compacted = DOCS_PDF._compact_illustrated_guide(figures)
+
+    assert compacted.count(r"\begin{minipage}[t]{0.43\textwidth}") == 99
+    assert compacted.count(r"\begin{minipage}[t]{\linewidth}") == 1
+    assert "Read each plan with front at the top" in compacted
+    assert "Loudspeaker Layouts: Plan and Elevation" in compacted

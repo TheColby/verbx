@@ -57,6 +57,193 @@ F_FLOW_BOLD = font(34, True)
 F_FLOW_SMALL = font(25)
 
 
+def _scaled_font(
+    selected_font: ImageFont.ImageFont, scale: float
+) -> ImageFont.ImageFont:
+    if isinstance(selected_font, ImageFont.FreeTypeFont):
+        return selected_font.font_variant(size=max(8, round(selected_font.size * scale)))
+    return selected_font
+
+
+def _script_group(value: str, start: int) -> tuple[str, int]:
+    if start >= len(value):
+        return "", start
+    if value[start] != "{":
+        return value[start], start + 1
+
+    depth = 1
+    index = start + 1
+    while index < len(value) and depth:
+        if value[index] == "{":
+            depth += 1
+        elif value[index] == "}":
+            depth -= 1
+        index += 1
+    return value[start + 1 : index - 1], index
+
+
+def _math_runs(
+    draw: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> tuple[list[tuple[str, ImageFont.ImageFont, float, float]], float]:
+    """Lay out a compact TeX-like expression with real scripts."""
+
+    runs: list[tuple[str, ImageFont.ImageFont, float, float]] = []
+    x = 0.0
+    index = 0
+    while index < len(value):
+        start = index
+        while index < len(value) and value[index] not in "^_{}":
+            index += 1
+        if index > start:
+            text = value[start:index].replace("-", "\N{MINUS SIGN}")
+            runs.append((text, selected_font, x, 0.0))
+            x += draw.textlength(text, font=selected_font)
+        if index >= len(value):
+            break
+        if value[index] in "{}":
+            index += 1
+            continue
+
+        script_x = x
+        script_width = 0.0
+        while index < len(value) and value[index] in "^_":
+            operator = value[index]
+            content, index = _script_group(value, index + 1)
+            script_font = _scaled_font(selected_font, 0.64)
+            child_runs, child_width = _math_runs(draw, content, script_font)
+            baseline_offset = (
+                -0.52 * getattr(selected_font, "size", 20)
+                if operator == "^"
+                else 0.32 * getattr(selected_font, "size", 20)
+            )
+            runs.extend(
+                (text, run_font, script_x + run_x, run_y + baseline_offset)
+                for text, run_font, run_x, run_y in child_runs
+            )
+            script_width = max(script_width, child_width)
+        x = script_x + script_width
+    return runs, x
+
+
+def _math_layout(
+    draw: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> tuple[list[tuple[str, ImageFont.ImageFont, float, float]], float, float, float]:
+    runs, width = _math_runs(draw, value, selected_font)
+    bounds = [
+        draw.textbbox((run_x, run_y), text, font=run_font, anchor="ls")
+        for text, run_font, run_x, run_y in runs
+        if text
+    ]
+    if not bounds:
+        return runs, width, 0.0, 0.0
+    return runs, width, min(item[1] for item in bounds), max(item[3] for item in bounds)
+
+
+def _math_size(
+    draw: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> tuple[float, float]:
+    _, width, top, bottom = _math_layout(draw, value, selected_font)
+    return width, bottom - top
+
+
+def _draw_math(
+    draw: ImageDraw.ImageDraw,
+    position: tuple[float, float],
+    value: str,
+    *,
+    fill: str,
+    selected_font: ImageFont.ImageFont,
+) -> None:
+    runs, _, top, _ = _math_layout(draw, value, selected_font)
+    baseline = position[1] - top
+    for text, run_font, run_x, run_y in runs:
+        draw.text(
+            (position[0] + run_x, baseline + run_y),
+            text,
+            fill=fill,
+            font=run_font,
+            anchor="ls",
+        )
+
+
+def _line_size(
+    draw: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+) -> tuple[float, float]:
+    if value.startswith("$") and value.endswith("$"):
+        return _math_size(draw, value[1:-1], selected_font)
+    bounds = draw.textbbox((0, 0), value, font=selected_font)
+    return bounds[2] - bounds[0], bounds[3] - bounds[1]
+
+
+def _draw_line(
+    draw: ImageDraw.ImageDraw,
+    position: tuple[float, float],
+    value: str,
+    *,
+    fill: str,
+    selected_font: ImageFont.ImageFont,
+) -> None:
+    if value.startswith("$") and value.endswith("$"):
+        _draw_math(
+            draw,
+            position,
+            value[1:-1],
+            fill=fill,
+            selected_font=selected_font,
+        )
+    else:
+        draw.text(position, value, fill=fill, font=selected_font)
+
+
+def _draw_fraction(
+    draw: ImageDraw.ImageDraw,
+    position: tuple[float, float],
+    prefix: str,
+    numerator: str,
+    denominator: str,
+    *,
+    selected_font: ImageFont.ImageFont,
+) -> None:
+    prefix_width, prefix_height = _math_size(draw, prefix, selected_font)
+    numerator_width, numerator_height = _math_size(draw, numerator, selected_font)
+    denominator_width, denominator_height = _math_size(draw, denominator, selected_font)
+    fraction_width = max(numerator_width, denominator_width) + 20
+    fraction_height = numerator_height + denominator_height + 18
+    x, y = position
+    _draw_math(
+        draw,
+        (x, y + (fraction_height - prefix_height) / 2),
+        prefix,
+        fill="black",
+        selected_font=selected_font,
+    )
+    fraction_x = x + prefix_width + 12
+    _draw_math(
+        draw,
+        (fraction_x + (fraction_width - numerator_width) / 2, y),
+        numerator,
+        fill="black",
+        selected_font=selected_font,
+    )
+    rule_y = y + numerator_height + 7
+    draw.line((fraction_x, rule_y, fraction_x + fraction_width, rule_y), fill="black", width=2)
+    _draw_math(
+        draw,
+        (fraction_x + (fraction_width - denominator_width) / 2, rule_y + 7),
+        denominator,
+        fill="black",
+        selected_font=selected_font,
+    )
+
+
 def canvas(title: str, subtitle: str) -> tuple[Image.Image, ImageDraw.ImageDraw]:
     image = Image.new("RGB", (WIDTH, HEIGHT), WHITE)
     draw = ImageDraw.Draw(image)
@@ -85,14 +272,13 @@ def _centered_text(
     selected_font: ImageFont.ImageFont = F_NODE,
 ) -> None:
     lines = text.split("\n")
-    boxes = [draw.textbbox((0, 0), line, font=selected_font) for line in lines]
-    heights = [item[3] - item[1] for item in boxes]
+    sizes = [_line_size(draw, line, selected_font) for line in lines]
+    heights = [item[1] for item in sizes]
     total_height = sum(heights) + 8 * (len(lines) - 1)
     y = (box[1] + box[3] - total_height) / 2
-    for line, text_box, line_height in zip(lines, boxes, heights, strict=True):
-        line_width = text_box[2] - text_box[0]
+    for line, (line_width, _), line_height in zip(lines, sizes, heights, strict=True):
         x = (box[0] + box[2] - line_width) / 2
-        draw.text((x, y), line, fill=fill, font=selected_font)
+        _draw_line(draw, (x, y), line, fill=fill, selected_font=selected_font)
         y += line_height + 8
 
 
@@ -210,18 +396,23 @@ def _flow_box(
 ) -> None:
     draw.rectangle(box, fill=WHITE, outline="black", width=6)
     fonts = (F_FLOW_BOLD, *(F_FLOW_SMALL for _ in lines[1:]))
-    line_boxes = [
-        draw.textbbox((0, 0), line, font=selected)
+    sizes = [
+        _line_size(draw, line, selected)
         for line, selected in zip(lines, fonts, strict=True)
     ]
-    heights = [item[3] - item[1] for item in line_boxes]
+    heights = [item[1] for item in sizes]
     total_height = sum(heights) + 11 * (len(lines) - 1)
     y = (box[1] + box[3] - total_height) / 2
-    for line, selected, text_box, line_height in zip(
-        lines, fonts, line_boxes, heights, strict=True
+    for line, selected, (line_width, _), line_height in zip(
+        lines, fonts, sizes, heights, strict=True
     ):
-        width = text_box[2] - text_box[0]
-        draw.text(((box[0] + box[2] - width) / 2, y), line, fill="black", font=selected)
+        _draw_line(
+            draw,
+            ((box[0] + box[2] - line_width) / 2, y),
+            line,
+            fill="black",
+            selected_font=selected,
+        )
         y += line_height + 11
 
 
@@ -249,10 +440,10 @@ def _flow_arrow(
 ) -> None:
     _arrow(draw, start, end, color="black", width=5)
     if label:
-        text_box = draw.textbbox((0, 0), label, font=F_FLOW_SMALL)
-        x = (start[0] + end[0] - (text_box[2] - text_box[0])) / 2 + label_offset[0]
+        label_width, _ = _line_size(draw, label, F_FLOW_SMALL)
+        x = (start[0] + end[0] - label_width) / 2 + label_offset[0]
         y = (start[1] + end[1]) / 2 + label_offset[1]
-        draw.text((x, y), label, fill="black", font=F_FLOW_SMALL)
+        _draw_line(draw, (x, y), label, fill="black", selected_font=F_FLOW_SMALL)
 
 
 def _flow_note(draw: ImageDraw.ImageDraw, value: str) -> None:
@@ -262,14 +453,14 @@ def _flow_note(draw: ImageDraw.ImageDraw, value: str) -> None:
 def flowgraph_feedback_comb() -> None:
     image, draw = _flow_canvas()
     _flow_sum(draw, (550, 380))
-    _flow_box(draw, (900, 280, 1330, 480), ("z^-M", "M-sample delay"))
+    _flow_box(draw, (900, 280, 1330, 480), ("$z^{-M}$", "M-sample delay"))
     _flow_box(draw, (1160, 640, 1450, 780), ("g", "loop gain"))
-    _flow_arrow(draw, (80, 380), (505, 380), "x[n]")
-    _flow_arrow(draw, (595, 380), (900, 380), "w[n]")
-    _flow_arrow(draw, (1330, 380), (1980, 380), "y[n]")
+    _flow_arrow(draw, (80, 380), (505, 380), "$x[n]$")
+    _flow_arrow(draw, (595, 380), (900, 380), "$w[n]$")
+    _flow_arrow(draw, (1330, 380), (1980, 380), "$y[n]$")
     draw.line((1540, 380, 1540, 710, 1450, 710), fill="black", width=5)
-    _flow_arrow(draw, (1160, 710), (550, 425), "g y[n]", label_offset=(0, 28))
-    draw.text((2020, 350), "H(z) = 1 / (1 - g z^-M)", fill="black", font=F_FLOW)
+    _flow_arrow(draw, (1160, 710), (550, 425), "$gy[n]$", label_offset=(0, 28))
+    _draw_fraction(draw, (2010, 305), "H(z)=", "1", "1-gz^{-M}", selected_font=F_FLOW)
     _flow_note(
         draw, "Feedback comb: each loop traversal adds M samples and multiplies amplitude by g."
     )
@@ -279,20 +470,26 @@ def flowgraph_feedback_comb() -> None:
 def flowgraph_schroeder_allpass() -> None:
     image, draw = _flow_canvas()
     _flow_sum(draw, (470, 330))
-    _flow_box(draw, (760, 230, 1180, 430), ("z^-M", "M-sample delay"))
+    _flow_box(draw, (760, 230, 1180, 430), ("$z^{-M}$", "M-sample delay"))
     _flow_box(draw, (770, 600, 1040, 740), ("-g", "feedforward"))
     _flow_box(draw, (1260, 600, 1530, 740), ("g", "feedback"))
     _flow_sum(draw, (1770, 330))
-    _flow_arrow(draw, (70, 330), (425, 330), "x[n]")
-    _flow_arrow(draw, (515, 330), (760, 330), "w[n]")
-    _flow_arrow(draw, (1180, 330), (1725, 330), "w[n-M]")
-    _flow_arrow(draw, (1815, 330), (2200, 330), "y[n]")
+    _flow_arrow(draw, (70, 330), (425, 330), "$x[n]$")
+    _flow_arrow(draw, (515, 330), (760, 330), "$w[n]$")
+    _flow_arrow(draw, (1180, 330), (1725, 330), "$w[n-M]$")
+    _flow_arrow(draw, (1815, 330), (2200, 330), "$y[n]$")
     draw.line((650, 330, 650, 670, 770, 670), fill="black", width=5)
-    _flow_arrow(draw, (1040, 670), (1770, 375), "-g w[n]", label_offset=(0, 28))
+    _flow_arrow(draw, (1040, 670), (1770, 375), "$-gw[n]$", label_offset=(0, 28))
     draw.line((1380, 330, 1380, 600), fill="black", width=5)
-    _flow_arrow(draw, (1260, 670), (470, 375), "g w[n-M]", label_offset=(0, 28))
-    draw.text((2220, 300), "H(z) = (-g + z^-M)", fill="black", font=F_FLOW_SMALL)
-    draw.text((2310, 350), "/ (1 - g z^-M)", fill="black", font=F_FLOW_SMALL)
+    _flow_arrow(draw, (1260, 670), (470, 375), "$gw[n-M]$", label_offset=(0, 28))
+    _draw_fraction(
+        draw,
+        (2200, 270),
+        "H(z)=",
+        "-g+z^{-M}",
+        "1-gz^{-M}",
+        selected_font=F_FLOW_SMALL,
+    )
     _flow_note(
         draw, "Schroeder allpass: matched feedforward and feedback paths preserve ideal magnitude."
     )
@@ -345,9 +542,9 @@ def flowgraph_expanded_fdn() -> None:
     draw.line((610, 150, 610, 690), fill="black", width=5)
     for index, y in enumerate(delay_rows, 1):
         _flow_arrow(draw, (610, y), (720, y))
-        _flow_box(draw, (720, y - 58, 1010, y + 58), (f"z^-m{index}", "delay line"))
-        _flow_arrow(draw, (1010, y), (1110, y), f"s{index}", label_offset=(0, -36))
-        _flow_box(draw, (1110, y - 58, 1410, y + 58), (f"H{index}(z)", "loop damping"))
+        _flow_box(draw, (720, y - 58, 1010, y + 58), (f"$z^{{-m_{index}}}$", "delay line"))
+        _flow_arrow(draw, (1010, y), (1110, y), f"$s_{index}$", label_offset=(0, -36))
+        _flow_box(draw, (1110, y - 58, 1410, y + 58), (f"$H_{index}(z)$", "loop damping"))
         _flow_arrow(draw, (1410, y), (1530, y))
     draw.line((1530, 150, 1530, 690), fill="black", width=5)
     _flow_box(draw, (1660, 120, 1900, 720), ("G", "RT60 gains"))
@@ -356,7 +553,7 @@ def flowgraph_expanded_fdn() -> None:
     _flow_arrow(draw, (1900, 420), (2050, 420), "G s[n]")
     draw.line((2290, 420, 2400, 420, 2400, 805, 440, 805, 440, 465), fill="black", width=5)
     _flow_arrow(draw, (1530, 270), (1660, 270))
-    _flow_box(draw, (1660, 20, 1900, 95), ("C^T", "output projection"))
+    _flow_box(draw, (1660, 20, 1900, 95), ("$C^T$", "output projection"))
     draw.line((1530, 150, 1600, 150, 1600, 58, 1660, 58), fill="black", width=5)
     _flow_arrow(draw, (1900, 58), (2440, 58), "y[n]")
     _flow_note(
@@ -371,11 +568,11 @@ def flowgraph_multiband_loop_filter() -> None:
     image, draw = _flow_canvas()
     draw.line((250, 420, 500, 420), fill="black", width=5)
     draw.line((500, 150, 500, 690), fill="black", width=5)
-    _flow_arrow(draw, (40, 420), (250, 420), "s_i[n]")
+    _flow_arrow(draw, (40, 420), (250, 420), "$s_i[n]$")
     bands = [
-        (150, "L_i(z)", "g_low = 10^(-3 d_i / T60,low)"),
-        (420, "M_i(z)", "g_mid = 10^(-3 d_i / T60,mid)"),
-        (690, "H_i(z)", "g_high = 10^(-3 d_i / T60,high)"),
+        (150, "$L_i(z)$", "$g_{low}=10^{-3d_i/T_{60,low}}$"),
+        (420, "$M_i(z)$", "$g_{mid}=10^{-3d_i/T_{60,mid}}$"),
+        (690, "$H_i(z)$", "$g_{high}=10^{-3d_i/T_{60,high}}$"),
     ]
     for y, filter_name, gain_name in bands:
         _flow_arrow(draw, (500, y), (700, y))
@@ -398,12 +595,12 @@ def flowgraph_stereo_projection() -> None:
     state_rows = tuple(135 + index * 85 for index in range(8))
     draw.line((260, state_rows[0], 260, state_rows[-1]), fill="black", width=5)
     for index, y in enumerate(state_rows, 1):
-        _flow_arrow(draw, (40, y), (260, y), f"s{index}[n]")
+        _flow_arrow(draw, (40, y), (260, y), f"$s_{index}[n]$")
     _flow_box(
-        draw, (560, 120, 1120, 405), ("C_L^T", "+ - + - - + - +", "normalized left projection")
+        draw, (560, 120, 1120, 405), ("$C_L^T$", "+ - + - - + - +", "normalized left projection")
     )
     _flow_box(
-        draw, (560, 500, 1120, 785), ("C_R^T", "+ + - - + - - +", "normalized right projection")
+        draw, (560, 500, 1120, 785), ("$C_R^T$", "+ + - - + - - +", "normalized right projection")
     )
     draw.line((260, 300, 430, 300, 430, 260, 560, 260), fill="black", width=5)
     draw.line((260, 620, 430, 620, 430, 640, 560, 640), fill="black", width=5)
@@ -494,7 +691,7 @@ def _generate_remaining_diagrams() -> None:
         {
             "input": ("x[n]", (100, 350, 280, 470), BLUE),
             "sum": ("+", (390, 350, 550, 470), TEAL),
-            "delay": ("Delay\nz^-M", (700, 350, 940, 470), GOLD),
+            "delay": ("Delay\n$z^{-M}$", (700, 350, 940, 470), GOLD),
             "output": ("y[n]", (1110, 350, 1290, 470), INK),
             "gain": ("Feedback gain\ng", (700, 640, 940, 760), RUST),
         },
@@ -508,7 +705,7 @@ def _generate_remaining_diagrams() -> None:
         {
             "input": ("x[n]", (80, 350, 260, 470), BLUE),
             "split": ("Split", (350, 350, 530, 470), TEAL),
-            "delay": ("Delay\nz^-M", (690, 250, 930, 370), GOLD),
+            "delay": ("Delay\n$z^{-M}$", (690, 250, 930, 370), GOLD),
             "direct": ("Direct gain\n-g", (690, 520, 930, 640), RUST),
             "sum": ("+", (1090, 350, 1250, 470), TEAL),
             "output": ("y[n]", (1360, 350, 1530, 470), INK),

@@ -299,9 +299,11 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
 
     markdown = _remove_generated_pdf_preamble(markdown)
     markdown = _add_book_parts(markdown)
+    markdown = _promote_reverb_primer_to_chapter(markdown)
     markdown = _italicize_musical_titles(markdown)
     markdown = re.sub(r'(?:<a\s+id="[^"]+"></a>)+', replace_anchor_run, markdown)
     markdown = _replace_mermaid_with_static_assets(markdown)
+    markdown = _keep_code_leads_with_examples(markdown)
     markdown = _ensure_image_captions(markdown)
     markdown = _compact_illustrated_guide(markdown)
     markdown = _illustrate_operational_cards(markdown)
@@ -353,6 +355,61 @@ def _replace_mermaid_with_static_assets(markdown: str) -> str:
     if "```mermaid" in markdown:
         raise ValueError("Found an unconverted Mermaid block in PDF Markdown")
     return markdown
+
+
+def _keep_code_leads_with_examples(markdown: str) -> str:
+    """Keep short prose introductions with the command examples they introduce."""
+
+    lines = markdown.splitlines()
+    insertions: dict[int, list[str]] = {}
+    active_fence = False
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped.startswith("```"):
+            continue
+        if active_fence:
+            active_fence = False
+            continue
+        active_fence = True
+        if stripped == "```{=latex}" or index < 2 or lines[index - 1].strip():
+            continue
+
+        paragraph_end = index - 2
+        paragraph_start = paragraph_end
+        while paragraph_start > 0 and lines[paragraph_start - 1].strip():
+            paragraph_start -= 1
+        paragraph = lines[paragraph_start : paragraph_end + 1]
+        if not paragraph or len(paragraph) > 4:
+            continue
+        disallowed_prefixes = ("#", "-", "* ", "+ ", ">", "|", "<", "\\", "![", "```")
+        if any(
+            not value.strip()
+            or value.startswith("    ")
+            or value.lstrip().startswith(disallowed_prefixes)
+            for value in paragraph
+        ):
+            continue
+        if sum(len(value) for value in paragraph) > 420:
+            continue
+
+        insertions[paragraph_start] = [
+            "```{=latex}",
+            "\\Needspace{7\\baselineskip}",
+            "```",
+            "",
+        ]
+        insertions[index] = [
+            "```{=latex}",
+            "\\nopagebreak[4]",
+            "```",
+            "",
+        ]
+
+    output: list[str] = []
+    for index, line in enumerate(lines):
+        output.extend(insertions.get(index, ()))
+        output.append(line)
+    return "\n".join(output)
 
 
 def _validate_figure_sequence(markdown: str) -> None:
@@ -414,6 +471,24 @@ def _add_book_parts(markdown: str) -> str:
         marker = f"```{{=latex}}\n\\part{{{part_title}}}\n```\n\n"
         markdown = markdown.replace(heading, marker + heading, 1)
     return markdown
+
+
+def _promote_reverb_primer_to_chapter(markdown: str) -> str:
+    """Give the reverb primer a chapter boundary without changing README hierarchy."""
+
+    primer_heading = "## What Is Reverb? (and Why Does verbx Sound Different)"
+    reference_heading = "## Core Concepts"
+    start = markdown.find(primer_heading)
+    end = markdown.find(reference_heading, start)
+    if start == -1 or end == -1:
+        raise ValueError("Cannot locate the reverb-primer chapter boundaries")
+
+    primer = markdown[start:end]
+    primer = primer.replace(primer_heading, primer_heading[1:], 1)
+    primer = re.sub(r"(?m)^### ", "## ", primer)
+    primer = re.sub(r"(?m)^#### ", "### ", primer)
+    reference = "# verbx Reference\n\n" + markdown[end:]
+    return markdown[:start] + primer + reference
 
 
 def _italicize_musical_titles(markdown: str) -> str:
@@ -707,21 +782,38 @@ def _compact_illustrated_guide(markdown: str) -> str:
         r"(?P<lead>The figure below introduces.*?)(?=\n\n)\n\n"
         r"(?P<image>!\[Figure\s+\d+:[^\n]+\]\([^\n]+\))\n\n"
         r"\*\*Figure\s+\d+[.:]\s+(?P<title>.+?)\.\*\*\s*"
-        r"(?P<description>Read the figure.*?)(?=\n\n(?:The figure below|##\s)|\Z)",
+        r"(?P<description>Read (?:the figure|each plan).*?)"
+        r"(?=\n\n(?:The figure below|##\s)|\Z)",
         re.DOTALL,
     )
 
     def compact_entry(match: re.Match[str]) -> str:
+        title = match.group("title")
+        if title == "Loudspeaker Layouts: Plan and Elevation":
+            return (
+                f"{match.group('lead').strip()}\n\n"
+                "```{=latex}\n"
+                f"\\verbxFigureLead{{{_latex_text(title)}}}\n"
+                "\\par\\medskip\\noindent\n"
+                "\\begin{minipage}[t]{\\linewidth}\\vspace{0pt}\n"
+                "```\n\n"
+                f"{match.group('image')}\n\n"
+                "```{=latex}\n"
+                f"\\verbxFigureCaption{{{_latex_text(title)}}}\n"
+                "\\end{minipage}\\par\\medskip\n"
+                "```\n\n"
+                f"{match.group('description')}"
+            )
         return (
             f"{match.group('lead').strip()}\n\n"
             "```{=latex}\n"
-            f"\\verbxFigureLead{{{_latex_text(match.group('title'))}}}\n"
+            f"\\verbxFigureLead{{{_latex_text(title)}}}\n"
             "\\par\\medskip\\noindent\n"
             "\\begin{minipage}[t]{0.43\\textwidth}\\vspace{0pt}\n"
             "```\n\n"
             f"{match.group('image')}\n\n"
             "```{=latex}\n"
-            f"\\verbxFigureCaption{{{_latex_text(match.group('title'))}}}\n"
+            f"\\verbxFigureCaption{{{_latex_text(title)}}}\n"
             "```\n\n"
             "```{=latex}\n"
             "\\end{minipage}\\hfill\n"

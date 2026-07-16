@@ -584,13 +584,13 @@ The figure below introduces **Binaural HRTF Blend**. HRTF blending needs smooth 
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Speaker Layout Coverage**. Layout diagrams catch missing or mislabeled channels before render. Points and paths occupy a two-dimensional design space; proximity indicates similar states, not physical distance. The horizontal axis is **Speaker azimuth (degrees)** and the vertical axis is **Speaker elevation (degrees)**. The color or radial scale reports **Coverage state (category)**.
+The figure below introduces **Loudspeaker Layouts: Plan and Elevation**. Nominal channel bearings for stereo, 5.1, and 7.1.4, with the immersive height layer shown separately. Listener-centered plan views encode nominal azimuth, while the separate side elevation distinguishes bed and height layers. It has no numeric axes because it is a structural diagram rather than a measurement plot.
 
-![Figure 72: Speaker Layout Coverage.](assets/userguide_figures/72_speaker_layout_coverage.png)
+![Figure 72: Loudspeaker Layouts: Plan and Elevation.](assets/userguide_figures/72_speaker_layout_coverage.png)
 
-**Figure 72: Speaker Layout Coverage.**
+**Figure 72: Loudspeaker Layouts: Plan and Elevation.**
 
-Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
+Read each plan with front at the top and the listener at the center. Blue marks identify front and center bed channels, teal marks identify side and rear bed channels, and gold marks identify overhead channels. Radial lines indicate nominal bearing only; they are not cables or signal-flow paths. The elevation inset shows why the four height channels cannot be understood from azimuth alone, while the separate LFE key emphasizes that the subwoofer channel has no prescribed bearing. These angles are explanatory nominal placements; use the applicable monitoring standard and room-calibration procedure for installation.
 
 The figure below introduces **IR Capture Checklist**. Capture quality depends on sweep level, silence, trim, and calibration. Boxes and arrows show order and dependency. Their position and size are schematic and carry no numeric scale. It has no numeric axes because it is a structural diagram rather than a measurement plot.
 

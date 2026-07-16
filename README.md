@@ -1148,7 +1148,7 @@ The diagram below exposes the feedback path that creates both duration and color
 %% verbx-static: docs/assets/reverb_primer/03_feedback_comb_filter.png
 flowchart LR
     X["x[n]"] --> S(("+"))
-    S --> D["Delay z^-M"]
+    S --> D["Delay z⁻ᴹ"]
     D --> Y["y[n]"]
     D --> G["Gain g"]
     G --> S
@@ -1209,7 +1209,7 @@ the topology is not simply a comb with a dry mix.
 %% verbx-static: docs/assets/reverb_primer/04_schroeder_allpass.png
 flowchart LR
     X["x[n]"] --> P["Split"]
-    P --> D["Delay z^-M"]
+    P --> D["Delay z⁻ᴹ"]
     P --> N["Direct gain -g"]
     D --> S(("+"))
     N --> S
@@ -1823,10 +1823,10 @@ The algorithmic engine synthesizes reverb without an impulse response file. It i
 
 ```
 input
-  └─ pre-delay (z^-N_pre)
+  └─ pre-delay (z⁻ᴺᵖʳᵉ)
        └─ allpass diffusion (K stages)
             └─ FDN feedback loop
-                 ├─ delay bank (N lines, z^-N_i)
+                 ├─ delay bank (N lines, z⁻ᴺⁱ)
                  ├─ per-line conditioning D_i(z)  [damping + DC block]
                  ├─ RT60 gain G  [diagonal, per-line]
                  ├─ feedback matrix M  [orthonormal family]
@@ -1837,7 +1837,7 @@ input
        └─ wet/dry mix → shimmer → bloom/tilt/EQ → loudness → output
 ```
 
-Delay notation: `z^-N` means an integer-sample delay of $N$ samples.
+Delay notation: $z^{-N}$ means an integer-sample delay of $N$ samples.
 
 **FDN mechanics:** At each sample, the FDN reads from $N$ delay lines, applies per-line damping and DC blocking, multiplies by the gain diagonal $\mathbf{G}$, multiplies by the feedback matrix $\mathbf{M}$, adds the injected excitation from the diffusion stage, and writes back to the delays. The matrix $\mathbf{M}$ must be orthonormal (or nearly so) to preserve energy over long tails; verbx orthonormalizes all matrix families before use. The state update is:
 
@@ -1884,7 +1884,7 @@ Shorter delay lines require gains closer to 1.0. This is computed per line so di
 
 | Parameter | Range | What it does | Expert note |
 |---|---|---|---|
-| `--rt60` | 0.1–3600 | Decay time target (seconds) | Drives per-line gain via `g_i = 10^(-3 d_i / T60)` |
+| `--rt60` | 0.1–3600 | Decay time target (seconds) | Drives per-line gain via $g_i = 10^{-3d_i/T_{60}}$ |
 | `--fdn-lines` | 2–64 | Number of delay lines | Higher line counts increase tail density; above 32 the returns diminish |
 | `--fdn-matrix` | see above | Feedback mixing topology | Controls tail texture and energy diffusion pattern |
 | `--allpass-stages` | 0–16 | Early diffusion stages | 4–10 is typical; 0 disables diffusion entirely |
@@ -2183,7 +2183,7 @@ curated quick-reference for common switches.
 | Switch | Range | What it does | Expert note |
 |---|---|---|---|
 | `--engine` | algo/conv/auto | Reverb engine | `auto` picks `conv` if IR present, else `algo` |
-| `--rt60` | 0.1–3600 | Decay time (seconds) | Per-line gain via `g_i = 10^(-3 d_i / T60)` |
+| `--rt60` | 0.1–3600 | Decay time (seconds) | Per-line gain via $g_i = 10^{-3d_i/T_{60}}$ |
 | `--wet` | 0–∞ | Wet signal level | Values >1.0 overdrive wet bus intentionally |
 | `--dry` | 0–1 | Dry signal level | |
 | `--pre-delay-ms` | 0–500 | Reverb onset delay (ms) | |
@@ -2973,7 +2973,7 @@ input audio
   │
   ├─ [dry path] ──────────────────────────────────────────┐
   │                                                        │
-  └─ pre-delay (z^-N)                                      │
+  └─ pre-delay (z⁻ᴺ)                                       │
        └─ allpass diffusion (stages 1..K)                  │
             └─ [optional] comb cloud                        │
                  └─ FDN core                                │
@@ -2994,7 +2994,7 @@ input audio
                       └─ analysis JSON + frames CSV
 ```
 
-Notation: `z^-N` denotes an integer-sample delay of $N$ samples, $K$ is
+Notation: $z^{-N}$ denotes an integer-sample delay of $N$ samples, $K$ is
 allpass-stage count, and $N$ (in `lines 1..N`) is FDN delay-line count.
 
 **Precision:** All DSP — FDN state updates, FFT operations, allpass filters, automation curves, feature vectors, analysis metrics — runs in `float64` internally. Output is downcast at write time according to `--out-subtype`. `verbx render` defaults to HD output (`192000 Hz`, `float32`) unless overridden by `--quality-preset`, `--target-sr`, or `--out-subtype`.

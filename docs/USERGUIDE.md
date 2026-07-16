@@ -38,6 +38,10 @@ reference material, and practical tips shipped in `docs/`.
 
 **Colossal 64-bit spatial audio reverberator, accelerated with CUDA and Metal.**
 
+> **Start with the book:** [Read the complete illustrated verbx User Guide (PDF)](USERGUIDE.pdf)
+> for CLI workflows, plug-in operation, DSP explanations, musical examples,
+> educational projects, figures, and the research bibliography.
+
 `verbx` is a research-grade Python CLI for creating reverb effects that range from subtle room placement to cathedral-scale tails 3600 seconds long. It handles the complete reverb workflow: ingesting and generating impulse responses, processing audio through two independent engines, controlling every parameter with time-varying automation, delivering loudness-targeted multichannel output, reducing late-room smear with deterministic dereverberation, producing reproducible analysis artifacts at every step, and now previewing spaces in realtime from CLI-selectable audio devices.
 
 You can batch reverberate a directory of audio files to create lush Dolby Atmos beds. Or use it as part of your corpus-augmentation workflow for audio AI projects.
@@ -1176,7 +1180,7 @@ The diagram below exposes the feedback path that creates both duration and color
 %% verbx-static: docs/assets/reverb_primer/03_feedback_comb_filter.png
 flowchart LR
     X["x[n]"] --> S(("+"))
-    S --> D["Delay z^-M"]
+    S --> D["Delay z⁻ᴹ"]
     D --> Y["y[n]"]
     D --> G["Gain g"]
     G --> S
@@ -1237,7 +1241,7 @@ the topology is not simply a comb with a dry mix.
 %% verbx-static: docs/assets/reverb_primer/04_schroeder_allpass.png
 flowchart LR
     X["x[n]"] --> P["Split"]
-    P --> D["Delay z^-M"]
+    P --> D["Delay z⁻ᴹ"]
     P --> N["Direct gain -g"]
     D --> S(("+"))
     N --> S
@@ -1851,10 +1855,10 @@ The algorithmic engine synthesizes reverb without an impulse response file. It i
 
 ```
 input
-  └─ pre-delay (z^-N_pre)
+  └─ pre-delay (z⁻ᴺᵖʳᵉ)
        └─ allpass diffusion (K stages)
             └─ FDN feedback loop
-                 ├─ delay bank (N lines, z^-N_i)
+                 ├─ delay bank (N lines, z⁻ᴺⁱ)
                  ├─ per-line conditioning D_i(z)  [damping + DC block]
                  ├─ RT60 gain G  [diagonal, per-line]
                  ├─ feedback matrix M  [orthonormal family]
@@ -1865,7 +1869,7 @@ input
        └─ wet/dry mix → shimmer → bloom/tilt/EQ → loudness → output
 ```
 
-Delay notation: `z^-N` means an integer-sample delay of $N$ samples.
+Delay notation: $z^{-N}$ means an integer-sample delay of $N$ samples.
 
 **FDN mechanics:** At each sample, the FDN reads from $N$ delay lines, applies per-line damping and DC blocking, multiplies by the gain diagonal $\mathbf{G}$, multiplies by the feedback matrix $\mathbf{M}$, adds the injected excitation from the diffusion stage, and writes back to the delays. The matrix $\mathbf{M}$ must be orthonormal (or nearly so) to preserve energy over long tails; verbx orthonormalizes all matrix families before use. The state update is:
 
@@ -1912,7 +1916,7 @@ Shorter delay lines require gains closer to 1.0. This is computed per line so di
 
 | Parameter | Range | What it does | Expert note |
 |---|---|---|---|
-| `--rt60` | 0.1–3600 | Decay time target (seconds) | Drives per-line gain via `g_i = 10^(-3 d_i / T60)` |
+| `--rt60` | 0.1–3600 | Decay time target (seconds) | Drives per-line gain via $g_i = 10^{-3d_i/T_{60}}$ |
 | `--fdn-lines` | 2–64 | Number of delay lines | Higher line counts increase tail density; above 32 the returns diminish |
 | `--fdn-matrix` | see above | Feedback mixing topology | Controls tail texture and energy diffusion pattern |
 | `--allpass-stages` | 0–16 | Early diffusion stages | 4–10 is typical; 0 disables diffusion entirely |
@@ -2211,7 +2215,7 @@ curated quick-reference for common switches.
 | Switch | Range | What it does | Expert note |
 |---|---|---|---|
 | `--engine` | algo/conv/auto | Reverb engine | `auto` picks `conv` if IR present, else `algo` |
-| `--rt60` | 0.1–3600 | Decay time (seconds) | Per-line gain via `g_i = 10^(-3 d_i / T60)` |
+| `--rt60` | 0.1–3600 | Decay time (seconds) | Per-line gain via $g_i = 10^{-3d_i/T_{60}}$ |
 | `--wet` | 0–∞ | Wet signal level | Values >1.0 overdrive wet bus intentionally |
 | `--dry` | 0–1 | Dry signal level | |
 | `--pre-delay-ms` | 0–500 | Reverb onset delay (ms) | |
@@ -3001,7 +3005,7 @@ input audio
   │
   ├─ [dry path] ──────────────────────────────────────────┐
   │                                                        │
-  └─ pre-delay (z^-N)                                      │
+  └─ pre-delay (z⁻ᴺ)                                       │
        └─ allpass diffusion (stages 1..K)                  │
             └─ [optional] comb cloud                        │
                  └─ FDN core                                │
@@ -3022,7 +3026,7 @@ input audio
                       └─ analysis JSON + frames CSV
 ```
 
-Notation: `z^-N` denotes an integer-sample delay of $N$ samples, $K$ is
+Notation: $z^{-N}$ denotes an integer-sample delay of $N$ samples, $K$ is
 allpass-stage count, and $N$ (in `lines 1..N`) is FDN delay-line count.
 
 **Precision:** All DSP — FDN state updates, FFT operations, allpass filters, automation curves, feature vectors, analysis metrics — runs in `float64` internally. Output is downcast at write time according to `--out-subtype`. `verbx render` defaults to HD output (`192000 Hz`, `float32`) unless overridden by `--quality-preset`, `--target-sr`, or `--out-subtype`.
@@ -19278,13 +19282,13 @@ The figure below introduces **Binaural HRTF Blend**. HRTF blending needs smooth 
 
 Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
 
-The figure below introduces **Speaker Layout Coverage**. Layout diagrams catch missing or mislabeled channels before render. Points and paths occupy a two-dimensional design space; proximity indicates similar states, not physical distance. The horizontal axis is **Speaker azimuth (degrees)** and the vertical axis is **Speaker elevation (degrees)**. The color or radial scale reports **Coverage state (category)**.
+The figure below introduces **Loudspeaker Layouts: Plan and Elevation**. Nominal channel bearings for stereo, 5.1, and 7.1.4, with the immersive height layer shown separately. Listener-centered plan views encode nominal azimuth, while the separate side elevation distinguishes bed and height layers. It has no numeric axes because it is a structural diagram rather than a measurement plot.
 
-![Figure 72: Speaker Layout Coverage.](assets/userguide_figures/72_speaker_layout_coverage.png)
+![Figure 72: Loudspeaker Layouts: Plan and Elevation.](assets/userguide_figures/72_speaker_layout_coverage.png)
 
-**Figure 72: Speaker Layout Coverage.**
+**Figure 72: Loudspeaker Layouts: Plan and Elevation.**
 
-Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test.
+Read each plan with front at the top and the listener at the center. Blue marks identify front and center bed channels, teal marks identify side and rear bed channels, and gold marks identify overhead channels. Radial lines indicate nominal bearing only; they are not cables or signal-flow paths. The elevation inset shows why the four height channels cannot be understood from azimuth alone, while the separate LFE key emphasizes that the subwoofer channel has no prescribed bearing. These angles are explanatory nominal placements; use the applicable monitoring standard and room-calibration procedure for installation.
 
 The figure below introduces **IR Capture Checklist**. Capture quality depends on sweep level, silence, trim, and calibration. Boxes and arrows show order and dependency. Their position and size are schematic and carry no numeric scale. It has no numeric axes because it is a structural diagram rather than a measurement plot.
 
@@ -21286,7 +21290,8 @@ This is the paper that launched a thousand reverb plugins. Schroeder identified 
 
 **7. Valimaki et al. (2012) — Fifty Years of Artificial Reverberation** ([entry 59](#entry-59))
 
-The best survey of the field in existence. Covers plate reverb, spring reverb, Schroeder, FDN, convolution, and perceptual approaches in a single coherent narrative. If you only read one survey paper, make it this one. It is also the most frequently cross-referenced paper in this bibliography.
+A historical survey connecting mechanical, algorithmic, convolution, and perceptual reverberation.
+
 ---
 
 ## Key Results Reference
@@ -21297,7 +21302,7 @@ Quick-lookup table of the equations you will cite most often during development.
 |---|---|---|---|
 | **Sabine equation** | RT60 = 0.161 V / (A) where A = sum(S_i alpha_i) | Sabine (1900), summarized in [RA2](#entry-ra2), [RA3](#entry-ra3), and [RA5](#entry-ra5) | Assumes perfectly diffuse field. Breaks down in rooms with non-uniform absorption or very low average absorption coefficient. Over-predicts RT60 in dead rooms. |
 | **Eyring correction** | RT60 = 0.161 V / (-S ln(1 - alpha_mean)) | Eyring (1930), see [RA2](#entry-ra2) and [RA5](#entry-ra5) | More accurate when average absorption is high (alpha > 0.3). Reduces to Sabine in the limit of low absorption. |
-| **FDN gain calibration** | g = 10^(-3 T_d / RT60) per delay line, where T_d is delay length in seconds | Jot and Chaigne (1997), entry [95](#entry-95); Schlecht and Habets (2015), entry [39](#entry-39) | Applied per-band when using frequency-dependent absorption filters on the delay outputs. This is the central calibration formula for matching a target RT60. |
+| **FDN gain calibration** | $g_i = 10^{-3d_i/T_{60}}$ per delay line, where $d_i$ is delay length in seconds | Jot and Chaigne (1997), entry [95](#entry-95); Schlecht and Habets (2015), entry [39](#entry-39) | Applied per-band when using frequency-dependent absorption filters on the delay outputs. This is the central calibration formula for matching a target RT60. |
 | **EDT definition** | Early Decay Time = time for first 10 dB of decay on the energy decay curve, extrapolated to 60 dB | ISO 3382-1; summarized in entry [80](#entry-80) | EDT correlates better with perceived liveness than RT60 in spaces with non-exponential decay. |
 | **C80 (Clarity)** | C80 = 10 log10 [ integral_0^80ms h^2(t) dt / integral_80ms^inf h^2(t) dt ] (dB) | ISO 3382-1; see entry [80](#entry-80) | Ratio of early to late energy, 80 ms threshold. Positive values indicate clear/direct sound; negative values indicate reverberant/muddy. |
 | **D50 (Definition)** | D50 = integral_0^50ms h^2(t) dt / integral_0^inf h^2(t) dt | ISO 3382-1; see entry [80](#entry-80) | Fraction of total energy arriving in first 50 ms. Ranges 0-1; higher values correlate with better speech intelligibility. Uses 50 ms threshold versus C80's 80 ms. |

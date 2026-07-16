@@ -46,6 +46,9 @@ F_SUB = font(28)
 F_BODY = font(24)
 F_SMALL = font(20)
 F_MONO = font(22)
+F_PANEL = font(28, True)
+F_CHANNEL = font(17, True)
+F_TINY = font(15)
 
 
 def canvas(title: str, subtitle: str = "") -> tuple[Image.Image, ImageDraw.ImageDraw]:
@@ -557,7 +560,14 @@ MORE_FIGURES: tuple[tuple[str, str, str, str, int], ...] = (
     ("Multichannel Routing Matrix", "Channel maps keep immersive and stereo renders auditable.", "69_multichannel_routing_matrix.png", "heat", 69),
     ("Ambisonic Decode Spread", "Decode spread converts abstract soundfield order into speaker energy.", "70_ambisonic_decode_spread.png", "space", 70),
     ("Binaural HRTF Blend", "HRTF blending needs smooth interpolation across azimuth and elevation.", "71_binaural_hrtf_blend.png", "space", 71),
-    ("Speaker Layout Coverage", "Layout diagrams catch missing or mislabeled channels before render.", "72_speaker_layout_coverage.png", "space", 72),
+    (
+        "Loudspeaker Layouts: Plan and Elevation",
+        "Nominal channel bearings for stereo, 5.1, and 7.1.4, with the immersive "
+        "height layer shown separately.",
+        "72_speaker_layout_coverage.png",
+        "layout",
+        72,
+    ),
     ("IR Capture Checklist", "Capture quality depends on sweep level, silence, trim, and calibration.", "73_ir_capture_checklist.png", "stack", 73),
     ("Sweep Deconvolution Path", "Measured IRs move through sweep, inverse filter, trim, and normalize steps.", "74_sweep_deconvolution_path.png", "stack", 74),
     ("IR Tail Trim Decision", "Trim should stop after useful decay, not after the first low-energy valley.", "75_ir_tail_trim_decision.png", "timeline", 75),
@@ -638,7 +648,7 @@ ATLAS_AXES: dict[int, tuple[str, str, str]] = {
     69: ("Input channel (index)", "Output channel (index)", "Routing gain (dB)"),
     70: ("Speaker azimuth (degrees)", "Speaker elevation (degrees)", "Relative decode energy (0-1)"),
     71: ("Source azimuth (degrees)", "Source elevation (degrees)", "HRTF blend weight (0-1)"),
-    72: ("Speaker azimuth (degrees)", "Speaker elevation (degrees)", "Coverage state (category)"),
+    72: ("", "", ""),
     75: ("Time in impulse response (s)", "IR decay level (dBFS)", ""),
     76: ("Normalization mode (category)", "Resulting reference level (dB)", ""),
     77: ("IR time offset (samples)", "Partition size (samples)", ""),
@@ -662,7 +672,180 @@ ATLAS_AXES: dict[int, tuple[str, str, str]] = {
 }
 
 
+def _polar_position(
+    center: tuple[int, int], radius: float, azimuth_degrees: float
+) -> tuple[float, float]:
+    angle = math.radians(azimuth_degrees)
+    return center[0] + radius * math.sin(angle), center[1] - radius * math.cos(angle)
+
+
+def _speaker_mark(
+    d: ImageDraw.ImageDraw,
+    center: tuple[float, float],
+    label: str,
+    color: str,
+) -> None:
+    x, y = center
+    radius = 20 if len(label) <= 2 else 23
+    d.ellipse((x - radius, y - radius, x + radius, y + radius), fill=color)
+    text_center(
+        d,
+        (int(x - radius), int(y - radius), int(x + radius), int(y + radius)),
+        label,
+        fill=PAPER,
+        fnt=F_CHANNEL,
+    )
+
+
+def _listener_mark(d: ImageDraw.ImageDraw, center: tuple[int, int]) -> None:
+    x, y = center
+    d.ellipse((x - 25, y - 25, x + 25, y + 25), fill=PAPER, outline=INK, width=4)
+    d.arc((x - 35, y - 16, x - 20, y + 16), 90, 270, fill=INK, width=3)
+    d.arc((x + 20, y - 16, x + 35, y + 16), -90, 90, fill=INK, width=3)
+    arrow(d, (x, y - 30), (x, y - 58), INK, 3)
+
+
+def _speaker_plan(
+    d: ImageDraw.ImageDraw,
+    *,
+    center: tuple[int, int],
+    title: str,
+    speakers: tuple[tuple[str, float, str], ...],
+    lfe: bool,
+) -> None:
+    cx, cy = center
+    radius = 150
+    frame = (cx - 225, 172, cx + 225, 650)
+    d.rounded_rectangle(frame, radius=24, fill=PAPER, outline=GRID, width=3)
+    title_box = d.textbbox((0, 0), title, font=F_PANEL)
+    d.text((cx - (title_box[2] - title_box[0]) / 2, 192), title, fill=INK, font=F_PANEL)
+    d.text((cx - 52, 228), "FRONT / 0°", fill=MUTED, font=F_TINY)
+    d.ellipse(
+        (cx - radius, cy - radius, cx + radius, cy + radius),
+        outline=GRID,
+        width=3,
+    )
+    d.line((cx, cy - radius, cx, cy + radius), fill=GRID, width=2)
+    d.line((cx - radius, cy, cx + radius, cy), fill=GRID, width=2)
+    d.text((cx - 48, cy + radius - 25), "REAR / 180°", fill=MUTED, font=F_TINY)
+    _listener_mark(d, center)
+
+    for label, azimuth, layer in speakers:
+        speaker_radius = 92 if layer == "height" else radius
+        position = _polar_position(center, speaker_radius, azimuth)
+        d.line((cx, cy, position[0], position[1]), fill="#dbe2de", width=2)
+        color = GOLD if layer == "height" else TEAL if "s" in label.lower() else BLUE
+        _speaker_mark(d, position, label, color)
+
+    if lfe:
+        d.rounded_rectangle(
+            (frame[0] + 18, frame[3] - 62, frame[0] + 112, frame[3] - 18),
+            radius=12,
+            fill=RUST,
+        )
+        text_center(
+            d,
+            (frame[0] + 18, frame[3] - 62, frame[0] + 112, frame[3] - 18),
+            "LFE",
+            fill=PAPER,
+            fnt=F_CHANNEL,
+        )
+        d.text(
+            (frame[0] + 122, frame[3] - 50),
+            "non-positional",
+            fill=MUTED,
+            font=F_TINY,
+        )
+
+
+def fig_speaker_layout_coverage(filename: str = "72_speaker_layout_coverage.png") -> None:
+    img, d = canvas(
+        "Loudspeaker Layouts: Plan and Elevation",
+        "Channel labels show nominal listener-relative bearings; connecting lines are "
+        "bearing guides, not signal flow.",
+    )
+    _speaker_plan(
+        d,
+        center=(275, 420),
+        title="Stereo / 2.0",
+        speakers=(("L", -30, "bed"), ("R", 30, "bed")),
+        lfe=False,
+    )
+    _speaker_plan(
+        d,
+        center=(800, 420),
+        title="5.1 Bed",
+        speakers=(
+            ("L", -30, "bed"),
+            ("C", 0, "bed"),
+            ("R", 30, "bed"),
+            ("Ls", -110, "bed"),
+            ("Rs", 110, "bed"),
+        ),
+        lfe=True,
+    )
+    _speaker_plan(
+        d,
+        center=(1325, 420),
+        title="7.1.4 Immersive",
+        speakers=(
+            ("L", -30, "bed"),
+            ("C", 0, "bed"),
+            ("R", 30, "bed"),
+            ("Lss", -90, "bed"),
+            ("Rss", 90, "bed"),
+            ("Lrs", -135, "bed"),
+            ("Rrs", 135, "bed"),
+            ("Ltf", -45, "height"),
+            ("Rtf", 45, "height"),
+            ("Ltr", -135, "height"),
+            ("Rtr", 135, "height"),
+        ),
+        lfe=True,
+    )
+
+    d.rounded_rectangle(
+        (65, 682, 1535, 860),
+        radius=22,
+        fill="#efe4cd",
+        outline=GRID,
+        width=3,
+    )
+    d.text((95, 706), "KEY", fill=INK, font=F_PANEL)
+    _speaker_mark(d, (125, 770), "L", BLUE)
+    d.text((158, 758), "front / center bed", fill=INK, font=F_SMALL)
+    _speaker_mark(d, (125, 820), "Ls", TEAL)
+    d.text((158, 808), "side / rear bed", fill=INK, font=F_SMALL)
+    _speaker_mark(d, (425, 770), "Ltf", GOLD)
+    d.text((460, 758), "height channel", fill=INK, font=F_SMALL)
+    d.rounded_rectangle((402, 802, 448, 838), radius=9, fill=RUST)
+    d.text((460, 808), "LFE has no bearing", fill=INK, font=F_SMALL)
+
+    elevation_title = "7.1.4 SIDE ELEVATION"
+    elevation_box = d.textbbox((0, 0), elevation_title, font=F_PANEL)
+    d.text(
+        (1110 - (elevation_box[2] - elevation_box[0]) / 2, 695),
+        elevation_title,
+        fill=INK,
+        font=F_PANEL,
+    )
+    listener = (1110, 815)
+    d.line((755, 815, 1480, 815), fill=MUTED, width=3)
+    _listener_mark(d, listener)
+    for x in (835, 1385):
+        d.line((listener[0], listener[1], x, 815), fill="#dbe2de", width=2)
+        _speaker_mark(d, (x, 815), "bed", TEAL)
+    for x in (1045, 1175):
+        d.line((listener[0], listener[1], x, 750), fill="#dbe2de", width=2)
+        _speaker_mark(d, (x, 750), "top", GOLD)
+    d.text((1210, 741), "height: +45°", fill=MUTED, font=F_TINY)
+    save(img, filename)
+
+
 def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) -> None:
+    if kind == "layout":
+        fig_speaker_layout_coverage(filename)
+        return
     img, d = canvas(title, subtitle)
     rng = np.random.default_rng(seed)
     box = (170, 190, 1420, 700)

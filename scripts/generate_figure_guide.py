@@ -55,6 +55,10 @@ VISUAL_LANGUAGE = {
     "heat": "Each cell combines one horizontal and one vertical condition; color encodes the third quantity named in the scale label.",
     "bands": "Colored regions divide the horizontal quantity into operational or perceptual regimes rather than implying a continuous measured response.",
     "space": "Points and paths occupy a two-dimensional design space; proximity indicates similar states, not physical distance.",
+    "layout": (
+        "Listener-centered plan views encode nominal azimuth, while the separate side "
+        "elevation distinguishes bed and height layers."
+    ),
     "radar": "Each spoke is a named category and distance from the center is the normalized radial score.",
     "stack": "Boxes and arrows show order and dependency. Their position and size are schematic and carry no numeric scale.",
     "schematic": "Boxes, arrows, and spatial placement communicate topology and sequence; their dimensions are schematic and not measurements.",
@@ -100,6 +104,18 @@ def describe(item: tuple[str, str, str, str, str, str, str]) -> tuple[str, str]:
         f"The figure below introduces **{title}**. {summary} "
         f"{VISUAL_LANGUAGE[kind]}{axis_sentence}"
     )
+    if kind == "layout":
+        return lead, (
+            "Read each plan with front at the top and the listener at the center. Blue "
+            "marks identify front and center bed channels, teal marks identify side and "
+            "rear bed channels, and gold marks identify overhead channels. Radial lines "
+            "indicate nominal bearing only; they are not cables or signal-flow paths. The "
+            "elevation inset shows why the four height channels cannot be understood from "
+            "azimuth alone, while the separate LFE key emphasizes that the subwoofer "
+            "channel has no prescribed bearing. These angles are explanatory nominal "
+            "placements; use the applicable monitoring standard and room-calibration "
+            "procedure for installation."
+        )
     follow = (
         "Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. "
         "Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. "

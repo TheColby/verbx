@@ -5,10 +5,18 @@
 \usepackage{makeidx}
 \usepackage{fancyhdr}
 \usepackage{titlesec}
+\usepackage{etoolbox}
+\usepackage{needspace}
 \makeindex
 \newunicodechar{→}{\ensuremath{\rightarrow}}
 \setlength{\emergencystretch}{3em}
 \sloppy
+\raggedbottom
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
+\brokenpenalty=10000
+\interfootnotelinepenalty=10000
 \setlength{\LTleft}{0pt}
 \setlength{\LTright}{0pt}
 \definecolor{verbxTableOdd}{gray}{0.985}
@@ -68,6 +76,9 @@
   {0.45ex}
   {\titlerule[1.2pt]\vspace{0.75ex}\fontsize{30}{35}\selectfont}
 \titlespacing*{\chapter}{0pt}{-18pt}{28pt}
+\pretocmd{\section}{\Needspace{6\baselineskip}}{}{}
+\pretocmd{\subsection}{\Needspace{5\baselineskip}}{}{}
+\pretocmd{\subsubsection}{\Needspace{4\baselineskip}}{}{}
 \titleformat{\part}[display]
   {\centering\normalfont\bfseries\color{verbxCover}}
   {\fontsize{18}{21}\selectfont\scshape\partname\ \thepart}

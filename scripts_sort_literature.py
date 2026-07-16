@@ -95,7 +95,7 @@ def sort_numbered_reading_list(text: str) -> str:
     renumbered = [
         re.sub(r"^\*\*\d+\.", f"**{index}.", block) for index, block in enumerate(blocks, 1)
     ]
-    return text[:start] + "\n\n".join(renumbered) + text[end:]
+    return text[:start] + "\n\n".join(renumbered) + "\n\n" + text[end + 1 :]
 
 
 def sort_bullet_region(text: str, start_marker: str, end_marker: str | None) -> str:
