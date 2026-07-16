@@ -12,6 +12,7 @@ requires-python = ">=3.11"
 authors = [{ name = "verbx contributors" }]
 dependencies = [
   "typer>=0.12.0",
+  "click>=8.1.0",
   "rich>=13.7.0",
   "numpy>=1.26.0",
   "pillow>=10.0.0",
@@ -68,6 +69,9 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N", "RUF"]
+# Generated figure metadata contains long prose literals, and the documentation
+# intentionally uses typographic symbols such as en dashes and multiplication signs.
+ignore = ["E501", "RUF001", "RUF002"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/verbx/cli.py" = ["B008"]

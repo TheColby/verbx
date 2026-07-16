@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import itertools
 import math
 from pathlib import Path
 
@@ -71,7 +72,7 @@ def text_center(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], text: st
     heights = [d.textbbox((0, 0), line, font=fnt)[3] for line in lines]
     total = sum(heights) + (len(lines) - 1) * 8
     y = (box[1] + box[3] - total) / 2
-    for line, height in zip(lines, heights):
+    for line, height in zip(lines, heights, strict=False):
         bbox = d.textbbox((0, 0), line, font=fnt)
         x = (box[0] + box[2] - (bbox[2] - bbox[0])) / 2
         d.text((x, y), line, fill=fill, font=fnt)
@@ -130,7 +131,7 @@ def line_plot(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], xs, ys, co
     ys = np.asarray(ys)
     px = x0 + (xs - xs.min()) / (xs.max() - xs.min()) * (x1 - x0)
     py = y1 - (ys - ys.min()) / (ys.max() - ys.min()) * (y1 - y0)
-    d.line(list(zip(px, py)), fill=color, width=width, joint="curve")
+    d.line(list(zip(px, py, strict=False)), fill=color, width=width, joint="curve")
 
 
 def bars(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], vals, labels, colors) -> None:
@@ -139,7 +140,7 @@ def bars(d: ImageDraw.ImageDraw, box: tuple[int, int, int, int], vals, labels, c
     n = len(vals)
     gap = 18
     bw = ((x1 - x0) - gap * (n - 1)) / n
-    for i, (v, label, color) in enumerate(zip(vals, labels, colors)):
+    for i, (v, label, color) in enumerate(zip(vals, labels, colors, strict=False)):
         bx0 = x0 + i * (bw + gap)
         bx1 = bx0 + bw
         by0 = y1 - v / maxv * (y1 - y0)
@@ -153,9 +154,9 @@ def fig_signal_flow() -> None:
     boxes = [(70, 280, 270, 400), (355, 280, 555, 400), (640, 280, 840, 400), (925, 280, 1125, 400), (1210, 280, 1410, 400)]
     labels = ["Input\nWAV/FLAC", "Preflight\n+ config", "Engine\nconv/algo", "Post FX\nlimit/loud", "Output\n+ JSON"]
     colors = [BLUE, TEAL, GOLD, RUST, PLUM]
-    for b, label, c in zip(boxes, labels, colors):
+    for b, label, c in zip(boxes, labels, colors, strict=False):
         node(d, b, label, c)
-    for a, b in zip(boxes[:-1], boxes[1:]):
+    for a, b in itertools.pairwise(boxes):
         arrow(d, (a[2] + 12, (a[1] + a[3]) // 2), (b[0] - 14, (b[1] + b[3]) // 2), MUTED)
     d.rounded_rectangle((180, 560, 1360, 720), radius=28, outline=GRID, width=4, fill="#f3ead9")
     text_center(d, (180, 560, 1360, 720), "Progress bars, deterministic seeds, analysis sidecars, and reproducible CLI options\nwrap the signal path so renders can be audited later.", fill=INK)
@@ -183,7 +184,7 @@ def fig_rt60_curves() -> None:
         y = np.maximum(y, -72)
         px = box[0] + t / 8 * (box[2] - box[0])
         py = box[3] - (y + 72) / 72 * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
         d.text((box[2] - 170, int(py[min(len(py)-1, int(rt / 8 * 299))]) - 16), f"{rt:g}s", fill=color, font=F_SMALL)
     save(img, "03_rt60_decay_families.png")
 
@@ -196,8 +197,8 @@ def fig_edc_windows() -> None:
     y = -65 * (t ** 0.92) + 2 * np.sin(18 * t)
     xpix = box[0] + t * (box[2] - box[0])
     ypix = box[3] - (y + 70) / 72 * (box[3] - box[1])
-    d.line(list(zip(xpix, ypix)), fill=BLUE, width=6)
-    for start, end, label, color in [(0, 10, "EDT", TEAL), (5, 25, "T20", GOLD), (5, 35, "T30", RUST)]:
+    d.line(list(zip(xpix, ypix, strict=False)), fill=BLUE, width=6)
+    for _start, end, label, color in [(0, 10, "EDT", TEAL), (5, 25, "T20", GOLD), (5, 35, "T30", RUST)]:
         yy = box[3] - ((-end) + 70) / 72 * (box[3] - box[1])
         d.line((box[0], yy, box[2], yy), fill=color, width=2)
         d.text((box[2] - 95, yy - 24), label, fill=color, font=F_BODY)
@@ -235,10 +236,10 @@ def fig_window_functions() -> None:
         ("kaiser", np.kaiser(512, 8), GOLD),
         ("tukey", np.where(x < .2, .5 * (1 + np.cos(np.pi * (x / .2 - 1))), np.where(x > .8, .5 * (1 + np.cos(np.pi * ((x - .8) / .2))), 1)), RUST),
     ]
-    for name, y, color in curves:
+    for _name, y, color in curves:
         px = box[0] + x * (box[2] - box[0])
         py = box[3] - y * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=4)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=4)
     for i, (name, _, color) in enumerate(curves):
         d.text((1030, 220 + i * 44), name, fill=color, font=F_BODY)
     save(img, "06_window_functions.png")
@@ -254,10 +255,10 @@ def fig_limiter_curve() -> None:
         ("soft", -1 - 10 * np.log10(1 + 10 ** ((-1 - x) / 10)), GOLD),
         ("transparent", np.where(x < -6, x, -6 + (x + 6) * 0.45), TEAL),
     ]
-    for name, y, color in curves:
+    for _name, y, color in curves:
         px = box[0] + (x - x.min()) / (x.max() - x.min()) * (box[2] - box[0])
         py = box[3] - (y - (-36)) / (6 - (-36)) * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
     d.text((980, 235), "hard ceiling\nsoft knee\ntransparent", fill=INK, font=F_BODY)
     save(img, "07_limiter_transfer.png")
 
@@ -272,7 +273,7 @@ def fig_ducking() -> None:
     for y, color, label, yoff in [(dry, BLUE, "dry source", 0), (wet, RUST, "ducked wet", 46)]:
         px = box[0] + t / t.max() * (box[2] - box[0])
         py = box[3] - y * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
         d.text((1100, 230 + yoff), label, fill=color, font=F_BODY)
     save(img, "08_ducking_envelope.png")
 
@@ -287,7 +288,7 @@ def fig_multiband_decay() -> None:
         y = np.exp(-t / rt)
         px = box[0] + t / 6 * (box[2] - box[0])
         py = box[3] - y * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
         d.text((1120, int(py[120]) - 18), f"{name}: {rt}s", fill=color, font=F_BODY)
     save(img, "09_multiband_decay.png")
 
@@ -303,7 +304,7 @@ def fig_dereverb_strength() -> None:
     for y, color, label, yoff in [(clarity, TEAL, "clarity", 0), (natural, GOLD, "naturalness", 46), (useful, RUST, "sweet spot", 92)]:
         px = box[0] + x * (box[2] - box[0])
         py = box[3] - y * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
         d.text((1070, 240 + yoff), label, fill=color, font=F_BODY)
     save(img, "10_dereverb_tradeoff.png")
 
@@ -313,7 +314,7 @@ def fig_partitioned_convolution() -> None:
     x0, y0 = 120, 250
     widths = [120, 160, 220, 280, 360, 440]
     colors = [BLUE, TEAL, GOLD, RUST, PLUM, GREEN]
-    for i, (w, c) in enumerate(zip(widths, colors)):
+    for i, (w, c) in enumerate(zip(widths, colors, strict=False)):
         y = y0 + i * 72
         d.rounded_rectangle((x0, y, x0 + w, y + 42), radius=10, fill=c)
         d.text((x0 + w + 24, y + 8), f"partition {i}: {2 ** (i + 8)} samples", fill=INK, font=F_BODY)
@@ -367,9 +368,9 @@ def fig_shimmer_path() -> None:
     boxes = [(120, 300, 330, 420), (430, 300, 640, 420), (740, 300, 950, 420), (1050, 300, 1260, 420)]
     labels = ["wet tail", "pitch\nshift", "diffuse\nagain", "feedback\nmix"]
     colors = [BLUE, GOLD, TEAL, RUST]
-    for b, l, c in zip(boxes, labels, colors):
-        node(d, b, l, c)
-    for a, b in zip(boxes[:-1], boxes[1:]):
+    for box, label, color in zip(boxes, labels, colors, strict=False):
+        node(d, box, label, color)
+    for a, b in itertools.pairwise(boxes):
         arrow(d, (a[2] + 10, 360), (b[0] - 12, 360), MUTED)
     arrow(d, (1155, 430), (220, 520), PLUM)
     arrow(d, (220, 520), (220, 430), PLUM)
@@ -386,7 +387,7 @@ def fig_room_inference() -> None:
         vol = rt * (200 * alpha) / 0.161
         px = box[0] + (rt - rt.min()) / (rt.max() - rt.min()) * (box[2] - box[0])
         py = box[3] - (vol - vol.min()) / (2800 - vol.min()) * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
         d.text((1080, int(py[130]) - 20), f"alpha {alpha}", fill=color, font=F_BODY)
     save(img, "16_room_size_inference.png")
 
@@ -456,7 +457,7 @@ def fig_cpu_block() -> None:
     for y, color, label, yoff in [(cpu, TEAL, "CPU pressure", 0), (latency, RUST, "latency", 46)]:
         px = box[0] + (np.log2(x) - 7) / 4 * (box[2] - box[0])
         py = box[3] - y * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=6)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=6)
         d.text((1030, 250 + yoff), label, fill=color, font=F_BODY)
     save(img, "21_cpu_block_tradeoff.png")
 
@@ -480,7 +481,7 @@ def fig_preset_space() -> None:
     axes = [("time", -90), ("tone", -18), ("width", 54), ("motion", 126), ("safety", 198)]
     values = [0.86, 0.62, 0.78, 0.48, 0.72]
     pts = []
-    for (label, deg), val in zip(axes, values):
+    for (label, deg), val in zip(axes, values, strict=False):
         ang = math.radians(deg)
         end = (cx + r * math.cos(ang), cy + r * math.sin(ang))
         d.line((cx, cy, end[0], end[1]), fill=GRID, width=3)
@@ -503,7 +504,7 @@ def fig_infinite_reverb() -> None:
     for y, color, label, yoff in [(normal, BLUE, "room", 0), (long, GOLD, "extreme", 46), (freeze, PLUM, "infinite/freeze", 92)]:
         px = box[0] + t * (box[2] - box[0])
         py = box[3] - y * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=color, width=5)
+        d.line(list(zip(px, py, strict=False)), fill=color, width=5)
         d.text((1060, 230 + yoff), label, fill=color, font=F_BODY)
     save(img, "24_infinite_reverb.png")
 
@@ -865,7 +866,7 @@ def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) ->
                 y = 1 - y
             px = box[0] + x * (box[2] - box[0])
             py = box[3] - y * (box[3] - box[1])
-            d.line(list(zip(px, py)), fill=palette[i], width=5)
+            d.line(list(zip(px, py, strict=False)), fill=palette[i], width=5)
         for i, color in enumerate(palette[:count]):
             d.text((1040, 225 + i * 42), f"trace {i + 1}", fill=color, font=F_BODY)
 
@@ -881,7 +882,7 @@ def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) ->
         base = np.exp(-3.5 * x)
         px = box[0] + x * (box[2] - box[0])
         py = box[3] - base * (box[3] - box[1])
-        d.line(list(zip(px, py)), fill=BLUE, width=5)
+        d.line(list(zip(px, py, strict=False)), fill=BLUE, width=5)
         for i, tap in enumerate(np.sort(rng.uniform(0.05, 0.9, size=10))):
             height = rng.uniform(0.18, 0.86)
             tx = box[0] + tap * (box[2] - box[0])
@@ -939,7 +940,7 @@ def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) ->
         axes = ["docs", "tests", "render", "rt", "native", "release"]
         vals = rng.uniform(0.52, 0.95, size=len(axes))
         pts = []
-        for i, (label, val) in enumerate(zip(axes, vals)):
+        for i, (label, val) in enumerate(zip(axes, vals, strict=False)):
             ang = -math.pi / 2 + 2 * math.pi * i / len(axes)
             end = (cx + r * math.cos(ang), cy + r * math.sin(ang))
             d.line((cx, cy, end[0], end[1]), fill=GRID, width=3)

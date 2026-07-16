@@ -6,7 +6,6 @@ from __future__ import annotations
 from itertools import combinations, product
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "docs" / "PLUGIN_GUIDE.md"
 
@@ -798,7 +797,7 @@ def asset_cards(lines: list[str]) -> None:
                 f"Identity fields: {asset_fields}.",
             ]
             paragraphs = [
-                f"Perform this stage on a worker or management thread, never from the realtime callback. Bound file size, element count, channel count, duration, and memory before allocating the prepared representation. Normalize paths and units without losing the original provenance. Error messages should identify the invalid field and preserve enough context for a support bundle.",
+                "Perform this stage on a worker or management thread, never from the realtime callback. Bound file size, element count, channel count, duration, and memory before allocating the prepared representation. Normalize paths and units without losing the original provenance. Error messages should identify the invalid field and preserve enough context for a support bundle.",
                 "Compute a deterministic content hash after canonicalization and include a schema/version identifier. Cache keys must include every input that changes realtime output. Two assets with the same display name are not interchangeable. When preparation succeeds, publish an immutable handle through a bounded swap; retire the previous handle only after the audio thread can no longer reference it.",
                 "Test missing, moved, corrupted, oversized, unsupported, and version-mismatched cases. Host state should remain loadable even when the external asset does not. The processor may use a compact embedded fallback or safe default, but it must show that substitution. Never conceal an asset failure behind an unrelated room preset or silently regenerate nondeterministic content.",
             ]
@@ -819,7 +818,7 @@ def release_cards(lines: list[str]) -> None:
                 "Evidence required: dated environment, build commit, result, and retained logs/artifacts.",
             ]
             paragraphs = [
-                f"Run this gate from a clean release candidate rather than a developer build directory. Confirm architecture, optimization, symbols policy, bundle identity, version, and parameter schema. Use a new host project plus a reopened representative project. Record both success and the exact unsupported configurations so release notes can be precise.",
+                "Run this gate from a clean release candidate rather than a developer build directory. Confirm architecture, optimization, symbols policy, bundle identity, version, and parameter schema. Use a new host project plus a reopened representative project. Record both success and the exact unsupported configurations so release notes can be precise.",
                 "A pass requires observable evidence: scanner output, deterministic render comparison, state round-trip, measured latency, performance trace, accessibility result, installer receipt, or documentation review as appropriate. A warning is not a pass unless it is explicitly accepted and documented. A failure must block the compatibility claim even if another format succeeds on the same machine.",
                 "After fixing a failure, rerun the focused reproduction and the neighboring gates most likely to regress. Keep host-specific checks above a larger automated native test base so common DSP and state failures are found before format testing. Archive the final matrix with the release tag and publish only the subset of environments actually validated.",
             ]

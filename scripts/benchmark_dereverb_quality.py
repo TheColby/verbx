@@ -27,7 +27,6 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from verbx.core.dereverb import DereverbConfig, run_dereverb_benchmark  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Scenario definitions
 # ---------------------------------------------------------------------------

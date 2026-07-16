@@ -3,9 +3,9 @@
 
 from __future__ import annotations
 
+import re
 from html import escape
 from pathlib import Path
-import re
 from urllib.parse import quote_plus
 
 from PIL import Image, ImageDraw, ImageFont

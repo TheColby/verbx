@@ -89,6 +89,7 @@ def test_algo_gpu_proxy_flag_accepted() -> None:
 def test_render_with_device_cuda_falls_back_to_cpu(tmp_path: pytest.TempPathFactory) -> None:
     """Rendering with device='cuda' must succeed (falling back to CPU) when no GPU present."""
     from pathlib import Path
+
     from verbx.config import RenderConfig
     from verbx.core.pipeline import run_render_pipeline
 
@@ -110,6 +111,7 @@ def test_render_with_device_cuda_falls_back_to_cpu(tmp_path: pytest.TempPathFact
 def test_render_with_device_mps_falls_back_to_cpu(tmp_path: pytest.TempPathFactory) -> None:
     """Rendering with device='mps' must succeed (falling back to CPU) when MPS unavailable."""
     from pathlib import Path
+
     from verbx.config import RenderConfig
     from verbx.core.pipeline import run_render_pipeline
 
@@ -134,7 +136,7 @@ def test_render_with_device_mps_falls_back_to_cpu(tmp_path: pytest.TempPathFacto
 @requires_cuda
 def test_cupy_import_and_basic_array() -> None:
     """Smoke test: CuPy is importable and basic array ops work."""
-    import cupy as cp  # noqa: F811
+    import cupy as cp
 
     a = cp.array([1.0, 2.0, 3.0], dtype=cp.float64)
     assert float(cp.sum(a)) == pytest.approx(6.0)
@@ -144,6 +146,7 @@ def test_cupy_import_and_basic_array() -> None:
 def test_convolution_cuda_matches_cpu(tmp_path: pytest.TempPathFactory) -> None:
     """CUDA convolution output must match CPU output within 1e-4 tolerance."""
     from pathlib import Path
+
     from verbx.config import RenderConfig
     from verbx.core.pipeline import run_render_pipeline
 
@@ -169,6 +172,7 @@ def test_convolution_cuda_matches_cpu(tmp_path: pytest.TempPathFactory) -> None:
 def test_algo_gpu_proxy_produces_output(tmp_path: pytest.TempPathFactory) -> None:
     """algo_gpu_proxy=True must produce a valid output file without error."""
     from pathlib import Path
+
     from verbx.config import RenderConfig
     from verbx.core.pipeline import run_render_pipeline
 
@@ -201,6 +205,7 @@ def test_mps_device_available() -> None:
 def test_render_with_mps_device_produces_output(tmp_path: pytest.TempPathFactory) -> None:
     """Rendering with device='mps' must produce a valid output on Apple Silicon."""
     from pathlib import Path
+
     from verbx.config import RenderConfig
     from verbx.core.pipeline import run_render_pipeline
 
