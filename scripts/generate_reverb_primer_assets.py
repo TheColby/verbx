@@ -1059,10 +1059,105 @@ def _generate_dsp_extension_diagrams() -> None:
     )
 
 
+def _generate_dereverberation_diagrams() -> None:
+    diagram(
+        "34_dereverb_inverse_problem.png",
+        "Dereverberation as a Regularized Inverse Problem",
+        "The observation is known; the dry source, room response, and noise are latent.",
+        {
+            "source": ("Dry source\n$x[n]$", (90, 175, 330, 315), BLUE),
+            "room": ("Room response\n$h[n]$", (665, 175, 925, 315), GOLD),
+            "noise": ("Additive noise\n$v[n]$", (1195, 175, 1460, 315), RUST),
+            "observation": (
+                "Microphone signal\n$y[n] = h[n] * x[n] + v[n]$",
+                (615, 430, 995, 585),
+                INK,
+            ),
+            "assumptions": ("Acoustic and source\npriors", (90, 675, 350, 815), TEAL),
+            "estimate": ("Regularized estimator\n$x_{est}[n]$", (610, 665, 980, 815), TEAL),
+            "residual": ("Residual late field\n$r[n]$", (1195, 675, 1460, 815), RUST),
+        },
+        [
+            ("source", "observation", "convolution"),
+            ("room", "observation", "direct + early + late"),
+            ("noise", "observation", "addition"),
+            ("observation", "estimate", "ill-posed evidence"),
+            ("assumptions", "estimate", "regularization"),
+            ("estimate", "residual", "unexplained energy"),
+        ],
+    )
+    diagram(
+        "35_statistical_dereverb_estimator.png",
+        "Statistical Late-Reverberation Suppression",
+        "A causal estimator converts delayed spectral evidence into a bounded gain mask.",
+        {
+            "stft": ("STFT frame\n$Y_{k,l}$", (80, 375, 310, 515), BLUE),
+            "delay": ("Delayed history\n$Y_{k,l-D}$", (420, 145, 700, 285), GOLD),
+            "late": ("Late-field PSD\n$λ_{r,k,l}$", (825, 145, 1110, 285), RUST),
+            "speech": ("Desired PSD\n$λ_{x,k,l}$", (420, 645, 700, 785), TEAL),
+            "gain": ("Bounded gain\n$G_{k,l}$", (825, 410, 1110, 550), INK),
+            "istft": ("iSTFT + OLA\n$x_{est}[n]$", (1290, 410, 1525, 550), BLUE),
+        },
+        [
+            ("stft", "delay", "past frames"),
+            ("delay", "late", "decay model"),
+            ("stft", "speech", "current evidence"),
+            ("late", "gain", "interference"),
+            ("speech", "gain", "desired signal"),
+            ("stft", "gain", "$Y_{k,l}$"),
+            ("gain", "istft", "$X_{est,k,l}$"),
+        ],
+    )
+    diagram(
+        "36_wpe_prediction_loop.png",
+        "Weighted Prediction Error Dereverberation",
+        "Delayed multichannel history predicts late reverberation without canceling the onset.",
+        {
+            "stack": ("Microphone STFT\n$y_{t,f}$", (55, 380, 315, 535), BLUE),
+            "history": ("Delay $Δ$ and stack\n$y_{t-Δ,f}$", (420, 380, 710, 535), GOLD),
+            "predictor": ("Weighted predictor\n$g_f^H$", (825, 380, 1110, 535), RUST),
+            "subtract": ("Prediction-error\nresidual $X_{est,t,f}$", (1280, 380, 1570, 535), INK),
+            "reference": ("Undelayed reference\n$Y_{t,f}$", (825, 165, 1110, 305), TEAL),
+            "variance": ("Source variance\n$λ_{t,f}$", (825, 665, 1110, 805), TEAL),
+        },
+        [
+            ("stack", "history", ""),
+            ("history", "predictor", "past frames"),
+            ("predictor", "subtract", "late estimate"),
+            ("stack", "reference", "current frame"),
+            ("reference", "subtract", "reference"),
+            ("subtract", "variance", "update power"),
+            ("variance", "predictor", "weights"),
+        ],
+    )
+    diagram(
+        "37_multichannel_dereverb_stack.png",
+        "Multichannel Dereverberation and Spatial Filtering",
+        "Temporal prediction and spatial covariance estimation solve complementary problems.",
+        {
+            "array": ("Microphone array\n$y_1 … y_M$", (80, 385, 320, 535), BLUE),
+            "sync": ("Clock, gain, and\ngeometry validation", (430, 150, 730, 300), GOLD),
+            "wpe": ("Multichannel WPE\nlate-tail prediction", (430, 620, 730, 770), RUST),
+            "cov": ("Spatial covariance\n$R_{xx}$ and $R_{vv}$", (850, 150, 1140, 300), TEAL),
+            "beam": ("MVDR / MWF / WPD\nspatial filter", (850, 620, 1140, 770), INK),
+            "output": ("Dereverberated\nspatial output", (1300, 385, 1540, 535), BLUE),
+        },
+        [
+            ("array", "sync", "calibrate"),
+            ("array", "wpe", "delayed frames"),
+            ("sync", "cov", "array model"),
+            ("wpe", "beam", "shortened"),
+            ("cov", "beam", "spatial statistics"),
+            ("beam", "output", "distortion constraint"),
+        ],
+    )
+
+
 def generate_high_level_diagrams() -> None:
     _generate_acoustic_diagram()
     _generate_remaining_diagrams()
     _generate_dsp_extension_diagrams()
+    _generate_dereverberation_diagrams()
 
 
 def generate_technical_flowgraphs() -> None:
@@ -1348,7 +1443,7 @@ def main() -> int:
     generate_high_level_diagrams()
     generate_technical_flowgraphs()
     generate_sonograms()
-    print(f"Wrote 15 diagrams, 6 technical flowgraphs, and 12 sonograms to {OUT.relative_to(ROOT)}")
+    print(f"Wrote 19 diagrams, 6 technical flowgraphs, and 12 sonograms to {OUT.relative_to(ROOT)}")
     return 0
 
 
