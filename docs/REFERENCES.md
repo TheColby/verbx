@@ -68,24 +68,24 @@ Quick-lookup table of the equations you will cite most often during development.
 ### By stream
 
 - `Stream R1 (reactive control hardening)`:
-  [Schlecht and Habets (2015) - time-varying FDN matrices](#ref-fdn-tv-matrix-2015),
-  [Valimaki et al. (2012) - fifty years of artificial reverberation](#ref-reverb-survey-2012)
+  [Schlecht and Habets (2015): time-varying FDN matrices](#ref-fdn-tv-matrix-2015),
+  [Valimaki et al. (2012): fifty years of artificial reverberation](#ref-reverb-survey-2012)
 - `Stream R2 (perceptual/Jot-inspired calibration)`:
-  [Jot and Chaigne (1997) - maximally diffusive FDN](#ref-jot-chaigne-1997),
-  [Valimaki et al. (2012) - fifty years of artificial reverberation](#ref-reverb-survey-2012)
+  [Jot and Chaigne (1997): maximally diffusive FDN](#ref-jot-chaigne-1997),
+  [Valimaki et al. (2012): fifty years of artificial reverberation](#ref-reverb-survey-2012)
 - `Stream R3 (IR morph productionization)`:
-  [Valimaki et al. (2012) - fifty years of artificial reverberation](#ref-reverb-survey-2012)
+  [Valimaki et al. (2012): fifty years of artificial reverberation](#ref-reverb-survey-2012)
 - `Stream R4 (next-generation topology expansion)`:
-  [Rocchesso and Smith (1997) - circulant/elliptic FDN families](#ref-fdn-circulant-elliptic-1997),
-  [Schlecht and Habets (2019) - delay feedback matrices](#ref-fdn-delay-feedback-2019)
+  [Rocchesso and Smith (1997): circulant/elliptic FDN families](#ref-fdn-circulant-elliptic-1997),
+  [Schlecht and Habets (2019): delay feedback matrices](#ref-fdn-delay-feedback-2019)
 
 ### Core canonical links
 
 
-- [Rocchesso and Smith (1997) - circulant/elliptic FDN families](#ref-fdn-circulant-elliptic-1997)
-- [Schlecht and Habets (2015) - time-varying FDN matrices](#ref-fdn-tv-matrix-2015)
-- [Schlecht and Habets (2019) - delay feedback matrices](#ref-fdn-delay-feedback-2019)
-- [Valimaki et al. (2012) - fifty years of artificial reverberation](#ref-reverb-survey-2012)
+- [Rocchesso and Smith (1997): circulant/elliptic FDN families](#ref-fdn-circulant-elliptic-1997)
+- [Schlecht and Habets (2015): time-varying FDN matrices](#ref-fdn-tv-matrix-2015)
+- [Schlecht and Habets (2019): delay feedback matrices](#ref-fdn-delay-feedback-2019)
+- [Valimaki et al. (2012): fifty years of artificial reverberation](#ref-reverb-survey-2012)
 
 
 ---
@@ -203,7 +203,7 @@ RT60, energy decay curves, Sabine/Eyring theory, and the physics of reverberant 
 
 > Annotation: Practitioner case study of a space with exceptionally long RT60. Context entry useful for anchoring intuition about what multi-second reverberation actually sounds like in a physical space. It helps translate abstract values such as 6, 10, or more seconds of decay into practical consequences for speech, music, crowd noise, and treatment strategy, which is useful when documenting verbx's extreme-tail and infinite-style modes.
 
-**[RA20]** Clow, S (2023). Sound Insulation Testing - Sensitivity to Reverberation Time: T30 v T20. *Autumn Conference Acoustics 2003*. DOI: [10.25144/18162](https://doi.org/10.25144/18162)
+**[RA20]** Clow, S (2023). Sound Insulation Testing: Sensitivity to Reverberation Time: T30 v T20. *Autumn Conference Acoustics 2003*. DOI: [10.25144/18162](https://doi.org/10.25144/18162)
 
 > Context entry. Compares T20 and T30 evaluation windows for building acoustics measurements. Peripheral to reverb synthesis but relevant to RT60 measurement methodology. It supports exposing multiple decay-window estimates in analysis because different windows can disagree when the noise floor, curvature, or early decay behavior contaminates a simple full-tail fit.
 
@@ -643,7 +643,7 @@ Discovery queries:
 
 **[XREF0347]** Andrieu, Guillaume (2020). Frequency and time-domain performance assessment of vibrating intrinsic reverberation chambers. *Electromagnetic Reverberation Chambers: Recent advances and innovative applications*. DOI: [10.1049/sbew544e_ch3](https://doi.org/10.1049/sbew544e_ch3)
 
-**[XREF0802]** Aralikatti, Rohith; Boeddeker, Christoph; Wichern, Gordon; et al. (2023). Reverberation as Supervision For Speech Separation. *ICASSP 2023 - 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10095022](https://doi.org/10.1109/icassp49357.2023.10095022)
+**[XREF0802]** Aralikatti, Rohith; Boeddeker, Christoph; Wichern, Gordon; et al. (2023). Reverberation as Supervision For Speech Separation. *ICASSP 2023: 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10095022](https://doi.org/10.1109/icassp49357.2023.10095022)
 
 **[XREF0062]** Arau, Higini (1997). Variation of the Reverberation Time of Places of Public Assembly with Audience Size. *Building Acoustics*. DOI: [10.1177/1351010x9700400202](https://doi.org/10.1177/1351010x9700400202)
 
@@ -687,7 +687,7 @@ Discovery queries:
 
 **[XREF0207]** Barbaresi, L.; Pettoni Possenti, V.; Scrosati, C. (2024). On the influence of reference reverberation time on façade sound insulation measurements. *Proceedings of the 10th Convention of the European Acoustics Association Forum Acusticum 2023*. DOI: [10.61782/fa.2023.0319](https://doi.org/10.61782/fa.2023.0319)
 
-**[XREF0445]** Barron, M (2023). Auditorium Acoustics - a Room Acoustician's Perspective. *Reproduced Sound 2007*. DOI: [10.25144/17744](https://doi.org/10.25144/17744)
+**[XREF0445]** Barron, M (2023). Auditorium Acoustics: a Room Acoustician's Perspective. *Reproduced Sound 2007*. DOI: [10.25144/17744](https://doi.org/10.25144/17744)
 
 **[XREF0670]** Barron, M (2024). Current Developments in Analogue Acoustic Modelling. *Room Acoustics with Emphasis on Electroacoustics 1979*. DOI: [10.25144/23453](https://doi.org/10.25144/23453)
 
@@ -741,7 +741,7 @@ Discovery queries:
 
 **[XREF0719]** Boothroyd, Arthur (2003). Hearing aids and room acoustics. *The Hearing Journal*. DOI: [10.1097/01.hj.0000292914.14697.ba](https://doi.org/10.1097/01.hj.0000292914.14697.ba)
 
-**[XREF0363]** Bork, I (2023). Simulation and Measurement of Auditorium Acoustics - the Round Robins on Room Acoustical Simulation. *Auditorium Acoustics 2002*. DOI: [10.25144/18317](https://doi.org/10.25144/18317)
+**[XREF0363]** Bork, I (2023). Simulation and Measurement of Auditorium Acoustics: the Round Robins on Room Acoustical Simulation. *Auditorium Acoustics 2002*. DOI: [10.25144/18317](https://doi.org/10.25144/18317)
 
 **[XREF0543]** Borkowski, Bartłomiej; Pluta, Marek (2015). Automated Measurement System for Room Acoustics – an Initial Feasibility Study. *Archives of Acoustics*. DOI: [10.1515/aoa-2015-0043](https://doi.org/10.1515/aoa-2015-0043)
 
@@ -785,7 +785,7 @@ Discovery queries:
 
 **[XREF0752]** Brutti, Alessio; Matassoni, Marco (2014). On the use of Early-To-Late Reverberation ratio for ASR in reverberant environments. *2014 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2014.6854481](https://doi.org/10.1109/icassp.2014.6854481)
 
-**[XREF0437]** Buen, A; Strand, L (2023). Room Acoustics in the Scene Ii in the New Oslo Opera and the Ridehuset - Two Variable Acoustics Coupled Space Venues. *Auditorium Acoustics 2008*. DOI: [10.25144/17482](https://doi.org/10.25144/17482)
+**[XREF0437]** Buen, A; Strand, L (2023). Room Acoustics in the Scene Ii in the New Oslo Opera and the Ridehuset: Two Variable Acoustics Coupled Space Venues. *Auditorium Acoustics 2008*. DOI: [10.25144/17482](https://doi.org/10.25144/17482)
 
 **[XREF0636]** Buggè, Valentina; Shtrepi, Louena; Nocerino, Giovanni; et al. (2025). Integrating design, acoustic performance and fabrication: the case of the acoustic optimization of a meeting room. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/2.0002236](https://doi.org/10.1121/2.0002236)
 
@@ -931,7 +931,7 @@ Discovery queries:
 
 **[XREF0569]** Deželak, Ferdinand; Čurović, Luka; Čudina, Mirko (2016). Determination of the sound energy level of a gunshot and its applications in room acoustics. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2015.12.001](https://doi.org/10.1016/j.apacoust.2015.12.001)
 
-**[XREF0811]** Dibble, K (2024). Single Figure Transmission Loss Ratings for De-Mountable Room Partitions - Are They Workable?. *Acoustics '88*. DOI: [10.25144/21787](https://doi.org/10.25144/21787)
+**[XREF0811]** Dibble, K (2024). Single Figure Transmission Loss Ratings for De-Mountable Room Partitions: Are They Workable?. *Acoustics '88*. DOI: [10.25144/21787](https://doi.org/10.25144/21787)
 
 **[XREF0563]** Dick, David A.; Vigeant, Michelle C. (2016). A comparison of measured room acoustics metrics using a spherical microphone array and conventional methods. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2016.01.008](https://doi.org/10.1016/j.apacoust.2016.01.008)
 
@@ -953,7 +953,7 @@ Discovery queries:
 
 **[XREF0002]** Dragonetti, Raffaele; Ianniello, Carmine; Romano, Rosario A. (2009). Reverberation time measurement by the product of two room impulse responses. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2007.12.001](https://doi.org/10.1016/j.apacoust.2007.12.001)
 
-**[XREF0129]** Drechsler, Stefan; Stephenson, Uwe M. (2013). The effect of edge caused diffusion on the reverberation time - A semi analytical approach. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4799960](https://doi.org/10.1121/1.4799960)
+**[XREF0129]** Drechsler, Stefan; Stephenson, Uwe M. (2013). The effect of edge caused diffusion on the reverberation time: A semi analytical approach. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4799960](https://doi.org/10.1121/1.4799960)
 
 **[XREF0485]** Duangpummet, Suradej; Karnjana, Jessada; Kongprawechnon, Waree; et al. (2022). Blind estimation of speech transmission index and room acoustic parameters based on the extended model of room impulse response. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2021.108372](https://doi.org/10.1016/j.apacoust.2021.108372)
 
@@ -1077,7 +1077,7 @@ Discovery queries:
 
 **[XREF0723]** Gelfand, S. A. (1977). Room reverberation effects on recognition of some consonant features. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.2016388](https://doi.org/10.1121/1.2016388)
 
-**[XREF0325]** Gelvez-Barrera, Tatiana; Leclere, Quentin; Nicolas, Barbara; et al. (2025). Time-domain Beamforming for Room Acoustics Analysis based on Reverberant Field Estimation. *ICASSP 2025 - 2025 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49660.2025.10889527](https://doi.org/10.1109/icassp49660.2025.10889527)
+**[XREF0325]** Gelvez-Barrera, Tatiana; Leclere, Quentin; Nicolas, Barbara; et al. (2025). Time-domain Beamforming for Room Acoustics Analysis based on Reverberant Field Estimation. *ICASSP 2025: 2025 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49660.2025.10889527](https://doi.org/10.1109/icassp49660.2025.10889527)
 
 **[XREF0203]** Gething, MR (2024). Computer Simulation of Reverberation from a One Dimensional Seabed. *Scattering Phenomena in Underwater Acoustics 1985*. DOI: [10.25144/23566](https://doi.org/10.25144/23566)
 
@@ -1103,11 +1103,11 @@ Discovery queries:
 
 **[XREF0379]** Goertner, Jean A. (1980). Computer Model Predictions of Ocean Basin Reverberation for Large Underwater Explosions. *Bottom-Interacting Ocean Acoustics*. DOI: [10.1007/978-1-4684-9051-0_40](https://doi.org/10.1007/978-1-4684-9051-0_40)
 
-**[XREF0681]** Goldhahn, Ryan; Hickman, Granger; Krolik, Jeffery L. (2007). Waveguide Invariant Reverberation Mitigation for Active Sonar. *2007 IEEE International Conference on Acoustics, Speech and Signal Processing - ICASSP '07*. DOI: [10.1109/icassp.2007.366392](https://doi.org/10.1109/icassp.2007.366392)
+**[XREF0681]** Goldhahn, Ryan; Hickman, Granger; Krolik, Jeffery L. (2007). Waveguide Invariant Reverberation Mitigation for Active Sonar. *2007 IEEE International Conference on Acoustics, Speech and Signal Processing: ICASSP '07*. DOI: [10.1109/icassp.2007.366392](https://doi.org/10.1109/icassp.2007.366392)
 
 **[XREF0056]** Gómez Escobar, V.; Barrigón Morillas, J.M. (2015). Analysis of intelligibility and reverberation time recommendations in educational rooms. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2015.03.001](https://doi.org/10.1016/j.apacoust.2015.03.001)
 
-**[XREF0201]** Gotz, Philipp; Tuna, Cagdas; Walther, Andreas; et al. (2022). Blind Reverberation Time Estimation in Dynamic Acoustic Conditions. *ICASSP 2022 - 2022 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp43922.2022.9746457](https://doi.org/10.1109/icassp43922.2022.9746457)
+**[XREF0201]** Gotz, Philipp; Tuna, Cagdas; Walther, Andreas; et al. (2022). Blind Reverberation Time Estimation in Dynamic Acoustic Conditions. *ICASSP 2022: 2022 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp43922.2022.9746457](https://doi.org/10.1109/icassp43922.2022.9746457)
 
 **[XREF0100]** Gou, Wenbo; Liang, Hong; Li, Hui; et al. (2026). Shallow water reverberation suppression based on a time-frequency patch tensor model for broadband active sonar systems. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2025.111144](https://doi.org/10.1016/j.apacoust.2025.111144)
 
@@ -1131,13 +1131,13 @@ Discovery queries:
 
 **[XREF0727]** Gulsrud, TE (2023). Variation of Energy-Based Room Acoustic Parameters Withing a Multipurpose Hall. *Auditorium Acoustics 2002*. DOI: [10.25144/18335](https://doi.org/10.25144/18335)
 
-**[XREF0446]** Guoqiang, Guo; Yixin, Yang; Chao, Sun (2008). Time Reversal Echo-to-reverberation Enhancement with Reverberation Nulling Constraints Based on Waveguide Invariant. *OCEANS 2008 - MTS/IEEE Kobe Techno-Ocean*. DOI: [10.1109/oceanskobe.2008.4531093](https://doi.org/10.1109/oceanskobe.2008.4531093)
+**[XREF0446]** Guoqiang, Guo; Yixin, Yang; Chao, Sun (2008). Time Reversal Echo-to-reverberation Enhancement with Reverberation Nulling Constraints Based on Waveguide Invariant. *OCEANS 2008: MTS/IEEE Kobe Techno-Ocean*. DOI: [10.1109/oceanskobe.2008.4531093](https://doi.org/10.1109/oceanskobe.2008.4531093)
 
 **[XREF0544]** Hacıhabiboğlu, Hüseyin; Murtagh, Fionn (2008). Perceptual simplification for model-based binaural room auralisation. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2007.02.006](https://doi.org/10.1016/j.apacoust.2007.02.006)
 
 **[XREF0433]** Halmrast, T; Buen, A (2023). Simplified Room Acoustic Measurements. *Auditorium Acoustics 2008*. DOI: [10.25144/17523](https://doi.org/10.25144/17523)
 
-**[XREF0102]** Hamilton, Brian (2021). 2pCA2 - Tutorial on finite-difference time-domain (FDTD) methods for room acoustics simulation. *Unspecified venue*. DOI: [10.26226/morressier.606f15dd30a2e980041f2468](https://doi.org/10.26226/morressier.606f15dd30a2e980041f2468)
+**[XREF0102]** Hamilton, Brian (2021). 2pCA2: Tutorial on finite-difference time-domain (FDTD) methods for room acoustics simulation. *Unspecified venue*. DOI: [10.26226/morressier.606f15dd30a2e980041f2468](https://doi.org/10.26226/morressier.606f15dd30a2e980041f2468)
 
 **[XREF0469]** Hamilton, Brian (2021). Tutorial on finite-difference time-domain (FDTD) methods for room acoustics simulation. *The Journal of the Acoustical Society of America*. DOI: [10.1121/10.0004614](https://doi.org/10.1121/10.0004614)
 
@@ -1157,7 +1157,7 @@ Discovery queries:
 
 **[XREF0252]** Hartmann, William (2024). The effect of reverberation time on the spatial relationships between interaural differences in a room. *The Journal of the Acoustical Society of America*. DOI: [10.1121/10.0035047](https://doi.org/10.1121/10.0035047)
 
-**[XREF0881]** Hashemgeloogerdi, Sahar; Braun, Sebastian (2020). Joint Beamforming and Reverberation Cancellation Using a Constrained Kalman Filter With Multichannel Linear Prediction. *ICASSP 2020 - 2020 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp40776.2020.9053785](https://doi.org/10.1109/icassp40776.2020.9053785)
+**[XREF0881]** Hashemgeloogerdi, Sahar; Braun, Sebastian (2020). Joint Beamforming and Reverberation Cancellation Using a Constrained Kalman Filter With Multichannel Linear Prediction. *ICASSP 2020: 2020 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp40776.2020.9053785](https://doi.org/10.1109/icassp40776.2020.9053785)
 
 **[XREF0028]** Hastings, Mardi C.; Godfrey, Richard D. (1997). Reverberation Room Survey and Qualification According to ASTM C 423. *Noise Control and Acoustics*. DOI: [10.1115/imece1997-1032](https://doi.org/10.1115/imece1997-1032)
 
@@ -1189,7 +1189,7 @@ Discovery queries:
 
 **[XREF0265]** Honghu, Zhang; Jia, Yan; Jianxin, Peng (2019). Chinese speech intelligibility of elderly people in environments combining reverberation and noise. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2019.02.002](https://doi.org/10.1016/j.apacoust.2019.02.002)
 
-**[XREF0473]** Hoover, K. Anthony; Ellison, Steve (2013). Electronically variable room acoustics - motivations and challenges. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4800309](https://doi.org/10.1121/1.4800309)
+**[XREF0473]** Hoover, K. Anthony; Ellison, Steve (2013). Electronically variable room acoustics: motivations and challenges. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4800309](https://doi.org/10.1121/1.4800309)
 
 **[XREF0155]** Hopper, H; Thompson, D; Holland, K (2023). Reverberation Enhancement in Music Practice Rooms. *Acoustics 2011*. DOI: [10.25144/17063](https://doi.org/10.25144/17063)
 
@@ -1207,7 +1207,7 @@ Discovery queries:
 
 **[XREF0541]** Hudson, R.R. (1973). The reduction of camera fan noise in a photoprint room. *Applied Acoustics*. DOI: [10.1016/0003-682x(73)90013-3](https://doi.org/10.1016/0003-682x(73)90013-3)
 
-**[XREF0161]** Huisman, WHT (2024). Reverberation and Attenuation by Trees: Measured and Modelled. *Spring Conference - Acoustics '89*. DOI: [10.25144/21624](https://doi.org/10.25144/21624)
+**[XREF0161]** Huisman, WHT (2024). Reverberation and Attenuation by Trees: Measured and Modelled. *Spring Conference: Acoustics '89*. DOI: [10.25144/21624](https://doi.org/10.25144/21624)
 
 **[XREF0336]** Hursky, Paul; Abawi, Ahmad T. (2013). Reverberation modeling on graphics processing units (GPUs). *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4800712](https://doi.org/10.1121/1.4800712)
 
@@ -1269,7 +1269,7 @@ Discovery queries:
 
 **[XREF0896]** Kalinova, Klara (2023). The Application of Nanofibrous Resonant Membranes for Room Acoustics. *Nanomaterials*. DOI: [10.3390/nano13061115](https://doi.org/10.3390/nano13061115)
 
-**[XREF0821]** Kamble, Madhu R.; Patil, Hemant A. (2019). Analysis of Reverberation via Teager Energy Features for Replay Spoof Speech Detection. *ICASSP 2019 - 2019 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2019.8683830](https://doi.org/10.1109/icassp.2019.8683830)
+**[XREF0821]** Kamble, Madhu R.; Patil, Hemant A. (2019). Analysis of Reverberation via Teager Energy Features for Replay Spoof Speech Detection. *ICASSP 2019: 2019 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2019.8683830](https://doi.org/10.1109/icassp.2019.8683830)
 
 **[XREF0820]** Kamisiński, Tadeusz; Brawata, Krzysztof; Pilch, Adam; et al. (2012). Test Signal Selection for Determining the Sound Scattering Coefficient in a Reverberation Chamber. *Archives of Acoustics*. DOI: [10.2478/v10168-012-0051-2](https://doi.org/10.2478/v10168-012-0051-2)
 
@@ -1351,7 +1351,7 @@ Discovery queries:
 
 **[XREF0596]** Koyama, Shoichi; Daudet, Laurent (2017). Comparison of reverberation models for sparse sound field decomposition. *2017 IEEE Workshop on Applications of Signal Processing to Audio and Acoustics (WASPAA)*. DOI: [10.1109/waspaa.2017.8170026](https://doi.org/10.1109/waspaa.2017.8170026)
 
-**[XREF0416]** Kozlowski, Piotr Z. (2018). How to Adjust Room Acoustics to Multifunctional Use at Music Venues. *2018 Joint Conference - Acoustics*. DOI: [10.1109/acoustics.2018.8502383](https://doi.org/10.1109/acoustics.2018.8502383)
+**[XREF0416]** Kozlowski, Piotr Z. (2018). How to Adjust Room Acoustics to Multifunctional Use at Music Venues. *2018 Joint Conference: Acoustics*. DOI: [10.1109/acoustics.2018.8502383](https://doi.org/10.1109/acoustics.2018.8502383)
 
 **[XREF0007]** Kraszewski, Jarosław (2012). Computing Reverberation Time in a 3D Room Model Using a Finite Difference Method Applied for the Diffusion Equation. *Archives of Acoustics*. DOI: [10.2478/v10168-012-0023-6](https://doi.org/10.2478/v10168-012-0023-6)
 
@@ -1467,13 +1467,13 @@ Discovery queries:
 
 **[XREF0833]** Li, Junfeng; Xia, Risheng; Yan, Yonghong (2012). A hybrid approach for simulation of room reverberation. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.4707996](https://doi.org/10.1121/1.4707996)
 
-**[XREF0248]** Li, Song; Schlieper, Roman; Peissig, Jurgen (2019). A Hybrid Method for Blind Estimation of Frequency Dependent Reverberation Time Using Speech Signals. *ICASSP 2019 - 2019 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2019.8682661](https://doi.org/10.1109/icassp.2019.8682661)
+**[XREF0248]** Li, Song; Schlieper, Roman; Peissig, Jurgen (2019). A Hybrid Method for Blind Estimation of Frequency Dependent Reverberation Time Using Speech Signals. *ICASSP 2019: 2019 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2019.8682661](https://doi.org/10.1109/icassp.2019.8682661)
 
 **[XREF0190]** Li, Yue; Meyer, Julie; Lokki, Tapio; et al. (2022). Benchmarking of finite-difference time-domain method and fast multipole boundary element method for room acoustics. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2022.108662](https://doi.org/10.1016/j.apacoust.2022.108662)
 
 **[XREF0278]** Li, Yue; Meyer, Julie; Lokki, Tapio; et al. (2022). Corrigendum to “Benchmarking of finite-difference time-domain method and fast multipole boundary element method for room acoustics” [Appl. Acoust. 191 (2022) 108662]. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2022.108789](https://doi.org/10.1016/j.apacoust.2022.108789)
 
-**[XREF0644]** Li, Zhiyu; Yue, Xinwen; Zhao, Shenghui; et al. (2026). Multimodal Deep Learning Method for Real-Time Spatial Room Impulse Response Computing. *ICASSP 2026 - 2026 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp55912.2026.11463810](https://doi.org/10.1109/icassp55912.2026.11463810)
+**[XREF0644]** Li, Zhiyu; Yue, Xinwen; Zhao, Shenghui; et al. (2026). Multimodal Deep Learning Method for Real-Time Spatial Room Impulse Response Computing. *ICASSP 2026: 2026 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp55912.2026.11463810](https://doi.org/10.1109/icassp55912.2026.11463810)
 
 **[XREF0324]** Lim, Felicia; Naylor, Patrick A.; Thomas, Mark R. P.; et al. (2015). Acoustic blur kernel with sliding window for blind estimation of reverberation time. *2015 IEEE Workshop on Applications of Signal Processing to Audio and Acoustics (WASPAA)*. DOI: [10.1109/waspaa.2015.7336904](https://doi.org/10.1109/waspaa.2015.7336904)
 
@@ -1521,7 +1521,7 @@ Discovery queries:
 
 **[XREF0592]** Macadam, J.A. (1976). The measurement of sound radiation from room surfaces in lightweight buildings. *Applied Acoustics*. DOI: [10.1016/0003-682x(76)90002-5](https://doi.org/10.1016/0003-682x(76)90002-5)
 
-**[XREF0639]** Maciejewski, Matthew (2026). Single-Microphone Audio Point Source Discriminative Localization from Reverberation Late Tail Estimation. *ICASSP 2026 - 2026 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp55912.2026.11461520](https://doi.org/10.1109/icassp55912.2026.11461520)
+**[XREF0639]** Maciejewski, Matthew (2026). Single-Microphone Audio Point Source Discriminative Localization from Reverberation Late Tail Estimation. *ICASSP 2026: 2026 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp55912.2026.11461520](https://doi.org/10.1109/icassp55912.2026.11461520)
 
 **[XREF0663]** Mackenzie, RK; Mackenzie, CM (2024). Masking Sound: Current Research. *Room Acoustics with Emphasis on Electroacoustics 1979*. DOI: [10.25144/23456](https://doi.org/10.25144/23456)
 
@@ -1593,7 +1593,7 @@ Discovery queries:
 
 **[XREF0310]** Meyer, Erwin; Neumann, Ernst-Georg (1972). Room Acoustics. *Physical and Applied Acoustics*. DOI: [10.1016/b978-0-12-493150-3.50008-4](https://doi.org/10.1016/b978-0-12-493150-3.50008-4)
 
-**[XREF0345]** Meyer, J (2023). The St Michaelis Church in LÜNEBERG - an Example for Changing Room Acoustics. *Auditorium Acoustics 2008*. DOI: [10.25144/17498](https://doi.org/10.25144/17498)
+**[XREF0345]** Meyer, J (2023). The St Michaelis Church in LÜNEBERG: an Example for Changing Room Acoustics. *Auditorium Acoustics 2008*. DOI: [10.25144/17498](https://doi.org/10.25144/17498)
 
 **[XREF0343]** Meyer, Jürgen (2009). Foundations of Room Acoustics. *Acoustics and the Performance of Music*. DOI: [10.1007/978-0-387-09517-2_5](https://doi.org/10.1007/978-0-387-09517-2_5)
 
@@ -1609,7 +1609,7 @@ Discovery queries:
 
 **[XREF0039]** Mijić, M. (1994). Gun-to-noise differences in the dwelling rooms reverberation time measurement. *Applied Acoustics*. DOI: [10.1016/0003-682x(94)90069-8](https://doi.org/10.1016/0003-682x(94)90069-8)
 
-**[XREF0082]** Mikulski, Witold; Radosz, Jan (2011). Acoustics of Classrooms in Primary Schools - Results of the Reverberation Time and the Speech Transmission Index Assessments in Selected Buildings. *Archives of Acoustics*. DOI: [10.2478/v10168-011-0052-6](https://doi.org/10.2478/v10168-011-0052-6)
+**[XREF0082]** Mikulski, Witold; Radosz, Jan (2011). Acoustics of Classrooms in Primary Schools: Results of the Reverberation Time and the Speech Transmission Index Assessments in Selected Buildings. *Archives of Acoustics*. DOI: [10.2478/v10168-011-0052-6](https://doi.org/10.2478/v10168-011-0052-6)
 
 **[XREF0525]** Miles, Ronald N. (2020). Geometrical Room Acoustics. *Mechanical Engineering Series*. DOI: [10.1007/978-3-030-22676-3_8](https://doi.org/10.1007/978-3-030-22676-3_8)
 
@@ -1647,7 +1647,7 @@ Discovery queries:
 
 **[XREF0689]** Morgenstern, Hai; Rafaely, Boaz (2013). Enhanced spatial analysis of room acoustics using acoustic multiple-input multiple-output (MIMO) systems. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4798988](https://doi.org/10.1121/1.4798988)
 
-**[XREF0186]** Mornington-West, A; Bray, JA (2024). Acoustic Reverberation Kit - a New Tool, to Assist in Acoustic Measurements. *Acoustics '84 (Microprocessor and Computer Applications in Acoustics)*. DOI: [10.25144/22563](https://doi.org/10.25144/22563)
+**[XREF0186]** Mornington-West, A; Bray, JA (2024). Acoustic Reverberation Kit: a New Tool, to Assist in Acoustic Measurements. *Acoustics '84 (Microprocessor and Computer Applications in Acoustics)*. DOI: [10.25144/22563](https://doi.org/10.25144/22563)
 
 **[XREF0261]** Möser, Michael (2004). Fundamentals of Room Acoustics. *Engineering Acoustics*. DOI: [10.1007/978-3-662-05391-1_7](https://doi.org/10.1007/978-3-662-05391-1_7)
 
@@ -1971,7 +1971,7 @@ Discovery queries:
 
 **[XREF0105]** Spa, Carlos; Garriga, Adan; Escolano, Jose (2010). Impedance boundary conditions for pseudo-spectral time-domain methods in room acoustics. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2009.11.015](https://doi.org/10.1016/j.apacoust.2009.11.015)
 
-**[XREF0886]** Støfringsdal, B (2023). Integrated Room Acoustic and Electro-Acoustic Design - the Concert Venue at Rockheim, Norway. *Auditorium Acoustics 2011*. DOI: [10.25144/16821](https://doi.org/10.25144/16821)
+**[XREF0886]** Støfringsdal, B (2023). Integrated Room Acoustic and Electro-Acoustic Design: the Concert Venue at Rockheim, Norway. *Auditorium Acoustics 2011*. DOI: [10.25144/16821](https://doi.org/10.25144/16821)
 
 **[XREF0452]** Staffeldt, Henrik (1993). Modelling of room acoustics and loudspeakers in JBL's complex array design program CADP2. *Applied Acoustics*. DOI: [10.1016/0003-682x(93)90050-g](https://doi.org/10.1016/0003-682x(93)90050-g)
 
@@ -2165,7 +2165,7 @@ Discovery queries:
 
 **[XREF0495]** Unknown authors (2014). Physics of small room soundelds. *Acoustics of Small Rooms*. DOI: [10.1201/b16866-5](https://doi.org/10.1201/b16866-5)
 
-**[XREF0438]** Unknown authors (2014). - Room Acoustics. *Acoustic Analyses Using Matlab and Ansys*. DOI: [10.1201/b17825-13](https://doi.org/10.1201/b17825-13)
+**[XREF0438]** Unknown authors (2014). Room Acoustics. *Acoustic Analyses Using Matlab and Ansys*. DOI: [10.1201/b17825-13](https://doi.org/10.1201/b17825-13)
 
 **[XREF0225]** Unknown authors (2014). Room Acoustics, Fifth Edition. *Unspecified venue*. DOI: [10.1201/9781482266450](https://doi.org/10.1201/9781482266450)
 
@@ -2267,7 +2267,7 @@ Discovery queries:
 
 **[XREF0471]** Way, Evelyn (2022). Evaluating the reverberation chamber as a small room: How room dimensions affect the generalization of testing results. *The Journal of the Acoustical Society of America*. DOI: [10.1121/10.0015476](https://doi.org/10.1121/10.0015476)
 
-**[XREF0880]** Webb, Craig J.; Bilbao, Stefan (2011). Computing room acoustics with CUDA - 3D FDTD schemes with boundary losses and viscosity. *2011 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2011.5946404](https://doi.org/10.1109/icassp.2011.5946404)
+**[XREF0880]** Webb, Craig J.; Bilbao, Stefan (2011). Computing room acoustics with CUDA: 3D FDTD schemes with boundary losses and viscosity. *2011 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2011.5946404](https://doi.org/10.1109/icassp.2011.5946404)
 
 **[XREF0275]** Wen, Jimi Y.C.; Habets, Emanuel A.P.; Naylor, Patrick A. (2008). Blind estimation of reverberation time based on the distribution of signal decay rates. *2008 IEEE International Conference on Acoustics, Speech and Signal Processing*. DOI: [10.1109/icassp.2008.4517613](https://doi.org/10.1109/icassp.2008.4517613)
 
@@ -2321,7 +2321,7 @@ Discovery queries:
 
 **[XREF0643]** Xie, Yuan; Zou, Tao (2024). Adaptive Time-Frequency Blind Source Separation in High Reverberation and Echo Environments. *Unspecified venue*. DOI: [10.2139/ssrn.4952969](https://doi.org/10.2139/ssrn.4952969)
 
-**[XREF0373]** Xiong, Feifei; Dong, Minya; Zhou, Kechenying; et al. (2023). Deep Subband Network for Joint Suppression of Echo, Noise and Reverberation in Real-Time Fullband Speech Communication. *ICASSP 2023 - 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10096067](https://doi.org/10.1109/icassp49357.2023.10096067)
+**[XREF0373]** Xiong, Feifei; Dong, Minya; Zhou, Kechenying; et al. (2023). Deep Subband Network for Joint Suppression of Echo, Noise and Reverberation in Real-Time Fullband Speech Communication. *ICASSP 2023: 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10096067](https://doi.org/10.1109/icassp49357.2023.10096067)
 
 **[XREF0152]** Xiong, Feifei; Goetze, Stefan; Meyer, Bernd T. (2013). Blind estimation of reverberation time based on spectro-temporal modulation filtering. *2013 IEEE International Conference on Acoustics, Speech and Signal Processing*. DOI: [10.1109/icassp.2013.6637686](https://doi.org/10.1109/icassp.2013.6637686)
 
@@ -2381,7 +2381,7 @@ Discovery queries:
 
 **[XREF0058]** Zhou, Fulin; Wang, Bin; Fan, Jun (2016). Simulation study on measuring structural surface impedance in air reverberation room. *2016 IEEE/OES China Ocean Acoustics (COA)*. DOI: [10.1109/coa.2016.7535820](https://doi.org/10.1109/coa.2016.7535820)
 
-**[XREF0149]** Zhou, Rui; Zhu, Wenye; Li, Xiaofei (2023). Speech Dereverberation with a Reverberation Time Shortening Target. *ICASSP 2023 - 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10096164](https://doi.org/10.1109/icassp49357.2023.10096164)
+**[XREF0149]** Zhou, Rui; Zhu, Wenye; Li, Xiaofei (2023). Speech Dereverberation with a Reverberation Time Shortening Target. *ICASSP 2023: 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10096164](https://doi.org/10.1109/icassp49357.2023.10096164)
 
 **[XREF0063]** Zhou, Xiaoru; Späh, Moritz; Hengst, Klaudius; et al. (2021). Predicting the reverberation time in rectangular rooms with non-uniform absorption distribution. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2020.107539](https://doi.org/10.1016/j.apacoust.2020.107539)
 

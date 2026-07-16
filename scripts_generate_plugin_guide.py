@@ -652,7 +652,7 @@ def automation_cards(lines: list[str]) -> None:
         lines.extend([f"### 20.{parameter_index + 1} {label}", ""])
         for shape in SHAPES:
             shape_name, motion, risk = shape
-            title = f"Automation card: {label} - {shape_name}"
+            title = f"Automation card: {label}: {shape_name}"
             metadata = [
                 f"Host parameter: `{key}`.",
                 f"Motion: {motion}.",
@@ -682,7 +682,7 @@ def quality_cards(lines: list[str]) -> None:
         title = f"Quality card {index}: {rate} Hz, {quality_name}, {block} frames"
         metadata = [
             f"Host rate: {rate} Hz.",
-            f"Quality policy: {quality_name} - {quality_meaning}.",
+            f"Quality policy: {quality_name}: {quality_meaning}.",
             f"Expected internal-rate contract: {target_rate} Hz.",
             f"Host block duration: {block_ms:.3f} ms before device and plug-in latency.",
         ]
@@ -701,7 +701,7 @@ def validation_cards(lines: list[str]) -> None:
         lines.extend([f"### 22.{area_index + 1} {area_name}", ""])
         for context in HOST_CONTEXTS:
             context_name, surface, emphasis = context
-            title = f"Validation card: {context_name} - {area_name}"
+            title = f"Validation card: {context_name}: {area_name}"
             metadata = [
                 f"Surface: {surface}.",
                 f"Goal: {goal}.",
@@ -803,7 +803,7 @@ def asset_cards(lines: list[str]) -> None:
         asset_name, asset_fields = asset
         lines.extend([f"### 27.{asset_index + 1} {asset_name}", ""])
         for stage_name, stage_goal in ASSET_STAGES:
-            title = f"Asset card: {asset_name} - {stage_name}"
+            title = f"Asset card: {asset_name}: {stage_name}"
             metadata = [
                 f"Asset: {asset_name}.",
                 f"Lifecycle stage: {stage_name}.",
@@ -824,7 +824,7 @@ def release_cards(lines: list[str]) -> None:
         area_name, area_scope = area
         lines.extend([f"### 28.{area_index + 1} {area_name}", ""])
         for target_name, target_scope in RELEASE_TARGETS:
-            title = f"Release card: {target_name} - {area_name}"
+            title = f"Release card: {target_name}: {area_name}"
             metadata = [
                 f"Target: {target_name}.",
                 f"Target scope: {target_scope}.",
@@ -845,10 +845,10 @@ def bus_cards(lines: list[str]) -> None:
         layout_name, layout_contract = layout
         lines.extend([f"### 29.{layout_index + 1} {layout_name}", ""])
         for mode_name, mode_contract in BUS_MODES:
-            title = f"Bus card: {layout_name} - {mode_name}"
+            title = f"Bus card: {layout_name}: {mode_name}"
             metadata = [
-                f"Layout: {layout_name} - {layout_contract}.",
-                f"Processing mode: {mode_name} - {mode_contract}.",
+                f"Layout: {layout_name}: {layout_contract}.",
+                f"Processing mode: {mode_name}: {mode_contract}.",
                 "Foundation status: mono/stereo only; larger layouts are future validation protocols.",
                 "Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.",
             ]
@@ -868,7 +868,7 @@ def test_vector_cards(lines: list[str]) -> None:
         for signal_name, signal_goal in TEST_SIGNALS:
             title = f"Signal-test card: {label} with {signal_name}"
             metadata = [
-                f"Parameter: `{key}` - {meaning}.",
+                f"Parameter: `{key}`: {meaning}.",
                 f"Signal: {signal_name}.",
                 f"Observation goal: {signal_goal}.",
                 f"Required transition behavior: {transition}.",
@@ -887,9 +887,9 @@ def triage_cards(lines: list[str]) -> None:
         label, key, meaning, transition = parameter
         lines.extend([f"### 31.{parameter_index + 1} {label}", ""])
         for triage_name, triage_scope in TRIAGE_CLASSES:
-            title = f"Triage card: {label} - {triage_name}"
+            title = f"Triage card: {label}: {triage_name}"
             metadata = [
-                f"Parameter: `{key}` - {meaning}.",
+                f"Parameter: `{key}`: {meaning}.",
                 f"Failure class: {triage_name}.",
                 f"Scope: {triage_scope}.",
                 f"Expected transition: {transition}.",

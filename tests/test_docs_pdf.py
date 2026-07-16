@@ -134,6 +134,29 @@ def test_plugin_handbook_recommends_pirkle_companion_text() -> None:
     assert "2nd edition (Routledge, 2019)" in handbook
 
 
+def test_reader_facing_spaced_hyphens_are_colon_separators() -> None:
+    for relative_path in ("docs/PLUGIN_GUIDE.md", "docs/REFERENCES.md"):
+        lines = (REPO_ROOT / relative_path).read_text(encoding="utf-8").splitlines()
+        fenced = False
+        violations = []
+        for line_number, line in enumerate(lines, start=1):
+            if line.lstrip().startswith("```"):
+                fenced = not fenced
+                continue
+            if fenced:
+                continue
+            content = line.lstrip()
+            if content.startswith(("- ", "* ", "+ ")):
+                content = content[2:]
+            if " - " in content:
+                violations.append((line_number, content))
+        assert not violations, f"{relative_path}: {violations[:5]}"
+
+    assert DOCS_PDF._card_visual_command(
+        "Automation card: Pre-Delay: Slow rise"
+    ) == r"\verbxAutomationVisual{Pre-Delay}{Slow rise}"
+
+
 def test_every_extreme_cookbook_recipe_has_a_title() -> None:
     cookbook = (REPO_ROOT / "docs/EXTREME_COOKBOOK.md").read_text(encoding="utf-8")
     recipes = re.findall(r"^### Recipe (\d+): (\S.+)$", cookbook, flags=re.MULTILINE)
