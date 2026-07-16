@@ -3015,7 +3015,7 @@ allpass-stage count, and $N$ (in `lines 1..N`) is FDN delay-line count.
 
 ## Contributors
 
-- Colby Leider (creator and maintainer)
+- Colby Leider, PhD (creator and maintainer)
 - Full contributors graph: [github.com/TheColby/verbx/graphs/contributors](https://github.com/TheColby/verbx/graphs/contributors)
 
 ---
