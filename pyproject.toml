@@ -34,6 +34,9 @@ dev = [
   "pytest-cov>=5.0.0",
   "ruff>=0.5.0",
   "pyright>=1.1.389",
+  # The generated CLI reference snapshots Typer's Rich help formatting.
+  "typer==0.27.0",
+  "click==8.4.2",
 ]
 
 [project.scripts]
@@ -54,6 +57,8 @@ dependencies = [
   "pytest-cov>=5.0.0",
   "ruff>=0.5.0",
   "pyright>=1.1.389",
+  "typer==0.27.0",
+  "click==8.4.2",
 ]
 
 [tool.hatch.envs.default.scripts]

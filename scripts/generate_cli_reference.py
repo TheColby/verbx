@@ -55,7 +55,8 @@ HELP_COMMANDS: tuple[tuple[str, ...], ...] = (
 
 
 def _clean(text: str) -> str:
-    return ANSI_ESCAPE_RE.sub("", text).rstrip()
+    clean_text = ANSI_ESCAPE_RE.sub("", text)
+    return "\n".join(line.rstrip() for line in clean_text.splitlines()).rstrip()
 
 
 def _render_help(command: tuple[str, ...], runner: CliRunner) -> str:
