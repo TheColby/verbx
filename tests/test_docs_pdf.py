@@ -130,6 +130,19 @@ def test_reader_facing_numeric_ranges_use_en_dashes() -> None:
     assert "(0–1)" in figure_generator
 
 
+def test_interaction_card_dials_use_true_physical_circles() -> None:
+    illustrations = (
+        REPO_ROOT / "docs/assets/verbx_card_illustrations.tex"
+    ).read_text(encoding="utf-8")
+    interaction = illustrations.split(
+        r"\newcommand{\verbxInteractionVisual}", maxsplit=1
+    )[1].split(r"\newcommand{\verbxMonitoringVisual}", maxsplit=1)[0]
+
+    assert interaction.count("circle,minimum size=1.7cm") == 2
+    assert interaction.count("0.65cm") == 2
+    assert "circle (0.85)" not in interaction
+
+
 def test_code_example_leads_reserve_space_and_forbid_boundary_breaks() -> None:
     source = (
         "Installation text.\n\n"

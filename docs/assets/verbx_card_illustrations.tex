@@ -179,8 +179,10 @@
 \newcommand{\verbxInteractionVisual}[2]{%
   \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
     \verbxVisualFrame
-    \draw[verbxBlue,line width=3pt] (2.3,3.0) circle (0.85); \draw[verbxBlue,line width=2pt] (2.3,3.0)--++(55:0.65);
-    \draw[verbxRust,line width=3pt] (5.2,3.0) circle (0.85); \draw[verbxRust,line width=2pt] (5.2,3.0)--++(125:0.65);
+    \node[circle,minimum size=1.7cm,inner sep=0pt,draw=verbxBlue,line width=3pt] (leftDial) at (2.3,3.0) {};
+    \draw[verbxBlue,line width=2pt] (leftDial.center)--++(55:0.65cm);
+    \node[circle,minimum size=1.7cm,inner sep=0pt,draw=verbxRust,line width=3pt] (rightDial) at (5.2,3.0) {};
+    \draw[verbxRust,line width=2pt] (rightDial.center)--++(125:0.65cm);
     \node[verbx note,text width=2.4cm] at (2.3,1.65) {#1}; \node[verbx note,text width=2.4cm] at (5.2,1.65) {#2};
     \draw[verbx arrow] (6.25,3.0)--(7.45,3.0);
     \foreach \x in {0,...,4} \foreach \y in {0,...,3}{
