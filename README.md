@@ -3218,15 +3218,573 @@ Choose algorithmic when you want extreme lengths, animated or time-varying decay
 
 ### RT60
 
-**For beginners:** RT60 is roughly how long the reverb tail takes to fade away — specifically, how many seconds until the level drops by 60 dB (about a factor of 1000 in amplitude). A small bathroom is around 0.5 seconds. A bedroom is 0.3–0.8 seconds. A concert hall is 1.5–2.5 seconds. A cathedral reaches 5–12 seconds. verbx handles up to 3600 seconds. If the tail sounds too long and washes over everything, reduce RT60. If it sounds too dry and cut-off, increase it.
+**For beginners:** RT60 is the time required for reverberant sound energy to fall by
+60 dB after the source stops. That is a decrease to one millionth of the starting energy,
+or one thousandth of the starting pressure amplitude. A short RT60 makes events separate
+quickly and usually improves articulation. A long RT60 joins events into a continuous
+field and can enlarge, soften, or obscure musical detail. RT60 describes the slope of a
+decay; it does not by itself describe how loud the reverb is, how soon it begins, whether
+it is bright or dark, or how wide the return sounds.
 
-**For experts:** RT60 drives per-line gain calibration in the FDN:
+A small treated room may have an RT60 below 0.4 s. Many production rooms occupy roughly
+0.3–0.8 s, concert halls often lie near 1.5–2.5 s at mid frequencies, and very large stone
+spaces can sustain substantially longer decays. These are orientation ranges rather than
+presets or universal targets. Occupancy, frequency, source/receiver position, geometry,
+and measurement method all matter. The verbx analyzer can represent estimates from 0.01 s
+to 3600 s; the current render and IR-synthesis controls accept targets from 0.1 s to 3600 s.
+That span moves continuously from tight acoustic control to deliberately nonphysical musical
+sustain without pretending that every extreme is a plausible architectural room.
+
+#### Decibels, Energy, and the Meaning of “60”
+
+The decibel is logarithmic. For pressure or sample amplitude $p(t)$ relative to reference
+$p_0$, level is
+
+$$
+L_p(t)=20\log_{10}\!\left(\frac{|p(t)|}{|p_0|}\right)\ \mathrm{dB}.
+$$
+
+For energy $E(t)$ relative to $E_0$, level is
+
+$$
+L_E(t)=10\log_{10}\!\left(\frac{E(t)}{E_0}\right)\ \mathrm{dB}.
+$$
+
+An amplitude ratio of $10^{-3}$ and an energy ratio of $10^{-6}$ therefore both represent
+–60 dB. This is why RT60 is sometimes described as a thousandfold pressure reduction and
+sometimes as a millionfold energy reduction. The statements are equivalent, provided the
+reader knows which physical quantity is being discussed.
+
+An ideal exponential amplitude envelope can be written
+
+$$
+p_{\mathrm{env}}(t)=p_0e^{-t/\tau_A},
+$$
+
+where $\tau_A$ is an amplitude time constant. Requiring a –60 dB amplitude change at
+$t=T_{60}$ gives
+
+$$
+\tau_A=\frac{T_{60}}{3\ln 10}.
+$$
+
+The corresponding energy time constant is half as long:
+
+$$
+\tau_E=\frac{T_{60}}{6\ln 10}.
+$$
+
+On a decibel-versus-time graph, an ideal exponential is a straight line with slope
+
+$$
+s=-\frac{60}{T_{60}}\ \mathrm{dB/s}.
+$$
+
+Thus a 2 s decay falls at –30 dB/s, while an 8 s decay falls at –7.5 dB/s. Doubling RT60
+halves the magnitude of the decay slope; it does not merely append a fixed amount of audio
+to the tail.
+
+Figure 3-1 compares four ideal decay families on one time axis. It provides the visual
+reference for interpreting RT60 as a slope rather than as a cutoff point.
+
+#### From Room Physics to Reverberation Time
+
+In a statistical diffuse-field model, Sabine's relation estimates reverberation time from
+room volume and equivalent absorption area:
+
+$$
+T_{60}\approx 0.161\frac{V}{A},
+\qquad
+A=\sum_j\alpha_jS_j,
+$$
+
+where $V$ is volume in cubic meters, $S_j$ is surface area in square meters, and
+$\alpha_j$ is the dimensionless absorption coefficient of surface $j$. The constant
+0.161 has units that make the result seconds under ordinary SI assumptions. More volume
+stores more acoustic energy; more absorption removes a larger fraction at each encounter.
+
+Sabine's approximation is strongest when absorption is modest and distributed, the field
+is sufficiently diffuse, and source/receiver positions sample the room representatively.
+For larger average absorption, Eyring's form accounts for the finite fractional loss more
+directly:
+
+$$
+T_{60}\approx
+0.161\frac{V}{-S\ln(1-\overline{\alpha})},
+$$
+
+where $S$ is total surface area and $\overline{\alpha}$ is area-weighted mean absorption.
+Neither equation predicts every seat, low-frequency mode, coupled chamber, or strongly
+directional geometry. They are statistical models of ensemble energy, not substitutes for
+a measured impulse response or wave simulation.
+
+Absorption is frequency dependent. Carpet, curtains, occupied seating, air, porous panels,
+wood, and masonry do not remove all frequencies equally. A room consequently has an RT60
+curve $T_{60}(f)$ rather than one complete scalar. Published room values should identify
+octave or one-third-octave bands, occupancy, excitation, microphone arrangement, and the
+estimator used. A single broadband number is useful only when its compression of that
+curve is acknowledged.
+
+![RT60 decay families](docs/assets/userguide_figures/03_rt60_decay_families.png)
+
+**Figure: Ideal RT60 decay families showing relative decay level in decibels against time after excitation in seconds.**
+
+**How to read Figure 3-1.** Every curve begins at the same normalized level. The 1.2 s
+curve reaches –60 dB first and then remains at the displayed floor; the 8 s curve is still
+decaying at the right edge. A real response does not become exactly silent at $T_{60}$.
+The –60 dB crossing is a reference on an extrapolated or measured slope, while audibility
+depends on source level, spectrum, masking, and the playback noise floor.
+
+#### RT60 Inside a Feedback Delay Network
+
+For experts, RT60 drives per-line gain calibration in a unitary or approximately
+energy-preserving feedback delay network. If line $i$ has delay $d_i$ seconds and scalar
+feedback magnitude $g_i$, it circulates approximately $T_{60}/d_i$ times during one target
+decay. Requiring the accumulated amplitude to reach $10^{-3}$ gives
 
 $$
 g_i = 10^{-\frac{3d_i}{T_{60}}}
 $$
 
-where $d_i$ is delay-line $i$ duration in seconds and $T_{60}$ is the target decay time. Shorter delays require gains closer to $1.0$ for the same RT60 target. Multiband RT60 (`--fdn-rt60-low`, `--fdn-rt60-mid`, `--fdn-rt60-high`) applies this formula per band with crossovers at `--fdn-xover-low-hz` and `--fdn-xover-high-hz`. The `--fdn-rt60-tilt` parameter applies a Jot-style frequency-dependent decay skew around the broadband target without requiring explicit per-band values. For analysis, use `verbx analyze --edr` to compute frequency-dependent RT estimates via backward Schroeder integration of the output.
+or, for a line of $m_i$ samples at sample rate $F_s$,
+
+$$
+g_i=10^{-\frac{3m_i}{F_sT_{60}}}.
+$$
+
+Shorter delays traverse their loop more often and therefore require gains closer to one for
+the same total decay. Using one identical gain on unequal delays creates unequal modal
+decay rates. Calibrating each line by its duration is what turns a set of dissimilar delays
+into one approximate broadband RT60 target.
+
+This derivation assumes that the feedback matrix preserves energy. For an exactly unitary
+matrix $\boldsymbol{M}$, $\boldsymbol{M}^{\mathsf H}\boldsymbol{M}=\boldsymbol{I}$, so
+loss can be assigned primarily by diagonal gains or filters. A nonunitary matrix can contain
+growing or shrinking eigenmodes even when every individual $g_i$ looks reasonable. Stability
+depends on the complete loop operator: its spectral radius must remain below one for a
+strictly decaying linear system.
+
+At very long RT60 values, $g_i$ approaches one. Numerical precision, denormals, DC leakage,
+nonlinear stages, modulation interpolation, and tiny matrix-normalization errors become
+audible over time. A network that survives a five-second impulse test may drift during a
+ten-minute tail. Extreme values therefore require floating-point headroom, DC blocking,
+bounded modulation, long-duration stress renders, and analysis of the final segment rather
+than only the onset.
+
+#### Measuring RT60 from an Impulse Response
+
+An acoustician rarely waits for a recorded decay to become exactly 60 dB quieter and then
+reads a stopwatch. The bottom of a measured response may already be masked by ventilation,
+electrical noise, audience movement, quantization, or microphone self-noise. Instead, the
+usual procedure estimates the slope over a clean part of an energy decay curve and
+extrapolates that line to –60 dB. The reported RT60 is therefore often a model fitted to a
+smaller observed range, not a literal uninterrupted observation of all 60 dB.
+
+Let $h(t)$ be a measured room impulse response. Schroeder backward integration forms the
+remaining energy after time $t$:
+
+$$
+E(t)=\int_t^{\infty}h^2(\tau)\,d\tau.
+$$
+
+For sampled audio with final sample $N-1$, the corresponding cumulative sum is
+
+$$
+E[n]=\sum_{k=n}^{N-1}h^2[k].
+$$
+
+Normalizing by the value at the direct arrival and converting to decibels gives the energy
+decay curve, or EDC:
+
+$$
+L_E[n]=10\log_{10}\!\left(\frac{E[n]}{E[n_0]}\right)\ \mathrm{dB},
+$$
+
+where $n_0$ marks the chosen decay onset. Backward integration smooths individual peaks and
+turns a noisy-looking impulse response into a generally descending energy trajectory. It
+does not eliminate measurement noise; because the integral includes every later sample, a
+stationary noise floor eventually bends the curve away from its true room-decay slope.
+
+Three conventional estimators use different portions of the EDC:
+
+| Estimator | Fitted decay interval | Extrapolation to RT60 |
+|---|---:|---:|
+| EDT | 0 to –10 dB | fitted time multiplied by 6 |
+| T20 | –5 to –25 dB | fitted time multiplied by 3 |
+| T30 | –5 to –35 dB | fitted time multiplied by 2 |
+
+Early decay time, or EDT, emphasizes the first audible release after excitation and often
+tracks perceived reverberance more closely than a deep late-tail fit. T20 gives a robust
+estimate when only about 20 dB of clean decay is available. T30 uses more of the response
+and is preferable when the measurement has sufficient dynamic range. All three become RT60
+estimates by extending the fitted straight line, so a value called “T20” is not a 20-second
+quantity and does not mean that the room fell by 60 dB during the measured 20 dB interval.
+
+Figure 3-2 places the three regression windows on one idealized EDC. The shared axis makes
+clear that changing estimators changes the evidence used for the fit, not the definition of
+the final 60 dB decay target.
+
+A trustworthy implementation must make several decisions before fitting a line:
+
+1. **Locate the onset.** Leading silence must not become part of the decay. For an impulse
+   response, the strongest plausible direct event is a useful anchor; for program audio,
+   peak alignment is only a diagnostic approximation because later source energy may still
+   be arriving.
+2. **Estimate the noise floor.** The final portion of the capture provides a noise estimate,
+   but it can also contain a genuine long tail. Automatic methods must distinguish a stable
+   noise plateau from slowly decaying acoustic energy and report uncertainty when they
+   cannot.
+3. **Choose a usable range.** A regression boundary below the noise-intersection point makes
+   the EDC look artificially shallow. A boundary too near the onset may instead fit early
+   geometry rather than late statistical decay.
+4. **Assess linearity.** A high coefficient of determination, $R^2$, supports a single-slope
+   model. A low value may indicate poor signal-to-noise ratio, multiple slopes, flutter,
+   source contamination, or a genuinely nonexponential room.
+5. **Preserve alternatives.** EDT, T20, T30, fit range, $R^2$, and noise floor should be
+   retained together. Reporting only the selected RT60 hides the evidence needed to judge
+   whether that selection is acoustically meaningful.
+
+Uncertainty is not an optional footnote to this process. Small changes in onset, filter
+bandwidth, or noise compensation can move a fitted boundary and therefore change the
+extrapolated result by more than the visible difference in the measured interval. Repeated
+captures reveal this sensitivity better than extra decimal places. For a venue survey,
+report the estimator and spread across positions; for a synthesized IR, hold the random seed,
+sample rate, output length, and analysis settings constant. For either case, interpret a
+reported value such as 2.37 s as an estimate produced by a stated procedure, not proof that
+the underlying acoustic field has one perfectly uniform decay constant.
+
+verbx follows this evidence-preserving approach. `verbx analyze` aligns the strongest event,
+constructs the backward-integrated EDC, computes EDT, T20, and T30 where their fit windows
+are usable, and selects the deepest reliable fit as the broadband estimate. Its JSON report
+also carries fit quality, usable decay range, noise-floor information, input classification,
+and confidence. This is especially important for machine-learning datasets: a scalar label
+without its estimator, confidence, and measurement context can turn a physically ambiguous
+capture into falsely precise training data.
+
+![Energy decay curve fit windows](docs/assets/userguide_figures/04_edc_fit_windows.png)
+
+**Figure: Schroeder energy decay curve with the EDT, T20, and T30 regression windows marked against time after excitation in seconds.**
+
+**How to read Figure 3-2.** The horizontal axis is elapsed time after the direct event, and
+the vertical axis is normalized remaining energy in decibels. EDT begins at the top of the
+decay and is therefore sensitive to early reflections and the transition into the late
+field. T20 and T30 exclude the first 5 dB so the direct event and the earliest reflection
+pattern have less leverage. T30 reaches deepest and can be the most representative late
+estimate, but only if its –35 dB boundary remains safely above the noise-contaminated bend.
+
+#### Frequency-Dependent and Multiband Decay
+
+A room does not have one decay envelope shared perfectly by every frequency. Air absorption
+increases toward high frequencies; porous treatment may act mainly above a transition band;
+panel and membrane absorbers can shorten selected low-frequency resonances; and walls,
+seating, scenery, people, and openings all have frequency-dependent losses. For that reason,
+room-acoustic reports commonly estimate $T_{60}(f)$ in octave or one-third-octave bands.
+
+The same idea applies to artificial reverberation. If the desired decay at angular frequency
+$\omega$ is $T_{60}(\omega)$, then a delay line of duration $d_i$ needs an approximate loop
+filter magnitude
+
+$$
+\left|G_i\!\left(e^{j\omega}\right)\right|
+=10^{-\frac{3d_i}{T_{60}(\omega)}}.
+$$
+
+This relation converts a decay-time curve into a loss-per-circulation curve. The loop filter
+is not merely an equalizer placed after the reverb. A post-EQ changes the level of a band at
+every instant by the same proportion; a feedback-loop filter changes that band's slope over
+time. A bright onset followed by a progressively dark tail therefore requires frequency-
+dependent loop loss, not just a dark output filter.
+
+In practice, a small set of bands is easier to control and often more musically legible than
+an unrestricted curve. verbx exposes low-, mid-, and high-band decay targets with two
+crossovers. The broadband `--rt60` remains the central reference, while
+`--fdn-rt60-low`, `--fdn-rt60-mid`, and `--fdn-rt60-high` explicitly shape the bands.
+`--fdn-xover-low-hz` and `--fdn-xover-high-hz` locate their transitions. A compact
+`--fdn-rt60-tilt` control skews low and high decay around the middle when a three-number
+specification would interrupt a production workflow.
+
+Figure 3-3 compares three bandwise decays that share a direct event but diverge as loop loss
+accumulates. It is the visual distinction between warmth caused by persistent low-frequency
+energy and simple bass boost.
+
+Different spectral profiles imply different musical spaces. A low band that lasts modestly
+longer than the middle can suggest occupied halls, timber, or massive architecture. An
+excessively long low band can mask bass articulation and expose sparse FDN modes as pitched
+ringing. A short high band usually sounds natural because air and soft materials absorb high
+frequencies efficiently; an unusually long high band creates gloss, shimmer, or a synthetic
+metallic halo. The crossover locations matter because they decide whether a decay change
+affects fundamental weight, vocal presence, consonant detail, or only air.
+
+Multiband estimates require care. Bandpass filters have finite temporal support and can
+lengthen an apparent decay, especially in narrow low-frequency bands. Very low bands may
+contain only a few room modes, violating the diffuse-field assumption behind a straight EDC.
+A credible report should therefore list band centers, bandwidths, filter design, fit windows,
+and confidence rather than presenting a smooth colored curve as exact ground truth.
+
+![Multiband reverberation decay](docs/assets/userguide_figures/09_multiband_decay.png)
+
+**Figure: Low-, mid-, and high-frequency reverberation decay levels in decibels against time after excitation in seconds.**
+
+**How to read Figure 3-3.** At the left edge, all bands are normalized to the same level.
+The high band then falls fastest, the mid band defines the nominal body of the tail, and the
+low band persists longest. Their vertical separation grows with time because their slopes,
+not merely their initial gains, differ. If the high curve were shifted downward but remained
+parallel to the low curve, the result would be equalization rather than frequency-dependent
+RT60.
+
+#### Non-Diffuse Rooms, Modes, and Coupled Slopes
+
+The ideal RT60 line assumes a sufficiently mixed field with approximately exponential energy
+loss. Real spaces can depart from that model in instructive ways. Below a room's transition
+region, individual modes dominate. Each mode has its own frequency, spatial pattern, and
+damping rate, so moving a microphone by a fraction of a wavelength can change the apparent
+low-frequency decay. A broadband average can look acceptable while one note rings for much
+longer than neighboring notes.
+
+Flutter echo is another departure. Repeated reflections between nearly parallel surfaces
+create identifiable arrivals rather than a smooth statistical tail. The total energy may
+decline, but a line fitted through the average does not describe the audible periodicity.
+Strong focusing, galleries, under-balcony regions, directional sources, and highly localized
+absorption likewise make decay depend on position and direction.
+
+Coupled rooms can produce a double-slope EDC. Energy in the primary volume falls quickly at
+first; energy stored in a secondary chamber then leaks back and supports a slower late tail.
+In such a response, EDT may be short, T20 intermediate, and T30 long. That disagreement is
+not necessarily a software defect. It can be evidence that one exponential is an inadequate
+description of the space. The same behavior is musically useful in artificial reverb: a
+clear initial release followed by a quiet, persistent halo can preserve articulation while
+still enlarging phrase endings.
+
+For synthesis, modal density and decay time must be designed together. Raising RT60 does not
+create more modes; it only lets existing modes remain audible longer. A sparse network with
+a long target can expose its delay-line frequencies. Increasing line count, choosing
+incommensurate delays, using an energy-preserving mixing matrix, adding diffusion, and
+applying subtle modulation all help distribute energy. These operations should not be used
+to conceal instability. The late field must remain bounded before coloration or motion is
+judged artistically.
+
+#### RT60 Is Not Wetness, Distance, or Clarity
+
+Several controls can all make a reverb seem “more,” but they answer different questions:
+
+| Quantity | Question it answers | Principal audible consequence |
+|---|---|---|
+| RT60 | How steeply does late energy decay? | persistence and phrase overlap |
+| Wet level | How loud is the processed return? | effect prominence |
+| Pre-delay | How long before the late field begins? | source separation and apparent scale |
+| DRR | How strong is direct sound relative to reverb? | apparent distance |
+| $C_{50}$ or $C_{80}$ | How much energy arrives early versus late? | speech or musical clarity |
+| EDT | How quickly does the first part release? | perceived immediate reverberance |
+| Spectral RT60 | Which frequency bands persist? | warmth, brightness, and masking |
+
+A 6 s tail at –30 dB wet level can be subtler than a 1 s room mixed loudly. A long pre-delay
+can keep a vocal intelligible even when the late field is extensive. Conversely, a short
+RT60 with dense early reflections and low DRR can push a source far behind the loudspeakers.
+This is why preset names such as “large,” “distant,” or “lush” cannot be reduced to one
+decay-time value.
+
+Clarity metrics also depend on an impulse response's time origin. $C_{80}$ compares energy
+before and after 80 ms, while $C_{50}$ uses a 50 ms boundary more closely associated with
+speech. If the direct arrival is misidentified, both ratios become misleading. On complete
+music rather than an isolated impulse response, ongoing source energy crosses those windows,
+so verbx labels such results as program-audio estimates rather than room measurements.
+
+#### Extreme RT60, Freeze, and Infinite-Style Behavior
+
+Finite RT60 and freeze are related but not identical. A finite 3600 s target still specifies
+a negative slope of –0.0167 dB/s. In exact arithmetic it eventually decays. A freeze mode
+instead aims for a loop magnitude of one, or introduces recirculation that replaces lost
+energy, so the state can persist without the usual exponential release. The former is a very
+long decay; the latter changes the system's operating condition.
+
+As $T_{60}$ grows, the difference between stable and marginal becomes numerically tiny. For
+a 50 ms delay, the scalar gain is about 0.944 at $T_{60}=6$ s, but about 0.999904 at
+$T_{60}=3600$ s. A normalization error, nonlinear makeup gain, or interpolation overshoot
+on the order of that remaining margin can change a slow decay into growth. Extreme settings
+therefore deserve peak monitoring, output limiting, DC rejection, and long-horizon tests.
+
+Offline rendering introduces a second issue: the requested decay can be much longer than the
+source. Writing an hour-scale tail for a short test impulse is usually not what a user means,
+and constructing an equally long proxy impulse response can look like a hung process. Use
+`--dry-run` to inspect estimated work before an extreme render, choose output duration
+deliberately, and treat freeze as a performance mode or bounded sound-design operation rather
+than as permission to allocate an unbounded file.
+
+Figure 3-4 contrasts a normal stable decay, an extremely slow finite decay, an idealized
+freeze, and an unstable trajectory. The distinction is central to safe long-tail design.
+
+![Infinite-style reverberation behavior](docs/assets/userguide_figures/24_infinite_reverb.png)
+
+**Figure: Stable, near-infinite, frozen, and unstable reverberation-state levels against elapsed time in seconds.**
+
+**How to read Figure 3-4.** The ordinary stable curve slopes visibly downward. The
+near-infinite curve also descends, but so slowly that a short display can make it look flat.
+The freeze trajectory remains approximately constant after capture and is intentionally
+marginal. The unstable trajectory rises; even slow growth is unacceptable because repeated
+feedback eventually exhausts headroom. The plot should be read as a stability taxonomy, not
+as a claim that finite-precision freeze can remain mathematically constant forever.
+
+#### Musical Time and RT60
+
+Reverberation time is measured in seconds, but composers and producers hear its interaction
+with beats, gestures, rests, and harmonic rhythm. At tempo $B$ beats per minute, one beat
+lasts
+
+$$
+T_{\mathrm{beat}}=\frac{60}{B}\ \mathrm{s}.
+$$
+
+In 4/4 meter, a four-beat bar lasts
+
+$$
+T_{\mathrm{bar}}=\frac{240}{B}\ \mathrm{s}.
+$$
+
+These equations do not imply that RT60 must equal a note value. They provide a grid for
+asking where the tail should sit when the next attack, harmony, or rest arrives. At 120 BPM,
+a beat is 0.5 s and a bar is 2 s. An RT60 of 2 s reaches –60 dB at the next bar line under
+the ideal model, but it is already down –15 dB after one beat. Whether that feels connected
+depends on wet level, spectrum, source density, and masking.
+
+For an ideal decay, the level change after interval $t$ is
+
+$$
+\Delta L(t)=-60\frac{t}{T_{60}}\ \mathrm{dB}.
+$$
+
+Rearranging gives a useful compositional design equation. If the tail should be $D$ decibels
+below its onset when the next event arrives after $t$ seconds, choose
+
+$$
+T_{60}=\frac{60t}{D}.
+$$
+
+For example, placing the tail about –20 dB below onset at a 1.5 s phrase boundary suggests
+$T_{60}=4.5$ s. This is a starting point, not a loudness guarantee, because the source may
+continue feeding the reverb and frequency bands may decay at different rates.
+
+Short RT60 values can articulate rhythm by giving each transient a compact acoustic frame.
+Long values can bind separate attacks into a sustained harmonic field, making rests active
+rather than empty. A long low-frequency decay can retain harmonic roots across chord changes;
+a long high-frequency decay can carry attacks and noise into the next phrase. Pre-delay can
+preserve the edge of a note before that field arrives, while ducking can let the tail expand
+only after the source leaves space.
+
+The most reliable musical method is comparative listening at matched wet loudness. Render
+three adjacent RT60 values, normalize only for monitoring, and compare the release at exact
+phrase boundaries. Listen once for articulation, once for harmonic contamination, once for
+stereo or immersive envelopment, and once at low playback level. A tail that sounds
+spectacular in solo may occupy every rest in an arrangement; a tail that seems too quiet in
+solo may be correct in context.
+
+#### Practical verbx Workflows
+
+Begin with a single broadband target and preserve enough dry signal to hear how attacks
+separate from the room:
+
+```bash
+verbx render in.wav out.wav --engine algo --rt60 2.4 --wet 0.30 --dry 0.80
+```
+
+Then shape spectral persistence inside the feedback network rather than relying only on
+output equalization:
+
+```bash
+verbx render in.wav out_multiband.wav --engine algo --rt60 3.3 \
+  --fdn-rt60-low 5.5 --fdn-rt60-mid 3.3 --fdn-rt60-high 1.7 \
+  --fdn-xover-low-hz 250 --fdn-xover-high-hz 4000 \
+  --wet 0.36 --dry 0.78
+```
+
+Generate a deterministic impulse response when the decay itself is the research object.
+The output length is explicit, so repeated runs remain bounded and comparable:
+
+```bash
+verbx ir gen study_hall.wav --mode fdn --length 8 --rt60 2.4 --seed 42
+```
+
+Measure that response and retain both the human-readable summary and machine-readable
+evidence:
+
+```bash
+verbx analyze study_hall.wav --input-kind ir --edr --room \
+  --json-out reports/study_hall.analysis.json
+```
+
+For a complete music recording, identify it as program audio so clarity and decay results
+are not mistaken for standards-style room measurements:
+
+```bash
+verbx analyze wet_mix.wav --input-kind program --lufs \
+  --json-out reports/wet_mix.analysis.json
+```
+
+A useful validation sequence is to synthesize an 8 s IR with a 2.4 s target, analyze it,
+and compare EDT, T20, T30, and bandwise estimates. Do not require every value to equal 2.4 s
+to many decimal places. The early-reflection region, finite file length, frequency shaping,
+filter transients, stochastic variation, and regression windows all affect measured values.
+Instead, specify tolerances, hold the seed and sample rate constant, and investigate systematic
+bias separately from random variation.
+
+When analyzing a physical room, capture multiple source/receiver positions and repeat the
+measurement. Report the median and spread in each band. One beautifully smooth response can
+be less representative than several imperfect responses that reveal seat-to-seat variation.
+For production preset matching, preserve the original IR, its analysis JSON, the verbx
+version, and the exact command alongside the derived preset.
+
+#### Common Interpretation Failures
+
+**“The meter says 2 s, so the room is completely described.”** A scalar RT60 omits spectral
+shape, early reflections, direct-to-reverberant ratio, spatial distribution, modulation, and
+nonexponential behavior. Treat it as one coordinate in a larger acoustic description.
+
+**“T30 is always better than T20.”** T30 uses a deeper range only when that range is clean.
+If the noise floor intrudes before –35 dB, the apparently more comprehensive estimator can
+be less trustworthy than T20.
+
+**“A longer RT60 should sound louder.”** RT60 controls slope. Wet gain controls return level.
+Compare decays at matched loudness before attributing prominence to persistence.
+
+**“Post-EQ creates multiband decay.”** Post-EQ changes spectral balance; loop filtering
+changes spectral decay slope. Both can be useful, but they are not interchangeable.
+
+**“A straight fit proves a diffuse room.”** A limited window can be straight even when the
+full response contains modes, double slopes, or directional behavior. Inspect the EDC, the
+fit interval, bandwise results, and multiple positions.
+
+**“A one-hour RT60 is the same as infinite reverb.”** One has a very small negative slope;
+the other attempts persistent state. Their stability, rendering, automation, and safety
+requirements differ.
+
+#### Selected Primary Literature
+
+The following sources provide a compact path from physical reverberation theory through
+measurement and digital synthesis. Entries are alphabetical by first author.
+
+Eyring, C. F. “Reverberation Time in ‘Dead’ Rooms.” *The Journal of the Acoustical Society
+of America* 1(2A): 217–241. DOI:
+[10.1121/1.1915175](https://doi.org/10.1121/1.1915175), 1930.
+
+Jot, J.-M. “An Analysis/Synthesis Approach to Real-Time Artificial Reverberation.”
+*Proceedings of the IEEE International Conference on Acoustics, Speech, and Signal
+Processing*: II-221–II-224. DOI:
+[10.1109/ICASSP.1992.226080](https://doi.org/10.1109/ICASSP.1992.226080), 1992.
+
+Jot, J.-M.; Chaigne, A. “Maximally Diffusive Yet Efficient Feedback Delay Networks for
+Artificial Reverberation.” *IEEE Signal Processing Letters* 4(9): 260–263. DOI:
+[10.1109/97.623041](https://doi.org/10.1109/97.623041), 1997.
+
+Lundeby, A.; Vigran, T. E.; Bietz, H.; Vorländer, M. “Uncertainties of Measurements in Room
+Acoustics.” *Acustica* 81: 344–355, 1995.
+
+Schroeder, M. R. “New Method of Measuring Reverberation Time.” *The Journal of the
+Acoustical Society of America* 37(3): 409–412. DOI:
+[10.1121/1.1909343](https://doi.org/10.1121/1.1909343), 1965.
+
+Xiang, N. “Generalization of Sabine's Reverberation Theory.” *The Journal of the Acoustical
+Society of America* 148(2): R5–R6. DOI:
+[10.1121/10.0001806](https://doi.org/10.1121/10.0001806), 2020.
+
 
 ### Impulse Responses
 
