@@ -285,10 +285,17 @@ PY
   fi
 
   printf 'Installing Python CLI and extras...\n'
-  if [[ "$INSTALL_MODE" == editable ]]; then
-    "$PYTHON_BIN" -m pip install "${pip_args[@]}" -e ".${extra_spec}"
+  # Bash 3.2 treats an empty array expansion as unset under `set -u`.
+  if [[ "${#pip_args[@]}" -gt 0 ]]; then
+    if [[ "$INSTALL_MODE" == editable ]]; then
+      "$PYTHON_BIN" -m pip install "${pip_args[@]}" -e ".${extra_spec}"
+    else
+      "$PYTHON_BIN" -m pip install "${pip_args[@]}" ".${extra_spec}"
+    fi
+  elif [[ "$INSTALL_MODE" == editable ]]; then
+    "$PYTHON_BIN" -m pip install -e ".${extra_spec}"
   else
-    "$PYTHON_BIN" -m pip install "${pip_args[@]}" ".${extra_spec}"
+    "$PYTHON_BIN" -m pip install ".${extra_spec}"
   fi
 fi
 

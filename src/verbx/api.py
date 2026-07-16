@@ -31,6 +31,8 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from verbx.core.render_report import RenderReport
+
 __all__ = [
     "analyze_file",
     "generate_ir",
@@ -49,7 +51,7 @@ def render_file(
     infile: str | Path,
     outfile: str | Path,
     config: Any,
-) -> dict[str, Any]:
+) -> RenderReport:
     """Apply reverb processing to an audio file.
 
     Parameters
@@ -65,7 +67,7 @@ def render_file(
 
     Returns
     -------
-    dict
+    RenderReport
         Structured report containing engine name, sample counts, resolved
         runtime settings, and optional per-channel analysis metrics. Keys
         include ``"engine"``, ``"sr"``, ``"input_samples"``,
@@ -152,7 +154,7 @@ def analyze_file(
     ambi_order: int | None = None,
     ambi_normalization: str = "auto",
     ambi_channel_order: str = "auto",
-) -> dict[str, float]:
+) -> dict[str, float | str]:
     """Compute analysis metrics for an audio file.
 
     Parameters
@@ -176,10 +178,11 @@ def analyze_file(
     Returns
     -------
     dict
-        Flat dictionary of float-valued metrics. Always includes: duration,
-        samples, channels, rms, rms_dbfs, peak, peak_dbfs, sample_peak_dbfs,
-        crest_factor, dc_offset, dynamic_range, energy, spectral_centroid,
-        spectral_bandwidth, spectral_rolloff, zero_crossing_rate, and more.
+        Flat dictionary of numeric metrics and optional string metadata. Always
+        includes: duration, samples, channels, rms, rms_dbfs, peak, peak_dbfs,
+        sample_peak_dbfs, crest_factor, dc_offset, dynamic_range, energy,
+        spectral_centroid, spectral_bandwidth, spectral_rolloff,
+        zero_crossing_rate, and more.
 
     Examples
     --------
