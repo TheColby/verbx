@@ -6,7 +6,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
+import soundfile as sf
 from PIL import Image, ImageChops, ImageDraw
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -404,6 +406,33 @@ def test_reverb_primer_assets_have_tight_caption_edges() -> None:
         bounds = difference.getbbox()
         assert bounds is not None
         assert image.height - bounds[3] <= 24, path.name
+
+
+def test_paired_sonograms_use_one_full_duration_time_scale(tmp_path: Path) -> None:
+    short = tmp_path / "short.wav"
+    long = tmp_path / "long.wav"
+
+    sf.write(short, [0.0] * 8_000, 8_000)
+    sf.write(long, [0.0] * 20_000, 8_000)
+
+    assert PRIMER_ASSETS._shared_time_limit([short, long]) == pytest.approx(2.5)
+
+    frequencies = np.array([50.0, 100.0, 500.0, 2_000.0, 8_000.0])
+    times = np.array([0.1, 0.2, 0.3])
+    decibels = np.zeros((frequencies.size, times.size))
+    pixels = PRIMER_ASSETS._sonogram_pixels(
+        frequencies,
+        times,
+        decibels,
+        width=7,
+        height=5,
+        time_start_s=0.0,
+        time_limit_s=0.6,
+    )
+
+    assert np.all(pixels[:, :1] == -80.0)
+    assert np.all(pixels[:, 4:] == -80.0)
+    assert np.all(pixels[:, 2:4] == 0.0)
 
 
 def test_reverb_primer_math_labels_use_positioned_scripts() -> None:

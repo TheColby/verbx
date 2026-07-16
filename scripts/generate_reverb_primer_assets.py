@@ -1019,35 +1019,77 @@ def _colorize(values: np.ndarray) -> np.ndarray:
     return ((1.0 - fraction) * stops[lower] + fraction * stops[upper]).astype(np.uint8)
 
 
+def _shared_time_limit(paths: list[Path]) -> float:
+    """Return one full-duration time extent for every panel in a figure."""
+
+    durations = []
+    for path in paths:
+        info = sf.info(path)
+        durations.append(float(info.frames / info.samplerate))
+    return max(durations, default=0.0)
+
+
+def _sonogram_pixels(
+    frequencies: np.ndarray,
+    times: np.ndarray,
+    decibels: np.ndarray,
+    *,
+    width: int,
+    height: int,
+    time_start_s: float,
+    time_limit_s: float,
+) -> np.ndarray:
+    """Sample one sonogram without stretching it beyond its recorded duration."""
+
+    target_times = np.linspace(time_start_s, time_limit_s, width)
+    target_frequencies = np.geomspace(50.0, min(8000.0, frequencies[-1]), height)[::-1]
+    frequency_indices = np.clip(
+        np.searchsorted(frequencies, target_frequencies), 0, len(frequencies) - 1
+    )
+    pixels = np.full((height, width), -80.0, dtype=np.float64)
+    valid = (target_times >= times[0]) & (target_times <= times[-1])
+    time_indices = np.clip(
+        np.searchsorted(times, target_times[valid]), 0, len(times) - 1
+    )
+    pixels[:, valid] = decibels[np.ix_(frequency_indices, time_indices)]
+    return pixels
+
+
 def _render_sonogram_panel(
     draw: ImageDraw.ImageDraw,
     image: Image.Image,
     path: Path,
     label: str,
     box: tuple[int, int, int, int],
+    shared_time_limit_s: float | None,
 ) -> None:
     audio, sample_rate = _mono_resampled(path)
     frequencies, times, decibels = _sonogram(audio, sample_rate)
     x0, y0, x1, y1 = box
     plot_width = x1 - x0
     plot_height = y1 - y0
-    target_times = np.linspace(times[0], times[-1], plot_width)
-    target_frequencies = np.geomspace(50.0, min(8000.0, frequencies[-1]), plot_height)[::-1]
-    time_indices = np.clip(np.searchsorted(times, target_times), 0, len(times) - 1)
-    frequency_indices = np.clip(
-        np.searchsorted(frequencies, target_frequencies), 0, len(frequencies) - 1
+    time_start_s = 0.0 if shared_time_limit_s is not None else float(times[0])
+    time_limit_s = (
+        float(shared_time_limit_s) if shared_time_limit_s is not None else float(times[-1])
     )
-    pixels = decibels[np.ix_(frequency_indices, time_indices)]
+    pixels = _sonogram_pixels(
+        frequencies,
+        times,
+        decibels,
+        width=plot_width,
+        height=plot_height,
+        time_start_s=time_start_s,
+        time_limit_s=time_limit_s,
+    )
     rendered = Image.fromarray(_colorize(pixels), mode="RGB")
     image.paste(rendered, (x0, y0))
     draw.rectangle(box, outline=INK, width=3)
     draw.text((x0, y0 - 31), label, fill=INK, font=F_NODE)
 
-    duration = float(times[-1])
     for index in range(5):
         x = x0 + index * plot_width / 4
         draw.line((x, y1, x, y1 + 8), fill=INK, width=2)
-        value = duration * index / 4
+        value = time_limit_s * index / 4
         draw.text((x - 18, y1 + 10), f"{value:.1f}", fill=MUTED, font=F_TINY)
     for frequency in (100, 500, 2000, 8000):
         if frequency > frequencies[-1]:
@@ -1079,8 +1121,17 @@ def sonogram_figure(
         boxes = [(170, 205, 1440, 790)]
     else:
         boxes = [(170, 195, 1440, 470), (170, 590, 1440, 865)]
+    panel_paths = [AUDIO / filename for filename, _label in panels]
+    shared_time_limit_s = _shared_time_limit(panel_paths) if panel_count > 1 else None
     for (filename, label), box in zip(panels, boxes, strict=False):
-        _render_sonogram_panel(draw, image, AUDIO / filename, label, box)
+        _render_sonogram_panel(
+            draw,
+            image,
+            AUDIO / filename,
+            label,
+            box,
+            shared_time_limit_s,
+        )
 
     bar_x0, bar_y0, bar_x1, bar_y1 = 1485, boxes[0][1], 1515, boxes[-1][3]
     values = np.linspace(0.0, -80.0, bar_y1 - bar_y0)[:, None]
