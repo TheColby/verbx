@@ -18,7 +18,9 @@ Use \fBverbx --help\fR for full command discovery.
 Render audio with algorithmic or convolution reverb.
 .TP
 .B analyze INFILE [OPTIONS]
-Compute analysis metrics, including optional loudness and EDR summaries.
+Extract peak-aligned reverb metrics by default, including RT60, EDT, T20, T30,
+decay fit quality, C50, C80, D50, center time, DRR, early IACC, and confidence;
+optional loudness, EDR, room, framewise, Ambisonics, and JSON outputs remain available.
 .TP
 .B dereverb INFILE OUTFILE [OPTIONS]
 Suppress late reverberation from existing recordings.
@@ -63,8 +65,11 @@ Layer multiple modulation sources to animate reverb depth over time.
 .B verbx render in.wav out_dual_mod.wav --mod-route wet:0.1:0.95:avg:20:lfo:sine:0.12 --mod-route gain-db:-9:3:sum:15:lfo:triangle:0.04
 Assign different LFOs to different modulation targets.
 .TP
-.B verbx analyze in.wav --lufs --edr --json-out report.json
-Analyze loudness and EDR metrics to JSON.
+.B verbx analyze hall_ir.wav --input-kind ir --edr --room --json-out report.json
+Extract broadband and frequency-dependent reverb metrics from an impulse response.
+.TP
+.B verbx analyze wet_mix.wav --input-kind program --lufs --direct-window-ms 3
+Analyze a reverberant mix with explicitly qualified program-audio estimates.
 .TP
 .B verbx dereverb wet.wav clearer.wav --mode wiener --strength 0.9 --tail-ms 180
 Run deterministic spectral dereverberation on an existing file.

@@ -35,9 +35,15 @@ from verbx.analysis.features_time import (
     transient_density,
     zero_crossing_rate,
 )
+from verbx.analysis.reverb_metrics import extract_reverb_metrics
 from verbx.analysis.room_size import estimate_room_size
 from verbx.analysis.spatial_metrics import compute_ambisonic_metrics
-from verbx.core.loudness import integrated_lufs, loudness_range_lu, sample_peak_dbfs, true_peak_dbfs
+from verbx.core.loudness import (
+    integrated_lufs,
+    loudness_range_lu,
+    sample_peak_dbfs,
+    true_peak_dbfs,
+)
 
 AudioArray = npt.NDArray[np.float64]
 
@@ -57,6 +63,9 @@ class AudioAnalyzer:
         include_loudness: bool = False,
         include_edr: bool = False,
         include_room: bool = False,
+        include_reverb: bool = False,
+        reverb_input_kind: str = "auto",
+        reverb_direct_window_ms: float = 2.5,
         ambi_order: int | None = None,
         ambi_normalization: str = "auto",
         ambi_channel_order: str = "auto",
@@ -80,6 +89,14 @@ class AudioAnalyzer:
             absorption, critical distance, room class, and confidence rating.
             Implicitly runs EDR analysis internally (fast; does not enable the
             full ``include_edr`` key set unless that flag is also set).
+        include_reverb:
+            Enables peak-aligned Schroeder decay, clarity, definition, center
+            time, direct-to-reverberant ratio, and early IACC metrics.
+        reverb_input_kind:
+            ``"auto"``, ``"ir"``, or ``"program"``. Auto detection lowers
+            confidence when the signal does not resemble an impulse response.
+        reverb_direct_window_ms:
+            Direct-sound integration window used for the DRR estimate.
         ambi_order:
             Optional Ambisonics order for spherical-energy/directionality metrics.
         """
@@ -127,6 +144,16 @@ class AudioAnalyzer:
             room = estimate_room_size(audio, sr)
             for k, v in room.items():
                 result[k] = float(v) if isinstance(v, (int, float)) else str(v)
+
+        if include_reverb:
+            result.update(
+                extract_reverb_metrics(
+                    audio,
+                    sr,
+                    input_kind=reverb_input_kind,
+                    direct_window_ms=reverb_direct_window_ms,
+                )
+            )
 
         if ambi_order is not None and int(ambi_order) > 0:
             result.update(

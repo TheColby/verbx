@@ -898,6 +898,7 @@ def _index_cli_terms(markdown: str) -> str:
     pending: list[str] = []
     output: list[str] = []
     active_fence: str | None = None
+    active_table = False
 
     def markers(terms: list[str]) -> list[str]:
         if not terms:
@@ -906,13 +907,21 @@ def _index_cli_terms(markdown: str) -> str:
         return ["", "```{=latex}", commands, "```", ""]
 
     for line in markdown.splitlines():
+        table_line = line.lstrip().startswith("|")
+        if active_table and not table_line:
+            output.extend(markers(pending))
+            pending.clear()
+            active_table = False
+        if table_line:
+            active_table = True
+
         fence = fence_pattern.match(line)
         terms = [*flag_pattern.findall(line), *command_pattern.findall(line)]
         fresh = [term for term in terms if term not in seen]
         seen.update(fresh)
-        if active_fence is None and fresh:
+        if active_fence is None and not active_table and fresh:
             output.extend(markers(fresh))
-        elif active_fence is not None:
+        elif fresh:
             pending.extend(fresh)
         output.append(line)
         if fence:
@@ -923,6 +932,7 @@ def _index_cli_terms(markdown: str) -> str:
                 pending.clear()
             elif active_fence is None:
                 active_fence = marker
+    output.extend(markers(pending))
     return "\n".join(output)
 
 

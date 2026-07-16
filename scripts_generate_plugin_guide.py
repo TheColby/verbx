@@ -65,6 +65,20 @@ room metadata, an early-reflection model, or a deterministic imported asset.
 The display should state whether it is showing a parametric room, a DXF-derived
 profile, a measured impulse response, or an illustrative preview.
 
+### Recommended Companion Text
+
+Will C. Pirkle's *[Designing Audio Effect Plugins in C++: For AAX, AU, and VST3
+with DSP Theory](https://www.routledge.com/Designing-Audio-Effect-Plugins-in-C-For-AAX-AU-and-VST3-with-DSP-Theory/Pirkle/p/book/9781138591899)*,
+2nd edition (Routledge, 2019), is the recommended companion text for this
+handbook. Its treatment of plug-in anatomy, an API-independent processing core,
+host wrappers, parameters, GUI design, delay structures, reverberation, and
+dynamics provides a useful engineering vocabulary for the boundaries described
+here. VERBX does not adopt Pirkle's example framework wholesale: its C realtime
+contract, JUCE adapter, parameter manifest, state format, analyzer telemetry,
+and validation matrix remain repository-specific designs. Readers should use
+the book for the broader implementation discipline and this handbook for the
+exact VERBX contracts.
+
 ## 2. What Exists In The Repository
 
 The first foundation slice is intentionally narrow and testable:

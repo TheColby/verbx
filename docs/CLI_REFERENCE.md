@@ -1384,36 +1384,60 @@ Do not edit manually.
 │ *    infile      <path>  [required]                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json-out                  <path>                                           │
-│ --lufs                                             Include                   │
-│                                                    LUFS/true-peak/LRA        │
-│                                                    metrics.                  │
-│ --edr                                              Include EDR (Energy Decay │
-│                                                    Relief) summary metrics.  │
-│ --frames-out                <path>                                           │
-│ --ambi-order                <int range> [0<=x<=7]  Enable Ambisonics spatial │
-│                                                    metrics for the given     │
-│                                                    order.                    │
-│                                                    [default: 0]              │
-│ --ambi-normalization        <auto|sn3d|n3d|fuma>   Ambisonics normalization  │
-│                                                    convention for analysis   │
-│                                                    mode.                     │
-│                                                    [default: auto]           │
-│ --channel-order             <auto|acn|fuma>        Ambisonics channel order  │
-│                                                    convention for analysis   │
-│                                                    mode.                     │
-│                                                    [default: auto]           │
-│ --room                                             Estimate room size,       │
-│                                                    dimensions, absorption,   │
-│                                                    critical distance, and    │
-│                                                    class from the signal's   │
-│                                                    reverberant decay         │
-│                                                    characteristics. Works    │
-│                                                    best on reverberant       │
-│                                                    recordings or rendered    │
-│                                                    impulse responses.        │
-│ --help                                             Show this message and     │
-│                                                    exit.                     │
+│ --json-out                            <path>                                 │
+│ --reverb               --no-reverb                       Include             │
+│                                                          peak-aligned        │
+│                                                          RT60/EDT/T20/T30,   │
+│                                                          clarity,            │
+│                                                          definition,         │
+│                                                          center-time, DRR,   │
+│                                                          confidence, and     │
+│                                                          early-IACC metrics. │
+│                                                          [default: reverb]   │
+│ --input-kind                          <str>              Reverb-analysis     │
+│                                                          source model: auto, │
+│                                                          ir, or program.     │
+│                                                          [default: auto]     │
+│ --direct-window-ms                    <float range>      Direct-sound        │
+│                                       [0.1<=x<=100.0]    integration window  │
+│                                                          used for the DRR    │
+│                                                          estimate.           │
+│                                                          [default: 2.5]      │
+│ --lufs                                                   Include             │
+│                                                          LUFS/true-peak/LRA  │
+│                                                          metrics.            │
+│ --edr                                                    Include EDR (Energy │
+│                                                          Decay Relief)       │
+│                                                          summary metrics.    │
+│ --frames-out                          <path>                                 │
+│ --ambi-order                          <int range>        Enable Ambisonics   │
+│                                       [0<=x<=7]          spatial metrics for │
+│                                                          the given order.    │
+│                                                          [default: 0]        │
+│ --ambi-normalizati…                   <auto|sn3d|n3d|fu  Ambisonics          │
+│                                       ma>                normalization       │
+│                                                          convention for      │
+│                                                          analysis mode.      │
+│                                                          [default: auto]     │
+│ --channel-order                       <auto|acn|fuma>    Ambisonics channel  │
+│                                                          order convention    │
+│                                                          for analysis mode.  │
+│                                                          [default: auto]     │
+│ --room                                                   Estimate room size, │
+│                                                          dimensions,         │
+│                                                          absorption,         │
+│                                                          critical distance,  │
+│                                                          and class from the  │
+│                                                          signal's            │
+│                                                          reverberant decay   │
+│                                                          characteristics.    │
+│                                                          Works best on       │
+│                                                          reverberant         │
+│                                                          recordings or       │
+│                                                          rendered impulse    │
+│                                                          responses.          │
+│ --help                                                   Show this message   │
+│                                                          and exit.           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

@@ -2025,6 +2025,46 @@ def test_analyze_edr_mode(tmp_path: Path) -> None:
     assert "edr_rt60_median_s" in result.stdout
 
 
+def test_analyze_reverb_metrics_and_versioned_json_are_default(tmp_path: Path) -> None:
+    sr = 16_000
+    target_rt60 = 1.0
+    t = np.arange(sr * 3, dtype=np.float64) / float(sr)
+    audio = (
+        np.power(10.0, -3.0 * t / target_rt60)
+        * np.sin(2.0 * np.pi * 701.0 * t)
+    )[:, np.newaxis]
+    audio[0, 0] = 1.0
+    infile = tmp_path / "decay.wav"
+    json_out = tmp_path / "reports" / "analysis.json"
+    sf.write(str(infile), audio, sr)
+
+    result = runner.invoke(
+        app,
+        ["analyze", str(infile), "--input-kind", "ir", "--json-out", str(json_out)],
+    )
+
+    assert result.exit_code == 0, _combined_cli_output(result)
+    assert "reverb_rt60_seconds" in result.stdout
+    assert "reverb_c80_db" in result.stdout
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["schema"] == "analyze-report-v1"
+    assert payload["source"]["sample_rate_hz"] == sr
+    assert payload["source"]["channels"] == 1
+    assert payload["analysis"]["reverb"] is True
+    assert abs(payload["metrics"]["reverb_rt60_seconds"] - target_rt60) < 0.03
+
+
+def test_analyze_no_reverb_preserves_legacy_metric_mode(tmp_path: Path) -> None:
+    infile = tmp_path / "dry.wav"
+    sf.write(str(infile), np.zeros((4096, 1), dtype=np.float64), 48_000)
+
+    result = runner.invoke(app, ["analyze", str(infile), "--no-reverb"])
+
+    assert result.exit_code == 0, _combined_cli_output(result)
+    assert "reverb_rt60_seconds" not in result.stdout
+    assert "spectral_centroid" in result.stdout
+
+
 def test_compare_command_writes_json(tmp_path: Path) -> None:
     sr = 48_000
     n = 4096
