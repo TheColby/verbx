@@ -213,6 +213,29 @@ def test_faq_is_a_substantive_appendix_after_references() -> None:
     assert r"\textbf{Appendix D} & Frequently asked questions\\" in preamble
 
 
+def test_homebrew_chapter_is_folded_into_chapter_one() -> None:
+    homebrew_path = REPO_ROOT / "docs/HOMEBREW.md"
+    markdown = DOCS_PDF._build_markdown("Colby Leider, PhD")
+    chapter_two_marker = "<!-- docs/IMMERSIVE_AUDIO.md -->"
+    chapter_one = markdown[: markdown.index(chapter_two_marker)]
+
+    assert homebrew_path not in DOCS_PDF.USERGUIDE_SOURCES
+    assert DOCS_PDF.CHAPTER_ONE_SUPPLEMENTS == (homebrew_path,)
+    assert homebrew_path in DOCS_PDF.USERGUIDE_INCLUDED_SOURCES
+    assert "# Homebrew Support" not in markdown
+    assert chapter_one.count("## Homebrew Distribution and Release Maintenance") == 1
+    assert "### Maintainer Workflow" in chapter_one
+    assert "### Release Automation" in chapter_one
+    assert "### Compatibility Notes" in chapter_one
+    assert "The published tap formula lives at `Formula/verbx.rb`" in chapter_one
+    assert chapter_one.index("## Full Installation Instructions") < chapter_one.index(
+        "## Homebrew Distribution and Release Maintenance"
+    )
+    assert markdown.index("# Render Performance Baseline") > markdown.index(
+        "# Illustrated Guide"
+    )
+
+
 def test_every_extreme_cookbook_recipe_has_a_title() -> None:
     cookbook = (REPO_ROOT / "docs/EXTREME_COOKBOOK.md").read_text(encoding="utf-8")
     recipes = re.findall(r"^### Recipe (\d+): (\S.+)$", cookbook, flags=re.MULTILINE)
