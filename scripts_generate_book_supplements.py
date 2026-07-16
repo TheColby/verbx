@@ -313,7 +313,99 @@ MUSIC_EXPANSION = (
     ("Contemporary immersive production", "Jon Hopkins", "Luminous Beings", "2018", "Singularity", "Pulsing detail and expanding harmonic clouds invite analysis of modulation, stereo correlation, and long-tail density."),
     ("Contemporary immersive production", "Floating Points, Pharoah Sanders, and the London Symphony Orchestra", "Movement 6", "2021", "Promises", "A recurring electronic figure, saxophone, and orchestra share a slowly changing field without losing their independent depths."),
     ("Contemporary immersive production", "Caroline Polachek", "Billions", "2022", "Desire, I Want to Turn Into You", "Layered voice, percussion, and choral scale demonstrate precise contrast between intimate articulation and spectacular bloom."),
+    ("Early music, organ, and monumental acoustics", "Hildegard von Bingen", "O vis aeternitatis", "c. 1151", "A Feather on the Breath of God", "Follow the monophonic line into the room and distinguish melodic continuation from architectural sustain."),
+    ("Early music, organ, and monumental acoustics", "Pérotin", "Viderunt omnes", "c. 1198", "Perotin", "Hear how sustained lower voices and measured upper parts use cathedral decay as a harmonic joining mechanism."),
+    ("Early music, organ, and monumental acoustics", "Heinrich Schütz", "Saul, Saul, was verfolgst du mich?", "1650", "Symphoniae sacrae III", "Antiphonal calls, rests, and sharply profiled consonants reveal how a large room can become part of rhetorical timing."),
+    ("Early music, organ, and monumental acoustics", "J. S. Bach", "Passacaglia and Fugue in C minor, BWV 582", "c. 1710", "organ work", "Track the repeated bass through registration changes and ask when the building reinforces structure rather than merely adding grandeur."),
+    ("Early music, organ, and monumental acoustics", "Olivier Messiaen", "Apparition de l'église éternelle", "1932", "organ work", "The slow crescendo and decrescendo turn organ, low-frequency room modes, and silence into one monumental envelope."),
+    ("Early music, organ, and monumental acoustics", "Charlemagne Palestine", "Schlingen-Blängen", "1974", "Schlingen-Blängen", "Sustained organ overtones expose beating, modal reinforcement, and the point at which the room seems to continue the instrument."),
+    ("Opera, theater, and staged distance", "Claudio Monteverdi", "L'Orfeo: Toccata and Prologue", "1607", "L'Orfeo", "Compare ceremonial brass projection with the prologue's vocal presence and note how contrasting spaces establish the drama before the plot advances."),
+    ("Opera, theater, and staged distance", "Wolfgang Amadeus Mozart", "Don Giovanni: Commendatore Scene", "1787", "Don Giovanni", "The confrontation uses register, orchestration, stage position, and hall scale to turn apparent distance into supernatural authority."),
+    ("Opera, theater, and staged distance", "Richard Wagner", "Parsifal: Transformation Music", "1882", "Parsifal", "Listen for orchestral continuity making the imagined room appear to change size while the musical pulse remains suspended."),
+    ("Opera, theater, and staged distance", "Luciano Berio", "Coro", "1975–1976", "Coro", "Singers paired with instruments create a distributed ensemble in which local timbres and collective resonance continually exchange roles."),
+    ("Opera, theater, and staged distance", "Unsuk Chin", "Alice in Wonderland", "2007", "Alice in Wonderland", "Rapid changes of scale and orchestral perspective demonstrate how abrupt spatial contrast can support theatrical surrealism."),
+    ("Opera, theater, and staged distance", "Michel van der Aa", "Sunken Garden", "2013", "Sunken Garden", "Live voices, orchestra, electronics, and film-derived space invite a comparison between visible location and heard location."),
+    ("Resonant instruments and chamber scale", "Claude Debussy", "La cathédrale engloutie", "1910", "Préludes, Book I", "Pedal, register, and dynamics make a piano imply architecture; identify which depth cues exist before any recorded-room contribution."),
+    ("Resonant instruments and chamber scale", "John Cage", "In a Landscape", "1948", "In a Landscape", "A limited pitch field and gentle attack make pedal resonance and room decay audible as part of the piece's continuity."),
+    ("Resonant instruments and chamber scale", "Morton Feldman", "Rothko Chapel", "1971", "Rothko Chapel", "Sparse attacks, voices, viola, and percussion leave the listener enough time to hear each resonance change the color of the next event."),
+    ("Resonant instruments and chamber scale", "George Crumb", "The Phantom Gondolier", "1972", "Makrokosmos, Volume I", "Extended piano techniques and vocalized sound create several apparent distances inside one instrument."),
+    ("Resonant instruments and chamber scale", "Ryuichi Sakamoto", "andata", "2017", "async", "Piano, mechanical detail, and electronic atmosphere balance tactile proximity against a broad, unstable background field."),
+    ("Resonant instruments and chamber scale", "Kali Malone", "Spectacle of Ritual", "2019", "The Sacrificial Code", "Organ tuning and patient voice leading expose slow interference patterns that can be mistaken for modulation or moving reflections."),
+    ("Experimental voice, installation, and feedback", "Pauline Oliveros, Stuart Dempster, and Panaiotis", "Lear", "1989", "Deep Listening", "The Fort Worden cistern's extraordinary decay turns each performed sound into material for the next gesture."),
+    ("Experimental voice, installation, and feedback", "Meredith Monk", "Gotham Lullaby", "1981", "Dolmen Music", "Layered vocal resonance demonstrates how timbre, vowel, and recording space can create depth without conventional orchestration."),
+    ("Experimental voice, installation, and feedback", "Janet Cardiff", "The Forty Part Motet", "2001", "sound installation", "Forty individually recorded voices on forty loudspeakers let the listener move physically through Tallis's counterpoint."),
+    ("Experimental voice, installation, and feedback", "Maryanne Amacher", "Head Rhythm 1 and Plaything 2", "1999", "Sound Characters (Making the Third Ear)", "High-level spectral interactions challenge the boundary between reproduced sound, room response, and listener-generated auditory phenomena."),
+    ("Experimental voice, installation, and feedback", "Ellen Fullman and Okkyung Lee", "The Air Around Her, Part I", "2018", "The Air Around Her", "Long strings and cello activate architectural scale through sustained partials, beating, and slowly changing excitation."),
+    ("Experimental voice, installation, and feedback", "Éliane Radigue", "Jetsun Mila", "1986", "Jetsun Mila", "Nearly static electronic layers reward close listening to minute spectral drift and the playback room's own contribution."),
+    ("Soul, gospel, country, and vocal presence", "Sam Cooke", "A Change Is Gonna Come", "1964", "Ain't That Good News", "The lead remains intimate while strings and chamber-like depth expand the emotional horizon around it."),
+    ("Soul, gospel, country, and vocal presence", "Aretha Franklin", "Amazing Grace", "1972", "Amazing Grace", "The live church recording joins solo voice, congregation, choir, and room response into one continuously changing performance system."),
+    ("Soul, gospel, country, and vocal presence", "Daniel Lanois", "The Maker", "1989", "Acadie", "Percussion, voice, guitar, and dark ambience occupy distinct layers that remain legible despite a strongly atmospheric mix."),
+    ("Soul, gospel, country, and vocal presence", "Chris Isaak", "Wicked Game", "1989", "Heart Shaped World", "A close vocal and highly spacious guitar show how two sources can imply different rooms without breaking the song's unity."),
+    ("Soul, gospel, country, and vocal presence", "Emmylou Harris", "Where Will I Be", "1995", "Wrecking Ball", "Diffuse production enlarges the voice and instruments while preserving consonants, pulse, and a stable emotional foreground."),
+    ("Soul, gospel, country, and vocal presence", "Weyes Blood", "Movies", "2019", "Titanic Rising", "The arrangement moves from intimate electronic detail toward orchestral bloom, making depth growth part of the song's form."),
+    ("Heavy music, post-rock, and overwhelming scale", "Swans", "The Sound", "1996", "Soundtracks for the Blind", "Long crescendos and saturated layers test whether a large field can grow without losing its central pulse and harmonic direction."),
+    ("Heavy music, post-rock, and overwhelming scale", "Sigur Rós", "Svefn-g-englar", "1999", "Ágætis byrjun", "Bowed guitar, voice, and spacious drums demonstrate how slow attacks and long tails can remain rhythmically articulate."),
+    ("Heavy music, post-rock, and overwhelming scale", "Godspeed You! Black Emperor", "Storm", "2000", "Lift Your Skinny Fists Like Antennas to Heaven", "Ensemble accumulation and changing recording perspective make apparent room size rise with musical intensity."),
+    ("Heavy music, post-rock, and overwhelming scale", "Boris", "Flood III", "2000", "Flood", "Distortion and extended decay fuse into a dense continuum whose clarity depends on spectral allocation rather than dryness."),
+    ("Heavy music, post-rock, and overwhelming scale", "Sunn O)))", "It Took the Night to Believe", "2005", "Black One", "Low-frequency sustain and enormous apparent volume reveal how room modes, distortion, and feedback can become orchestration."),
+    ("Heavy music, post-rock, and overwhelming scale", "Deafheaven", "Dream House", "2013", "Sunbather", "Fast drums and wide guitar fields provide a difficult test of transient preservation inside a bright, high-density wash."),
+    ("Dub techno and electronic depth", "Basic Channel", "Quadrant Dub I", "1994", "Quadrant Dub", "Filtered chords and delay create a room whose boundaries are defined by repetition, noise, and spectral erosion rather than early reflections."),
+    ("Dub techno and electronic depth", "Rhythm & Sound with Cornel Campbell", "King in My Empire", "2001", "King in My Empire", "Voice and rhythm remain centered while echoes recede into a dark, slowly modulated field."),
+    ("Dub techno and electronic depth", "Deepchord Presents Echospace", "First Point of Aries", "2007", "The Coldest Season", "Layered delays, hiss, and diffuse chords make depth emerge from many low-contrast events rather than one obvious tail."),
+    ("Dub techno and electronic depth", "Actress", "Hubble", "2010", "Splazsh", "Unstable transients and murky perspective show how partial obscurity can function as groove and timbral identity."),
+    ("Dub techno and electronic depth", "Andy Stott", "Numb", "2012", "Luxury Problems", "A distant voice and heavy low-frequency structure demonstrate how spectral separation can support radically different apparent distances."),
+    ("Dub techno and electronic depth", "Kelly Lee Owens", "Arthur", "2017", "Kelly Lee Owens", "Pulses, voice fragments, and expanding returns create movement by changing envelopment while the center remains restrained."),
+    ("Soundscape composition and environmental scale", "Luc Ferrari", "Presque rien No. 1: Le Lever du jour au bord de la mer", "1970", "Presque Rien", "A recorded place unfolds as composition, making source distance, perspective, and time of day primary musical parameters."),
+    ("Soundscape composition and environmental scale", "R. Murray Schafer", "Music for Wilderness Lake", "1979", "environmental work", "Trombonists positioned around a lake use propagation delay and landscape reflection as literal parts of ensemble timing."),
+    ("Soundscape composition and environmental scale", "Annea Lockwood", "A Sound Map of the Hudson River", "1982", "A Sound Map of the Hudson River", "Changing water textures and recording perspectives construct a long-form portrait whose spaces are real yet editorially composed."),
+    ("Soundscape composition and environmental scale", "Hildegard Westerkamp", "Kits Beach Soundwalk", "1989", "Transformations", "Voice, city, water, and microscopic shoreline sounds shift scale through recording perspective and studio transformation."),
+    ("Soundscape composition and environmental scale", "Chris Watson", "Vatnajökull", "2003", "Weather Report", "Time-compressed glacier recordings turn environmental change into an eighteen-minute spectral and spatial trajectory."),
+    ("Soundscape composition and environmental scale", "Jana Winderen", "Aquaculture", "2010", "Energy Field", "Hydrophones reveal underwater activity whose unfamiliar source cues require the listener to infer scale from spectrum and motion."),
 )
+
+MUSIC_STUDY_PROMPTS = (
+    "Rebuild one 20–30 second spatial gesture from {title} with original material, then preserve the exact render command and JSON report.",
+    "Match the apparent depth of {title} with convolution and algorithmic engines at equal loudness; compare pre-delay, direct-to-reverberant ratio, and high-band decay.",
+    "Create dry, early-only, late-only, and complete reconstructions of one cue from {title}; identify which path carries its spatial identity.",
+    "Analyze a lawful excerpt or an original reconstruction of {title} with `verbx analyze`; compare audible decay with broadband and frequency-dependent measurements.",
+    "Translate the spatial premise of {title} to mono, stereo, and surround; document which distance and envelopment cues survive each layout.",
+    "Automate only one spatial parameter across a short form inspired by {title}; test whether the form remains legible without level automation.",
+)
+
+MUSIC_PRIMARY_SOURCES = {
+    ("Annea Lockwood", "A Sound Map of the Hudson River"): (
+        "Composer work catalog",
+        "https://www.annealockwood.com/compositions/",
+    ),
+    ("Chris Watson", "Vatnajökull"): (
+        "Artist release notes",
+        "https://chriswatson.net/2003/08/02/to47-weather-report/",
+    ),
+    ("Ellen Fullman and Okkyung Lee", "The Air Around Her, Part I"): (
+        "Long String Instrument documentation",
+        "https://www.ellenfullman.com/about",
+    ),
+    ("Hildegard Westerkamp", "Kits Beach Soundwalk"): (
+        "Composer work page",
+        "https://www.hildegardwesterkamp.ca/sound/comp/3/kitsbeach/",
+    ),
+    ("Jana Winderen", "Aquaculture"): (
+        "Artist release notes",
+        "https://www.janawinderen.com/releases/energy-field",
+    ),
+    ("Janet Cardiff", "The Forty Part Motet"): (
+        "Artist installation record",
+        "https://cardiffmiller.com/installations/the-forty-part-motet/",
+    ),
+    ("Meredith Monk", "Gotham Lullaby"): (
+        "Artist recording catalog",
+        "https://meredithmonk.org/store/cds",
+    ),
+    ("Pauline Oliveros, Stuart Dempster, and Panaiotis", "Lear"): (
+        "Pauline Oliveros discography",
+        "https://www.paulineoliveros.us/disco.html",
+    ),
+}
 
 
 def _svg(title: str, nodes: tuple[str, ...]) -> str:
@@ -480,23 +572,79 @@ def generate_projects() -> None:
 
 
 def generate_music_expansion() -> None:
+    if len(MUSIC_EXPANSION) != 96:
+        raise ValueError(f"Expected 96 expanded listening entries, found {len(MUSIC_EXPANSION)}")
+
     lines = [
         "## Expanded Listening Canon",
         "",
-        "The following forty-eight additions broaden the appendix across sacred, orchestral, jazz, popular, ambient, screen, game, and contemporary immersive practices. Piece and album titles are italicized throughout. Links open a stable YouTube catalog search so readers can select an authorized or territorially available recording; recording-specific citations in the preceding section remain the preferred references where supplied.",
+        "The following ninety-six additions broaden the appendix across sacred, orchestral, jazz, popular, ambient, theater, installation, environmental, game, and contemporary immersive practices. Piece and album titles are italicized throughout. Each entry pairs a listening cue with a practical study prompt. Links open a stable YouTube catalog search so readers can select an authorized or territorially available recording; recording-specific citations in the preceding section and the primary documentation below remain the preferred references where supplied.",
+        "",
+        "### Curated Listening Routes",
+        "",
+        "- **Architecture and choir.** Begin with *Spem in alium*, *Miserere mei, Deus*, *Passio*, *The Forty Part Motet*, and *Kits Beach Soundwalk* to compare written spatial design, recorded architecture, installation, and narrated place.",
+        "- **Rhythm and short space.** Move from *Mystery Train* through *King Tubby Meets Rockers Uptown*, *Quadrant Dub I*, *Welcome to the Terrordome*, and *Dream House* to hear when reflection becomes pulse, syncopation, or masking.",
+        "- **Long decay and near-stasis.** Compare *Apparition de l'église éternelle*, *Schlingen-Blängen*, *Deep Listening*, *Jetsun Mila*, *The Sacrificial Code*, and *#3 (Rhubarb)* at matched monitoring level.",
+        "- **Voice and psychological distance.** Trace the changing foreground in *A Change Is Gonna Come*, *Amazing Grace*, *Where Will I Be*, *Roads*, *cellophane*, and *when the party's over*.",
+        "- **Movement and immersion.** Study *Kontakte*, *Persephassa*, *Répons*, *Le Encantadas o le avventure nel mare delle meraviglie*, *Movement 6*, and *Billions* with explicit attention to trajectory and envelopment.",
+        "- **Environment as form.** Hear *Presque rien No. 1*, *Music for Wilderness Lake*, *A Sound Map of the Hudson River*, *Kits Beach Soundwalk*, *Vatnajökull*, and *Aquaculture* as composed relationships among listener, place, microphone, and playback room.",
         "",
     ]
     active_category = None
+    category_index = 0
     for category, creator, title, year, album, note in MUSIC_EXPANSION:
         if category != active_category:
             lines.extend((f"### {category.title()}", ""))
             active_category = category
+            category_index = 0
         query = quote_plus(f"{creator} {title} official")
         album_text = f" from *{album}*" if album.lower() != title.lower() else f" on *{album}*"
+        source = MUSIC_PRIMARY_SOURCES.get((creator, title))
+        source_text = f" [{source[0]}]({source[1]})." if source else ""
+        study_prompt = MUSIC_STUDY_PROMPTS[category_index % len(MUSIC_STUDY_PROMPTS)].format(
+            title=f"*{title}*"
+        )
+        category_index += 1
         lines.extend((
-            f"**{creator}, *{title}* ({year}).**{album_text}. {note} [YouTube catalog search](https://www.youtube.com/results?search_query={query}).",
+            f"**{creator}, *{title}* ({year}).**{album_text}. {note} [YouTube catalog search](https://www.youtube.com/results?search_query={query}).{source_text}",
+            "",
+            f"**Study prompt.** {study_prompt}",
             "",
         ))
+
+    lines.extend((
+        "## Selected Primary Documentation",
+        "",
+        "These creator and institutional pages document works whose site, installation, release, or recording history is especially important to the listening note. The list is alphabetical by creator.",
+        "",
+    ))
+    for (creator, title), (label, url) in sorted(MUSIC_PRIMARY_SOURCES.items()):
+        lines.append(f"- {creator}. *{title}*. [{label}]({url}).")
+    lines.extend((
+        "",
+        "\\newpage",
+        "",
+        "## Appendix A Listening Record",
+        "",
+        "Use one record for each focused comparison. The aim is to preserve enough evidence that another reader can repeat the listening conditions, understand the inference, and rebuild the spatial principle without copying the recording.",
+        "",
+        "- **Source and version.** Record the work, performer, release, mix or remaster, playback service or physical medium, and the exact passage studied. Note when a catalog search led to a different recording than the one described in the entry.",
+        "- **Playback conditions.** Record sample rate, channel layout, loudspeaker or headphone system, listening level, room, normalization state, and whether any host spatialization or room correction was active.",
+        "- **Spatial event map.** Mark direct attacks, first audible reflections, echo clusters, late-field blooms, gates, feedback gestures, movement, and silence. Use elapsed time in seconds so observations can be checked without reproducing lyrics or score text.",
+        "- **Measured evidence.** Save `verbx analyze` JSON for lawful source material or for the reconstruction. Separate measured quantities from perceptual descriptions, and do not present program-material RT60 estimates as calibrated room measurements.",
+        "- **Reconstruction.** Preserve the dry source, exact command or plug-in state, random seed where relevant, output format, and one deliberately contrasting render. State which property was held constant during the comparison.",
+        "- **Listening judgment.** Describe what the reverberation contributes to rhythm, form, harmony, orchestration, drama, or place. End by naming one parameter that mattered less than expected and one interaction that mattered more.",
+        "",
+        "**Two-pass reconstruction protocol.**",
+        "",
+        "1. **Establish the baseline.** Trim a short original source, set conservative monitor gain, and render a dry reference. Write a prediction for apparent size, distance, decay color, and movement before choosing an engine or preset.",
+        "2. **Build controlled layers.** Create early-only and late-only versions before the complete reconstruction. Change one parameter family at a time, level-match every comparison, and keep at least one intentionally wrong version that makes the role of the target cue easier to hear.",
+        "3. **Test without labels.** Randomize the dry reference, reconstruction, and contrasting render. Ask at least one listener to rank distance, clarity, envelopment, and musical fit without seeing the settings. Record disagreement rather than averaging it away.",
+        "4. **Archive the evidence.** Save audio hashes, commands or plug-in state, reports, routing notes, and a short conclusion. If the study uses a commercial recording for listening, archive only bibliographic and timing information unless distribution rights permit more.",
+        "",
+        "A complete record should fit on this page. It is evidence for critical listening, not a claim that one preset or metric explains the artistic result. The strongest conclusion names the audible interaction, the controlled comparison that exposed it, and the limit beyond which the reconstruction stopped serving the music.",
+        "",
+    ))
     (ROOT / "docs" / "MUSICAL_PIECES_EXPANSION.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
@@ -549,9 +697,14 @@ def validate_music_typography() -> None:
     malformed: list[str] = []
     for path, text in (("appendix", appendix), ("expansion", expansion)):
         for line_number, line in enumerate(text.splitlines(), 1):
-            if line.startswith("**") and not re.match(
-                r"^\*\*.+?, \*[^*]+\*(?:, from \*[^*]+\*)? \([^)]+\)\.\*\*",
-                line,
+            if (
+                line.startswith("**")
+                and not line.startswith("**Study prompt.**")
+                and not re.fullmatch(r"\*\*[^*]+\.\*\*", line)
+                and not re.match(
+                    r"^\*\*.+?, \*[^*]+\*(?:, from \*[^*]+\*)? \([^)]+\)\.\*\*",
+                    line,
+                )
             ):
                 malformed.append(f"{path}:{line_number}: {line}")
             if line.startswith("- ") and "YouTube" in line and not re.search(r"\. \*[^*]+\*", line):
@@ -567,7 +720,7 @@ def main() -> None:
     generate_projects()
     generate_music_expansion()
     validate_music_typography()
-    print("Wrote introductory diagrams, 48 listening entries, and 48 educational projects")
+    print("Wrote introductory diagrams, 96 listening entries, and 48 educational projects")
 
 
 if __name__ == "__main__":
