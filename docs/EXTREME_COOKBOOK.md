@@ -133,7 +133,7 @@ The `--beast-mode` flag increases the density and complexity of the internal dif
 
 ---
 
-**Recipe 1**
+### Recipe 1: Two-Minute Diffusion Field
 ```bash
 verbx render in.wav out/001_algo_long.wav --engine algo --rt60 120 --wet 0.95 --dry 0.1 --beast-mode 6
 ```
@@ -143,7 +143,7 @@ _DSP note:_ RT60 of 120 seconds means the energy takes two full minutes to decay
 
 ---
 
-**Recipe 2**
+### Recipe 2: Lightless Cavern
 ```bash
 verbx render in.wav out/002_algo_dark.wav --engine algo --rt60 90 --damping 0.9 --wet 0.9 --dry 0.15
 ```
@@ -153,7 +153,7 @@ _DSP note:_ `--damping 0.9` applies frequency-dependent attenuation to the high 
 
 ---
 
-**Recipe 3**
+### Recipe 3: Beyond-the-Speakers Width
 ```bash
 verbx render in.wav out/003_algo_wide.wav --engine algo --rt60 75 --width 2.0 --wet 0.85 --dry 0.2
 ```
@@ -163,7 +163,7 @@ _DSP note:_ `--width 2.0` applies a Mid-Side matrix transform to the stereo outp
 
 ---
 
-**Recipe 4**
+### Recipe 4: Twenty-Second Breathing Tail
 ```bash
 verbx render in.wav out/004_algo_mod_slow.wav --engine algo --rt60 80 --mod-depth-ms 12 --mod-rate-hz 0.05
 ```
@@ -173,7 +173,7 @@ _DSP note:_ The modulation LFO at 0.05 Hz has a period of 20 seconds. It is modu
 
 ---
 
-**Recipe 5**
+### Recipe 5: Seasick Modulation
 ```bash
 verbx render in.wav out/005_algo_mod_fast.wav --engine algo --rt60 65 --mod-depth-ms 8 --mod-rate-hz 1.2
 ```
@@ -183,7 +183,7 @@ _DSP note:_ At 1.2 Hz with 8ms depth, the modulation is fast enough to produce a
 
 ---
 
-**Recipe 6**
+### Recipe 6: Delayed Reverb Cloud
 ```bash
 verbx render in.wav out/006_algo_predelay_cloud.wav --engine algo --rt60 70 --pre-delay-ms 220 --wet 0.9
 ```
@@ -193,7 +193,7 @@ _DSP note:_ 220ms pre-delay is well above the Haas threshold (~30ms), meaning th
 
 ---
 
-**Recipe 7**
+### Recipe 7: Double-Pass Diffusion Splash
 ```bash
 verbx render in.wav out/007_algo_splash.wav --engine algo --rt60 45 --beast-mode 10 --repeat 2
 ```
@@ -203,7 +203,7 @@ _DSP note:_ `--repeat 2` runs the render pipeline twice and stacks the outputs. 
 
 ---
 
-**Recipe 8**
+### Recipe 8: Three-Minute Wet Abyss
 ```bash
 verbx render in.wav out/008_algo_massive.wav --engine algo --rt60 180 --wet 1.0 --dry 0.0 --beast-mode 12
 ```
@@ -215,7 +215,7 @@ _DSP note:_ `--wet 1.0 --dry 0.0` eliminates the direct signal path entirely. Co
 
 ---
 
-**Recipe 9**
+### Recipe 9: Airy Bright Expanse
 ```bash
 verbx render in.wav out/009_algo_air.wav --engine algo --rt60 50 --damping 0.2 --highcut 18000 --tilt 3
 ```
@@ -225,7 +225,7 @@ _DSP note:_ Low damping (0.2) preserves high-frequency content across feedback p
 
 ---
 
-**Recipe 10**
+### Recipe 10: Low-Frequency Mud Chamber
 ```bash
 verbx render in.wav out/010_algo_mud.wav --engine algo --rt60 110 --lowcut 30 --highcut 1800 --tilt -5
 ```
@@ -249,7 +249,7 @@ Freeze workflows are central to ambient music production and sound design for pi
 
 ---
 
-**Recipe 11**
+### Recipe 11: Triple Short Freeze
 ```bash
 verbx render in.wav out/011_freeze_short.wav --freeze --start 2 --end 3 --repeat 3 --engine algo
 ```
@@ -259,7 +259,7 @@ _DSP note:_ `--start 2 --end 3` extracts the audio between the 2-second and 3-se
 
 ---
 
-**Recipe 12**
+### Recipe 12: Wide Four-Pass Freeze
 ```bash
 verbx render in.wav out/012_freeze_wide.wav --freeze --start 4 --end 6 --repeat 4 --width 1.8
 ```
@@ -269,7 +269,7 @@ _DSP note:_ Width processing at 1.8 applied to a frozen loop will amplify any st
 
 ---
 
-**Recipe 13**
+### Recipe 13: High-Density Freeze Cascade
 ```bash
 verbx render in.wav out/013_freeze_beast.wav --freeze --start 1 --end 2.2 --repeat 5 --beast-mode 14
 ```
@@ -279,7 +279,7 @@ _DSP note:_ Beast-mode 14 pushes the diffusion network into high-complexity terr
 
 ---
 
-**Recipe 14**
+### Recipe 14: Dark Frozen Loop
 ```bash
 verbx render in.wav out/014_freeze_dark.wav --freeze --start 3 --end 5 --repeat 3 --damping 0.85 --tilt -4
 ```
@@ -289,7 +289,7 @@ _DSP note:_ High damping combined with negative tilt stacks two separate high-fr
 
 ---
 
-**Recipe 15**
+### Recipe 15: Frozen Shimmer Cloud
 ```bash
 verbx render in.wav out/015_freeze_shimmer.wav --freeze --start 2.5 --end 4 --repeat 2 --shimmer
 ```
@@ -299,7 +299,7 @@ _DSP note:_ The shimmer algorithm pitch-shifts the reverb signal up by 12 semito
 
 ---
 
-**Recipe 16**
+### Recipe 16: Six-Pass Algorithmic Accumulation
 ```bash
 verbx render in.wav out/016_repeat_algo.wav --engine algo --rt60 55 --repeat 6 --normalize-stage per-pass
 ```
@@ -309,7 +309,7 @@ _DSP note:_ `--normalize-stage per-pass` applies normalization at the output of 
 
 ---
 
-**Recipe 17**
+### Recipe 17: Four-Pass Convolution Hall
 ```bash
 verbx render in.wav out/017_repeat_conv.wav --engine conv --ir hall.wav --repeat 4 --normalize-stage per-pass
 ```
@@ -319,7 +319,7 @@ _DSP note:_ Convolving the output of a convolution with the same IR is mathemati
 
 ---
 
-**Recipe 18**
+### Recipe 18: Repeated Ducked Tail
 ```bash
 verbx render in.wav out/018_repeat_duck.wav --engine algo --repeat 5 --duck --duck-attack 5 --duck-release 800
 ```
@@ -329,7 +329,7 @@ _DSP note:_ Duck is a sidechain-style gain reduction applied to the wet signal w
 
 ---
 
-**Recipe 19**
+### Recipe 19: Four-Pass Bloom
 ```bash
 verbx render in.wav out/019_repeat_bloom.wav --engine algo --repeat 4 --bloom 4.5 --wet 0.95
 ```
@@ -339,7 +339,7 @@ _DSP note:_ Bloom delays the onset of the reverb density curve. A bloom value of
 
 ---
 
-**Recipe 20**
+### Recipe 20: Deep Noise-Floor Cathedral
 ```bash
 verbx render in.wav out/020_repeat_floor.wav --engine algo --rt60 140 --repeat 3 --target-lufs -26
 ```
@@ -365,7 +365,7 @@ The recipes in this section push convolution into less conventional territory �
 
 ---
 
-**Recipe 21**
+### Recipe 21: Large-Partition Hall
 ```bash
 verbx render in.wav out/021_conv_hall.wav --engine conv --ir hall.wav --partition-size 32768
 ```
@@ -375,7 +375,7 @@ _DSP note:_ Partition-based convolution divides the IR into blocks that are conv
 
 ---
 
-**Recipe 22**
+### Recipe 22: Peak-Normalized Plate
 ```bash
 verbx render in.wav out/022_conv_plate.wav --engine conv --ir plate.wav --ir-normalize peak
 ```
@@ -385,7 +385,7 @@ _DSP note:_ `--ir-normalize peak` normalizes the impulse response to its peak sa
 
 ---
 
-**Recipe 23**
+### Recipe 23: Extended Church Tail
 ```bash
 verbx render in.wav out/023_conv_church.wav --engine conv --ir church.wav --tail-limit 150
 ```
@@ -395,7 +395,7 @@ _DSP note:_ `--tail-limit 150` truncates the IR at 150 seconds and applies a fad
 
 ---
 
-**Recipe 24**
+### Recipe 24: Mono IR Across the Field
 ```bash
 verbx render in.wav out/024_conv_mono_to_all.wav --engine conv --ir mono_ir.wav --wet 0.9 --dry 0.2
 ```
@@ -405,7 +405,7 @@ _DSP note:_ When a mono IR is used on a stereo input, `verbx` applies the IR to 
 
 ---
 
-**Recipe 25**
+### Recipe 25: Output-Major Surround Matrix
 ```bash
 verbx render in.wav out/025_conv_surround.wav --engine conv --ir matrix_5p1.wav --ir-matrix-layout output-major
 ```
@@ -415,7 +415,7 @@ _DSP note:_ Output-major matrix layout means the IR file is organized so that th
 
 ---
 
-**Recipe 26**
+### Recipe 26: Input-Major Surround Matrix
 ```bash
 verbx render in.wav out/026_conv_input_major.wav --engine conv --ir matrix_5p1.wav --ir-matrix-layout input-major
 ```
@@ -425,7 +425,7 @@ _DSP note:_ Input-major layout means the IR file is organized so that the first 
 
 ---
 
-**Recipe 27**
+### Recipe 27: High-Throughput Hall Convolution
 ```bash
 verbx render in.wav out/027_conv_fast.wav --engine conv --ir hall.wav --partition-size 65536 --normalize-stage none
 ```
@@ -435,7 +435,7 @@ _DSP note:_ Disabling normalization with `--normalize-stage none` passes the raw
 
 ---
 
-**Recipe 28**
+### Recipe 28: Triple Dense Hall
 ```bash
 verbx render in.wav out/028_conv_dense.wav --engine conv --ir hall.wav --repeat 3 --beast-mode 5
 ```
@@ -445,7 +445,7 @@ _DSP note:_ Beast-mode applied to a convolution engine increases the density of 
 
 ---
 
-**Recipe 29**
+### Recipe 29: Twenty-Second Trimmed Hall
 ```bash
 verbx render in.wav out/029_conv_trimmed.wav --engine conv --ir hall.wav --tail-limit 20
 ```
@@ -455,7 +455,7 @@ _DSP note:_ Truncating the IR at 20 seconds cuts most of the reverberation tail 
 
 ---
 
-**Recipe 30**
+### Recipe 30: Full-Tail Input-Peak Match
 ```bash
 verbx render in.wav out/030_conv_fulltail.wav --engine conv --ir hall.wav --output-peak-norm input
 ```
@@ -473,7 +473,7 @@ This section is primarily useful for experimental sound design, academic study, 
 
 ---
 
-**Recipe 31**
+### Recipe 31: Raw Self-Convolution
 ```bash
 verbx render in.wav out/031_self_base.wav --self-convolve --normalize-stage none
 ```
@@ -483,7 +483,7 @@ _DSP note:_ Self-convolution in the frequency domain squares the magnitude spect
 
 ---
 
-**Recipe 32**
+### Recipe 32: High-Density Self-Convolution
 ```bash
 verbx render in.wav out/032_self_beast.wav --self-convolve --beast-mode 20 --normalize-stage none
 ```
@@ -495,7 +495,7 @@ _DSP note:_ Beast-mode 20 is at the upper end of the useful range. Applied to se
 
 ---
 
-**Recipe 33**
+### Recipe 33: Two-Hundred-Second Self Tail
 ```bash
 verbx render in.wav out/033_self_longtail.wav --self-convolve --tail-limit 200 --partition-size 32768
 ```
@@ -505,7 +505,7 @@ _DSP note:_ Self-convolution produces a signal whose duration is approximately t
 
 ---
 
-**Recipe 34**
+### Recipe 34: Bright Self-Convolution
 ```bash
 verbx render in.wav out/034_self_bright.wav --self-convolve --tilt 5 --highcut 18000
 ```
@@ -515,7 +515,7 @@ _DSP note:_ Self-convolution tends to bias toward whichever spectral region has 
 
 ---
 
-**Recipe 35**
+### Recipe 35: Dark Self-Convolution
 ```bash
 verbx render in.wav out/035_self_dark.wav --self-convolve --tilt -6 --highcut 2500
 ```
@@ -525,7 +525,7 @@ _DSP note:_ `--tilt -6` and `--highcut 2500` together severely limit the bandwid
 
 ---
 
-**Recipe 36**
+### Recipe 36: Ducked Self-Convolution
 ```bash
 verbx render in.wav out/036_self_duck.wav --self-convolve --duck --duck-attack 3 --duck-release 600
 ```
@@ -535,7 +535,7 @@ _DSP note:_ Ducking applied to self-convolution uses the dry signal as the sidec
 
 ---
 
-**Recipe 37**
+### Recipe 37: Shimmering Self-Convolution
 ```bash
 verbx render in.wav out/037_self_shimmer.wav --self-convolve --shimmer --shimmer-mix 0.55
 ```
@@ -545,7 +545,7 @@ _DSP note:_ Shimmer applied to the output of self-convolution adds a pitch-shift
 
 ---
 
-**Recipe 38**
+### Recipe 38: Triple Self-Convolution
 ```bash
 verbx render in.wav out/038_self_repeat.wav --self-convolve --repeat 3 --normalize-stage per-pass
 ```
@@ -555,7 +555,7 @@ _DSP note:_ Each repeat pass uses the output of the previous pass as the input t
 
 ---
 
-**Recipe 39**
+### Recipe 39: Loudness-Targeted Self-Convolution
 ```bash
 verbx render in.wav out/039_self_loud.wav --self-convolve --target-lufs -16 --target-peak-dbfs -1
 ```
@@ -565,7 +565,7 @@ _DSP note:_ –16 LUFS is approximately the target for music streaming platforms
 
 ---
 
-**Recipe 40**
+### Recipe 40: Beast-Mode Self-Consumption
 ```bash
 verbx render in.wav out/040_self_huge.wav --self-convolve --beast-mode 40 --repeat 2
 ```
@@ -595,7 +595,7 @@ _DSP note:_ Comb cloud sits before the late FDN. It changes the excitation enter
 
 ---
 
-**Recipe 41**
+### Recipe 41: Octave Shimmer
 ```bash
 verbx render in.wav out/041_shimmer_oct.wav --engine algo --shimmer --shimmer-semitones 12 --shimmer-mix 0.35
 ```
@@ -605,7 +605,7 @@ _DSP note:_ Shimmer works by pitch-shifting the reverb output up by the specifie
 
 ---
 
-**Recipe 42**
+### Recipe 42: Two-Octave Feedback Shimmer
 ```bash
 verbx render in.wav out/042_shimmer_double.wav --engine algo --shimmer --shimmer-semitones 24 --shimmer-feedback 0.8
 ```
@@ -615,7 +615,7 @@ _DSP note:_ `--shimmer-feedback 0.8` means the pitch-shifted signal is re-inject
 
 ---
 
-**Recipe 43**
+### Recipe 43: Perfect-Fifth Shimmer
 ```bash
 verbx render in.wav out/043_shimmer_fifth.wav --engine algo --shimmer --shimmer-semitones 7 --shimmer-mix 0.5
 ```
@@ -625,7 +625,7 @@ _DSP note:_ Seven semitones is a perfect fifth in equal temperament. The pitch r
 
 ---
 
-**Recipe 44**
+### Recipe 44: Hard Reverb Ducking
 ```bash
 verbx render in.wav out/044_duck_hard.wav --engine algo --duck --duck-attack 2 --duck-release 900
 ```
@@ -635,7 +635,7 @@ _DSP note:_ 2ms attack means the sidechain engages almost instantaneously — es
 
 ---
 
-**Recipe 45**
+### Recipe 45: Soft Reverb Ducking
 ```bash
 verbx render in.wav out/045_duck_soft.wav --engine algo --duck --duck-attack 60 --duck-release 180
 ```
@@ -645,7 +645,7 @@ _DSP note:_ 60ms attack is slow enough that transients pass through before the d
 
 ---
 
-**Recipe 46**
+### Recipe 46: Five-Second Bloom
 ```bash
 verbx render in.wav out/046_bloom_long.wav --engine algo --bloom 5 --rt60 90
 ```
@@ -655,7 +655,7 @@ _DSP note:_ Bloom shapes the density envelope of the early reverb diffusion. A b
 
 ---
 
-**Recipe 47**
+### Recipe 47: Blooming Shimmer
 ```bash
 verbx render in.wav out/047_bloom_shimmer.wav --engine algo --bloom 3 --shimmer --shimmer-mix 0.4
 ```
@@ -665,7 +665,7 @@ _DSP note:_ Because shimmer feeds into the reverb input, the bloom envelope affe
 
 ---
 
-**Recipe 48**
+### Recipe 48: Upward Spectral Tilt
 ```bash
 verbx render in.wav out/048_tilt_up.wav --engine algo --tilt 6 --lowcut 120
 ```
@@ -675,7 +675,7 @@ _DSP note:_ `--tilt 6` applies a +6dB/octave high-shelf tilt to the reverb outpu
 
 ---
 
-**Recipe 49**
+### Recipe 49: Downward Spectral Tilt
 ```bash
 verbx render in.wav out/049_tilt_down.wav --engine algo --tilt -6 --highcut 4500
 ```
@@ -685,7 +685,7 @@ _DSP note:_ `--tilt -6` applies a –6 dB/octave downward slope, attenuating fre
 
 ---
 
-**Recipe 50**
+### Recipe 50: Duck-Bloom-Shimmer Combination
 ```bash
 verbx render in.wav out/050_combo_extreme.wav --engine algo --duck --bloom 4 --tilt 4 --shimmer --beast-mode 8
 ```
@@ -705,7 +705,7 @@ Output format matters more than most engineers think. Float32 preserves more dyn
 
 ---
 
-**Recipe 51**
+### Recipe 51: Quiet Streaming Loudness
 ```bash
 verbx render in.wav out/051_lufs_24.wav --target-lufs -24 --target-peak-dbfs -2
 ```
@@ -715,7 +715,7 @@ _DSP note:_ Integrated LUFS measurement gates silence and weights frequencies ac
 
 ---
 
-**Recipe 52**
+### Recipe 52: Loud True-Peak Master
 ```bash
 verbx render in.wav out/052_lufs_18.wav --target-lufs -18 --target-peak-dbfs -1 --true-peak
 ```
@@ -725,7 +725,7 @@ _DSP note:_ True peak measurement uses oversampled analysis (typically 4x) to de
 
 ---
 
-**Recipe 53**
+### Recipe 53: Sample-Peak Ceiling
 ```bash
 verbx render in.wav out/053_sample_peak.wav --target-peak-dbfs -0.5 --sample-peak
 ```
@@ -735,7 +735,7 @@ _DSP note:_ Sample peak normalization finds the single loudest sample in the fil
 
 ---
 
-**Recipe 54**
+### Recipe 54: Per-Pass Loudness Control
 ```bash
 verbx render in.wav out/054_per_pass.wav --repeat 4 --normalize-stage per-pass --repeat-target-lufs -22
 ```
@@ -745,7 +745,7 @@ _DSP note:_ `--repeat-target-lufs -22` sets the per-pass loudness target indepen
 
 ---
 
-**Recipe 55**
+### Recipe 55: Unrestricted Tail Without Limiting
 ```bash
 verbx render in.wav out/055_no_limiter.wav --engine algo --rt60 70 --no-limiter
 ```
@@ -755,7 +755,7 @@ _DSP note:_ The `--no-limiter` flag bypasses the output-stage limiter and leaves
 
 ---
 
-**Recipe 56**
+### Recipe 56: 192 kHz Float32 Convolution
 ```bash
 verbx render in.wav out/056_float32.wav --engine conv --ir hall.wav --target-sr 192000 --out-subtype float32
 ```
@@ -765,7 +765,7 @@ _DSP note:_ Float32 encoding provides approximately 24 bits of dynamic range at 
 
 ---
 
-**Recipe 57**
+### Recipe 57: Float64 Convolution Master
 ```bash
 verbx render in.wav out/057_float64.wav --engine conv --ir hall.wav --out-subtype float64
 ```
@@ -775,7 +775,7 @@ _DSP note:_ Float64 provides approximately 52 bits of mantissa precision. The au
 
 ---
 
-**Recipe 58**
+### Recipe 58: 24-Bit PCM Delivery
 ```bash
 verbx render in.wav out/058_pcm24.wav --engine conv --ir hall.wav --out-subtype pcm24
 ```
@@ -785,7 +785,7 @@ _DSP note:_ PCM24 provides a fixed dynamic range of approximately 144dB theoreti
 
 ---
 
-**Recipe 59**
+### Recipe 59: Input-Referenced Peak Normalization
 ```bash
 verbx render in.wav out/059_peak_input.wav --engine algo --output-peak-norm input
 ```
@@ -795,7 +795,7 @@ _DSP note:_ `--output-peak-norm input` measures the peak sample amplitude of the
 
 ---
 
-**Recipe 60**
+### Recipe 60: Fixed Target Peak Normalization
 ```bash
 verbx render in.wav out/060_peak_target.wav --engine algo --output-peak-norm target --output-peak-target-dbfs -9
 ```
@@ -815,7 +815,7 @@ The workflow in recipes 61-70 forms a complete IR generation and processing pipe
 
 ---
 
-**Recipe 61**
+### Recipe 61: Hybrid Synthetic Space
 ```bash
 verbx ir gen out/061_ir_hybrid.wav --mode hybrid --length 120 --seed 61
 ```
@@ -825,7 +825,7 @@ _DSP note:_ Hybrid mode combines a deterministic early-reflection model (which g
 
 ---
 
-**Recipe 62**
+### Recipe 62: Twelve-Line FDN Impulse
 ```bash
 verbx ir gen out/062_ir_fdn.wav --mode fdn --length 180 --fdn-lines 12 --seed 62
 ```
@@ -835,7 +835,7 @@ _DSP note:_ Feedback Delay Networks use a matrix of delay lines with a feedback 
 
 ---
 
-**Recipe 63**
+### Recipe 63: Dense Stochastic Tail
 ```bash
 verbx ir gen out/063_ir_stochastic.wav --mode stochastic --length 240 --density 1.8 --seed 63
 ```
@@ -845,7 +845,7 @@ _DSP note:_ Stochastic IR synthesis models the late-field reverberation as an ex
 
 ---
 
-**Recipe 64**
+### Recipe 64: Ninety-Six-Mode Resonator Bank
 ```bash
 verbx ir gen out/064_ir_modal.wav --mode modal --length 90 --modal-count 96 --seed 64
 ```
@@ -855,7 +855,7 @@ _DSP note:_ Modal synthesis generates an IR as a sum of decaying sinusoids, each
 
 ---
 
-**Recipe 65**
+### Recipe 65: Tuned 64 Hz Modal Space
 ```bash
 verbx ir gen out/065_ir_tuned.wav --mode modal --length 120 --f0 64Hz --seed 65
 ```
@@ -865,7 +865,7 @@ _DSP note:_ Setting `--f0 64Hz` anchors the modal synthesis so that the lowest-f
 
 ---
 
-**Recipe 66**
+### Recipe 66: Input-Informed Hybrid IR
 ```bash
 verbx ir gen out/066_ir_from_input.wav --mode hybrid --analyze-input in.wav --seed 66
 ```
@@ -875,7 +875,7 @@ _DSP note:_ `--analyze-input` extracts the spectral envelope, dynamic range, and
 
 ---
 
-**Recipe 67**
+### Recipe 67: Hybrid Resonator IR
 ```bash
 verbx ir gen out/067_ir_resonator.wav --mode hybrid --resonator --resonator-mix 0.6 --seed 67
 ```
@@ -885,7 +885,7 @@ _DSP note:_ The resonator adds a set of high-Q bandpass filters to the IR synthe
 
 ---
 
-**Recipe 68**
+### Recipe 68: Darkened Peak-Normalized IR
 ```bash
 verbx ir process out/067_ir_resonator.wav out/068_ir_processed.wav --tilt -4 --normalize peak
 ```
@@ -895,7 +895,7 @@ _DSP note:_ IR processing applies DSP to the impulse response itself rather than
 
 ---
 
-**Recipe 69**
+### Recipe 69: Machine-Readable IR Analysis
 ```bash
 verbx ir analyze out/068_ir_processed.wav --json-out out/069_ir_analysis.json
 ```
@@ -905,7 +905,7 @@ _DSP note:_ IR analysis typically measures RT20, RT30, RT60 (derived from the de
 
 ---
 
-**Recipe 70**
+### Recipe 70: Custom-IR Double Render
 ```bash
 verbx render in.wav out/070_ir_render.wav --engine conv --ir out/068_ir_processed.wav --repeat 2
 ```
@@ -931,7 +931,7 @@ In cinema mixing, the surround channels carry ambient reverb and environmental i
 
 ---
 
-**Recipe 71**
+### Recipe 71: 5.1 Matrix Convolution
 ```bash
 verbx render in_5p1.wav out/071_5p1_conv.wav --engine conv --ir ir_5p1_matrix.wav --ir-matrix-layout output-major
 ```
@@ -941,7 +941,7 @@ _DSP note:_ Output-major layout: the IR file contains IR channels ordered as (IR
 
 ---
 
-**Recipe 72**
+### Recipe 72: 7.1 Matrix Convolution
 ```bash
 verbx render in_7p1.wav out/072_7p1_conv.wav --engine conv --ir ir_7p1_matrix.wav --ir-matrix-layout output-major
 ```
@@ -951,7 +951,7 @@ _DSP note:_ 7.1 requires an IR with at least 8 channels (or a matrix of 8 output
 
 ---
 
-**Recipe 73**
+### Recipe 73: Wide 5.1 Algorithmic Hall
 ```bash
 verbx render in_5p1.wav out/073_5p1_algo.wav --engine algo --rt60 85 --width 1.6
 ```
@@ -961,7 +961,7 @@ _DSP note:_ Algorithmic multichannel reverb applies the reverb engine independen
 
 ---
 
-**Recipe 74**
+### Recipe 74: Three-Pass 7.1 Beast Field
 ```bash
 verbx render in_7p1.wav out/074_7p1_algo_beast.wav --engine algo --beast-mode 12 --repeat 3
 ```
@@ -971,7 +971,7 @@ _DSP note:_ Beast-mode 12 in multichannel increases the diffusion network comple
 
 ---
 
-**Recipe 75**
+### Recipe 75: Frozen 5.1 Moment
 ```bash
 verbx render in_5p1.wav out/075_5p1_freeze.wav --engine algo --freeze --start 3 --end 4.5 --repeat 2
 ```
@@ -981,7 +981,7 @@ _DSP note:_ Freeze in multichannel mode extracts the specified window from all c
 
 ---
 
-**Recipe 76**
+### Recipe 76: 7.1 Shimmer Field
 ```bash
 verbx render in_7p1.wav out/076_7p1_shimmer.wav --engine algo --shimmer --shimmer-mix 0.45
 ```
@@ -991,7 +991,7 @@ _DSP note:_ The shimmer feedback path in multichannel wraps around all channels.
 
 ---
 
-**Recipe 77**
+### Recipe 77: Broadcast-Loudness 5.1 Render
 ```bash
 verbx render in_5p1.wav out/077_5p1_target.wav --target-lufs -23 --target-peak-dbfs -2
 ```
@@ -1001,7 +1001,7 @@ _DSP note:_ Integrated LUFS for multichannel uses the channel-weighting defined 
 
 ---
 
-**Recipe 78**
+### Recipe 78: Float32 Full-Scale 7.1 Render
 ```bash
 verbx render in_7p1.wav out/078_7p1_fullscale.wav --output-peak-norm full-scale --out-subtype float32
 ```
@@ -1011,7 +1011,7 @@ _DSP note:_ `--output-peak-norm full-scale` applies gain to bring the loudest sa
 
 ---
 
-**Recipe 79**
+### Recipe 79: Twelve-Second 5.1 Tail
 ```bash
 verbx render in_5p1.wav out/079_5p1_tailcap.wav --engine conv --ir ir_5p1_matrix.wav --tail-limit 12
 ```
@@ -1021,7 +1021,7 @@ _DSP note:_ 12 seconds is generous for most indoor spaces but short for cathedra
 
 ---
 
-**Recipe 80**
+### Recipe 80: Four-Minute 7.1 Tail
 ```bash
 verbx render in_7p1.wav out/080_7p1_longtail.wav --engine conv --ir ir_7p1_matrix.wav --tail-limit 240
 ```
@@ -1039,7 +1039,7 @@ The `suggest` command is worth studying — it uses analysis of the input to gen
 
 ---
 
-**Recipe 81**
+### Recipe 81: Dotted-Eighth Pre-Delay at 96 BPM
 ```bash
 verbx render in.wav out/081_predelay_8d.wav --pre-delay 1/8D --bpm 96 --engine algo
 ```
@@ -1049,7 +1049,7 @@ _DSP note:_ Tempo-synced pre-delay uses the BPM value to calculate the delay in 
 
 ---
 
-**Recipe 82**
+### Recipe 82: Sixteenth-Triplet Pre-Delay at 132 BPM
 ```bash
 verbx render in.wav out/082_predelay_triplet.wav --pre-delay 1/16T --bpm 132 --engine algo
 ```
@@ -1059,7 +1059,7 @@ _DSP note:_ A sixteenth-note triplet at 132 BPM = (60000 / 132) / 4 * (2/3) ≈ 
 
 ---
 
-**Recipe 83**
+### Recipe 83: LUFS and EDR JSON Analysis
 ```bash
 verbx analyze in.wav --lufs --edr --json-out out/083_analysis.json
 ```
@@ -1069,7 +1069,7 @@ _DSP note:_ EDR (Energy Decay Relief) is a time-frequency representation of how 
 
 ---
 
-**Recipe 84**
+### Recipe 84: Framewise EDR Export
 ```bash
 verbx analyze in.wav --frames-out out/084_frames.csv --edr
 ```
@@ -1079,7 +1079,7 @@ _DSP note:_ Per-frame analysis provides time-resolved measurement at the frame r
 
 ---
 
-**Recipe 85**
+### Recipe 85: Input-Aware Parameter Suggestions
 ```bash
 verbx suggest in.wav
 ```
@@ -1089,7 +1089,7 @@ _DSP note:_ The suggestion engine analyzes the input's dynamic range, spectral c
 
 ---
 
-**Recipe 86**
+### Recipe 86: Batch Manifest Template
 ```bash
 verbx batch template > out/086_manifest.json
 ```
@@ -1099,7 +1099,7 @@ _DSP note:_ The manifest file defines a list of render jobs with all parameters 
 
 ---
 
-**Recipe 87**
+### Recipe 87: Longest-First Parallel Batch
 ```bash
 verbx batch render manifest.json --jobs 8 --schedule longest-first --retries 1
 ```
@@ -1109,7 +1109,7 @@ _DSP note:_ `--schedule longest-first` is a work-stealing heuristic that priorit
 
 ---
 
-**Recipe 88**
+### Recipe 88: Shortest-First Batch Dry Run
 ```bash
 verbx batch render manifest.json --jobs 4 --schedule shortest-first --dry-run
 ```
@@ -1119,7 +1119,7 @@ _DSP note:_ Always run `--dry-run` first on a new manifest to verify that all pa
 
 ---
 
-**Recipe 89**
+### Recipe 89: Cache Inventory
 ```bash
 verbx cache info
 ```
@@ -1129,7 +1129,7 @@ _DSP note:_ `verbx` caches partitioned IR FFTs to avoid recomputing them on repe
 
 ---
 
-**Recipe 90**
+### Recipe 90: Cache Cleanup
 ```bash
 verbx cache clear
 ```
@@ -1149,7 +1149,7 @@ Lucky mode is also useful at the end of a project when you think you are done. R
 
 ---
 
-**Recipe 91**
+### Recipe 91: Five Lucky Variations
 ```bash
 verbx render in.wav out/lucky.wav --lucky 5 --lucky-out-dir out/lucky_01
 ```
@@ -1159,7 +1159,7 @@ _DSP note:_ Without `--lucky-seed`, each run produces different results. Lucky m
 
 ---
 
-**Recipe 92**
+### Recipe 92: Ten Seeded Lucky Variations
 ```bash
 verbx render in.wav out/lucky.wav --lucky 10 --lucky-out-dir out/lucky_02 --lucky-seed 2026
 ```
@@ -1169,7 +1169,7 @@ _DSP note:_ The seed initializes the pseudo-random number generator used for par
 
 ---
 
-**Recipe 93**
+### Recipe 93: Twenty-Five Device-Aware Variations
 ```bash
 verbx render in.wav out/lucky.wav --lucky 25 --lucky-out-dir out/lucky_03 --device auto
 ```
@@ -1179,7 +1179,7 @@ _DSP note:_ `--device auto` allows `verbx` to select the most efficient compute 
 
 ---
 
-**Recipe 94**
+### Recipe 94: Headless Fifty-Variation Run
 ```bash
 verbx render in.wav out/lucky.wav --lucky 50 --lucky-out-dir out/lucky_04 --no-progress
 ```
@@ -1189,7 +1189,7 @@ _DSP note:_ `--no-progress` disables the progress bar and per-file status output
 
 ---
 
-**Recipe 95**
+### Recipe 95: Eight Algorithmic Wildcards
 ```bash
 verbx render in.wav out/lucky.wav --lucky 8 --lucky-out-dir out/lucky_05 --engine algo
 ```
@@ -1199,7 +1199,7 @@ _DSP note:_ Constraining lucky mode to a specific engine narrows the parameter s
 
 ---
 
-**Recipe 96**
+### Recipe 96: Eight Convolution Wildcards
 ```bash
 verbx render in.wav out/lucky.wav --lucky 8 --lucky-out-dir out/lucky_06 --engine conv --ir hall.wav
 ```
@@ -1209,7 +1209,7 @@ _DSP note:_ When lucky mode is constrained to the conv engine with a specific IR
 
 ---
 
-**Recipe 97**
+### Recipe 97: Twelve Self-Convolution Wildcards
 ```bash
 verbx render in.wav out/lucky.wav --lucky 12 --lucky-out-dir out/lucky_07 --self-convolve
 ```
@@ -1219,7 +1219,7 @@ _DSP note:_ Self-convolve lucky mode varies the beast-mode level, tilt, tail lim
 
 ---
 
-**Recipe 98**
+### Recipe 98: Loudness-Matched Lucky Set
 ```bash
 verbx render in.wav out/lucky.wav --lucky 15 --lucky-out-dir out/lucky_08 --target-lufs -20
 ```
@@ -1229,7 +1229,7 @@ _DSP note:_ Applying `--target-lufs` to lucky mode normalizes each output indepe
 
 ---
 
-**Recipe 99**
+### Recipe 99: Thirty Float32 Variations
 ```bash
 verbx render in.wav out/lucky.wav --lucky 30 --lucky-out-dir out/lucky_09 --out-subtype float32
 ```
@@ -1239,7 +1239,7 @@ _DSP note:_ Using float32 for lucky output means you do not need to worry about 
 
 ---
 
-**Recipe 100**
+### Recipe 100: Hundred-Variation Reproducibility Stress Test
 ```bash
 verbx render in.wav out/lucky.wav --lucky 100 --lucky-out-dir out/lucky_10 --lucky-seed 404
 ```

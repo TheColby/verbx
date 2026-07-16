@@ -105,6 +105,15 @@ def test_musical_workflow_titles_are_italicized_in_sources() -> None:
     assert "Pauline Oliveros / *Deep Listening*" in cookbook
 
 
+def test_every_extreme_cookbook_recipe_has_a_title() -> None:
+    cookbook = (REPO_ROOT / "docs/EXTREME_COOKBOOK.md").read_text(encoding="utf-8")
+    recipes = re.findall(r"^### Recipe (\d+): (\S.+)$", cookbook, flags=re.MULTILINE)
+
+    assert [int(number) for number, _title in recipes] == list(range(1, 101))
+    assert all(title.strip() for _number, title in recipes)
+    assert re.search(r"^\*\*Recipe \d+\*\*$", cookbook, flags=re.MULTILINE) is None
+
+
 def test_code_example_leads_reserve_space_and_forbid_boundary_breaks() -> None:
     source = (
         "Installation text.\n\n"
