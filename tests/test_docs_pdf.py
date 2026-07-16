@@ -28,6 +28,14 @@ assert ASSET_SPEC is not None and ASSET_SPEC.loader is not None
 PRIMER_ASSETS = importlib.util.module_from_spec(ASSET_SPEC)
 ASSET_SPEC.loader.exec_module(PRIMER_ASSETS)
 
+BOOK_SPEC = importlib.util.spec_from_file_location(
+    "scripts_generate_book_supplements",
+    REPO_ROOT / "scripts_generate_book_supplements.py",
+)
+assert BOOK_SPEC is not None and BOOK_SPEC.loader is not None
+BOOK_SUPPLEMENTS = importlib.util.module_from_spec(BOOK_SPEC)
+BOOK_SPEC.loader.exec_module(BOOK_SUPPLEMENTS)
+
 FIGURE_SPEC = importlib.util.spec_from_file_location(
     "generate_userguide_figures",
     REPO_ROOT / "scripts/generate_userguide_figures.py",
@@ -122,6 +130,29 @@ def test_musical_workflow_titles_are_italicized_in_sources() -> None:
     assert "Alvin Lucier / *I Am Sitting in a Room*" in cookbook
     assert "Brian Eno / *Discreet Music*" in cookbook
     assert "Pauline Oliveros / *Deep Listening*" in cookbook
+
+
+def test_appendix_a_expansion_is_substantial_and_study_oriented() -> None:
+    entries = BOOK_SUPPLEMENTS.MUSIC_EXPANSION
+    expansion = (REPO_ROOT / "docs/MUSICAL_PIECES_EXPANSION.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert len(entries) == 96
+    assert len({category for category, *_rest in entries}) == 16
+    assert "The following ninety-six additions" in expansion
+    assert expansion.count("[YouTube catalog search]") == 96
+    assert expansion.count("**Study prompt.**") == 96
+    for _category, creator, title, _year, _album, _note in entries:
+        assert f"**{creator}, *{title}* (" in expansion
+
+    source_creators = [creator for creator, _title in BOOK_SUPPLEMENTS.MUSIC_PRIMARY_SOURCES]
+    assert source_creators == sorted(source_creators)
+    assert expansion.count("## Selected Primary Documentation") == 1
+    assert expansion.count("## Appendix A Listening Record") == 1
+    assert "Measured evidence" in expansion
+    assert "\n\\newpage\n\n## Appendix A Listening Record" in expansion
+    assert "```{=latex}\n\\newpage" not in expansion
 
 
 def test_plugin_handbook_recommends_pirkle_companion_text() -> None:
