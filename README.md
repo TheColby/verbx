@@ -4916,6 +4916,11 @@ higher modes stronger decay. The input is fixed off-centre while
 deterministic research/sound-design solver, not a fixture, transducer, or
 hardware-nonlinearity calibration.
 
+For the governing acoustic and structural equations, weak-form discretization,
+mesh-resolution limits, boundary conditions, modal reduction, room-IR export,
+hybrid FE/statistical modeling, and validation practice, see the dedicated
+[Finite-Element Modeling chapter](docs/FINITE_ELEMENT_MODELING.md).
+
 #### Practical Design and Measurement
 
 For an insert, retain dry signal and keep wet level modest. For a send/return,
@@ -5063,6 +5068,12 @@ use `--scala-root-hz` when a scale is active.
 Generated IRs are cached by content hash plus parameters. Repeated calls with
 the same settings return from cache immediately; changing the `.scl` contents
 changes its hash and cache identity even when the filename stays the same.
+
+The complete [Microtonal Workflows and Scala Import chapter](docs/MICROTONAL_SCALA_WORKFLOWS.md)
+develops this into a production and composition method. It covers Scala syntax,
+root mapping, non-octave periods, transposition, tuned-IR libraries, changing
+harmony, spatial deployment, ML dataset design, and the musical implications of
+letting a scale remain audible in the decay field.
 
 ```bash
 verbx ir gen my_space.wav --mode hybrid --length 120 --rt60 8.0 --seed 42

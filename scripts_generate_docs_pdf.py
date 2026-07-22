@@ -67,6 +67,8 @@ USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "docs" / "MUSICAL_PIECES_APPENDIX.md",
     ROOT / "docs" / "MUSICAL_PIECES_EXPANSION.md",
     ROOT / "docs" / "HOMEWORK_ASSIGNMENTS.md",
+    ROOT / "docs" / "FINITE_ELEMENT_MODELING.md",
+    ROOT / "docs" / "MICROTONAL_SCALA_WORKFLOWS.md",
     ROOT / "docs" / "REFERENCES.md",
     ROOT / "docs" / "FAQ.md",
     ROOT / "docs" / "PUBLIC_ALPHA_NOTES.md",
@@ -120,7 +122,7 @@ CHAPTER_EPIGRAPHS: tuple[tuple[str, str, str], ...] = (
     (
         "The reverb was so long that a trainwreck would sound good in there.",
         "Frank Speller (1938–2017), American organist and composer, on his recital in Westminster Abbey",
-        "Date unknown",
+        "1992",
     ),
     (
         "Repeating your ultimate word.",
@@ -1614,7 +1616,7 @@ def _figure_index_term(value: str) -> str:
 
 
 def _musical_index_term(value: str) -> str:
-    """Keep a work title italic while sorting its index entry as plain text."""
+    """Sort personal creators surname-first while keeping work titles italic."""
 
     match = re.fullmatch(
         r"(?P<creator>.+),\s+\*(?P<title>.+)\*\s+\((?P<date>[^)]+)\)",
@@ -1623,16 +1625,138 @@ def _musical_index_term(value: str) -> str:
     if match is None:
         return _latex_index_term(_plain_index_term(value))
 
-    sort_key = _latex_index_term(_plain_index_term(value))
+    creator = _musical_creator_index_name(match.group("creator"))
+    plain = f"{creator}. {match.group('title')} ({match.group('date')})"
+    sort_key = _latex_index_term(_plain_index_term(plain))
     display = (
-        _latex_text(match.group("creator"))
-        + ", \\textit{"
+        _latex_text(creator)
+        + ". \\textit{"
         + _latex_text(match.group("title"))
         + "} ("
         + _latex_text(match.group("date"))
         + ")"
     )
     return f"{sort_key}@{display}"
+
+
+_MUSICAL_NATURAL_ORDER_NAMES = frozenset(
+    {
+        "Actress",
+        "Aphex Twin",
+        "Basic Channel",
+        "Bill Evans Trio",
+        "Biosphere",
+        "Black Sabbath",
+        "Boris",
+        "Burial",
+        "Cocteau Twins",
+        "Cowboy Junkies",
+        "Cult of Luna",
+        "Deafheaven",
+        "Deepchord Presents Echospace",
+        "FKA twigs",
+        "Floating Points",
+        "Gas",
+        "Godspeed You! Black Emperor",
+        "Joy Division",
+        "Laraaji",
+        "Led Zeppelin",
+        "Loscil",
+        "Massive Attack",
+        "Maurizio",
+        "Mogwai",
+        "My Bloody Valentine",
+        "Oneohtrix Point Never",
+        "Pat Metheny Group",
+        "Pink Floyd",
+        "Pole",
+        "Porter Ricks",
+        "Portishead",
+        "Prince and the Revolution",
+        "Public Enemy",
+        "Radiohead",
+        "Rhythm & Sound with Cornel Campbell",
+        "Sigur Rós",
+        "Slowdive",
+        "SOPHIE",
+        "Stars of the Lid",
+        "Sunn O)))",
+        "Swans",
+        "Talk Talk",
+        "Tangerine Dream",
+        "The Beatles",
+        "The Ronettes",
+        "The Staple Singers",
+        "Tricky",
+        "U2",
+        "Vangelis",
+        "Weyes Blood",
+        "Yagya",
+    }
+)
+_MUSICAL_NAME_OVERRIDES = {
+    "Ralph Vaughan Williams": "Vaughan Williams, Ralph",
+}
+_MUSICAL_SURNAME_PARTICLES = frozenset(
+    {"da", "de", "del", "della", "der", "di", "du", "la", "le", "van", "von"}
+)
+
+
+def _musical_creator_index_name(value: str) -> str:
+    """Return creator credits in a stable surname-first index form."""
+
+    creator = re.sub(r"\s+", " ", value).strip()
+    if creator in _MUSICAL_NATURAL_ORDER_NAMES:
+        return creator
+
+    contributors = re.split(r",\s+(?:and\s+)?|\s+and\s+", creator)
+    return "; ".join(
+        _musical_contributor_index_name(contributor)
+        for contributor in contributors
+        if contributor
+    )
+
+
+def _musical_contributor_index_name(value: str) -> str:
+    """Invert one personal name without inverting ensembles or stage names."""
+
+    contributor = value.strip()
+    if contributor in _MUSICAL_NAME_OVERRIDES:
+        return _MUSICAL_NAME_OVERRIDES[contributor]
+    if contributor in _MUSICAL_NATURAL_ORDER_NAMES:
+        return contributor
+
+    words = contributor.split()
+    lowered = contributor.lower()
+    ensemble_markers = (
+        "ensemble",
+        "orchestra",
+        "quartet",
+        "choir",
+        "chorus",
+        "trio",
+        "collective",
+        "group",
+        "the revolution",
+        "the upsetters",
+    )
+    if (
+        len(words) < 2
+        or contributor.startswith("The ")
+        or any(marker in lowered for marker in ensemble_markers)
+    ):
+        return contributor
+
+    surname_start = len(words) - 1
+    while (
+        surname_start > 0
+        and words[surname_start - 1].casefold() in _MUSICAL_SURNAME_PARTICLES
+    ):
+        surname_start -= 1
+
+    given = " ".join(words[:surname_start])
+    surname = " ".join(words[surname_start:])
+    return f"{surname}, {given}" if given else surname
 
 
 def _latex_index_term(value: str) -> str:

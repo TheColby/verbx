@@ -22,7 +22,7 @@ her [American Mavericks interview](https://musicmavericks.publicradio.org/featur
 The separate Oliveros observation about vertical space and hearing a sound's tail is
 linked through the [quotation record supplied for this edition](https://www.azquotes.com/quote/1543324?ref=reverberation).
 The Johnny Thunders epigraph is included as an attributed popular quotation supplied for
-this edition; it is not used to support a technical claim. Frank Speller's observation
+this edition; it is not used to support a technical claim. Frank Speller's 1992 observation
 about the long reverberation during his Westminster Abbey recital is likewise included as an
 attributed recollection supplied for this edition.
 

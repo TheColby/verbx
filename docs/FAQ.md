@@ -716,3 +716,22 @@ and emphasizes those bands in every synthetic IR mode. Generate the IR once,
 then use it with `verbx render --engine conv --ir ...`, `verbx realtime --engine
 conv --ir ...`, a convolution plug-in, or a dataset pipeline. The realtime
 callback never parses the Scala file, so this feature adds no callback latency.
+
+**Q102. Does verbx perform full finite-element room simulation?**
+
+Not yet. The current `--electromechanical-solver modal-fe` path is a bounded
+structural modal solver for spring tanks and plates. It assembles mass and
+stiffness matrices, solves retained normal modes, and synthesizes a causal IR.
+It does not mesh a three-dimensional air volume or claim calibrated CAD-to-room
+prediction. See the [Finite-Element Modeling chapter](FINITE_ELEMENT_MODELING.md)
+for acoustic FEM, boundary conditions, mesh convergence, modal reduction,
+hybrid room simulation, and the exact boundary of the current implementation.
+
+**Q103. Does Scala import retune incoming notes in realtime?**
+
+No. Scala import conditions a fixed synthetic IR. The generated decay favors
+the scale's resolved frequencies, but the dry signal is not pitch-corrected and
+the IR does not follow chord changes. Prepare multiple rooted IRs and crossfade
+wet returns when harmony changes, or use one moderate, broad tuning field as a
+stable spectral halo. The [Microtonal Workflows chapter](MICROTONAL_SCALA_WORKFLOWS.md)
+explains the musical tradeoffs and reproducible workflow.

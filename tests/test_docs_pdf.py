@@ -272,8 +272,36 @@ def test_musical_work_titles_remain_italic_in_pdf_index() -> None:
         "Karlheinz Stockhausen, *Kontakte* (1958–1960)"
     )
 
-    assert term.startswith("Karlheinz Stockhausen, Kontakte (1958–1960)@")
-    assert r"Karlheinz Stockhausen, \textit{Kontakte} (1958–1960)" in term
+    assert term.startswith("Stockhausen, Karlheinz. Kontakte (1958–1960)@")
+    assert r"Stockhausen, Karlheinz. \textit{Kontakte} (1958–1960)" in term
+
+
+def test_musical_index_uses_surname_first_creator_names() -> None:
+    schutz = DOCS_PDF._musical_index_term(
+        "Heinrich Schütz, *Saul, Saul, was verfolgst du mich?* (1650)"
+    )
+    assert schutz.startswith("Schütz, Heinrich. Saul, Saul, was verfolgst du mich? (1650)@")
+    assert r"Schütz, Heinrich. \textit{Saul, Saul, was verfolgst du mich?} (1650)" in schutz
+
+    assert DOCS_PDF._musical_creator_index_name("Hildegard von Bingen") == (
+        "von Bingen, Hildegard"
+    )
+    assert DOCS_PDF._musical_creator_index_name("Michel van der Aa") == (
+        "van der Aa, Michel"
+    )
+    assert DOCS_PDF._musical_creator_index_name("Ralph Vaughan Williams") == (
+        "Vaughan Williams, Ralph"
+    )
+
+
+def test_musical_index_preserves_ensembles_and_normalizes_joint_credits() -> None:
+    assert DOCS_PDF._musical_creator_index_name("Pink Floyd") == "Pink Floyd"
+    assert DOCS_PDF._musical_creator_index_name("Prince and the Revolution") == (
+        "Prince and the Revolution"
+    )
+    assert DOCS_PDF._musical_creator_index_name(
+        "Pauline Oliveros, Stuart Dempster, and Panaiotis"
+    ) == "Oliveros, Pauline; Dempster, Stuart; Panaiotis"
 
 
 def test_musical_workflow_titles_are_italicized_in_sources() -> None:
@@ -370,7 +398,7 @@ def test_faq_is_a_substantive_appendix_after_references() -> None:
         faq_path,
     )
     assert faq.startswith("# Frequently Asked Questions\n")
-    assert [int(number) for number in questions] == list(range(1, 102))
+    assert [int(number) for number in questions] == list(range(1, 104))
 
 
 def test_scala_tuning_is_documented_across_user_surfaces() -> None:
@@ -392,6 +420,28 @@ def test_scala_tuning_is_documented_across_user_surfaces() -> None:
     assert "run `command -v verbx`" in faq
     assert 'export PATH="$HOME/.local/bin:$PATH"' in faq
     assert "installation directory is\non `PATH`" not in faq
+
+
+def test_fem_and_microtonal_chapters_are_book_sources() -> None:
+    fem = REPO_ROOT / "docs" / "FINITE_ELEMENT_MODELING.md"
+    microtonal = REPO_ROOT / "docs" / "MICROTONAL_SCALA_WORKFLOWS.md"
+
+    assert fem in DOCS_PDF.USERGUIDE_SOURCES
+    assert microtonal in DOCS_PDF.USERGUIDE_SOURCES
+    assert DOCS_PDF.USERGUIDE_SOURCES.index(fem) < DOCS_PDF.USERGUIDE_SOURCES.index(
+        microtonal
+    )
+
+    fem_text = fem.read_text(encoding="utf-8")
+    assert "\\mathbf{M}\\ddot{\\mathbf{p}}" in fem_text
+    assert "Mesh Resolution and Numerical Dispersion" in fem_text
+    assert "general CAD-to-room acoustic FE\nsolver" in fem_text
+
+    microtonal_text = microtonal.read_text(encoding="utf-8")
+    assert "What a Scala File Describes" in microtonal_text
+    assert "Musical Implications of a Tuned Decay Field" in microtonal_text
+    assert "--scala-root-degree" in microtonal_text
+    assert "not pitch correction" in microtonal_text
 
     preamble = (REPO_ROOT / "docs/assets/pandoc_pdf_preamble.tex").read_text(
         encoding="utf-8"
@@ -642,7 +692,7 @@ def test_frank_speller_quote_opens_the_workflow_cookbook() -> None:
     quote = (
         r"\verbxChapterEpigraph{The reverb was so long that a trainwreck would sound "
         r"good in there.}{Frank Speller (1938–2017), American organist and composer, "
-        r"on his recital in Westminster Abbey}{Date unknown}"
+        r"on his recital in Westminster Abbey}{1992}"
     )
     seventh_chapter = rendered.index("# Chapter 7")
     assert quote in rendered[:seventh_chapter]

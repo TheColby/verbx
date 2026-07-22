@@ -295,6 +295,12 @@ invalid root degrees, and empty post-Nyquist ranges before synthesis. Scala
 tuning cannot be combined with `--analyze-input` or `--f0` because those options
 would define a competing frequency target set. Use `--scala-root-hz` instead.
 
+For complete import examples and a musical treatment of consonance through
+time, root mapping, register, scale cardinality, non-octave periods,
+transposition, harmonic rhythm, orchestration, spatialization, and changing
+harmony, continue with [Microtonal Workflows, Scala Import, and Scale-Tuned
+Reverberation](MICROTONAL_SCALA_WORKFLOWS.md).
+
 An air noise bed at amplitude $0.02\,r_{\mathrm{RMS}}$ is added to prevent the IR from
 being spectrally empty between modal peaks. Without it, convolution with
 broadband content can reveal the gaps as spectral dips.

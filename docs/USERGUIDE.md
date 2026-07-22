@@ -28,6 +28,8 @@ reference material, and practical tips shipped in `docs/`.
 - `docs/MUSICAL_PIECES_APPENDIX.md`
 - `docs/MUSICAL_PIECES_EXPANSION.md`
 - `docs/HOMEWORK_ASSIGNMENTS.md`
+- `docs/FINITE_ELEMENT_MODELING.md`
+- `docs/MICROTONAL_SCALA_WORKFLOWS.md`
 - `docs/REFERENCES.md`
 - `docs/FAQ.md`
 - `docs/PUBLIC_ALPHA_NOTES.md`
@@ -5671,6 +5673,11 @@ higher modes stronger decay. The input is fixed off-centre while
 deterministic research/sound-design solver, not a fixture, transducer, or
 hardware-nonlinearity calibration.
 
+For the governing acoustic and structural equations, weak-form discretization,
+mesh-resolution limits, boundary conditions, modal reduction, room-IR export,
+hybrid FE/statistical modeling, and validation practice, see the dedicated
+[Finite-Element Modeling chapter](docs/FINITE_ELEMENT_MODELING.md).
+
 #### Practical Design and Measurement
 
 For an insert, retain dry signal and keep wet level modest. For a send/return,
@@ -5818,6 +5825,12 @@ use `--scala-root-hz` when a scale is active.
 Generated IRs are cached by content hash plus parameters. Repeated calls with
 the same settings return from cache immediately; changing the `.scl` contents
 changes its hash and cache identity even when the filename stays the same.
+
+The complete [Microtonal Workflows and Scala Import chapter](docs/MICROTONAL_SCALA_WORKFLOWS.md)
+develops this into a production and composition method. It covers Scala syntax,
+root mapping, non-octave periods, transposition, tuned-IR libraries, changing
+harmony, spatial deployment, ML dataset design, and the musical implications of
+letting a scale remain audible in the decay field.
 
 ```bash
 verbx ir gen my_space.wav --mode hybrid --length 120 --rt60 8.0 --seed 42
@@ -22352,6 +22365,12 @@ invalid root degrees, and empty post-Nyquist ranges before synthesis. Scala
 tuning cannot be combined with `--analyze-input` or `--f0` because those options
 would define a competing frequency target set. Use `--scala-root-hz` instead.
 
+For complete import examples and a musical treatment of consonance through
+time, root mapping, register, scale cardinality, non-octave periods,
+transposition, harmonic rhythm, orchestration, spatialization, and changing
+harmony, continue with [Microtonal Workflows, Scala Import, and Scale-Tuned
+Reverberation](MICROTONAL_SCALA_WORKFLOWS.md).
+
 An air noise bed at amplitude $0.02\,r_{\mathrm{RMS}}$ is added to prevent the IR from
 being spectrally empty between modal peaks. Without it, convolution with
 broadband content can reveal the gaps as spectral dips.
@@ -27853,6 +27872,655 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 \newpage
 
+<!-- docs/FINITE_ELEMENT_MODELING.md -->
+
+# Finite-Element Modeling for Reverb and Resonant Systems
+
+Finite-element modeling (FEM) provides a bridge between a physical description
+and an audible response. Instead of beginning with a desired RT60 or a familiar
+reverb topology, an FE model begins with geometry, material properties,
+constraints, sources, and receivers. The continuous wave or vibration problem
+is divided into a finite set of connected elements, and the resulting system of
+equations predicts how energy moves through the model. That prediction can be
+sampled as an impulse response and used directly for convolution, reduced to a
+modal model, or combined with a statistical late field.
+
+This chapter distinguishes three related tasks that are easy to conflate:
+
+- **Structural FEM** predicts vibration in solids such as plates, springs,
+  shells, instrument bodies, and loudspeaker components.
+- **Acoustic FEM** predicts pressure in a fluid volume such as air inside a
+  room, duct, enclosure, or cavity.
+- **Vibroacoustic FEM** couples structural motion to the surrounding fluid, as
+  when a plate drives air or a flexible wall absorbs and reradiates energy.
+
+verbx currently implements a bounded structural modal approximation for spring
+tanks and plates. It does not yet claim to be a general CAD-to-room acoustic FE
+solver. The distinction matters: a plate mesh predicts the plate's resonances,
+whereas a room mesh predicts the pressure field around sources and listeners.
+
+## From the Wave Equation to a Matrix System
+
+For a homogeneous, lossless fluid, acoustic pressure $p(\mathbf{x},t)$ obeys
+the wave equation
+
+$$
+\frac{1}{c^2}\frac{\partial^2 p}{\partial t^2}
+- \nabla^2 p = s(\mathbf{x},t),
+$$
+
+where $c$ is the speed of sound, $\mathbf{x}$ is position, $t$ is time, and
+$s$ represents a source. Spatially varying density and compressibility require
+a more general form, but the modeling idea is unchanged. FEM multiplies the
+differential equation by spatial test functions, integrates over the domain,
+and uses integration by parts to obtain a weak form. The pressure field is then
+approximated as a weighted sum of local basis functions:
+
+$$
+p(\mathbf{x},t) \approx \sum_{i=1}^{N} N_i(\mathbf{x})p_i(t).
+$$
+
+Here $N_i(\mathbf{x})$ is the basis function associated with degree of freedom
+$i$, and $p_i(t)$ is its time-varying coefficient. Element contributions are
+assembled into the semidiscrete system
+
+$$
+\mathbf{M}\ddot{\mathbf{p}}(t)
++ \mathbf{C}\dot{\mathbf{p}}(t)
++ \mathbf{K}\mathbf{p}(t)
+= \mathbf{f}(t),
+$$
+
+where $\mathbf{M}$ is the mass matrix, $\mathbf{C}$ represents damping and
+impedance losses, $\mathbf{K}$ is the stiffness matrix, and $\mathbf{f}(t)$ is
+the source vector. The same matrix form describes many structural systems when
+pressure coefficients are replaced by displacements.
+
+The matrices are sparse because each basis function interacts only with nearby
+elements. This locality makes large models tractable, but three-dimensional
+audio-band room meshes can still contain millions of unknowns. Sparse storage,
+iterative solvers, domain decomposition, and parallel execution are therefore
+not optional refinements at realistic scale; they are the practical machinery
+that makes the calculation possible.
+
+## Boundary Conditions Are Part of the Instrument
+
+Geometry alone does not define a room response. Every boundary must state what
+happens when energy reaches it.
+
+- A rigid wall is commonly represented by a Neumann condition with zero normal
+  particle velocity.
+- A pressure-release boundary uses a Dirichlet condition, often $p=0$.
+- A locally reacting absorber uses an impedance or Robin condition relating
+  pressure to normal velocity.
+- An interface between a structure and air requires continuity of normal
+  velocity and a force balance between pressure and structural stress.
+
+Real absorbers are frequency dependent. Replacing a carpet, audience, curtain,
+or microperforated panel with one broadband absorption coefficient can produce
+a plausible scalar RT60 while getting modal damping, phase, and early decay
+wrong. For auralization, complex impedance is often more useful than a single
+absorption number because it preserves both magnitude and phase behavior.
+
+Source and receiver definitions are equally consequential. A mathematical
+point source may overexcite mesh-scale energy; a distributed monopole or a
+measured directivity pattern can be more stable and more realistic. A receiver
+should interpolate pressure from the containing element rather than simply use
+the nearest node. Moving either endpoint by a fraction of a wavelength can
+change low-frequency modal balance substantially.
+
+## Mesh Resolution and Numerical Dispersion
+
+An FE mesh must resolve the shortest wavelength of interest. If $h_{\max}$ is
+the largest relevant element dimension and $n_{\lambda}$ is the chosen number
+of nodes or elements per wavelength, a useful planning estimate is
+
+$$
+f_{\max} \approx \frac{c}{n_{\lambda}h_{\max}}.
+$$
+
+Six to ten spatial samples per wavelength is a common starting range for
+low-order elements, not a guarantee. Element order, shape quality, formulation,
+solver, and acceptable phase error all affect the requirement. A mesh that is
+adequate for a 250 Hz room-mode study is nowhere near adequate for a 20 kHz
+full-band simulation. Halving the element size in three dimensions can increase
+the number of volume elements by roughly a factor of eight before time-step or
+solver costs are considered.
+
+Under-resolution produces numerical dispersion: simulated waves travel at a
+frequency- and direction-dependent speed. The result can be a shifted mode,
+blurred arrival, or synthetic afterglow that looks like reverberation but is a
+numerical artifact. Good practice includes a mesh-convergence study. Repeat the
+calculation with a finer mesh and compare eigenfrequencies, receiver response,
+decay curves, and arrival times. A result that changes materially under modest
+refinement is not yet a stable acoustical prediction.
+
+Mesh quality matters as much as nominal spacing. Highly skewed or flattened
+elements can degrade conditioning and interpolation. Local refinement should
+follow geometric detail, impedance transitions, source and receiver regions,
+and zones with high pressure gradients. Refining an entire cathedral to the
+same scale as a small ornament is usually wasteful; simplifying irrelevant
+geometry is part of model design.
+
+## Frequency-Domain, Time-Domain, and Modal Solutions
+
+Three solution strategies answer different questions.
+
+### Frequency-domain FEM
+
+Assuming sinusoidal steady state at angular frequency $\omega$ gives
+
+$$
+\left(\mathbf{K}+j\omega\mathbf{C}-\omega^2\mathbf{M}\right)
+\mathbf{P}(\omega)=\mathbf{F}(\omega).
+$$
+
+Solving this system over a frequency grid yields transfer functions, pressure
+maps, and resonance detail. It is efficient when only a limited low-frequency
+band or a small set of frequencies is required. A broadband impulse response
+requires enough frequency samples, consistent phase, and an inverse transform.
+
+### Time-domain FEM
+
+Time integration advances the matrix wave equation after an impulse, swept
+source, or other excitation. It produces arrivals and decays directly, but the
+time step must satisfy the formulation's stability and accuracy conditions.
+Long RT60 values make this expensive because the solver must continue until the
+field decays sufficiently. Absorbing boundaries and frequency-dependent losses
+also require causal time-domain realizations.
+
+### Modal reduction
+
+For a linear system, free modes solve the generalized eigenproblem
+
+$$
+\mathbf{K}\boldsymbol{\phi}_r
+= \omega_r^2\mathbf{M}\boldsymbol{\phi}_r,
+$$
+
+where $\omega_r$ and $\boldsymbol{\phi}_r$ are the angular frequency and shape
+of mode $r$. Retaining a subset of modes transforms a large spatial problem
+into a compact resonator bank. With source vector $\mathbf{b}$ and receiver
+vector $\mathbf{g}$, the contribution of mode $r$ is weighted by
+
+$$
+a_r =
+\left(\boldsymbol{\phi}_r^{\mathsf{T}}\mathbf{b}\right)
+\left(\mathbf{g}^{\mathsf{T}}\boldsymbol{\phi}_r\right).
+$$
+
+A damped modal impulse response can then be written
+
+$$
+h(t)=\sum_{r=1}^{R}
+\frac{a_r}{\omega_{d,r}}
+e^{-\sigma_r t}\sin(\omega_{d,r}t),
+$$
+
+with damping rate $\sigma_r$ and damped angular frequency $\omega_{d,r}$.
+Modal reduction is especially effective below the Schroeder frequency, where
+individual room or structure modes remain perceptually and numerically
+important. At higher frequencies the mode count grows rapidly, and a geometric
+or statistical late-field method may be more efficient.
+
+## From an FE Model to an Impulse Response
+
+A practical room-acoustics pipeline is more than one matrix solve:
+
+1. Clean and simplify geometry while retaining acoustically important volumes,
+   openings, surfaces, and flexible structures.
+2. Assign fluid and material parameters with units and frequency dependence.
+3. Select boundary conditions, source directivity, receiver position, mesh
+   order, spatial resolution, and target frequency range.
+4. Solve in the frequency domain, time domain, or a reduced modal basis.
+5. Convert receiver pressure to a causal impulse response with a documented
+   normalization and reference distance.
+6. Add high-frequency geometric or statistical energy if the FE band does not
+   cover the complete audible range.
+7. Validate modes, arrival times, energy decay, spectra, and spatial behavior
+   against analytical cases or measurements.
+8. Export the IR with geometry, mesh, solver, material, source, receiver, and
+   software-version provenance.
+
+Hybridization deserves special care. A low-frequency FE response and a
+high-frequency image-source, ray-tracing, or FDN response should overlap over a
+transition band. Match level, phase or group delay where meaningful, decay
+slope, and spatial convention before crossfading. A hard splice can create a
+spectral shelf or two unrelated rooms occupying adjacent bands.
+
+## Structural FEM in verbx
+
+The current verbx `modal-fe` path applies the same reduction logic to bounded
+spring and plate structures. Spring tanks use lumped masses, chain stiffness,
+optional inter-spring coupling, drive and pickup vectors, and mode-dependent
+loss. Plates use a structured clamped grid, a mass-lumped matrix, a discrete
+thin-plate bending operator, optional tension, and a bilinearly interpolated
+pickup. Both systems solve normal modes offline and synthesize a causal modal
+IR for the regular render pipeline.
+
+```bash
+verbx render guitar.wav spring_fe.wav \
+  --engine algo --algo-model spring \
+  --electromechanical-solver modal-fe \
+  --spring-count 3 --spring-fe-nodes 36 \
+  --spring-fe-modes 48 --spring-fe-coupling 0.14 \
+  --spring-fe-loss 0.42 --rt60 2.0 --wet 0.55 --dry 0.75
+
+verbx render vocal.wav plate_fe.wav \
+  --engine algo --algo-model plate \
+  --electromechanical-solver modal-fe \
+  --plate-fe-nx 20 --plate-fe-ny 14 --plate-fe-modes 72 \
+  --plate-fe-loss 0.18 --plate-pickup-x 0.18 \
+  --plate-pickup-y 0.76 --rt60 3.4 --wet 1 --dry 0
+```
+
+These commands are deterministic sound-design and research tools. Their node
+counts, mode limits, and simplified damping keep resource use bounded. They do
+not include a three-dimensional room fluid mesh, detailed fixture geometry,
+measured transducers, nonlinear springs, or calibrated hardware losses.
+
+## Validation and Listening Tests
+
+An FE render should be tested as both a numerical model and an audio object.
+
+| Question | Numerical check | Listening check |
+|---|---|---|
+| Are modes in the right places? | Compare eigenfrequencies with analytical or measured peaks | Sweep a sine slowly and listen for shifted resonances |
+| Is damping credible? | Fit per-band EDT, T20, and T30 | Compare low and high decay independently |
+| Is the mesh converged? | Repeat at finer resolution | Level-match and null or difference the two IR renders |
+| Are source and receiver positions meaningful? | Plot mode participation and transfer magnitude | Move pickup or listener and listen for expected nodes |
+| Is the hybrid crossover coherent? | Inspect magnitude, phase, and energy through overlap | Listen to impulses, speech, and sustained broadband material |
+| Is the model stable? | Check finite samples, passive decay, and bounded energy | Listen for growing tones, clicks, or artificial afterglow |
+
+Use `verbx analyze` to preserve measurements beside the command and output:
+
+```bash
+verbx analyze plate_fe.wav --json-out plate_fe.analysis.json
+```
+
+The JSON report does not prove physical accuracy, but it makes comparisons
+repeatable and exposes accidental changes in decay, level, or spectrum.
+
+## Choosing FEM, Geometric Acoustics, or Statistical Reverb
+
+FEM is strongest when wavelength-scale wave behavior matters: low-frequency
+room modes, diffraction, complex boundary impedance, small cavities, and
+coupled structural resonances. Image-source and ray methods are strongest when
+specular path geometry dominates and the room is many wavelengths across. FDNs
+and statistical tails are strongest when perceptual control, long decay, and
+realtime efficiency matter more than reconstructing every boundary interaction.
+
+The methods are complementary. A musically useful room model may use FEM for
+low-frequency modes, image sources for early reflections, and an FDN for the
+dense late field. The engineering goal is not to choose the most prestigious
+solver; it is to choose the simplest combination that preserves the behavior
+the listener and the experiment require.
+
+## Further Reading
+
+The bibliography includes Albert G. Prinn's 2023 review of FEM for room
+acoustics, the room-IR method of Papadakis and Stavroulakis (2015), the
+dispersion-reduced formulation of Okuzono and colleagues (2014), explicit
+time-domain studies by Okuzono and colleagues (2015–2023), and work on
+impedance boundaries, scalable wave simulation, and FEM-based room
+qualification. These sources are useful companions because they show where
+mesh dispersion, boundary modeling, solver choice, and validation dominate the
+quality of an apparently straightforward simulation.
+
+
+\newpage
+
+<!-- docs/MICROTONAL_SCALA_WORKFLOWS.md -->
+
+# Microtonal Workflows, Scala Import, and Scale-Tuned Reverberation
+
+A conventional reverb is usually designed to avoid obvious pitch. Its modes
+are dense, irregular, or modulated so the tail supports many notes without
+advertising a key. Scale-tuned reverberation takes a different position: the
+decay field may have a harmonic vocabulary of its own. Resonances can reinforce
+the tuning of a work, create a stable spectral halo around selected degrees, or
+make out-of-scale material sound deliberately tense.
+
+verbx imports Scala `.scl` files during synthetic IR generation. It expands the
+scale over a bounded frequency range, uses the resolved frequencies as modal
+targets, and applies a controlled constant-Q emphasis bank. The resulting WAV
+is an ordinary impulse response. It can therefore be used offline, in verbx
+realtime convolution, in a DAW convolution plug-in, or in a reproducible audio
+dataset without parsing Scala data in the audio callback.
+
+This is **scale-conditioned reverberation**, not pitch correction. It does not
+detect each incoming note, retune the source, or change the IR as harmony moves.
+The fixed IR behaves more like a sympathetic resonator whose preferred
+frequencies were derived from a tuning system.
+
+## What a Scala File Describes
+
+The Scala scale format is a compact text representation of one repeating pitch
+collection. Blank lines and text beginning with `!` are ignored. The first
+content line is a description, the second is the number of following pitch
+entries, and the remaining lines define strictly increasing degrees above an
+implicit ratio of $1/1$.
+
+An entry containing a decimal point is interpreted as cents. An integer is a
+whole-number ratio, and a fraction is an explicit ratio. The final entry is the
+period of repetition. It is often $2/1$, or 1200 cents, but it can instead be a
+tritave, stretched octave, or another interval.
+
+```text
+! 19edo.scl
+19-tone equal temperament
+19
+63.1578947
+126.3157895
+189.4736842
+252.6315789
+315.7894737
+378.9473684
+442.1052632
+505.2631579
+568.4210526
+631.5789474
+694.7368421
+757.8947368
+821.0526316
+884.2105263
+947.3684211
+1010.5263158
+1073.6842105
+1136.8421053
+2/1
+```
+
+Scala keyboard mappings use the separate `.kbm` format. verbx currently reads
+`.scl`, not `.kbm`. Root mapping is supplied explicitly with
+`--scala-root-hz` and `--scala-root-degree`, which keeps the generated IR
+independent of MIDI note numbering.
+
+## How verbx Maps Degrees to Frequencies
+
+Let $r_d$ be the ratio for degree $d$, $r_p$ the repeat-period ratio, $f_r$ the
+frequency assigned to the selected root, and $d_r$ the selected root degree.
+For register index $k$, verbx resolves
+
+$$
+f_{d,k}=f_r\frac{r_d}{r_{d_r}}r_p^k.
+$$
+
+Only targets between `--scala-low-hz` and `--scala-high-hz` are retained, and
+targets too close to Nyquist are rejected. If a high-division scale creates
+more targets than `--scala-max-targets`, verbx samples evenly through the
+logarithmically ordered list. This preserves low-to-high coverage while bounding
+the number of filters and modal attractors.
+
+`--scala-root-degree` is zero based and refers to the implicit unison plus the
+listed degrees before the final period. Degree zero is therefore the implicit
+$1/1$. Assigning 220 Hz to degree zero places the unison lattice on 220 Hz;
+assigning 220 Hz to another degree rotates the same scale around that reference.
+
+## First Complete Workflow
+
+Generate the tuned IR once, inspect it, and then use it in as many renders as
+needed:
+
+```bash
+verbx ir gen irs/19edo_hybrid.wav \
+  --mode hybrid --length 18 --rt60 7 --seed 19 \
+  --scala-file examples/scales/19edo.scl \
+  --scala-root-hz 220 --scala-root-degree 0 \
+  --scala-low-hz 90 --scala-high-hz 10000 \
+  --scala-strength 0.65 --scala-bandwidth-cents 22 \
+  --scala-gain-db 5 --scala-max-targets 128
+
+verbx ir analyze irs/19edo_hybrid.wav \
+  --json-out irs/19edo_hybrid.analysis.json
+
+verbx render source.wav tuned_space.wav \
+  --engine conv --ir irs/19edo_hybrid.wav --wet 0.35 --dry 1
+```
+
+For low-latency auditioning, load the generated IR into realtime convolution:
+
+```bash
+verbx realtime \
+  --engine conv --ir irs/19edo_hybrid.wav --block-size 128
+```
+
+Scala parsing, target expansion, and filter construction happen during `ir
+gen`, not in the realtime callback. Realtime latency is therefore determined by
+the audio device, host buffers, block size, safety buffering, and convolution
+partitioning rather than the number of degrees in the source scale.
+
+## The Controls as Musical Decisions
+
+| Control | Musical question | Conservative start | More audible effect |
+|---|---|---:|---:|
+| `--scala-root-hz` | Where is the tuning lattice anchored? | Match the work's tuning reference | Shift by a scale degree or structural bass frequency |
+| `--scala-root-degree` | Which degree receives the reference frequency? | `0` | Rotate the modal hierarchy around another degree |
+| `--scala-low-hz` | Should bass modes participate? | 100 Hz | 35–70 Hz for drones and installation work |
+| `--scala-high-hz` | How much brightness carries pitch identity? | 6–10 kHz | 12–16 kHz for bright, exposed resonances |
+| `--scala-strength` | How strongly do modes approach the scale? | 0.45–0.70 | 0.85–1.00 for an unmistakably tuned object |
+| `--scala-bandwidth-cents` | Are resonances selective or forgiving? | 20–35 cents | 5–15 cents for narrow ringing bands |
+| `--scala-gain-db` | How far does the lattice emerge from the diffuse tail? | 3–6 dB | 8–12 dB for special effects |
+| `--scala-max-targets` | How dense may the target lattice become? | 96–128 | More targets for high-division scales and wide ranges |
+
+Strength and gain are related but not identical. Strength controls modal
+attraction and the blend of the emphasis layer. Gain controls the level of the
+filtered bank before final normalization. Bandwidth controls how much nearby
+pitch motion is accepted. A narrow, strong setting sounds like a bank of
+sympathetic strings; a broad, moderate setting sounds more like a room whose
+color gently favors the scale.
+
+## Musical Implications of a Tuned Decay Field
+
+### Consonance becomes time dependent
+
+A dry pitch can end while its scale-related energy remains in the tail. The
+next note is therefore heard against a memory of previous notes. A melodic
+interval that is locally consonant may produce roughness when the older decay
+overlaps it, while a dissonant attack may resolve into a stable resonant field.
+Scale-tuned reverb makes harmonic rhythm partly a function of RT60.
+
+Longer decay is not merely “more” of the same tuning. It increases the number
+of prior events simultaneously represented by the room. Slow music can expose
+individual degrees; fast music can accumulate the complete scale into a
+spectral aggregate. When testing a design, vary tempo before changing the scale
+or declaring the tuning ineffective.
+
+### The reverb can confirm or contradict the ensemble
+
+When performers and IR share a tuning, resonant energy tends to reinforce
+stable scale positions. Near misses, expressive intonation, vibrato, and pitch
+bends pass through and may beat against narrow bands. This can make intonation
+audible in a productive way, but it can also make a flexible vocal or string
+line feel constrained.
+
+Using a different scale in the IR creates a second harmonic layer. A
+12-tone-equal-tempered source through a just-intonation IR may produce slow
+beating around nominally equivalent intervals. A diatonic source through a
+19-EDO IR can make chromatic inflections leave different spectral residues.
+The result is not automatically dissonant; bandwidth, root, register, source
+spectrum, and decay determine whether the difference reads as color, chorus,
+or conflict.
+
+### Register controls whether tuning is heard as harmony or timbre
+
+Low-frequency targets are sparse and individually audible. They can imply a
+fundamental, pedal, or room mode even when the source does not sustain that
+pitch. Midrange targets interact strongly with musical fundamentals and lower
+partials. High-frequency targets are more likely to be heard as sheen,
+brightness, or metallic identity than as named pitch.
+
+For a mix that must remain harmonically agile, begin the tuned range above the
+bass and use broader bands. For an installation, drone, or resonant percussion
+piece, extending the lattice downward can make the reverb function as an
+instrumental voice.
+
+### Scale cardinality changes texture
+
+A five- or seven-degree scale produces a relatively sparse lattice and leaves
+audible gaps. Equal divisions with 19, 31, or 53 degrees create increasing
+spectral density. A larger pitch count does not guarantee a smoother tail:
+narrow filters can still expose beating and local clusters, while the target
+budget may omit some expanded degrees. Consider cardinality together with
+bandwidth and range.
+
+Non-octave scales are especially distinctive because spectral relationships do
+not repeat at powers of two. A tritave-period scale can cause familiar octave
+equivalence to drift across registers. This may be musically compelling on
+bells, percussion, synthetic tones, and inharmonic sources, but it can feel
+unstable on octave-doubled orchestration unless that instability is intended.
+
+### The source spectrum determines which degrees awaken
+
+An IR cannot emphasize energy that the source does not excite. A flute-like
+tone may illuminate only a few bands; noise, cymbals, consonants, and distorted
+sources can excite nearly the entire lattice. Transients reveal the IR itself,
+while sustained tones reveal the interaction between source partials and tuned
+resonances.
+
+Test at least four source classes: an impulse or click, a chromatic sine sweep,
+a sustained harmonic sound, and broadband musical material. This separates the
+design of the resonator from the accident of one orchestration.
+
+### Spatialization can distribute harmonic function
+
+A stereo or multichannel design need not use one identical tuned field in every
+channel. Related IRs can place complementary degree sets, roots, or bandwidths
+around the listener. Keep enough common energy to maintain one space, and avoid
+hard channel-specific peaks that disappear under downmixing. Treat each IR as
+part of a spatial harmony, then check mono, stereo, binaural, and speaker-array
+translations at matched level.
+
+## Composition and Production Strategies
+
+### Stable halo
+
+Use the composition's tuning, moderate strength, 25–40-cent bandwidth, and a
+high-pass-limited target range. The reverb supports pitch identity while the
+dry source remains dominant. This is a practical starting point for vocals,
+chamber textures, and tuned percussion.
+
+### Harmonic shadow
+
+Root the IR on a structural pitch that is absent from the current passage. As
+the tail accumulates, it implies a latent pedal or tonal region. Automate the
+wet level rather than switching IRs abruptly so the shadow enters as memory.
+
+### Controlled contradiction
+
+Generate two IRs from related but nonidentical scales. Render identical source
+material through each and crossfade between the wet returns. Because an IR is
+time invariant, the transition remains reproducible and can be shaped without
+changing the dry performance.
+
+```bash
+verbx ir gen irs/scale_a.wav \
+  --mode hybrid --length 14 --rt60 6 --seed 41 \
+  --scala-file scales/scale_a.scl --scala-root-hz 220 \
+  --scala-strength 0.6 --scala-bandwidth-cents 28
+
+verbx ir gen irs/scale_b.wav \
+  --mode hybrid --length 14 --rt60 6 --seed 41 \
+  --scala-file scales/scale_b.scl --scala-root-hz 220 \
+  --scala-strength 0.6 --scala-bandwidth-cents 28
+
+verbx ir morph irs/scale_a.wav irs/scale_b.wav irs/transition.wav \
+  --mode equal-power --alpha 0.5
+```
+
+Using the same seed and synthesis parameters isolates the scale as the main
+experimental variable. Morphing the two final IRs produces a fixed intermediate
+response; it does not create time-varying tuning inside one render.
+
+### Percussive resonator
+
+Use `modal`, strong alignment, narrow bands, and a lower target ceiling. Short
+impulses then excite pitched decays much like struck bars or strings. Preserve
+headroom because many resonances can sum during dense attacks.
+
+### Diffuse microtonal room
+
+Use `hybrid` or `stochastic`, strength below 0.6, 30–60-cent bandwidth, and a
+moderate gain. This leaves enough untuned energy to bind the tail together and
+reduces the impression of a parallel synthesizer.
+
+## Transposition, Modulation, and Changing Harmony
+
+A scale-conditioned IR has a fixed root. To transpose the resonant field,
+regenerate it with a different `--scala-root-hz`. For a frequency ratio $r$,
+the transposed root is
+
+$$
+f_r' = r f_r.
+$$
+
+For $n$ equal-tempered semitones, $r=2^{n/12}$. For a Scala degree, use the
+degree's ratio directly. Regeneration is deterministic and cached, so a small
+library of roots can be prepared before a session.
+
+Do not switch long IRs at arbitrary note boundaries and expect an inaudible
+transition. The old convolution state contains the previous tuning. Safer
+strategies include overlapping wet returns, equal-power crossfades longer than
+the important early field, or rendering sections separately with complete
+tails. A future dynamic resonator could track harmony continuously, but that is
+a different DSP architecture from static convolution.
+
+## Reproducible Scale Libraries
+
+Treat the `.scl` file as source data, not merely a preset name. Two files with
+the same filename can contain different degrees. verbx records the scale
+description, content SHA-256, root mapping, resolved frequencies, frequency
+limits, strength, bandwidth, gain, and target budget in the IR metadata. The
+content hash also participates in cache identity.
+
+For a production or research corpus, retain:
+
+- the original `.scl` file and its license or source note;
+- the exact `verbx ir gen` command or configuration;
+- the generated IR and metadata sidecar;
+- an analysis JSON report;
+- the source audio identity and render command;
+- listening notes describing tuning, root, register, and perceived interaction.
+
+When generating machine-learning data, split scale families before expanding
+roots, seeds, RT60 values, and source files. Variants from one scale should not
+leak across training, validation, and test sets if the experiment claims
+generalization to unseen tunings. Include untuned controls and level-matched
+ablation renders so a model cannot solve the task from loudness alone.
+
+## Failure Modes and Corrections
+
+| Symptom | Likely cause | Correction |
+|---|---|---|
+| Tail sounds like unrelated sine tones | Strength or gain too high; bandwidth too narrow | Lower strength, broaden bands, or use `hybrid` |
+| Bass implies the wrong harmony | Root mapping or low limit conflicts with the work | Verify root degree and raise `--scala-low-hz` |
+| Effect disappears in a dense mix | Too little source energy near targets or bands too broad | Solo the return, inspect spectrum, then increase gain modestly |
+| Vocal vibrato sounds trapped | Resonances are too selective | Broaden bandwidth or move tuning emphasis above the vocal fundamentals |
+| High-division scale sounds incomplete | Target budget is truncating the lattice | Increase `--scala-max-targets` or narrow the frequency range |
+| Realtime launch seems slow | IR is being generated in the session path | Pre-generate and cache the IR before performance |
+| A scale edit seems ignored | An old IR file was loaded | Regenerate and verify the recorded SHA-256 |
+| Downmix becomes phasey or hollow | Channel variants are too spectrally independent | Increase shared diffuse energy and validate mono/stereo folds |
+
+## A Focused Listening Exercise
+
+Choose one dry sustained chord and one short percussion phrase. Generate four
+IRs with the same mode, seed, length, RT60, root, and scale:
+
+1. An untuned control.
+2. A broad setting at 50 cents and strength 0.4.
+3. A moderate setting at 25 cents and strength 0.65.
+4. A narrow setting at 10 cents and strength 0.9.
+
+Loudness-match the wet returns. For each source, describe pitch stability,
+roughness, decay continuity, apparent register, and whether the reverb is heard
+as space, timbre, harmony, or a separate instrument. Repeat after transposing
+the root by one scale degree. The exercise reveals a central principle:
+scale-tuned reverberation is not one effect but a continuum between diffuse
+space and resonant composition.
+
+
+\newpage
+
 <!-- docs/REFERENCES.md -->
 
 # Research Papers and References
@@ -27879,7 +28547,7 @@ her [American Mavericks interview](https://musicmavericks.publicradio.org/featur
 The separate Oliveros observation about vertical space and hearing a sound's tail is
 linked through the [quotation record supplied for this edition](https://www.azquotes.com/quote/1543324?ref=reverberation).
 The Johnny Thunders epigraph is included as an attributed popular quotation supplied for
-this edition; it is not used to support a technical claim. Frank Speller's observation
+this edition; it is not used to support a technical claim. Frank Speller's 1992 observation
 about the long reverberation during his Westminster Abbey recital is likewise included as an
 attributed recollection supplied for this edition.
 
@@ -31179,6 +31847,25 @@ and emphasizes those bands in every synthetic IR mode. Generate the IR once,
 then use it with `verbx render --engine conv --ir ...`, `verbx realtime --engine
 conv --ir ...`, a convolution plug-in, or a dataset pipeline. The realtime
 callback never parses the Scala file, so this feature adds no callback latency.
+
+**Q102. Does verbx perform full finite-element room simulation?**
+
+Not yet. The current `--electromechanical-solver modal-fe` path is a bounded
+structural modal solver for spring tanks and plates. It assembles mass and
+stiffness matrices, solves retained normal modes, and synthesizes a causal IR.
+It does not mesh a three-dimensional air volume or claim calibrated CAD-to-room
+prediction. See the [Finite-Element Modeling chapter](FINITE_ELEMENT_MODELING.md)
+for acoustic FEM, boundary conditions, mesh convergence, modal reduction,
+hybrid room simulation, and the exact boundary of the current implementation.
+
+**Q103. Does Scala import retune incoming notes in realtime?**
+
+No. Scala import conditions a fixed synthetic IR. The generated decay favors
+the scale's resolved frequencies, but the dry signal is not pitch-corrected and
+the IR does not follow chord changes. Prepare multiple rooted IRs and crossfade
+wet returns when harmony changes, or use one moderate, broad tuning field as a
+stable spectral halo. The [Microtonal Workflows chapter](MICROTONAL_SCALA_WORKFLOWS.md)
+explains the musical tradeoffs and reproducible workflow.
 
 
 \newpage
