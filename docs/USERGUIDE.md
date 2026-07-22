@@ -73,6 +73,55 @@ verbx render vocal.wav vocal_plate.wav --preset bright_plate
 captures. They retain the normal RT60, damping, width, modulation, automation,
 and report workflow.
 
+## Finite-Element Spring Tanks and Plates
+
+For offline electro-mechanical reverb design, `spring` and `plate` also support
+`--electromechanical-solver modal-fe`. This is not the fast FDN proxy voice:
+it is a bounded structural model that solves normal modes of a finite-element
+mass and stiffness system, synthesizes a stable damped impulse response, and
+then convolves that response with the input. The result is deterministic and
+auditable rather than a claim to have measured or cloned a particular hardware
+tank.
+
+The spring tank is a set of lumped mass-spring-damper chains. Its continuous
+reference equation is
+
+$$
+\boldsymbol{M}\ddot{\boldsymbol{x}}
++ \boldsymbol{C}\dot{\boldsymbol{x}}
++ \boldsymbol{K}\boldsymbol{x}
+= \boldsymbol{e}u(t),
+$$
+
+where $\boldsymbol{M}$ distributes spring mass to nodes,
+$\boldsymbol{K}$ assembles segment compliance, tension, end constraints, and
+optional tank-to-tank coupling, and $\boldsymbol{C}$ represents loss. verbx
+solves the associated generalized eigenproblem
+
+$$
+\boldsymbol{K}\boldsymbol{q}_r = \lambda_r\boldsymbol{M}\boldsymbol{q}_r,
+\qquad \omega_r=\sqrt{\lambda_r},
+$$
+
+then sums the driven/pickup modal responses with RT60-calibrated decay. The
+plate path uses the corresponding structured, mass-lumped clamped grid, where
+$\boldsymbol{K}=D\boldsymbol{L}^{T}\boldsymbol{L}+T\boldsymbol{L}$ combines
+thin-plate bending rigidity $D$ with optional tension $T$.
+
+```bash
+verbx render guitar.wav tank.wav --engine algo --algo-model spring \
+  --electromechanical-solver modal-fe --spring-count 3 \
+  --spring-fe-nodes 36 --spring-fe-modes 48 --spring-fe-coupling 0.14
+
+verbx render vocal.wav plate.wav --engine algo --algo-model plate \
+  --electromechanical-solver modal-fe --plate-fe-nx 20 --plate-fe-ny 14 \
+  --plate-fe-modes 72 --plate-pickup-x 0.18 --plate-pickup-y 0.76
+```
+
+The full treatment, including the coupled tank and clamped-grid figures,
+parameter mapping, damping law, and numerical bounds, is in the
+[Modal Finite-Element Solver](#modal-finite-element-solver) section below.
+
 `v0.9.0` also introduces a physically grounded `ism-fdn` path: a bounded
 image-source early field from explicit room geometry and material absorption,
 followed by the established FDN late field.
