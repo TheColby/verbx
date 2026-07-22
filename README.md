@@ -4,11 +4,11 @@
 
 # verbx
 
-**Colossal 64-bit spatial audio reverberator, accelerated with CUDA and Metal.**
-
+<!-- verbx-pdf-exclude-start -->
 > **Start with the book:** [Read the complete illustrated verbx User Guide (PDF)](USERGUIDE.pdf)
 > for CLI workflows, plug-in operation, DSP explanations, musical examples,
 > educational projects, figures, and the research bibliography.
+<!-- verbx-pdf-exclude-end -->
 
 `verbx` is a research-grade Python CLI for creating reverb effects that range from subtle room placement to cathedral-scale tails 3600 seconds long. It handles the complete reverb workflow: ingesting and generating impulse responses, processing audio through two independent engines, controlling every parameter with time-varying automation, delivering loudness-targeted multichannel output, reducing late-room smear with deterministic dereverberation, producing reproducible analysis artifacts at every step, and now previewing spaces in realtime from CLI-selectable audio devices.
 
@@ -16,12 +16,54 @@ You can batch reverberate a directory of audio files to create lush Dolby Atmos 
 
 Under the hood, everything runs in 64-bit floating point. The algorithmic engine is built around a configurable Feedback Delay Network with eight matrix families, multiband decay, optional pre-FDN comb-cloud coloration, and optional time-varying behavior. The convolution engine uses partitioned FFT with optional CUDA acceleration and full $M$-input-to-$N$-output matrix routing. Both engines share the same diffusion, shimmer, ducking, freeze, loudness, and spatial controls.
 
-The latest `v0.7.7` work also starts to bridge pure parametric design with
+The latest `v0.9.0` work adds selectable algorithmic spring and plate models,
+while continuing to bridge pure parametric design with
 explicit acoustics. There is now a reusable room-geometry model for dimensions,
 materials, source/listener placement, Bolt-style proportion warnings, and RT60
 to rectangular-room inversion via `verbx room-model`.
 
 This is not a "set RT60 and go" tool. The parameter surface is wide by design. Most users start with three flags and expand from there.
+
+For classic electro-mechanical colors on the algorithmic path, choose a model
+directly or begin with a named preset:
+
+```bash
+verbx render guitar.wav guitar_spring.wav --engine algo --algo-model spring --rt60 1.8
+verbx render vocal.wav vocal_plate.wav --preset bright_plate
+```
+
+`spring` and `plate` are deterministic algorithmic models, not measured-device
+captures. They retain the normal RT60, damping, width, modulation, automation,
+and report workflow.
+
+`v0.9.0` also introduces a physically grounded `ism-fdn` path: a bounded
+image-source early field from explicit room geometry and material absorption,
+followed by the established FDN late field.
+
+```bash
+verbx render voice.wav roomed.wav --engine ism-fdn --ism-order 3 \
+  --er-room-dims-m 6,8,3 --er-source-pos-m 1,2,1.5 \
+  --er-listener-pos-m 4,5,1.5 --er-material hall --rt60 1.4
+```
+
+The following terminal transcript shows the strict environment check on the
+author's Apple Silicon development machine. It is useful before a long render
+because it verifies the runtime, audio dependencies, CLI entry point,
+accelerator discovery, and writable output path in one operation.
+
+![Terminal transcript of verbx doctor running successfully on the author's workstation.](docs/assets/terminal/01_doctor.png)
+
+**Figure: A successful `verbx doctor --strict` run on the author's Apple Silicon workstation, with all five checks passing.**
+
+The next transcript shows a non-destructive render rehearsal. `--dry-run`
+resolves the preset, computes the effective decay and mix, estimates duration
+and file size, and writes no audio. This is the preferred way to inspect a
+potentially expensive or unexpectedly long operation before committing storage
+and processing time.
+
+![Terminal transcript of a verbx dry-run render with a warm small hall preset.](docs/assets/terminal/02_render_dry_run.png)
+
+**Figure: A dry-run render using `warm_small_hall`, including resolved FDN settings, estimated output duration, and estimated file size.**
 
 For AI workflows, `verbx` is also a strong command-line tool for deterministic audio data augmentation and voice-model robustness testing. You can generate reproducible reverberant variants for ASR/TTS/speaker pipelines, keep split-safe metadata, and batch large render sets from manifests.
 
@@ -33,6 +75,205 @@ verbx render voice.wav out.wav \
   --shimmer --shimmer-semitones 12 --shimmer-mix 0.45 \
   --bloom 2.8 --tilt 2.0
 ```
+
+## Two Production Paths: Command Line and DAW Plug-ins
+
+verbx is **primarily intended for command-line use**. The CLI is the reference
+workflow and exposes the broadest processing, analysis, automation, batch,
+multichannel, impulse-response, dereverberation, reporting, and quality-control
+surface. It is designed for work in which an input file, a fully specified
+operation, and a verifiable output artifact are the natural units of thought.
+
+AU, AUv3, and VST3 plug-in versions are also provided for music-production work
+inside a digital audio workstation (DAW). The plug-ins are not command lines
+placed behind knobs, and the CLI is not a DAW running in a terminal. They are
+different approaches to the same family of reverb problems. The CLI emphasizes
+explicit configuration and reproducible rendering; the plug-ins emphasize
+immediate listening, host automation, low-latency interaction, and session
+recall. A project can use either path alone, but many serious productions benefit
+from using both at different stages.
+
+### The CLI path: files, experiments, and reproducible renders
+
+Choose the CLI when the task begins with files or data and should end with files,
+reports, or a repeatable command. A CLI render names its input, output, engine,
+parameters, channel layout, numerical format, and optional analysis products.
+That explicitness is valuable when a result must be recreated next week, on
+another workstation, across hundreds of files, or as part of a research or
+machine-learning pipeline.
+
+The CLI is the strongest path for:
+
+- offline rendering where sound quality and complete tail calculation matter
+  more than meeting a realtime callback deadline;
+- very long or extreme decays whose output duration should be estimated,
+  validated, reported, and written deliberately;
+- deterministic batch jobs driven by shell scripts, manifests, seeds, and
+  version-controlled configuration;
+- impulse-response synthesis, inspection, conversion, morphing, matrix routing,
+  and convolution across unusual input and output layouts;
+- dereverberation, room analysis, loudness measurement, quality control, and
+  machine-readable JSON or CSV evidence;
+- corpus augmentation for Audio AI, where split integrity, labels, provenance,
+  and exact repeatability matter;
+- rendering wet stems, surround beds, Ambisonic intermediates, and other assets
+  that will be imported into a DAW or renderer later;
+- testing parameter sweeps and controlled comparisons without relying on manual
+  knob positions or host-specific session state.
+
+The appropriate CLI habit is **specify, inspect, render, verify**. Begin by
+making the operation explicit. Use a preset only as a starting point, then record
+important overrides in the command, config file, or manifest. Inspect the
+resolved configuration and estimated duration when the output could be large.
+Render to a new path rather than destructively replacing the source. Finally,
+analyze the result and retain the command or report alongside the audio.
+
+For example, an offline wet stem can be rendered and documented as one operation:
+
+```bash
+verbx render vocal.wav vocal_hall_wet.wav \
+  --engine algo --rt60 3.4 --predelay 32 \
+  --wet 1.0 --dry 0.0 --output-subtype FLOAT \
+  --json-out vocal_hall_wet.analysis.json
+```
+
+The output is an asset rather than a live processor. It can be auditioned,
+archived, delivered, imported into a DAW, or compared with another render. If a
+parameter sweep is required, commands can generate ten controlled variants
+without asking an engineer to move the same plug-in knob ten times and remember
+the exact states.
+
+CLI automation is similarly explicit. It can be expressed through arguments,
+automation files, manifests, or generated commands. That is ideal for repeatable
+experiments and long-form transformations. It is less immediate than drawing a
+curve against a musical timeline, but it is easier to audit and reproduce.
+
+The CLI's `realtime` command is useful for device testing, low-latency audition,
+and live command-line workflows. It does not change the product's primary
+offline and artifact-oriented design. A terminal realtime stream does not know
+the DAW's bar grid, track routing, region edits, plug-in delay compensation,
+offline-bounce policy, or project automation. When those relationships are the
+center of the work, use the plug-in.
+
+### The plug-in path: performance, automation, and mix context
+
+Choose AU, AUv3, or VST3 when the reverb must live inside a musical session and
+respond while the arrangement plays. The host supplies audio buses, project
+sample rate, block size, transport, tempo, automation, preset and state recall,
+latency compensation, and final bounce behavior. The plug-in processes the
+buffers it receives and returns audio before each callback deadline.
+
+The plug-in path is strongest for:
+
+- placing a reverb directly on a track, auxiliary return, subgroup, object, or
+  spatial bus while hearing the complete arrangement;
+- adjusting decay, pre-delay, damping, diffusion, width, mix, Freeze, Reverse,
+  and quality controls by ear without rendering a new file after every change;
+- writing and editing host automation against bars, beats, regions, markers,
+  picture, or performance gestures;
+- changing space at a section boundary, throwing selected words into a tail, or
+  freezing one harmony beneath the next;
+- saving processor state inside the DAW session so collaborators can reopen the
+  musical context rather than reconstruct a shell command;
+- using the realtime spectrum analyzer and effective-decay display while
+  balancing sources and returns;
+- performing the reverb from the full-screen Perform and Expert pages with
+  controls designed for continuous musical interaction.
+
+The appropriate plug-in habit is **insert, route, automate, audition, commit**.
+First decide whether the processor belongs on an insert or a send. An insert
+changes one track's complete signal path and may use both dry and wet output. A
+send normally feeds a 100-percent-wet plug-in return that several tracks can
+share. Next establish safe gain staging and a useful static sound. Only then add
+automation, because automation cannot rescue a return whose basic density,
+bandwidth, or routing is wrong. Audition the result in context and through the
+required fold-down or binaural path. Commit it through the DAW's freeze, bounce,
+or export system when the mix is approved.
+
+The DAW, not the plug-in, owns the output audio file. Project sample rate and
+callback format are host decisions; final PCM subtype, metadata, channel export,
+and loudness delivery are normally selected in the DAW's bounce dialog. The
+plug-in may oversample its wet path internally, but it cannot turn a 48 kHz host
+session into a 192 kHz delivered master by itself. Likewise, an analyzer display
+inside the editor is immediate feedback, not a substitute for a retained CLI
+analysis report when formal evidence is required.
+
+Realtime processing also imposes constraints that offline rendering does not.
+The audio callback cannot wait for a long analysis, allocate unpredictably, open
+files casually, or calculate an unbounded future tail. A plug-in must honor host
+buffer deadlines and report latency correctly. The CLI can spend more than one
+second processing one second of audio when a costly algorithm or large
+convolution matrix justifies it. The plug-in must either finish on time, use a
+prepared lower-cost structure, or expose a quality choice with a clear latency
+and CPU tradeoff.
+
+### The surfaces are related, not identical
+
+Do not assume one-to-one parameter or preset parity between the CLI and plug-in.
+The CLI includes commands and options that do not belong on a realtime effect
+panel, including file-format selection, batch manifests, report destinations,
+failure artifacts, offline dereverberation, IR utilities, and corpus tooling.
+The plug-in includes host-facing state, automation, bus negotiation, callback
+quality modes, and visual interaction that do not have the same meaning in an
+offline command.
+
+Even controls with similar names can operate inside different constraints. The
+plug-in's RT60 range is `0.01` to `360` seconds and is designed for logarithmic
+coarse and fine adjustment during playback. The CLI can address longer bounded
+renders and can fail fast when a requested tail would create a surprising output
+duration. Plug-in Reverse is a realtime reverse-style swell; an offline reverse
+workflow can use future samples and render noncausal structures unavailable to a
+live callback. Freeze inside a running host sustains prepared network state;
+offline processing can inspect, extend, or transform segments without a realtime
+deadline.
+
+The safest interchange is therefore through documented audio and impulse-response
+assets, not an assumption that every preset file is portable. If the CLI creates
+an IR, wet stem, surround bed, or analyzed variant, import that asset into the
+DAW with its report. If the plug-in creates an important automated effect, print
+the return and analyze the resulting audio with the CLI. When recreating a sound
+across paths, transfer the audible design goals and shared parameter values, then
+verify by listening and analysis rather than assuming numerical identity.
+
+### Productive hybrid workflows
+
+Several combined workflows are especially effective:
+
+1. **Design offline, mix interactively.** Use the CLI to synthesize or curate an
+   impulse response, validate it, and save provenance. Load or route the resulting
+   asset in the DAW, then automate level and musical placement with the plug-in or
+   host tools.
+2. **Audition interactively, render systematically.** Find the decay family,
+   damping, width, and source treatment in the plug-in. Translate the approved
+   design into explicit CLI renders for batches, alternate versions, datasets, or
+   unusually long tails, verifying differences rather than claiming preset parity.
+3. **Render wet stems, retain mix freedom.** Create 100-percent-wet mono, stereo,
+   surround, or Ambisonic stems with the CLI. Import them into the DAW so the mix
+   can edit, automate, compress, and spatialize the return independently of the dry
+   source.
+4. **Perform first, document afterward.** Record or bounce plug-in automation in
+   the DAW, then run `verbx analyze` on the printed return or final mix to produce
+   retained decay, loudness, peak, spectral, and room evidence.
+5. **Use the DAW for form and the CLI for scale.** Let the DAW determine which
+   phrases, stems, and transitions excite a space. Export those selections, run
+   large matrix, extreme-tail, or corpus-scale operations through the CLI, and
+   return the rendered assets to the musical timeline.
+
+### Choosing quickly
+
+Use the **CLI** when you need repeatability, batch scale, complete files, unusual
+formats, reports, analysis, dereverberation, IR engineering, extreme offline
+quality, or a command that another person or machine can rerun. Use the **plug-in**
+when you need to hear the effect against the arrangement, perform controls,
+automate against the DAW timeline, share a live return among tracks, or preserve
+state inside a music-production session. Use **both** when the project needs the
+CLI's rigor and scale together with the DAW's musical context and immediacy.
+
+Neither path is a lesser edition of the other. The CLI is the primary verbx
+interface because it can express the complete processing system explicitly. The
+plug-ins are purpose-built production instruments because a DAW requires a
+different contract: bounded realtime work, host-owned routing, automatable
+parameters, visual feedback, and reliable session state.
 
 ## AUv3 / VST3 Plug-in Track
 
@@ -207,24 +448,24 @@ That writes [`docs/USERGUIDE.md`](docs/USERGUIDE.md) and `USERGUIDE.pdf`, combin
 ### Five Runnable Examples
 
 ```bash
-# 1. Natural room — voice or piano in a medium hall
+# 1. Natural room – voice or piano in a medium hall
 verbx render in.wav hall.wav --engine algo --rt60 2.0 --wet 0.25 --dry 0.8 --pre-delay-ms 18
 
-# 2. Convolution with a real IR — character follows the space you measured
+# 2. Convolution with a real IR – character follows the space you measured
 verbx render in.wav conv.wav --engine conv --ir hall_ir.wav --partition-size 16384
 
-# 3. Shimmer pad — pitch-shifted ambient wash, good for synths
+# 3. Shimmer pad – pitch-shifted ambient wash, good for synths
 verbx render in.wav shimmer.wav --engine algo --rt60 12 --wet 0.85 \
   --shimmer --shimmer-semitones 12 --shimmer-mix 0.35 --bloom 2.0
 
-# 4. Broadcast loudness target — –23 LUFS, –1 dBTP true peak
+# 4. Broadcast loudness target – –23 LUFS, –1 dBTP true peak
 verbx render in.wav broadcast.wav --target-lufs -23 --true-peak --target-peak-dbfs -1
 
-# 5. Extreme ambient — 90-second tail, slow evolution, near-frozen
+# 5. Extreme ambient – 90-second tail, slow evolution, near-frozen
 verbx render in.wav ambient.wav --engine algo --rt60 90 --wet 0.92 \
   --fdn-matrix tv_unitary --fdn-tv-rate-hz 0.08 --bloom 2.0 --tilt 0.8
 
-# 6. Comb-cloud texture — dense metallic haze before the late field
+# 6. Comb-cloud texture – dense metallic haze before the late field
 verbx render in.wav combcloud.wav --engine algo --rt60 6 --wet 0.78 --dry 0.35 \
   --comb-cloud --comb-cloud-count 32 --comb-cloud-feedback 0.42 --comb-cloud-mix 0.30 \
   --fdn-lines 12 --fdn-matrix hadamard
@@ -400,14 +641,14 @@ different reverb behavior or aesthetic.
 
 | File | Play | Inspiration | What to listen for |
 |------|------|-------------|-------------------|
-| [`lucier_sitting_room.wav`](examples/audio/lucier_sitting_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/lucier_sitting_room.wav) | Alvin Lucier — *I Am Sitting in a Room* | Speech run through the room 7× until only resonant frequencies survive |
-| [`eno_discreet_music.wav`](examples/audio/eno_discreet_music.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/eno_discreet_music.wav) | Brian Eno — *Discreet Music* / Ambient series | 12s tail swallowing the source into a continuous wash |
-| [`oliveros_deep_listening.wav`](examples/audio/oliveros_deep_listening.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/oliveros_deep_listening.wav) | Pauline Oliveros — *Deep Listening* | 18s cave-scale resonance, very low damping, 32-line FDN |
-| [`fripp_frippertronics.wav`](examples/audio/fripp_frippertronics.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/fripp_frippertronics.wav) | Robert Fripp — Frippertronics tape-loop | Octave shimmer with 0.78 feedback accumulating over 8s |
-| [`mbv_shoegaze.wav`](examples/audio/mbv_shoegaze.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/mbv_shoegaze.wav) | My Bloody Valentine — *Loveless* wall of sound | Dense shimmer wash (mix 0.55) through circulant FDN |
-| [`reich_phase_drums.wav`](examples/audio/reich_phase_drums.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/reich_phase_drums.wav) | Steve Reich — phase minimalism | Tight 0.7s room on percussion, circulant diffusion |
-| [`radigue_drone.wav`](examples/audio/radigue_drone.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/radigue_drone.wav) | Eliane Radigue — *ADNOS* / drone electronics | 45s near-infinite sustain, 32-line Hadamard, wet 0.97 |
-| [`feldman_sparse_room.wav`](examples/audio/feldman_sparse_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/feldman_sparse_room.wav) | Morton Feldman — late period | 3.8s room, low wet (0.52), allpass diffusion, contemplative space |
+| [`lucier_sitting_room.wav`](examples/audio/lucier_sitting_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/lucier_sitting_room.wav) | Alvin Lucier – *I Am Sitting in a Room* (1969) | Speech run through the room 7× until only resonant frequencies survive |
+| [`eno_discreet_music.wav`](examples/audio/eno_discreet_music.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/eno_discreet_music.wav) | Brian Eno – *Discreet Music* (1975) / Ambient series | 12s tail swallowing the source into a continuous wash |
+| [`oliveros_deep_listening.wav`](examples/audio/oliveros_deep_listening.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/oliveros_deep_listening.wav) | Pauline Oliveros – *Deep Listening* (1989) | 18s cave-scale resonance, very low damping, 32-line FDN |
+| [`fripp_frippertronics.wav`](examples/audio/fripp_frippertronics.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/fripp_frippertronics.wav) | Robert Fripp – Frippertronics tape-loop | Octave shimmer with 0.78 feedback accumulating over 8s |
+| [`mbv_shoegaze.wav`](examples/audio/mbv_shoegaze.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/mbv_shoegaze.wav) | My Bloody Valentine – *Loveless* (1991) wall of sound | Dense shimmer wash (mix 0.55) through circulant FDN |
+| [`reich_phase_drums.wav`](examples/audio/reich_phase_drums.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/reich_phase_drums.wav) | Steve Reich – phase minimalism | Tight 0.7s room on percussion, circulant diffusion |
+| [`radigue_drone.wav`](examples/audio/radigue_drone.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/radigue_drone.wav) | Eliane Radigue – *ADNOS* (1973–1974) / drone electronics | 45s near-infinite sustain, 32-line Hadamard, wet 0.97 |
+| [`feldman_sparse_room.wav`](examples/audio/feldman_sparse_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/feldman_sparse_room.wav) | Morton Feldman – late period | 3.8s room, low wet (0.52), allpass diffusion, contemplative space |
 
 Dry source files are in the same directory. See [`examples/audio/README.md`](examples/audio/README.md) for the full render commands.
 
@@ -415,7 +656,7 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.7.7**.
+Current public alpha release: **v0.9.0**.
 
 Current stabilization status:
 
@@ -552,22 +793,26 @@ Note: Homebrew blog posts cover Homebrew project releases and ecosystem updates;
 
 ---
 
-## What Is Reverb? (and Why Does verbx Sound Different)
+## What Is Reverb? (and why verbx sounds different)
 
-Reverberation is sound continuing after its cause. A bow leaves a string, a singer
-closes a consonant, or a snare head stops moving, yet acoustic energy remains in the
-room. That energy has taken paths longer than the direct route from source to listener.
-It has reflected from floors, walls, ceilings, seats, bodies, scenery, and architectural
-details; each encounter has changed its level, spectrum, direction, and arrival time.
-The sum of those arrivals is not merely an effect placed behind the source. It is part
-of how a listener estimates distance, scale, material, orientation, and even the social
-character of a performance space.
+Reverb begins when a sound should be over but the room keeps it alive. A violinist
+lifts the bow, a singer closes a consonant, or a drummer strikes a snare. The source
+may stop almost at once, but the sound does not. It reaches the floor, walls, ceiling,
+seats, bodies, scenery, and every irregular surface nearby, then returns by paths of
+different lengths. Each trip changes its level, color, direction, and timing.
 
-This chapter treats reverb as three things at once: an acoustic event, a perceptual
-cue, and a compositional material. It begins with the path from a physical source to a
-listener, moves through practical musical examples, and then opens the DSP structures
-that produce the result. The final sections explain why verbx can resemble a room at
-short settings yet become an instrument of very long musical time at extreme settings.
+We hear those returns as part of the place. Even with our eyes closed, they tell us
+whether a room feels intimate or immense, bright or muffled, empty or crowded. They
+help us judge distance and direction, but they also shape the mood of a performance.
+A dry voice can feel private and immediate. The same voice in a long stone decay can
+feel ceremonial, remote, or larger than the person who made it.
+
+That is why reverb is more than an effect placed behind a track. It is an acoustic
+event, a listening cue, and a musical material. We will begin with what happens between
+the source and the ear, listen to examples, and then take apart the DSP that recreates
+or deliberately bends that experience. At ordinary settings, verbx can suggest a
+recognizable room. At extreme settings, the room gives way to something else: a way of
+composing with memory and time.
 
 ### The Acoustic Event: Direct Sound, Early Reflections, and Late Field
 
@@ -626,6 +871,92 @@ period of a 1 kHz tone. A two-second tail is long compared with a sixteenth note
 BPM but short compared with the pause after a cathedral cadence. A 120-second tail no
 longer describes an ordinary enclosure: it becomes a layer of form. verbx sounds
 different partly because its controls remain meaningful across all four scales.
+
+#### A Staircase That Answers Like a Bird: Chichén Itzá and Archaeoacoustics
+
+At El Castillo, the stepped Pyramid of Kukulcán at Chichén Itzá, a handclap made
+in front of the principal stairway does not return as a neutral copy of the clap.
+Listeners hear a brief, pitched sweep whose falling contour has often been compared
+with the call of the resplendent quetzal, *Pharomachrus mocinno*. The surprising
+point is not that a bird naturally sounds reverberant. It is that architecture can
+filter and reorganize an impulsive human sound until the returning echo acquires a
+birdlike gesture. Garza and colleagues describe this effect as *la cola del quetzal*,
+or the quetzal's tail, and note that the bird was culturally important to the Maya
+even though it was not native to the northern Yucatán region.
+
+This is a particularly vivid case of **archaeoacoustics**, the interdisciplinary
+study of sound and listening in archaeological places. Archaeoacoustics combines
+acoustic measurement, signal analysis, architectural reconstruction, archaeology,
+anthropology, and the study of performance or ritual. Its question is not only
+"What transfer function does this structure have today?" It also asks how audibility,
+echo, speech projection, musical instruments, movement, and spatial separation may
+have shaped past human activity. A rigorous study must therefore keep three levels
+distinct: the physical sound field, its physiological and cognitive perception, and
+the cultural meanings that people may have attached to it.
+
+The Chichén Itzá effect begins with a broadband transient. A handclap sends energy
+toward a large, approximately periodic array of stone treads and risers. Contributions
+scattered from different portions of the staircase travel different path lengths and
+return at different times. At some frequencies those contributions reinforce one
+another; at others they partially cancel. The stairway consequently behaves less like
+a single wall and more like a distributed acoustic filter. The returning energy is
+both delayed and spectrally reorganized.
+
+In impulse-response language, the received signal is still
+
+$$
+y(t) = x(t) * h(t),
+$$
+
+but $h(t)$ is highly structured. It contains a sequence of weighted, frequency-shaped
+returns associated with the stair geometry rather than a featureless exponential
+tail. If adjacent scattering paths differed by one fixed delay $\Delta\tau$, their
+interference would produce an approximate repetition spacing of
+$f_r \approx 1/\Delta\tau$. The real staircase presents a changing set of path lengths,
+angles, and amplitudes, so its strongest spectral emphasis moves through time. That
+motion is heard as a chirp rather than as a stationary comb-filter pitch.
+
+[Declercq, Degrieck, Briers, and Leroy (2004)](https://doi.org/10.1121/1.1764833)
+compared diffraction simulations with field recordings and found that the result
+depends strongly on the excitation. A mathematical impulse and a real handclap do not
+produce identical echoes because their spectra and temporal envelopes differ. Their
+model also found that adding the ground reflection changed the calculated effect much
+less than changing the incident sound. This source dependence is an important reverb
+lesson: a room response may be linear, yet the part of that response we hear most
+clearly depends on what the source supplies for the architecture to filter.
+
+The chirp should not be confused with an ordinary diffuse late reverberant field. It
+is closer to a colored early reflection or a short sequence of coherent echoes. A
+concert hall tail tends toward dense statistical overlap, while the El Castillo
+staircase preserves enough periodic structure for the ear to follow a frequency glide.
+Both phenomena nevertheless belong in the same conceptual chapter. They demonstrate
+that geometry converts propagation time into timbre and that an impulse response is a
+record of architecture, source position, receiver position, and boundary structure.
+
+The bird comparison also requires care. The similarity between the chirped echo and a
+quetzal call is a perceptual and spectrographic comparison, not proof that the monument
+was designed as a mechanical bird voice. The present structure has a construction,
+weathering, excavation, and restoration history; modern listeners and handclaps are
+not direct recordings of ancient practice. The existence of the acoustic effect is
+measurable. Its intentionality and original cultural function require independent
+archaeological evidence.
+
+[Garza, Medina, Padilla, Ramos, and Zalaquett (2008)](https://www.scielo.org.mx/scielo.php?pid=S0185-25742008000200003&script=sci_arttext)
+therefore argue for systematic Maya archaeoacoustics rather than isolated marvels.
+Their framework joins calibrated measurements and mathematical models with evidence
+about architecture, instruments, public events, ritual, and social organization. It
+also treats hypotheses as testable: researchers should document source and receiver
+coordinates, excitation type, weather, crowd conditions, surface state, and uncertainty;
+compare multiple monuments; and ask whether a proposed effect survives plausible
+reconstructions of the earlier building.
+
+For a reverb designer, Chichén Itzá offers a useful reversal of the usual goal. Instead
+of hiding individual delays until they fuse into a smooth room, preserve a controlled
+periodicity long enough for the reflection pattern to become a recognizable gesture.
+A short nonuniform multitap network, a bank of dispersive comb filters, or a measured
+impulse response can produce birdlike sweeps without a long RT60. The musical result
+is part echo, part filter, and part spatial sign. It reminds us that reverberation can
+carry identity before it carries duration.
 
 #### RT60 Is Important, but It Is Not the Sound
 
@@ -825,7 +1156,7 @@ rhythm unrelated to the written drum rhythm. This is why long percussion reverbs
 benefit from lower wet level, greater high-frequency damping, and automation that
 allows selected accents to enter the long return.
 
-This listening problem appears dramatically in Berlioz's *Grande Messe des morts* and
+This listening problem appears dramatically in Berlioz's *Grande Messe des morts* (1837) and
 in antiphonal repertory designed for large architecture: distance and decay become
 orchestration. A production need not imitate a specific church to learn the lesson.
 Send only structural attacks to the longest return and let smaller notes articulate the
@@ -918,7 +1249,7 @@ process or fuse it into a single surface.
 
 #### Example 8: Antiphony, Choir, and Architectural Counterpoint
 
-Thomas Tallis's *Spem in alium* and Giovanni Gabrieli's *In ecclesiis* demonstrate that
+Thomas Tallis's *Spem in alium* (c. 1570) and Giovanni Gabrieli's *In ecclesiis* (c. 1615) demonstrate that
 space can participate in counterpoint. Groups answer across distance; reflections bind
 the ensemble while directional differences preserve identity. A stereo reverb can
 suggest some of this behavior, but an immersive or multichannel design can make
@@ -958,7 +1289,7 @@ on this material should avoid pinning the entire texture to a few accidental res
 Time-varying matrices, slight modulation, or tonal correction can distribute energy
 without turning the return into an obvious chorus.
 
-In repertoire such as Ligeti's *Lux Aeterna* or Messiaen's *Et exspecto resurrectionem
+In repertoire such as Ligeti's *Lux Aeterna* (1966) or Messiaen's *Et exspecto resurrectionem
 mortuorum*, spectral mass, register, and architectural decay shape the listener's sense
 of time. For an electronic analogue, automate matrix motion more slowly than the phrase
 rate. Fast motion reads as modulation; slow motion reads as a changing room.
@@ -1173,6 +1504,36 @@ target; a 1,499-sample comb delay is a topology choice tied to one sample rate.
 
 #### Difference Equations, Transfer Functions, and Impulse Responses
 
+A digital filter is a rule that maps an input sample sequence to an output sample
+sequence. A finite impulse response (FIR) filter uses a finite weighted history of the
+input. An infinite impulse response (IIR) filter also uses previous outputs, so energy
+can recirculate indefinitely in the mathematical model. Causality requires the present
+output to depend only on present and past information. Linearity permits superposition,
+and time invariance means that delaying an input delays its response without changing
+the response's shape. Those properties make convolution, transfer functions, and
+pole-zero analysis available as mutually consistent descriptions.
+
+The general scalar, causal, linear difference equation is
+
+$$
+y[n]=\sum_{k=0}^{P} b_k x[n-k]-\sum_{k=1}^{Q}a_k y[n-k],
+$$
+
+with feedforward coefficients $b_k$ and feedback coefficients $a_k$. Its transfer
+function is the rational polynomial
+
+$$
+H(z)=\frac{\sum_{k=0}^{P}b_kz^{-k}}
+           {1+\sum_{k=1}^{Q}a_kz^{-k}}
+     =\frac{B(z)}{A(z)}.
+$$
+
+Zeros are roots of $B(z)$; poles are roots of $A(z)$. A zero suppresses a complex
+sinusoidal component at its angle and radius, while a pole describes a natural mode
+that the system can sustain after excitation. For real-valued coefficients, non-real
+roots occur in complex-conjugate pairs. Repeated roots have multiplicity, which changes
+the envelope multiplying the corresponding exponential mode.
+
 A block diagram, a difference equation, and a transfer function describe the same
 linear time-invariant system from different viewpoints. Consider
 
@@ -1203,6 +1564,45 @@ which is the $z$-domain statement of the audible echo train. This three-way tran
 is a useful debugging method. If a diagram suggests one sign, the equation another, and
 the impulse response a third, the implementation is not merely “voiced differently”;
 one representation is wrong.
+
+#### Solving Higher-Order Characteristic Equations
+
+Finding the poles of a high-order reverberator is an algebra problem with numerical
+consequences. Multiplying a denominator expressed in $z^{-1}$ by a sufficient power of
+$z$ produces an ordinary polynomial. Equivalently, substitute $u=z^{-1}$, solve for
+$u$, and invert each nonzero root. Closed-form quadratic formulas remain useful for
+second-order sections, but production reverberators routinely create orders for which
+closed forms are unwieldy or do not exist in radicals.
+
+For a monic polynomial
+
+$$
+p(z)=z^Q+c_{Q-1}z^{Q-1}+\cdots+c_1z+c_0,
+$$
+
+the roots are the eigenvalues of its companion matrix
+
+$$
+\boldsymbol{K}=
+\begin{bmatrix}
+0&0&\cdots&0&-c_0\\
+1&0&\cdots&0&-c_1\\
+0&1&\cdots&0&-c_2\\
+\vdots&\vdots&\ddots&\vdots&\vdots\\
+0&0&\cdots&1&-c_{Q-1}
+\end{bmatrix},
+\qquad
+p(z)=\det(z\boldsymbol{I}-\boldsymbol{K}).
+$$
+
+This linear-algebra formulation connects filter analysis to robust eigenvalue
+algorithms. It also explains why polynomial roots can be ill conditioned: a small
+coefficient perturbation can move a cluster of nearly repeated roots substantially.
+Implement long filters as cascaded first- and second-order sections when possible,
+compute roots in double precision, pair conjugates explicitly, and verify the frequency
+response after reconstruction. In a feedback network, inspect eigenvalues of the state
+transition or a suitable polynomial eigenvalue linearization rather than multiplying
+large sparse delay polynomials by hand.
 
 #### Poles, Stability, and Decay
 
@@ -1300,6 +1700,20 @@ the lower return path explains the sequence at $0,M,2M,\ldots$ samples. The draw
 distinguishes the signal stored in memory, $w[n]$, from the signal currently leaving the
 delay, $y[n]$, a distinction that prevents common indexing mistakes in implementations.
 
+The following pole-zero diagram turns the comb equation into geometry. The drawing uses
+$M=12$ only to keep individual modes legible; a practical delay contains many more
+samples and therefore many more poles. The same rule survives at every order.
+
+![Pole-zero map for a representative feedback comb filter on the unit circle.](docs/assets/reverb_primer/38_feedback_comb_pz.png)
+
+**Figure: Unit-circle pole-zero map for a representative feedback comb, showing twelve equal-radius poles and twelve coincident zeros at the origin.**
+
+Each solution of $z^M=g$ contributes one pole. The angular spacing is $2\pi/M$, while
+the radius is $|g|^{1/M}$. Raising $g$ moves every cross toward the unit circle and
+lengthens all modal decays together. A negative $g$ rotates the pole family by
+$\pi/M$. The zeros at the origin appear after polynomializing the causal transfer
+function; they do not cancel the resonant pole ring.
+
 For a target $T_{60}$ and a delay duration $d=M/f_s$ seconds, the loop gain is
 
 $$
@@ -1364,6 +1778,20 @@ in two different roles: positive feedback sustains the echo sequence, while nega
 feedforward corrects its magnitude response. Swapping a sign changes the topology and can
 turn a diffuser into a colored or unstable structure even though every block still looks
 plausible in isolation.
+
+The reciprocal structure is easiest to see in the following unit-circle plot. It uses a
+reduced delay order so the individual reciprocal pairs can be inspected rather than
+merging into a continuous ring.
+
+![Pole-zero map for a representative Schroeder allpass filter.](docs/assets/reverb_primer/39_schroeder_allpass_pz.png)
+
+**Figure: Unit-circle pole-zero map for a Schroeder allpass, with stable interior poles and reciprocal exterior zeros.**
+
+For every pole $p_k$, the corresponding allpass zero lies at $1/p_k^*$. On the unit
+circle, numerator and denominator magnitudes therefore match even though their phases
+do not. The exterior zeros do not make the causal filter unstable because stability is
+governed by poles. They do make the system non-minimum-phase, which is precisely how the
+network can redistribute transient energy in time while preserving ideal magnitude.
 
 #### Allpass Networks: From Echoes to a Diffuse Excitation
 
@@ -1448,6 +1876,21 @@ $x_1$ through $x_4$ enter a normalized Hadamard matrix, whose signed combination
 four related but decorrelated outputs. The graph therefore exposes three distinct design
 layers: onset diffusion, late modal duration, and spatial projection.
 
+The following reduced-order modal map combines several unequal comb rings and an
+illustrative allpass zero family. It is not a root plot of the exact printed delays,
+whose thousands of points would obscure the structure at book scale.
+
+![Reduced-order pole-zero map for a parameterized Schroeder reverberator.](docs/assets/reverb_primer/40_parameterized_schroeder_pz.png)
+
+**Figure: Reduced-order unit-circle map of a parameterized Schroeder reverberator, showing interleaved comb-pole rings and reciprocal allpass zeros.**
+
+Each comb contributes a regular ring, but unequal orders and radii interleave those
+rings. The allpasses add pole-zero pairs whose magnitude effects cancel ideally while
+their phase effects accumulate. Coincident or nearly coincident poles predict exposed
+ringing; a more even angular distribution predicts smoother modal coverage. Because
+parallel branch transfer functions add, the final transmission zeros also depend on
+branch gains and summation, not only on the zeros drawn for individual stages.
+
 The Schroeder design remains an excellent teaching instrument. Bypass its allpasses and
 hear the comb modes. Restore one stage at a time and hear density increase. Change one
 delay until it shares a common divisor with another and hear periodicity emerge. These
@@ -1515,6 +1958,21 @@ $\boldsymbol{M}$ redistributes energy before the vector returns to the input sum
 projection $\boldsymbol{C}^{\mathsf T}$ observes the delayed state without replacing the
 feedback path. That separation lets a designer change stereo or immersive presentation
 without changing the poles that govern the late decay.
+
+The following pole-zero figure presents a reduced-order FDN modal projection. Unlike a
+single comb, an FDN does not generally decompose into one obvious ring per delay line;
+its coupled characteristic equation mixes delay, matrix, and loop-filter terms.
+
+![Reduced-order pole-zero projection for an expanded Feedback Delay Network.](docs/assets/reverb_primer/41_expanded_fdn_pz.png)
+
+**Figure: Illustrative unit-circle modal projection of an expanded FDN, with coupled poles and projection-dependent transmission zeros.**
+
+The crosses represent eigenmodes of a stable, damped coupled state. Their unequal radii
+stand for frequency-dependent and line-dependent loss. The circles are transmission
+zeros for one illustrative input-output projection. Replacing $\boldsymbol{B}$ or
+$\boldsymbol{C}$ changes those zeros and the observed color, while leaving the internal
+state poles unchanged. Replacing $\boldsymbol{M}$ or a loop filter can move the poles
+themselves, so those changes require renewed stability analysis.
 
 verbx exposes several matrix families because they create different exchange patterns.
 Hadamard mixing is dense and uniform. Householder mixing is efficient and structured.
@@ -1697,6 +2155,19 @@ delay-line duration and $T_{60,b}$ is the target for band $b$. The sum reconstru
 conditioned state component before matrix mixing. Calibrating gain from each line's own
 duration is important: applying one coefficient to unequal delays gives those lines
 different decay times and distorts the intended spectral envelope.
+
+The following modal plot shows how three decay targets become families of pole radii.
+The outer family represents the slowest band and the inner family the fastest.
+
+![Pole-zero map for a representative multiband FDN loop filter.](docs/assets/reverb_primer/42_multiband_loop_filter_pz.png)
+
+**Figure: Unit-circle pole-zero map for multiband feedback damping, with separate low-, middle-, and high-band pole-radius families.**
+
+Band filters contribute their own poles and zeros, and the surrounding delay network
+replicates their influence across many modes. Stability must therefore be checked on the
+complete loop, not inferred from three scalar gains alone. A smooth target decay curve
+should produce a smooth radial transition with frequency; abrupt radial clusters can
+become audible as bands that detach from one another during the tail.
 
 ```bash
 verbx render music.wav /tmp/multiband_hall.wav \
@@ -1928,6 +2399,144 @@ Choose convolution when the identity of a measured space matters. Choose algorit
 FDN processing when RT60, matrix motion, modulation, or extreme duration must change
 during the sound. Hybrid workflows often use a short measured early response followed
 by an algorithmic late field.
+
+#### Measuring and Capturing an Acoustic Impulse Response
+
+An acoustic impulse response is not simply a recording made in a reverberant room. It is
+an estimate of the transfer path from a specified source position to a specified receiver
+position under documented conditions. Move the loudspeaker, microphone, furniture, doors,
+audience, or temperature and the measured system changes. A useful capture therefore
+records geometry and calibration alongside audio: room and session identifier, date,
+source and microphone coordinates, orientation, height, transducers, interface, gain,
+sample rate, atmosphere, occupancy, and every processing step.
+
+Several excitation methods are practical:
+
+| Excitation | Strength | Principal limitation |
+|---|---|---|
+| Acoustic impulse, such as a balloon or starter pistol | Fast, intuitive, portable | Limited repeatability, spectrum, and signal-to-noise ratio |
+| Loudspeaker-driven electrical pulse | Known timing and polarity | High peak demand and possible loudspeaker nonlinearity |
+| Maximum-length sequence or other pseudorandom noise | Efficient averaging for an LTI system | Nonlinear distortion folds into the estimate |
+| Linear sine sweep | Controlled spectrum and level | Harmonic distortion is not separated as cleanly in time |
+| Exponential sine sweep | High energy across the band and nonlinear separation | Requires careful inverse filtering and clock discipline |
+| Program material or ambient excitation | Measures the occupied operating condition | Usually underdetermined and difficult to reproduce |
+
+A balloon pop can be excellent for scouting positions, but a calibrated exponential sine
+sweep is usually the stronger archival measurement because it distributes energy over
+seconds instead of demanding one extreme peak. Repeat each source-receiver pair at least
+twice. If the recovered responses disagree, diagnose motion, clipping, clock drift, noise,
+or time variance before averaging them. Measure the background noise separately and leave
+headroom in the playback, microphone, preamplifier, and converter stages.
+
+The measurement chain is
+
+$$
+s(t)\longrightarrow\text{D/A}\longrightarrow\text{loudspeaker and room}
+\longrightarrow\text{microphone}\longrightarrow\text{A/D}\longrightarrow r(t).
+$$
+
+For an approximately linear, time-invariant room and measurement chain,
+
+$$
+r(t)=s(t)*h(t)+v(t),
+$$
+
+where $s(t)$ is the known excitation, $h(t)$ is the desired impulse response, and $v(t)$
+contains background and electronic noise. A loopback channel recorded beside the
+microphone channel reveals playback latency and clock behavior. Calibrated absolute sound
+pressure is valuable for research, but a production IR may instead retain relative level
+and document its later normalization.
+
+#### Deconvolving a Sine Sweep
+
+Deconvolution removes the known excitation from the recorded response. In the frequency
+domain, the noise-free ideal would be $H(f)=R(f)/S(f)$. Direct division is fragile wherever
+$S(f)$ is small, so a regularized estimate is safer:
+
+$$
+\widehat{H}(f)=\frac{R(f)S^*(f)}{|S(f)|^2+\lambda(f)}.
+$$
+
+Here $S^*(f)$ is the complex conjugate and $\lambda(f)$ limits noise amplification. The
+regularizer can follow a measured noise spectrum rather than remaining constant. Transform
+$\widehat{H}(f)$ back to time, identify the direct arrival, and inspect the pre-arrival
+region: substantial energy before the causal response often indicates synchronization,
+windowing, or inverse-filter error.
+
+An exponential sweep from $f_1$ to $f_2$ over duration $T$ can be written
+
+$$
+s(t)=\sin\!\left[
+2\pi f_1\frac{T}{\ln(f_2/f_1)}
+\left(e^{t\ln(f_2/f_1)/T}-1\right)
+\right],\qquad 0\leq t\leq T.
+$$
+
+Apply short fades at both ends to avoid discontinuities, play the sweep through the source,
+and record enough silence afterward to contain the complete room tail. The inverse filter
+is a time-reversed sweep with the amplitude correction required by the logarithmic time-to-
+frequency mapping. Convolving the recording with that inverse compresses the swept energy
+into the linear room response. Frequency-domain regularization and the time-domain inverse
+filter are two views of the same system-identification operation.
+
+#### The Farina Exponential-Sweep Method
+
+Angelo Farina's exponential-sweep method is especially valuable because a weakly nonlinear
+playback and capture chain does not place every distortion product on top of the linear IR.
+After deconvolution, the $k$th harmonic response is displaced from the main linear response
+by
+
+$$
+\Delta t_k=T\frac{\ln k}{\ln(f_2/f_1)}.
+$$
+
+With the usual inverse-filter convention, higher-order harmonic responses appear earlier
+than the principal linear response. They can be windowed and inspected separately instead
+of contaminating the room estimate as they do in many pseudorandom measurements. This does
+not make the room perfectly time invariant or the transducers perfectly separable; it
+makes nonlinear contamination visible and measurable. Use a sweep long enough for adequate
+low-frequency energy, but not so long that audience movement, ventilation cycles, wind, or
+temperature drift violates the stationary-system assumption.
+
+A disciplined Farina session follows this sequence:
+
+1. Calibrate playback level and verify that the complete chain remains below clipping.
+2. Record the microphone and electrical loopback channels at one unchanged sample clock.
+3. Play an exponentially swept sine with onset and endpoint fades.
+4. Continue recording through the required decay and noise-floor interval.
+5. Deconvolve with the matched inverse sweep or a regularized frequency-domain equivalent.
+6. Separate the earlier harmonic responses from the later linear response before trimming.
+7. Repeat the measurement and compare direct arrival, polarity, spectrum, decay, and noise.
+8. Preserve the raw sweep, raw capture, inverse filter, recovered IR, and metadata together.
+
+Farina's AES paper provides the canonical derivation and nonlinear-separation framework;
+the complete citation appears as reference CV6 in Appendix C.
+
+#### Preparing the Recovered IR for verbx
+
+verbx does not presently control a measurement loudspeaker or record and deconvolve a sweep
+inside the CLI. Capture and deconvolution should be performed in a measurement application,
+DAW, or validated scientific script. The recovered WAV can then enter the reproducible
+verbx inspection and production path:
+
+```bash
+verbx ir analyze measured_room_raw.wav --json-out measured_room_raw.analysis.json
+
+verbx ir process measured_room_raw.wav measured_room_ready.wav \
+  --lowcut 20 --highcut 22000 --normalize peak --peak-dbfs -1
+
+verbx render source.wav source_in_measured_room.wav \
+  --engine conv --ir measured_room_ready.wav \
+  --json-out source_in_measured_room.analysis.json
+```
+
+Do not normalize away information before deciding what the library promises. An absolute,
+calibrated IR and a peak-normalized production IR serve different purposes. Preserve the
+raw direct-arrival delay if source distance must remain authentic; remove or shorten it if
+the IR will be placed behind an independent pre-delay control. Retain enough tail to reach
+the measured noise floor, then use a gentle terminal fade rather than a hard truncation.
+For arrays and immersive captures, measure and label every source-receiver route, preserve
+one common time origin, and test the matrix with one active input channel at a time.
 
 #### Hybrid Reverberation: Geometry First, Statistics Later
 
@@ -2292,6 +2901,88 @@ section boundary, or reverse reverb as an anacrusis into one important word. Whe
 event receives every transformation, the special behavior becomes a static texture.
 When selected events receive it, reverb becomes orchestration.
 
+#### Gated Reverse Reverb: A Room That Arrives, Then Vanishes
+
+Gated reverse reverb combines two envelope operations. Reverse reverb makes wet energy
+rise toward a destination transient; a gate or explicitly drawn gain window limits that
+rise to a deliberate interval and closes it at, just before, or just after the transient.
+The result is not simply a backward tail. It is a bounded anticipatory gesture with a
+composed beginning, trajectory, and ending. Silence around the gesture is part of the
+effect.
+
+Three related processes should not be confused:
+
+- **Forward gated reverb** begins after the dry event and truncates the normal decay.
+- **Ungated reverse reverb** swells into the event but may expose a long, noisy, or
+  harmonically indiscriminate lead-in.
+- **Gated reverse reverb** swells toward the event only inside a controlled pre-event
+  window, then closes decisively enough to articulate the arrival.
+
+Gate placement determines the result. A gate before the reverb controls which dry events
+excite the processor, but the accepted events can still generate complete tails. A gate
+after the wet processor shapes the audible reverberant field itself and creates the
+characteristic abrupt boundary. For the canonical effect, key the detector from the dry
+source while applying gain reduction only to a 100-percent-wet return. Keep the dry
+transient on a separate path.
+
+For a true offline construction, isolate the destination event, reverse it, render a wet
+tail, reverse the wet render, trim it to the desired lead time, and align its maximum or
+chosen cutoff with the original event. Then shape the printed return with clip gain or a
+linked gate. This two-reversal method has access to future context and can create a
+genuinely noncausal anticipation. It is the reference against which realtime
+approximations should be judged.
+
+The current verbx plug-in Reverse button is intentionally different: it is a
+zero-lookahead, transient-triggered reverse-style swell. It cannot emit sound before a
+transient that the host has not delivered. To create a true gated anticipation with the
+current plug-in, print the wet Reverse return, move that stem earlier, and gate or draw
+its envelope in the DAW. A future bounded-capture implementation could automate this
+operation by buffering a fixed window, but its latency would be at least the active
+capture duration and would have to be reported to the host.
+
+Tempo provides a useful first estimate for the reverse window. For tempo $B$ in beats per
+minute and a lead spanning $N$ beats,
+
+$$
+T_{\mathrm{lead}}=\frac{60N}{B}\ \text{seconds}.
+$$
+
+At 120 BPM, an eighth-note lead is 250 ms, a quarter-note lead is 500 ms, and a half-note
+lead is 1 second. These values establish metrical intent rather than final sound. Start
+the wet window 5 to 30 ms late or early relative to the grid when consonants, bow noise,
+or drum attacks require a more convincing perceptual landing.
+
+A practical vocal setup uses a 500 to 1,500 ms wet print, high-pass filtering near 120 to
+250 Hz, and a gate that closes between 10 ms before and 30 ms after the dry consonant.
+Drums usually tolerate shorter windows, stronger low-mid energy, and a harder close.
+Pads, cymbals, and orchestral transitions can use several beats, but the gate should
+still reveal a clear formal boundary rather than merely hiding the beginning of a long
+wash. A 5 to 20 ms terminal fade prevents a digital click while retaining the sensation
+of an abrupt cutoff.
+
+Threshold alone is rarely sufficient. Expose or automate lead duration, detector source,
+attack, hold, release, hysteresis, range, wet bandwidth, and endpoint offset. Hysteresis
+prevents a noisy reverse tail from chattering around threshold. Range lets a small room
+residue survive instead of forcing absolute silence. A sidechain high-pass filter keeps
+plosives and kick energy from opening the gate prematurely, while a low-pass filter can
+make the approach dark and leave the destination transient spectrally unobstructed.
+
+For stereo and immersive work, derive one gate envelope from a linked detector and apply
+it coherently to all wet channels. Independent channel gates can make the image twitch,
+collapse, or arrive from the wrong direction as thresholds are crossed at different
+times. The reverse field may widen or move during its approach, but its endpoint should
+remain stable under stereo fold-down and binaural rendering. Keep LFE empty unless the
+gesture specifically requires low-frequency impact, and inspect bass-managed monitoring
+before assuming low-frequency wet energy was written into LFE.
+
+Common failures are diagnostic. If the arrival sounds late, align the envelope endpoint
+rather than the file boundary. If the dry attack loses force, close the wet gate earlier,
+shorten the terminal fade, or reduce energy between 2 and 6 kHz. If the swell chatters,
+increase hysteresis or replace level detection with a drawn window. If every phrase feels
+predicted, reserve the effect for structural entrances, withheld downbeats, cadences, and
+selected words. Gated reverse reverb is strongest when it changes musical causality for
+one event, then returns silence to the foreground.
+
 #### Multichannel Routing and the Shape of the Late Field
 
 Stereo width is only one spatial dimension. In multichannel work, early energy can
@@ -2320,6 +3011,21 @@ combinations. Normalization prevents channel count or coefficient choice from cr
 an unintended level jump. The final mixers add the projected wet signals to their dry
 counterparts after recursion, preserving one acoustic identity and predictable fold-down
 behavior.
+
+The following unit-circle map separates what is shared from what is channel-specific.
+The internal pole ring belongs to the common FDN state, while the plotted zeros represent
+one output projection; the other channel generally has a different zero pattern.
+
+![Pole-zero map for stereo projection from a shared Feedback Delay Network.](docs/assets/reverb_primer/43_stereo_projection_pz.png)
+
+**Figure: Unit-circle map for stereo FDN projection, with shared modal poles and output-dependent transmission zeros.**
+
+Changing $\boldsymbol{C}_L$ and $\boldsymbol{C}_R$ alters which modes cancel at each
+output without constructing two unrelated acoustic systems. This is the linear-systems
+reason signed projections can create width while preserving a coherent room. Mono
+fold-down combines the two transfer numerators, so it must be checked explicitly: a
+left-right zero that sounds spacious in stereo can become a broad cancellation after
+summation.
 
 ### The Science and DSP of Dereverberation
 
@@ -3210,7 +3916,7 @@ time.
 
 ### Algorithmic vs. Convolution
 
-**For beginners:** Algorithmic reverb synthesizes the space from scratch using delay networks and filters. It does not need an external file, responds instantly to parameter changes, and can produce decay times no physical room could sustain. Convolution reverb applies a pre-recorded impulse response — a measurement of what a specific room does to a click — to your audio. The result sounds like the space where the IR was recorded.
+**For beginners:** Algorithmic reverb synthesizes the space from scratch using delay networks and filters. It does not need an external file, responds instantly to parameter changes, and can produce decay times no physical room could sustain. Convolution reverb applies a pre-recorded impulse response – a measurement of what a specific room does to a click – to your audio. The result sounds like the space where the IR was recorded.
 
 **For experts:** The algorithmic engine in verbx uses a Schroeder allpass diffusion stage feeding a fully coupled $N$-line FDN with configurable feedback matrix. Convolution uses uniformly-partitioned overlap-save FFT with optional CUDA acceleration via CuPy. The two engines share the same pre-delay, shimmer, freeze, ducking, bloom, tilt, loudness, and spatial stages. Use `--engine auto` and verbx selects based on whether an IR is present.
 
@@ -3407,11 +4113,11 @@ stationary noise floor eventually bends the curve away from its true room-decay 
 
 Three conventional estimators use different portions of the EDC:
 
-| Estimator | Fitted decay interval | Extrapolation to RT60 |
+| Estimator | Fitted decay interval | Extrapolation to $T_{60}$ |
 |---|---:|---:|
-| EDT | 0 to –10 dB | fitted time multiplied by 6 |
-| T20 | –5 to –25 dB | fitted time multiplied by 3 |
-| T30 | –5 to –35 dB | fitted time multiplied by 2 |
+| EDT | $0$ to $-10$ dB | fitted time multiplied by $6$ |
+| $T_{20}$ | $-5$ to $-25$ dB | fitted time multiplied by $3$ |
+| $T_{30}$ | $-5$ to $-35$ dB | fitted time multiplied by $2$ |
 
 Early decay time, or EDT, emphasizes the first audible release after excitation and often
 tracks perceived reverberance more closely than a deep late-tail fit. T20 gives a robust
@@ -3788,15 +4494,15 @@ Society of America* 148(2): R5–R6. DOI:
 
 ### Impulse Responses
 
-**For beginners:** An impulse response (IR) is a recording of what a space does to a single perfect click. When you convolve your audio with an IR, your audio sounds like it was played in that space. verbx can use IR files from external libraries, or generate its own synthetic IRs in four modes. You do not need an IR to use verbx — the algorithmic engine works without one.
+**For beginners:** An impulse response (IR) is a recording of what a space does to a single perfect click. When you convolve your audio with an IR, your audio sounds like it was played in that space. verbx can use IR files from external libraries, or generate its own synthetic IRs in four modes. You do not need an IR to use verbx – the algorithmic engine works without one.
 
-**For experts:** verbx IR synthesis runs in four modes. `fdn` constructs a tail from the same FDN core used in algorithmic rendering, with configurable matrix family and decay parameters. `stochastic` generates exponentially-decayed filtered noise, shaped to match an RT60 curve. `modal` synthesizes a bank of tuned resonators — useful for musically-pitched spaces or physically-inspired objects. `hybrid` combines FDN late field with stochastic early reflections and optional modal resonator coloration. All modes use deterministic content-hash caching so repeated generation with the same parameters retrieves from cache rather than recomputing. The cache is keyed on mode, all synthesis parameters, seed, sample rate, channels, and length.
+**For experts:** verbx IR synthesis runs in four modes. `fdn` constructs a tail from the same FDN core used in algorithmic rendering, with configurable matrix family and decay parameters. `stochastic` generates exponentially-decayed filtered noise, shaped to match an RT60 curve. `modal` synthesizes a bank of tuned resonators – useful for musically-pitched spaces or physically-inspired objects. `hybrid` combines FDN late field with stochastic early reflections and optional modal resonator coloration. All modes use deterministic content-hash caching so repeated generation with the same parameters retrieves from cache rather than recomputing. The cache is keyed on mode, all synthesis parameters, seed, sample rate, channels, and length.
 
 ### Wet/Dry Mix
 
-**For beginners:** `--wet` controls how much reverb you hear; `--dry` controls how much of the original unprocessed signal you keep. Most reverb uses are parallel — you blend the two. Start with `--wet 0.2 --dry 0.8` for subtle room feel and increase wet for more spaciousness. A setting of `--wet 1.0 --dry 0.0` is fully wet with no dry signal — often used in freeze or ambient texture work where you want the reverb itself as the sound.
+**For beginners:** `--wet` controls how much reverb you hear; `--dry` controls how much of the original unprocessed signal you keep. Most reverb uses are parallel – you blend the two. Start with `--wet 0.2 --dry 0.8` for subtle room feel and increase wet for more spaciousness. A setting of `--wet 1.0 --dry 0.0` is fully wet with no dry signal – often used in freeze or ambient texture work where you want the reverb itself as the sound.
 
-**For experts:** verbx allows wet values above 1.0 for deliberate creative overdriving of the wet bus prior to the final mix. This is intentional and distinct from a gain error — it allows the reverb field to dominate with headroom for the loudness and limiter stages downstream to manage levels. Both `--wet` and `--dry` are valid automation targets: you can write time-varying lanes that sweep wet depth over the duration of a render, useful for automating reverb throws or level-responsive gating.
+**For experts:** verbx allows wet values above 1.0 for deliberate creative overdriving of the wet bus prior to the final mix. This is intentional and distinct from a gain error – it allows the reverb field to dominate with headroom for the loudness and limiter stages downstream to manage levels. Both `--wet` and `--dry` are valid automation targets: you can write time-varying lanes that sweep wet depth over the duration of a render, useful for automating reverb throws or level-responsive gating.
 
 ---
 
@@ -3806,7 +4512,7 @@ Society of America* 148(2): R5–R6. DOI:
 
 The algorithmic engine synthesizes reverb without an impulse response file. It is well suited for extreme tail lengths, evolving or modulated spaces, and creative applications where physical accuracy is not the goal.
 
-**What it sounds like:** Smooth, dense, fully controllable. At short RT60 values (under 3 seconds) it behaves like a believable room. As RT60 increases past 20–30 seconds, it transitions into something entirely non-physical — a sustained shimmer of harmonic energy that can evolve slowly over minutes. The matrix family is the main texture control: Hadamard produces a more uniform, neutral tail; `tv_unitary` adds slow decorrelation motion; `graph` with ring topology sounds regular and periodic; `random` sounds unpredictable.
+**What it sounds like:** Smooth, dense, fully controllable. At short RT60 values (under 3 seconds) it behaves like a believable room. As RT60 increases past 20–30 seconds, it transitions into something entirely non-physical – a sustained shimmer of harmonic energy that can evolve slowly over minutes. The matrix family is the main texture control: Hadamard produces a more uniform, neutral tail; `tv_unitary` adds slow decorrelation motion; `graph` with ring topology sounds regular and periodic; `random` sounds unpredictable.
 
 **Signal flow:**
 
@@ -3893,11 +4599,315 @@ Shorter delay lines require gains closer to 1.0. This is computed per line so di
 
 ---
 
+### Spring and Plate Models (`--algo-model`)
+
+`--algo-model spring` and `--algo-model plate` are two constrained voices of
+the algorithmic engine. They are useful when the musical reference is an
+electro-mechanical reverb rather than a literal room: guitar tanks, compact
+combo-amp springs, vocal plates, snare plates, and bright dense returns. They
+are deterministic signal-processing models by default, not sampled devices.
+`--electromechanical-solver modal-fe` additionally provides a bounded offline
+modal finite-element approximation. Neither mode is a calibration of a
+particular spring pan or metal plate. That distinction matters. A physical device has transducer nonlinearity, mechanical
+coupling, mounting loss, noise, pickup placement, and unit-to-unit variation;
+verbx deliberately keeps the render reproducible and exposes an auditable
+parameter set instead.
+
+Select a model explicitly:
+
+```bash
+# Short, splashy guitar-style return.
+verbx render guitar.wav guitar_spring.wav \
+  --engine algo --algo-model spring --rt60 1.8 \
+  --pre-delay-ms 8 --damping 0.70 --wet 0.45 --dry 0.80
+
+# Dense vocal plate. Use dry=0 when this is an auxiliary/send return.
+verbx render vocal.wav vocal_plate.wav \
+  --engine algo --algo-model plate --rt60 3.2 \
+  --pre-delay-ms 14 --damping 0.28 --width 1.35 --wet 1 --dry 0
+```
+
+The presets `classic_spring` and `bright_plate` provide conservative starting
+points. Explicit command-line values still document the intended musical
+choice, but the model also protects its identity by applying topology bounds.
+For example, spring keeps short delays, a four-line circulant late field,
+limited allpass gain, and a minimum amount of motion and damping. Plate uses a
+larger, denser, brighter diffusion configuration. They should not be treated
+as arbitrary FDN presets with every underlying topology switch exposed.
+
+#### The Physical Reference
+
+An ideal stretched spring supports longitudinal and torsional wave families.
+Unlike the ideal string equation, their propagation is visibly dispersive: the
+group delay depends on frequency, so a transient turns into a succession of
+frequency-dependent arrivals. A useful conceptual model writes the phase as
+
+$$
+\phi(\omega) = \omega\tau_0 + \alpha\omega^2,
+$$
+
+where $\tau_0$ is a nominal transit time and $\alpha$ is a dispersion term.
+The group delay is the derivative of phase,
+
+$$
+\tau_g(\omega) = \frac{d\phi}{d\omega} = \tau_0 + 2\alpha\omega.
+$$
+
+Higher frequencies therefore arrive at a different time from lower
+frequencies. Real tanks also contain repeated reflections, coupling between
+multiple springs, and losses at the input/output transducers. A modal view of
+the response is
+
+$$
+H_{\mathrm{spring}}(\omega) =
+\sum_{m=1}^{M}\frac{b_m}{\omega_m^2 - \omega^2 + j\,2\zeta_m\omega_m\omega},
+$$
+
+with modal frequencies $\omega_m$, damping ratios $\zeta_m$, and pickup/input
+weights $b_m$. The irregular mode spacing and frequency-dependent decay are
+why physical springs can sound "boingy," splashy, or metallic rather than like
+a small room.
+
+A plate is a thin two-dimensional elastic structure. In an ideal isotropic
+plate, flexural-wave angular frequency has approximately quadratic dependence
+on wavenumber:
+
+$$
+\omega = \sqrt{\frac{D}{\rho h}}\,k^2,
+\qquad
+D = \frac{E h^3}{12(1-\nu^2)},
+$$
+
+where $E$ is Young's modulus, $\rho$ density, $h$ thickness, $\nu$ Poisson's
+ratio, and $D$ flexural rigidity. A rectangular plate has a mode family often
+approximated by
+
+$$
+f_{mn} \propto
+\left(\frac{m^2}{L_x^2} + \frac{n^2}{L_y^2}\right),
+$$
+
+for integer mode indices $(m,n)$ and plate dimensions $L_x,L_y$. Many closely
+spaced modes, distributed damping, and multiple pickup paths create the
+characteristically dense, bright, smooth plate tail. The equations describe
+the physical reference, not an assertion that verbx solves a plate boundary
+value problem sample by sample.
+
+#### What verbx Actually Computes
+
+Both models remain inside the stable algorithmic framework. Each delay line
+uses the same RT60-calibrated feedback gain
+
+$$
+g_i = 10^{-3d_i/T_{60}},
+$$
+
+where $d_i$ is the line delay in seconds and $T_{60}$ is `--rt60`. This keeps
+the decay target interpretable even when the timbre is deliberately
+electro-mechanical. The feedback network mixes delay states with a matrix
+$\boldsymbol{M}$ and applies damping inside the loop:
+
+$$
+\boldsymbol{x}[n+1] = \boldsymbol{G}\boldsymbol{M}
+\boldsymbol{D}(z)\boldsymbol{x}[n] + \boldsymbol{u}[n].
+$$
+
+Here $\boldsymbol{D}(z)$ is the frequency-shaping loop filter and
+$\boldsymbol{u}[n]$ is the diffused input. Because damping is in the feedback
+path, it changes the decay spectrum rather than merely equalizing the output.
+
+Allpass diffusion supplies echo-density growth without changing the magnitude
+response of an ideal section. A representative delay-allpass form is
+
+$$
+A(z) = \frac{a + z^{-N}}{1 + a z^{-N}},
+\qquad |a| < 1,
+$$
+
+where $N$ is a delay in samples and $a$ controls the phase/echo pattern. In
+practice a cascade of sections and short feedback delays creates a dense
+colored onset before the late field takes over. Small delay modulation changes
+the effective delay according to
+
+$$
+d_i[n] = d_i + \Delta d_i\sin(2\pi f_m n/f_s),
+$$
+
+where $\Delta d_i$ is `--mod-depth-ms`, $f_m$ is `--mod-rate-hz`, and $f_s$ is
+sample rate. It is a controlled decorrelation device, not a mechanical model
+of spring tension changing in real time.
+
+The resulting parameter maps are intentionally practical:
+
+| Model | Fixed character | Main controls to use | Controls deliberately constrained |
+|---|---|---|---|
+| `spring` | Short, irregular, darkened and moving return | `--rt60`, `--pre-delay-ms`, `--damping`, `--wet`, `--dry`, `--width` | Four-line circulant field; short delay set; allpass stages limited to 3-5; allpass gain no higher than 0.58; modulation no lower than 1.8 ms / 0.35 Hz; damping no lower than 0.58 |
+| `plate` | Dense, bright, smooth late field | `--rt60`, `--pre-delay-ms`, `--damping`, `--width`, `--wet`, `--dry` | At least eight FDN lines; Hadamard mixing; at least eight allpass stages; allpass gain at least 0.72; modulation no lower than 0.7 ms / 0.12 Hz; damping no higher than 0.38 |
+
+`--fdn-lines`, `--fdn-matrix`, and `--comb-delays-ms` are intentionally poor
+spring/plate controls because the selected model establishes those topology
+choices. Use `--engine algo --algo-model fdn` when manual FDN topology design
+is the actual goal.
+
+#### Physical-Proxy CLI Controls
+
+Spring is a multi-element model. `--spring-count` selects how many elements
+are active (1 to 8); each repeatable `--spring` option describes one element.
+The specification is a comma-separated list of `key=value` pairs:
+
+```bash
+verbx render guitar.wav multi_spring.wav --engine algo --algo-model spring \
+  --spring-count 3 \
+  --spring length_m=0.32,mass_g=20,diameter_mm=0.85,compliance_mm_n=0.45,tension_n=8,damping=0.60 \
+  --spring length_m=0.46,mass_g=31,diameter_mm=1.15,compliance_mm_n=0.70,tension_n=5,damping=0.67 \
+  --spring length_m=0.64,mass_g=50,diameter_mm=1.55,compliance_mm_n=1.10,tension_n=3,damping=0.76 \
+  --rt60 2.1 --wet 0.48 --dry 0.78
+```
+
+Each spring accepts `length_m`, `mass_g`, `diameter_mm`, `compliance_mm_n`,
+`tension_n`, and `damping`. If fewer specifications than `--spring-count` are
+provided, the remaining elements use the documented defaults. The parser
+rejects unknown keys, non-positive physical values, and damping outside 0 to 1.
+Changing length, mass, compliance, or tension changes the derived transit
+delays; diameter and compliance also influence the bounded decorrelation
+profile. These values are proxies used to establish a reproducible synthetic
+topology, not a calibration of a particular commercial spring tank.
+
+Plate controls expose the dimensions and material proxies used to derive its
+delay-density scale:
+
+```bash
+verbx render vocal.wav large_plate.wav --engine algo --algo-model plate \
+  --plate-width-m 2.7 --plate-height-m 1.7 --plate-thickness-mm 0.8 \
+  --plate-density-kg-m3 7850 --plate-youngs-gpa 200 \
+  --plate-poisson-ratio 0.29 --plate-tension-n 600 \
+  --plate-pickup-x 0.18 --plate-pickup-y 0.76 \
+  --rt60 3.8 --wet 1 --dry 0
+```
+
+`--plate-width-m`, `--plate-height-m`, `--plate-thickness-mm`,
+`--plate-density-kg-m3`, `--plate-youngs-gpa`, and `--plate-poisson-ratio`
+form the flexural-rigidity proxy. `--plate-tension-n` adds a bounded tension
+term. `--plate-pickup-x` and `--plate-pickup-y` are normalized coordinates
+between 0 and 1 that influence pickup asymmetry. These options are valid for
+every render for stable configuration files, but they only affect the selected
+spring or plate model.
+
+#### Modal Finite-Element Solver
+
+For an explicit offline structural response, set
+`--electromechanical-solver modal-fe`. This replaces the FDN proxy return with
+a synthesized modal impulse response. It is bounded for repeatable renders:
+spring chains allow 4 through 128 lumped nodes and plate grids allow 4 through
+32 nodes per axis. `--spring-fe-modes` and `--plate-fe-modes` retain up to 128 modes; the
+render report records the active post-Nyquist mode range.
+
+![Coupled mass-spring-damper tank finite-element model](docs/assets/modal_fe_spring_tank.svg)
+
+```bash
+verbx render guitar.wav guitar_tank_fe.wav --engine algo --algo-model spring \
+  --electromechanical-solver modal-fe --spring-count 3 \
+  --spring-fe-nodes 36 --spring-fe-modes 48 --spring-fe-coupling 0.14 \
+  --spring-fe-loss 0.42 --rt60 2.0 --wet 0.55 --dry 0.75
+
+verbx render vocal.wav plate_fe.wav --engine algo --algo-model plate \
+  --electromechanical-solver modal-fe --plate-fe-nx 20 --plate-fe-ny 14 \
+  --plate-fe-modes 72 --plate-fe-loss 0.18 \
+  --plate-pickup-x 0.18 --plate-pickup-y 0.76 --rt60 3.4 --wet 1 --dry 0
+```
+
+For a spring, verbx assembles a block mass matrix $\boldsymbol{M}$ and a
+tridiagonal chain stiffness matrix $\boldsymbol{K}$. Multi-spring tanks add a
+small coupling stiffness between adjacent chains. Normal modes solve
+
+$$
+\boldsymbol{K}\boldsymbol{q}_r = \lambda_r\boldsymbol{M}\boldsymbol{q}_r,
+\qquad \omega_r = \sqrt{\lambda_r}.
+$$
+
+The driven/pickup impulse response is a causal sum of damped modes,
+
+$$
+h(t) = \sum_r \frac{(\boldsymbol{p}^{T}\boldsymbol{q}_r)
+(\boldsymbol{q}_r^{T}\boldsymbol{e})}{\omega_{d,r}}
+e^{-\sigma_r t}\sin(\omega_{d,r}t),
+$$
+
+where $\boldsymbol{e}$ is the input weight and $\boldsymbol{p}$ the pickup.
+RT60 sets $\sigma=3\ln(10)/T_{60}$; `--spring-fe-loss` increases high-mode
+loss and `--spring-fe-coupling` controls adjacent-spring coupling.
+
+At element level, the spring displacement vector follows the familiar
+mass-spring-damper equation
+
+$$
+\boldsymbol{M}\ddot{\boldsymbol{x}}
++ \boldsymbol{C}\dot{\boldsymbol{x}}
++ \boldsymbol{K}\boldsymbol{x}
+= \boldsymbol{e}u(t).
+$$
+
+For a chain with $N$ nodes, verbx assigns node mass
+$m_i=m_{\mathrm{total}}/N$ and segment stiffness
+$k_s=(N-1)/c_{\mathrm{total}}$, where $c_{\mathrm{total}}$ is the requested
+compliance in metres per newton. The tridiagonal stiffness block is assembled
+from $k_s[1,-1;-1,1]$ element contributions and a driven-end clamp.
+The solver does not time-step a stiff system sample by sample: it projects the
+system into normal modes and applies the stable modal decay $e^{-\sigma_rt}$.
+That retains a mass-spring-damper resonance structure without making the
+offline render sensitive to an integration step size.
+
+![Clamped plate finite-element grid](docs/assets/modal_fe_plate_grid.svg)
+
+The plate solver uses a structured, mass-lumped clamped grid. Its stiffness is
+the discrete thin-plate bending term plus optional membrane tension,
+
+$$
+\boldsymbol{K}=D\boldsymbol{L}^{T}\boldsymbol{L}+T\boldsymbol{L},
+\qquad M_{ii}=\rho h\Delta x\Delta y,
+$$
+
+where $\boldsymbol{L}$ is the positive finite-difference Laplacian and
+$D=Eh^3/[12(1-\nu^2)]$. `--plate-fe-nx`, `--plate-fe-ny`, and
+`--plate-fe-modes` trade computation for detail; `--plate-fe-loss` gives
+higher modes stronger decay. The input is fixed off-centre while
+`--plate-pickup-x/y` select a bilinearly interpolated pickup. This is a
+deterministic research/sound-design solver, not a fixture, transducer, or
+hardware-nonlinearity calibration.
+
+#### Practical Design and Measurement
+
+For an insert, retain dry signal and keep wet level modest. For a send/return,
+render 100 percent wet and blend in the DAW or later command stage. Spring
+usually benefits from a short RT60 and darker damping; plate usually benefits
+from a longer RT60, low damping, and a pre-delay that lets consonants or drum
+attacks survive.
+
+```bash
+# Parallel guitar spring: leave the attack clear.
+verbx render guitar.wav guitar_spring_parallel.wav \
+  --engine algo --algo-model spring --rt60 1.4 --wet 0.32 --dry 0.90 \
+  --pre-delay-ms 5 --damping 0.76
+
+# Fully wet snare plate for later bus processing.
+verbx render snare.wav snare_plate_return.wav \
+  --engine algo --algo-model plate --rt60 1.6 --wet 1 --dry 0 \
+  --pre-delay-ms 10 --damping 0.22 --width 1.5
+```
+
+Use `verbx analyze` on a rendered wet return to compare EDT, T20/T30, spectral
+centroid, and clarity across parameter variations. Those measurements describe
+the generated signal, not a certification that it matches a particular hardware
+unit. Preserve the command, verbx version, and JSON report when a sound becomes
+part of a production or a dataset.
+
+---
+
 ### Convolution Engine (`--engine conv`)
 
-The convolution engine filters audio through an impulse response. Use it when you want the character of a specific space — measured or synthesized — applied exactly.
+The convolution engine filters audio through an impulse response. Use it when you want the character of a specific space – measured or synthesized – applied exactly.
 
-**What it sounds like:** The output has the exact spectral and temporal character of the IR. A measured cathedral IR makes everything sound like it was played in that cathedral. A verbx-generated hybrid IR sounds like a designed space tuned to your specifications. Self-convolution (`--self-convolve`) smears a sound with its own spectral envelope — a different kind of effect.
+**What it sounds like:** The output has the exact spectral and temporal character of the IR. A measured cathedral IR makes everything sound like it was played in that cathedral. A verbx-generated hybrid IR sounds like a designed space tuned to your specifications. Self-convolution (`--self-convolve`) smears a sound with its own spectral envelope – a different kind of effect.
 
 **Partitioned convolution:** For long IRs, direct time-domain convolution is impractical. verbx uses uniformly-partitioned overlap-save convolution in the frequency domain:
 
@@ -3992,7 +5002,7 @@ verbx ir morph space_A.wav space_B.wav blended.wav --mode equal-power --alpha 0.
 
 ### Shimmer
 
-Shimmer pitch-shifts the reverb tail (typically up an octave) and blends it back into the wet signal. The result is a bright, harmonically rich coloration that works well on pads, sustained notes, and ambient textures. The `--shimmer-feedback` parameter is the one most people get wrong: above around 0.85, the feedback loop builds exponentially. This is not a bug — it is the intended mechanism for extreme infinite-rise textures — but it requires either a tail limit, loudness targeting, or deliberate management to avoid runaway gain.
+Shimmer pitch-shifts the reverb tail (typically up an octave) and blends it back into the wet signal. The result is a bright, harmonically rich coloration that works well on pads, sustained notes, and ambient textures. The `--shimmer-feedback` parameter is the one most people get wrong: above around 0.85, the feedback loop builds exponentially. This is not a bug – it is the intended mechanism for extreme infinite-rise textures – but it requires either a tail limit, loudness targeting, or deliberate management to avoid runaway gain.
 
 Safe mode clamps `--shimmer-feedback` to `0.98`. For intentional self-oscillation in the algorithmic path, enable `--unsafe-self-oscillate` and use `--unsafe-loop-gain > 1.0` (for example `1.03`).
 
@@ -4023,7 +5033,7 @@ Practical tip: comb cloud and shimmer solve different problems. Comb cloud thick
 
 ### Freeze / Repeat
 
-`--freeze` locks onto a segment of audio (defined by `--start` and `--end` in seconds) and loops it through the reverb engine with an equal-power crossfade at loop boundaries. This produces sustained, near-static textures. `--repeat N` runs the full render chain N times sequentially, each pass using the output of the previous as input — an iterative reprocessing that progressively imprints the room resonance on the source. Classic application: Alvin Lucier's *I Am Sitting in a Room* technique.
+`--freeze` locks onto a segment of audio (defined by `--start` and `--end` in seconds) and loops it through the reverb engine with an equal-power crossfade at loop boundaries. This produces sustained, near-static textures. `--repeat N` runs the full render chain N times sequentially, each pass using the output of the previous as input – an iterative reprocessing that progressively imprints the room resonance on the source. Classic application: Alvin Lucier's *I Am Sitting in a Room* (1969) technique.
 
 Use `--output-peak-norm input` with repeat chains to keep levels stable across passes.
 
@@ -4045,7 +5055,7 @@ Use `--bloom-mix` when you want the bloom time constant from `--bloom` but a mor
 
 ### Tilt EQ
 
-`--tilt N` applies a broadband spectral tilt to the wet field. Positive values (try 1.0–3.0) brighten the reverb tail; negative values darken it. This is a post-wet control, so it does not affect the dry signal or the decay mathematics — it only shapes the perceptual tone of the reverb output. Combine with `--lowcut` and `--highcut` for more specific frequency management.
+`--tilt N` applies a broadband spectral tilt to the wet field. Positive values (try 1.0–3.0) brighten the reverb tail; negative values darken it. This is a post-wet control, so it does not affect the dry signal or the decay mathematics – it only shapes the perceptual tone of the reverb output. Combine with `--lowcut` and `--highcut` for more specific frequency management.
 
 `--tilt-pivot-hz` moves the tonal fulcrum of that tilt, while `--lowcut-order` and `--highcut-order` let you choose gentler or steeper post-wet filter slopes.
 
@@ -4086,7 +5096,7 @@ For large immersive outputs (`16.0`, `64.4`), set `--ir-route-map` explicitly wh
 
 Other formats are also easy to support: the routing and DSP paths already operate on arbitrary channel counts, and new symbolic layout names are straightforward to add when you need explicit semantics.
 
-**Ambisonics:** verbx supports First-Order Ambisonics (FOA) with ACN channel ordering and SN3D/N3D/FuMa normalization. Use `--ambi-order 1` to declare FOA mode. `--ambi-encode-from stereo` encodes a stereo input into FOA before processing; `--ambi-decode-to stereo` decodes back out after. `--ambi-rotate-yaw-deg` applies rotation in the Ambisonics domain — useful for spatial orientation of the reverb field relative to a listener position. FUMA is FOA-only; ACN with SN3D is the standard workflow for most Ambisonics toolchains.
+**Ambisonics:** verbx supports First-Order Ambisonics (FOA) with ACN channel ordering and SN3D/N3D/FuMa normalization. Use `--ambi-order 1` to declare FOA mode. `--ambi-encode-from stereo` encodes a stereo input into FOA before processing; `--ambi-decode-to stereo` decodes back out after. `--ambi-rotate-yaw-deg` applies rotation in the Ambisonics domain – useful for spatial orientation of the reverb field relative to a listener position. FUMA is FOA-only; ACN with SN3D is the standard workflow for most Ambisonics toolchains.
 
 **IR matrix routing for surround:** If your IR file contains $M \times N$ channels (for $M$ input and $N$ output channels), declare the packing order with `--ir-matrix-layout`. Output-major packing stores all inputs for output 0 first, then all inputs for output 1, etc. (channel index $oM + i$). Input-major stores all outputs for input 0 first (channel index $iN + o$). A 5.1 input to 5.1 output full-matrix IR has 36 channels; a diagonal (same IR per channel) has 6. The routing is explicit: verbx does not guess.
 
@@ -4094,7 +5104,7 @@ Other formats are also easy to support: the routing and DSP paths already operat
 
 ## Loudness and Metering
 
-Most audio delivered for broadcast, streaming, or film needs to hit a loudness target. EBU R128 / ITU-R BS.1770 defines integrated loudness in LUFS (Loudness Units relative to Full Scale). The practical difference between targeting –23 LUFS for broadcast and –14 LUFS for streaming can be over 9 dB of apparent level — enough to sound completely wrong in one context if mastered for the other.
+Most audio delivered for broadcast, streaming, or film needs to hit a loudness target. EBU R128 / ITU-R BS.1770 defines integrated loudness in LUFS (Loudness Units relative to Full Scale). The practical difference between targeting –23 LUFS for broadcast and –14 LUFS for streaming can be over 9 dB of apparent level – enough to sound completely wrong in one context if mastered for the other.
 
 verbx has a full loudness pipeline:
 
@@ -4125,7 +5135,7 @@ verbx render in.wav out_long.w64 --preset delivery-long-tail-safe \
 
 ## Automation and Modulation
 
-The automation system lets you change reverb parameters over the duration of a render — wet depth, RT60, room size, decay tilt, IR blend position, and more — without editing the audio manually. This is useful for: reverb throws (sudden wet increase on a vocal), automated room size sweeps during a sound design cue, feature-reactive ducking where loudness in the source drives reverb depth, and batch augmentation where different parameter curves are applied to each variant.
+The automation system lets you change reverb parameters over the duration of a render – wet depth, RT60, room size, decay tilt, IR blend position, and more – without editing the audio manually. This is useful for: reverb throws (sudden wet increase on a vocal), automated room size sweeps during a sound design cue, feature-reactive ducking where loudness in the source drives reverb depth, and batch augmentation where different parameter curves are applied to each variant.
 
 **Automation lanes via file or inline points:**
 ```bash
@@ -4150,7 +5160,7 @@ verbx render in.wav out.wav --engine conv --ir hall.wav \
   --feature-vector-trace-out trace.csv
 ```
 
-Use `--feature-guide GUIDE.wav` to drive feature extraction from a separate audio file rather than the render input — a sidechain-style workflow.
+Use `--feature-guide GUIDE.wav` to drive feature extraction from a separate audio file rather than the render input – a sidechain-style workflow.
 
 **Modulation bus** provides LFO and envelope sources for simple periodic or input-reactive variation without needing a full automation file:
 ```bash
@@ -4660,34 +5670,34 @@ verbx cache clear         # clear IR cache
 
 ### Beginner Recipes
 
-**Subtle room glue — keeps everything sounding like it was recorded together:**
+**Subtle room glue – keeps everything sounding like it was recorded together:**
 ```bash
 verbx render mix_bus.wav glued.wav --engine algo --rt60 0.8 --wet 0.15 --dry 0.9 --pre-delay-ms 12
 ```
 
-**Natural vocal hall — spacious without washing the lyrics:**
+**Natural vocal hall – spacious without washing the lyrics:**
 ```bash
 verbx render vocals.wav vocals_hall.wav --engine algo \
   --rt60 2.2 --wet 0.28 --dry 0.78 --pre-delay-ms 22 --lowcut 200 --highcut 10000
 ```
 
-**Drums with ducking — tail blooms between hits, never clutters transients:**
+**Drums with ducking – tail blooms between hits, never clutters transients:**
 ```bash
 verbx render drums.wav drums_room.wav --engine algo \
   --rt60 1.4 --wet 0.55 --dry 0.6 --duck --duck-attack 10 --duck-release 180
 ```
 
-**Convolution from a free IR library — real space character:**
+**Convolution from a free IR library – real space character:**
 ```bash
 verbx render piano.wav piano_conv.wav --engine conv --ir hall_ir.wav --ir-normalize peak --wet 0.5 --dry 0.7
 ```
 
-**Tempo-synced pre-delay — reverb onset lines up with the beat:**
+**Tempo-synced pre-delay – reverb onset lines up with the beat:**
 ```bash
 verbx render snare.wav snare_delay.wav --engine algo --pre-delay 1/8D --bpm 128 --rt60 1.8 --wet 0.45
 ```
 
-**Loudness-safe delivery — hits –16 LUFS with –1 dBTP ceiling:**
+**Loudness-safe delivery – hits –16 LUFS with –1 dBTP ceiling:**
 ```bash
 verbx render master.wav delivered.wav --engine algo --rt60 2.0 --wet 0.2 \
   --target-lufs -16 --true-peak --target-peak-dbfs -1
@@ -4697,14 +5707,14 @@ verbx render master.wav delivered.wav --engine algo --rt60 2.0 --wet 0.2 \
 
 ### Production Recipes
 
-**Broadcast dialogue room — natural placement, EBU R128 compliant:**
+**Broadcast dialogue room – natural placement, EBU R128 compliant:**
 ```bash
 verbx render dialogue.wav dialogue_room.wav --engine conv \
   --ir small_room_ir.wav --wet 0.25 --dry 0.85 --pre-delay-ms 8 \
   --lowcut 150 --highcut 9000 --target-lufs -23 --true-peak --target-peak-dbfs -1
 ```
 
-**Film score hall — wide, clear, cinematic:**
+**Film score hall – wide, clear, cinematic:**
 ```bash
 verbx render strings.wav strings_hall.wav \
   --engine conv --ir large_hall_ir.wav \
@@ -4713,35 +5723,35 @@ verbx render strings.wav strings_hall.wav \
   --lowcut 80 --target-lufs -20 --target-peak-dbfs -1.5
 ```
 
-**Gated drum space — 1980s aesthetic, punchy tail that cuts off:**
+**Gated drum space – 1980s aesthetic, punchy tail that cuts off:**
 ```bash
 verbx render drums.wav drums_gated.wav --engine conv \
   --ir plate_short.wav --ir-normalize peak --tail-limit 1.2 \
   --wet 0.75 --dry 0.4 --highcut 9000 --target-peak-dbfs -1
 ```
 
-**Dub chamber send — high-wet parallel texture, bandwidth controlled:**
+**Dub chamber send – high-wet parallel texture, bandwidth controlled:**
 ```bash
 verbx render snare_send.wav dub_chamber.wav --engine conv \
   --ir spring_ir.wav --repeat 2 --wet 0.95 --dry 0.05 \
   --lowcut 180 --highcut 4500 --tilt -2.0 --output-peak-norm input
 ```
 
-**Sparse hall for piano or choir — depth without obscuring articulation:**
+**Sparse hall for piano or choir – depth without obscuring articulation:**
 ```bash
 verbx render piano.wav piano_hall.wav --engine conv --ir hall_ir.wav \
   --pre-delay 1/16 --bpm 60 --wet 0.55 --dry 0.7 \
   --lowcut 120 --highcut 11000 --target-lufs -20 --target-peak-dbfs -1
 ```
 
-**Cathedral vocal/organ — long, immersive, cinematic:**
+**Cathedral vocal/organ – long, immersive, cinematic:**
 ```bash
 verbx render choir.wav choir_cathedral.wav --engine conv \
   --ir cathedral_ir.wav --wet 0.82 --dry 0.35 --rt60 90 \
   --lowcut 70 --highcut 10000 --target-lufs -21 --true-peak --target-peak-dbfs -1
 ```
 
-**Track D IR blend — morphing between two hall characters during render:**
+**Track D IR blend – morphing between two hall characters during render:**
 ```bash
 verbx render in.wav morphed.wav --engine conv --ir hall_A.wav \
   --ir-blend hall_B.wav --ir-blend-mix 0.6 --ir-blend-mode envelope-aware \
@@ -4749,7 +5759,7 @@ verbx render in.wav morphed.wav --engine conv --ir hall_A.wav \
   --automation-point "ir-blend-alpha:30.0:1.0"
 ```
 
-**AI dataset batch — augmentation with split isolation and metrics:**
+**AI dataset batch – augmentation with split isolation and metrics:**
 ```bash
 verbx batch augment augment_manifest.json --profile asr-reverb-v1 \
   --jobs 8 --copy-dry --verify-split-isolation \
@@ -4766,10 +5776,10 @@ in [`examples/audio/`](examples/audio/).
 
 ---
 
-**Alvin Lucier — *I Am Sitting in a Room*** (iterative room resonance accumulation)
+**Alvin Lucier – *I Am Sitting in a Room* (1969)** (iterative room resonance accumulation)
 
 Each pass imprints the room's modal resonances more deeply. After 12–20 passes, only the
-resonant frequencies of the virtual room survive — the original speech is gone.
+resonant frequencies of the virtual room survive – the original speech is gone.
 
 ```bash
 mkdir passes && cp voice.wav passes/pass_00.wav && current="passes/pass_00.wav"
@@ -4787,7 +5797,7 @@ verbx render voice.wav lucier_7pass.wav --engine algo --rt60 4.5 \
 
 ---
 
-**Brian Eno — *Discreet Music* / Ambient series** (endless ambient tail)
+**Brian Eno – *Discreet Music* (1975) / Ambient series** (endless ambient tail)
 
 Decay so long the source dissolves. The wet signal becomes the room's breath.
 
@@ -4800,7 +5810,7 @@ verbx render input.wav eno_ambient.wav --engine algo --rt60 12.0 \
 
 ---
 
-**Pauline Oliveros — *Deep Listening*** (cave-scale resonance)
+**Pauline Oliveros – *Deep Listening* (1989)** (cave-scale resonance)
 
 Inspired by Oliveros's work in underground cisterns. Very low damping lets every frequency
 sustain; 32-line FDN produces the lateral complexity of stone architecture.
@@ -4818,7 +5828,7 @@ verbx render drone.wav deep_ir.wav --ir-gen --ir-gen-mode hybrid \
 
 ---
 
-**Robert Fripp / Eno — Frippertronics tape-loop accumulation**
+**Robert Fripp / Eno – Frippertronics tape-loop accumulation**
 
 Shimmer feedback builds over each block. At 0.78, the octave layer accumulates like a tape
 recirculation loop growing denser with each pass.
@@ -4828,7 +5838,7 @@ verbx render guitar.wav frippertronics.wav --engine algo --rt60 8.0 \
   --wet 0.82 --dry 0.28 --fdn-lines 16 --fdn-matrix hadamard \
   --shimmer --shimmer-semitones 12 --shimmer-mix 0.45 --shimmer-feedback 0.78 \
   --pre-delay-ms 25 --target-peak-dbfs -2
-# Iterative version — 12 passes with gradual timbral drift:
+# Iterative version – 12 passes with gradual timbral drift:
 mkdir fripp && cp guitar.wav fripp/pass_00.wav && current="fripp/pass_00.wav"
 for i in $(seq 1 12); do
   next=$(printf "fripp/pass_%02d.wav" "$i")
@@ -4841,7 +5851,7 @@ done
 
 ---
 
-**Shoegaze / My Bloody Valentine — wall of sound** (dense shimmer wash)
+**Shoegaze / My Bloody Valentine – wall of sound** (dense shimmer wash)
 
 Freeze a guitar sustain, then bury it in octave shimmer and a circulant FDN. The circulant
 matrix produces the smeared, tonally undifferentiated density that defines the genre.
@@ -4856,7 +5866,7 @@ verbx render guitar.wav shoegaze.wav --engine algo \
 
 ---
 
-**Steve Reich — phase minimalism** (tight rhythmic room)
+**Steve Reich – phase minimalism** (tight rhythmic room)
 
 Short RT60 with a circulant diffusion matrix keeps individual hits distinct while adding
 spatial depth. The circulant matrix's circular delay structure creates subtle comb filtering
@@ -4870,7 +5880,7 @@ verbx render percussion.wav reich_room.wav --engine algo --rt60 0.7 \
 
 ---
 
-**Eliane Radigue — *ADNOS* / drone electronics** (near-infinite sustain)
+**Eliane Radigue – *ADNOS* (1973–1974) / drone electronics** (near-infinite sustain)
 
 At RT60=45s with wet=0.97, the dry signal is almost entirely subsumed. Radigue's aesthetic
 is about sound that has been in the room so long it has become the room.
@@ -4883,7 +5893,7 @@ verbx render drone.wav radigue.wav --engine algo --rt60 45.0 \
 
 ---
 
-**Morton Feldman — late period** (contemplative sparse space)
+**Morton Feldman – late period** (contemplative sparse space)
 
 Feldman's late works often feature long silences and isolated events in large, reflective
 spaces. Medium RT60, restrained wet level, allpass diffusion, no shimmer.
@@ -4897,13 +5907,13 @@ verbx render piano.wav feldman.wav --engine algo --rt60 3.8 \
 
 ---
 
-**Self-convolution texture smear** — signal convolved with itself:
+**Self-convolution texture smear** – signal convolved with itself:
 ```bash
 verbx render input.wav self_convolved.wav --self-convolve \
   --beast-mode 12 --partition-size 16384 --normalize-stage none
 ```
 
-**Feature-reactive reverb depth** — wet depth tracks source loudness in real time:
+**Feature-reactive reverb depth** – wet depth tracks source loudness in real time:
 ```bash
 verbx render in.wav reactive.wav --engine conv --ir hall.wav \
   --feature-vector-lane "target=wet,source=loudness_norm,weight=0.70,curve=smoothstep,combine=replace" \
@@ -4911,7 +5921,7 @@ verbx render in.wav reactive.wav --engine conv --ir hall.wav \
   --feature-vector-frame-ms 40 --feature-vector-trace-out trace.csv
 ```
 
-**Lucky mode exploration** — 12 randomized wild variants from one source:
+**Lucky mode exploration** – 12 randomized wild variants from one source:
 ```bash
 verbx render in.wav out/lucky.wav --lucky 12 --lucky-out-dir out/lucky_set --lucky-seed 2026 --no-progress
 ```
@@ -4929,7 +5939,7 @@ verbx batch render manifest.json --jobs 8 --schedule longest-first --retries 1 \
 verbx batch render manifest.json --jobs 8 --resume --checkpoint-file manifest.checkpoint.json
 ```
 
-**IR sweep QA — morph between two IRs with quality metrics:**
+**IR sweep QA – morph between two IRs with quality metrics:**
 ```bash
 verbx ir morph-sweep ir_a.wav ir_b.wav out/sweep \
   --alpha-start 0.0 --alpha-end 1.0 --alpha-steps 9 \
@@ -4951,23 +5961,242 @@ uv run python scripts/generate_ir_library.py \
   --out IRs/library --sr 12000 --channels 2 --format flac --seeds-per-shape 1
 ```
 
-**Pre-render validation — catch config errors before a long job:**
+**Pre-render validation – catch config errors before a long job:**
 ```bash
 verbx render long_input.wav output.wav --engine algo --rt60 180 --fdn-lines 32 --dry-run
-# prints resolved config, estimated output duration, device selection — no audio written
+# prints resolved config, estimated output duration, device selection – no audio written
 ```
 
 ---
 
 ## Performance and Acceleration
 
-**CPU (default):** All processing. Algorithmic FDN path benefits from `numba` when installed — install with `pip install numba` and verbx uses JIT-compiled inner loops automatically. Check with `verbx doctor`.
+Performance in a reverberation system is not one number. A renderer can finish an hour of
+audio quickly yet still be unsuitable for live use; a plug-in can meet every callback
+deadline while taking longer than an offline batch renderer to export the same program;
+and a GPU can increase total throughput while adding enough transfer and scheduling delay
+to make a small realtime job worse. Before selecting a device, thread count, block size,
+or partition size, define which constraint actually matters.
+
+Four budgets govern most verbx workloads. **Throughput** asks how much audio can be
+processed per unit of wall time. **Deadline safety** asks whether every realtime block
+finishes before the device or host needs it. **Latency** asks how long a signal takes to
+travel from input to audible output. **Memory** asks whether state, impulse responses,
+FFT partitions, temporary buffers, and output can remain resident without paging or
+exhausting the machine. These budgets interact, but they are not interchangeable.
+Increasing a convolution partition can improve throughput while increasing buffering;
+adding worker threads can shorten a batch while making callback timing less predictable;
+and moving an operation to a GPU can reduce arithmetic time while increasing transfer
+latency and peak memory.
+
+The first useful offline measure is the realtime factor
+
+$$
+R_{\mathrm{tf}}=\frac{t_{\mathrm{process}}}{t_{\mathrm{audio}}},
+$$
+
+where $t_{\mathrm{process}}$ is elapsed processing time and $t_{\mathrm{audio}}$ is the
+duration of the input plus any deliberately rendered tail. A value below $1$ means the
+job ran faster than realtime; $0.25$ means four seconds of audio were produced per second
+of wall time. This ratio is meaningful only when the test states engine, sample rate,
+channel count, output duration, precision, IR length, device, and enabled stages. A short
+mono file at 48 kHz and a twelve-channel file at 192 kHz are not comparable workloads.
+
+Realtime processing requires a stricter measure. For block size $B$ samples and sample
+rate $F_s$, the nominal callback interval is
+
+$$
+T_{\mathrm{block}}=\frac{B}{F_s}.
+$$
+
+At 48 kHz, a 256-sample block provides about 5.33 ms; at 192 kHz the same block provides
+about 1.33 ms. The processor must complete every block within that interval after allowing
+for host work, driver overhead, competing plug-ins, display updates, and operating-system
+jitter. Average callback time is therefore inadequate evidence. Measure high percentiles
+and the maximum, count deadline misses, and retain safety headroom. One 8 ms callback in
+an otherwise fast performance can still produce an audible dropout.
+
+### A Cost Model for Algorithmic Reverb
+
+An algorithmic reverberator pays for work per sample. Delay reads and writes, damping
+filters, allpass stages, modulation, interpolation, and wet projections scale roughly with
+the number of delay lines and output channels. A dense $L\times L$ feedback matrix has a
+naive multiplication cost proportional to $L^2$ per sample, while Hadamard,
+Householder, circulant, sparse, or otherwise structured transforms can reduce that cost or
+improve memory locality. Increasing FDN line count usually raises echo density and modal
+complexity, but it also enlarges state, matrix work, and cache pressure.
+
+RT60 by itself does not make an FDN callback proportionally more expensive. A 3-second and
+a 300-second decay can use the same delay topology and number of operations per sample;
+the feedback gains differ. Long RT60 does, however, affect the amount of audio an offline
+render must write when the requested tail is allowed to continue. It also raises the cost
+of validation because stability, noise growth, limiting, and end behavior must be observed
+over a longer duration. Distinguish **cost per sample** from **number of samples emitted**.
+
+Sample rate and channel layout are direct multipliers. Moving from 48 kHz to 192 kHz
+quadruples the number of sample updates for the same duration before accounting for any
+larger delay storage, resampling, or oversampling filters. Moving from stereo to 7.1.4 can
+increase input and output projection work, file bandwidth, analysis cost, and memory even
+when the internal feedback state remains shared. High sample rate and high channel count
+should therefore be justified by delivery, measurement, or processing requirements rather
+than treated as cost-free quality switches.
+
+### A Cost Model for Convolution
+
+Direct convolution of an input with an impulse response of $M$ samples requires work
+proportional to $M$ for every output sample and becomes impractical for long rooms. FFT
+convolution changes the dominant operation into transforms and complex products over
+blocks. Partitioned convolution divides the IR into bounded segments so processing can
+begin before the entire response has been evaluated and so repeated transforms can be
+reused.
+
+Partition size controls a three-way trade. Small partitions reduce the amount of audio
+that must be buffered before the first result, but they perform transforms more often and
+increase scheduling overhead. Large partitions amortize FFT work and often improve
+offline throughput, but they require larger temporary arrays, produce coarser progress
+increments, and are unsuitable when low algorithmic latency is required. Hybrid
+partitioning can use short early partitions and progressively larger late partitions,
+matching computational effort to the perceptual importance and timing of the response.
+
+Matrix convolution multiplies this problem by routing density. A full $M\times N$ IR
+bank contains one response for each input-output pair. Diagonal, sparse, symmetric, or
+shared-tail structures can reduce computation and storage, but only when the omitted
+cross-channel paths are acoustically and artistically acceptable. “Use the GPU” does not
+solve an unnecessarily dense routing model; representation remains the first
+optimization.
+
+### Realtime Deadlines and Offline Throughput
+
+Offline rendering can batch work, reorder jobs, use large buffers, wait for JIT
+compilation, and allow temporary load spikes as long as the final artifact is correct.
+Realtime processing cannot. Its callback must avoid filesystem access, unbounded
+allocation, locks, device synchronization, compilation, and any operation whose duration
+depends unpredictably on external state. Preparation belongs before playback; bounded DSP
+belongs inside the callback.
+
+This distinction explains why the fastest offline setting is not automatically the best
+realtime setting. A 65,536-sample FFT partition may process a long IR efficiently in a
+batch but would imply an unacceptable buffering interval in a live monitor path. Eight
+workers may saturate a workstation during corpus generation but compete destructively
+with an audio host. A progress display or spectrum analyzer can be cheap on average yet
+cause jitter if it performs transforms or allocations on the callback thread.
+
+End-to-end monitored latency includes more than verbx DSP. Input conversion, device
+buffers, host safety buffers, block adaptation, resampling, lookahead, convolution
+partitioning, output conversion, and acoustic propagation all contribute. Performance
+optimization should report which component changed. Reducing render wall time does not
+necessarily reduce monitored latency, and lowering one internal buffer may expose the
+system to underruns elsewhere.
+
+### Memory Traffic, Locality, and Precision
+
+Modern audio workloads are often limited by movement of data rather than arithmetic.
+Delay states, FFT arrays, channel matrices, analysis frames, and output buffers compete for
+cache and memory bandwidth. Contiguous arrays, predictable access, reused workspaces, and
+structured transforms can matter more than reducing a small number of scalar operations.
+An algorithm that allocates a fresh array per block may benchmark adequately on a short
+file and collapse under a long multichannel render because allocation and cache churn
+dominate.
+
+verbx performs its principal Python DSP in `float64` internally and converts at the output
+boundary. That choice provides numerical margin for long feedback paths, analysis fits,
+and repeated transformations, but doubles sample storage relative to `float32` and can
+reduce SIMD width or GPU occupancy. Output subtype does not retroactively change the cost
+of internal processing. Writing `float32` instead of `float64` reduces file bandwidth and
+storage, while the internal engine retains its declared precision.
+
+Peak memory matters as much as final file size. A long IR may be modest on disk yet expand
+into multiple complex spectra, channel-route copies, overlap buffers, and temporary
+results. Streaming is the preferred response when stages permit it: process bounded audio
+chunks, retain only necessary state, and write incrementally. Stages requiring global
+normalization, complete-file analysis, reversal, or nonlocal transformation may force an
+additional pass or larger retained state. The pipeline should state that consequence
+rather than silently abandoning streaming.
+
+### Acceleration Is a Hierarchy
+
+Optimization should proceed from semantics outward. First remove unnecessary work: avoid
+unused channels, redundant resampling, duplicate analysis, excessive tail duration, and
+dense routes that do not contribute to the deliverable. Next select an algorithm whose
+complexity matches the task. Then improve data layout and reuse. Only after those steps
+should implementation accelerators such as vectorized kernels, JIT compilation,
+multithreading, MPS profiles, or CUDA be evaluated.
+
+CPU vectorization and JIT compilation are especially effective for persistent inner loops
+with predictable array shapes. Their startup cost can be visible on the first job, so
+benchmarks should separate cold and warm runs. Multithreading helps when independent
+channels, files, variants, or partitions provide enough work to amortize scheduling. It
+hurts when jobs are too small, memory bandwidth is already saturated, or nested libraries
+create more threads than physical cores can execute efficiently.
+
+GPU acceleration has a break-even point. Data must be transferred, kernels dispatched,
+and results synchronized. Long convolution, large channel matrices, and repeated batches
+can provide enough arithmetic intensity to repay that overhead. A small FDN block usually
+cannot. Keep data resident across multiple operations when possible, avoid transfers per
+audio block, and benchmark the complete pipeline rather than an isolated kernel. A fast
+GPU FFT followed by repeated host-device copies may be slower than a well-localized CPU
+path.
+
+Fallback behavior is part of performance correctness. A requested accelerator that is
+unavailable should produce a visible status and machine-readable report field. Silent
+fallback can invalidate a benchmark, surprise a batch deadline, or conceal that a
+deployment is running a different path than the development workstation. Record resolved
+device, library availability, thread count, and effective processing mode with every
+serious measurement.
+
+### Benchmarking as Reproducible Evidence
+
+A useful benchmark controls the variables that materially change cost. Record verbx
+version and commit, operating system, processor and accelerator, memory, Python and
+library versions, engine, sample rate, channel layout, input duration, rendered-tail
+duration, IR duration and route count, block or partition size, thread count, precision,
+and every enabled post-process. Use the same input assets and warm-up policy across runs.
+Report median and dispersion over repeated trials rather than selecting the fastest run.
+
+For offline work, retain elapsed time, realtime factor, peak resident memory, output size,
+and if relevant energy consumption. For realtime work, retain callback mean, high
+percentiles, maximum, deadline misses, host block size, reported algorithmic latency, and
+the amount of unused deadline headroom. For batch work, retain total makespan, per-job
+distribution, retry count, checkpoint overhead, and the degree to which short jobs leave
+workers idle near the end.
+
+Do not optimize against silence or a single impulse alone. Those signals are valuable for
+correctness but can bypass content-dependent detectors, limiters, modulation, sparse
+paths, or denormal behavior. Include transient material, sustained low-frequency energy,
+dense program audio, silence after excitation, and multichannel cases. Confirm output
+equivalence or declared tolerance after every optimization; a faster render with changed
+decay, gain, routing, or numerical stability is a different algorithm, not a free speedup.
+
+### Musical Quality and Engineering Tradeoffs
+
+Performance settings are audible when they alter topology, partition timing, modulation,
+precision, channel routing, or the amount of tail rendered. The correct goal is not the
+highest accelerator utilization. It is the least expensive configuration that preserves
+the required musical behavior and delivery evidence. A preview may use fewer FDN lines or
+a shorter IR while composition decisions are fluid; the final render can restore the
+approved topology. A live performer may prefer moderate quality with large callback
+headroom over a nominally superior mode that risks interruption.
+
+Treat quality reduction as an authored choice. State which dimension changes: echo
+density, bandwidth, modulation smoothness, spatial order, IR length, oversampling, or
+analysis depth. Level-match comparisons and listen to exposed tails, sparse transients,
+fold-downs, and section boundaries. Some reductions disappear in a dense mix while others
+damage exactly the silence or sustained decay that gives the music its form.
+
+The practical sequence is therefore: define the delivery and latency requirement,
+measure a representative baseline, identify the dominant cost, change one layer at a
+time, verify sonic and numerical equivalence, and retain the benchmark report. Device
+selection comes near the end of that sequence, not at the beginning.
+
+### Current Acceleration Paths
+
+**CPU (default):** All processing. Algorithmic FDN path benefits from `numba` when installed – install with `pip install numba` and verbx uses JIT-compiled inner loops automatically. Check with `verbx doctor`.
 
 **Apple Silicon (MPS):** `--device mps` uses the MPS profile for the algorithmic path. The convolution FFT runs on CPU (NumPy/SciPy). Threading helps: `--threads 8` is a good starting point for M-series chips. Apple Silicon is well-suited for the algorithmic engine; the memory bandwidth advantage shows on high line count FDN renders.
 
-**CUDA:** `--device cuda` enables GPU-accelerated partitioned FFT convolution via CuPy. Install with `pip install cupy-cuda12x` (match your CUDA version). The algorithmic engine does not benefit from CUDA — it runs on CPU regardless. CUDA acceleration is most valuable for long-IR convolution with large files. If CuPy is unavailable, verbx falls back to CPU silently.
+**CUDA:** `--device cuda` enables GPU-accelerated partitioned FFT convolution via CuPy. Install with `pip install cupy-cuda12x` (match your CUDA version). The algorithmic engine does not benefit from CUDA – it runs on CPU regardless. CUDA acceleration is most valuable for long-IR convolution with large files. If CuPy is unavailable, verbx falls back to CPU silently.
 
-**Block size and partition size:** `--block-size` controls the algorithmic engine's internal block size — larger blocks can improve throughput at the cost of responsiveness per block. `--partition-size` controls convolution FFT partition length — the main tuning knob for convolution throughput. Larger partitions reduce per-block overhead but increase peak memory. For offline rendering, 16384–65536 is a good range. For very long IRs (120s+), larger partition sizes (65536) often give better throughput.
+**Block size and partition size:** `--block-size` controls the algorithmic engine's internal block size – larger blocks can improve throughput at the cost of responsiveness per block. `--partition-size` controls convolution FFT partition length – the main tuning knob for convolution throughput. Larger partitions reduce per-block overhead but increase peak memory. For offline rendering, 16384–65536 is a good range. For very long IRs (120s+), larger partition sizes (65536) often give better throughput.
 
 **Streaming convolution** engages automatically for simple conv renders (no normalization, no post-effects, no freeze, `--repeat 1`). Peak RAM use scales with partition size rather than IR length in this mode.
 
@@ -5026,7 +6255,7 @@ input audio
 Notation: $z^{-N}$ denotes an integer-sample delay of $N$ samples, $K$ is
 allpass-stage count, and $N$ (in `lines 1..N`) is FDN delay-line count.
 
-**Precision:** All DSP — FDN state updates, FFT operations, allpass filters, automation curves, feature vectors, analysis metrics — runs in `float64` internally. Output is downcast at write time according to `--out-subtype`. `verbx render` defaults to HD output (`192000 Hz`, `float32`) unless overridden by `--quality-preset`, `--target-sr`, or `--out-subtype`.
+**Precision:** All DSP – FDN state updates, FFT operations, allpass filters, automation curves, feature vectors, analysis metrics – runs in `float64` internally. Output is downcast at write time according to `--out-subtype`. `verbx render` defaults to HD output (`192000 Hz`, `float32`) unless overridden by `--quality-preset`, `--target-sr`, or `--out-subtype`.
 
 **Key design decisions:**
 - Per-line gain calibration (not global feedback gain) lets all delay lines, regardless of length, track the same RT60 target. This is essential for stable long tails.
@@ -5070,31 +6299,31 @@ Full bibliography: [docs/REFERENCES.md](docs/REFERENCES.md)
 
 Key book:
 
-- **Pirkle (2019)** — *[Designing Audio Effect Plugins in C++: For AAX, AU, and VST3 with DSP Theory](https://www.routledge.com/Designing-Audio-Effect-Plugins-in-C-For-AAX-AU-and-VST3-with-DSP-Theory/Pirkle/p/book/9781138591899)*, 2nd ed., Routledge. Recommended companion reading for plug-in anatomy, API-independent DSP cores, host integration, parameter handling, GUI design, and the implementation of delay, reverb, and dynamics processors.
+- **Pirkle (2019)** – *[Designing Audio Effect Plugins in C++: For AAX, AU, and VST3 with DSP Theory](https://www.routledge.com/Designing-Audio-Effect-Plugins-in-C-For-AAX-AU-and-VST3-with-DSP-Theory/Pirkle/p/book/9781138591899)*, 2nd ed., Routledge. Recommended companion reading for plug-in anatomy, API-independent DSP cores, host integration, parameter handling, GUI design, and the implementation of delay, reverb, and dynamics processors.
 
 Key papers:
 
 
-- **Gardner (1998)** — "Reverberation algorithms." Practical implementation guide covering partitioned convolution, early reflections, and late field design.
-- **Jot (1992)** — "An analysis/synthesis approach to real-time artificial reverberation." Extends FDN theory to frequency-dependent decay, the basis for multiband RT60 control.
-- **Jot & Chaigne (1991)** — "Digital delay networks for designing artificial reverberators." Introduced the Feedback Delay Network in its modern form; directly informs the gain calibration formula used in verbx.
-- **Schroeder (1962)** — "Natural sounding artificial reverberation." The foundational work on allpass and comb filter reverb structures that forms the basis for most algorithmic reverb design.
-- **Smith (1985)** — "A new approach to digital reverberation using closed waveguide networks." Scattering Delay Networks — a physical wave propagation model distinct from the FDN approach; informs the `sdn_hybrid` matrix family.
-- **Valimaki et al. (2012)** — "Fifty years of artificial reverberation." Survey paper; an accessible overview of the full history of algorithmic reverb from Schroeder to modern approaches.
+- **Gardner (1998)** – "Reverberation algorithms." Practical implementation guide covering partitioned convolution, early reflections, and late field design.
+- **Jot (1992)** – "An analysis/synthesis approach to real-time artificial reverberation." Extends FDN theory to frequency-dependent decay, the basis for multiband RT60 control.
+- **Jot & Chaigne (1991)** – "Digital delay networks for designing artificial reverberators." Introduced the Feedback Delay Network in its modern form; directly informs the gain calibration formula used in verbx.
+- **Schroeder (1962)** – "Natural sounding artificial reverberation." The foundational work on allpass and comb filter reverb structures that forms the basis for most algorithmic reverb design.
+- **Smith (1985)** – "A new approach to digital reverberation using closed waveguide networks." Scattering Delay Networks – a physical wave propagation model distinct from the FDN approach; informs the `sdn_hybrid` matrix family.
+- **Valimaki et al. (2012)** – "Fifty years of artificial reverberation." Survey paper; an accessible overview of the full history of algorithmic reverb from Schroeder to modern approaches.
 
 
 Additional guides in `docs/`:
-- [Consolidated user guide](docs/USERGUIDE.md) and `USERGUIDE.pdf` — README plus user-facing docs/tips in one manual
-- [CLI reference](docs/CLI_REFERENCE.md) — machine-generated `--help` snapshots for all command groups
-- [IR synthesis guide](docs/IR_SYNTHESIS.md) — complete parameter reference for all synthesis modes
-- [AI augmentation guide](docs/AI_AUGMENTATION.md) — dataset generation workflow documentation
-- [Schema reference](docs/SCHEMA_REFERENCE.md) — JSON/CSV formats for manifests and automation
-- [Dataset augmentation notebook](examples/dataset_augmentation.ipynb) — Python API workflow for ML pipelines
-- [IR morph QA guide](docs/IR_MORPH_QA.md) — morph-sweep QA artifacts and CI integration
-- [Benchmark baseline guide](docs/benchmarks/README.md) — CI/runtime comparison workflow
-- [Extreme cookbook](docs/EXTREME_COOKBOOK.md) — 100 additional workflow examples
-- [SOFA interoperability note](docs/SOFA_FEASIBILITY.md) — shipped `sofa-info` / `sofa-extract` workflow and current constraints
-- [Launch example parity checker](scripts/check_launch_examples.py) — verifies canonical launch commands stay mirrored across docs/man pages
+- [Consolidated user guide](docs/USERGUIDE.md) and `USERGUIDE.pdf` – README plus user-facing docs/tips in one manual
+- [CLI reference](docs/CLI_REFERENCE.md) – machine-generated `--help` snapshots for all command groups
+- [IR synthesis guide](docs/IR_SYNTHESIS.md) – complete parameter reference for all synthesis modes
+- [AI augmentation guide](docs/AI_AUGMENTATION.md) – dataset generation workflow documentation
+- [Schema reference](docs/SCHEMA_REFERENCE.md) – JSON/CSV formats for manifests and automation
+- [Dataset augmentation notebook](examples/dataset_augmentation.ipynb) – Python API workflow for ML pipelines
+- [IR morph QA guide](docs/IR_MORPH_QA.md) – morph-sweep QA artifacts and CI integration
+- [Benchmark baseline guide](docs/benchmarks/README.md) – CI/runtime comparison workflow
+- [Extreme cookbook](docs/EXTREME_COOKBOOK.md) – 100 additional workflow examples
+- [SOFA interoperability note](docs/SOFA_FEASIBILITY.md) – shipped `sofa-info` / `sofa-extract` workflow and current constraints
+- [Launch example parity checker](scripts/check_launch_examples.py) – verifies canonical launch commands stay mirrored across docs/man pages
 
 ---
 
@@ -5102,4 +6331,4 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.7.7 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.9.0 - current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.

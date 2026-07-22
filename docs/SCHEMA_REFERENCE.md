@@ -2,7 +2,7 @@
 
 JSON and CSV format specifications for batch manifests and automation files.
 
-_Current as of v0.7.7._
+_Current as of v0.9.0._
 
 Notes for `v0.7.7`:
 
@@ -59,20 +59,26 @@ One job object per line (no wrapping object, no `"jobs"` key):
 | `outfile` | string | yes | Path for the processed output file |
 | `options` | object | no | Any `verbx render` option as a key/value pair |
 
-`options` keys map directly to `RenderConfig` fields. All keys are optional — unset fields use defaults. Boolean flags use JSON booleans (`true`/`false`).
+`options` keys map directly to `RenderConfig` fields. All keys are optional – unset fields use defaults. Boolean flags use JSON booleans (`true`/`false`).
 
 **Common options:**
 
 | Option | Type | Default | Range |
 |---|---|---|---|
-| `engine` | string | `"auto"` | `"algo"`, `"conv"`, `"auto"` |
+| `engine` | string | `"auto"` | `"algo"`, `"conv"`, `"ism-fdn"`, `"auto"` |
+| `algo_model` | string | `"fdn"` | `"fdn"`, `"spring"`, `"plate"` |
+| `electromechanical_solver` | string | `"proxy"` | `"proxy"` or offline structural `"modal-fe"` |
+| `spring_fe_nodes` / `spring_fe_modes` | integer | `24` / `24` | Nodes `4..128`; modes `1..128` |
+| `spring_fe_coupling` / `spring_fe_loss` | number | `0.08` / `0.30` | `0..1` coupling; `0..2` high-mode loss |
+| `plate_fe_nx` / `plate_fe_ny` / `plate_fe_modes` | integer | `12` / `8` / `32` | Grid dimensions `4..32`; modes `1..128` |
+| `plate_fe_loss` | number | `0.24` | Frequency-dependent modal loss `0..2` |
 | `rt60` | number | `60.0` | `0.1` – `3600.0` |
 | `wet` | number | `0.8` | `0.0` – `1.0` |
 | `dry` | number | `0.2` | `0.0` – `1.0` |
 | `pre_delay_ms` | number | `20.0` | `0` – `500` |
 | `fdn_lines` | integer | `8` | `1` – `64` |
 | `fdn_matrix` | string | `"hadamard"` | `"hadamard"`, `"householder"`, `"random_orthogonal"`, `"circulant"`, `"elliptic"`, `"tv_unitary"`, `"graph"`, `"sdn_hybrid"` |
-| `shimmer` | boolean | `false` | — |
+| `shimmer` | boolean | `false` | – |
 | `shimmer_semitones` | number | `12` | `–24` – `24` |
 | `shimmer_mix` | number | `0.25` | `0.0` – `1.0` |
 | `shimmer_feedback` | number | `0.35` | `0.0` – `0.98` (safe), up to `1.25` with `unsafe_self_oscillate=true` |
@@ -150,7 +156,7 @@ Used with `verbx render --automation-file <file>`.
 
 ### Lane types
 
-#### `breakpoints` — interpolated envelope
+#### `breakpoints` – interpolated envelope
 
 ```json
 {
@@ -177,7 +183,7 @@ Used with `verbx render --automation-file <file>`.
 
 **Combine modes:** `replace`, `add`, `multiply`
 
-#### `lfo` — low-frequency oscillator
+#### `lfo` – low-frequency oscillator
 
 ```json
 {
@@ -201,7 +207,7 @@ Used with `verbx render --automation-file <file>`.
 | `center` | number | `0.5` | Center value |
 | `phase_deg` | number | `0.0` | Starting phase in degrees |
 
-#### `segments` — piecewise constant/linear segments
+#### `segments` – piecewise constant/linear segments
 
 ```json
 {
@@ -251,7 +257,7 @@ Required columns: `target`, `time_s`, `value`. Optional: `interp`.
 | `fdn-tonal-correction-strength` | engine | 0.0 – 1.0 | Tonal correction amount |
 | `ir-blend-alpha` | conv | 0.0 – 1.0 | IR morph blend (convolution engine) |
 
-**Aliases:** Most targets accept common shorthand — e.g. `t60` → `rt60`, `gain` → `gain-db`, `room` → `room-size`, `blend-alpha` → `ir-blend-alpha`.
+**Aliases:** Most targets accept common shorthand – e.g. `t60` → `rt60`, `gain` → `gain-db`, `room` → `room-size`, `blend-alpha` → `ir-blend-alpha`.
 
 ---
 
@@ -352,9 +358,9 @@ keys (all prefixed `room_`):
 | `room_dim_depth_m` | m | Estimated room depth (1.25 × width) |
 | `room_dim_height_m` | m | Estimated room height (0.62 × width) |
 | `room_surface_area_m2` | m² | Total surface area of the estimated rectangular box |
-| `room_mean_absorption` | — | Estimated mean absorption coefficient [0, 1] |
+| `room_mean_absorption` | – | Estimated mean absorption coefficient [0, 1] |
 | `room_critical_distance_m` | m | Schroeder critical distance (direct = reverberant field) |
-| `room_confidence_score` | — | Numeric confidence rating [0, 1] |
+| `room_confidence_score` | – | Numeric confidence rating [0, 1] |
 
 ### String fields
 
@@ -445,7 +451,7 @@ verbx render in.wav out.wav \
 
 Format: `target:time_s:value[:interp]`
 
-- `target` — automation target name
-- `time_s` — time in seconds (float)
-- `value` — parameter value (float)
-- `interp` — interpolation mode (optional, default `linear`)
+- `target` – automation target name
+- `time_s` – time in seconds (float)
+- `value` – parameter value (float)
+- `interp` – interpolation mode (optional, default `linear`)

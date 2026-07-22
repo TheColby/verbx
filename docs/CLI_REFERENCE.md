@@ -62,9 +62,67 @@ Do not edit manually.
 │                                                            speech, music,    │
 │                                                            drums, ambient.   │
 │                                                            [default: none]   │
-│ --engine                                 <conv|algo|auto>  Engine: conv,     │
-│                                                            algo, or auto.    │
+│ --engine                                 <conv|algo|ism-f  Engine: conv,     │
+│                                          dn|auto>          algo, ism-fdn, or │
+│                                                            auto.             │
 │                                                            [default: auto]   │
+│ --algo-model                             <str>             Algorithmic       │
+│                                                            topology: fdn,    │
+│                                                            spring, or plate  │
+│                                                            (algorithmic      │
+│                                                            render path       │
+│                                                            only).            │
+│                                                            [default: fdn]    │
+│ --spring-count                           <int range>       Number of spring  │
+│                                          [1<=x<=8]         elements used by  │
+│                                                            --algo-model      │
+│                                                            spring.           │
+│                                                            [default: 1]      │
+│ --spring                                 <str>             Repeatable spring │
+│                                                            specification:    │
+│                                                            length_m=0.45,ma… │
+│ --electromechani…                        <str>             Spring/plate      │
+│                                                            solver: proxy     │
+│                                                            (fast FDN voice)  │
+│                                                            or modal-fe       │
+│                                                            (offline          │
+│                                                            structural        │
+│                                                            modes).           │
+│                                                            [default: proxy]  │
+│ --spring-fe-nodes                        <int range>       [default: 24]     │
+│                                          [4<=x<=128]                         │
+│ --spring-fe-modes                        <int range>       [default: 24]     │
+│                                          [1<=x<=128]                         │
+│ --spring-fe-coup…                        <float range>     [default: 0.08]   │
+│                                          [0.0<=x<=1.0]                       │
+│ --spring-fe-loss                         <float range>     [default: 0.3]    │
+│                                          [0.0<=x<=2.0]                       │
+│ --plate-width-m                          <float range>     [default: 1.8]    │
+│                                          [x>=0.1]                            │
+│ --plate-height-m                         <float range>     [default: 1.2]    │
+│                                          [x>=0.1]                            │
+│ --plate-thicknes…                        <float range>     [default: 0.6]    │
+│                                          [x>=0.01]                           │
+│ --plate-density-…                        <float range>     [default: 7850.0] │
+│                                          [x>=1.0]                            │
+│ --plate-youngs-g…                        <float range>     [default: 200.0]  │
+│                                          [x>=0.1]                            │
+│ --plate-poisson-…                        <float range>     [default: 0.29]   │
+│                                          [0.0<=x<=0.49]                      │
+│ --plate-tension-n                        <float range>     [default: 0.0]    │
+│                                          [x>=0.0]                            │
+│ --plate-pickup-x                         <float range>     [default: 0.72]   │
+│                                          [0.0<=x<=1.0]                       │
+│ --plate-pickup-y                         <float range>     [default: 0.38]   │
+│                                          [0.0<=x<=1.0]                       │
+│ --plate-fe-nx                            <int range>       [default: 12]     │
+│                                          [4<=x<=32]                          │
+│ --plate-fe-ny                            <int range>       [default: 8]      │
+│                                          [4<=x<=32]                          │
+│ --plate-fe-modes                         <int range>       [default: 32]     │
+│                                          [1<=x<=128]                         │
+│ --plate-fe-loss                          <float range>     [default: 0.24]   │
+│                                          [0.0<=x<=2.0]                       │
 │ --rt60                                   <float range>     [default: 60.0]   │
 │                                          [0.1<=x<=3600.0]                    │
 │ --wet                                    <float range>     [default: 0.8]    │
@@ -785,6 +843,13 @@ Do not edit manually.
 │                                                            pre-stage.        │
 │                                                            [default:         │
 │                                                            no-er-geometry]   │
+│ --ism-order                              <int range>       Maximum           │
+│                                          [0<=x<=6]         image-source      │
+│                                                            reflection order  │
+│                                                            for --engine      │
+│                                                            ism-fdn or        │
+│                                                            --er-geometry.    │
+│                                                            [default: 1]      │
 │ --er-room-dims-m                         <str>             Room dimensions   │
 │                                                            in meters: L,W,H  │
 │                                                            [default: 10,7,3] │

@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Experimental `--electromechanical-solver modal-fe` provides deterministic
+  offline lumped-mass spring-tank and structured plate finite-element modal
+  solvers, with bounded mesh, retained-mode, coupling, and loss controls.
+- `v0.9.0` adds `--engine ism-fdn`: a deterministic rectangular-room
+  image-source early field with configurable `--ism-order 0..6`, material-aware
+  wall reflectivity, and the existing FDN late field. Render reports now retain
+  the resolved room geometry, material assignment, and ISM order.
+- `v0.7.8` adds deterministic algorithmic `spring` and `plate` models to the
+  Python render path through `--algo-model spring|plate`, with `classic_spring`
+  and `bright_plate` presets. Both models retain the ordinary algorithmic
+  control, automation, report, and proxy-render workflow.
+- `verbx-c render --model fdn|spring|plate` now selects equivalent bounded
+  native topology families and records the choice in stdout and
+  `native-render-report-v1` JSON.
+
 ### Changed
 - Quality modes now perform real allocation-free wet-path oversampling instead
   of reporting an aspirational internal rate. Host, 2x, and 4x use their exact
@@ -163,7 +179,7 @@ All notable changes to this project are documented in this file.
 ### Changed
 - **`room_size.py` decomposed into six public pipeline stages**: `extract_edr_rt60`,
   `infer_absorption`, `estimate_volume`, `project_dimensions`, `score_confidence`,
-  `classify_room` — each independently callable, testable, and replaceable.
+  `classify_room` – each independently callable, testable, and replaceable.
   `estimate_room_size` is now a thin orchestrator that calls them in sequence.
 - **FDN matrix operations extracted to `src/verbx/core/fdn_matrix.py`**: all
   `build_*` matrix builders (`hadamard`, `random_orthogonal`, `circulant`,
@@ -180,7 +196,7 @@ All notable changes to this project are documented in this file.
 - **Roadmap sections 6–8**: physically modelled room acoustics track (ISM full
   response, SDN engine, geometry-to-FDN parameter derivation, material library),
   AI/neural architecture track (DDSP FDN, grey-box neural FDN, neural
-  dereverberation, perceptual evaluation infrastructure — informed by Steinmetz
+  dereverberation, perceptual evaluation infrastructure – informed by Steinmetz
   et al. MERL TR2025-116 JAES 2025), and Valhalla-inspired algorithm research
   track (diffusion density, per-line crossover filters, room mode resonances).
 
@@ -190,11 +206,11 @@ All notable changes to this project are documented in this file.
   reverberant recording or rendered IR.  Uses Sabine/Eyring reverberation
   formulas with EDR-derived RT60 measurements and automatic absorption inference
   from the spectral decay shape.  Exposed via:
-  - `AudioAnalyzer.analyze(include_room=True)` — adds `room_*` prefixed keys
+  - `AudioAnalyzer.analyze(include_room=True)` – adds `room_*` prefixed keys
     to the flat metrics dict
-  - `verbx analyze --room` — prints room metrics in the analysis table and
+  - `verbx analyze --room` – prints room metrics in the analysis table and
     includes them in `--json-out` output
-  - `verbx compare --room` — shows room metrics side-by-side with string-valued
+  - `verbx compare --room` – shows room metrics side-by-side with string-valued
     fields (class, method, confidence) displayed as labels and numeric fields
     shown with delta
 

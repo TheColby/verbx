@@ -521,6 +521,143 @@ def test_render_algo_stream_proxy_path_reports_proxy_backend(tmp_path: Path) -> 
     assert bool(effective["streaming_mode"])
 
 
+def test_render_spring_and_plate_physical_proxy_options_are_reported(tmp_path: Path) -> None:
+    sr = 16_000
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[0, 0] = 0.5
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    report_path = tmp_path / "report.json"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--algo-model",
+            "spring",
+            "--spring-count",
+            "2",
+            "--spring",
+            "length_m=0.35,mass_g=22,diameter_mm=0.9,compliance_mm_n=0.5,tension_n=7,damping=0.62",
+            "--spring",
+            "length_m=0.62,mass_g=48,diameter_mm=1.6,compliance_mm_n=1.1,tension_n=3,damping=0.78",
+            "--rt60",
+            "0.3",
+            "--wet",
+            "1",
+            "--dry",
+            "0",
+            "--no-progress",
+            "--json-out",
+            str(report_path),
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    config = json.loads(report_path.read_text(encoding="utf-8"))["config"]
+    assert config["spring_count"] == 2
+    assert len(config["spring_specs"]) == 2
+
+
+def test_render_modal_fe_spring_reports_resolved_structural_modes(tmp_path: Path) -> None:
+    sr = 16_000
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[0, 0] = 0.5
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    report_path = tmp_path / "report.json"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--algo-model",
+            "spring",
+            "--electromechanical-solver",
+            "modal-fe",
+            "--spring-count",
+            "2",
+            "--spring-fe-nodes",
+            "10",
+            "--spring-fe-modes",
+            "12",
+            "--rt60",
+            "0.3",
+            "--wet",
+            "1",
+            "--dry",
+            "0",
+            "--no-progress",
+            "--json-out",
+            str(report_path),
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    solver = payload["effective"]["electromechanical"]
+    rendered, _ = sf.read(str(outfile), always_2d=True)
+    assert solver["solver"] == "modal-fe"
+    assert solver["model"] == "spring"
+    assert int(solver["active_modes"]) > 0
+    assert float(np.max(np.abs(rendered))) > 1e-6
+
+
+def test_render_ism_fdn_reports_resolved_room_scene(tmp_path: Path) -> None:
+    sr = 16_000
+    audio = np.zeros((2048, 1), dtype=np.float64)
+    audio[0, 0] = 0.5
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    report_path = tmp_path / "report.json"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "ism-fdn",
+            "--ism-order",
+            "3",
+            "--er-room-dims-m",
+            "6,8,3",
+            "--er-source-pos-m",
+            "1,2,1.5",
+            "--er-listener-pos-m",
+            "4,5,1.5",
+            "--er-material",
+            "hall",
+            "--rt60",
+            "0.35",
+            "--wet",
+            "1",
+            "--dry",
+            "0",
+            "--no-progress",
+            "--json-out",
+            str(report_path),
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert payload["engine"] == "algo"
+    scene = payload["effective"]["room_geometry"]
+    assert scene["render_path"] == "ism-fdn"
+    assert scene["ism_order"] == 3
+    assert scene["wall_materials"]["left"] == "hall"
+
+
 def test_render_matrix_morph_and_er_geometry_complete(tmp_path: Path) -> None:
     sr = 16_000
     audio = np.zeros((4096, 1), dtype=np.float64)
@@ -1174,9 +1311,7 @@ def test_render_rejects_sparse_with_graph_matrix(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "--fdn-sparse cannot be combined with --fdn-matrix graph" in _combined_cli_output(
-        result
-    )
+    assert "--fdn-sparse cannot be combined with --fdn-matrix graph" in _combined_cli_output(result)
 
 
 def test_render_sdn_spatial_and_nonlinear_switches_are_applied(tmp_path: Path) -> None:
@@ -2029,10 +2164,9 @@ def test_analyze_reverb_metrics_and_versioned_json_are_default(tmp_path: Path) -
     sr = 16_000
     target_rt60 = 1.0
     t = np.arange(sr * 3, dtype=np.float64) / float(sr)
-    audio = (
-        np.power(10.0, -3.0 * t / target_rt60)
-        * np.sin(2.0 * np.pi * 701.0 * t)
-    )[:, np.newaxis]
+    audio = (np.power(10.0, -3.0 * t / target_rt60) * np.sin(2.0 * np.pi * 701.0 * t))[
+        :, np.newaxis
+    ]
     audio[0, 0] = 1.0
     infile = tmp_path / "decay.wav"
     json_out = tmp_path / "reports" / "analysis.json"
@@ -5022,10 +5156,9 @@ def test_render_feature_vector_payload_includes_schema_metadata(tmp_path: Path) 
     sr = 16_000
     n = int(1.5 * sr)
     t = np.arange(n, dtype=np.float64) / float(sr)
-    x = (
-        0.22 * np.sin(2.0 * np.pi * 180.0 * t)
-        + 0.14 * np.sin(2.0 * np.pi * 360.0 * t)
-    ).astype(np.float64)[:, np.newaxis]
+    x = (0.22 * np.sin(2.0 * np.pi * 180.0 * t) + 0.14 * np.sin(2.0 * np.pi * 360.0 * t)).astype(
+        np.float64
+    )[:, np.newaxis]
     ir = np.zeros((64, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     infile = tmp_path / "feature_schema_in.wav"
@@ -5127,10 +5260,9 @@ def test_render_track_c_calibration_diagnostics_are_emitted(tmp_path: Path) -> N
     sr = 16_000
     n = int(1.2 * sr)
     t = np.arange(n, dtype=np.float64) / float(sr)
-    x = (
-        0.28 * np.sin(2.0 * np.pi * 220.0 * t)
-        + 0.10 * np.sin(2.0 * np.pi * 880.0 * t)
-    ).astype(np.float64)[:, np.newaxis]
+    x = (0.28 * np.sin(2.0 * np.pi * 220.0 * t) + 0.10 * np.sin(2.0 * np.pi * 880.0 * t)).astype(
+        np.float64
+    )[:, np.newaxis]
     infile = tmp_path / "trackc_diag_in.wav"
     outfile = tmp_path / "trackc_diag_out.wav"
     sf.write(str(infile), x, sr)

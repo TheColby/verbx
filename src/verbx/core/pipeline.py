@@ -49,6 +49,7 @@ from verbx.core.loudness import apply_output_targets
 from verbx.core.modulation import apply_parameter_modulation, parse_mod_route_spec
 from verbx.core.render_report import RenderReport
 from verbx.core.repeat import repeat_process
+from verbx.core.room_geometry import RoomGeometry
 from verbx.core.schema_versions import TRACK_C_CALIBRATION_VERSION
 from verbx.core.spatial import (
     ambisonic_channel_count,
@@ -380,6 +381,11 @@ def _run_convolution_streaming_pipeline(context: _PipelineContext) -> RenderRepo
             "device_resolved": context.engine_device,
             "device_platform_resolved": context.platform_device,
             "compute_backend": context.engine.backend_name(),
+            "electromechanical": (
+                context.engine.electromechanical_report()
+                if isinstance(context.engine, AlgoReverbEngine)
+                else None
+            ),
             "ir_used": runtime_config.ir,
             "self_convolve": runtime_config.self_convolve,
             "beast_mode": runtime_config.beast_mode,
@@ -445,6 +451,15 @@ def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
             source_pos_m=runtime_config.er_source_pos_m,
             listener_pos_m=runtime_config.er_listener_pos_m,
             absorption=absorption,
+            reflection_order=runtime_config.ism_order,
+            wall_materials={
+                "left": runtime_config.er_material,
+                "right": runtime_config.er_material,
+                "front": runtime_config.er_material,
+                "rear": runtime_config.er_material,
+                "floor": runtime_config.er_material,
+                "ceiling": runtime_config.er_material,
+            },
         )
 
     input_for_engine = _prepare_spatial_input(audio, runtime_config)
@@ -502,10 +517,9 @@ def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
 
     conv_target_summary: dict[str, Any] | None = None
     if has_automation_source:
-        if (
-            preloaded_automation_bundle is None
-            or int(preloaded_automation_bundle.num_samples) != int(rendered.shape[0])
-        ):
+        if preloaded_automation_bundle is None or int(
+            preloaded_automation_bundle.num_samples
+        ) != int(rendered.shape[0]):
             preloaded_automation_bundle = _load_runtime_automation_bundle(
                 config=runtime_config,
                 sr=sr,
@@ -748,6 +762,11 @@ def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
             "device_resolved": context.engine_device,
             "device_platform_resolved": context.platform_device,
             "compute_backend": context.engine.backend_name(),
+            "electromechanical": (
+                context.engine.electromechanical_report()
+                if isinstance(context.engine, AlgoReverbEngine)
+                else None
+            ),
             "ir_used": runtime_config.ir,
             "self_convolve": runtime_config.self_convolve,
             "beast_mode": runtime_config.beast_mode,
@@ -764,6 +783,7 @@ def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
             "modulation": modulation_payload,
             "automation": automation_summary,
             "perceptual_macros": context.perceptual_macro_summary,
+            "room_geometry": _room_geometry_summary(runtime_config),
             "non_default_settings": _non_default_settings(runtime_config),
         },
         ir_runtime=context.ir_runtime,
@@ -939,6 +959,8 @@ def _can_stream_convolution(
         return False
     if config.repeat != 1 or config.freeze:
         return False
+    if config.er_geometry:
+        return False
     if config.normalize_stage == "per-pass":
         return False
     if config.output_peak_norm != "none":
@@ -992,6 +1014,8 @@ def _can_stream_algo_proxy(
     if not config.algo_stream:
         return False
     if config.repeat != 1 or config.freeze:
+        return False
+    if config.er_geometry:
         return False
     if config.normalize_stage == "per-pass":
         return False
@@ -1047,6 +1071,9 @@ def _prepare_runtime_config(
         input_duration_seconds=input_duration_seconds,
     )
     runtime = _apply_perceptual_fdn_macros(runtime)
+    if runtime.engine == "ism-fdn":
+        runtime.engine = "algo"
+        runtime.er_geometry = True
     runtime.ir_blend_base_ir = None
     runtime.ir_blend_composite_ir = None
     ir_runtime_steps: list[dict[str, Any]] = []
@@ -1180,6 +1207,31 @@ def _prepare_runtime_config(
         }
 
     return runtime, ir_runtime
+
+
+def _room_geometry_summary(config: RenderConfig) -> dict[str, Any] | None:
+    """Return the resolved ISM scene when geometry staging is active."""
+    if not config.er_geometry:
+        return None
+    material = str(config.er_material)
+    geometry = RoomGeometry(
+        room_dims_m=config.er_room_dims_m,
+        source_pos_m=config.er_source_pos_m,
+        listener_pos_m=config.er_listener_pos_m,
+        wall_materials={
+            "left": material,
+            "right": material,
+            "front": material,
+            "rear": material,
+            "floor": material,
+            "ceiling": material,
+        },
+        mean_absorption=material_absorption(material, float(config.er_absorption)),
+    )
+    summary = geometry.summary()
+    summary["ism_order"] = int(config.ism_order)
+    summary["render_path"] = "ism-fdn"
+    return summary
 
 
 def _apply_beast_mode(config: RenderConfig, input_duration_seconds: float) -> RenderConfig:
@@ -1530,6 +1582,27 @@ def _resolve_engine(
         AlgoReverbEngine(
             AlgoReverbConfig(
                 rt60=config.rt60,
+                algo_model=config.algo_model,
+                spring_count=config.spring_count,
+                spring_specs=config.spring_specs,
+                electromechanical_solver=config.electromechanical_solver,
+                spring_fe_nodes=config.spring_fe_nodes,
+                spring_fe_modes=config.spring_fe_modes,
+                spring_fe_coupling=config.spring_fe_coupling,
+                spring_fe_loss=config.spring_fe_loss,
+                plate_width_m=config.plate_width_m,
+                plate_height_m=config.plate_height_m,
+                plate_thickness_mm=config.plate_thickness_mm,
+                plate_density_kg_m3=config.plate_density_kg_m3,
+                plate_youngs_gpa=config.plate_youngs_gpa,
+                plate_poisson_ratio=config.plate_poisson_ratio,
+                plate_tension_n=config.plate_tension_n,
+                plate_pickup_x=config.plate_pickup_x,
+                plate_pickup_y=config.plate_pickup_y,
+                plate_fe_nx=config.plate_fe_nx,
+                plate_fe_ny=config.plate_fe_ny,
+                plate_fe_modes=config.plate_fe_modes,
+                plate_fe_loss=config.plate_fe_loss,
                 pre_delay_ms=config.pre_delay_ms,
                 damping=config.damping,
                 width=config.width,
@@ -2065,9 +2138,7 @@ def _load_runtime_automation_bundle(
         point_specs=config.automation_points,
         feature_lane_specs=config.feature_vector_lanes,
         feature_audio=feature_audio,
-        feature_guide_path=(
-            None if config.feature_guide is None else Path(config.feature_guide)
-        ),
+        feature_guide_path=(None if config.feature_guide is None else Path(config.feature_guide)),
         feature_guide_policy=config.feature_guide_policy,
         sr=sr,
         num_samples=int(num_samples),
@@ -2168,9 +2239,9 @@ def _estimate_wet_component(
 ) -> AudioArray:
     if abs(base_wet) <= 1e-9:
         return np.asarray(rendered, dtype=np.float64)
-    wet = (
-        np.asarray(rendered, dtype=np.float64) - (float(base_dry) * dry_reference)
-    ) / float(base_wet)
+    wet = (np.asarray(rendered, dtype=np.float64) - (float(base_dry) * dry_reference)) / float(
+        base_wet
+    )
     return np.asarray(np.nan_to_num(wet, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
 
 
@@ -2333,11 +2404,7 @@ def _resolve_output_format(
         return "W64"
     if suffix == ".rf64":
         return "RF64"
-    if (
-        suffix in {".wav", ""}
-        and estimated_bytes is not None
-        and estimated_bytes >= 3_800_000_000
-    ):
+    if suffix in {".wav", ""} and estimated_bytes is not None and estimated_bytes >= 3_800_000_000:
         return "W64"
     return None
 

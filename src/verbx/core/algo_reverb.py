@@ -23,7 +23,8 @@ Signal flow (per channel):
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from math import sqrt
 from typing import ClassVar, TypeVar
 
 import numpy as np
@@ -35,6 +36,7 @@ from verbx.core.control_targets import (
     RT60_MIN_SECONDS,
     normalize_control_target_name,
 )
+from verbx.core.electromechanical import apply_modal_response, render_modal_response
 from verbx.core.engine_base import ReverbEngine
 from verbx.core.fdn_capabilities import (
     FDN_LINK_FILTER_CHOICES,
@@ -71,6 +73,27 @@ class AlgoReverbConfig:
     """Configuration for the algorithmic reverb engine."""
 
     rt60: float = 60.0
+    algo_model: str = "fdn"
+    spring_count: int = 1
+    spring_specs: tuple[str, ...] = ()
+    electromechanical_solver: str = "proxy"
+    spring_fe_nodes: int = 24
+    spring_fe_modes: int = 24
+    spring_fe_coupling: float = 0.08
+    spring_fe_loss: float = 0.30
+    plate_width_m: float = 1.8
+    plate_height_m: float = 1.2
+    plate_thickness_mm: float = 0.6
+    plate_density_kg_m3: float = 7_850.0
+    plate_youngs_gpa: float = 200.0
+    plate_poisson_ratio: float = 0.29
+    plate_tension_n: float = 0.0
+    plate_pickup_x: float = 0.72
+    plate_pickup_y: float = 0.38
+    plate_fe_nx: int = 12
+    plate_fe_ny: int = 8
+    plate_fe_modes: int = 32
+    plate_fe_loss: float = 0.24
     pre_delay_ms: float = 20.0
     damping: float = 0.45
     width: float = 1.0
@@ -161,7 +184,7 @@ class AlgoReverbEngine(ReverbEngine):
     cinematic/"frozen-time" use cases.
     """
 
-    # primes help avoid common subharmonics between delay lines — classic Schroeder advice
+    # Primes help avoid common subharmonics between delay lines - classic Schroeder advice.
     _DEFAULT_BASE_DELAY_MS = np.array(
         [31.0, 37.0, 41.0, 43.0, 47.0, 53.0, 59.0, 67.0],
         dtype=np.float64,
@@ -180,7 +203,8 @@ class AlgoReverbEngine(ReverbEngine):
     _NONLINEARITY_MODES: ClassVar[frozenset[str]] = frozenset({"none", "tanh", "softclip"})
 
     def __init__(self, config: AlgoReverbConfig) -> None:
-        self._config = config
+        self._config = self._resolve_model_config(config)
+        config = self._config
         self._unsafe_self_oscillate = bool(config.unsafe_self_oscillate)
         self._feedback_gain_ceiling = 1.25 if self._unsafe_self_oscillate else 0.995
         unsafe_loop_gain = float(config.unsafe_loop_gain)
@@ -206,14 +230,14 @@ class AlgoReverbEngine(ReverbEngine):
             self._diffusion_delay_ms.shape[0],
         )
         self._cascade_enabled = bool(config.fdn_cascade)
-        # TODO: cascade path needs more thorough testing at extreme RT60 values — gains can drift
+        # TODO: cascade path needs more thorough testing at extreme RT60 values - gains can drift.
         self._cascade_mix = float(np.clip(config.fdn_cascade_mix, 0.0, 1.0))
         self._cascade_delay_scale = float(np.clip(config.fdn_cascade_delay_scale, 0.2, 1.0))
         self._cascade_rt60_ratio = float(np.clip(config.fdn_cascade_rt60_ratio, 0.1, 1.0))
         self._sparse_enabled = bool(config.fdn_sparse)
         self._sparse_degree = max(1, int(config.fdn_sparse_degree))
         self._rt60_tilt = float(np.clip(config.fdn_rt60_tilt, -1.0, 1.0))
-        # This condition is a bit tangled — multiband kicks in either when all three
+        # This condition is a bit tangled - multiband kicks in either when all three
         # RT60 bands are set explicitly, OR when tilt/warmth/clarity macros are active.
         self._base_multiband_enabled = all(
             value is not None
@@ -226,10 +250,7 @@ class AlgoReverbEngine(ReverbEngine):
         self._multiband_enabled = self._base_multiband_enabled
         self._link_filter_mode = self._resolve_link_filter_mode(config.fdn_link_filter)
         self._link_filter_mix = float(np.clip(config.fdn_link_filter_mix, 0.0, 1.0))
-        self._link_filter_enabled = (
-            self._link_filter_mode != "none"
-            and self._link_filter_mix > 0.0
-        )
+        self._link_filter_enabled = self._link_filter_mode != "none" and self._link_filter_mix > 0.0
         tv_seed = int(config.fdn_tv_seed)
         self._sparse_pairings = self._build_sparse_pairings(
             size=int(self._base_delay_ms.shape[0]),
@@ -345,6 +366,158 @@ class AlgoReverbEngine(ReverbEngine):
             )
         )
         self._parameter_automation: CurveMap = {}
+        self._modal_fe_report: dict[str, float | int | str] | None = None
+
+    @staticmethod
+    def _resolve_model_config(config: AlgoReverbConfig) -> AlgoReverbConfig:
+        """Apply deterministic spring/plate topology defaults to the FDN core.
+
+        These are algorithmic instruments rather than circuit or mechanical
+        emulations: the selected model establishes a stable delay/diffusion
+        topology while the usual RT60, damping, width, and modulation controls
+        remain available for deliberate shaping.
+        """
+        model = str(config.algo_model).strip().lower()
+        if model == "fdn":
+            return config
+        if model == "spring":
+            spring_delays, spring_mod_depth, spring_mod_rate, spring_damping = (
+                AlgoReverbEngine._resolve_spring_proxy(config)
+            )
+            return replace(
+                config,
+                algo_model="spring",
+                fdn_lines=len(spring_delays),
+                fdn_matrix="circulant",
+                allpass_stages=max(3, min(int(config.allpass_stages), 5)),
+                allpass_gain=min(float(config.allpass_gain), 0.58),
+                comb_delays_ms=spring_delays,
+                mod_depth_ms=max(float(config.mod_depth_ms), spring_mod_depth),
+                mod_rate_hz=max(float(config.mod_rate_hz), spring_mod_rate),
+                damping=max(float(config.damping), spring_damping),
+            )
+        if model == "plate":
+            plate_delays, plate_mod_depth, plate_mod_rate, plate_gain = (
+                AlgoReverbEngine._resolve_plate_proxy(config)
+            )
+            return replace(
+                config,
+                algo_model="plate",
+                fdn_lines=len(plate_delays),
+                fdn_matrix="hadamard",
+                allpass_stages=max(8, int(config.allpass_stages)),
+                allpass_gain=max(float(config.allpass_gain), plate_gain),
+                comb_delays_ms=plate_delays,
+                mod_depth_ms=max(float(config.mod_depth_ms), plate_mod_depth),
+                mod_rate_hz=max(float(config.mod_rate_hz), plate_mod_rate),
+                damping=min(float(config.damping), 0.38),
+            )
+        msg = f"Unsupported algorithmic model: {config.algo_model}"
+        raise ValueError(msg)
+
+    @staticmethod
+    def _resolve_spring_proxy(
+        config: AlgoReverbConfig,
+    ) -> tuple[tuple[float, ...], float, float, float]:
+        """Derive bounded delay topology from one or more spring specifications."""
+        defaults = {
+            "length_m": 0.45,
+            "mass_g": 30.0,
+            "diameter_mm": 1.2,
+            "compliance_mm_n": 0.70,
+            "tension_n": 4.0,
+            "damping": 0.65,
+        }
+        parsed = [AlgoReverbEngine._parse_spring_spec(raw, defaults) for raw in config.spring_specs]
+        target_count = max(1, min(8, int(config.spring_count)))
+        if len(parsed) > target_count:
+            target_count = len(parsed)
+        parsed.extend([dict(defaults) for _ in range(target_count - len(parsed))])
+
+        delays: list[float] = []
+        damping_values: list[float] = []
+        diameter_values: list[float] = []
+        compliance_values: list[float] = []
+        for spec in parsed:
+            length_m = max(0.05, float(spec["length_m"]))
+            mass_per_m = max(1e-5, (float(spec["mass_g"]) / 1000.0) / length_m)
+            compliance_m_n = max(1e-7, float(spec["compliance_mm_n"]) / 1000.0)
+            stiffness_n_m = 1.0 / compliance_m_n
+            effective_tension = max(0.01, float(spec["tension_n"]) + (stiffness_n_m * length_m))
+            wave_speed = sqrt(effective_tension / mass_per_m)
+            transit_ms = float(np.clip((length_m / wave_speed) * 1000.0, 1.0, 12.0))
+            diameter_scale = sqrt(max(0.1, float(spec["diameter_mm"])) / 1.2)
+            for multiplier in (3.0, 3.7, 4.8, 6.2):
+                delays.append(float(np.clip(transit_ms * multiplier * diameter_scale, 2.0, 45.0)))
+            damping_values.append(float(np.clip(float(spec["damping"]), 0.0, 1.0)))
+            diameter_values.append(float(spec["diameter_mm"]))
+            compliance_values.append(float(spec["compliance_mm_n"]))
+
+        mean_diameter = float(np.mean(diameter_values))
+        mean_compliance = float(np.mean(compliance_values))
+        return (
+            tuple(delays),
+            float(np.clip(1.8 * sqrt(max(0.1, mean_diameter) / 1.2), 1.0, 5.0)),
+            float(np.clip(0.35 / sqrt(max(0.1, mean_compliance) / 0.70), 0.10, 1.5)),
+            float(np.clip(max(0.58, float(np.mean(damping_values))), 0.58, 0.95)),
+        )
+
+    @staticmethod
+    def _parse_spring_spec(raw: str, defaults: dict[str, float]) -> dict[str, float]:
+        """Parse one repeatable ``--spring key=value,...`` specification."""
+        values = dict(defaults)
+        aliases = {
+            "length": "length_m",
+            "mass": "mass_g",
+            "diameter": "diameter_mm",
+            "compliance": "compliance_mm_n",
+            "tension": "tension_n",
+        }
+        for item in str(raw).split(","):
+            key, separator, value = item.strip().partition("=")
+            if separator == "" or key == "" or value == "":
+                raise ValueError("Spring specs must use key=value pairs separated by commas.")
+            normalized = aliases.get(key.strip().lower(), key.strip().lower())
+            if normalized not in values:
+                raise ValueError(f"Unknown spring parameter '{key}'.")
+            try:
+                parsed = float(value)
+            except ValueError as exc:
+                raise ValueError(f"Invalid spring value for '{key}': {value}") from exc
+            if parsed <= 0.0 or (normalized == "damping" and parsed > 1.0):
+                raise ValueError(f"Spring parameter '{key}' is outside its valid range.")
+            values[normalized] = parsed
+        return values
+
+    @staticmethod
+    def _resolve_plate_proxy(
+        config: AlgoReverbConfig,
+    ) -> tuple[tuple[float, ...], float, float, float]:
+        """Map plate dimensions and material proxies into a bounded dense topology."""
+        width = max(0.1, float(config.plate_width_m))
+        height = max(0.1, float(config.plate_height_m))
+        thickness = max(1e-5, float(config.plate_thickness_mm) / 1000.0)
+        density = max(1.0, float(config.plate_density_kg_m3))
+        youngs = max(1e6, float(config.plate_youngs_gpa) * 1e9)
+        poisson = float(np.clip(config.plate_poisson_ratio, 0.0, 0.49))
+        rigidity = (youngs * thickness**3) / (12.0 * (1.0 - poisson**2))
+        flexural_speed_proxy = sqrt(rigidity / max(1e-9, density * thickness))
+        reference = sqrt(((200e9 * 0.0006**3) / (12.0 * (1.0 - 0.29**2))) / (7850.0 * 0.0006))
+        geometry_scale = sqrt((width * height) / (1.8 * 1.2))
+        rigidity_scale = (reference / max(1e-9, flexural_speed_proxy)) ** 0.25
+        tension_scale = 1.0 / sqrt(1.0 + max(0.0, float(config.plate_tension_n)) / 1_000.0)
+        scale = float(np.clip(geometry_scale * rigidity_scale * tension_scale, 0.45, 2.2))
+        pickup_distance = sqrt(
+            (float(config.plate_pickup_x) - 0.5) ** 2 + (float(config.plate_pickup_y) - 0.5) ** 2
+        )
+        pickup_gain = float(np.clip(0.72 + (0.12 * pickup_distance), 0.72, 0.80))
+        base_delays = (23.9, 31.1, 37.7, 41.3, 47.9, 53.3, 59.9, 67.1)
+        return (
+            tuple(float(np.clip(delay * scale, 8.0, 150.0)) for delay in base_delays),
+            float(np.clip(0.7 * scale, 0.35, 2.5)),
+            float(np.clip(0.12 / scale, 0.05, 0.5)),
+            pickup_gain,
+        )
 
     def set_parameter_automation(self, curves: CurveMap | None) -> None:
         """Set sample-rate automation curves for internal FDN parameters."""
@@ -364,8 +537,7 @@ class AlgoReverbEngine(ReverbEngine):
             parsed[target] = vec
         self._parameter_automation = parsed
         self._multiband_enabled = (
-            self._base_multiband_enabled
-            or self._automation_requires_multiband(parsed)
+            self._base_multiband_enabled or self._automation_requires_multiband(parsed)
         )
         self._tv_matrix_enabled = self._tv_matrix_base_enabled and not self._multiband_enabled
 
@@ -436,6 +608,12 @@ class AlgoReverbEngine(ReverbEngine):
         if n_samples == 0:
             return x.copy()
 
+        if self._config.electromechanical_solver == "modal-fe" and self._config.algo_model in {
+            "spring",
+            "plate",
+        }:
+            return self._process_modal_fe(x, sr)
+
         param_automation = self._resolve_parameter_automation(n_samples)
         wet = np.zeros_like(x, dtype=np.float64)
         for channel in range(n_channels):
@@ -463,6 +641,54 @@ class AlgoReverbEngine(ReverbEngine):
             output *= 8.0 / peak
 
         return np.asarray(output, dtype=np.float64)
+
+    def _process_modal_fe(self, x: AudioArray, sr: int) -> AudioArray:
+        """Render the explicit offline structural solver and apply ordinary wet/dry controls."""
+        defaults = {
+            "length_m": 0.45,
+            "mass_g": 30.0,
+            "diameter_mm": 1.2,
+            "compliance_mm_n": 0.70,
+            "tension_n": 4.0,
+            "damping": 0.65,
+        }
+        specs = tuple(self._parse_spring_spec(raw, defaults) for raw in self._config.spring_specs)
+        if self._config.algo_model == "spring":
+            count = max(int(self._config.spring_count), len(specs))
+            specs = specs + tuple(dict(defaults) for _ in range(count - len(specs)))
+        response = render_modal_response(
+            model=self._config.algo_model,
+            sr=sr,
+            samples=x.shape[0],
+            rt60=self._config.rt60,
+            damping=self._config.damping,
+            spring_specs=specs,
+            spring_nodes=self._config.spring_fe_nodes,
+            spring_modes=self._config.spring_fe_modes,
+            spring_coupling=self._config.spring_fe_coupling,
+            spring_loss=self._config.spring_fe_loss,
+            plate_width_m=self._config.plate_width_m,
+            plate_height_m=self._config.plate_height_m,
+            plate_thickness_mm=self._config.plate_thickness_mm,
+            plate_density_kg_m3=self._config.plate_density_kg_m3,
+            plate_youngs_gpa=self._config.plate_youngs_gpa,
+            plate_poisson_ratio=self._config.plate_poisson_ratio,
+            plate_tension_n=self._config.plate_tension_n,
+            plate_pickup_x=self._config.plate_pickup_x,
+            plate_pickup_y=self._config.plate_pickup_y,
+            plate_nx=self._config.plate_fe_nx,
+            plate_ny=self._config.plate_fe_ny,
+            plate_modes=self._config.plate_fe_modes,
+            plate_loss=self._config.plate_fe_loss,
+        )
+        self._modal_fe_report = response.report
+        wet = apply_modal_response(x, response)
+        output = (self._config.dry * x) + (self._config.wet * wet)
+        return np.asarray(np.nan_to_num(output, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
+
+    def electromechanical_report(self) -> dict[str, float | int | str] | None:
+        """Return modal solver provenance from the most recent render, if any."""
+        return self._modal_fe_report
 
     def _apply_multichannel_decorrelation(self, wet: AudioArray, sr: int) -> AudioArray:
         """Apply lightweight channel-group decorrelation for surround layouts."""
@@ -617,8 +843,7 @@ class AlgoReverbEngine(ReverbEngine):
         tonal_curve = self._parameter_automation.get("fdn-tonal-correction-strength")
         tonal_curve_enabled = tonal_curve is not None and float(np.max(tonal_curve)) > 1e-9
         if self._multiband_enabled and (
-            float(self._config.fdn_tonal_correction_strength) > 0.0
-            or tonal_curve_enabled
+            float(self._config.fdn_tonal_correction_strength) > 0.0 or tonal_curve_enabled
         ):
             suffixes.append("tonalcorr")
         if self._link_filter_enabled:
@@ -702,11 +927,7 @@ class AlgoReverbEngine(ReverbEngine):
         shift_1 = cls._build_shift_permutation(size, shift=1)
         shift_2 = cls._build_shift_permutation(size, shift=2)
 
-        proto = (
-            (0.62 * eye)
-            + (0.19 * (shift_1 + shift_1.T))
-            + (0.05 * (shift_2 + shift_2.T))
-        )
+        proto = (0.62 * eye) + (0.19 * (shift_1 + shift_1.T)) + (0.05 * (shift_2 + shift_2.T))
         return cls._orthonormalize(proto)
 
     @classmethod
@@ -1200,11 +1421,7 @@ class AlgoReverbEngine(ReverbEngine):
         # Preserve overall energy tendency while rebalancing decay color.
         rms = float(
             np.sqrt(
-                (
-                    (low_scale * low_scale)
-                    + (mid_scale * mid_scale)
-                    + (high_scale * high_scale)
-                )
+                ((low_scale * low_scale) + (mid_scale * mid_scale) + (high_scale * high_scale))
                 / 3.0
             )
         )
@@ -1637,9 +1854,7 @@ class AlgoReverbEngine(ReverbEngine):
                 if warmth_macro_curve is not None:
                     warmth_macro_sample = float(np.clip(warmth_macro_curve[n], -1.0, 1.0))
                 if envelopment_macro_curve is not None:
-                    envelopment_macro_sample = float(
-                        np.clip(envelopment_macro_curve[n], -1.0, 1.0)
-                    )
+                    envelopment_macro_sample = float(np.clip(envelopment_macro_curve[n], -1.0, 1.0))
                 if fdn_rt60_tilt_curve is not None:
                     fdn_rt60_tilt_sample = float(np.clip(fdn_rt60_tilt_curve[n], -1.0, 1.0))
                 if tonal_correction_strength_curve is not None:
@@ -1675,12 +1890,7 @@ class AlgoReverbEngine(ReverbEngine):
                     abs(tonal_correction_strength_sample - tonal_correction_strength) > macro_eps
                 )
 
-                if (
-                    room_size_changed
-                    or clarity_changed
-                    or warmth_changed
-                    or envelopment_changed
-                ):
+                if room_size_changed or clarity_changed or warmth_changed or envelopment_changed:
                     room_size_macro = room_size_macro_sample
                     clarity_macro = clarity_macro_sample
                     warmth_macro = warmth_macro_sample
@@ -1734,16 +1944,13 @@ class AlgoReverbEngine(ReverbEngine):
                     )
 
                 rt60_changed = abs(rt60_effective - last_rt60_effective) > self._RT60_UPDATE_EPS
-                multiband_profile_changed = (
-                    multiband_active
-                    and (
-                        fdn_tilt_changed
-                        or clarity_changed
-                        or warmth_changed
-                        or fdn_rt60_low_curve is not None
-                        or fdn_rt60_mid_curve is not None
-                        or fdn_rt60_high_curve is not None
-                    )
+                multiband_profile_changed = multiband_active and (
+                    fdn_tilt_changed
+                    or clarity_changed
+                    or warmth_changed
+                    or fdn_rt60_low_curve is not None
+                    or fdn_rt60_mid_curve is not None
+                    or fdn_rt60_high_curve is not None
                 )
                 if rt60_changed:
                     feedback_gain[:] = np.clip(
@@ -1796,8 +2003,7 @@ class AlgoReverbEngine(ReverbEngine):
                         feedback_gain_ceiling,
                     ).astype(np.float64)
                     feedback_gain_high[:] = np.clip(
-                        np.power(10.0, (-3.0 * delays_sec) / rt60_high_eff)
-                        * feedback_gain_scale,
+                        np.power(10.0, (-3.0 * delays_sec) / rt60_high_eff) * feedback_gain_scale,
                         0.0,
                         feedback_gain_ceiling,
                     ).astype(np.float64)
@@ -1842,8 +2048,8 @@ class AlgoReverbEngine(ReverbEngine):
                     for i, buffer in enumerate(comb_cloud_buffers):
                         delayed = buffer[comb_cloud_indices[i]]
                         comb_cloud_out += comb_cloud_polarity[i] * delayed
-                        buffer[comb_cloud_indices[i]] = (
-                            diffused + (comb_cloud_feedback[i] * delayed)
+                        buffer[comb_cloud_indices[i]] = diffused + (
+                            comb_cloud_feedback[i] * delayed
                         )
                         comb_cloud_indices[i] = (comb_cloud_indices[i] + 1) % buffer.shape[0]
                     diffused = np.float64(
@@ -1990,9 +2196,7 @@ class AlgoReverbEngine(ReverbEngine):
                     ) or state_peak > self._state_guard_peak
                 if guard_needed:
                     guard_scale = (
-                        np.float64(0.0)
-                        if not np.isfinite(state_peak)
-                        else self._state_guard_scale
+                        np.float64(0.0) if not np.isfinite(state_peak) else self._state_guard_scale
                     )
                     for i in range(num_lines):
                         delay_buffers[i] = np.asarray(

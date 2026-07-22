@@ -7,7 +7,9 @@ from typing import Literal
 
 from verbx.core.control_targets import RT60_DEFAULT_SECONDS
 
-EngineName = Literal["conv", "algo", "auto"]
+EngineName = Literal["conv", "algo", "ism-fdn", "auto"]
+AlgoModel = Literal["fdn", "spring", "plate"]
+ElectromechanicalSolver = Literal["proxy", "modal-fe"]
 IRNormalize = Literal["peak", "rms", "none"]
 NormalizeStage = Literal["none", "post", "per-pass"]
 IRMode = Literal["fdn", "stochastic", "modal", "hybrid"]
@@ -57,6 +59,8 @@ class RenderConfig:
 
     def __post_init__(self) -> None:
         """Validate field constraints that would cause silent corruption or crashes."""
+        if self.algo_model not in {"fdn", "spring", "plate"}:
+            raise ValueError(f"algo_model must be fdn, spring, or plate, got {self.algo_model}")
         if self.rt60 < 0.0:
             raise ValueError(f"rt60 must be >= 0, got {self.rt60}")
         if self.fdn_lines < 1:
@@ -88,9 +92,7 @@ class RenderConfig:
         if self.comb_cloud_count < 1:
             raise ValueError(f"comb_cloud_count must be >= 1, got {self.comb_cloud_count}")
         if not 0.0 <= self.comb_cloud_feedback <= 0.95:
-            raise ValueError(
-                f"comb_cloud_feedback must be 0-0.95, got {self.comb_cloud_feedback}"
-            )
+            raise ValueError(f"comb_cloud_feedback must be 0-0.95, got {self.comb_cloud_feedback}")
         if not 0.0 <= self.comb_cloud_mix <= 1.0:
             raise ValueError(f"comb_cloud_mix must be 0-1, got {self.comb_cloud_mix}")
         if self.ambi_order < 0:
@@ -119,9 +121,7 @@ class RenderConfig:
         if self.limiter_release_ms < 0.0:
             raise ValueError(f"limiter_release_ms must be >= 0, got {self.limiter_release_ms}")
         if self.limiter_lookahead_ms < 0.0:
-            raise ValueError(
-                f"limiter_lookahead_ms must be >= 0, got {self.limiter_lookahead_ms}"
-            )
+            raise ValueError(f"limiter_lookahead_ms must be >= 0, got {self.limiter_lookahead_ms}")
         if self.limiter_oversample < 1:
             raise ValueError(f"limiter_oversample must be >= 1, got {self.limiter_oversample}")
         if self.fdn_matrix_morph_seconds < 0.0:
@@ -136,6 +136,32 @@ class RenderConfig:
             )
         if not 0.0 <= self.er_absorption <= 0.99:
             raise ValueError(f"er_absorption must be 0..0.99, got {self.er_absorption}")
+        if not 0 <= self.ism_order <= 6:
+            raise ValueError(f"ism_order must be 0..6, got {self.ism_order}")
+        if not 1 <= self.spring_count <= 8:
+            raise ValueError(f"spring_count must be 1..8, got {self.spring_count}")
+        if len(self.spring_specs) > 8:
+            raise ValueError("at most eight per-spring specifications are supported")
+        if self.electromechanical_solver not in {"proxy", "modal-fe"}:
+            raise ValueError("electromechanical_solver must be proxy or modal-fe")
+        if not 4 <= self.spring_fe_nodes <= 128 or not 1 <= self.spring_fe_modes <= 128:
+            raise ValueError("spring FE nodes must be 4..128 and modes must be 1..128")
+        if not 0.0 <= self.spring_fe_coupling <= 1.0 or not 0.0 <= self.spring_fe_loss <= 2.0:
+            raise ValueError("spring FE coupling must be 0..1 and loss must be 0..2")
+        if not 4 <= self.plate_fe_nx <= 32 or not 4 <= self.plate_fe_ny <= 32:
+            raise ValueError("plate FE grid dimensions must be 4..32")
+        if not 1 <= self.plate_fe_modes <= 128 or not 0.0 <= self.plate_fe_loss <= 2.0:
+            raise ValueError("plate FE modes must be 1..128 and loss must be 0..2")
+        if self.plate_width_m <= 0.0 or self.plate_height_m <= 0.0:
+            raise ValueError("plate dimensions must be > 0")
+        if self.plate_thickness_mm <= 0.0 or self.plate_density_kg_m3 <= 0.0:
+            raise ValueError("plate thickness and density must be > 0")
+        if self.plate_youngs_gpa <= 0.0:
+            raise ValueError("plate_youngs_gpa must be > 0")
+        if not 0.0 <= self.plate_poisson_ratio < 0.5:
+            raise ValueError("plate_poisson_ratio must be 0..0.5")
+        if not 0.0 <= self.plate_pickup_x <= 1.0 or not 0.0 <= self.plate_pickup_y <= 1.0:
+            raise ValueError("plate pickup coordinates must be 0..1")
         if any(dim <= 0.0 for dim in self.er_room_dims_m):
             raise ValueError(
                 f"er_room_dims_m must be > 0 in all dimensions, got {self.er_room_dims_m}"
@@ -156,6 +182,27 @@ class RenderConfig:
             raise ValueError(f"highcut_order must be >= 1, got {self.highcut_order}")
 
     engine: EngineName = "auto"
+    algo_model: AlgoModel = "fdn"
+    spring_count: int = 1
+    spring_specs: tuple[str, ...] = ()
+    electromechanical_solver: ElectromechanicalSolver = "proxy"
+    spring_fe_nodes: int = 24
+    spring_fe_modes: int = 24
+    spring_fe_coupling: float = 0.08
+    spring_fe_loss: float = 0.30
+    plate_width_m: float = 1.8
+    plate_height_m: float = 1.2
+    plate_thickness_mm: float = 0.6
+    plate_density_kg_m3: float = 7_850.0
+    plate_youngs_gpa: float = 200.0
+    plate_poisson_ratio: float = 0.29
+    plate_tension_n: float = 0.0
+    plate_pickup_x: float = 0.72
+    plate_pickup_y: float = 0.38
+    plate_fe_nx: int = 12
+    plate_fe_ny: int = 8
+    plate_fe_modes: int = 32
+    plate_fe_loss: float = 0.24
     rt60: float = RT60_DEFAULT_SECONDS
     pre_delay_ms: float = 20.0
     damping: float = 0.45
@@ -309,6 +356,7 @@ class RenderConfig:
     shimmer_decorrelation_ms: float = 1.5
     auto_fit: AutoFitProfile = "none"
     er_geometry: bool = False
+    ism_order: int = 1
     er_room_dims_m: tuple[float, float, float] = (10.0, 7.0, 3.0)
     er_source_pos_m: tuple[float, float, float] = (2.0, 2.0, 1.5)
     er_listener_pos_m: tuple[float, float, float] = (5.0, 3.5, 1.5)

@@ -62,7 +62,53 @@ def render(
         "--auto-fit",
         help="Apply target-oriented heuristic profile: none, speech, music, drums, ambient.",
     ),
-    engine: EngineName = typer.Option("auto", "--engine", help="Engine: conv, algo, or auto."),
+    engine: EngineName = typer.Option(
+        "auto",
+        "--engine",
+        help="Engine: conv, algo, ism-fdn, or auto.",
+    ),
+    algo_model: str = typer.Option(
+        "fdn",
+        "--algo-model",
+        help="Algorithmic topology: fdn, spring, or plate (algorithmic render path only).",
+    ),
+    spring_count: int = typer.Option(
+        1,
+        "--spring-count",
+        min=1,
+        max=8,
+        help="Number of spring elements used by --algo-model spring.",
+    ),
+    spring: list[str] | None = typer.Option(
+        None,
+        "--spring",
+        help=(
+            "Repeatable spring specification: length_m=0.45,mass_g=30,diameter_mm=1.2,"
+            "compliance_mm_n=0.7,tension_n=4,damping=0.65."
+        ),
+    ),
+    electromechanical_solver: str = typer.Option(
+        "proxy",
+        "--electromechanical-solver",
+        help="Spring/plate solver: proxy (fast FDN voice) or modal-fe (offline structural modes).",
+    ),
+    spring_fe_nodes: int = typer.Option(24, "--spring-fe-nodes", min=4, max=128),
+    spring_fe_modes: int = typer.Option(24, "--spring-fe-modes", min=1, max=128),
+    spring_fe_coupling: float = typer.Option(0.08, "--spring-fe-coupling", min=0.0, max=1.0),
+    spring_fe_loss: float = typer.Option(0.30, "--spring-fe-loss", min=0.0, max=2.0),
+    plate_width_m: float = typer.Option(1.8, "--plate-width-m", min=0.1),
+    plate_height_m: float = typer.Option(1.2, "--plate-height-m", min=0.1),
+    plate_thickness_mm: float = typer.Option(0.6, "--plate-thickness-mm", min=0.01),
+    plate_density_kg_m3: float = typer.Option(7_850.0, "--plate-density-kg-m3", min=1.0),
+    plate_youngs_gpa: float = typer.Option(200.0, "--plate-youngs-gpa", min=0.1),
+    plate_poisson_ratio: float = typer.Option(0.29, "--plate-poisson-ratio", min=0.0, max=0.49),
+    plate_tension_n: float = typer.Option(0.0, "--plate-tension-n", min=0.0),
+    plate_pickup_x: float = typer.Option(0.72, "--plate-pickup-x", min=0.0, max=1.0),
+    plate_pickup_y: float = typer.Option(0.38, "--plate-pickup-y", min=0.0, max=1.0),
+    plate_fe_nx: int = typer.Option(12, "--plate-fe-nx", min=4, max=32),
+    plate_fe_ny: int = typer.Option(8, "--plate-fe-ny", min=4, max=32),
+    plate_fe_modes: int = typer.Option(32, "--plate-fe-modes", min=1, max=128),
+    plate_fe_loss: float = typer.Option(0.24, "--plate-fe-loss", min=0.0, max=2.0),
     rt60: float = typer.Option(
         RT60_DEFAULT_SECONDS, "--rt60", min=RT60_MIN_SECONDS, max=RT60_MAX_SECONDS
     ),
@@ -655,8 +701,7 @@ def render(
         False,
         "--algo-gpu-proxy/--no-algo-gpu-proxy",
         help=(
-            "Route algorithmic render through proxy convolution path "
-            "to leverage CUDA convolution."
+            "Route algorithmic render through proxy convolution path to leverage CUDA convolution."
         ),
     ),
     partition_size: int = typer.Option(16_384, "--partition-size", min=256),
@@ -788,6 +833,13 @@ def render(
         False,
         "--er-geometry/--no-er-geometry",
         help="Enable first-order image-source early-reflection pre-stage.",
+    ),
+    ism_order: int = typer.Option(
+        1,
+        "--ism-order",
+        min=0,
+        max=6,
+        help="Maximum image-source reflection order for --engine ism-fdn or --er-geometry.",
     ),
     er_room_dims_m: str = typer.Option(
         "10,7,3",

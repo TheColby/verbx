@@ -144,6 +144,7 @@ from verbx.commands.system import version as version_command
 from verbx.commands.validators import ensure_distinct_paths as _ensure_distinct_paths
 from verbx.commands.validators import validate_output_audio_path as _validate_output_audio_path
 from verbx.config import (
+    AlgoModel,
     AmbiChannelOrder,
     AmbiDecodeTo,
     AmbiEncodeFrom,
@@ -152,6 +153,7 @@ from verbx.config import (
     AutomationMode,
     ChannelLayout,
     DeviceName,
+    ElectromechanicalSolver,
     EngineName,
     FDNNonlinearityMode,
     FDNSpatialCouplingMode,
@@ -460,6 +462,7 @@ class _BatchStatusBar:
     def __exit__(self, exc_type: object, exc: object, exc_tb: object) -> None:
         self._progress.stop()
 
+
 def _render_impl(
     ctx: typer.Context,
     infile: Path = typer.Argument(..., exists=True, readable=True, resolve_path=True),
@@ -478,7 +481,53 @@ def _render_impl(
         "--auto-fit",
         help="Apply target-oriented heuristic profile: none, speech, music, drums, ambient.",
     ),
-    engine: EngineName = typer.Option("auto", "--engine", help="Engine: conv, algo, or auto."),
+    engine: EngineName = typer.Option(
+        "auto",
+        "--engine",
+        help="Engine: conv, algo, ism-fdn, or auto.",
+    ),
+    algo_model: str = typer.Option(
+        "fdn",
+        "--algo-model",
+        help="Algorithmic topology: fdn, spring, or plate (algorithmic render path only).",
+    ),
+    spring_count: int = typer.Option(
+        1,
+        "--spring-count",
+        min=1,
+        max=8,
+        help="Number of spring elements used by --algo-model spring.",
+    ),
+    spring: list[str] | None = typer.Option(
+        None,
+        "--spring",
+        help=(
+            "Repeatable spring specification: length_m=0.45,mass_g=30,diameter_mm=1.2,"
+            "compliance_mm_n=0.7,tension_n=4,damping=0.65."
+        ),
+    ),
+    electromechanical_solver: str = typer.Option(
+        "proxy",
+        "--electromechanical-solver",
+        help="Spring/plate solver: proxy (fast FDN voice) or modal-fe (offline structural modes).",
+    ),
+    spring_fe_nodes: int = typer.Option(24, "--spring-fe-nodes", min=4, max=128),
+    spring_fe_modes: int = typer.Option(24, "--spring-fe-modes", min=1, max=128),
+    spring_fe_coupling: float = typer.Option(0.08, "--spring-fe-coupling", min=0.0, max=1.0),
+    spring_fe_loss: float = typer.Option(0.30, "--spring-fe-loss", min=0.0, max=2.0),
+    plate_width_m: float = typer.Option(1.8, "--plate-width-m", min=0.1),
+    plate_height_m: float = typer.Option(1.2, "--plate-height-m", min=0.1),
+    plate_thickness_mm: float = typer.Option(0.6, "--plate-thickness-mm", min=0.01),
+    plate_density_kg_m3: float = typer.Option(7_850.0, "--plate-density-kg-m3", min=1.0),
+    plate_youngs_gpa: float = typer.Option(200.0, "--plate-youngs-gpa", min=0.1),
+    plate_poisson_ratio: float = typer.Option(0.29, "--plate-poisson-ratio", min=0.0, max=0.49),
+    plate_tension_n: float = typer.Option(0.0, "--plate-tension-n", min=0.0),
+    plate_pickup_x: float = typer.Option(0.72, "--plate-pickup-x", min=0.0, max=1.0),
+    plate_pickup_y: float = typer.Option(0.38, "--plate-pickup-y", min=0.0, max=1.0),
+    plate_fe_nx: int = typer.Option(12, "--plate-fe-nx", min=4, max=32),
+    plate_fe_ny: int = typer.Option(8, "--plate-fe-ny", min=4, max=32),
+    plate_fe_modes: int = typer.Option(32, "--plate-fe-modes", min=1, max=128),
+    plate_fe_loss: float = typer.Option(0.24, "--plate-fe-loss", min=0.0, max=2.0),
     rt60: float = typer.Option(
         RT60_DEFAULT_SECONDS, "--rt60", min=RT60_MIN_SECONDS, max=RT60_MAX_SECONDS
     ),
@@ -1071,8 +1120,7 @@ def _render_impl(
         False,
         "--algo-gpu-proxy/--no-algo-gpu-proxy",
         help=(
-            "Route algorithmic render through proxy convolution path "
-            "to leverage CUDA convolution."
+            "Route algorithmic render through proxy convolution path to leverage CUDA convolution."
         ),
     ),
     partition_size: int = typer.Option(16_384, "--partition-size", min=256),
@@ -1204,6 +1252,13 @@ def _render_impl(
         False,
         "--er-geometry/--no-er-geometry",
         help="Enable first-order image-source early-reflection pre-stage.",
+    ),
+    ism_order: int = typer.Option(
+        1,
+        "--ism-order",
+        min=0,
+        max=6,
+        help="Maximum image-source reflection order for --engine ism-fdn or --er-geometry.",
     ),
     er_room_dims_m: str = typer.Option(
         "10,7,3",
@@ -1480,6 +1535,29 @@ def _render_impl(
 
     config = RenderConfig(
         engine=engine,
+        algo_model=cast(AlgoModel, algo_model.strip().lower()),
+        spring_count=int(spring_count),
+        spring_specs=tuple(spring or []),
+        electromechanical_solver=cast(
+            ElectromechanicalSolver, electromechanical_solver.strip().lower()
+        ),
+        spring_fe_nodes=int(spring_fe_nodes),
+        spring_fe_modes=int(spring_fe_modes),
+        spring_fe_coupling=float(spring_fe_coupling),
+        spring_fe_loss=float(spring_fe_loss),
+        plate_width_m=float(plate_width_m),
+        plate_height_m=float(plate_height_m),
+        plate_thickness_mm=float(plate_thickness_mm),
+        plate_density_kg_m3=float(plate_density_kg_m3),
+        plate_youngs_gpa=float(plate_youngs_gpa),
+        plate_poisson_ratio=float(plate_poisson_ratio),
+        plate_tension_n=float(plate_tension_n),
+        plate_pickup_x=float(plate_pickup_x),
+        plate_pickup_y=float(plate_pickup_y),
+        plate_fe_nx=int(plate_fe_nx),
+        plate_fe_ny=int(plate_fe_ny),
+        plate_fe_modes=int(plate_fe_modes),
+        plate_fe_loss=float(plate_fe_loss),
         auto_fit=auto_fit,
         rt60=rt60,
         pre_delay_ms=resolved_pre_delay_ms,
@@ -1537,9 +1615,7 @@ def _render_impl(
         fdn_graph_degree=fdn_graph_degree,
         fdn_graph_seed=fdn_graph_seed,
         fdn_matrix_morph_to=(
-            None
-            if fdn_matrix_morph_to is None
-            else _normalize_fdn_matrix_name(fdn_matrix_morph_to)
+            None if fdn_matrix_morph_to is None else _normalize_fdn_matrix_name(fdn_matrix_morph_to)
         ),
         fdn_matrix_morph_seconds=float(fdn_matrix_morph_seconds),
         fdn_spatial_coupling_mode=cast(
@@ -1652,6 +1728,7 @@ def _render_impl(
         shimmer_spread_cents=float(shimmer_spread_cents),
         shimmer_decorrelation_ms=float(shimmer_decorrelation_ms),
         er_geometry=bool(er_geometry),
+        ism_order=int(ism_order),
         er_room_dims_m=parsed_er_room_dims,
         er_source_pos_m=parsed_er_source_pos,
         er_listener_pos_m=parsed_er_listener_pos,
@@ -1677,9 +1754,7 @@ def _render_impl(
         automation_block_ms=float(automation_block_ms),
         automation_smoothing_ms=float(automation_smoothing_ms),
         automation_slew_limit_per_s=(
-            None
-            if automation_slew_limit_per_s is None
-            else float(automation_slew_limit_per_s)
+            None if automation_slew_limit_per_s is None else float(automation_slew_limit_per_s)
         ),
         automation_deadband=float(automation_deadband),
         automation_clamp=tuple(automation_clamp or ()),
@@ -1897,9 +1972,7 @@ def _render_impl(
         report.to_dict(),
         verbosity=verbosity,
         preset_name=(
-            None
-            if preset_summary is None
-            else str(preset_summary.get("name", "")).strip() or None
+            None if preset_summary is None else str(preset_summary.get("name", "")).strip() or None
         ),
     )
     if json_out is not None:
@@ -3311,8 +3384,7 @@ def _batch_augment_impl(
         "--jsonl-out",
         resolve_path=True,
         help=(
-            "Path for dataset metadata JSONL "
-            "(default: <output_root>/augmentation_manifest.jsonl)."
+            "Path for dataset metadata JSONL (default: <output_root>/augmentation_manifest.jsonl)."
         ),
     ),
     summary_out: Path | None = typer.Option(
@@ -3342,9 +3414,7 @@ def _batch_augment_impl(
         None,
         "--qa-bundle-out",
         resolve_path=True,
-        help=(
-            "Optional QA bundle JSON path (default: <output_root>/augmentation_qa_bundle.json)."
-        ),
+        help=("Optional QA bundle JSON path (default: <output_root>/augmentation_qa_bundle.json)."),
     ),
     baseline_summary: Path | None = typer.Option(
         None,
@@ -3441,6 +3511,7 @@ def _batch_augment_impl(
             )
 
     with _BatchStatusBar(total=len(prepared_jobs), label="Batch augment", enabled=True) as status:
+
         def on_result_with_status(result: BatchJobResult) -> None:
             on_result(result)
             status.advance(detail=f"job={result.index}")
@@ -3773,6 +3844,7 @@ def _batch_render_impl(
             )
 
     with _BatchStatusBar(total=len(prepared_jobs), label="Batch render", enabled=True) as status:
+
         def on_result_with_status(result: BatchJobResult) -> None:
             on_result(result)
             status.advance(detail=f"job={result.index}")
@@ -4343,13 +4415,9 @@ def _build_augmentation_dataset_card(
     if wet_values:
         lines.append(f"- wet_min_max: `{min(wet_values):.3f} .. {max(wet_values):.3f}`")
     if damping_values:
-        lines.append(
-            f"- damping_min_max: `{min(damping_values):.3f} .. {max(damping_values):.3f}`"
-        )
+        lines.append(f"- damping_min_max: `{min(damping_values):.3f} .. {max(damping_values):.3f}`")
     if fdn_lines_values:
-        lines.append(
-            f"- fdn_lines_min_max: `{min(fdn_lines_values)} .. {max(fdn_lines_values)}`"
-        )
+        lines.append(f"- fdn_lines_min_max: `{min(fdn_lines_values)} .. {max(fdn_lines_values)}`")
     if fdn_matrices:
         lines.append(f"- fdn_matrices: `{', '.join(sorted(fdn_matrices))}`")
     if len(lines) > 0 and lines[-1] == "## Parameter Envelope":
@@ -4627,10 +4695,7 @@ def _extract_split_label_counts(records: list[dict[str, Any]]) -> dict[str, dict
             continue
         split_map = counts.setdefault(split, {})
         split_map[label] = int(split_map.get(label, 0) + 1)
-    return {
-        split: dict(sorted(label_map.items()))
-        for split, label_map in sorted(counts.items())
-    }
+    return {split: dict(sorted(label_map.items())) for split, label_map in sorted(counts.items())}
 
 
 def _extract_baseline_split_label_counts(payload: dict[str, Any]) -> dict[str, dict[str, int]]:
@@ -5130,6 +5195,7 @@ def _print_render_summary(
         table.add_row("preset", str(preset_name))
     table.add_row("requested_engine", str(report.get("effective", {}).get("engine_requested", "")))
     table.add_row("engine", str(report.get("engine", "unknown")))
+    table.add_row("algo_model", str(report.get("config", {}).get("algo_model", "fdn")))
     table.add_row("requested_device", str(report.get("effective", {}).get("device_requested", "")))
     table.add_row("device", str(report.get("effective", {}).get("device_resolved", "")))
     table.add_row(
@@ -5743,10 +5809,7 @@ def _choice_error(option_name: str, choices: set[str], actual: str) -> str:
     options = ", ".join(sorted(choices))
     suggestion = _did_you_mean(actual, choices)
     if suggestion is not None:
-        return (
-            f"{option_name} must be one of: {options}. "
-            f"Did you mean '{suggestion}'?"
-        )
+        return f"{option_name} must be one of: {options}. Did you mean '{suggestion}'?"
     return f"{option_name} must be one of: {options}."
 
 
@@ -5909,7 +5972,7 @@ def _estimate_render_output_duration_seconds(*, infile: Path, config: RenderConf
         return None
 
     duration_s = float(frames) / float(sr)
-    if config.engine == "algo" or (
+    if config.engine in {"algo", "ism-fdn"} or (
         config.engine == "auto"
         and not (config.ir is not None or config.ir_gen or config.self_convolve)
     ):
@@ -6018,11 +6081,7 @@ def _print_render_dry_run_plan(
     try:
         targets = sorted(
             collect_automation_targets(
-                path=(
-                    None
-                    if config.automation_file is None
-                    else Path(config.automation_file)
-                ),
+                path=(None if config.automation_file is None else Path(config.automation_file)),
                 point_specs=config.automation_points,
                 feature_lane_specs=config.feature_vector_lanes,
             )
@@ -6036,8 +6095,10 @@ def _print_render_dry_run_plan(
         table.add_row("lucky_count", str(int(lucky)))
         table.add_row("lucky_out_dir", str(target_dir))
     if not config.silent:
-        analysis_path = Path(config.analysis_out) if config.analysis_out is not None else Path(
-            f"{outfile}.analysis.json"
+        analysis_path = (
+            Path(config.analysis_out)
+            if config.analysis_out is not None
+            else Path(f"{outfile}.analysis.json")
         )
         table.add_row("analysis_out", str(analysis_path))
     if repro_bundle_path is not None:
@@ -6070,9 +6131,7 @@ def _validate_fdn_matrix_name(fdn_matrix: str) -> None:
     """Validate FDN matrix topology identifier."""
     normalized = _normalize_fdn_matrix_name(fdn_matrix)
     if normalized not in _FDN_MATRIX_CHOICES:
-        raise typer.BadParameter(
-            _choice_error("--fdn-matrix", _FDN_MATRIX_CHOICES, normalized)
-        )
+        raise typer.BadParameter(_choice_error("--fdn-matrix", _FDN_MATRIX_CHOICES, normalized))
 
 
 def _validate_fdn_tv_settings(
@@ -6262,9 +6321,7 @@ def _validate_fdn_nonlinearity_settings(
         msg = "--fdn-nonlinearity-drive must be in [0.1, 8.0]."
         raise typer.BadParameter(msg)
     if normalized == "none" and amount > 0.0:
-        msg = (
-            "--fdn-nonlinearity-amount must be 0 when --fdn-nonlinearity none is selected."
-        )
+        msg = "--fdn-nonlinearity-amount must be 0 when --fdn-nonlinearity none is selected."
         raise typer.BadParameter(msg)
 
 
@@ -6332,9 +6389,7 @@ def _validate_ir_route_map_name(value: str) -> None:
     """Validate named convolution route-map preset."""
     normalized = _normalize_ir_route_map_name(value)
     if normalized not in _IR_ROUTE_MAP_CHOICES:
-        raise typer.BadParameter(
-            _choice_error("--ir-route-map", _IR_ROUTE_MAP_CHOICES, normalized)
-        )
+        raise typer.BadParameter(_choice_error("--ir-route-map", _IR_ROUTE_MAP_CHOICES, normalized))
 
 
 def _validate_ir_blend_settings(config: RenderConfig) -> None:
@@ -6415,7 +6470,7 @@ def _validate_ambisonic_settings(infile: Path, config: RenderConfig) -> None:
     if order > 1:
         console.print(
             f"[yellow]Warning:[/yellow] HOA order {order} is beyond first-order Ambisonics (FOA). "
-            "Higher-order paths exist in verbx but have not been fully validated — "
+            "Higher-order paths exist in verbx but have not been fully validated – "
             "results may be incorrect. "
             "FOA (--ambi-order 1) is the supported configuration for v0.7.x."
         )
@@ -6519,10 +6574,7 @@ def _validate_automation_settings(config: RenderConfig, outfile: Path) -> None:
         raise typer.BadParameter("--automation-block-ms must be > 0.")
     if config.automation_smoothing_ms < 0.0:
         raise typer.BadParameter("--automation-smoothing-ms must be >= 0.")
-    if (
-        config.automation_slew_limit_per_s is not None
-        and config.automation_slew_limit_per_s < 0.0
-    ):
+    if config.automation_slew_limit_per_s is not None and config.automation_slew_limit_per_s < 0.0:
         raise typer.BadParameter("--automation-slew-limit-per-s must be >= 0.")
     if not (0.0 <= float(config.automation_deadband) <= 1.0):
         raise typer.BadParameter("--automation-deadband must be in [0.0, 1.0].")
@@ -6784,6 +6836,9 @@ def _validate_render_call(infile: Path, outfile: Path, config: RenderConfig) -> 
         config.engine == "auto" and (config.ir is not None or config.ir_gen or config.self_convolve)
     )
     algo_enabled = not conv_enabled
+    if config.algo_model != "fdn" and not algo_enabled:
+        msg = "--algo-model spring/plate is only valid for algorithmic renders."
+        raise typer.BadParameter(msg)
     if config.output_container not in {"auto", "wav", "w64", "rf64"}:
         msg = "--output-container must be one of: auto, wav, w64, rf64."
         raise typer.BadParameter(msg)

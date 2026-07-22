@@ -20,9 +20,11 @@ Chosen `v0.8` shape: **hybrid wrapper phase before full replacement**.
 | --- | --- | --- | --- | --- |
 | CLI entrypoint | Full public CLI | `help`, `version`, `doctor`, `render` | Partial native slice | `uv run pytest tests/test_native_scaffold.py` |
 | Offline algorithmic render | Full FDN feature surface | Foundational Schroeder/Moorer-style core | Not equivalent | `scripts/compare_native_render_parity.py` |
+| Physical room render | `ism-fdn` rectangular image-source early field plus FDN late field | Not implemented | Python-reference only | `tests/test_room_geometry.py`, `tests/test_cli.py` |
+| Modal electro-mechanical render | Bounded spring/plate `modal-fe` structural solvers | Not implemented; proxy model choices only | Python-reference only | `tests/test_electromechanical.py` |
 | WAV input | libsndfile-backed broad format support | Mono/stereo WAV PCM16/24/32 and float32/float64 | Narrow parity | `tests/test_native_scaffold.py` |
 | WAV output | Broad libsndfile output support | `pcm16`, `float32`, `float64` WAV | Narrow parity | `tests/test_native_scaffold.py` |
-| Render controls | Hundreds of CLI options | `rt60`, `wet`, `dry`, pre-delay, damping, tail controls, peak-safe output | Narrow parity | `tests/fixtures/native_render_parity_contract.json` |
+| Render controls | Hundreds of CLI options including `--algo-model` | `--model fdn|spring|plate`, `rt60`, `wet`, `dry`, pre-delay, damping, tail controls, peak-safe output | Narrow parity | `tests/test_native_scaffold.py` |
 | Tail handling | Python tail-stop semantics plus long-render safeguards | Threshold/hold tail trim with exact-zero ending | In progress | Native scaffold tests and parity report |
 | Peak-safe output | Limiter/normalization/output peak controls | `--peak-safe --peak-ceiling-db` render-level scaling | Implemented for native slice | `test_native_render_peak_safe_scales_float_output_to_ceiling` |
 | Machine-readable reports | Render, realtime, dereverb, doctor, compare reports | `native-render-report-v1`, `native-doctor-report-v1` | Implemented for native slice | Native scaffold tests |
