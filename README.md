@@ -47,29 +47,25 @@ auditable rather than a claim to have measured or cloned a particular hardware
 tank.
 
 The spring tank is a set of lumped mass-spring-damper chains. Its continuous
-reference equation is
+reference equation is:
 
-$$
-\boldsymbol{M}\ddot{\boldsymbol{x}}
-+ \boldsymbol{C}\dot{\boldsymbol{x}}
-+ \boldsymbol{K}\boldsymbol{x}
-= \boldsymbol{e}u(t),
-$$
+```text
+M x'' + C x' + K x = e u(t)
+```
 
-where $\boldsymbol{M}$ distributes spring mass to nodes,
-$\boldsymbol{K}$ assembles segment compliance, tension, end constraints, and
-optional tank-to-tank coupling, and $\boldsymbol{C}$ represents loss. verbx
-solves the associated generalized eigenproblem
+Here `M` distributes spring mass to nodes, `K` assembles segment compliance,
+tension, end constraints, and optional tank-to-tank coupling, and `C`
+represents loss. verbx solves the associated generalized eigenproblem:
 
-$$
-\boldsymbol{K}\boldsymbol{q}_r = \lambda_r\boldsymbol{M}\boldsymbol{q}_r,
-\qquad \omega_r=\sqrt{\lambda_r},
-$$
+```text
+K q[r] = lambda[r] M q[r]
+omega[r] = sqrt(lambda[r])
+```
 
 then sums the driven/pickup modal responses with RT60-calibrated decay. The
 plate path uses the corresponding structured, mass-lumped clamped grid, where
-$\boldsymbol{K}=D\boldsymbol{L}^{T}\boldsymbol{L}+T\boldsymbol{L}$ combines
-thin-plate bending rigidity $D$ with optional tension $T$.
+$K = D L^{\mathsf T}L + TL$ combines thin-plate bending rigidity $D$ with
+optional tension $T$.
 
 ```bash
 verbx render guitar.wav tank.wav --engine algo --algo-model spring \
@@ -4865,59 +4861,55 @@ verbx render vocal.wav plate_fe.wav --engine algo --algo-model plate \
   --plate-pickup-x 0.18 --plate-pickup-y 0.76 --rt60 3.4 --wet 1 --dry 0
 ```
 
-For a spring, verbx assembles a block mass matrix $\boldsymbol{M}$ and a
-tridiagonal chain stiffness matrix $\boldsymbol{K}$. Multi-spring tanks add a
-small coupling stiffness between adjacent chains. Normal modes solve
+For a spring, verbx assembles a block mass matrix `M` and a tridiagonal chain
+stiffness matrix `K`. Multi-spring tanks add a small coupling stiffness between
+adjacent chains. Normal modes solve:
 
-$$
-\boldsymbol{K}\boldsymbol{q}_r = \lambda_r\boldsymbol{M}\boldsymbol{q}_r,
-\qquad \omega_r = \sqrt{\lambda_r}.
-$$
+```text
+K q[r] = lambda[r] M q[r]
+omega[r] = sqrt(lambda[r])
+```
 
 The driven/pickup impulse response is a causal sum of damped modes,
 
-$$
-h(t) = \sum_r \frac{(\boldsymbol{p}^{T}\boldsymbol{q}_r)
-(\boldsymbol{q}_r^{T}\boldsymbol{e})}{\omega_{d,r}}
-e^{-\sigma_r t}\sin(\omega_{d,r}t),
-$$
+```text
+h(t) = sum over r of [ pickup(r) * drive(r) / omega_d(r) ]
+       * exp(-sigma(r) * t) * sin(omega_d(r) * t)
+```
 
-where $\boldsymbol{e}$ is the input weight and $\boldsymbol{p}$ the pickup.
-RT60 sets $\sigma=3\ln(10)/T_{60}$; `--spring-fe-loss` increases high-mode
-loss and `--spring-fe-coupling` controls adjacent-spring coupling.
+`drive` is the input-transducer weighting and `pickup` is the output weighting.
+RT60 sets the base decay rate; `--spring-fe-loss` increases high-mode loss and
+`--spring-fe-coupling` controls adjacent-spring coupling.
 
 At element level, the spring displacement vector follows the familiar
 mass-spring-damper equation
 
-$$
-\boldsymbol{M}\ddot{\boldsymbol{x}}
-+ \boldsymbol{C}\dot{\boldsymbol{x}}
-+ \boldsymbol{K}\boldsymbol{x}
-= \boldsymbol{e}u(t).
-$$
+```text
+M x'' + C x' + K x = e u(t)
+```
 
-For a chain with $N$ nodes, verbx assigns node mass
-$m_i=m_{\mathrm{total}}/N$ and segment stiffness
-$k_s=(N-1)/c_{\mathrm{total}}$, where $c_{\mathrm{total}}$ is the requested
-compliance in metres per newton. The tridiagonal stiffness block is assembled
-from $k_s[1,-1;-1,1]$ element contributions and a driven-end clamp.
+For a chain with `N` nodes, verbx assigns node mass
+`m[i] = total_mass / N` and segment stiffness
+`k[s] = (N - 1) / total_compliance`, where `total_compliance` is the requested
+metres-per-newton compliance. The tridiagonal stiffness block is assembled from
+the element contribution `k[s] * [[1, -1], [-1, 1]]` plus a driven-end clamp.
 The solver does not time-step a stiff system sample by sample: it projects the
-system into normal modes and applies the stable modal decay $e^{-\sigma_rt}$.
+system into normal modes and applies stable exponential modal decay.
 That retains a mass-spring-damper resonance structure without making the
 offline render sensitive to an integration step size.
 
 ![Clamped plate finite-element grid](docs/assets/modal_fe_plate_grid.png)
 
 The plate solver uses a structured, mass-lumped clamped grid. Its stiffness is
-the discrete thin-plate bending term plus optional membrane tension,
+the discrete thin-plate bending term plus optional membrane tension:
 
-$$
-\boldsymbol{K}=D\boldsymbol{L}^{T}\boldsymbol{L}+T\boldsymbol{L},
-\qquad M_{ii}=\rho h\Delta x\Delta y,
-$$
+```text
+K = D L^T L + T L
+M[i,i] = density * thickness * dx * dy
+D = Youngs_modulus * thickness^3 / (12 * (1 - Poisson_ratio^2))
+```
 
-where $\boldsymbol{L}$ is the positive finite-difference Laplacian and
-$D=Eh^3/[12(1-\nu^2)]$. `--plate-fe-nx`, `--plate-fe-ny`, and
+Here `L` is the positive finite-difference Laplacian. `--plate-fe-nx`, `--plate-fe-ny`, and
 `--plate-fe-modes` trade computation for detail; `--plate-fe-loss` gives
 higher modes stronger decay. The input is fixed off-centre while
 `--plate-pickup-x/y` select a bilinearly interpolated pickup. This is a
@@ -5034,10 +5026,43 @@ folder-sorted buckets by length (`tiny`, `short`, `medium`, `long`) and mode
 | Neutral hall, natural decay | `stochastic` | `--rt60 3.0 --damping 0.4` |
 | Match your FDN render topology | `fdn` | Same `--fdn-lines`, `--fdn-matrix` as render |
 | Musical, pitched resonances | `modal` | `--f0 "64 Hz" --modal-count 40` |
+| Microtonal or alternate-tuning resonance | any mode | `--scala-file scale.scl --scala-root-hz 220` |
 | General cinematic space | `hybrid` | `--length 120 --seed 42` |
 | Analyze and match audio source | `hybrid` | `--analyze-input source.wav` |
 
-Generated IRs are cached by content hash + parameters. Repeated calls with the same settings return from cache instantly.
+### Scala and microtonal resonance tuning
+
+`verbx ir gen` can read a standard Scala `.scl` file and emphasize its pitch
+classes across a bounded frequency range. Scala cents, integer ratios,
+fractional ratios, comments, non-octave repeat intervals, and a selectable root
+degree are supported. The same target set tunes modal frequencies and adds a
+bounded constant-Q emphasis layer to `fdn`, `stochastic`, `modal`, and `hybrid`
+IRs, so the result can reinforce a scale without turning every tail into a set
+of isolated sine tones.
+
+```bash
+verbx ir gen irs/19edo_room.wav \
+  --mode hybrid --length 12 --rt60 5.5 \
+  --scala-file examples/scales/19edo.scl \
+  --scala-root-hz 220 --scala-root-degree 0 \
+  --scala-low-hz 100 --scala-high-hz 8000 \
+  --scala-strength 0.7 --scala-bandwidth-cents 24 --scala-gain-db 5
+
+verbx render in.wav out.wav --engine conv --ir irs/19edo_room.wav
+verbx realtime --engine conv --ir irs/19edo_room.wav --block-size 128
+```
+
+Scala processing happens while the IR is generated, not inside the realtime
+callback. This keeps realtime latency unchanged and makes one tuned IR usable
+from the CLI, a DAW convolution host, or an ML data pipeline. The metadata
+sidecar records the scale description, SHA-256 content hash, root mapping,
+resolved target frequencies, strength, bandwidth, gain, and target budget.
+`--scala-file` is intentionally exclusive with `--analyze-input` and `--f0`;
+use `--scala-root-hz` when a scale is active.
+
+Generated IRs are cached by content hash plus parameters. Repeated calls with
+the same settings return from cache immediately; changing the `.scl` contents
+changes its hash and cache identity even when the filename stays the same.
 
 ```bash
 verbx ir gen my_space.wav --mode hybrid --length 120 --rt60 8.0 --seed 42
@@ -5413,7 +5438,7 @@ verbx ir sofa-info FILE.sofa              # inspect SOFA conventions/dimensions
 verbx ir sofa-extract FILE.sofa OUT.wav   # extract FIR matrix for convolution renders
 ```
 
-**`ir gen` key flags:** `--mode [fdn|stochastic|modal|hybrid]`, `--length`, `--rt60`, `--damping`, `--seed`, `--sr`, `--channels`, `--er-count`, `--diffusion`, `--fdn-lines`, `--fdn-matrix`, `--resonator`, `--resonator-mix`, `--analyze-input`, `--harmonic-align-strength`, `--f0`
+**`ir gen` key flags:** `--mode [fdn|stochastic|modal|hybrid]`, `--length`, `--rt60`, `--damping`, `--seed`, `--sr`, `--channels`, `--er-count`, `--diffusion`, `--fdn-lines`, `--fdn-matrix`, `--resonator`, `--resonator-mix`, `--analyze-input`, `--harmonic-align-strength`, `--f0`, `--scala-file`, `--scala-root-hz`, `--scala-root-degree`, `--scala-low-hz`, `--scala-high-hz`, `--scala-strength`, `--scala-bandwidth-cents`, `--scala-gain-db`, `--scala-max-targets`
 
 **`ir morph` key flags:** `--mode [linear|equal-power|spectral|envelope-aware]`, `--alpha`, `--early-ms`, `--early-alpha`, `--late-alpha`, `--align-decay`, `--phase-coherence`, `--mismatch-policy [coerce|strict]`
 
@@ -6368,6 +6393,7 @@ Additional guides in `docs/`:
 - [AI augmentation guide](docs/AI_AUGMENTATION.md) – dataset generation workflow documentation
 - [Schema reference](docs/SCHEMA_REFERENCE.md) – JSON/CSV formats for manifests and automation
 - [Dataset augmentation notebook](examples/dataset_augmentation.ipynb) – Python API workflow for ML pipelines
+- [Scala tuning examples](examples/scales/README.md) – microtonal `.scl` input and convolution workflow
 - [IR morph QA guide](docs/IR_MORPH_QA.md) – morph-sweep QA artifacts and CI integration
 - [Benchmark baseline guide](docs/benchmarks/README.md) – CI/runtime comparison workflow
 - [Extreme cookbook](docs/EXTREME_COOKBOOK.md) – 100 additional workflow examples

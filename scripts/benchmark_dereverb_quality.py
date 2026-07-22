@@ -230,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
             )
 
     if not report["pass"]:
-        print("\nBenchmark FAILED — one or more scenarios did not meet thresholds.", file=sys.stderr)
+        print("\nBenchmark FAILED – one or more scenarios did not meet thresholds.", file=sys.stderr)
         return 1
 
     print("\nBenchmark PASSED.")

@@ -1,0 +1,31 @@
+# Open-Source Image Portfolio Attributions
+
+This ledger records the source and rights statement for every image in `docs/OPEN_SOURCE_IMAGE_PORTFOLIO.md`. The local copies are unaltered except for PDF-page rendering, resizing, or recompression for book layout. Creative Commons terms apply to the individual images as identified below.
+
+1. `01_spem_in_alium_tutti-22.png`: Thomas Tallis, *Spem in alium* (c. 1570), edited by Philip Legge. [IMSLP record](https://imslp.org/wiki/Spem_in_alium_nunquam_habui_%28Tallis%2C_Thomas%29). CC BY-SA 2.5 Australia. Rendered from PDF page 22 of the full score; the [IMSLP parts edition](https://s9.imslp.org/files/imglnks/usimg/3/3f/IMSLP868003-PMLP66937-Spem_in_alium_%28parts%29.pdf) is retained as a related source.
+2. `02_machaut_messe_opening.jpg`: Guillaume de Machaut, *Messe de Nostre Dame* (c. 1365). [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:La_messe_de_Nostre_Dame_%28IA_imslp-messe-de-nostre-dame-machaut-guillaume-de%29.pdf). Public Domain Mark 1.0. Rendered from PDF page 1.
+3. `03_gregorian_wul_opening.jpg`: Gregorian chant leaf, Waseda University Library. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:WUL-bunko33_00247_Gregorian_chant.pdf). Public Domain Mark 1.0. Rendered from PDF page 1.
+4. `04_spanish_chant_manuscript.jpg`: Spanish chant manuscript leaf, UBC Library Digitization Centre. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Spanish_Chant_Manuscript_page_057_%2814151911070%29.jpg). No known copyright restrictions.
+5. `05_ave_verum_chant.jpg`: Gregorian *Ave verum* (traditional; date unknown), unknown notator. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Ave_verum.jpg). Public domain.
+6. `06_palestrina_missa_opening.jpg`: Opening of Palestrina's *Missa Papae Marcelli* (c. 1562), unknown historical engraver. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Mensuralnotation-Missa_papae_marcelli.jpg). Public domain.
+7. `07_dukas_fanfare.png`: Dukas, *Fanfare pour précéder La Péri* (1912), measures 1–4, by Flopinot2012. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Dukas_-_Fanfare_pour_preceder_La_Peri_mes.1-4.png). CC BY 4.0.
+8. `08_franck_choral_no3.jpg`: Franck, *Trois chorals pour grand orgue* (1890), Bibliotheque nationale de France. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Trois_chorals_pour_grand_orgue_-_avec_pedale_obligee_-_par_Cesar_Franck_-_bpt6k326324v_%2837_of_48%29.jpg). Public Domain Mark 1.0.
+9. `09_gabrieli_in_ecclesiis.png`: Gabrieli, *In ecclesiis* (c. 1615). [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Giovanni_Gabrieli_in_Ecclesiis.png). Public domain.
+10. `10_san_marco_interior.jpg`: Interior of St. Mark's Basilica by Andrek02. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Interni_basilica_san_Marco_01.jpg). CC0 1.0.
+11. `11_notre_dame_vaults.jpg`: Notre-Dame de Paris vaults by Uoaei1. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Paris_Notre-Dame_Vaults_01.JPG). CC BY-SA 4.0.
+12. `12_laon_cathedral_nave.jpg`: Laon Cathedral nave by David Iliff. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Laon_Cathedral_Nave_2,_Picardie,_France_-_Diliff.jpg). CC BY-SA 3.0.
+13. `13_hagia_sophia_interior.jpg`: Hagia Sophia interior panorama by Ronan Reinart. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Hagia_Sophia_Interior_Panorama.jpg). CC BY-SA 3.0.
+14. `14_hamilton_mausoleum.jpg`: Hamilton Mausoleum interior by Supergolden. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Hamilton_Mausoleum_Interior.jpg). CC BY-SA 3.0.
+15. `15_inchindown_tunnel.jpg`: Inchindown oil-tank tunnel by Dave Thompson. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Inchindown_Oil_Tanks_Tunnel_-_geograph.org.uk_-_7584066.jpg). CC BY-SA 2.0.
+16. `16_cockatoo_grain_silo.jpg`: Cockatoo Island convict grain silo by Harryp2. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Cockatoo_Island_convict_grain_silo.jpg). CC BY-SA 4.0.
+17. `17_york_minster_nave.jpg`: York Minster nave by Michael D. Beckwith. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:York_Minster_Nave.jpg). CC0 1.0.
+18. `18_emt_140_plate.jpg`: EMT 140 plate reverberator by EMT-Archiv-Lahr. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:EMT_140.jpg). CC BY-SA 4.0.
+19. `19_spring_reverb_tank.jpg`: Spring reverb tank by Ashley Pomeroy. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Spring_Reverb_8325.jpg). CC BY-SA 4.0.
+20. `20_doepfer_spring_reverb.jpg`: Doepfer A-199 spring reverb by GeschnittenBrot. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Spring_reverb_for_Doepfer_A-199.jpg). CC BY-SA 2.0.
+21. `21_folded_line_reverb_front.jpg`: O. C. Electronics Folded-Line device exterior by Grebe. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Reverb-6.jpg). CC BY-SA 3.0.
+22. `22_folded_line_reverb_interior.jpg`: O. C. Electronics Folded-Line device interior by Grebe. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Reverb-4.jpg). CC BY-SA 3.0.
+23. `23_tu_dresden_echo_chamber.jpg`: TU Dresden acoustic echo chamber by Henry Muhlpfordt. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Hallraum_TU_Dresden_2009-06-21.jpg). CC BY-SA 3.0.
+24. `24_ratf_horn_room.jpg`: Reverberant Acoustic Test Facility horn room by Illudium Pu-36. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:RATF_Horn_Room.JPG). CC BY-SA 3.0.
+25. `25_ietr_reverberation_chamber.jpg`: IETR electromagnetic reverberation chamber by Manuamador. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Reverberation_chamber.jpg). CC BY-SA 3.0.
+
+License texts: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), [Public Domain Mark 1.0](https://creativecommons.org/publicdomain/mark/1.0/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/), and [CC BY-SA 2.5 Australia](https://creativecommons.org/licenses/by-sa/2.5/au/).

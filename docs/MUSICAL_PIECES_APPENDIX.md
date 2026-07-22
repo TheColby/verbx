@@ -74,7 +74,7 @@ When a named recording is central to the entry, use that recording or a document
 
 **Steve Reich, *Music for 18 Musicians* (1976).** Pulsation, resonance, and gradual harmonic change make ensemble blend and room support essential. Listen to how mallet attacks remain distinct while voices and sustained instruments connect the harmony. Test medium decay with substantial pre-delay, then shorten only the high-band RT60 until rhythmic detail survives without making the ensemble feel dry.
 
-**Brian Eno, *1/1*, from *Ambient 1: Music for Airports* (1978).** Sparse piano events leave enough time for decay to become part of the phrase. Listen for the threshold between identifiable note, reflected note, and continuous atmosphere. Render the same piano pattern through several RT60 values at matched loudness; compare how note density changes the maximum usable decay.
+**Brian Eno, *1/1* (1978), from *Ambient 1: Music for Airports* (1978).** Sparse piano events leave enough time for decay to become part of the phrase. Listen for the threshold between identifiable note, reflected note, and continuous atmosphere. Render the same piano pattern through several RT60 values at matched loudness; compare how note density changes the maximum usable decay.
 
 **Harold Budd and Brian Eno, *First Light* (1980).** Soft piano attacks and a luminous sustained field demonstrate how damping and modulation can imply depth without drawing attention to an effect. Listen to the stability of the center and the gentle motion at the edges. Use a dark early field, slow low-depth modulation, and equal-power wet/dry control; check mono compatibility before increasing width.
 
@@ -98,7 +98,7 @@ When a named recording is central to the entry, use that recording or a document
 
 **Jonathan Harvey, *Mortuos Plango, Vivos Voco* (1980).** Bell spectra and a boy's voice are analyzed, transformed, and projected through an eight-channel electronic space. Listen for movement that follows spectral identity rather than mimicking a traveling point source. Build related IR or resonator states from one spectral family and move between them with smooth, phase-conscious interpolation.
 
-**Pierre Boulez, *Repons* (1981–1984).** Soloists, ensemble, live electronics, and loudspeaker placement create call-and-response across physical and transformed spaces. Listen to the distinction between a player's local sound and its electronic continuation around the hall. Design separate early and late spatial paths, report their latency explicitly, and test whether transformed responses remain rhythmically attached to the initiating gesture.
+**Pierre Boulez, *Répons* (1981–1984).** Soloists, ensemble, live electronics, and loudspeaker placement create call-and-response across physical and transformed spaces. Listen to the distinction between a player's local sound and its electronic continuation around the hall. Design separate early and late spatial paths, report their latency explicitly, and test whether transformed responses remain rhythmically attached to the initiating gesture.
 
 **Luigi Nono, *Prometeo: Tragedia dell'ascolto* (1981–1984).** Nono's "tragedy of listening" distributes performers and live electronics through an acoustic structure conceived with the venue; IRCAM documents the 1984 San Lorenzo premiere and four instrumental groups in its [work record](https://ressources.ircam.fr/fr/work/prometeo). Listen for fragile sounds whose location and audibility demand attention. Use low-noise sources, subtle movement, and calibrated monitoring rather than exaggerated effects.
 
@@ -128,75 +128,75 @@ Links below identify the exact performance, master, or reference upload used for
 
 ### Architecture as an Instrument
 
-- Tallis, Thomas. *Spem in alium*. Harry Christophers, live concert. AVROTROS Klassiek, institutional video. [YouTube](https://www.youtube.com/watch?v=QmH1nZSGIyY).
-- Gabrieli, Giovanni. *In ecclesiis*. Camerata Nova. Concert-performance reference upload. [YouTube](https://www.youtube.com/watch?v=mcfdtdQHvfQ).
-- Berlioz, Hector. *Grande Messe des morts*. WDR Radio Choir and WDR Symphony Orchestra. ARD Klassik, institutional video. [YouTube](https://www.youtube.com/watch?v=HofoFYxqIgU).
-- Ives, Charles. *The Unanswered Question*. Frankfurt Radio Symphony; Andrés Orozco-Estrada. Institutional video. [YouTube](https://www.youtube.com/watch?v=WBiL0VEttZw).
-- Vaughan Williams, Ralph. *Fantasia on a Theme by Thomas Tallis*. Kristiansand Symphony Orchestra; Tabita Berglund. Institutional video. [YouTube](https://www.youtube.com/watch?v=vcFZ-Fwj6lI).
-- Messiaen, Olivier. *Et exspecto resurrectionem mortuorum*. North Texas Wind Symphony; Eugene Migliaro Corporon, 2013. Institutional video. [YouTube](https://www.youtube.com/watch?v=nwRx8iEVwbY).
+- Tallis, Thomas. *Spem in alium* (c. 1570). Harry Christophers, live concert. AVROTROS Klassiek, institutional video. [YouTube](https://www.youtube.com/watch?v=QmH1nZSGIyY).
+- Gabrieli, Giovanni. *In ecclesiis* (c. 1615). Camerata Nova. Concert-performance reference upload. [YouTube](https://www.youtube.com/watch?v=mcfdtdQHvfQ).
+- Berlioz, Hector. *Grande Messe des morts* (1837). WDR Radio Choir and WDR Symphony Orchestra. ARD Klassik, institutional video. [YouTube](https://www.youtube.com/watch?v=HofoFYxqIgU).
+- Ives, Charles. *The Unanswered Question* (1906; revised later). Frankfurt Radio Symphony; Andrés Orozco-Estrada. Institutional video. [YouTube](https://www.youtube.com/watch?v=WBiL0VEttZw).
+- Vaughan Williams, Ralph. *Fantasia on a Theme by Thomas Tallis* (1910). Kristiansand Symphony Orchestra; Tabita Berglund. Institutional video. [YouTube](https://www.youtube.com/watch?v=vcFZ-Fwj6lI).
+- Messiaen, Olivier. *Et exspecto resurrectionem mortuorum* (1964). North Texas Wind Symphony; Eugene Migliaro Corporon, 2013. Institutional video. [YouTube](https://www.youtube.com/watch?v=nwRx8iEVwbY).
 
 ### Recorded Space and Tape-Era Studio Craft
 
-- Les Paul and Mary Ford. *How High the Moon*. Remastered catalog recording. Mary Ford Topic channel, official audio. [YouTube](https://www.youtube.com/watch?v=R_MU_tywFlM).
-- Presley, Elvis. *Mystery Train*. Elvis Presley channel, official audio. [YouTube](https://www.youtube.com/watch?v=njw2oB8oRTs).
-- The Ronettes. *Be My Baby*. The Ronettes channel, official audio. [YouTube](https://www.youtube.com/watch?v=jSPpbOGnFgk).
-- The Beach Boys. *Good Vibrations*. The Beach Boys channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=jkPyB-g3asI).
-- The Beatles. *Tomorrow Never Knows*. The Beatles channel, official audio. [YouTube](https://www.youtube.com/watch?v=m4BuziKGMy4).
-- Led Zeppelin. *When the Levee Breaks*. Led Zeppelin channel, official audio. [YouTube](https://www.youtube.com/watch?v=JM3fodiK9rY).
+- Les Paul and Mary Ford. *How High the Moon* (1951). Remastered catalog recording. Mary Ford Topic channel, official audio. [YouTube](https://www.youtube.com/watch?v=R_MU_tywFlM).
+- Presley, Elvis. *Mystery Train* (1955). Elvis Presley channel, official audio. [YouTube](https://www.youtube.com/watch?v=njw2oB8oRTs).
+- The Ronettes. *Be My Baby* (1963). The Ronettes channel, official audio. [YouTube](https://www.youtube.com/watch?v=jSPpbOGnFgk).
+- The Beach Boys. *Good Vibrations* (1966). The Beach Boys channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=jkPyB-g3asI).
+- The Beatles. *Tomorrow Never Knows* (1966). The Beatles channel, official audio. [YouTube](https://www.youtube.com/watch?v=m4BuziKGMy4).
+- Led Zeppelin. *When the Levee Breaks* (1971). Led Zeppelin channel, official audio. [YouTube](https://www.youtube.com/watch?v=JM3fodiK9rY).
 
 ### Electroacoustic Space and Feedback
 
-- Stockhausen, Karlheinz. *Gesang der Jünglinge*. Fonurgia Nuova, reference transfer. [YouTube](https://www.youtube.com/watch?v=nffOJXcJCDg). See also the [Stockhausen complete-edition catalog](https://www.stockhausencds.com/) for the authoritative edition.
-- Stockhausen, Karlheinz. *Gruppen*. Ensemble intercontemporain, institutional performance. [YouTube](https://www.youtube.com/watch?v=34_SfP7ZCXA).
-- Varèse, Edgard. *Poème électronique*. Sebastian Ars Acoustica, reference transfer. [YouTube](https://www.youtube.com/watch?v=JLDbBqHCslw).
-- Stockhausen, Karlheinz. *Kontakte*. Ensemble Musikfabrik, institutional performance. [YouTube](https://www.youtube.com/watch?v=nbdmzSeFy_Y).
-- Xenakis, Iannis. *Persephassa*. University of Toronto Percussion, institutional performance. [YouTube](https://www.youtube.com/watch?v=kTw8gxvTA20).
-- Lucier, Alvin. *I am sitting in a room*. Reference upload of the recorded work. [YouTube](https://www.youtube.com/watch?v=fAxHlLK3Oyk). Recording history and procedure: [Lovely Music album notes](https://www.lovely.com/albumnotes/notes1013cd.html).
+- Stockhausen, Karlheinz. *Gesang der Jünglinge* (1955–1956). Fonurgia Nuova, reference transfer. [YouTube](https://www.youtube.com/watch?v=nffOJXcJCDg). See also the [Stockhausen complete-edition catalog](https://www.stockhausencds.com/) for the authoritative edition.
+- Stockhausen, Karlheinz. *Gruppen* (1955–1957). Ensemble intercontemporain, institutional performance. [YouTube](https://www.youtube.com/watch?v=34_SfP7ZCXA).
+- Varèse, Edgard. *Poème électronique* (1958). Sebastian Ars Acoustica, reference transfer. [YouTube](https://www.youtube.com/watch?v=JLDbBqHCslw).
+- Stockhausen, Karlheinz. *Kontakte* (1958–1960). Ensemble Musikfabrik, institutional performance. [YouTube](https://www.youtube.com/watch?v=nbdmzSeFy_Y).
+- Xenakis, Iannis. *Persephassa* (1969). University of Toronto Percussion, institutional performance. [YouTube](https://www.youtube.com/watch?v=kTw8gxvTA20).
+- Lucier, Alvin. *I am sitting in a room* (1969). Reference upload of the recorded work. [YouTube](https://www.youtube.com/watch?v=fAxHlLK3Oyk). Recording history and procedure: [Lovely Music album notes](https://www.lovely.com/albumnotes/notes1013cd.html).
 
 ### Dub, Echo, and the Mixing Desk
 
-- Augustus Pablo and King Tubby. *King Tubby Meets Rockers Uptown*. King Tubby Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=oxAl3Jijs20).
-- Lee “Scratch” Perry and the Upsetters. *Dread Lion*. Lee “Scratch” Perry Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=0ZuBTxyXZYs).
-- Augustus Pablo. *East of the River Nile*. Augustus Pablo Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=sDHVOQG4PYU).
-- Scientist. *Dance of the Vampires*. Reference transfer. [YouTube](https://www.youtube.com/watch?v=thJZHtrWYfg).
-- Jones, Grace. *Walking in the Rain*. Grace Jones Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=en02WmlSPLY).
-- The Orb. *Little Fluffy Clouds*. The Orb channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=KNfjpmvbQG0).
+- Augustus Pablo and King Tubby. *King Tubby Meets Rockers Uptown* (1974). King Tubby Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=oxAl3Jijs20).
+- Lee “Scratch” Perry and the Upsetters. *Dread Lion* (1976). Lee “Scratch” Perry Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=0ZuBTxyXZYs).
+- Augustus Pablo. *East of the River Nile* (1977). Augustus Pablo Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=sDHVOQG4PYU).
+- Scientist. *Dance of the Vampires* (1981). Reference transfer. [YouTube](https://www.youtube.com/watch?v=thJZHtrWYfg).
+- Jones, Grace. *Walking in the Rain* (1981). Grace Jones Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=en02WmlSPLY).
+- The Orb. *Little Fluffy Clouds* (1990). The Orb channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=KNfjpmvbQG0).
 
 ### Minimalism, Ambient Music, and Slow Decay
 
-- Riley, Terry. *Poppy Nogood and the Phantom Band*. Reference transfer. [YouTube](https://www.youtube.com/watch?v=HsykERwiR2o).
-- Eno, Brian. *Discreet Music*. 2004 remaster; Brian Eno channel, official audio. [YouTube](https://www.youtube.com/watch?v=tLZtnadL1s0).
-- Reich, Steve. *Music for 18 Musicians*. Eighth Blackbird and guests; Vic Firth institutional performance. [YouTube](https://www.youtube.com/watch?v=ZXJWO2FQ16c).
-- Eno, Brian. *1/1*, from *Ambient 1: Music for Airports*. 2004 remaster; Brian Eno channel, official audio. [YouTube](https://www.youtube.com/watch?v=LKZ3fGR2SDY).
-- Budd, Harold, and Brian Eno. *First Light*. 2004 remaster; Harold Budd Topic channel, official audio. [YouTube](https://www.youtube.com/watch?v=cOWJq88uAiQ).
-- Aphex Twin. *#3 (Rhubarb)*, from *Selected Ambient Works Volume II*. Aphex Twin channel, official audio. [YouTube](https://www.youtube.com/watch?v=75O11W5EZAU).
+- Riley, Terry. *Poppy Nogood and the Phantom Band* (1967–1969). Reference transfer. [YouTube](https://www.youtube.com/watch?v=HsykERwiR2o).
+- Eno, Brian. *Discreet Music* (1975). 2004 remaster; Brian Eno channel, official audio. [YouTube](https://www.youtube.com/watch?v=tLZtnadL1s0).
+- Reich, Steve. *Music for 18 Musicians* (1976). Eighth Blackbird and guests; Vic Firth institutional performance. [YouTube](https://www.youtube.com/watch?v=ZXJWO2FQ16c).
+- Eno, Brian. *1/1* (1978), from *Ambient 1: Music for Airports*. 2004 remaster; Brian Eno channel, official audio. [YouTube](https://www.youtube.com/watch?v=LKZ3fGR2SDY).
+- Budd, Harold, and Brian Eno. *First Light* (1980). 2004 remaster; Harold Budd Topic channel, official audio. [YouTube](https://www.youtube.com/watch?v=cOWJq88uAiQ).
+- Aphex Twin. *#3 (Rhubarb)* (1994), from *Selected Ambient Works Volume II*. Aphex Twin channel, official audio. [YouTube](https://www.youtube.com/watch?v=75O11W5EZAU).
 
 ### Gated, Digital, and Alternative Production Spaces
 
-- Gabriel, Peter. *Intruder*. Peter Gabriel channel, official audio. [YouTube](https://www.youtube.com/watch?v=xvAmj3k3Imc).
-- Collins, Phil. *In the Air Tonight*. Phil Collins channel, official music video. [YouTube](https://www.youtube.com/watch?v=YkADj0TPrJA).
-- Bush, Kate. *Running Up That Hill (A Deal with God)*. 2018 remaster; Kate Bush channel, official audio. [YouTube](https://www.youtube.com/watch?v=HYwNM1t9ltI).
-- Cocteau Twins. *Carolyn's Fingers*. Cocteau Twins channel, official video. [YouTube](https://www.youtube.com/watch?v=NhGoZLudKyk).
-- My Bloody Valentine. *To Here Knows When*. Official music video distributed by UPROXX Indie Mixtape. [YouTube](https://www.youtube.com/watch?v=xdHS1sbV5xw).
-- Talk Talk. *After the Flood*. Talk Talk band channel, catalog audio. [YouTube](https://www.youtube.com/watch?v=5KDS4u8-D4Q).
+- Gabriel, Peter. *Intruder* (1980). Peter Gabriel channel, official audio. [YouTube](https://www.youtube.com/watch?v=xvAmj3k3Imc).
+- Collins, Phil. *In the Air Tonight* (1981). Phil Collins channel, official music video. [YouTube](https://www.youtube.com/watch?v=YkADj0TPrJA).
+- Bush, Kate. *Running Up That Hill (A Deal with God)* (1985). 2018 remaster; Kate Bush channel, official audio. [YouTube](https://www.youtube.com/watch?v=HYwNM1t9ltI).
+- Cocteau Twins. *Carolyn's Fingers* (1988). Cocteau Twins channel, official video. [YouTube](https://www.youtube.com/watch?v=NhGoZLudKyk).
+- My Bloody Valentine. *To Here Knows When* (1991). Official music video distributed by UPROXX Indie Mixtape. [YouTube](https://www.youtube.com/watch?v=xdHS1sbV5xw).
+- Talk Talk. *After the Flood* (1991). Talk Talk band channel, catalog audio. [YouTube](https://www.youtube.com/watch?v=5KDS4u8-D4Q).
 
 ### Advanced Concert Spatialization
 
-- Harvey, Jonathan. *Mortuos Plango, Vivos Voco*. Jonathan Harvey Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=0T-H-fVlHE0).
-- Boulez, Pierre. *Répons*. Ensemble intercontemporain; Matthias Pintscher. Institutional performance. [YouTube](https://www.youtube.com/watch?v=OQE5TYnD58k).
-- Nono, Luigi. *Prometeo: Tragedia dell'ascolto*. New Music Ostrava, reference performance. [YouTube](https://www.youtube.com/watch?v=joteZTLpHdE). Work and premiere record: [IRCAM](https://ressources.ircam.fr/fr/work/prometeo).
-- Saariaho, Kaija. *Lichtbogen*. Wellesz Theatre, reference performance. [YouTube](https://www.youtube.com/watch?v=hQQ9-yuQf9c).
-- Haas, Georg Friedrich. *in vain*. Argento Chamber Ensemble; Michel Galante. Ensemble performance. [YouTube](https://www.youtube.com/watch?v=ZAwvWLVfSkM).
-- Neuwirth, Olga. *Le Encantadas o le avventure nel mare delle meraviglie*. Ensemble intercontemporain; Holland Festival 2016, institutional performance. [YouTube](https://www.youtube.com/watch?v=dvtz8OzUXu8). Virtual-acoustic documentation: [IRCAM](https://medias.ircam.fr/en/media/xbe47e6).
+- Harvey, Jonathan. *Mortuos Plango, Vivos Voco* (1980). Jonathan Harvey Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=0T-H-fVlHE0).
+- Boulez, Pierre. *Répons* (1981–1984). Ensemble intercontemporain; Matthias Pintscher. Institutional performance. [YouTube](https://www.youtube.com/watch?v=OQE5TYnD58k).
+- Nono, Luigi. *Prometeo: Tragedia dell'ascolto* (1981–1984). New Music Ostrava, reference performance. [YouTube](https://www.youtube.com/watch?v=joteZTLpHdE). Work and premiere record: [IRCAM](https://ressources.ircam.fr/fr/work/prometeo).
+- Saariaho, Kaija. *Lichtbogen* (1986). Wellesz Theatre, reference performance. [YouTube](https://www.youtube.com/watch?v=hQQ9-yuQf9c).
+- Haas, Georg Friedrich. *in vain* (2000). Argento Chamber Ensemble; Michel Galante. Ensemble performance. [YouTube](https://www.youtube.com/watch?v=ZAwvWLVfSkM).
+- Neuwirth, Olga. *Le Encantadas o le avventure nel mare delle meraviglie* (2015). Ensemble intercontemporain; Holland Festival 2016, institutional performance. [YouTube](https://www.youtube.com/watch?v=dvtz8OzUXu8). Virtual-acoustic documentation: [IRCAM](https://medias.ircam.fr/en/media/xbe47e6).
 
 ### Contemporary Depth, Texture, and Immersion
 
-- Oneohtrix Point Never. *Chrome Country*. Oneohtrix Point Never channel, official audio. [YouTube](https://www.youtube.com/watch?v=1737WkBPs5o).
-- Herndon, Holly. *Chorus*. RVNG Intl., official video. [YouTube](https://www.youtube.com/watch?v=nHujh3yA3BE).
-- Björk. *Family*. One Little Independent/One Little Indian Jukebox, label audio. [YouTube](https://www.youtube.com/watch?v=wcMwXUiOaSc).
-- Burial. *Archangel*. Hyperdub, label upload. [YouTube](https://www.youtube.com/watch?v=8k_f2QK77ew).
-- Grouper. *Heavy Water / I'd Rather Be Sleeping*. Grouper Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=OLR9oEnYLxs).
-- FKA twigs. *cellophane*. FKA twigs channel, official video. [YouTube](https://www.youtube.com/watch?v=YkLjqFpBh84).
+- Oneohtrix Point Never. *Chrome Country* (2013). Oneohtrix Point Never channel, official audio. [YouTube](https://www.youtube.com/watch?v=1737WkBPs5o).
+- Herndon, Holly. *Chorus* (2014). RVNG Intl., official video. [YouTube](https://www.youtube.com/watch?v=nHujh3yA3BE).
+- Björk. *Family* (2015). One Little Independent/One Little Indian Jukebox, label audio. [YouTube](https://www.youtube.com/watch?v=wcMwXUiOaSc).
+- Burial. *Archangel* (2007). Hyperdub, label upload. [YouTube](https://www.youtube.com/watch?v=8k_f2QK77ew).
+- Grouper. *Heavy Water / I'd Rather Be Sleeping* (2008). Grouper Topic channel, official catalog audio. [YouTube](https://www.youtube.com/watch?v=OLR9oEnYLxs).
+- FKA twigs. *cellophane* (2019). FKA twigs channel, official video. [YouTube](https://www.youtube.com/watch?v=YkLjqFpBh84).
 
 ## Comparative Listening Exercises
 
@@ -209,4 +209,4 @@ Links below identify the exact performance, master, or reference upload used for
 
 ## Documentation Sources
 
-The listening notes are interpretive and intentionally avoid reproducing lyrics or score text. Work dates and technical framing were checked against composer, publisher, label, and institutional documentation where available. Particularly useful primary or specialist records include the [Stockhausen complete-edition catalog](https://www.stockhausencds.com/), the [Lovely Music notes for Lucier's *I am sitting in a room*](https://www.lovely.com/albumnotes/notes1013cd.html), IRCAM's [*Prometeo: Tragedia dell'ascolto* record](https://ressources.ircam.fr/fr/work/prometeo), and IRCAM's account of the virtual San Lorenzo acoustic in [*Le Encantadas o le avventure nel mare delle meraviglie*](https://medias.ircam.fr/en/media/xbe47e6).
+The listening notes are interpretive and intentionally avoid reproducing lyrics or score text. Work dates and technical framing were checked against composer, publisher, label, and institutional documentation where available. Particularly useful primary or specialist records include the [Stockhausen complete-edition catalog](https://www.stockhausencds.com/), the [Lovely Music notes for Lucier's *I am sitting in a room* (1969)](https://www.lovely.com/albumnotes/notes1013cd.html), IRCAM's [*Prometeo: Tragedia dell'ascolto* (1981–1984) record](https://ressources.ircam.fr/fr/work/prometeo), and IRCAM's account of the virtual San Lorenzo acoustic in [*Le Encantadas o le avventure nel mare delle meraviglie* (2015)](https://medias.ircam.fr/en/media/xbe47e6).

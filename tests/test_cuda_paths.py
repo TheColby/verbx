@@ -51,7 +51,7 @@ def _make_sine(sr: int = 24000, freq: float = 440.0, duration: float = 1.0) -> n
 
 
 # ---------------------------------------------------------------------------
-# Device selection / fallback tests (always run — no GPU required)
+# Device selection / fallback tests (always run; no GPU required)
 # ---------------------------------------------------------------------------
 
 def test_device_auto_resolves_without_crash(tmp_path: pytest.TempPathFactory) -> None:
@@ -99,7 +99,7 @@ def test_render_with_device_cuda_falls_back_to_cpu(tmp_path: pytest.TempPathFact
     outfile = Path(tmp_path) / "out.wav"
     sf.write(str(infile), audio, sr, subtype="FLOAT")
 
-    # Should not raise — falls back to CPU when CUDA unavailable
+    # Should not raise; falls back to CPU when CUDA unavailable.
     report = run_render_pipeline(
         infile, outfile,
         RenderConfig(engine="algo", rt60=0.3, wet=0.5, device="cuda"),

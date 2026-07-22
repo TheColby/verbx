@@ -87,7 +87,7 @@ class ConvolutionReverbConfig:
     ir_normalize: str = "peak"
     ir_matrix_layout: str = "output-major"
     ir_route_map: str = "auto"
-    # 16384 is a good default — big enough for long IRs to be efficient, small enough for memory
+    # 16384 balances long-IR throughput against memory use.
     partition_size: int = 16_384
     tail_limit: float | None = None
     threads: int | None = None
@@ -354,7 +354,7 @@ class ConvolutionReverbEngine(ReverbEngine):
                         input_peak_linear = block_peak
 
                     # Note: if the IR has more output channels than the source file,
-                    # in_block will be narrower than states expects — _stream_accumulate_wet
+                    # in_block can be narrower than states expects; _stream_accumulate_wet
                     # handles the mismatch but the dry mix below needs the same out_channels.
                     wet_block = self._stream_accumulate_wet(states, in_block, out_channels)
                     wet_block = self._apply_route_trajectory(

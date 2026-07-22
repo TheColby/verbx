@@ -301,6 +301,37 @@ to offline reverse rendering.
 
 ![Reverse reverb envelope](assets/userguide_figures/33_reverse_reverb_envelope.png)
 
+### Gated Reverse Reverb
+
+Gated reverse reverb is a reverse or reverse-style wet field constrained by a
+gate or authored gain window. The gate belongs after the wet processor when the
+goal is to shape the audible tail. Placing it before the reverb only decides
+which dry events excite the network; it does not truncate the resulting field.
+Key the post-wet gate from the dry source, keep the plug-in return 100 percent
+wet, and leave the destination transient on its uncompromised dry path.
+
+The current Reverse parameter is a zero-lookahead musical approximation. It
+detects a transient and raises the wet envelope after that event; it cannot
+anticipate audio that has not reached the callback. For a true pre-event gated
+reverse effect, print the wet return, move it earlier so its endpoint meets the
+destination transient, then apply a host gate or clip-gain window. A future
+capture-window mode must report at least the window duration as algorithmic
+latency and must never allocate, seek, or resize its buffer in the callback.
+
+Useful controls for a production gated mode include lead duration, endpoint
+offset, detector source, detector filtering, threshold, hysteresis, attack,
+hold, release, range, and channel linking. A 5 to 20 ms terminal fade prevents a
+click without erasing the abrupt boundary. Tempo synchronization should derive
+the lead duration from $T_{\mathrm{lead}}=60N/B$, where $N$ is the selected beat
+span and $B$ is tempo in beats per minute.
+
+Stereo and multichannel gates should normally share one detector and one gain
+envelope. Independent thresholds can make the image jump as channels close at
+different samples. Verify endpoint localization, stereo fold-down, binaural
+rendering, and host delay compensation. The UI must label the current
+zero-lookahead behavior separately from any future buffered or offline mode so
+users never mistake a bloom for a physically reversed response.
+
 ## 13. Loudness, Ducking, And Limiting
 
 The limiter is a safety layer, not a substitute for stable feedback design.

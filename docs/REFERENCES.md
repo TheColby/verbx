@@ -4,10 +4,27 @@ Focused bibliography for extreme reverberation DSP and reverberation research in
 
 Pruned from the broader bibliography on 2026-03-01 to keep only reverb-centric papers.
 
-Total entries: 1,002 (102 curated annotated entries + 900 extended Crossref entries)
+Total entries: 1,064 (164 curated and primary-source entries + 900 extended Crossref entries)
 
 Within each topical section, entries are alphabetized by first-author surname. Records
 without credited authors sort under "Unknown authors."
+
+---
+
+## Sources for Chapter Epigraphs
+
+The chapter-opening quotations are brief literary and musical interludes rather than
+technical evidence. Public-domain echo passages by Addison, Longfellow, Milton, Moore,
+Pope, Saxe, Shakespeare, and Shelley are collected with work attributions on the
+[Wikiquote Echo page](https://en.wikiquote.org/wiki/Echo). Pauline Oliveros's account of
+using cardboard tubes, contact amplification, and a bathtub for reverberation appears in
+her [American Mavericks interview](https://musicmavericks.publicradio.org/features/interview_oliveros.html).
+The separate Oliveros observation about vertical space and hearing a sound's tail is
+linked through the [quotation record supplied for this edition](https://www.azquotes.com/quote/1543324?ref=reverberation).
+The Johnny Thunders epigraph is included as an attributed popular quotation supplied for
+this edition; it is not used to support a technical claim. Frank Speller's observation
+about the long reverberation during his Westminster Abbey recital is likewise included as an
+attributed recollection supplied for this edition.
 
 ---
 
@@ -18,31 +35,31 @@ start with these seven papers, listed alphabetically by first author. The notes 
 useful reading sequence; everything else in the bibliography builds on, extends, or argues
 with what these establish.
 
-**1. Jot and Chaigne (1997) — Maximally diffusive yet efficient FDN** ([entry 95](#entry-95))
+**1. Jot and Chaigne (1997) – Maximally diffusive yet efficient FDN** ([entry 95](#entry-95))
 
 The pivot point between classic Schroeder-style structures and modern FDN design. Jot formalized the feedback delay network as a matrix + delay system, gave a clean stability condition, and showed how to design the feedback matrix for maximum diffusion. This paper is the reason every serious reverb plugin since the late 1990s has an "FDN" somewhere inside it.
 
-**2. Rocchesso and Smith (1997) — Circulant and elliptic FDN families** ([entry 96](#entry-96))
+**2. Rocchesso and Smith (1997) – Circulant and elliptic FDN families** ([entry 96](#entry-96))
 
 Published the same year as Jot-Chaigne and essential reading alongside it. Rocchesso and Smith worked out the eigenvalue structure of feedback matrices, explained why some matrix designs produce audible resonances, and gave concrete construction rules for matrices that avoid them. The circulant family they describe remains a go-to for large-order FDNs.
 
-**3. Schlecht and Habets (2015) — Time-varying feedback matrices** ([entry 39](#entry-39))
+**3. Schlecht and Habets (2015) – Time-varying feedback matrices** ([entry 39](#entry-39))
 
 Identifies the modal ringing problem that plagues fixed-matrix FDNs (you hear it as metallic "flutter" on transients) and proposes time-varying rotation of the feedback matrix as the solution. This is the theoretical grounding for verbx's reactive-control stream. Dense math, but the payoff is real.
 
-**4. Schlecht and Habets (2019) — Dense Reverberation with Delay Feedback Matrices** ([entry 29](#entry-29))
+**4. Schlecht and Habets (2019) – Dense Reverberation with Delay Feedback Matrices** ([entry 29](#entry-29))
 
 The most recent of the mandatory reads. Introduces the delay-feedback matrix concept, which lets you pack feedback directly into the delay topology rather than separating the two. Yields higher echo density for a given compute budget. The paper that shapes verbx's next-generation topology expansion.
 
-**5. Schroeder (1961) — Further Progress with Colorless Artificial Reverberation** ([entry 97](#entry-97))
+**5. Schroeder (1961) – Further Progress with Colorless Artificial Reverberation** ([entry 97](#entry-97))
 
 The immediate follow-up, published the same year. Refines the allpass topology and introduces the parallel-comb / series-allpass architecture that became the canonical "Schroeder reverberator." The coloration problems it leaves unsolved are exactly what motivated everything in the FDN section below.
 
-**6. Schroeder and Logan (1961) — "Colorless" artificial reverberation** ([entry 98](#entry-98))
+**6. Schroeder and Logan (1961) – "Colorless" artificial reverberation** ([entry 98](#entry-98))
 
-This is the paper that launched a thousand reverb plugins. Schroeder identified the two fundamental primitives — the comb filter and the allpass filter — and showed how to combine them to produce a plausible diffuse tail without coloring the sound. Almost every algorithmic reverb written in the six decades since has either implemented these ideas directly or consciously departed from them. Read this before anything else.
+This is the paper that launched a thousand reverb plugins. Schroeder identified the two fundamental primitives – the comb filter and the allpass filter – and showed how to combine them to produce a plausible diffuse tail without coloring the sound. Almost every algorithmic reverb written in the six decades since has either implemented these ideas directly or consciously departed from them. Read this before anything else.
 
-**7. Valimaki et al. (2012) — Fifty Years of Artificial Reverberation** ([entry 59](#entry-59))
+**7. Valimaki et al. (2012) – Fifty Years of Artificial Reverberation** ([entry 59](#entry-59))
 
 A historical survey connecting mechanical, algorithmic, convolution, and perceptual reverberation.
 
@@ -50,7 +67,7 @@ A historical survey connecting mechanical, algorithmic, convolution, and percept
 
 ## Key Results Reference
 
-Quick-lookup table of the equations you will cite most often during development. These are not derivations — follow the source links for those.
+Quick-lookup table of the equations you will cite most often during development. These are not derivations – follow the source links for those.
 
 | Result | Formula | Source | Notes |
 |---|---|---|---|
@@ -94,10 +111,174 @@ Quick-lookup table of the equations you will cite most often during development.
 
 The papers every reverb developer must read. These define the vocabulary, the fundamental structures, and the problems that all subsequent work attempts to solve.
 
+**[F48]** Audfray, R.; Jot, Jean-Marc (2019). Reverberation Loudness Model for Mixed-Reality Audio. *Audio Eng. Soc. Conference on Headphone Technology*. Source: [Primary source](https://www.aes.org/e-lib/browse.cfm?elib=20515)
+
+**[F11]** Dahl, Luke; Jot, Jean-Marc (2000). A Reverberator Based on Absorbent All-Pass Filters. *Proceedings of the COST G-6 Conference on Digital Audio Effects*. Source: [DAFx paper](https://ccrma.stanford.edu/~lukedahl/pdfs/Dahl%2CJot-AbsorbentAllPassReverbs-Dafx2000.pdf)
+
+> Annotation: Extends the all-pass primitive with frequency-dependent absorption, yielding a compact route to spectrally shaped decay that is directly relevant to multiband RT60 control.
+
+**[F12]** Funkhouser, Thomas; Jot, Jean-Marc; Tsingos, Nicolas (2003). Survey of Methods for Modeling Sound Propagation in Interactive Virtual Environment Systems. *Presence: Teleoperators and Virtual Environments*. Source: [Author manuscript](https://www.cs.princeton.edu/~funk/presence03.pdf)
+
+> Annotation: Places algorithmic reverberation within the broader problem of interactive sound propagation, including geometry, visibility, diffraction, and real-time rendering budgets.
+
+**[F13]** Jot, Jean-Marc; Chaigne, Antoine (1991). Digital Delay Networks for Designing Artificial Reverberators. *90th Convention of the Audio Engineering Society*. Source: [AES E-Library paper](https://aes.org/publications/elibrary-page/?id=5663)
+
+> Annotation: Introduces the digital delay network design viewpoint that precedes the formal FDN treatment and establishes practical relationships among delay structure, modal density, stability, and decay.
+
+**[F14]** Jot, Jean-Marc (1992). An Analysis/Synthesis Approach to Real-Time Artificial Reverberation. *1992 IEEE International Conference on Acoustics, Speech, and Signal Processing*. DOI: [10.1109/icassp.1992.226080](https://doi.org/10.1109/icassp.1992.226080)
+
+> Annotation: Develops the analysis and resynthesis framework behind perceptually meaningful, frequency-dependent reverberation control and the energy-decay-relief representation.
+
+**[F15]** Jot, Jean-Marc (1992). Étude et réalisation d'un spatialisateur de sons par modèles physiques et perceptifs. *Télécom Paris Doctoral Dissertation*. Source: [Télécom Paris record](https://telecom-paris.focus.ip-paris.fr/permalink/f/c4io41/33IMT_ILS49294)
+
+> Annotation: Provides the broad physical and perceptual foundation for Jot's later work on artificial reverberation, distance rendering, and spatialization.
+
+**[F35]** Jot, Jean-Marc (1992). Étude et réalisation d'un spatialisateur de sons par modèles physiques et perceptifs. *Telecom Paris doctoral dissertation*. Source: [Primary source](https://telecom-paris.focus.ip-paris.fr/permalink/f/c4io41/33IMT_ILS49294)
+
+**[F16]** Jot, Jean-Marc; Warusfel, Olivier; Kahle, Eckhard; Mein, Michel (1993). Binaural Concert Hall Simulation in Real Time. *IEEE Workshop on Applications of Signal Processing to Audio and Acoustics*. Source: [IRCAM paper](https://architexte.ircam.fr/textes/Jot93a/index.html)
+
+> Annotation: Demonstrates an early real-time union of room response modeling and binaural reproduction, anticipating modern headphone-based architectural auralization.
+
+**[F17]** Jot, Jean-Marc; Larcher, Véronique; Warusfel, Olivier (1995). Digital Signal Processing Issues in the Context of Binaural and Transaural Stereophony. *98th Convention of the Audio Engineering Society*. Source: [AES E-Library paper](https://aes.org/publications/elibrary-page/?id=7786)
+
+> Annotation: Examines the filtering, equalization, and rendering constraints that arise when reverberant spatial scenes must survive binaural or transaural playback.
+
+**[F39]** Jot, Jean-Marc; Warusfel, O. (1995). Le Spatialisateur. *GRAME Conf. "Le Son et L'Espace"*. Source: [Primary source](http://dh7.free.fr/oldProject/LNE98/Plus/ARTC2.HTM)
+
+**[F55]** Jot, Jean-Marc; et al. (1995). Method to simulate the acoustical quality of a room and associated audio-digital processor. *Issued patent family: US 5,812,674*. Source: [Patent record](https://patents.google.com/patent/US5812674)
+
+**[F18]** Jot, Jean-Marc; Warusfel, Olivier (1995). Spat~: A Spatial Processor for Musicians and Sound Engineers. *CIARM 1995*. Source: [IRCAM paper](https://articles.ircam.fr/textes/Jot95a/)
+
+> Annotation: Documents the production-facing spatial processor that translated perceptual room and source descriptors into controls usable by musicians and engineers.
+
+**[F40]** Jot, Jean-Marc; Caulkins, T.; Gottfried, R. (1995). Spat: Introduction. *IRCAM technical report*. Source: [Primary source](http://support.ircam.fr/docs/spat/3.0/spat-3-intro/co/spat-3-intro.html)
+
+**[F41]** Jot, Jean-Marc; Caulkins, T.; Gottfried, R. (1995). Spat: Reference Manual. *IRCAM technical report*. Source: [Primary source](https://support.ircam.fr/docs/spat/3.0/spat-3-ref/co/spat-3.html)
+
+**[F19]** Jot, Jean-Marc; Vandernoot, Guillaume; Warusfel, Olivier (1996). Analysis and Synthesis of Room Reverberation in the Time and Frequency Domains: Application to the Restoration of Room Impulse Responses Corrupted by Measurement Noise. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.415793](https://doi.org/10.1121/1.415793)
+
+> Annotation: Connects time-frequency decay analysis to restoration of noisy measured impulse responses, a key bridge between room analysis, dereverberation, and synthetic tail reconstruction.
+
+**[F20]** Jot, Jean-Marc (1996). Synthesizing 3-D Sound Scenes in Audio or Multimedia Production and Interactive Human-Computer Interfaces. *Fifth Conference on Interface to Real and Virtual Worlds*. Source: [IRCAM paper](https://articles.ircam.fr/textes/Jot96a/)
+
+> Annotation: Frames room effects as part of an interactive sound-scene model rather than as an isolated insert effect, clarifying the role of source distance and environment.
+
+**[F22]** Jot, Jean-Marc; Cerveau, Laurent; Warusfel, Olivier (1997). Analysis and Synthesis of Room Reverberation Based on a Statistical Time-Frequency Model. *103rd Convention of the Audio Engineering Society*. Source: [AES E-Library paper 4629](https://aes.org/publications/elibrary-page/?id=7150)
+
+> Annotation: Formalizes statistical time-frequency room-decay modeling and shows how measured decay behavior can drive a controllable synthetic reverberator.
+
+**[F21]** Jot, Jean-Marc (1997). Efficient Models for Reverberation and Distance Rendering in Computer Music and Virtual Audio Reality. *International Computer Music Conference*. Source: [ICMC paper](https://hdl.handle.net/2027/spo.bbp2372.1997.064)
+
+> Annotation: Presents efficient perceptual models for coupled reverberation and distance, emphasizing control dimensions that remain musically useful under real-time constraints.
+
 <a id="entry-95"></a><a id="ref-jot-chaigne-1997"></a>
-**[F4]** Jot, J.-M.; Chaigne, A. (1997). Maximally diffusive yet efficient feedback delay networks for artificial reverberation. *IEEE Signal Processing Letters*. DOI: [10.1109/97.623041](https://doi.org/10.1109/97.623041)
+**[F4]** Jot, Jean-Marc; Chaigne, Antoine (1997). Maximally diffusive yet efficient feedback delay networks for artificial reverberation. *IEEE Signal Processing Letters*. DOI: [10.1109/97.623041](https://doi.org/10.1109/97.623041)
 
 > Annotation: The paper that unified the FDN framework and gave practitioners the tools to actually design good reverbs rather than accidentally stumbling into them. Provides the stability condition, the diffuseness criterion, and the RT60 calibration formula that verbx uses directly.
+
+**[F23]** Jot, Jean-Marc; Wardle, Scott; Larcher, Véronique (1998). Approaches to Binaural Synthesis. *105th Convention of the Audio Engineering Society*. Source: [AES E-Library paper](https://aes.org/publications/elibrary-page/?id=8319)
+
+> Annotation: Surveys practical binaural synthesis strategies and their tradeoffs, supplying essential context for headphone delivery of reverberant and spatial audio.
+
+**[F56]** Jot, Jean-Marc; et al. (1998). Environmental reverberation processor. *Issued patent family: US 6,188,769; US 6,917,686; US 7,561,699*. Source: [Patent record](https://patents.google.com/patent/US6188769)
+
+**[F25]** Jot, Jean-Marc; Larcher, Véronique; Pernaux, Jean-Marie (1999). A Comparative Study of 3-D Audio Encoding and Rendering Techniques. *16th International Conference of the Audio Engineering Society*. Source: [AES E-Library paper](https://aes.org/publications/elibrary-page/?id=8029)
+
+> Annotation: Compares spatial encoding and rendering families, helping distinguish scene representation from the loudspeaker or headphone renderer that ultimately presents the reverberant field.
+
+**[F24]** Jot, Jean-Marc (1999). Real-Time Spatial Processing of Sounds for Music, Multimedia and Interactive Human-Computer Interfaces. *Multimedia Systems*. DOI: [10.1007/s005300050111](https://doi.org/10.1007/s005300050111)
+
+> Annotation: Synthesizes the perceptual and computational architecture of a general-purpose spatial audio processor, including reverberation as an environmental cue.
+
+**[F26]** Jot, Jean-Marc (2000). Advanced Audio BIFS: Environmental Spatialization of Audio in MPEG-4 Version 2. *108th Convention of the Audio Engineering Society*. Source: [MIT presentation](https://sound.media.mit.edu/resources/mpeg4/audio/general/aes108_5-Spatialization.pdf)
+
+> Annotation: Shows how environmental audio parameters can be embedded in a standardized interactive scene description, an early precedent for portable object-based reverb metadata.
+
+**[F42]** Jot, Jean-Marc (2000). Efficient Models for Interactive Environmental Audio Spatialization. *DAFx International Conf. Digital Audio Effects*. Source: [Primary source](https://drive.google.com/open?id=1PlhdX75ejnwxPTvz6lY44Nou81zZPaGj)
+
+**[F58]** Jot, Jean-Marc; et al. (2000). Reverberation processor based on absorbent all-pass filters. *Issued patent family: US 7,149,314*. Source: [Patent record](https://patents.google.com/patent/US7149314)
+
+**[F57]** Jot, Jean-Marc; et al. (2000). Reverberation processor for interactive audio applications. *Issued patent family: US 6,978,027*. Source: [Patent record](https://patents.google.com/patent/US6978027)
+
+**[F59]** Jot, Jean-Marc; et al. (2001). Method and apparatus for the simulation of complex audio environments. *Issued patent family: US 7,099,482*. Source: [Patent record](https://patents.google.com/patent/US7099482)
+
+**[F43]** Jot, Jean-Marc (2001). Perceptual and Statistical Models for Virtual Audio Environments. *ACM Campfire: Acoustic Rendering for Virtual Environments*. Source: [Official bibliography](https://sites.google.com/site/jmmjot/)
+
+**[F28]** Jot, Jean-Marc; Walsh, Michael; Philp, Andrew (2006). Binaural Simulation of Complex Acoustic Scenes for Interactive Audio. *121st Convention of the Audio Engineering Society*. Source: [AES E-Library paper](https://aes.org/publications/elibrary-page/?id=13784)
+
+> Annotation: Applies binaural rendering to complex interactive scenes where source directivity, room response, and listener motion must remain coherent in real time.
+
+**[F27]** Jot, Jean-Marc; Trivi, Jean-Marc (2006). Scene Description Model and Rendering Engine for Interactive Virtual Acoustics. *120th Convention of the Audio Engineering Society*. Source: [AES E-Library paper](https://aes.org/publications/elibrary-page/?id=13464)
+
+> Annotation: Separates the acoustic scene model from its renderer, a useful architectural pattern for verbx presets, automation, game-audio integration, and future room-geometry engines.
+
+**[F29]** Jot, Jean-Marc; Walsh, Michael (2010). Center-Channel Processing in Virtual 3-D Audio Reproduction over Headphones or Loudspeakers. *128th Convention of the Audio Engineering Society*. Source: [AES E-Library paper](https://aes.org/publications/elibrary-page/?id=13783)
+
+> Annotation: Addresses center-image stability across headphone and loudspeaker virtualizers, a practical concern when reverberation and spatial widening alter localization cues.
+
+**[F60]** Jot, Jean-Marc; et al. (2010). Spatial audio encoding and reproduction of diffuse sound. *Issued patent family: US 8,908,874; US 9,042,565; US 9,728,181*. Source: [Patent record](https://patents.google.com/patent/US8908874)
+
+**[F61]** Jot, Jean-Marc; et al. (2011). Direct-diffuse decomposition. *Issued patent family: US 9,253,574*. Source: [Patent record](https://patents.google.com/patent/US9253574)
+
+**[F62]** Jot, Jean-Marc; et al. (2012). System and method for estimating a reverberation time. *Issued patent family: US 9,386,373*. Source: [Patent record](https://patents.google.com/patent/US9386373)
+
+**[F30]** Jot, Jean-Marc; Smith, Brett; Thompson, Jonathan (2015). Dialog Control and Enhancement in Object-Based Audio Systems. *139th Convention of the Audio Engineering Society*. Source: [AES E-Library paper](https://aes.org/publications/elibrary-page/?id=17914)
+
+> Annotation: Explains how object-based rendering can preserve user control over dialog level and clarity, including interactions with ambient and reverberant components.
+
+**[F31]** Jot, Jean-Marc (2015). Proportional Parametric Equalizers: Application to Digital Reverberation and Environmental Audio Processing. *139th Convention of the Audio Engineering Society*. Source: [AES E-Library paper](https://aes.org/publications/elibrary-page/?id=17916)
+
+> Annotation: Develops efficient proportional parametric equalization structures for controllable spectral decay and environmental filtering in real-time reverberators.
+
+**[F32]** Jot, Jean-Marc; Lee, Keun Sup (2016). Augmented Reality Headphone Environment Rendering. *AES International Conference on Audio for Virtual and Augmented Reality*. Source: [AES E-Library paper](https://aes.org/publications/elibrary-page/?id=18506)
+
+> Annotation: Treats reverberation as a congruence problem between real and virtual environments, with implications for room adaptation, externalization, and mixed-reality headphone rendering.
+
+**[F44]** Jot, Jean-Marc (2016). Environmental Audio Effects in Games, VR and AR. *Audio Eng. Soc. 61st Conf.: Audio for Games*. Source: [Official bibliography](https://sites.google.com/site/jmmjot/)
+
+**[F45]** Jot, Jean-Marc (2017). Augmented Reality Headphone Reverberation. *Seminar at IRCAM, Paris*. Source: [Primary source](https://medias.ircam.fr/xe09f44)
+
+**[F46]** Jot, Jean-Marc (2017). Augmented Reality Headphone Reverberation. *DSP Seminar at CCRMA, Stanford Univ*. Source: [Primary source](https://ccrma.stanford.edu/events/augmented-reality-headphone-reverberation)
+
+**[F36]** Jot, Jean-Marc (2017). Efficient Reverberation Rendering for Complex Interactive Audio Scenes. *DAFx International Conf. Digital Audio Effects*. Source: [Primary source](http://www.dafx17.eca.ed.ac.uk/Keynotes.html#tut1)
+
+**[F47]** Jot, Jean-Marc (2017). Room-Adaptive Headphone 3D Audio. *143rd Conv. Audio Engineering Society*. Source: [Primary source](https://drive.google.com/open?id=0B2kyO7cVzntaZWFtUlNHUEJfcDQ)
+
+**[F64]** Jot, Jean-Marc; et al. (2018). Reverberation gain normalization. *Issued patent family: US 10,810,992; US 11,250,834; US 12,008,982*. Source: [Patent record](https://patents.google.com/patent/US10810992)
+
+**[F63]** Jot, Jean-Marc; et al. (2018). Spatial audio for interactive audio environments. *Issued patent family: US 10,735,884; US 10,863,300; US 10,952,010; US 11,770,671; US 12,294,852*. Source: [Patent record](https://patents.google.com/patent/US10735884B2)
+
+**[F67]** Jot, Jean-Marc; et al. (2019). Environment acoustics persistence. *Published patent application: US 2021/0176588, WO 2021/113781*. Source: [Patent record](https://patents.google.com/patent/US20210176588)
+
+**[F66]** Jot, Jean-Marc; et al. (2019). Mixed reality virtual reverberation. *Published patent application: US 2021/0084357*. Source: [Patent record](https://patents.google.com/patent/US20210084357)
+
+**[F65]** Jot, Jean-Marc; et al. (2019). Reverberation fingerprint estimation. *Issued patent family: US 11,304,017, US 11,540,072, US 12,149,896*. Source: [Patent record](https://patents.google.com/patent/US12149896B2/en?oq=US+12%2c149%2c896)
+
+**[F33]** Jot, Jean-Marc; Audfray, Rémi; Hertensteiner, Mark; Schmidt, Brian (2021). Rendering Spatial Sound for Interoperable Experiences in the Audio Metaverse. *International Conference on Immersive and 3D Audio*. DOI: [10.48550/arXiv.2109.12471](https://doi.org/10.48550/arXiv.2109.12471)
+
+> Annotation: Proposes interoperable six-degree-of-freedom scene and rendering abstractions that combine object audio with room reverberation, reflectors, obstacles, and acoustic propagation solvers.
+
+**[F49]** Jot, Jean-Marc; Audfray, R.; Hertensteiner, M. (2021). Spatial Audio Rendering for Interoperable XR Applications in the Audio Metaverse. *151st Conv. Audio Engineering Society*. Source: [Primary source](https://sched.co/mKSQ)
+
+**[F50]** Jot, Jean-Marc (2023). 6-DoF Spatial Audio Rendering of Complex Scenes. *154th Conv. Audio Engineering Society*. Source: [Primary source](https://sched.co/1Ko9N)
+
+**[F34]** Jot, Jean-Marc; Carpentier, Thibaut; Warusfel, Olivier (2023). Perceptually Motivated Spatial Audio Scene Description and Rendering for 6-DoF Immersive Music Experiences. *2023 Immersive and 3D Audio: From Architecture to Automotive*. Source: [IEEE Xplore record](https://ieeexplore.ieee.org/document/10289196)
+
+> Annotation: Returns Jot's perceptual-control framework to immersive music, specifying scene and renderer concepts for navigable six-degree-of-freedom listening experiences.
+
+**[F68]** Jot, Jean-Marc; et al. (2023). Spatial audio scene description and rendering. *Published patent application: WO 2025/054331*. Source: [Patent record](https://patents.google.com/patent/WO2025054331A1/en?oq=2025%2f054331)
+
+**[F38]** Jot, Jean-Marc (2024). On the Spatial Perception of Concurrent Free-Field and Diffuse-Field Components of a Sound Event. *NYU Immersive Audio Group meeting*. Source: [Primary source](https://drive.google.com/file/d/1f5_on8FdwvwwGy7YtKf5G2epaG90E7P-)
+
+**[F51]** Jot, Jean-Marc; Carpentier, T.; Warusfel, O. (2025). Creating and distributing immersive audio: from IRCAM Spat to Acoustic Objects. *158th Conv. Audio Engineering Society*. Source: [Primary source](https://sched.co/222g9)
+
+**[F52]** Jot, Jean-Marc; Treanor, G.; Carpentier, T.; Warusfel, O. (2025). Creating and distributing immersive audio: from IRCAM Spat to Acoustic Objects. *Stanford CCRMA guest lecture*. Source: [Primary source](https://ccrma.stanford.edu/events/jean-marc-jot-creating-and-distributing-immersive-audio-ircam-spat-acoustic-objects)
+
+**[F54]** Jot, Jean-Marc; Carpentier, T.; Warusfel, O. (2026). Creating and distributing immersive audio experiences. *in Immersive Sound, Volume II: The Design and Practice of Binaural and Multi-Channel Experiences*. Source: [Primary source](https://www.routledge.com/Immersive-Sound-Volume-II-The-Design-and-Practice-of-Binaural-and-Multi-Channel-Experiences/Roginska-Geluso/p/book/9780367259464)
+
+**[F53]** Jot, Jean-Marc; Cohen, M. (2026). Spatial Sound Rendering for Audio Augmented Reality. *in Augmented Reality: Situated Spatial Synergy*. Source: [Primary source](https://www.intechopen.com/chapters/1219737)
+
+**[F37]** Murgai, P.; Rau, M.; Jot, Jean-Marc (2017). Blind Estimation of the Reverberation Fingerprint of Unknown Acoustic Environments. *143rd Conv. Audio Engineering Society*. Source: [Primary source](http://www.aes.org/e-lib/browse.cfm?elib=19302)
 
 **[F8]** Polack, Jean-Dominique (2025). Revisiting reverberation. *Acta Acustica*. DOI: [10.1051/aacus/2025010](https://doi.org/10.1051/aacus/2025010)
 
@@ -112,15 +293,15 @@ The papers every reverb developer must read. These define the vocabulary, the fu
 
 > Annotation: Works out the eigenvalue structure of feedback matrices in detail and explains exactly why naive matrix choices cause audible modal ringing. Introduces the circulant family of matrices, which remain a practical default for large FDN orders. Indispensable alongside Jot-Chaigne.
 
-<a id="entry-97"></a>
-**[F2]** Schroeder, M.R. (1961). Further Progress with Colorless Artificial Reverberation. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.1936895](https://doi.org/10.1121/1.1936895)
-
-> Annotation: The companion paper published the same year, refining the allpass topology. Together with the IRE paper above, this establishes the canonical Schroeder reverberator that hardware units of the 1970s and virtually every software reverb through the 1990s was built on.
-
 <a id="entry-98"></a>
 **[F1]** Schroeder, M.R.; Logan, B.F. (1961). "Colorless" artificial reverberation. *IRE Transactions on Audio*. DOI: [10.1109/tau.1961.1166351](https://doi.org/10.1109/tau.1961.1166351)
 
 > Annotation: The founding document of algorithmic reverberation. Introduces parallel comb filters followed by series allpass sections as a way to produce high echo density without coloring the spectrum. Every subsequent algorithmic reverb either implements this architecture or explicitly departs from it. Read this first.
+
+<a id="entry-97"></a>
+**[F2]** Schroeder, M.R. (1961). Further Progress with Colorless Artificial Reverberation. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.1936895](https://doi.org/10.1121/1.1936895)
+
+> Annotation: The companion paper published the same year, refining the allpass topology. Together with the IRE paper above, this establishes the canonical Schroeder reverberator that hardware units of the 1970s and virtually every software reverb through the 1990s was built on.
 
 **[F9]** Theodore, Michael (2004). Altiverb Reverberation Software. *Computer Music Journal*. DOI: [10.1162/comj.2004.28.2.101](https://doi.org/10.1162/comj.2004.28.2.101)
 
@@ -181,13 +362,17 @@ Partitioned FFT convolution, impulse response measurement, and IR morphing. The 
 
 > Annotation: Develops imaging functions for early reflections from bounded elastic surfaces. Relevant to physically-grounded IR construction and to understanding what the early-reflection part of a measured IR actually encodes about room geometry.
 
+**[CV6]** Farina, Angelo (2000). Simultaneous Measurement of Impulse Response and Distortion with a Swept-Sine Technique. *108th AES Convention*. Source: [AES E-Library record](https://secure.aes.org/forum/pubs/conventions/?elib=10211)
+
+> Annotation: Establishes the exponential swept-sine method used to recover a high-signal-to-noise linear impulse response while separating harmonic distortion responses in time. It is foundational for reproducible room, loudspeaker, and electroacoustic-system capture.
+
 **[CV4]** Mechel, Fridolin (2012). Reverberation with Mirror Sources. *Room Acoustical Fields*. DOI: [10.1007/978-3-642-22356-3_17](https://doi.org/10.1007/978-3-642-22356-3_17)
 
 > Annotation: Textbook chapter on image-source methods for computing room impulse responses. The image-source approach is the classical alternative to FDN for early reflections; understanding it illuminates the trade-offs in hybrid reverb architectures.
 
 **[CV5]** Schneiderwind, Christian; De Sena, Enzo; Neidhardt, Annika (2026). Perceptual effects of modified late reverberation and reverberation time in auditory augmented reality in two rooms. *Acta Acustica*. DOI: [10.1051/aacus/2026012](https://doi.org/10.1051/aacus/2026012)
 
-> Annotation: Examines what happens perceptually when you modify the late tail of a measured IR independently of the early part. Directly relevant to IR morphing workflows — establishes the perceptual independence of early and late portions and the threshold above which manipulation becomes detectable.
+> Annotation: Examines what happens perceptually when you modify the late tail of a measured IR independently of the early part. Directly relevant to IR morphing workflows – establishes the perceptual independence of early and late portions and the threshold above which manipulation becomes detectable.
 
 **[CV2]** Unknown authors (2008). Room Impulse Responses, Decay Curves and Reverberation Times. *Formulas of Acoustics*. DOI: [10.1007/978-3-540-76833-3_262](https://doi.org/10.1007/978-3-540-76833-3_262)
 
@@ -282,6 +467,18 @@ RT60, energy decay curves, Sabine/Eyring theory, and the physics of reverberant 
 **[RA6]** Xiang, Ning (2020). Generalization of Sabine's reverberation theory. *The Journal of the Acoustical Society of America*. DOI: [10.1121/10.0001806](https://doi.org/10.1121/10.0001806)
 
 > Annotation: Extends the Sabine framework to non-diffuse rooms using statistical energy analysis. Useful for understanding where the simple T60 prediction fails and what a more complete physical model needs to account for. For verbx, this supports the design choice to expose diagnostics rather than just a number: non-diffuse behavior can make the decay curve bend, split, or depend strongly on source and receiver position.
+
+---
+
+## Section 4A: Archaeoacoustics and Chichén Itzá
+
+**[AA1]** Declercq, Nico F.; Degrieck, Joris; Briers, Rudy; Leroy, Oswald (2004). A theoretical study of special acoustic effects caused by the staircase of the El Castillo pyramid at the Maya ruins of Chichen-Itza in Mexico. *The Journal of the Acoustical Society of America 116(6): 3328–3335*. DOI: [10.1121/1.1764833](https://doi.org/10.1121/1.1764833)
+
+> Annotation: Compares measured chirped echoes with diffraction simulations and demonstrates the strong influence of the incident pulse. The paper provides the main physical account of why a handclap returned by El Castillo's periodic stairway can resemble a quetzal call.
+
+**[AA2]** Garza, Clara; Medina, Andrés; Padilla, Pablo; Ramos, Alejandro; Zalaquett, Francisca (2008). Arqueoacústica maya. La necesidad del estudio sistemático de efectos acústicos en sitios arqueológicos. *Estudios de Cultura Maya 32*. Source: [SciELO full text](https://www.scielo.org.mx/scielo.php?pid=S0185-25742008000200003&script=sci_arttext)
+
+> Annotation: Places the Chichén Itzá chirped echo inside a systematic framework joining physical acoustics, mathematical modeling, perception, and archaeological interpretation. Especially valuable for separating measurable effects from still-unresolved claims about ancient design intent.
 
 ---
 
@@ -433,6 +630,10 @@ Papers on speech intelligibility in reverberant environments, dereverberation fo
 
 > Annotation: Comprehensive chapter on statistical approaches to single-channel dereverberation. The statistical models of the late reverberant field described here inform verbx's internal representations of the reverberant tail. It is the central speech-dereverb reference in this bibliography because it connects room impulse response assumptions, late-tail statistics, suppression filters, and the practical artifacts that appear when trying to remove reverberation from a single channel.
 
+**[SR12]** Hodoshima, Nao; Arai, Takayuki; Kurisu, Kiyohiro (2012). Intelligibility of speech spoken in noise/reverberation for older adults in reverberant environments. *Interspeech 2012*. DOI: [10.21437/interspeech.2012-415](https://doi.org/10.21437/interspeech.2012-415)
+
+> Context entry. Earlier Hodoshima et al. study on older listener intelligibility. Part of a research series. It helps establish continuity across population-specific speech studies and supports documenting that dereverb or clarity presets may be especially valuable for accessibility, education, and public-address style material.
+
 **[SR11]** Hodoshima, Nao (2019). Effects of Urgent Speech and Congruent/Incongruent Text on Speech Intelligibility in Noise and Reverberation. *Interspeech 2019*. DOI: [10.21437/interspeech.2019-1902](https://doi.org/10.21437/interspeech.2019-1902)
 
 > Context entry. Cognitive factors in speech intelligibility under reverberation. Peripheral to DSP design. It broadens the interpretation of "clarity" beyond acoustics alone, showing that urgency, text congruence, attention, and linguistic context can interact with room effects in ways that purely signal-level metrics may miss.
@@ -440,10 +641,6 @@ Papers on speech intelligibility in reverberant environments, dereverberation fo
 **[SR10]** Hodoshima, Nao (2024). Effects of talker and playback rate of reverberation-induced speech on speech intelligibility of older adults. *Interspeech 2024*. DOI: [10.21437/interspeech.2024-1721](https://doi.org/10.21437/interspeech.2024-1721)
 
 > Context entry. Speech intelligibility study focusing on older listeners in reverberant conditions. Peripheral to DSP design; population-specific psychoacoustic data. It is useful for accessibility-oriented thinking because reverberation that feels acceptable to one listener group may disproportionately reduce intelligibility for another, especially when playback rate and talker characteristics vary.
-
-**[SR12]** Hodoshima, Nao; Arai, Takayuki; Kurisu, Kiyohiro (2012). Intelligibility of speech spoken in noise/reverberation for older adults in reverberant environments. *Interspeech 2012*. DOI: [10.21437/interspeech.2012-415](https://doi.org/10.21437/interspeech.2012-415)
-
-> Context entry. Earlier Hodoshima et al. study on older listener intelligibility. Part of a research series. It helps establish continuity across population-specific speech studies and supports documenting that dereverb or clarity presets may be especially valuable for accessibility, education, and public-address style material.
 
 **[SR6]** Kocinski, Jedrzej; Ozimek, Edward (2016). Speech Recognition in an Enclosure with a Long Reverberation Time. *Archives of Acoustics*. DOI: [10.1515/aoa-2016-0025](https://doi.org/10.1515/aoa-2016-0025)
 
@@ -561,13 +758,24 @@ Papers whose "reverberation" subject matter refers to underwater acoustics, seab
 
 ---
 
+## Section 9A: Music History and Reference Works
+
+Reference works used to establish biographical, historical, and professional context for the musical catalog and educational chapters.
+
+<a id="ref-burns-women-music-2002"></a>
+**[BOOK1]** Burns, Kristine H., ed. (2002). Women and Music in America Since 1900: An Encyclopedia. *Greenwood Press, Westport, CT; 2 vols.; ISBN 978-1-57356-267-6*. Source: [American Library Association](https://www.ala.org/winner/women-and-music-america-1900-encyclopedia)
+
+> Annotation: This wide-ranging reference documents women as composers, performers, educators, producers, technologists, and institutional leaders across twentieth-century American music. It provides historical context for the guide's listening catalog and helps connect production techniques with the people and professional communities that developed and used them.
+
+---
+
 ---
 
 ---
 
 ## Section 10: Extended Crossref Literature Index
 
-This unannotated discovery index adds 900 Crossref-derived references to the 102 hand-curated entries above, bringing the guide bibliography to 1,002 total entries.
+This unannotated discovery index adds 900 Crossref-derived references to the 164 curated and primary-source entries above, bringing the guide bibliography to 1,064 total entries.
 
 The entries below are intentionally not treated as vetted design authority. They are included to make the PDF a much broader literature map for reverberation, dereverberation, spatial audio, room acoustics, and related acoustic measurement work. Use the annotated sections above for canonical implementation guidance.
 
@@ -621,7 +829,7 @@ Discovery queries:
 
 **[XREF0057]** Al-bayyar, Zinah; Kitapci, Kivanc (2022). Effects of reverberation time and sound source composition on sense of place constructs. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2021.108427](https://doi.org/10.1016/j.apacoust.2021.108427)
 
-**[XREF0515]** Alarcão, D.; Coelho, J. L. Bento (2003). Lambertian Enclosures — A First Step towards Fast Room Acoustics Simulation. *Building Acoustics*. DOI: [10.1260/135101003765184807](https://doi.org/10.1260/135101003765184807)
+**[XREF0515]** Alarcão, D.; Coelho, J. L. Bento (2003). Lambertian Enclosures – A First Step towards Fast Room Acoustics Simulation. *Building Acoustics*. DOI: [10.1260/135101003765184807](https://doi.org/10.1260/135101003765184807)
 
 **[XREF0701]** Alarcão, Diogo; Inácio, Octávio (2022). Determination of room acoustic parameters using spherical beamforming – The example of Lisbon’s Garrett Hall. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2022.108734](https://doi.org/10.1016/j.apacoust.2022.108734)
 
@@ -693,9 +901,9 @@ Discovery queries:
 
 **[XREF0254]** Barron, Randall F. (2002). Room Acoustics. *Industrial Noise Control and Acoustics*. DOI: [10.1201/9780203910085-7](https://doi.org/10.1201/9780203910085-7)
 
-**[XREF0380]** Bartel, Thomas W (1977). Interactive computer program for the determination of reverberation time. *Unspecified venue*. DOI: [10.6028/nbs.ir.77-1383](https://doi.org/10.6028/nbs.ir.77-1383)
-
 **[XREF0073]** Bartel, Thomas W.; Magrab, Edward B. (1976). Measurement of reverberation time in the National Bureau of Standards reverberation room. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.2003434](https://doi.org/10.1121/1.2003434)
+
+**[XREF0380]** Bartel, Thomas W (1977). Interactive computer program for the determination of reverberation time. *Unspecified venue*. DOI: [10.6028/nbs.ir.77-1383](https://doi.org/10.6028/nbs.ir.77-1383)
 
 **[XREF0736]** Bastien, Corto; Ernoult, Augustin; Fritz, Claudia (2025). Modeling the intonation profile of a recorder. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/2.0002181](https://doi.org/10.1121/2.0002181)
 
@@ -757,9 +965,9 @@ Discovery queries:
 
 **[XREF0585]** Bradley, David; Adelgren, Jacob; Müller-Trapet, Markus; et al. (2013). Effect of boundary diffusers in a reverberation chamber: Preliminary investigation. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4862775](https://doi.org/10.1121/1.4862775)
 
-**[XREF0378]** Bradley, David T.; Müller-Trapet, Markus; Adelgren, Jacob; et al. (2014). Comparison of Hanging Panels and Boundary Diffusers in a Reverberation Chamber. *Building Acoustics*. DOI: [10.1260/1351-010x.21.2.145](https://doi.org/10.1260/1351-010x.21.2.145)
-
 **[XREF0772]** Bradley, David T.; Wang, Lily M. (2009). Quantifying the Double Slope Effect in Coupled Volume Room Systems. *Building Acoustics*. DOI: [10.1260/135101009788913275](https://doi.org/10.1260/135101009788913275)
+
+**[XREF0378]** Bradley, David T.; Müller-Trapet, Markus; Adelgren, Jacob; et al. (2014). Comparison of Hanging Panels and Boundary Diffusers in a Reverberation Chamber. *Building Acoustics*. DOI: [10.1260/1351-010x.21.2.145](https://doi.org/10.1260/1351-010x.21.2.145)
 
 **[XREF0334]** Bradley, J.S. (2011). Review of objective room acoustics measures and future needs. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2011.04.004](https://doi.org/10.1016/j.apacoust.2011.04.004)
 
@@ -845,9 +1053,9 @@ Discovery queries:
 
 **[XREF0786]** Cho, Wan-Ho; Ih, Jeong-Guon; Katsumata, Tomohisa; et al. (2018). Best practice for positioning sound absorbers at room surface. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2017.08.015](https://doi.org/10.1016/j.apacoust.2017.08.015)
 
-**[XREF0295]** Chu, Kevin; Collins, Leslie; Mainsah, Boyla (2022). Suppressing reverberation in cochlear implant stimulus patterns using time-frequency masks based on phoneme groups. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/2.0001698](https://doi.org/10.1121/2.0001698)
-
 **[XREF0709]** Chu, Kevin; Throckmorton, Chandra; Collins, Leslie; et al. (2018). Using machine learning to mitigate the effects of reverberation and noise in cochlear implants. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/2.0000905](https://doi.org/10.1121/2.0000905)
+
+**[XREF0295]** Chu, Kevin; Collins, Leslie; Mainsah, Boyla (2022). Suppressing reverberation in cochlear implant stimulus patterns using time-frequency masks based on phoneme groups. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/2.0001698](https://doi.org/10.1121/2.0001698)
 
 **[XREF0602]** Chu, W. T. (1978). Pure-tone measurements in a reverberation room. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.2004370](https://doi.org/10.1121/1.2004370)
 
@@ -863,9 +1071,9 @@ Discovery queries:
 
 **[XREF0140]** Ćirić, D.; Puljizević, M.; Pantić, A.; et al. (2022). Energy Decay Curve Deviation in the Absorption Coefficient Measurement in a Small Reverberation Room. *Proceedings of the 10th Convention of the European Acoustics Association Forum Acusticum 2023*. DOI: [10.61782/fa.2023.0891](https://doi.org/10.61782/fa.2023.0891)
 
-**[XREF0699]** Ćirić, Dejan G.; Janković, Marko (2018). Correction of room impulse response truncation based on a nonlinear decay model. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2017.11.018](https://doi.org/10.1016/j.apacoust.2017.11.018)
-
 **[XREF0815]** Ćirić, Dejan G.; Milošević, Miroslava A. (2005). Optimal Determination of the Truncation Point of Room Impulse Responses. *Building Acoustics*. DOI: [10.1260/1351010053499216](https://doi.org/10.1260/1351010053499216)
+
+**[XREF0699]** Ćirić, Dejan G.; Janković, Marko (2018). Correction of room impulse response truncation based on a nonlinear decay model. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2017.11.018](https://doi.org/10.1016/j.apacoust.2017.11.018)
 
 **[XREF0174]** Clarke, Joseph L. (2015). Catacoustic Enchantment: The Romantic Conception of Reverberation. *Grey Room*. DOI: [10.1162/grey_a_00175](https://doi.org/10.1162/grey_a_00175)
 
@@ -937,9 +1145,9 @@ Discovery queries:
 
 **[XREF0830]** Didier, Paul; Van hoorickx, Cédric; Reynders, Edwin (2021). An optimization method for reverberation room design. *INTER-NOISE and NOISE-CON Congress and Conference Proceedings*. DOI: [10.3397/in-2021-2118](https://doi.org/10.3397/in-2021-2118)
 
-**[XREF0312]** Didier, Paul; Van hoorickx, Cédric; Reynders, Edwin (2024). Reverberation Room Design Optimisation for Low-Frequency Diffuse Sound Absorption Testing. *Unspecified venue*. DOI: [10.2139/ssrn.4737589](https://doi.org/10.2139/ssrn.4737589)
-
 **[XREF0371]** Didier, Paul; Van hoorickx, Cédric; Reynders, Edwin P.B. (2022). Numerical study of the accuracy and reproducibility of sound absorption measurements in reverberation rooms at low frequencies. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2022.109047](https://doi.org/10.1016/j.apacoust.2022.109047)
+
+**[XREF0312]** Didier, Paul; Van hoorickx, Cédric; Reynders, Edwin (2024). Reverberation Room Design Optimisation for Low-Frequency Diffuse Sound Absorption Testing. *Unspecified venue*. DOI: [10.2139/ssrn.4737589](https://doi.org/10.2139/ssrn.4737589)
 
 **[XREF0020]** Didier, Paul; Van hoorickx, Cédric; Reynders, Edwin P.B. (2025). Reverberation room design optimisation for low-frequency diffuse sound absorption testing. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2024.110311](https://doi.org/10.1016/j.apacoust.2024.110311)
 
@@ -1139,9 +1347,9 @@ Discovery queries:
 
 **[XREF0102]** Hamilton, Brian (2021). 2pCA2: Tutorial on finite-difference time-domain (FDTD) methods for room acoustics simulation. *Unspecified venue*. DOI: [10.26226/morressier.606f15dd30a2e980041f2468](https://doi.org/10.26226/morressier.606f15dd30a2e980041f2468)
 
-**[XREF0469]** Hamilton, Brian (2021). Tutorial on finite-difference time-domain (FDTD) methods for room acoustics simulation. *The Journal of the Acoustical Society of America*. DOI: [10.1121/10.0004614](https://doi.org/10.1121/10.0004614)
-
 **[XREF0338]** Hamilton, Brian; Bilbao, Stefan (2021). Time-domain modeling of wave-based room acoustics including viscothermal and relaxation effects in air. *JASA Express Letters*. DOI: [10.1121/10.0006298](https://doi.org/10.1121/10.0006298)
+
+**[XREF0469]** Hamilton, Brian (2021). Tutorial on finite-difference time-domain (FDTD) methods for room acoustics simulation. *The Journal of the Acoustical Society of America*. DOI: [10.1121/10.0004614](https://doi.org/10.1121/10.0004614)
 
 **[XREF0733]** Hansen, Colin H. (2007). Room Acoustics. *Handbook of Noise and Vibration Control*. DOI: [10.1002/9780470209707.ch103](https://doi.org/10.1002/9780470209707.ch103)
 
@@ -1233,9 +1441,9 @@ Discovery queries:
 
 **[XREF0396]** Jemmott, Colin W.; Stevens, William K. (2011). The impact of reverberation on active sonar optimum frequency. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.3611429](https://doi.org/10.1121/1.3611429)
 
-**[XREF0889]** Jeong, Cheol-Ho (2016). Kurtosis of room impulse responses as a diffuseness measure for reverberation chambers. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.4949365](https://doi.org/10.1121/1.4949365)
-
 **[XREF0279]** Jeong, Cheol Ho; Brunskog, Jonas; Jacobsen, Finn (2013). Room acoustic transition time based on reflection overlap. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4798991](https://doi.org/10.1121/1.4798991)
+
+**[XREF0889]** Jeong, Cheol-Ho (2016). Kurtosis of room impulse responses as a diffuseness measure for reverberation chambers. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.4949365](https://doi.org/10.1121/1.4949365)
 
 **[XREF0631]** Jeong, Daeup; Fricke, Fergus R. (2000). Frequency perception as a measure of room acoustic quality. *Applied Acoustics*. DOI: [10.1016/s0003-682x(99)00032-8](https://doi.org/10.1016/s0003-682x(99)00032-8)
 
@@ -1265,7 +1473,7 @@ Discovery queries:
 
 **[XREF0430]** Jungmann, Jan Ole; Mazur, Radoslaw; Mertins, Alfred (2015). Joint time- and frequency-domain reshaping of room impulse responses. *2015 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2015.7178066](https://doi.org/10.1109/icassp.2015.7178066)
 
-**[XREF0787]** Kahle, Eckhard (2013). Room Acoustical Quality of Concert Halls: Perceptual Factors and Acoustic Criteria — Return from Experience. *Building Acoustics*. DOI: [10.1260/1351-010x.20.4.265](https://doi.org/10.1260/1351-010x.20.4.265)
+**[XREF0787]** Kahle, Eckhard (2013). Room Acoustical Quality of Concert Halls: Perceptual Factors and Acoustic Criteria – Return from Experience. *Building Acoustics*. DOI: [10.1260/1351-010x.20.4.265](https://doi.org/10.1260/1351-010x.20.4.265)
 
 **[XREF0896]** Kalinova, Klara (2023). The Application of Nanofibrous Resonant Membranes for Room Acoustics. *Nanomaterials*. DOI: [10.3390/nano13061115](https://doi.org/10.3390/nano13061115)
 
@@ -1337,11 +1545,11 @@ Discovery queries:
 
 **[XREF0764]** Kolano, Richard; Abhyankar, Sanjay; Martin, Thomas (2013). Restoring and Upgrading of a Ford Motor Company Reverberation Room Test Suite. *SAE Technical Paper Series*. DOI: [10.4271/2013-01-1960](https://doi.org/10.4271/2013-01-1960)
 
-**[XREF0610]** Kolano, Richard A.; Brown, Darren J. (2017). Upgrading a Large Reverberation Room to Meet AHRI 220. *SAE Technical Paper Series*. DOI: [10.4271/2017-01-1896](https://doi.org/10.4271/2017-01-1896)
-
 **[XREF0888]** Kolano, Richard A.; Kleckner, Jeff A. (1997). Verification of a Miniature Reverberation Room for Sound Absorption Measurements Using Corner Microphone Technique. *SAE Technical Paper Series*. DOI: [10.4271/971895](https://doi.org/10.4271/971895)
 
 **[XREF0588]** Kolano, Richard A.; Kleckner, Jeff A. (2003). Audio Engineering Principles for Reverberation Room Sound Systems. *SAE Technical Paper Series*. DOI: [10.4271/2003-01-1678](https://doi.org/10.4271/2003-01-1678)
+
+**[XREF0610]** Kolano, Richard A.; Brown, Darren J. (2017). Upgrading a Large Reverberation Room to Meet AHRI 220. *SAE Technical Paper Series*. DOI: [10.4271/2017-01-1896](https://doi.org/10.4271/2017-01-1896)
 
 **[XREF0137]** Kolarik, Andrew J; Pardhan, Shahina; Cirstea, Silvia; et al. (2013). Using Acoustic Information to Perceive Room Size: Effects of Blindness, Room Reverberation Time, and Stimulus. *Perception*. DOI: [10.1068/p7555](https://doi.org/10.1068/p7555)
 
@@ -1363,7 +1571,11 @@ Discovery queries:
 
 **[XREF0173]** Kuttruff, H (2023). Retrospective Room Acoustics. *Spring Conference Acoustics 2005*. DOI: [10.25144/17912](https://doi.org/10.25144/17912)
 
+**[XREF0891]** Kuttruff, Heinrich; Akustik, Institut für Technische; Aachen, Technische Hochschule; et al. (1973). Room Acoustics. *Unspecified venue*. DOI: [10.4324/9780203186237](https://doi.org/10.4324/9780203186237)
+
 **[XREF0226]** Kuttruff, Heinrich (2002). Room Acoustics. *Unspecified venue*. DOI: [10.1201/9781482286632](https://doi.org/10.1201/9781482286632)
+
+**[XREF0311]** Kuttruff, Heinrich; Mommertz, Eckard (2013). Room Acoustics. *Handbook of Engineering Acoustics*. DOI: [10.1007/978-3-540-69460-1_10](https://doi.org/10.1007/978-3-540-69460-1_10)
 
 **[XREF0481]** Kuttruff, Heinrich (2016). Design considerations and design procedures. *Room Acoustics*. DOI: [10.1201/9781315372150-9](https://doi.org/10.1201/9781315372150-9)
 
@@ -1386,10 +1598,6 @@ Discovery queries:
 **[XREF0247]** Kuttruff, Heinrich (2016). Sound waves in a room. *Room Acoustics*. DOI: [10.1201/9781315372150-3](https://doi.org/10.1201/9781315372150-3)
 
 **[XREF0096]** Kuttruff, Heinrich (2016). Subjective room acoustics. *Room Acoustics*. DOI: [10.1201/9781315372150-7](https://doi.org/10.1201/9781315372150-7)
-
-**[XREF0891]** Kuttruff, Heinrich; Akustik, Institut für Technische; Aachen, Technische Hochschule; et al. (1973). Room Acoustics. *Unspecified venue*. DOI: [10.4324/9780203186237](https://doi.org/10.4324/9780203186237)
-
-**[XREF0311]** Kuttruff, Heinrich; Mommertz, Eckard (2013). Room Acoustics. *Handbook of Engineering Acoustics*. DOI: [10.1007/978-3-540-69460-1_10](https://doi.org/10.1007/978-3-540-69460-1_10)
 
 **[XREF0620]** Kuttruff, Heinrich; Vorländer, Michael (2024). Design considerations and design procedures. *Room Acoustics*. DOI: [10.1201/9781003389873-9](https://doi.org/10.1201/9781003389873-9)
 
@@ -1427,9 +1635,9 @@ Discovery queries:
 
 **[XREF0780]** Lautenbach, Margriet; Vercammen, Martijn (2013). Can we use the standard deviation of the reverberation time to describe diffusion in a reverberation chamber?. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.4805676](https://doi.org/10.1121/1.4805676)
 
-**[XREF0296]** Lautenbach, Margriet R. (2025). Room acoustics for classical halls, practice, theory and music: Nobody knows the sound of a C80. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/2.0002325](https://doi.org/10.1121/2.0002325)
-
 **[XREF0061]** Lautenbach, Margriet R.; Vercammen, Martijn L. (2013). Can we use the standard deviation of the reverberation time to describe diffusion in a reverberation chamber?. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4800319](https://doi.org/10.1121/1.4800319)
+
+**[XREF0296]** Lautenbach, Margriet R. (2025). Room acoustics for classical halls, practice, theory and music: Nobody knows the sound of a C80. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/2.0002325](https://doi.org/10.1121/2.0002325)
 
 **[XREF0465]** Lawless, MS; Vigeant, MC (2023). Investigation of the Effects of Room Acoustics Stimuli on Reward Regions in the Brain. *Auditorium Acoustics 2015*. DOI: [10.25144/16164](https://doi.org/10.25144/16164)
 
@@ -1445,9 +1653,9 @@ Discovery queries:
 
 **[XREF0491]** LEE, Keunhwa; CHU, Youngmin; Seong, Woojae (2013). Geometrical Ray-Bundle Reverberation Modeling. *Journal of Computational Acoustics*. DOI: [10.1142/s0218396x13500112](https://doi.org/10.1142/s0218396x13500112)
 
-**[XREF0341]** Lee, Sang-Kwon; Lee, Min-Sung (2004). Reverberation time measurement for an acoustic room with low value of BT by utilizing wavelet transform. *Journal of Sound and Vibration*. DOI: [10.1016/j.jsv.2003.10.020](https://doi.org/10.1016/j.jsv.2003.10.020)
-
 **[XREF0286]** Lee, Sang-Kwon; Park, Jin-Ho (2002). Reverberation time measurement of a structure or a room using modified wavelet transform. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.4779772](https://doi.org/10.1121/1.4779772)
+
+**[XREF0341]** Lee, Sang-Kwon; Lee, Min-Sung (2004). Reverberation time measurement for an acoustic room with low value of BT by utilizing wavelet transform. *Journal of Sound and Vibration*. DOI: [10.1016/j.jsv.2003.10.020](https://doi.org/10.1016/j.jsv.2003.10.020)
 
 **[XREF0649]** Leferink, Frank B. J.; Puylaert, Ben R. M. (1993). Accurate Shielding Effectiveness Measurements Using a Reverberation Room. *10th International Zurich Symposium and Technical Exhibition on Electromagnetic Compatibility*. DOI: [10.23919/emc.1993.10781188](https://doi.org/10.23919/emc.1993.10781188)
 
@@ -1537,9 +1745,9 @@ Discovery queries:
 
 **[XREF0051]** Marín, Albert; Giménez, Alicia (1996). Determination of the reverberation time in any point of a closed room by a physico-mathematical model based on geometric acoustics. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.416094](https://doi.org/10.1121/1.416094)
 
-**[XREF0449]** Markovic, Milos; Geiger, Jurgen (2017). Reverberation-based feature extraction for acoustic scene classification. *2017 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2017.7952262](https://doi.org/10.1109/icassp.2017.7952262)
-
 **[XREF0297]** Markovic, Milos; Olesen, Søren K.; Hammershoi, Dorte (2013). Three-dimensional point-cloud room model for room acoustics simulations. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4800237](https://doi.org/10.1121/1.4800237)
+
+**[XREF0449]** Markovic, Milos; Geiger, Jurgen (2017). Reverberation-based feature extraction for acoustic scene classification. *2017 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp.2017.7952262](https://doi.org/10.1109/icassp.2017.7952262)
 
 **[XREF0053]** Marsch, Jürgen; Pörschmann, Christoph (2000). Frequency dependent control of reverberation time for auditory virtual environments. *Applied Acoustics*. DOI: [10.1016/s0003-682x(99)00073-0](https://doi.org/10.1016/s0003-682x(99)00073-0)
 
@@ -1627,9 +1835,9 @@ Discovery queries:
 
 **[XREF0877]** Miyoshi, M.; Kaneda, Y. (1988). Inverse filtering of room acoustics. *IEEE Transactions on Acoustics, Speech, and Signal Processing*. DOI: [10.1109/29.1509](https://doi.org/10.1109/29.1509)
 
-**[XREF0608]** Mleczko, Dominik (2025). The influence of diffuser configuration in a reverberation room on sound absorption coefficient measurements. *MATERIAŁY Budowlane*. DOI: [10.15199/33.2025.08.25](https://doi.org/10.15199/33.2025.08.25)
-
 **[XREF0072]** Mleczko, Dominik; Wszołek, Tadeusz (2019). Effect of Diffusing Elements in a Reverberation Room on the Results of Airborne Sound Insulation Laboratory Measurements. *Archives of Acoustics*. DOI: [10.24425/aoa.2019.129729](https://doi.org/10.24425/aoa.2019.129729)
+
+**[XREF0608]** Mleczko, Dominik (2025). The influence of diffuser configuration in a reverberation room on sound absorption coefficient measurements. *MATERIAŁY Budowlane*. DOI: [10.15199/33.2025.08.25](https://doi.org/10.15199/33.2025.08.25)
 
 **[XREF0726]** Mo, Dongpeng; Gao, Bo; Song, Wenhua; et al. (2021). Doppler Effect Analysis of Bottom Reverberation for a Moving Platform in Shallow Water. *2021 OES China Ocean Acoustics (COA)*. DOI: [10.1109/coa50123.2021.9519994](https://doi.org/10.1109/coa50123.2021.9519994)
 
@@ -1707,17 +1915,17 @@ Discovery queries:
 
 **[XREF0264]** Nimura, Tadamoto; Kido, Ken'iti (1956). Effect of Sound Reinforcement System in a Room on the Reverberation Time and Clearness. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.1918298](https://doi.org/10.1121/1.1918298)
 
-**[XREF0019]** Nowoświat, Artur (2022). Impact of Temperature and Relative Humidity on Reverberation Time in a Reverberation Room. *Buildings*. DOI: [10.3390/buildings12081282](https://doi.org/10.3390/buildings12081282)
-
 **[XREF0038]** Nowoświat, Artur; Olechowska, Marcelina (2016). Fast estimation of speech transmission index using the reverberation time. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2015.09.001](https://doi.org/10.1016/j.apacoust.2015.09.001)
+
+**[XREF0049]** Nowoświat, Artur; Olechowska, Marcelina; Ślusarek, Jan (2016). Prediction of reverberation time using the residual minimization method. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2015.12.024](https://doi.org/10.1016/j.apacoust.2015.12.024)
 
 **[XREF0088]** Nowoświat, Artur; Olechowska, Marcelina (2017). Estimation of Reverberation Time in Classrooms Using the Residual Minimization Method. *Archives of Acoustics*. DOI: [10.1515/aoa-2017-0065](https://doi.org/10.1515/aoa-2017-0065)
 
-**[XREF0081]** Nowoświat, Artur; Olechowska, Marcelina (2022). Experimental Validation of the Model of Reverberation Time Prediction in a Room. *Buildings*. DOI: [10.3390/buildings12030347](https://doi.org/10.3390/buildings12030347)
-
 **[XREF0103]** Nowoświat, Artur; Olechowska, Marcelina; Marchacz, Michał (2020). The effect of acoustical remedies changing the reverberation time for different frequencies in a dome used for worship: A case study. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2019.107143](https://doi.org/10.1016/j.apacoust.2019.107143)
 
-**[XREF0049]** Nowoświat, Artur; Olechowska, Marcelina; Ślusarek, Jan (2016). Prediction of reverberation time using the residual minimization method. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2015.12.024](https://doi.org/10.1016/j.apacoust.2015.12.024)
+**[XREF0081]** Nowoświat, Artur; Olechowska, Marcelina (2022). Experimental Validation of the Model of Reverberation Time Prediction in a Room. *Buildings*. DOI: [10.3390/buildings12030347](https://doi.org/10.3390/buildings12030347)
+
+**[XREF0019]** Nowoświat, Artur (2022). Impact of Temperature and Relative Humidity on Reverberation Time in a Reverberation Room. *Buildings*. DOI: [10.3390/buildings12081282](https://doi.org/10.3390/buildings12081282)
 
 **[XREF0120]** Nozaki, Kotoyo; Ikeda, Yusuke; Oikawa, Yasuhiro; et al. (2018). Blind reverberation energy estimation using exponential averaging with attack and release time constants for hearing aids. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2018.08.010](https://doi.org/10.1016/j.apacoust.2018.08.010)
 
@@ -1727,15 +1935,15 @@ Discovery queries:
 
 **[XREF0854]** Okubo, Hiroyuki; Otani, Masamichi; Ikezawa, Ryo; et al. (2001). A system for measuring the directional room acoustical parameters. *Applied Acoustics*. DOI: [10.1016/s0003-682x(00)00056-6](https://doi.org/10.1016/s0003-682x(00)00056-6)
 
-**[XREF0683]** Okuzono, Takeshi; Otsuru, Toru; Sakagami, Kimihiro (2015). Applicability of an explicit time-domain finite-element method on room acoustics simulation. *Acoustical Science and Technology*. DOI: [10.1250/ast.36.377](https://doi.org/10.1250/ast.36.377)
-
 **[XREF0578]** Okuzono, Takeshi; Otsuru, Toru; Tomiku, Reiji; et al. (2014). A finite-element method using dispersion reduced spline elements for room acoustics simulation. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2013.12.010](https://doi.org/10.1016/j.apacoust.2013.12.010)
 
 **[XREF0789]** Okuzono, Takeshi; Sakagami, Kimihiro (2015). A finite-element formulation for room acoustics simulation with microperforated panel sound absorbing structures: Verification with electro-acoustical equivalent circuit theory and wave theory. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2015.02.012](https://doi.org/10.1016/j.apacoust.2015.02.012)
 
-**[XREF0272]** Okuzono, Takeshi; Yoshida, Takumi; Sakagami, Kimihiro (2021). Efficiency of room acoustic simulations with time-domain FEM including frequency-dependent absorbing boundary conditions: Comparison with frequency-domain FEM. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2021.108212](https://doi.org/10.1016/j.apacoust.2021.108212)
+**[XREF0683]** Okuzono, Takeshi; Otsuru, Toru; Sakagami, Kimihiro (2015). Applicability of an explicit time-domain finite-element method on room acoustics simulation. *Acoustical Science and Technology*. DOI: [10.1250/ast.36.377](https://doi.org/10.1250/ast.36.377)
 
 **[XREF0172]** Okuzono, Takeshi; Yoshida, Takumi; Sakagami, Kimihiro; et al. (2016). An explicit time-domain finite element method for room acoustics simulations: Comparison of the performance with implicit methods. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2015.10.027](https://doi.org/10.1016/j.apacoust.2015.10.027)
+
+**[XREF0272]** Okuzono, Takeshi; Yoshida, Takumi; Sakagami, Kimihiro (2021). Efficiency of room acoustic simulations with time-domain FEM including frequency-dependent absorbing boundary conditions: Comparison with frequency-domain FEM. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2021.108212](https://doi.org/10.1016/j.apacoust.2021.108212)
 
 **[XREF0135]** Oldham, DJ (2024). Reverberation Reinforcement by Means of Electro-Acoustic Coupling. *Acoustics '79*. DOI: [10.25144/23470](https://doi.org/10.25144/23470)
 
@@ -1815,15 +2023,15 @@ Discovery queries:
 
 **[XREF0594]** Preston, John (2014). Some results from the very shallow water TREX13 reverberation experiments using the Five Octave Research Array triplet module. *Proceedings of Meetings on Acoustics*. DOI: [10.1121/1.4866141](https://doi.org/10.1121/1.4866141)
 
-**[XREF0499]** Prinn, Albert; Badeau, Roland (2025). Verification of statistical wave field theory reverberation time predictions. *Unspecified venue*. DOI: [10.2139/ssrn.5865382](https://doi.org/10.2139/ssrn.5865382)
-
 **[XREF0771]** Prinn, Albert; Xu, Zeyu; Habets, Emanuël (2025). Measures of validation for computational room acoustics. *Proceedings of the 11th Convention of the European Acoustics Association Forum Acusticum / EuroNoise 2025*. DOI: [10.61782/fa.2025.0554](https://doi.org/10.61782/fa.2025.0554)
+
+**[XREF0499]** Prinn, Albert; Badeau, Roland (2025). Verification of statistical wave field theory reverberation time predictions. *Unspecified venue*. DOI: [10.2139/ssrn.5865382](https://doi.org/10.2139/ssrn.5865382)
 
 **[XREF0307]** Prinn, Albert G. (2023). A Review of Finite Element Methods for Room Acoustics. *Acoustics*. DOI: [10.3390/acoustics5020022](https://doi.org/10.3390/acoustics5020022)
 
-**[XREF0037]** Prinn, Albert G.; Badeau, Roland (2026). Verification of statistical wave field theory reverberation time predictions. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2026.111337](https://doi.org/10.1016/j.apacoust.2026.111337)
-
 **[XREF0077]** Prinn, Albert G.; Tuna, Çağdaş; Walther, Andreas; et al. (2025). A study of the spatial non-uniformity of reverberation time at low frequencies. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2024.110220](https://doi.org/10.1016/j.apacoust.2024.110220)
+
+**[XREF0037]** Prinn, Albert G.; Badeau, Roland (2026). Verification of statistical wave field theory reverberation time predictions. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2026.111337](https://doi.org/10.1016/j.apacoust.2026.111337)
 
 **[XREF0843]** Prokofieva, E (2023). Effect of Presence of Furnishings in Designed and Measured Reverberation Time in School Spaces. *Inter-Noise 2022*. DOI: [10.25144/14780](https://doi.org/10.25144/14780)
 
@@ -2193,9 +2401,9 @@ Discovery queries:
 
 **[XREF0824]** Unknown authors (2022). Book reviews: Room Acoustics: Design and Modeling; Array Signal Processing: Concepts and Techniques; Acoustics in Building Rehabilitation; and Virtual Experiments in Mechanical Vibrations: Structural Dynamics and Signal Processing. *Unspecified venue*. DOI: [10.55753/aev.v37e54.201](https://doi.org/10.55753/aev.v37e54.201)
 
-**[XREF0734]** Unknown authors (2023). Review: Room Acoustics of Mycelium Textiles – the Myx Sail at the Danish Design Museum — R0/PR2. *Unspecified venue*. DOI: [10.1017/btd.2024.2.pr2](https://doi.org/10.1017/btd.2024.2.pr2)
+**[XREF0734]** Unknown authors (2023). Review: Room Acoustics of Mycelium Textiles – the Myx Sail at the Danish Design Museum – R0/PR2. *Unspecified venue*. DOI: [10.1017/btd.2024.2.pr2](https://doi.org/10.1017/btd.2024.2.pr2)
 
-**[XREF0735]** Unknown authors (2023). Review: Room Acoustics of Mycelium Textiles – the Myx Sail at the Danish Design Museum — R0/PR3. *Unspecified venue*. DOI: [10.1017/btd.2024.2.pr3](https://doi.org/10.1017/btd.2024.2.pr3)
+**[XREF0735]** Unknown authors (2023). Review: Room Acoustics of Mycelium Textiles – the Myx Sail at the Danish Design Museum – R0/PR3. *Unspecified venue*. DOI: [10.1017/btd.2024.2.pr3](https://doi.org/10.1017/btd.2024.2.pr3)
 
 **[XREF0257]** Unknown authors (2024). Acoustics of Enclosures. *Acoustics of Fluid Media 1*. DOI: [10.1002/9781394325580.ch10](https://doi.org/10.1002/9781394325580.ch10)
 
@@ -2225,9 +2433,9 @@ Discovery queries:
 
 **[XREF0281]** Vlahou, Eleni; Ueno, Kanako; Shinn-Cunningham, Barbara G.; et al. (2020). Calibration of consonant perception to room reverberation. *Unspecified venue*. DOI: [10.1101/2020.09.01.277590](https://doi.org/10.1101/2020.09.01.277590)
 
-**[XREF0171]** Vorlander, M (2021). News from Room Acoustics. *Acoustics 2021*. DOI: [10.25144/13755](https://doi.org/10.25144/13755)
-
 **[XREF0308]** Vorländer, M.; Mechel, F. P. (2004). Room Acoustics. *Formulas of Acoustics*. DOI: [10.1007/978-3-662-07296-7_12](https://doi.org/10.1007/978-3-662-07296-7_12)
+
+**[XREF0171]** Vorlander, M (2021). News from Room Acoustics. *Acoustics 2021*. DOI: [10.25144/13755](https://doi.org/10.25144/13755)
 
 **[XREF0513]** Vorländer, Michael (1997). Recent Progress in Room Acoustical Computer Simulations. *Building Acoustics*. DOI: [10.1177/1351010x9700400401](https://doi.org/10.1177/1351010x9700400401)
 
@@ -2243,9 +2451,9 @@ Discovery queries:
 
 **[XREF0118]** Wang, DeLiang (2012). Sequential Organization and Room Reverberation for Speech Segregation. *Unspecified venue*. DOI: [10.21236/ada567198](https://doi.org/10.21236/ada567198)
 
-**[XREF0694]** Wang, Huiqing; Hornikx, Maarten (2020). Time-domain impedance boundary condition modeling with the discontinuous Galerkin method for room acoustics simulations. *The Journal of the Acoustical Society of America*. DOI: [10.1121/10.0001128](https://doi.org/10.1121/10.0001128)
-
 **[XREF0868]** Wang, Huiqing; Sihar, Indra; Pagán Muñoz, Raúl; et al. (2019). Room acoustics modelling in the time-domain with the nodal discontinuous Galerkin method. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.5096154](https://doi.org/10.1121/1.5096154)
+
+**[XREF0694]** Wang, Huiqing; Hornikx, Maarten (2020). Time-domain impedance boundary condition modeling with the discontinuous Galerkin method for room acoustics simulations. *The Journal of the Acoustical Society of America*. DOI: [10.1121/10.0001128](https://doi.org/10.1121/10.0001128)
 
 **[XREF0744]** Wang, J.H.; Pai, C.S. (2003). Subjective and objective verifications of the inverse functions of binaural room impulse responses. *Applied Acoustics*. DOI: [10.1016/s0003-682x(03)00105-1](https://doi.org/10.1016/s0003-682x(03)00105-1)
 
@@ -2305,13 +2513,13 @@ Discovery queries:
 
 **[XREF0756]** Wyke, Simon Swanström; Svidt, Kjeld; Christensen, Flemming; et al. (2020). Real-Time Evaluation of Room Acoustics using IFC-Based Virtual Reality and Auralization Engines. *CIB W78 Proceedings*. DOI: [10.46421/2706-6568.37.2020.paper020](https://doi.org/10.46421/2706-6568.37.2020.paper020)
 
-**[XREF0589]** Xiang, Ning (2015). Advanced Room-Acoustics Decay Analysis. *Acoustics, Information, and Communication*. DOI: [10.1007/978-3-319-05660-9_3](https://doi.org/10.1007/978-3-319-05660-9_3)
-
 **[XREF0309]** Xiang, Ning; Chu, Dezhang (2008). Time-reversed maximal-length sequences for outdoor, underwater sound propagation, and room-acoustic artificial reverberation simulations.. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.4782726](https://doi.org/10.1121/1.4782726)
 
-**[XREF0576]** Xiang, Wenjie; Song, Zhongchang; Gao, Zhanyuan; et al. (2025). Application of the robust autoencoder to reduce reverberation and facilitate underwater target tracking. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2024.110303](https://doi.org/10.1016/j.apacoust.2024.110303)
+**[XREF0589]** Xiang, Ning (2015). Advanced Room-Acoustics Decay Analysis. *Acoustics, Information, and Communication*. DOI: [10.1007/978-3-319-05660-9_3](https://doi.org/10.1007/978-3-319-05660-9_3)
 
 **[XREF0335]** Xiang, Wenjie; Song, Zhongchang; Yang, Wuyi; et al. (2023). Reverberation suppression for detecting underwater moving target based on robust autoencoder. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2023.109301](https://doi.org/10.1016/j.apacoust.2023.109301)
+
+**[XREF0576]** Xiang, Wenjie; Song, Zhongchang; Gao, Zhanyuan; et al. (2025). Application of the robust autoencoder to reduce reverberation and facilitate underwater target tracking. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2024.110303](https://doi.org/10.1016/j.apacoust.2024.110303)
 
 **[XREF0799]** Xiaotian, Zhu; Zhemin, Zhu; Jianchun, Cheng (2004). Using optimized surface modifications to improve low frequency response in a room. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2004.03.002](https://doi.org/10.1016/j.apacoust.2004.03.002)
 
@@ -2321,9 +2529,9 @@ Discovery queries:
 
 **[XREF0643]** Xie, Yuan; Zou, Tao (2024). Adaptive Time-Frequency Blind Source Separation in High Reverberation and Echo Environments. *Unspecified venue*. DOI: [10.2139/ssrn.4952969](https://doi.org/10.2139/ssrn.4952969)
 
-**[XREF0373]** Xiong, Feifei; Dong, Minya; Zhou, Kechenying; et al. (2023). Deep Subband Network for Joint Suppression of Echo, Noise and Reverberation in Real-Time Fullband Speech Communication. *ICASSP 2023: 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10096067](https://doi.org/10.1109/icassp49357.2023.10096067)
-
 **[XREF0152]** Xiong, Feifei; Goetze, Stefan; Meyer, Bernd T. (2013). Blind estimation of reverberation time based on spectro-temporal modulation filtering. *2013 IEEE International Conference on Acoustics, Speech and Signal Processing*. DOI: [10.1109/icassp.2013.6637686](https://doi.org/10.1109/icassp.2013.6637686)
+
+**[XREF0373]** Xiong, Feifei; Dong, Minya; Zhou, Kechenying; et al. (2023). Deep Subband Network for Joint Suppression of Echo, Noise and Reverberation in Real-Time Fullband Speech Communication. *ICASSP 2023: 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*. DOI: [10.1109/icassp49357.2023.10096067](https://doi.org/10.1109/icassp49357.2023.10096067)
 
 **[XREF0317]** Xu, Li-ya; Liao, Bin; Zhang, Hao; et al. (2021). Acoustic localization in ocean reverberation via matrix completion with sensor failure. *Applied Acoustics*. DOI: [10.1016/j.apacoust.2020.107681](https://doi.org/10.1016/j.apacoust.2020.107681)
 

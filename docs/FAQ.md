@@ -25,10 +25,18 @@ together.
 
 **Q2. What should I do if the shell says `verbx: command not found`?**
 
-Open a new terminal after installation and confirm that the installation directory is
-on `PATH`. If verbx was installed into a virtual environment, activate that environment
-before running the command. `python -m verbx version` can help distinguish an importable
-package from a missing console-script path.
+First, open a new terminal and run `command -v verbx`. If the command prints no path,
+add the directory containing the `verbx` executable to your shell's `PATH`. The repository
+installer uses `~/.local/bin` by default, so add the following line to `~/.zshrc` on macOS
+or to the startup file used by your shell:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Open another terminal and run `verbx version`. If verbx was installed in a virtual
+environment, activate that environment instead. Run `python3 -m verbx version` to check
+whether the package is importable even when the `verbx` console command is not visible.
 
 **Q3. Should I install with Homebrew or from the repository?**
 
@@ -366,3 +374,345 @@ Lower monitor gain, keep a limiter after the experimental path, render a short e
 use a bounded duration, and save dry-run or failure reports. Feedback, freeze, modulation,
 and long decay can accumulate energy unexpectedly. Preserve the dry original and move
 from conservative values toward the extreme rather than starting at the maximum.
+
+## Measurement and Impulse-Response Capture
+
+**Q49. Can a handclap be used as an impulse response?**
+
+A handclap is useful for listening and rough scouting, but it is neither spectrally flat
+nor precisely repeatable. For an archival IR, use a known loudspeaker excitation and
+retain the raw capture, geometry, gain, sample rate, and environmental metadata.
+
+**Q50. When is a balloon pop appropriate?**
+
+A balloon pop is portable and can reveal gross arrival and decay behavior in a large
+space. Its directivity, spectrum, peak level, and source position vary from burst to
+burst, so compare repeated captures and do not treat it as an absolutely calibrated
+source without additional measurement.
+
+**Q51. Why is an exponential sine sweep usually preferred?**
+
+It places sustained energy throughout the measurement band without requiring one
+extreme impulse peak. With a matched inverse filter, it provides high signal-to-noise
+ratio and separates harmonic distortion responses from the principal linear response.
+
+**Q52. What is deconvolution?**
+
+Deconvolution estimates the unknown room response after a known excitation has passed
+through it. It is not simply reversing the recording: it applies the inverse spectral
+and phase behavior of the excitation, usually with regularization to avoid amplifying
+noise where the sweep has little energy.
+
+**Q53. What does the Farina method add to sweep measurement?**
+
+Farina's exponential swept-sine method maps harmonic distortion products to earlier,
+separate time regions after deconvolution. This lets the linear room response be windowed
+independently and also provides evidence about loudspeaker or device nonlinearity.
+
+**Q54. How long should the sweep be?**
+
+Longer sweeps improve energy and low-frequency signal-to-noise ratio, but they also
+increase sensitivity to motion and time variance. Choose a duration that covers the
+required band at safe level, then record silence after the sweep for at least the full
+expected decay plus a noise-floor margin.
+
+**Q55. Should I record a loopback channel?**
+
+Yes, when the interface permits it. A simultaneous electrical loopback documents the
+actual excitation timing and can expose latency, drift, dropout, or polarity errors that
+would otherwise be mistaken for room behavior.
+
+**Q56. How many source and receiver positions are enough?**
+
+One pair describes one transfer path, not the entire room. The necessary grid depends on
+whether the goal is one listening position, statistical room characterization, spatial
+rendering, or machine-learning coverage. Document every coordinate and avoid averaging
+positions that serve different scientific questions.
+
+**Q57. Should the direct-arrival delay remain in the IR?**
+
+Keep it when physical source distance and synchronization are part of the measurement.
+Trim or separate it when a production processor supplies independent pre-delay. Record
+the original direct-arrival sample either way so the operation can be reversed or audited.
+
+**Q58. Should a measured IR be peak normalized?**
+
+Peak normalization is convenient for production libraries but destroys absolute gain
+calibration. Preserve an untouched calibrated master and create a normalized derivative
+with the policy and target recorded in metadata.
+
+**Q59. How do I know whether the measured tail is noise?**
+
+Compare repeated captures and a background-noise recording, inspect band-limited energy
+decay, and identify where the decay becomes statistically indistinguishable from the
+noise floor. A long waveform is not evidence of a long reverberation time if its final
+seconds contain only ventilation or preamplifier noise.
+
+**Q60. Can verbx record and deconvolve the sweep itself?**
+
+Not currently. Use a measurement application, DAW, or validated scientific script for
+playback, synchronized capture, and deconvolution, then use `verbx ir analyze`,
+`verbx ir process`, and convolution rendering for inspection and production.
+
+## Filters, Poles, and Stability
+
+**Q61. What is a digital filter?**
+
+It is a difference equation that maps an input sample sequence to an output sequence.
+FIR filters use a finite input history; IIR filters include feedback and can sustain
+natural modes after the input stops.
+
+**Q62. What does a pole represent in a reverb?**
+
+A pole represents one natural exponential mode. Its angle corresponds to oscillation
+frequency and its radius to decay rate. A field of well-distributed stable poles usually
+sounds smoother than a few exposed or nearly coincident modes.
+
+**Q63. What does a zero represent?**
+
+A zero is a frequency-domain cancellation of the observed transfer function. In an FDN,
+transmission zeros depend on input and output projection as well as internal topology, so
+changing stereo projection can change color without moving the internal poles.
+
+**Q64. Why is the unit circle important?**
+
+For a causal discrete-time IIR system, poles strictly inside the unit circle decay.
+Poles on it persist ideally, and poles outside it grow. Finite precision and changing
+coefficients require practical stability margin rather than equality at radius one.
+
+**Q65. Why do high-order filters use second-order sections?**
+
+Direct high-order polynomial coefficients can be numerically ill conditioned. Pairing
+real roots and complex-conjugate roots into first- and second-order sections improves
+coefficient scaling, implementation stability, and diagnostic clarity.
+
+**Q66. Can an allpass have zeros outside the unit circle?**
+
+Yes. A stable allpass keeps its poles inside while placing reciprocal-conjugate zeros
+outside. The arrangement preserves ideal magnitude on the unit circle while changing
+phase and transient distribution.
+
+**Q67. Why can a stable reverb still sound metallic?**
+
+Stability only guarantees that modes do not grow. Sparse modal angles, repeated delay
+relationships, insufficient diffusion, static symmetry, or uneven loop damping can leave
+audible tones even when every pole is safely inside the unit circle.
+
+**Q68. How should a 360-second decay be validated?**
+
+Check loop gain and filter response in double precision, render a bounded impulse test,
+inspect energy by band, and verify that limiter activity is not hiding growth. Also test
+automation and sample-rate changes because tiny coefficient errors persist for many loops.
+
+## Rendering, Formats, and Long Tails
+
+**Q69. Why can a short source create a very large output?**
+
+Output duration includes the source plus the retained tail, and multichannel floating-
+point formats multiply storage quickly. Use a dry run and explicit tail policy before
+starting an extreme render.
+
+**Q70. When should I use W64 rather than WAV?**
+
+Use W64 when predicted output may exceed ordinary RIFF WAV size limits. Container choice
+does not change DSP quality; it changes how safely the file can represent long or highly
+multichannel data.
+
+**Q71. Does float32 output reduce internal precision?**
+
+No. verbx processes internally in float64 and converts at export. Float32 is usually
+adequate for production interchange, while float64 is useful for research, repeated
+offline transforms, and preserving very low-level tails.
+
+**Q72. Why does a render appear to pause during processing?**
+
+Some stages operate on long blocks or complete tails and cannot update a progress bar on
+every inner operation. Use current versions with dry-run estimates and status reporting;
+if elapsed time exceeds the estimate materially, retain the command and diagnostics for
+a reproducible report.
+
+**Q73. How should I render a one-hour RT60 safely?**
+
+Begin with a short source and bounded tail, estimate size, select a large-file container,
+and monitor peak growth and disk space. A nominal one-hour RT60 does not require writing
+the full theoretical decay if the project only needs a shorter musical window.
+
+**Q74. What is the difference between RT60 and output tail length?**
+
+RT60 is a decay-rate target; tail length is a file boundary. Several RT60 intervals may
+be required to reach the chosen noise floor, while a creative render may deliberately
+truncate or gate much earlier.
+
+**Q75. Can I process files at 192 kHz?**
+
+Yes, subject to engine, memory, and output-format constraints. Delay buffers, FFT work,
+and file size scale with sample rate, so test throughput and resample IRs carefully rather
+than assuming a higher rate is free.
+
+**Q76. Why should I retain JSON beside the WAV?**
+
+The WAV preserves audio but not the complete resolved configuration, estimates, warnings,
+or analysis. JSON makes the render auditable and lets batch systems distinguish completed,
+failed, and policy-rejected outputs without parsing human progress text.
+
+## Plug-ins and DAW Diagnosis
+
+**Q77. Why does the plug-in show under Colby Leider?**
+
+The manufacturer metadata is Colby Leider, so compatible hosts group the AU, AUv3, and
+VST3 there. A host may instead sort by category or product name; rescan after replacing a
+binary and remove only the host's documented plug-in cache when necessary.
+
+**Q78. Why might Logic reject an Audio Unit that another host sees?**
+
+Logic validates component metadata, architecture, code signing, bus layouts, and runtime
+behavior. Inspect `auval` and Logic validation output rather than assuming that appearance
+in a component folder proves loadability.
+
+**Q79. Why might Audacity reject a VST3?**
+
+The bundle may be built for an unsupported architecture, installed in the wrong scope,
+missing runtime dependencies, or failing initialization. Verify the universal or native
+binary, bundle structure, signing, and Audacity's plug-in scan log.
+
+**Q80. Why do plug-in controls sometimes appear to do nothing?**
+
+Confirm the host is sending audio, the wet path is audible, the control is not overridden
+by automation, and the parameter attachment reaches DSP state. Test a dramatic setting
+such as fully wet with a short decay before diagnosing subtler controls.
+
+**Q81. What belongs on the Expert page?**
+
+Expert controls should expose topology, multiband decay, modulation, diffusion, projection,
+limiting, and quality without changing parameter identifiers used by automation. The page
+is an alternate view of stable parameters, not a second incompatible processor.
+
+**Q82. Who decides the plug-in sample rate and output bit depth?**
+
+The DAW supplies the processing sample rate and buffer format. The plug-in can use higher
+internal precision or oversampling, but final file subtype and delivery sample rate are
+selected during the host's bounce or export.
+
+**Q83. How is plug-in latency different from CLI render time?**
+
+Plug-in latency is the sample delay from buffering and algorithms that the host may
+compensate. Render time is wall-clock computation. A processor can report low latency yet
+consume substantial CPU, or render faster than realtime offline while using a long FFT
+partition that would be unsuitable for live monitoring.
+
+**Q84. Why should the analyzer not allocate on the audio thread?**
+
+Dynamic allocation, locks, and GUI calls can miss realtime deadlines. The audio thread
+should copy bounded analysis data into a lock-free or carefully synchronized queue, while
+the editor performs FFT display work outside the callback.
+
+## Immersive, Surround, and Atmos Workflows
+
+**Q85. Should every surround channel receive the same reverb?**
+
+Usually no. One coherent late field can be projected differently to each output, while
+early reflections preserve plausible direction. Identical copies collapse spatially;
+unrelated reverbs lose one-room coherence.
+
+**Q86. What should go to LFE?**
+
+LFE is an effects channel, not the automatic bass remainder of every bed channel. Keep
+reverb out of LFE unless the production deliberately requires it, and audition through
+the intended bass-management path before drawing conclusions.
+
+**Q87. How should height channels be used for reverb?**
+
+Height returns can carry overhead early energy, diffuse late energy, or a deliberate
+creative layer. They should support enclosure rather than pulling every source upward;
+verify binaural, speaker, and stereo fold-down presentations.
+
+**Q88. What is the difference between a bed and an object?**
+
+A bed has a fixed channel layout, while an object carries audio plus position metadata
+for a renderer. verbx can prepare reverberant assets for either path, but final object
+authoring and Dolby delivery remain in the authorized production environment.
+
+**Q89. How do I test channel order?**
+
+Render or play one labeled impulse per input channel and verify arrival, level, polarity,
+and label at every output. A file that reports twelve channels can still have a dangerous
+ordering error.
+
+**Q90. Why does a wide reverb become weak in mono?**
+
+Signed projections or decorrelation can create cancellations when channels sum. Measure
+and listen to fold-down during design, and adjust projection, low-frequency correlation,
+or wet level rather than treating mono as an afterthought.
+
+**Q91. Can a stereo IR be turned into convincing Atmos reverb automatically?**
+
+It can be distributed creatively, but it does not contain measured height or rear transfer
+paths. A convincing expansion requires explicit assumptions, decorrelation, energy
+management, and fold-down tests; it should not be described as the original room capture.
+
+## Research, Education, and Dataset Practice
+
+**Q92. Should augmentation happen before or after splitting a dataset?**
+
+Always split clean source groups first. Augmenting first can place the same performance,
+speaker, room, or generated-IR family in multiple splits and produce deceptively strong
+metrics.
+
+**Q93. Should validation augmentation change every epoch?**
+
+No. Freeze validation and test waveforms or at least their exact seeds and parameters.
+Changing them on every evaluation adds measurement noise and makes checkpoint comparisons
+ambiguous.
+
+**Q94. When is on-the-fly augmentation appropriate?**
+
+It is useful for training when storage is constrained and deterministic worker behavior
+has been engineered. Avoid subprocess creation per example, cache IRs per worker, and
+record enough seed state to reproduce any sample.
+
+**Q95. How should TensorFlow users ingest a verbx corpus?**
+
+Read the JSONL manifest, create `tf.data` tensors from explicit paths and labels, use
+deterministic mapping for evaluation, and preserve the manifest beside any TFRecord
+shards. Directory names should not become the only source of truth.
+
+**Q96. How should PyTorch users ingest a verbx corpus?**
+
+Use a manifest-backed `Dataset`, shard with a distributed sampler, and define padding or
+cropping explicitly. Keep validation order fixed and derive any training randomness from
+the source identity, epoch, worker, rank, and global seed.
+
+**Q97. What should an unseen-room test contain?**
+
+Hold out complete measured rooms or synthesized room families before augmentation. Report
+performance separately for clean, seen-room, unseen-room, and severity buckets so one
+aggregate does not hide the generalization failure.
+
+**Q98. How can students verify a pole-zero lesson by ear?**
+
+Render impulses and sustained chords while moving one pole radius or one delay relation at
+a time. Compare waveform decay, spectrum, and the unit-circle plot, then explain which
+audible change follows from angle, radius, or cancellation.
+
+**Q99. How should a homework render be submitted reproducibly?**
+
+Submit the source citation or permitted source file, exact command or config, verbx
+version, output audio, JSON report, and a short listening analysis. A screenshot alone is
+not enough to reproduce the result.
+
+**Q100. What is the single best habit for serious verbx work?**
+
+Treat every render as an evidence-producing transformation: preserve the source, specify
+the operation, inspect the plan, retain machine-readable results, and listen at matched
+level. That habit scales from one musical experiment to a distributed research corpus.
+
+**Q101. Can verbx use a Scala file for microtonal reverb?**
+
+Yes. Pass `--scala-file SCALE.scl` to `verbx ir gen`, set the reference with
+`--scala-root-hz` and `--scala-root-degree`, and control the effect with
+`--scala-strength`, `--scala-bandwidth-cents`, and `--scala-gain-db`. verbx
+expands the scale across the requested frequency range, tunes modal targets,
+and emphasizes those bands in every synthetic IR mode. Generate the IR once,
+then use it with `verbx render --engine conv --ir ...`, `verbx realtime --engine
+conv --ir ...`, a convolution plug-in, or a dataset pipeline. The realtime
+callback never parses the Scala file, so this feature adds no callback latency.

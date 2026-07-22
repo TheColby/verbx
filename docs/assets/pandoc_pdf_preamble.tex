@@ -122,6 +122,13 @@
 
 \AtBeginDocument{
   \hypersetup{linkcolor=verbxCover}
+  % Pandoc inserts \tightlist into compact Markdown lists. Retain compact
+  % paragraphs while giving adjacent bullets enough space to scan distinctly.
+  \providecommand{\tightlist}{}
+  \renewcommand{\tightlist}{%
+    \setlength{\itemsep}{0.20\baselineskip}%
+    \setlength{\parskip}{0pt}%
+  }
   \IfFileExists{fvextra.sty}{
     \RecustomVerbatimEnvironment{verbatim}{Verbatim}{
       breaklines,
@@ -155,7 +162,7 @@
     \vspace{0.42in}
     {\fontsize{17}{23}\selectfont
       Reverb, dereverberation, spatial audio,\\
-      analysis, automation, and plug-in design
+      analysis and automation
     }\par
     \vfill
     \begin{minipage}{0.78\textwidth}
@@ -194,6 +201,15 @@
     No part of a cited recording, score, or third-party artwork is reproduced in this book.\\[0.35in]
     Typeset and generated from the repository source.}
   \clearpage
+  \thispagestyle{empty}
+  \null
+  \vfill
+  \begin{center}
+    {\Large\itshape For Patricia}
+  \end{center}
+  \vfill
+  \null
+  \clearpage
   \chapter*{About This Edition}
   \addcontentsline{toc}{chapter}{About This Edition}
   This book combines the verbx command-line manual, plug-in architecture handbook,
@@ -216,6 +232,7 @@
       \textbf{Appendix B} & Thirty-three project assignments and assessment guidance\\
       \textbf{Appendix C} & Research papers and references\\
       \textbf{Appendix D} & Frequently asked questions\\
+      \textbf{Appendix E} & Public alpha notes\\
       \textbf{Table of Figures} & Numbered visual titles with page references\\
       \textbf{Back matter} & Index and colophon
     \end{tabular}
@@ -227,13 +244,16 @@
   \clearpage
   \chapter*{Colophon}
   \addcontentsline{toc}{chapter}{Colophon}
-  This digital book was generated on \@date\ from Markdown and repository assets by
+  This digital book was written in 2026 and updated on July 26, 2026. It was assembled
+  from Markdown and repository assets by
   \texttt{scripts\_generate\_docs\_pdf.py}. Pandoc 3.8.2 assembled the manuscript;
   XeLaTeX and TeX Live 2025 produced the PDF; MakeIndex generated the back-of-book index;
   and TikZ drew the operational-card illustrations as resolution-independent vectors.
 
   The text face is TeX Gyre Schola, an open typeface in the New Century Schoolbook
-  tradition. Menlo is used for commands and code. The page is U.S. Letter with a book
+  tradition. Its OpenType common ligatures are enabled throughout proportional prose,
+  headings, captions, tables, front matter, and the index. Menlo is used without ligatures
+  for commands and code so technical literals remain exact. The page is U.S. Letter with a book
   hierarchy, roman-numbered front matter, arabic-numbered main matter, lettered appendices,
   and two-column index. Tables use alternating neutral fills; diagrams use the verbx teal,
   gold, rust, blue, plum, and sage palette.
@@ -251,5 +271,22 @@
     Copyright \textcopyright\ 2026 Colby Leider.\\
     \url{https://github.com/TheColby/verbx}
   \end{center}
+}
+
+\newcommand{\verbxChapterEpigraph}[3]{%
+  \clearpage
+  \thispagestyle{empty}
+  \null\vfill
+  \begin{flushright}
+    \begin{minipage}{0.72\textwidth}
+      \raggedleft
+      \fontsize{17}{24}\selectfont\itshape ``#1''\par
+      \vspace{1.5\baselineskip}
+      \fontsize{11}{15}\selectfont\upshape \textemdash\ #2%
+      \if\relax\detokenize{#3}\relax\else\ (#3)\fi\par
+    \end{minipage}
+  \end{flushright}
+  \vfill\null
+  \clearpage
 }
 \makeatother

@@ -12,7 +12,7 @@ importing the full ``AlgoReverbEngine``.
 Public API
 ----------
 Matrix builders
-    ``build_fdn_matrix(size, matrix_type)`` — main dispatch entry point
+    ``build_fdn_matrix(size, matrix_type)`` – main dispatch entry point
     ``build_hadamard(size)``
     ``build_random_orthogonal(size, seed)``
     ``build_shift_permutation(size, shift)``

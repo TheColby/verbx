@@ -724,6 +724,218 @@ def flowgraph_stereo_projection() -> None:
     save(image, "28_stereo_projection_flowgraph.png")
 
 
+def _roots_on_radius(count: int, radius: float, phase: float = 0.0) -> list[complex]:
+    return [
+        radius * np.exp(1j * (phase + 2.0 * math.pi * index / count))
+        for index in range(count)
+    ]
+
+
+def _wrap_text(
+    draw: ImageDraw.ImageDraw,
+    value: str,
+    selected_font: ImageFont.ImageFont,
+    max_width: int,
+) -> list[str]:
+    lines: list[str] = []
+    current = ""
+    for word in value.split():
+        candidate = f"{current} {word}".strip()
+        if current and draw.textlength(candidate, font=selected_font) > max_width:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return lines
+
+
+def pole_zero_plot(
+    name: str,
+    title: str,
+    subtitle: str,
+    poles: list[complex],
+    zeros: list[complex],
+    notes: tuple[str, ...],
+    *,
+    zero_at_origin_count: int = 0,
+) -> None:
+    """Draw a true-aspect unit-circle pole-zero diagram."""
+
+    image, draw = canvas(title, subtitle)
+    left, top, size = 95, 175, 660
+    right, bottom = left + size, top + size
+    center_x = left + size / 2
+    center_y = top + size / 2
+    scale = size / 2.4
+
+    draw.rectangle((left, top, right, bottom), fill="#fbfaf6", outline=GRID, width=3)
+    for value in (-1.0, -0.5, 0.5, 1.0):
+        x = center_x + value * scale
+        y = center_y - value * scale
+        draw.line((x, top, x, bottom), fill=GRID, width=2)
+        draw.line((left, y, right, y), fill=GRID, width=2)
+    draw.line((left, center_y, right, center_y), fill=MUTED, width=3)
+    draw.line((center_x, top, center_x, bottom), fill=MUTED, width=3)
+    radius = scale
+    draw.ellipse(
+        (center_x - radius, center_y - radius, center_x + radius, center_y + radius),
+        outline=BLUE,
+        width=5,
+    )
+
+    def map_point(value: complex) -> tuple[float, float]:
+        return center_x + value.real * scale, center_y - value.imag * scale
+
+    for value in zeros:
+        x, y = map_point(value)
+        draw.ellipse((x - 10, y - 10, x + 10, y + 10), fill=WHITE, outline=TEAL, width=4)
+    for value in poles:
+        x, y = map_point(value)
+        draw.line((x - 10, y - 10, x + 10, y + 10), fill=RUST, width=5)
+        draw.line((x - 10, y + 10, x + 10, y - 10), fill=RUST, width=5)
+
+    if zero_at_origin_count:
+        x, y = map_point(0j)
+        draw.ellipse((x - 12, y - 12, x + 12, y + 12), fill=WHITE, outline=TEAL, width=4)
+        draw.text((x + 18, y - 18), f"x{zero_at_origin_count}", fill=TEAL, font=F_SMALL)
+
+    draw.text((center_x, bottom + 22), "Real part (unitless)", fill=MUTED, font=F_SMALL, anchor="ma")
+    vertical_text = "Imaginary part (unitless)"
+    vertical_box = draw.textbbox((0, 0), vertical_text, font=F_SMALL)
+    vertical_image = Image.new(
+        "RGBA",
+        (vertical_box[2] - vertical_box[0] + 12, vertical_box[3] - vertical_box[1] + 12),
+        (255, 255, 255, 0),
+    )
+    vertical_draw = ImageDraw.Draw(vertical_image)
+    vertical_draw.text((6, 6), vertical_text, fill=MUTED, font=F_SMALL)
+    vertical_image = vertical_image.rotate(90, expand=True)
+    image.paste(
+        vertical_image,
+        (24, round(center_y - vertical_image.height / 2)),
+        vertical_image,
+    )
+    draw.text((center_x + radius - 8, center_y + 12), "unit circle", fill=BLUE, font=F_TINY, anchor="ra")
+
+    text_x = 850
+    draw.ellipse((text_x, 224, text_x + 20, 244), fill=WHITE, outline=TEAL, width=4)
+    draw.text((text_x + 36, 218), "zero", fill=INK, font=F_SMALL)
+    draw.line((text_x, 280, text_x + 20, 300), fill=RUST, width=5)
+    draw.line((text_x, 300, text_x + 20, 280), fill=RUST, width=5)
+    draw.text((text_x + 36, 274), "pole", fill=INK, font=F_SMALL)
+    y = 360
+    for note in notes:
+        draw.ellipse((text_x, y + 8, text_x + 9, y + 17), fill=GOLD)
+        lines = _wrap_text(draw, note, F_SMALL, 620)
+        for line in lines:
+            draw.text((text_x + 25, y), line, fill=INK, font=F_SMALL)
+            y += 27
+        y += 22
+    save(image, name)
+
+
+def generate_pole_zero_plots() -> None:
+    comb_poles = _roots_on_radius(12, 0.86, math.pi / 12)
+    pole_zero_plot(
+        "38_feedback_comb_pz.png",
+        "Feedback Comb Pole-Zero Map",
+        "The delay order sets angular density; loop gain sets modal radius.",
+        comb_poles,
+        [],
+        (
+            "Representative order M = 12 and positive loop gain g.",
+            "All poles share radius |g|^(1/M); moving them outward lengthens decay.",
+            "Polynomial form contributes M coincident zeros at the origin.",
+        ),
+        zero_at_origin_count=12,
+    )
+
+    allpass_poles = _roots_on_radius(8, 0.82, math.pi / 8)
+    allpass_zeros = _roots_on_radius(8, 1.0 / 0.82, math.pi / 8)
+    pole_zero_plot(
+        "39_schroeder_allpass_pz.png",
+        "Schroeder Allpass Pole-Zero Map",
+        "Reciprocal pole-zero geometry preserves magnitude while rotating phase.",
+        allpass_poles,
+        allpass_zeros,
+        (
+            "Representative delay M = 8; each zero is reciprocal to a pole.",
+            "Stable poles remain inside the unit circle while zeros may lie outside it.",
+            "The phase rotation disperses attacks without imposing an ideal spectral tilt.",
+        ),
+    )
+
+    schroeder_poles: list[complex] = []
+    for count, radius, phase in ((7, 0.79, 0.0), (9, 0.84, 0.10), (11, 0.88, 0.04), (13, 0.91, 0.08)):
+        schroeder_poles.extend(_roots_on_radius(count, radius, phase))
+    schroeder_zeros = _roots_on_radius(6, 1.08, math.pi / 6)
+    pole_zero_plot(
+        "40_parameterized_schroeder_pz.png",
+        "Parameterized Schroeder Modal Map",
+        "Several incommensurate comb rings interleave into a denser modal field.",
+        schroeder_poles,
+        schroeder_zeros,
+        (
+            "Reduced-order illustration of four comb sections and serial allpasses.",
+            "Unequal delay orders avoid exact modal coincidence and obvious periodicity.",
+            "Allpass zeros shown outside the circle are paired with stable interior poles.",
+        ),
+    )
+
+    fdn_poles: list[complex] = []
+    for count, radius, phase in ((8, 0.72, 0.02), (9, 0.80, 0.11), (10, 0.87, 0.06), (11, 0.93, 0.13)):
+        fdn_poles.extend(_roots_on_radius(count, radius, phase))
+    fdn_zeros = [0.36 * np.exp(1j * angle) for angle in (0.3, 1.2, 2.1, 3.4, 4.8, 5.5)]
+    pole_zero_plot(
+        "41_expanded_fdn_pz.png",
+        "Expanded FDN Modal Projection",
+        "Feedback eigenmodes determine poles; input and output projections determine zeros.",
+        fdn_poles,
+        fdn_zeros,
+        (
+            "Illustrative reduced-order modal projection, not one fixed verbx preset.",
+            "Unitary mixing redistributes energy while per-line damping controls pole radii.",
+            "Transmission zeros change when the B or C projection vector changes.",
+        ),
+    )
+
+    multiband_poles = (
+        _roots_on_radius(9, 0.95, 0.0)
+        + _roots_on_radius(10, 0.86, 0.08)
+        + _roots_on_radius(11, 0.72, 0.04)
+    )
+    multiband_zeros = _roots_on_radius(8, 0.48, math.pi / 8)
+    pole_zero_plot(
+        "42_multiband_loop_filter_pz.png",
+        "Multiband Decay Pole-Zero Map",
+        "Low-, mid-, and high-band losses create distinct modal-radius families.",
+        multiband_poles,
+        multiband_zeros,
+        (
+            "Outer poles represent a longer low-band decay; inner poles decay faster.",
+            "Crossover and damping filters contribute zeros as well as poles.",
+            "A stable design keeps every feedback eigenmode strictly inside the unit circle.",
+        ),
+    )
+
+    stereo_poles = _roots_on_radius(18, 0.89, 0.04)
+    stereo_zeros = [0.62 * np.exp(1j * angle) for angle in (0.2, 0.9, 1.8, 2.8, 3.7, 4.5, 5.6)]
+    pole_zero_plot(
+        "43_stereo_projection_pz.png",
+        "Stereo Projection Pole-Zero Map",
+        "Left and right outputs share poles but acquire different transmission zeros.",
+        stereo_poles,
+        stereo_zeros,
+        (
+            "The shared FDN state gives both channels the same internal modal poles.",
+            "Signed output vectors C_L and C_R select different modal combinations.",
+            "Decorrelated zeros change channel color without creating two unrelated rooms.",
+        ),
+    )
+
+
 def _generate_detailed_schroeder_diagram() -> None:
     image, draw = canvas(
         "Classic Schroeder Reverberator",
@@ -1442,8 +1654,12 @@ def generate_sonograms() -> None:
 def main() -> int:
     generate_high_level_diagrams()
     generate_technical_flowgraphs()
+    generate_pole_zero_plots()
     generate_sonograms()
-    print(f"Wrote 19 diagrams, 6 technical flowgraphs, and 12 sonograms to {OUT.relative_to(ROOT)}")
+    print(
+        "Wrote 19 diagrams, 6 technical flowgraphs, 6 pole-zero plots, "
+        f"and 12 sonograms to {OUT.relative_to(ROOT)}"
+    )
     return 0
 
 

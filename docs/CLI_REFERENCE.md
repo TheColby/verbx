@@ -1676,6 +1676,27 @@ Do not edit manually.
 │ --density                                <float range>     [default: 1.0]    │
 │                                          [x>=0.01]                           │
 │ --tuning                                 <str>             [default: A4=440] │
+│ --scala-file                             <path>            Scala .scl scale  │
+│                                                            used to tune and  │
+│                                                            emphasize         │
+│                                                            synthetic IR      │
+│                                                            resonances.       │
+│ --scala-root-hz                          <float range>     [default: 440.0]  │
+│                                          [x>=1.0]                            │
+│ --scala-root-deg…                        <int range>       [default: 0]      │
+│                                          [x>=0]                              │
+│ --scala-low-hz                           <float range>                       │
+│                                          [x>=20.0]                           │
+│ --scala-high-hz                          <float range>                       │
+│                                          [x>=30.0]                           │
+│ --scala-strength                         <float range>     [default: 1.0]    │
+│                                          [0.0<=x<=1.0]                       │
+│ --scala-bandwidt…                        <float range>     [default: 25.0]   │
+│                                          [1.0<=x<=1200.0]                    │
+│ --scala-gain-db                          <float range>     [default: 4.0]    │
+│                                          [0.0<=x<=24.0]                      │
+│ --scala-max-targ…                        <int range>       [default: 128]    │
+│                                          [1<=x<=512]                         │
 │ --modal-count                            <int range>       [default: 48]     │
 │                                          [x>=1]                              │
 │ --modal-q-min                            <float range>     [default: 5.0]    │

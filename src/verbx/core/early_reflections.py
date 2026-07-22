@@ -36,8 +36,10 @@ def apply_image_source_early_reflections(
     source_pos_m: tuple[float, float, float],
     listener_pos_m: tuple[float, float, float],
     absorption: float,
+    reflection_order: int = 1,
+    wall_materials: dict[str, str] | None = None,
 ) -> AudioArray:
-    """Apply direct + first-order image-source early reflections."""
+    """Apply direct plus bounded image-source reflections in a rectangular room."""
     x = ensure_mono_or_stereo(audio)
     if x.shape[0] == 0:
         return x.copy()
@@ -52,8 +54,21 @@ def apply_image_source_early_reflections(
 
     src = np.clip(src, [0.0, 0.0, 0.0], room)
     lst = np.clip(lst, [0.0, 0.0, 0.0], room)
-    absorption_value = float(np.clip(absorption, 0.0, 0.99))
-    reflectivity = float(1.0 - absorption_value)
+    max_order = int(np.clip(reflection_order, 0, 6))
+    default_reflectivity = float(1.0 - np.clip(absorption, 0.0, 0.99))
+    material_map = {str(key): str(value) for key, value in (wall_materials or {}).items()}
+    wall_reflectivity = {
+        "left": 1.0 - material_absorption(material_map.get("left", ""), absorption),
+        "right": 1.0 - material_absorption(material_map.get("right", ""), absorption),
+        "front": 1.0 - material_absorption(material_map.get("front", ""), absorption),
+        "rear": 1.0 - material_absorption(material_map.get("rear", ""), absorption),
+        "floor": 1.0 - material_absorption(material_map.get("floor", ""), absorption),
+        "ceiling": 1.0 - material_absorption(material_map.get("ceiling", ""), absorption),
+    }
+    wall_reflectivity = {
+        name: float(np.clip(value if material_map.get(name) else default_reflectivity, 0.0, 0.99))
+        for name, value in wall_reflectivity.items()
+    }
 
     taps: dict[int, float] = {}
 
@@ -69,17 +84,28 @@ def apply_image_source_early_reflections(
     # direct path
     _add_path(float(np.linalg.norm(src - lst)), 1.0)
 
-    # first-order reflections across each wall.
-    images = (
-        np.array([-src[0], src[1], src[2]], dtype=np.float64),
-        np.array([2.0 * room[0] - src[0], src[1], src[2]], dtype=np.float64),
-        np.array([src[0], -src[1], src[2]], dtype=np.float64),
-        np.array([src[0], 2.0 * room[1] - src[1], src[2]], dtype=np.float64),
-        np.array([src[0], src[1], -src[2]], dtype=np.float64),
-        np.array([src[0], src[1], 2.0 * room[2] - src[2]], dtype=np.float64),
+    reflections = (
+        ("left", 0, 0.0),
+        ("right", 0, 2.0 * room[0]),
+        ("front", 1, 0.0),
+        ("rear", 1, 2.0 * room[1]),
+        ("floor", 2, 0.0),
+        ("ceiling", 2, 2.0 * room[2]),
     )
-    for image in images:
-        _add_path(float(np.linalg.norm(image - lst)), reflectivity)
+    frontier: list[tuple[np.ndarray, float, str | None]] = [(src, 1.0, None)]
+    for _ in range(max_order):
+        next_frontier: list[tuple[np.ndarray, float, str | None]] = []
+        for image, gain, previous_wall in frontier:
+            for wall, axis, boundary_twice in reflections:
+                # Immediate bounce reversal produces duplicate image paths.
+                if wall == previous_wall:
+                    continue
+                reflected = np.asarray(image.copy(), dtype=np.float64)
+                reflected[axis] = boundary_twice - reflected[axis]
+                reflected_gain = gain * wall_reflectivity[wall]
+                _add_path(float(np.linalg.norm(reflected - lst)), reflected_gain)
+                next_frontier.append((reflected, reflected_gain, wall))
+        frontier = next_frontier
 
     if len(taps) == 0:
         return x.copy()

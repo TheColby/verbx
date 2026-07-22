@@ -55,11 +55,29 @@ static int init_channel_state(
     unsigned int sample_rate,
     double rt60,
     double pre_delay_ms,
-    double stereo_scale
+    double stereo_scale,
+    verbx_algo_model model
 ) {
     static const double comb_delay_ms[VERBX_COMB_COUNT] = {29.7, 37.1, 41.1, 43.7};
     static const double allpass_delay_ms[VERBX_ALLPASS_COUNT] = {5.0, 1.7};
+    static const double spring_comb_delay_ms[VERBX_COMB_COUNT] = {11.3, 13.7, 17.9, 23.1};
+    static const double spring_allpass_delay_ms[VERBX_ALLPASS_COUNT] = {2.9, 4.7};
+    static const double plate_comb_delay_ms[VERBX_COMB_COUNT] = {23.9, 31.1, 37.7, 47.9};
+    static const double plate_allpass_delay_ms[VERBX_ALLPASS_COUNT] = {7.1, 11.3};
+    const double *selected_comb_delay_ms = comb_delay_ms;
+    const double *selected_allpass_delay_ms = allpass_delay_ms;
+    double allpass_gain_base = 0.7;
     size_t i;
+
+    if (model == VERBX_ALGO_MODEL_SPRING) {
+        selected_comb_delay_ms = spring_comb_delay_ms;
+        selected_allpass_delay_ms = spring_allpass_delay_ms;
+        allpass_gain_base = 0.55;
+    } else if (model == VERBX_ALGO_MODEL_PLATE) {
+        selected_comb_delay_ms = plate_comb_delay_ms;
+        selected_allpass_delay_ms = plate_allpass_delay_ms;
+        allpass_gain_base = 0.76;
+    }
 
     memset(state, 0, sizeof(*state));
     state->predelay_length = delay_from_ms(sample_rate, pre_delay_ms, 1.0);
@@ -69,7 +87,7 @@ static int init_channel_state(
     }
 
     for (i = 0U; i < VERBX_COMB_COUNT; ++i) {
-        double delay_ms = comb_delay_ms[i] * stereo_scale;
+        double delay_ms = selected_comb_delay_ms[i] * stereo_scale;
         double delay_seconds;
         state->combs[i].length = delay_from_ms(sample_rate, delay_ms, 1.0);
         state->combs[i].buffer = (double *)calloc(state->combs[i].length, sizeof(double));
@@ -85,12 +103,12 @@ static int init_channel_state(
     }
 
     for (i = 0U; i < VERBX_ALLPASS_COUNT; ++i) {
-        state->allpasses[i].length = delay_from_ms(sample_rate, allpass_delay_ms[i] * stereo_scale, 1.0);
+        state->allpasses[i].length = delay_from_ms(sample_rate, selected_allpass_delay_ms[i] * stereo_scale, 1.0);
         state->allpasses[i].buffer = (double *)calloc(state->allpasses[i].length, sizeof(double));
         if (state->allpasses[i].buffer == NULL) {
             return -1;
         }
-        state->allpasses[i].gain = 0.7 - (0.05 * (double)i);
+        state->allpasses[i].gain = allpass_gain_base - (0.05 * (double)i);
     }
 
     return 0;
@@ -340,7 +358,8 @@ int verbx_algo_render(
                 input->sample_rate,
                 rt60,
                 pre_delay_ms,
-                stereo_scale
+                stereo_scale,
+                options->algo_model
             ) != 0) {
             set_error(error_message, error_message_size, "failed to initialize native reverb state");
             goto cleanup;

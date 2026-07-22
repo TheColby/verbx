@@ -11,7 +11,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from datetime import datetime
 from pathlib import Path
 
 from PIL import Image, ImageChops
@@ -25,27 +24,37 @@ INDEX_STYLE = ROOT / "docs" / "assets" / "verbx_index.ist"
 REFERENCE_METADATA = ROOT / "docs" / "reference_metadata.json"
 PLUGIN_GUIDE_GENERATOR = ROOT / "scripts_generate_plugin_guide.py"
 BOOK_SUPPLEMENT_GENERATOR = ROOT / "scripts_generate_book_supplements.py"
+GLOSSARY_GENERATOR = ROOT / "scripts_generate_glossary.py"
 LITERATURE_SORTER = ROOT / "scripts_sort_literature.py"
+COMPOSITION_YEAR_NORMALIZER = ROOT / "scripts_normalize_composition_years.py"
+TYPOGRAPHY_CHECKER = ROOT / "scripts_check_typography.py"
 REVERB_PRIMER_ASSET_GENERATOR = ROOT / "scripts" / "generate_reverb_primer_assets.py"
+TERMINAL_ASSET_GENERATOR = ROOT / "scripts" / "generate_terminal_screenshots.py"
 IMMERSIVE_AUDIO_ASSET_GENERATOR = ROOT / "scripts" / "generate_immersive_audio_figures.py"
 AI_AUGMENTATION_ASSET_GENERATOR = ROOT / "scripts" / "generate_ai_augmentation_figures.py"
 DEFAULT_AUTHOR = "Colby Leider, PhD"
+BOOK_EDITION_DATE = "July 26, 2026"
 RESEARCH_REFERENCE_PATTERN = re.compile(
     r"(?m)^\*\*\[(?P<key>[^]]+)\]\*\*\s+(?P<authors>.+?)\s+"
     r"\((?P<year>(?:18|19|20)\d{2}[a-z]?|n\.d\.)\)\.\s+"
     r"(?P<title>.+?)\.\s+\*(?P<venue>[^*]+)\*\.\s+"
     r"(?:DOI:\s+\[(?P<doi>[^]]+)\]\(https://doi\.org/(?P=doi)\)"
+    r"|Source:\s+\[(?P<source_label>[^]]+)\]\((?P<source_url>[^)]+)\)"
     r"|(?P<note>\(Also listed as \[[^]]+\]\)))"
 )
 TEX_GYRE_FONT_DIR = "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/tex-gyre/"
 TEX_GYRE_MATH_FONT_DIR = "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/tex-gyre-math/"
 HOMEBREW_SOURCE = ROOT / "docs" / "HOMEBREW.md"
+ARTIFICIAL_REVERB_HISTORY_SOURCE = (
+    ROOT / "docs" / "HISTORY_OF_ARTIFICIAL_REVERBERATION.md"
+)
+BENCHMARK_SOURCE = ROOT / "docs" / "benchmarks" / "README.md"
+OPEN_SOURCE_PORTFOLIO_SOURCE = ROOT / "docs" / "OPEN_SOURCE_IMAGE_PORTFOLIO.md"
 
 USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "README.md",
     ROOT / "docs" / "IMMERSIVE_AUDIO.md",
     ROOT / "docs" / "INTRODUCTORY_BLOCK_DIAGRAMS.md",
-    ROOT / "docs" / "PUBLIC_ALPHA_NOTES.md",
     ROOT / "docs" / "CLI_REFERENCE.md",
     ROOT / "docs" / "EXTREME_COOKBOOK.md",
     ROOT / "docs" / "PLUGIN_GUIDE.md",
@@ -55,18 +64,89 @@ USERGUIDE_SOURCES: tuple[Path, ...] = (
     ROOT / "docs" / "IR_MORPH_QA.md",
     ROOT / "docs" / "SOFA_FEASIBILITY.md",
     ROOT / "docs" / "FIGURES.md",
-    ROOT / "docs" / "benchmarks" / "README.md",
     ROOT / "docs" / "MUSICAL_PIECES_APPENDIX.md",
     ROOT / "docs" / "MUSICAL_PIECES_EXPANSION.md",
     ROOT / "docs" / "HOMEWORK_ASSIGNMENTS.md",
     ROOT / "docs" / "REFERENCES.md",
     ROOT / "docs" / "FAQ.md",
+    ROOT / "docs" / "PUBLIC_ALPHA_NOTES.md",
+    ROOT / "docs" / "GLOSSARY.md",
 )
 CHAPTER_ONE_SUPPLEMENTS: tuple[Path, ...] = (HOMEBREW_SOURCE,)
+CHAPTER_TWO_SUPPLEMENTS: tuple[Path, ...] = (
+    ARTIFICIAL_REVERB_HISTORY_SOURCE,
+    OPEN_SOURCE_PORTFOLIO_SOURCE,
+)
+REFERENCE_CHAPTER_SUPPLEMENTS: tuple[Path, ...] = (BENCHMARK_SOURCE,)
 USERGUIDE_INCLUDED_SOURCES: tuple[Path, ...] = (
     USERGUIDE_SOURCES[0],
     *CHAPTER_ONE_SUPPLEMENTS,
+    *CHAPTER_TWO_SUPPLEMENTS,
+    *REFERENCE_CHAPTER_SUPPLEMENTS,
     *USERGUIDE_SOURCES[1:],
+)
+
+CHAPTER_EPIGRAPHS: tuple[tuple[str, str, str], ...] = (
+    (
+        "Let echo, too, perform her part, prolonging every note with art.",
+        "Joseph Addison, *Ode for St. Cecilia's Day*",
+        "1699",
+    ),
+    (
+        "Because of the reverberation, there's always more to the sound than just the sound.",
+        "Pauline Oliveros",
+        "Date unknown",
+    ),
+    (
+        "Multitudinous echoes awoke and died in the distance.",
+        "Henry Wadsworth Longfellow, *Evangeline*",
+        "1847",
+    ),
+    (
+        "Sweetest Echo, sweetest nymph, that liv'st unseen within thy airy shell.",
+        "John Milton, *Comus*",
+        "1637",
+    ),
+    (
+        "How sweet the answer Echo makes to music at night.",
+        "Thomas Moore, *Echo*",
+        "1821",
+    ),
+    (
+        "And more than echoes talk along the walls.",
+        "Alexander Pope, *Eloisa to Abelard*",
+        "1717",
+    ),
+    (
+        "The reverb was so long that a trainwreck would sound good in there.",
+        "Frank Speller (1938–2017), American organist and composer, on his recital in Westminster Abbey",
+        "Date unknown",
+    ),
+    (
+        "Repeating your ultimate word.",
+        "John Godfrey Saxe, *The Story of Echo*",
+        "1865",
+    ),
+    (
+        "As if a double hunt were heard at once.",
+        "William Shakespeare, *Titus Andronicus*",
+        "1594",
+    ),
+    (
+        "Lost Echo sits amid the voiceless mountains, and feeds her grief.",
+        "Percy Bysshe Shelley, *Adonais*",
+        "1821",
+    ),
+    (
+        "I used the bathtub for reverberation.",
+        "Pauline Oliveros",
+        "January 2003",
+    ),
+    (
+        "The only technical things I know are treble, volume and reverb, that's all.",
+        "Johnny Thunders",
+        "Date unknown",
+    ),
 )
 
 
@@ -75,11 +155,10 @@ def _rel(path: Path) -> str:
 
 
 def _build_markdown(author: str) -> str:
-    generated_on = datetime.now().astimezone().strftime("%B %d, %Y")
     lines: list[str] = [
         "# verbx User Guide",
         "",
-        f"_{author}, {generated_on}_",
+        f"_{author}, {BOOK_EDITION_DATE}_",
         "",
         "_Generated by `python3 scripts_generate_docs_pdf.py`._",
         "",
@@ -109,6 +188,27 @@ def _markdown_for_userguide(source: Path) -> str:
         # Rich/Typer pads captured help to terminal width; that spacing has no
         # semantic value inside fenced blocks and makes the generated book dirty.
         markdown = "\n".join(line.rstrip() for line in markdown.splitlines()) + "\n"
+    if source == ROOT / "docs" / "GLOSSARY.md":
+        # Keep Appendix F itself numbered, but present its A-Z dividers as plain
+        # navigational headings rather than F.1 through F.26.
+        def unnumbered_glossary_letter(match: re.Match[str]) -> str:
+            letter = match.group(1)
+            target = letter.lower()
+            return (
+                "```{=latex}\n"
+                rf"\hypertarget{{{target}}}{{}}"
+                "\n"
+                rf"\section*{{{letter}}}"
+                "\n"
+                rf"\addcontentsline{{toc}}{{section}}{{{letter}}}"
+                "\n```"
+            )
+
+        markdown = re.sub(
+            r"(?m)^## ([A-Z])$",
+            unnumbered_glossary_letter,
+            markdown,
+        )
     if source == ROOT / "README.md":
         markdown = markdown.replace('src="docs/assets/', 'src="assets/')
         markdown = markdown.replace("](docs/assets/", "](assets/")
@@ -120,6 +220,30 @@ def _markdown_for_userguide(source: Path) -> str:
         if anchor not in markdown:
             raise ValueError("README Homebrew insertion anchor is missing")
         markdown = markdown.replace(anchor, replacement, 1)
+        history_marker = "### Why verbx Sounds Different"
+        if history_marker not in markdown:
+            raise ValueError("README artificial-reverberation history marker is missing")
+        markdown = markdown.replace(
+            history_marker,
+            f"{_chapter_two_history_supplement()}\n\n{history_marker}",
+            1,
+        )
+        portfolio_marker = "### Musical Examples"
+        if portfolio_marker not in markdown:
+            raise ValueError("README open-source portfolio insertion marker is missing")
+        markdown = markdown.replace(
+            portfolio_marker,
+            f"{_chapter_two_portfolio_supplement()}\n\n{portfolio_marker}",
+            1,
+        )
+        benchmark_marker = "## DSP Architecture"
+        if benchmark_marker not in markdown:
+            raise ValueError("README benchmark insertion marker is missing")
+        markdown = markdown.replace(
+            benchmark_marker,
+            f"{_reference_benchmark_supplement()}\n\n{benchmark_marker}",
+            1,
+        )
     return markdown
 
 
@@ -140,6 +264,36 @@ def _homebrew_chapter_one_supplement() -> str:
         "`TheColby/homebrew-verbx`.\n\n"
         f"{maintenance}"
     )
+
+
+def _chapter_two_history_supplement() -> str:
+    """Embed the illustrated artificial-reverberation history in Chapter 2."""
+
+    markdown = ARTIFICIAL_REVERB_HISTORY_SOURCE.read_text(encoding="utf-8").strip()
+    expected_heading = (
+        "### A History of Artificial Reverberation: Architectural, Mechanical, "
+        "Electrical, Electromechanical, and Digital"
+    )
+    if not markdown.startswith(expected_heading):
+        raise ValueError("Artificial-reverberation history heading is missing")
+    return markdown
+
+
+def _chapter_two_portfolio_supplement() -> str:
+    """Fold the rights-cleared portfolio into the early reverb chapter."""
+
+    markdown = OPEN_SOURCE_PORTFOLIO_SOURCE.read_text(encoding="utf-8").strip()
+    markdown = _demote_markdown_headings(_demote_markdown_headings(markdown))
+    markdown = re.sub(r"\bFigure 17-\d+\b", "the following figure", markdown)
+    markdown = markdown.replace("\nthe following figure", "\nThe following figure")
+    return markdown
+
+
+def _reference_benchmark_supplement() -> str:
+    """Fold the former benchmark chapter into the main reference chapter."""
+
+    markdown = BENCHMARK_SOURCE.read_text(encoding="utf-8").strip()
+    return _demote_markdown_headings(_demote_markdown_headings(markdown))
 
 
 def _demote_markdown_headings(markdown: str) -> str:
@@ -167,7 +321,6 @@ def _write_markdown(path: Path, author: str) -> None:
 
 
 def _pandoc_base_command(markdown_path: Path, author: str) -> list[str]:
-    generated_on = datetime.now().astimezone().strftime("%B %d, %Y")
     return [
         "pandoc",
         str(markdown_path),
@@ -182,7 +335,7 @@ def _pandoc_base_command(markdown_path: Path, author: str) -> list[str]:
         "--metadata=subtitle:Reverb, Spatial Audio, Dereverberation, Plug-in Design, "
         "and Educational Exercises",
         f"--metadata=author:{author}",
-        f"--metadata=date:{generated_on}",
+        f"--metadata=date:{BOOK_EDITION_DATE}",
         "--include-in-header",
         str(PDF_PREAMBLE),
         "--include-in-header",
@@ -212,33 +365,37 @@ def _pandoc_base_command(markdown_path: Path, author: str) -> list[str]:
         "-V",
         "mainfontoptions:BoldItalicFont=texgyreschola-bolditalic.otf",
         "-V",
+        "mainfontoptions:Ligatures=Common",
+        "-V",
         "mathfont=texgyreschola-math.otf",
         "-V",
         f"mathfontoptions:Path={TEX_GYRE_MATH_FONT_DIR}",
         "-V",
         "monofont=Menlo",
+        "-V",
+        "monofontoptions:Ligatures=NoCommon",
     ]
 
 
 def _rewrite_longtable_specs(latex_path: Path) -> None:
     text = latex_path.read_text(encoding="utf-8")
     replacements = {
-        r"\begin{longtable}[]{@{}ll@{}}": (
+        2: (
             r"\begin{longtable}[]{@{}>{\RaggedRight\arraybackslash\hspace{0pt}}p{0.26\linewidth}"
             r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.62\linewidth}@{}}"
         ),
-        r"\begin{longtable}[]{@{}lll@{}}": (
+        3: (
             r"\begin{longtable}[]{@{}>{\RaggedRight\arraybackslash\hspace{0pt}}p{0.22\linewidth}"
             r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.34\linewidth}"
             r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.30\linewidth}@{}}"
         ),
-        r"\begin{longtable}[]{@{}llll@{}}": (
+        4: (
             r"\begin{longtable}[]{@{}>{\RaggedRight\arraybackslash\hspace{0pt}}p{0.15\linewidth}"
             r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.23\linewidth}"
             r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.22\linewidth}"
             r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.30\linewidth}@{}}"
         ),
-        r"\begin{longtable}[]{@{}lllll@{}}": (
+        5: (
             r"\begin{longtable}[]{@{}>{\RaggedRight\arraybackslash\hspace{0pt}}p{0.13\linewidth}"
             r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.22\linewidth}"
             r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.14\linewidth}"
@@ -246,8 +403,32 @@ def _rewrite_longtable_specs(latex_path: Path) -> None:
             r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.27\linewidth}@{}}"
         ),
     }
-    for old, new in replacements.items():
-        text = text.replace(old, new)
+
+    def bounded_columns(match: re.Match[str]) -> str:
+        return replacements[len(match.group("columns"))]
+
+    text = re.sub(
+        r"\\begin\{longtable\}\[\]\{@\{\}(?P<columns>[lcr]{2,5})@\{\}\}",
+        bounded_columns,
+        text,
+    )
+
+    layout_spec = (
+        r"\begin{longtable}[]{@{}>{\RaggedRight\arraybackslash\hspace{0pt}}p{0.16\linewidth}"
+        r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.14\linewidth}"
+        r">{\RaggedRight\arraybackslash\hspace{0pt}}p{0.60\linewidth}@{}}"
+    )
+    longtable_pattern = re.compile(
+        r"(\\begin\{longtable\}.*?\\end\{longtable\})", re.DOTALL
+    )
+
+    def semantic_columns(match: re.Match[str]) -> str:
+        block = match.group(1)
+        if all(label in block for label in ("Layout", "Channels", "Use case")):
+            return block.replace(replacements[3], layout_spec, 1)
+        return block
+
+    text = longtable_pattern.sub(semantic_columns, text)
 
     text = _rewrite_longtable_value_breaks(text)
     text = _rewrite_highlighting_token_breaks(text)
@@ -353,9 +534,11 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
         )
         return anchor_run + "\n\n```{=latex}\n" + label_lines + "\n```"
 
+    markdown = _remove_pdf_exclusions(markdown)
     markdown = _remove_generated_pdf_preamble(markdown)
     markdown = _add_book_parts(markdown)
     markdown = _promote_reverb_primer_to_chapter(markdown)
+    markdown = _add_chapter_epigraphs(markdown)
     markdown = _italicize_musical_titles(markdown)
     markdown = re.sub(r'(?:<a\s+id="[^"]+"></a>)+', replace_anchor_run, markdown)
     markdown = _replace_mermaid_with_static_assets(markdown)
@@ -385,6 +568,20 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
     )
     _validate_fenced_blocks(markdown)
     return markdown
+
+
+def _remove_pdf_exclusions(markdown: str) -> str:
+    """Remove source passages explicitly marked as inappropriate inside the PDF."""
+
+    start_marker = "<!-- verbx-pdf-exclude-start -->"
+    end_marker = "<!-- verbx-pdf-exclude-end -->"
+    if markdown.count(start_marker) != markdown.count(end_marker):
+        raise ValueError("PDF-exclusion markers are unbalanced")
+
+    pattern = re.compile(
+        rf"(?ms)^{re.escape(start_marker)}\n.*?^{re.escape(end_marker)}\n?"
+    )
+    return pattern.sub("", markdown)
 
 
 def _replace_mermaid_with_static_assets(markdown: str) -> str:
@@ -519,7 +716,7 @@ def _add_book_parts(markdown: str) -> str:
         ("# verbx\n", "User Manual and Workflows"),
         ("# VERBX AUv3/VST3 Plug-in Handbook\n", "Plug-in Architecture and Operational Cards"),
         (
-            "# IR Synthesis — A Dual-Layer Reference\n",
+            "# IR Synthesis – A Dual-Layer Reference\n",
             "DSP, Impulse Responses, and Technical Reference",
         ),
     )
@@ -532,7 +729,7 @@ def _add_book_parts(markdown: str) -> str:
 def _promote_reverb_primer_to_chapter(markdown: str) -> str:
     """Give the reverb primer a chapter boundary without changing README hierarchy."""
 
-    primer_heading = "## What Is Reverb? (and Why Does verbx Sound Different)"
+    primer_heading = "## What Is Reverb? (and why verbx sounds different)"
     reference_heading = "## Core Concepts"
     start = markdown.find(primer_heading)
     end = markdown.find(reference_heading, start)
@@ -545,6 +742,63 @@ def _promote_reverb_primer_to_chapter(markdown: str) -> str:
     primer = re.sub(r"(?m)^#### ", "### ", primer)
     reference = "# verbx Reference\n\n" + markdown[end:]
     return markdown[:start] + primer + reference
+
+
+def _epigraph_tex(value: str) -> str:
+    """Escape short epigraph text for a two-argument LaTeX macro."""
+
+    replacements = {
+        "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+    }
+    def escape(text: str) -> str:
+        return "".join(replacements.get(character, character) for character in text)
+
+    parts = re.split(r"(\*[^*]+\*)", value)
+    return "".join(
+        rf"\emph{{{escape(part[1:-1])}}}"
+        if part.startswith("*") and part.endswith("*")
+        else escape(part)
+        for part in parts
+    )
+
+
+def _add_chapter_epigraphs(markdown: str) -> str:
+    """Place a dedicated quotation leaf before every H1 outside code fences."""
+
+    output: list[str] = []
+    fence: str | None = None
+    chapter_index = 0
+    for line in markdown.splitlines():
+        stripped = line.lstrip()
+        marker = stripped[:3]
+        if marker in {"```", "~~~"}:
+            if fence is None:
+                fence = marker
+            elif fence == marker:
+                fence = None
+        if fence is None and re.match(r"^# [^#]", line):
+            quote, attribution, date = CHAPTER_EPIGRAPHS[
+                chapter_index % len(CHAPTER_EPIGRAPHS)
+            ]
+            output.extend(
+                [
+                    "```{=latex}",
+                    rf"\verbxChapterEpigraph{{{_epigraph_tex(quote)}}}"
+                    rf"{{{_epigraph_tex(attribution)}}}{{{_epigraph_tex(date)}}}",
+                    "```",
+                    "",
+                ]
+            )
+            chapter_index += 1
+        output.append(line)
+    return "\n".join(output)
 
 
 def _italicize_musical_titles(markdown: str) -> str:
@@ -608,14 +862,41 @@ def _convert_figure_captions(markdown: str) -> str:
         r"(?m)^(?P<image>!\[[^\n]*\]\((?P<path>[^\n)]+)\))\n\n"
         r"\*\*(?:Figure(?:\s+\d+)?|Block diagram\s+\d+)[.:]\s*"
         r"(?P<title>.+?)\.?\*\*(?P<rest>[^\n]*)$"
+        r"(?:\n\n(?P<credit>\*Source and license:\*[^\n]+))?"
     )
 
     def convert(match: re.Match[str]) -> str:
         title = _latex_text_with_inline_math(match.group("title").rstrip("."))
         rest = match.group("rest").strip()
+        credit = match.group("credit") or ""
+        credit_block = f"\n\n{credit}" if credit else ""
         lead = f"```{{=latex}}\n\\verbxFigureLead{{{title}}}\n```"
         caption = f"```{{=latex}}\n\\verbxFigureCaption{{{title}}}\n```"
-        if match.group("path").startswith(("docs/assets/reverb_primer/", "assets/reverb_primer/")):
+        path = match.group("path")
+        if "open_source_portfolio/" in path:
+            full_page = path.endswith("01_spem_in_alium_opening.png")
+            page_open = "\\clearpage\n" if full_page else ""
+            page_close = "\n\\clearpage" if full_page else ""
+            max_height = "0.72\\textheight" if full_page else "0.57\\textheight"
+            figure = (
+                "```{=latex}\n"
+                f"{page_open}\\begin{{samepage}}\n"
+                f"\\verbxFigureLead{{{title}}}\n"
+                "{\\centering\n"
+                f"\\includegraphics[width=\\linewidth,height={max_height},keepaspectratio]"
+                f"{{\\detokenize{{{path}}}}}\n"
+                "\\par}\n"
+                f"\\verbxFigureCaption{{{title}}}\n"
+                "```"
+            )
+            if credit:
+                figure += f"\n\n{credit}"
+            figure += (
+                "\n\n```{=latex}\n"
+                f"\\end{{samepage}}{page_close}\n"
+                "```"
+            )
+        elif path.startswith(("docs/assets/reverb_primer/", "assets/reverb_primer/")):
             asset = match.group("path")
             figure = (
                 "```{=latex}\n"
@@ -632,10 +913,14 @@ def _convert_figure_captions(markdown: str) -> str:
         else:
             figure = (
                 "```{=latex}\n\\begin{samepage}\n```\n\n"
-                f"{match.group('image')}\n\n{caption}\n\n"
+                f"{match.group('image')}\n\n{caption}{credit_block}\n\n"
                 "```{=latex}\n\\end{samepage}\n```"
             )
-        converted = figure if "reverb_primer/" in match.group("path") else f"{lead}\n\n{figure}"
+        converted = (
+            figure
+            if "reverb_primer/" in path or "open_source_portfolio/" in path
+            else f"{lead}\n\n{figure}"
+        )
         return converted + (f"\n\n{rest}" if rest else "")
 
     markdown, count = pattern.subn(convert, markdown)
@@ -823,14 +1108,29 @@ def _latex_text(value: str) -> str:
     return "".join(replacements.get(char, char) for char in value)
 
 
+def _latex_url(value: str) -> str:
+    """Escape URL characters that have special meaning in LaTeX."""
+
+    return value.replace("%", r"\%").replace("#", r"\#")
+
+
 def _latex_text_with_inline_math(value: str) -> str:
     """Escape caption prose while preserving delimited LaTeX math."""
 
     segments = value.split("$")
     if len(segments) % 2 == 0:
         raise ValueError(f"Unbalanced inline-math delimiter in figure caption: {value!r}")
+    def prose(segment: str) -> str:
+        parts = segment.split("*")
+        if len(parts) % 2 == 0:
+            raise ValueError(f"Unbalanced emphasis delimiter in figure caption: {value!r}")
+        return "".join(
+            f"\\emph{{{_latex_text(part)}}}" if index % 2 else _latex_text(part)
+            for index, part in enumerate(parts)
+        )
+
     return "".join(
-        f"${segment}$" if index % 2 else _latex_text(segment)
+        f"${segment}$" if index % 2 else prose(segment)
         for index, segment in enumerate(segments)
     )
 
@@ -907,13 +1207,17 @@ def _add_pdf_index(markdown: str) -> str:
     markdown = _index_cli_terms(markdown)
     markdown = _index_operational_cards(markdown)
     markdown = _index_bibliography(markdown)
+    markdown = _index_glossary_terms(markdown)
     markdown = _typeset_research_references(markdown)
 
-    figure_pattern = re.compile(r"(?m)^(?P<command>\\verbxFigureCaption\{(?P<title>.+?)\})$")
+    figure_pattern = re.compile(
+        r"(?m)^(?P<command>\\verbxFigureCaption\{"
+        r"(?P<title>(?:[^{}]|\{[^{}]*\})*)\})$"
+    )
 
     def index_figure(match: re.Match[str]) -> str:
-        term = _plain_index_term(match.group("title"))
-        return match.group("command") + f"\n\\index{{{_latex_index_term(term)}}}"
+        term = _figure_index_term(match.group("title"))
+        return match.group("command") + f"\n\\index{{{term}}}"
 
     markdown = figure_pattern.sub(index_figure, markdown)
 
@@ -940,6 +1244,25 @@ def _add_pdf_index(markdown: str) -> str:
         + "\\verbxColophon\n"
         + "```\n"
     )
+
+
+def _index_glossary_terms(markdown: str) -> str:
+    """Add every glossary headword to the flat book index."""
+
+    start = markdown.find("# Glossary")
+    if start == -1:
+        return markdown
+
+    glossary = markdown[start:]
+    entry_pattern = re.compile(
+        r"(?m)^(?P<entry>\*\*(?P<term>[^*\n]+)\.\*\*\s+.+)$"
+    )
+
+    def index_entry(match: re.Match[str]) -> str:
+        term = _latex_index_term(match.group("term"))
+        return match.group("entry") + f"\n\n```{{=latex}}\n\\index{{{term}}}\n```"
+
+    return markdown[:start] + entry_pattern.sub(index_entry, glossary)
 
 
 def _index_cli_terms(markdown: str) -> str:
@@ -1012,8 +1335,82 @@ def _index_operational_cards(markdown: str) -> str:
     return pattern.sub(add_marker, markdown)
 
 
+_BIBLIOGRAPHY_INDEX_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Acoustic measurement", (r"\bacoustic measurements?\b", r"\broom measurements?\b")),
+    ("Acoustic simulation", (r"\bacoustic simulations?\b", r"\broom simulations?\b")),
+    ("Active acoustics", (r"\bactive acoustics?\b", r"\bactive reverberation\b")),
+    ("Algorithmic reverberation", (r"\balgorithmic reverberation\b",)),
+    ("Ambience extraction", (r"\bambience extraction\b", r"\bambient sound extraction\b")),
+    ("Ambisonics", (r"\bambisonics?\b", r"\bhigher[- ]order ambisonics?\b")),
+    ("Artificial reverberation", (r"\bartificial reverberation\b", r"\breverberators?\b")),
+    ("Audio AI", (r"\baudio ai\b", r"\bartificial intelligence\b")),
+    ("Auralization", (r"\bauraliz(?:ation|ations|ing)\b",)),
+    ("Binaural rendering", (r"\bbinaural (?:audio|rendering|reproduction|synthesis)\b",)),
+    ("Blind estimation", (r"\bblind (?:estimation|identification)\b",)),
+    ("Convolution reverb", (r"\bconvolution(?:al)? reverberation\b", r"\bconvolution reverb\b")),
+    ("Decay analysis", (r"\bdecay (?:analysis|curve|rate|slope)\b",)),
+    ("Dereverberation", (r"\bdereverberation\b", r"\bde[- ]reverberation\b",)),
+    ("Diffuse field", (r"\bdiffuse (?:field|sound field|reverberation)\b",)),
+    (
+        "Direct-to-reverberant ratio",
+        (r"\bdirect[- ]to[- ]reverberant ratio\b", r"\bdr r?\b"),
+    ),
+    ("Early reflections", (r"\bearly reflections?\b",)),
+    ("Energy decay", (r"\benergy decay (?:curve|relief|function)\b",)),
+    ("Feedback delay network", (r"\bfeedback delay networks?\b", r"\bfdns?\b")),
+    ("Filter design", (r"\bfilter design\b", r"\bdigital filters?\b")),
+    (
+        "Head-related transfer function",
+        (r"\bhead[- ]related transfer functions?\b", r"\bhrtfs?\b"),
+    ),
+    ("Immersive audio", (r"\bimmersive audio\b", r"\bimmersive sound\b", r"\bdolby atmos\b")),
+    (
+        "Impulse-response measurement",
+        (r"\bimpulse response measurements?\b", r"\bmeasur(?:e|ing) impulse responses?\b"),
+    ),
+    (
+        "Impulse-response processing",
+        (r"\bimpulse response (?:processing|equalization|manipulation)\b",),
+    ),
+    ("Machine learning", (r"\bmachine learning\b", r"\bdeep learning\b", r"\bneural networks?\b")),
+    ("Multichannel audio", (r"\bmultichannel (?:audio|sound|reproduction|reverberation)\b",)),
+    ("Object-based audio", (r"\bobject[- ]based audio\b", r"\baudio objects?\b")),
+    ("Pole-zero analysis", (r"\bpole[- ]zero\b", r"\bpoles? and zeros?\b")),
+    ("Reverberation fingerprint", (r"\breverberation fingerprints?\b",)),
+    ("Reverberation time", (r"\breverberation times?\b", r"\brt60\b", r"\bt60\b")),
+    ("Room acoustics", (r"\broom acoustics?\b",)),
+    ("Room impulse response", (r"\broom impulse responses?\b", r"\brirs?\b")),
+    ("Sound propagation", (r"\bsound propagation\b", r"\bacoustic propagation\b")),
+    ("Spatial audio", (r"\bspatial audio\b", r"\bspatial sound\b", r"\b3d audio\b")),
+    ("Speech dereverberation", (r"\bspeech dereverberation\b", r"\bdereverberat(?:e|ing) speech\b")),
+    ("Statistical reverberation", (r"\bstatistical reverberation\b", r"\bstochastic reverberation\b")),
+    ("Underwater reverberation", (r"\bunderwater reverberation\b", r"\bsonar reverberation\b")),
+    ("Virtual acoustics", (r"\bvirtual acoustics?\b", r"\bvirtual rooms?\b")),
+)
+
+
+def _bibliography_index_phrases(title: str) -> list[str]:
+    """Map a paper title to concise, controlled index phrases."""
+
+    normalized = _plain_index_term(title).casefold()
+    phrases = [
+        phrase
+        for phrase, patterns in _BIBLIOGRAPHY_INDEX_RULES
+        if any(re.search(pattern, normalized) for pattern in patterns)
+    ]
+    if phrases:
+        return phrases[:6]
+
+    fallbacks = (
+        ("Reverberation", r"\breverber(?:ation|ant|ance|ator|ators)\b"),
+        ("Acoustics", r"\bacoustic(?:s|al|ally)?\b"),
+        ("Audio signal processing", r"\baudio\b"),
+    )
+    return [phrase for phrase, pattern in fallbacks if re.search(pattern, normalized)][:1]
+
+
 def _index_bibliography(markdown: str) -> str:
-    """Index every parsed paper author and title, including normalized Jot entries."""
+    """Index paper authors and controlled subject phrases, never full titles."""
 
     start = markdown.find("# Research Papers and References")
     if start == -1:
@@ -1036,12 +1433,7 @@ def _index_bibliography(markdown: str) -> str:
                 author = "Jot, Jean-Marc"
             if author and author not in normalized:
                 normalized.append(author)
-        terms: list[str] = []
-        for author in normalized:
-            terms.append(author)
-        title = _plain_index_term(match.group("title"))
-        if title:
-            terms.append(title)
+        terms = [*normalized, *_bibliography_index_phrases(match.group("title"))]
         commands = "\n".join(rf"\index{{{_latex_index_term(term)}}}" for term in terms)
         return f"```{{=latex}}\n{commands}\n```\n\n{match.group('entry')}"
 
@@ -1059,27 +1451,47 @@ def _typeset_research_references(markdown: str) -> str:
     if REFERENCE_METADATA.exists():
         metadata = json.loads(REFERENCE_METADATA.read_text(encoding="utf-8"))
     references = markdown[start:]
+    total_match = re.search(r"(?m)^Total entries:\s+([\d,]+)\b", references)
+    if total_match is None:
+        raise ValueError("Research bibliography is missing its declared entry total")
+    expected_count = int(total_match.group(1).replace(",", ""))
 
     def typeset(match: re.Match[str]) -> str:
         doi = match.group("doi") or ""
         record = metadata.get(doi.lower(), {})
         detail = _reference_detail(record)
         authors = _reference_authors(match.group("authors"))
+        title = _latex_text(match.group("title").strip('"').rstrip("."))
+        venue = _latex_text(match.group("venue"))
+        if match.group("key").startswith("BOOK"):
+            citation_body = ". \\textit{" + title + "}. " + venue
+        else:
+            citation_body = (
+                ". ``"
+                + title
+                + ("'' " if match.group("title").rstrip().endswith(("?", "!")) else ".'' ")
+                + "\\textit{"
+                + venue
+                + "}"
+            )
         identifier = (
             ". DOI: \\href{https://doi.org/" + doi + "}{\\nolinkurl{" + doi + "}}"
             if doi
-            else ". " + _latex_text(match.group("note") or "No DOI supplied")
+            else (
+                ". Source: \\href{"
+                + _latex_url(match.group("source_url") or "")
+                + "}{"
+                + _latex_text(match.group("source_label") or "Primary source")
+                + "}"
+                if match.group("source_url")
+                else ". " + _latex_text(match.group("note") or "No identifier supplied")
+            )
         )
         return (
             "```{=latex}\n"
             "\\par\\noindent\\hangindent=1.7em\\hangafter=1\n"
             + _latex_text(authors.rstrip("."))
-            + ". ``"
-            + _latex_text(match.group("title").strip('"').rstrip("."))
-            + ("'' " if match.group("title").rstrip().endswith(("?", "!")) else ".'' ")
-            + "\\textit{"
-            + _latex_text(match.group("venue"))
-            + "}"
+            + citation_body
             + detail
             + identifier
             + ", "
@@ -1091,8 +1503,10 @@ def _typeset_research_references(markdown: str) -> str:
         )
 
     references, count = RESEARCH_REFERENCE_PATTERN.subn(typeset, references)
-    if count != 1002:
-        raise ValueError(f"Expected 1002 research references, formatted {count}")
+    if count != expected_count:
+        raise ValueError(
+            f"Expected {expected_count} research references, formatted {count}"
+        )
     return markdown[:start] + references
 
 
@@ -1100,6 +1514,11 @@ def _reference_authors(value: str) -> str:
     formatted: list[str] = []
     for author in re.split(r"\s*;\s*", value):
         author = author.strip()
+        role = ""
+        role_match = re.search(r",\s*(ed\.?|editor)$", author, flags=re.IGNORECASE)
+        if role_match:
+            role = ", ed."
+            author = author[: role_match.start()].rstrip()
         if not author or author.lower() == "et al.":
             formatted.append("et al.")
             continue
@@ -1114,7 +1533,7 @@ def _reference_authors(value: str) -> str:
             for token in re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]+(?:-[A-Za-zÀ-ÖØ-öø-ÿ]+)?\.?", given)
             if token
         )
-        formatted.append(f"{family}, {initials}" if initials else family)
+        formatted.append((f"{family}, {initials}" if initials else family) + role)
     return "; ".join(formatted)
 
 
@@ -1153,7 +1572,12 @@ def _index_markdown_headings(markdown: str) -> str:
         heading_match = heading_pattern.match(line)
         if not heading_match:
             continue
-        term = _plain_index_term(heading_match.group(2))
+        heading = heading_match.group(2).strip()
+        if heading.startswith(("\"", "'", "“", "‘")) and heading.endswith(
+            ("\"", "'", "”", "’")
+        ):
+            continue
+        term = _plain_index_term(heading)
         if not term or term.lower() in {"contents", "index"}:
             continue
         output.extend(("", "```{=latex}", f"\\index{{{_latex_index_term(term)}}}", "```"))
@@ -1168,12 +1592,25 @@ def _plain_index_term(value: str) -> str:
     value = re.sub(r"!\[([^]]*)\]\([^)]*\)", r"\1", value)
     value = re.sub(r"\[([^]]+)\]\([^)]*\)", r"\1", value)
     value = re.sub(r"<[^>]+>", "", value)
+    value = re.sub(r"\\(?:emph|textit|textbf|texttt)\{([^{}]*)\}", r"\1", value)
     value = value.replace("`", "").replace("*", "").replace("_", " ")
     value = re.sub(r"\s+", " ", value).strip(" .")
     value = re.sub(r"^(?:\d+(?:\.\d+)*|\d+[A-Za-z])[.)]?\s+", "", value)
     if re.fullmatch(r"(?:5\.1|7\.1|7\.1\.4)", value):
         value = f"Surround format {value}"
     return value
+
+
+def _figure_index_term(value: str) -> str:
+    """Preserve caption typography while using plain text as the index sort key."""
+
+    plain = _plain_index_term(value)
+    sort_key = _latex_index_term(plain)
+    if value == plain:
+        return sort_key
+    display = value.replace('"', "").replace("!", " - ").replace("@", " at ")
+    display = display.replace("|", " / ")
+    return f"{sort_key}@{display}"
 
 
 def _musical_index_term(value: str) -> str:
@@ -1287,11 +1724,18 @@ def main() -> int:
 
     subprocess.run([sys.executable, str(PLUGIN_GUIDE_GENERATOR)], cwd=ROOT, check=True)
     subprocess.run([sys.executable, str(BOOK_SUPPLEMENT_GENERATOR)], cwd=ROOT, check=True)
+    subprocess.run([sys.executable, str(GLOSSARY_GENERATOR)], cwd=ROOT, check=True)
     subprocess.run([sys.executable, str(REVERB_PRIMER_ASSET_GENERATOR)], cwd=ROOT, check=True)
+    subprocess.run([sys.executable, str(TERMINAL_ASSET_GENERATOR)], cwd=ROOT, check=True)
     subprocess.run([sys.executable, str(IMMERSIVE_AUDIO_ASSET_GENERATOR)], cwd=ROOT, check=True)
     subprocess.run([sys.executable, str(AI_AUGMENTATION_ASSET_GENERATOR)], cwd=ROOT, check=True)
     subprocess.run(
         [sys.executable, str(LITERATURE_SORTER), "--check"],
+        cwd=ROOT,
+        check=True,
+    )
+    subprocess.run(
+        [sys.executable, str(COMPOSITION_YEAR_NORMALIZER), "--check"],
         cwd=ROOT,
         check=True,
     )
@@ -1307,6 +1751,11 @@ def main() -> int:
 
     _write_markdown(markdown_out, str(args.author))
     print(f"Wrote {markdown_out}")
+    subprocess.run(
+        [sys.executable, str(TYPOGRAPHY_CHECKER)],
+        cwd=ROOT,
+        check=True,
+    )
 
     if args.md_only:
         return 0

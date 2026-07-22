@@ -17,7 +17,14 @@ typedef enum {
     VERBX_TAIL_METRIC_RMS = 1
 } verbx_tail_metric;
 
+typedef enum {
+    VERBX_ALGO_MODEL_FDN = 0,
+    VERBX_ALGO_MODEL_SPRING = 1,
+    VERBX_ALGO_MODEL_PLATE = 2
+} verbx_algo_model;
+
 typedef struct {
+    verbx_algo_model algo_model;
     double rt60;
     double wet;
     double dry;
@@ -48,6 +55,7 @@ typedef struct {
 
 const char *verbx_status_code_name(verbx_status_code code);
 const char *verbx_tail_metric_name(verbx_tail_metric metric);
+const char *verbx_algo_model_name(verbx_algo_model model);
 
 int verbx_render_file(
     const char *input_path,

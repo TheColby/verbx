@@ -19,7 +19,7 @@ static void print_usage(FILE *stream) {
     fprintf(stream, "  %s doctor [--json-out report.json]\n", VERBX_C_PROJECT_NAME);
     fprintf(
         stream,
-        "  %s render <in.wav> <out.wav> [--rt60 SEC] [--wet X] [--dry X]\n",
+        "  %s render <in.wav> <out.wav> [--model fdn|spring|plate] [--rt60 SEC] [--wet X] [--dry X]\n",
         VERBX_C_PROJECT_NAME
     );
     fprintf(
@@ -193,6 +193,28 @@ static int parse_tail_metric(const char *value_text, verbx_tail_metric *out_metr
     return -1;
 }
 
+static int parse_algo_model(const char *value_text, verbx_algo_model *out_model) {
+    if (strcmp(value_text, "fdn") == 0) {
+        *out_model = VERBX_ALGO_MODEL_FDN;
+        return 0;
+    }
+    if (strcmp(value_text, "spring") == 0) {
+        *out_model = VERBX_ALGO_MODEL_SPRING;
+        return 0;
+    }
+    if (strcmp(value_text, "plate") == 0) {
+        *out_model = VERBX_ALGO_MODEL_PLATE;
+        return 0;
+    }
+    fprintf(
+        stderr,
+        "%s: unsupported --model value '%s' (use fdn, spring, or plate)\n",
+        VERBX_C_PROJECT_NAME,
+        value_text
+    );
+    return -1;
+}
+
 static void write_json_string(FILE *stream, const char *value) {
     const unsigned char *cursor = (const unsigned char *)value;
     fputc('"', stream);
@@ -252,6 +274,8 @@ static int write_render_json_report(
     write_json_string(stream, verbx_wav_format_name(report->out_format));
     fputs(",\n  \"tail_metric\": ", stream);
     write_json_string(stream, verbx_tail_metric_name(report->tail_metric));
+    fputs(",\n  \"model\": ", stream);
+    write_json_string(stream, verbx_algo_model_name(options->algo_model));
     fprintf(stream, ",\n  \"rt60\": %.17g,\n", options->rt60);
     fprintf(stream, "  \"wet\": %.17g,\n", options->wet);
     fprintf(stream, "  \"dry\": %.17g,\n", options->dry);
@@ -277,6 +301,7 @@ static int handle_render(int argc, char **argv) {
     const char *output_path;
     const char *json_out_path = NULL;
     verbx_render_options options = {
+        .algo_model = VERBX_ALGO_MODEL_FDN,
         .rt60 = 2.5,
         .wet = 0.8,
         .dry = 0.2,
@@ -301,7 +326,11 @@ static int handle_render(int argc, char **argv) {
     output_path = argv[3];
     for (index = 4; index < argc; ++index) {
         const char *arg = argv[index];
-        if ((strcmp(arg, "--rt60") == 0) && (index + 1 < argc)) {
+        if ((strcmp(arg, "--model") == 0) && (index + 1 < argc)) {
+            if (parse_algo_model(argv[++index], &options.algo_model) != 0) {
+                return 2;
+            }
+        } else if ((strcmp(arg, "--rt60") == 0) && (index + 1 < argc)) {
             if (parse_double_option("--rt60", argv[++index], &options.rt60) != 0) {
                 return 2;
             }
@@ -358,8 +387,9 @@ static int handle_render(int argc, char **argv) {
         return 1;
     }
     printf(
-        "%s render complete\nsample_rate: %u\nchannels: %u\ninput_frames: %zu\noutput_frames: %zu\nout_format: %s\ntail_metric: %s\npeak_safe: %s\npeak_ceiling_db: %.2f\ninput_peak_abs: %.9f\noutput_peak_abs: %.9f\npeak_gain: %.9f\nstatus: %s\n",
+        "%s render complete\nmodel: %s\nsample_rate: %u\nchannels: %u\ninput_frames: %zu\noutput_frames: %zu\nout_format: %s\ntail_metric: %s\npeak_safe: %s\npeak_ceiling_db: %.2f\ninput_peak_abs: %.9f\noutput_peak_abs: %.9f\npeak_gain: %.9f\nstatus: %s\n",
         VERBX_C_PROJECT_NAME,
+        verbx_algo_model_name(options.algo_model),
         report.sample_rate,
         report.channels,
         report.input_frames,

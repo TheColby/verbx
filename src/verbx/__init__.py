@@ -1,4 +1,4 @@
-"""verbx — algorithmic and convolution reverb engine.
+"""verbx – algorithmic and convolution reverb engine.
 
 Public API::
 
@@ -18,4 +18,4 @@ __all__ = [
     "write_audio",
 ]
 
-__version__ = "0.7.6"
+__version__ = "0.9.0"

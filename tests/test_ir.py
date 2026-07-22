@@ -898,6 +898,93 @@ def test_ir_gen_resonator_layer(tmp_path: Path) -> None:
     assert abs(float(params["resonator_mix"]) - 0.45) < 1e-9
 
 
+def test_ir_gen_with_scala_scale_records_resolved_targets(tmp_path: Path) -> None:
+    scale_path = tmp_path / "19edo.scl"
+    scale_path.write_text(
+        "\n".join(
+            [
+                "! 19 equal divisions of the octave",
+                "19-EDO test scale",
+                "19",
+                *(f"{index * 1200.0 / 19.0:.8f}" for index in range(1, 19)),
+                "2/1",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    out_ir = tmp_path / "scala_ir.wav"
+
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(out_ir),
+            "--mode",
+            "modal",
+            "--length",
+            "0.6",
+            "--sr",
+            "12000",
+            "--channels",
+            "1",
+            "--scala-file",
+            str(scale_path),
+            "--scala-root-hz",
+            "220",
+            "--scala-low-hz",
+            "100",
+            "--scala-high-hz",
+            "2400",
+            "--scala-bandwidth-cents",
+            "18",
+            "--scala-gain-db",
+            "6",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(out_ir.with_suffix(".wav.ir.meta.json").read_text(encoding="utf-8"))
+    params = payload["params"]
+    targets = [float(value) for value in params["scala_targets_hz"]]
+    assert params["scala_file_name"] == "19edo.scl"
+    assert params["scala_description"] == "19-EDO test scale"
+    assert len(str(params["scala_sha256"])) == 64
+    assert abs(float(params["scala_root_hz"]) - 220.0) < 1e-9
+    assert any(abs(frequency - 220.0) < 1e-6 for frequency in targets)
+    assert all(100.0 <= frequency <= 2400.0 for frequency in targets)
+    assert abs(float(params["scala_bandwidth_cents"]) - 18.0) < 1e-9
+    assert abs(float(params["scala_gain_db"]) - 6.0) < 1e-9
+
+
+def test_ir_gen_rejects_scala_with_source_analysis(tmp_path: Path) -> None:
+    scale_path = tmp_path / "scale.scl"
+    scale_path.write_text("Octave\n1\n2/1\n", encoding="utf-8")
+    source_path = tmp_path / "source.wav"
+    sf.write(str(source_path), np.zeros(2048, dtype=np.float64), 8000)
+
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "gen",
+            str(tmp_path / "out.wav"),
+            "--length",
+            "0.2",
+            "--sr",
+            "8000",
+            "--scala-file",
+            str(scale_path),
+            "--analyze-input",
+            str(source_path),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "--scala-file cannot be combined with --analyze-input" in result.stderr
+
+
 def test_ir_cache_hit(tmp_path: Path) -> None:
     cfg = IRGenConfig(mode="stochastic", length=0.5, sr=8000, channels=1, seed=7)
 

@@ -63,7 +63,7 @@ jobs:
 
   test-macos:
     name: Test (macOS / Apple Silicon)
-    # macos-14 is guaranteed Apple Silicon (M1) — catches platform-specific regressions.
+    # macos-14 is guaranteed Apple Silicon (M1) – catches platform-specific regressions.
     runs-on: macos-14
     steps:
       - name: Checkout

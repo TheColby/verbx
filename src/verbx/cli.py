@@ -265,6 +265,7 @@ from verbx.ir.morph import (
     validate_ir_morph_mismatch_policy_name,
     validate_ir_morph_mode_name,
 )
+from verbx.ir.scala import parse_scala_file, resolve_scala_frequencies
 from verbx.ir.tuning import analyze_audio_for_tuning, parse_frequency_hz
 from verbx.logging import configure_logging
 from verbx.presets.default_presets import resolve_preset
@@ -2358,6 +2359,24 @@ def _ir_gen_impl(
     mod_rate_hz: float = typer.Option(0.12, "--mod-rate-hz", min=0.0),
     density: float = typer.Option(1.0, "--density", min=0.01),
     tuning: str = typer.Option("A4=440", "--tuning"),
+    scala_file: Path | None = typer.Option(
+        None,
+        "--scala-file",
+        exists=True,
+        readable=True,
+        resolve_path=True,
+        help="Scala .scl scale used to tune and emphasize synthetic IR resonances.",
+    ),
+    scala_root_hz: float = typer.Option(440.0, "--scala-root-hz", min=1.0),
+    scala_root_degree: int = typer.Option(0, "--scala-root-degree", min=0),
+    scala_low_hz: float | None = typer.Option(None, "--scala-low-hz", min=20.0),
+    scala_high_hz: float | None = typer.Option(None, "--scala-high-hz", min=30.0),
+    scala_strength: float = typer.Option(1.0, "--scala-strength", min=0.0, max=1.0),
+    scala_bandwidth_cents: float = typer.Option(
+        25.0, "--scala-bandwidth-cents", min=1.0, max=1_200.0
+    ),
+    scala_gain_db: float = typer.Option(4.0, "--scala-gain-db", min=0.0, max=24.0),
+    scala_max_targets: int = typer.Option(128, "--scala-max-targets", min=1, max=512),
     modal_count: int = typer.Option(48, "--modal-count", min=1),
     modal_q_min: float = typer.Option(5.0, "--modal-q-min", min=0.5),
     modal_q_max: float = typer.Option(60.0, "--modal-q-max", min=0.5),
@@ -2689,6 +2708,14 @@ def _ir_gen_impl(
 
     f0_hz: float | None = None
     harmonic_targets_hz: tuple[float, ...] = ()
+    scala_description: str | None = None
+    scala_sha256: str | None = None
+    scala_targets_hz: tuple[float, ...] = ()
+
+    if scala_file is not None and analyze_input is not None:
+        raise typer.BadParameter("--scala-file cannot be combined with --analyze-input.")
+    if scala_file is not None and f0 is not None:
+        raise typer.BadParameter("--scala-file cannot be combined with --f0; use --scala-root-hz.")
 
     if f0 is not None:
         try:
@@ -2701,6 +2728,30 @@ def _ir_gen_impl(
         if f0_hz is None:
             f0_hz = est_f0
         harmonic_targets_hz = tuple(harmonics)
+
+    if scala_file is not None:
+        scale_low_hz = modal_low_hz if scala_low_hz is None else scala_low_hz
+        scale_high_hz = modal_high_hz if scala_high_hz is None else scala_high_hz
+        scale_high_hz = min(float(scale_high_hz), 0.49 * float(sr))
+        if float(scale_low_hz) >= scale_high_hz:
+            raise typer.BadParameter(
+                "Scala frequency range is empty after applying sample-rate/Nyquist limits."
+            )
+        try:
+            scale = parse_scala_file(scala_file)
+            scala_targets_hz = resolve_scala_frequencies(
+                scale,
+                root_hz=scala_root_hz,
+                root_degree=scala_root_degree,
+                low_hz=float(scale_low_hz),
+                high_hz=scale_high_hz,
+                max_targets=scala_max_targets,
+            )
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+        scala_description = scale.description
+        scala_sha256 = scale.sha256
+        harmonic_targets_hz = scala_targets_hz
 
     cfg = IRGenConfig(
         mode=mode,
@@ -2729,6 +2780,16 @@ def _ir_gen_impl(
         mod_rate_hz=mod_rate_hz,
         density=density,
         tuning=tuning,
+        scala_file_name=None if scala_file is None else scala_file.name,
+        scala_description=scala_description,
+        scala_sha256=scala_sha256,
+        scala_root_hz=None if scala_file is None else scala_root_hz,
+        scala_root_degree=scala_root_degree,
+        scala_targets_hz=scala_targets_hz,
+        scala_strength=scala_strength,
+        scala_bandwidth_cents=scala_bandwidth_cents,
+        scala_gain_db=scala_gain_db,
+        scala_max_targets=scala_max_targets,
         modal_count=modal_count,
         modal_q_min=modal_q_min,
         modal_q_max=modal_q_max,
@@ -2772,7 +2833,7 @@ def _ir_gen_impl(
         envelopment_macro=envelopment_macro,
         f0_hz=f0_hz,
         harmonic_targets_hz=harmonic_targets_hz,
-        harmonic_align_strength=harmonic_align_strength,
+        harmonic_align_strength=(scala_strength if scala_file is not None else harmonic_align_strength),
         resonator=resonator,
         resonator_mix=resonator_mix,
         resonator_modes=resonator_modes,
@@ -2879,6 +2940,15 @@ def _ir_gen_impl(
     if analyze_input is not None:
         table.add_row("analyze_input", str(analyze_input))
         table.add_row("harmonics_detected", str(len(harmonic_targets_hz)))
+    if scala_file is not None:
+        table.add_row("scala_file", str(scala_file))
+        table.add_row("scala_description", scala_description or "")
+        table.add_row("scala_sha256", scala_sha256 or "")
+        table.add_row("scala_root_hz", f"{scala_root_hz:.6f}")
+        table.add_row("scala_root_degree", str(scala_root_degree))
+        table.add_row("scala_targets", str(len(scala_targets_hz)))
+        table.add_row("scala_bandwidth_cents", f"{scala_bandwidth_cents:.2f}")
+        table.add_row("scala_gain_db", f"{scala_gain_db:.2f}")
     table.add_row("resonator", str(resonator))
     if resonator:
         table.add_row("resonator_mix", f"{resonator_mix:.3f}")

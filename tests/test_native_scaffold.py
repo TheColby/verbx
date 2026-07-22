@@ -146,6 +146,51 @@ def test_native_render_accepts_plugin_minimum_rt60(tmp_path: Path) -> None:
     assert np.all(np.isfinite(rendered))
 
 
+def test_native_render_supports_spring_and_plate_models(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    exe = _build_native_executable(tmp_path)
+    sr = 16_000
+    audio = np.zeros((256, 1), dtype=np.float64)
+    audio[0, 0] = 0.5
+    infile = tmp_path / "models_in.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+    renders: dict[str, np.ndarray] = {}
+
+    for model in ("spring", "plate"):
+        outfile = tmp_path / f"{model}.wav"
+        report_path = tmp_path / f"{model}.json"
+        result = subprocess.run(
+            [
+                str(exe),
+                "render",
+                str(infile),
+                str(outfile),
+                "--model",
+                model,
+                "--rt60",
+                "0.25",
+                "--wet",
+                "1.0",
+                "--dry",
+                "0.0",
+                "--json-out",
+                str(report_path),
+            ],
+            check=True,
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+        )
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+        renders[model], _ = sf.read(str(outfile), always_2d=True, dtype="float64")
+        assert f"model: {model}" in result.stdout
+        assert payload["model"] == model
+        assert np.all(np.isfinite(renders[model]))
+
+    length = min(renders["spring"].shape[0], renders["plate"].shape[0])
+    assert not np.allclose(renders["spring"][:length], renders["plate"][:length])
+
+
 def test_native_doctor_reports_process_contract(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     exe = _build_native_executable(tmp_path)

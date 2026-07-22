@@ -3,13 +3,13 @@
 Verifies correctness of HOA processing paths for orders 1-3.
 
 Status as of v0.7.7:
-- FOA (order 1): fully validated — all tests pass deterministically.
+- FOA (order 1): fully validated – all tests pass deterministically.
 - HOA order 2+: paths exist and produce structurally correct output
   (shape, dtype, no NaN/Inf), but absolute numerical correctness has
   not been validated against an external reference decoder.
   Tests marked with ``hoa_unvalidated`` reflect this status.
 
-The ``hoa_unvalidated`` marker does NOT skip these tests — they will run
+The ``hoa_unvalidated`` marker does NOT skip these tests – they will run
 and must pass shape/safety checks.  As validation proceeds, replace the
 marker with a positive assertion against a reference decoder.
 """
@@ -52,7 +52,7 @@ hoa_unvalidated = pytest.mark.xfail(
 )
 
 # ---------------------------------------------------------------------------
-# ambisonic_channel_count — pure function
+# ambisonic_channel_count: pure function
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("order,expected_ch", [
@@ -97,7 +97,7 @@ def test_infer_ambisonic_order_non_square_returns_none() -> None:
 
 
 # ---------------------------------------------------------------------------
-# FOA (order 1) — validated path
+# FOA (order 1): validated path
 # ---------------------------------------------------------------------------
 
 def test_foa_yaw_rotation_identity() -> None:
@@ -171,7 +171,7 @@ def test_foa_encode_stereo_correct_shape() -> None:
 
 
 # ---------------------------------------------------------------------------
-# HOA order 2 — paths exist, numerical correctness unvalidated
+# HOA order 2: paths exist, numerical correctness unvalidated
 # ---------------------------------------------------------------------------
 
 @hoa_unvalidated
@@ -227,7 +227,7 @@ def test_hoa_order2_decode_uses_foa_subset() -> None:
 
 
 # ---------------------------------------------------------------------------
-# HOA order 3 — paths exist, numerical correctness unvalidated
+# HOA order 3: paths exist, numerical correctness unvalidated
 # ---------------------------------------------------------------------------
 
 @hoa_unvalidated

@@ -261,6 +261,36 @@ Required columns: `target`, `time_s`, `value`. Optional: `interp`.
 
 ---
 
+## Generated IR Metadata (`*.ir.meta.json`)
+
+`verbx ir gen OUT.wav` writes `OUT.wav.ir.meta.json` unless `--silent` is
+used. The top-level `version`, `mode`, and `seed` identify the generator; the
+`params` object contains the complete resolved `IRGenConfig`; and `metrics`
+contains measurements of the rendered IR. Every parameter contributes to the
+deterministic cache key.
+
+Scala-tuned IRs add the following fields inside `params`:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `scala_file_name` | string or null | Source `.scl` basename |
+| `scala_description` | string or null | First non-comment Scala line |
+| `scala_sha256` | string or null | SHA-256 of the exact source bytes |
+| `scala_root_hz` | number or null | Frequency assigned to the root degree |
+| `scala_root_degree` | integer | Zero-based selected degree |
+| `scala_targets_hz` | array of numbers | Resolved in-range frequency targets |
+| `scala_strength` | number | Tuning and emphasis blend from 0 to 1 |
+| `scala_bandwidth_cents` | number | Constant-Q band width in cents |
+| `scala_gain_db` | number | Pre-normalization emphasis gain in dB |
+| `scala_max_targets` | integer | Deterministic DSP target budget |
+
+The hash, resolved target list, and root mapping are the reproducibility
+contract. A consumer does not need the original Scala file to audit which
+frequencies shaped an existing IR. The synthetic IR cache namespace is
+`verbx-ir-v0.5`; older entries miss once and regenerate under this schema.
+
+---
+
 ## Analysis Output (`verbx analyze --json-out`)
 
 JSON produced by `verbx analyze --json-out <file>`.

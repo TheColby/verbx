@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
+- Scala `.scl` tuning for `verbx ir gen`, including cents and ratio parsing,
+  arbitrary repeat intervals, root-degree mapping, bounded cross-register target
+  expansion, constant-Q band emphasis, deterministic cache identity, and full
+  scale provenance in IR metadata. Generated microtonal IRs remain ordinary
+  audio assets and can therefore feed convolution render, realtime, plug-in,
+  and Audio AI workflows without file parsing on the audio thread.
 - Experimental `--electromechanical-solver modal-fe` provides deterministic
   offline lumped-mass spring-tank and structured plate finite-element modal
   solvers, with bounded mesh, retained-mode, coupling, and loss controls.
@@ -21,6 +27,9 @@ All notable changes to this project are documented in this file.
   `native-render-report-v1` JSON.
 
 ### Changed
+- The synthetic IR cache namespace is now `verbx-ir-v0.5`; the first request
+  for an existing configuration regenerates its cache entry so Scala-aware
+  configuration identity cannot reuse older metadata accidentally.
 - Quality modes now perform real allocation-free wet-path oversampling instead
   of reporting an aspirational internal rate. Host, 2x, and 4x use their exact
   integer factors; Target 192 kHz chooses the smallest integer factor that

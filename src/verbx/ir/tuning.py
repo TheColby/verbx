@@ -12,6 +12,7 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 import soundfile as sf
+from scipy.signal import iirpeak, lfilter
 
 try:
     import librosa  # type: ignore[import-untyped]
@@ -126,6 +127,47 @@ def apply_harmonic_alignment(
     blend = 0.22 * amount
     out = np.asarray(ir + (blend * bed), dtype=np.float64)
     return out
+
+
+def apply_frequency_band_emphasis(
+    ir: AudioArray,
+    sr: int,
+    targets_hz: tuple[float, ...],
+    strength: float,
+    bandwidth_cents: float,
+    gain_db: float,
+) -> AudioArray:
+    """Add a bounded constant-Q bank centered on musical frequency targets."""
+
+    x = np.asarray(ir, dtype=np.float64)
+    amount = float(np.clip(strength, 0.0, 1.0))
+    gain = float(np.clip(gain_db, 0.0, 24.0))
+    width = float(np.clip(bandwidth_cents, 1.0, 1_200.0))
+    targets = tuple(
+        sorted({float(value) for value in targets_hz if 20.0 <= value < 0.49 * float(sr)})
+    )
+    if amount <= 0.0 or gain <= 0.0 or not targets or x.size == 0:
+        return x.copy()
+
+    bank = np.zeros_like(x)
+    half_ratio = 2.0 ** (width / 2_400.0)
+    for frequency in targets:
+        bandwidth_hz = frequency * (half_ratio - (1.0 / half_ratio))
+        q = float(np.clip(frequency / max(bandwidth_hz, 1e-6), 0.5, 500.0))
+        b, a = iirpeak(frequency, q, fs=float(sr))
+        for channel in range(x.shape[1]):
+            bank[:, channel] += lfilter(b, a, x[:, channel])
+
+    bank /= np.sqrt(float(len(targets)))
+    source_rms = float(np.sqrt(np.mean(np.square(x), dtype=np.float64)))
+    bank_rms = float(np.sqrt(np.mean(np.square(bank), dtype=np.float64)))
+    if source_rms <= 1e-12 or bank_rms <= 1e-12:
+        return x.copy()
+
+    additive_gain = (10.0 ** (gain / 20.0)) - 1.0
+    bank *= amount * additive_gain * (source_rms / bank_rms)
+    out = np.nan_to_num(x + bank, nan=0.0, posinf=0.0, neginf=0.0)
+    return np.asarray(out, dtype=np.float64)
 
 
 def _estimate_f0(mono: npt.NDArray[np.float64], sr: int, min_hz: float, max_hz: float) -> float:

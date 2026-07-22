@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "verbx"
-version = "0.7.7"
+version = "0.9.0"
 description = "Research-grade CLI for extreme reverb processing and analysis."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -95,11 +95,11 @@ include = ["src"]
 venvPath = "."
 venv = ".venv"
 
-# reportMissingTypeStubs: legitimate — librosa, soundfile, pyloudnorm, numba
+# reportMissingTypeStubs: legitimate – librosa, soundfile, pyloudnorm, numba
 # ship no type stubs and upstream stubs are incomplete / absent.
 reportMissingTypeStubs = "none"
 
-# reportUntypedFunctionDecorator: legitimate — typer @app.command() decorators
+# reportUntypedFunctionDecorator: legitimate – typer @app.command() decorators
 # and the optional @numba.njit decorator are not typed in their libraries.
 reportUntypedFunctionDecorator = "none"
 

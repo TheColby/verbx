@@ -1,11 +1,11 @@
-# IR Synthesis — A Dual-Layer Reference
+# IR Synthesis – A Dual-Layer Reference
 
 > Version: v0.7.7 (public alpha)
 
 This document is written for two readers at once. The plain-English sections
 give you enough to use the tool effectively without reading source code. The
-technical sections go deep — modal decay math, FDN topology, stochastic density
-shaping, morph blend modes — and assume you know what a Schroeder allpass is and
+technical sections go deep – modal decay math, FDN topology, stochastic density
+shaping, morph blend modes – and assume you know what a Schroeder allpass is and
 roughly why it matters. Skip what you don't need.
 
 ---
@@ -15,13 +15,13 @@ roughly why it matters. Skip what you don't need.
 ### Plain English
 
 Clap your hands once in a cathedral. The sound you hear after that single clap
-— all those echoes, the wash, the way it slowly dies away — that is the room's
+— all those echoes, the wash, the way it slowly dies away – that is the room's
 impulse response. It is the room's acoustic fingerprint.
 
 Convolution reverb works by capturing that fingerprint as a digital audio file
 and mathematically "stamping" it onto whatever audio you feed in. The result
 sounds like the audio was recorded in that room. It is not simulation, it is
-multiplication in the frequency domain — and it sounds convincing because it
+multiplication in the frequency domain – and it sounds convincing because it
 uses real (or carefully synthesized) physics.
 
 verbx does not require you to record a real room. It synthesizes IRs from
@@ -61,12 +61,12 @@ which gives the exponential decay envelope $e^{-t/\tau}$ used across modes.
 
 ## 2. The Four Synthesis Modes
 
-### 2a. `fdn` — Feedback Delay Network
+### 2a. `fdn` – Feedback Delay Network
 
 #### What it sounds like
 
 Dense, smooth, algorithmic reverb. Think classic hardware reverb units from the
-1980s — less "room" character, more "sound in space." Works well for clean
+1980s – less "room" character, more "sound in space." Works well for clean
 ambience that sits behind a mix without calling attention to itself. The
 modulation options add subtle pitch shimmer that keeps it from sounding static.
 
@@ -84,7 +84,7 @@ $$
 
 where $d$ is the vector of delay lengths (in samples), $b$ is the input gains, and
 $c$ is the output tap weights. For the loop to be stable and lossless, $M$ must be
-unitary or near-unitary — verbx supports Hadamard matrices (default) and
+unitary or near-unitary – verbx supports Hadamard matrices (default) and
 random orthogonal matrices. The Hadamard construction at order $N$ is efficient
 ($\mathcal{O}(N \log N)$ multiply) and guarantees perfect echo density growth.
 
@@ -95,13 +95,13 @@ to 16 significantly increases diffusion at the cost of memory and compute.
 The FDN includes optional time-varying modulation (`fdn_tv_rate_hz`,
 `fdn_tv_depth`): each delay line length is sinusoidally modulated at an
 individually offset rate derived from the master rate. This breaks up metallic
-resonances at the cost of LTI purity — the output is no longer strictly an IR
+resonances at the cost of LTI purity – the output is no longer strictly an IR
 of a fixed system, but the artifact is perceptually benign at low modulation
 depths.
 
 Three-band RT60 control (`fdn_rt60_low`, `fdn_rt60_mid`, `fdn_rt60_high`) is
 implemented as per-band absorption shelving filters inserted in each feedback
-loop — similar in spirit to the Jot-Chaigne absorptive FDN. Low-frequency RT60
+loop – similar in spirit to the Jot-Chaigne absorptive FDN. Low-frequency RT60
 is typically longer than mid in real rooms; setting `fdn_rt60_low` slightly
 above `fdn_rt60_mid` makes the tail feel more physical.
 
@@ -118,17 +118,17 @@ low-frequency density without proportionally increasing the delay buffer size.
 
 **Known limitation:** The FDN IR is rendered by impulse-exciting the network and
 reading $N \times L$ output samples, where $L$ is the requested IR length. For very long IRs (120s at 48kHz)
-this is about 5.76e9 operations — non-trivial. Sparse mode (`fdn_sparse`) reduces
+this is about 5.76e9 operations – non-trivial. Sparse mode (`fdn_sparse`) reduces
 this by zeroing low-magnitude delay connections, with controllable degree.
 
 ---
 
-### 2b. `stochastic` — Noise-Shaped Diffuse Tail
+### 2b. `stochastic` – Noise-Shaped Diffuse Tail
 
 #### What it sounds like
 
 Pure reverb wash with no discrete echoes and no tonal coloration. Sounds like
-the late tail of a large space — a long, smooth decay. Useful as a bed when you
+the late tail of a large space – a long, smooth decay. Useful as a bed when you
 want pure texture without any pitched character. Can sound a bit thin on its own
 (there is no direct sound energy), but as a component in hybrid mode it provides
 exactly what it promises: texture.
@@ -158,7 +158,7 @@ persist, giving a slightly colored tail that can sound more like a real room.
 The `density` parameter scales the RMS of the noise before the envelope is
 applied. It does not change the decay shape, only the apparent "thickness" of
 the tail. At density > 1.0 the tail can clip before normalization, which is
-intentional — normalization re-scales — but very high density values will pull
+intentional – normalization re-scales – but very high density values will pull
 the effective noise floor up and reduce dynamic range in the output.
 
 Band control (`rt60_low`, `rt60_high`): when these differ, the stochastic tail
@@ -168,11 +168,11 @@ full filter-per-sample approach.
 
 ---
 
-### 2c. `modal` — Decaying Modal Resonator Bank
+### 2c. `modal` – Decaying Modal Resonator Bank
 
 #### What it sounds like
 
-Pitched, tonal, resonant — like a metal plate, a wine glass, or a very live
+Pitched, tonal, resonant – like a metal plate, a wine glass, or a very live
 tiled room. Modes ring at specific frequencies, giving reverb a musical quality
 that can either blend into pitched content or clash with it depending on tuning.
 Excellent for designed reverbs on melodic material when you want the space to
@@ -195,7 +195,7 @@ $$
 
 The $1/\sqrt{N}$ normalization keeps total energy approximately constant regardless
 of modal count, which is the right thing to do (amplitude does not add linearly
-for uncorrelated modes — RMS does).
+for uncorrelated modes – RMS does).
 
 Frequencies are sampled log-uniformly between `modal_low_hz` and `modal_high_hz`:
 
@@ -203,7 +203,7 @@ $$
 f_k = \exp\!\left(U[\log(f_{\mathrm{low}}), \log(f_{\mathrm{high}})]\right)
 $$
 
-This is the correct distribution for musical pitch perception — equal intervals
+This is the correct distribution for musical pitch perception – equal intervals
 on a log scale correspond to equal musical intervals. Linear uniform sampling
 would cluster modes near `modal_high_hz` perceptually.
 
@@ -224,7 +224,7 @@ $$
 
 This clipping prevents individual modes from ringing dramatically longer than
 the RT60 budget, which would otherwise create audible individual tones at the
-end of the tail — a problem that sounds terrible and is hard to fix after the
+end of the tail – a problem that sounds terrible and is hard to fix after the
 fact. In practice you can push `modal_q_max` to 200 or higher if you want
 those long-ringing tones intentionally (bells, chimes), just know the IR will
 have frequency-domain spikes that may interact poorly with the source material
@@ -234,9 +234,66 @@ Harmonic alignment (`--f0`, `--analyze-input`) nudges mode frequencies toward
 integer multiples of a fundamental using `tune_frequency_to_targets()`. The
 `align_strength` parameter (0–1) linearly interpolates each mode's sampled
 frequency toward the nearest harmonic target. At strength 1.0, all modes
-collapse to exact harmonics — a fully pitched comb. At 0.0, no alignment.
+collapse to exact harmonics – a fully pitched comb. At 0.0, no alignment.
 Values around 0.5–0.7 give a nice blend of harmonic coloration without the
 artificiality of a pure comb filter.
+
+#### Scala scales and microtonal emphasis
+
+`--scala-file SCALE.scl` replaces the ordinary harmonic target list with pitch
+classes parsed from a Scala scale. verbx accepts cents entries such as `63.1579`,
+integer ratios such as `2`, and fractional ratios such as `7/4`. Lines beginning
+with `!`, and text following `!` on a data line, are comments. The final declared
+pitch defines the repeat interval, so octave, tritave, and other non-octave
+scales use the same path.
+
+Let $r_d$ be the ratio of scale degree $d$, $r_p$ the repeat interval, $f_r$ the
+root frequency, and $d_r$ the selected root degree. The resolved frequency for
+degree $d$ in register $k$ is
+
+$$
+f_{d,k} = f_r\frac{r_d}{r_{d_r}}r_p^k.
+$$
+
+verbx expands this lattice only between `--scala-low-hz` and
+`--scala-high-hz`, then removes targets above 0.49 times the sample rate. If a
+high-division scale exceeds `--scala-max-targets`, targets are selected at even
+positions on the logarithmically ordered list so low and high registers remain
+represented. This is a deterministic DSP budget, not a random pitch omission.
+
+The resolved frequencies serve two related purposes. First, modal frequencies
+are pulled toward the nearest scale target by `--scala-strength`. Second, after
+the selected synthesis mode is complete, a parallel constant-Q filter bank
+reinforces those bands in every mode. For a center frequency $f_c$ and bandwidth
+$b$ cents, the approximate filter quality is
+
+$$
+Q = \frac{f_c}{f_c\left(2^{b/2400}-2^{-b/2400}\right)}.
+$$
+
+The filtered bank is RMS-normalized before `--scala-gain-db` and
+`--scala-strength` are applied. Final IR normalization still runs afterward,
+which bounds export headroom but does not erase the relative spectral emphasis.
+Narrow widths produce clearly pitched resonances; broader widths produce a
+gentler spectral affinity. Start at 20 to 35 cents, 3 to 6 dB, and strength 0.5
+to 0.75 for musical material.
+
+| Option | Default | Meaning |
+|---|---:|---|
+| `--scala-file` | none | UTF-8 Scala `.scl` file |
+| `--scala-root-hz` | 440 Hz | Frequency assigned to the selected root degree |
+| `--scala-root-degree` | 0 | Zero-based degree treated as the root |
+| `--scala-low-hz` | modal low limit | Lowest generated target |
+| `--scala-high-hz` | modal high limit | Highest target before Nyquist clamping |
+| `--scala-strength` | 1.0 | Modal attraction and emphasis blend, 0 to 1 |
+| `--scala-bandwidth-cents` | 25 cents | Constant-Q emphasis width |
+| `--scala-gain-db` | 4 dB | Emphasis-bank gain before final normalization |
+| `--scala-max-targets` | 128 | Maximum filter and tuning target count |
+
+The parser rejects malformed counts, nonpositive ratios, unsorted degrees,
+invalid root degrees, and empty post-Nyquist ranges before synthesis. Scala
+tuning cannot be combined with `--analyze-input` or `--f0` because those options
+would define a competing frequency target set. Use `--scala-root-hz` instead.
 
 An air noise bed at amplitude $0.02\,r_{\mathrm{RMS}}$ is added to prevent the IR from
 being spectrally empty between modal peaks. Without it, convolution with
@@ -249,12 +306,12 @@ surround, but functional for stereo and tolerable for LCR.
 
 ---
 
-### 2d. `hybrid` — The Mode You Will Actually Use
+### 2d. `hybrid` – The Mode You Will Actually Use
 
 #### What it sounds like
 
 Combines discrete early echoes (the "slap" you hear in the first 50–120ms)
-with a blended late tail. The early reflections give spatial cues — your brain
+with a blended late tail. The early reflections give spatial cues – your brain
 uses them to estimate room size and shape. The late tail does the wash. Together
 they sound more like a real room than any single mode alone.
 
@@ -278,16 +335,17 @@ $$
 
 4. Add early reflections by overlap-add into the first er_max_delay_ms samples
 
-The seed offsets (+11, +17, +23) are not magic numbers — they just ensure the
+The seed offsets (+11, +17, +23) are not magic numbers – they just ensure the
 three RNGs produce independent sequences from the same user seed. The blending
 weights (0.55/0.25/0.20) were chosen empirically: stochastic dominates because
 it produces the smoothest late tail, modal adds tonal character, FDN adds
 algorithmic density structure. These weights are fixed in the current release;
 future versions may expose them as parameters.
 
-The post-blend pipeline applies globally: harmonic alignment, optional Modalys
-resonator layer, then IR shaping (filters, normalization). So tuning flags like
-`--f0` and `--resonator` work across all modes, not just modal.
+The post-blend pipeline applies globally: harmonic alignment, Scala constant-Q
+emphasis, optional Modalys resonator layer, then IR shaping (filters,
+normalization). Tuning flags such as `--f0`, `--scala-file`, and `--resonator`
+therefore work across all modes, not just modal.
 
 ---
 
@@ -295,14 +353,14 @@ resonator layer, then IR shaping (filters, normalization). So tuning flags like
 
 ### Perceptual Role
 
-Early reflections — the first 5–80ms or so after the direct sound — are the
+Early reflections – the first 5–80ms or so after the direct sound – are the
 most important part of reverb for spatial perception. They are what lets you
 tell a bathroom from a concert hall even before the tail arrives. They carry
 IACC (interaural cross-correlation) cues that localize you in space, and their
 density and timing pattern gives a strong sense of room size.
 
 The direct sound is always present at sample 0 (amplitude 1.0 per channel) as
-a convolution anchor — this is the Kronecker delta that initiates the impulse
+a convolution anchor – this is the Kronecker delta that initiates the impulse
 response and ensures the convolution engine sees a properly calibrated gain
 reference.
 
@@ -365,7 +423,7 @@ $$
 
 For er_stereo_width = 0.0, all taps are center-panned (mono ER). For 1.0,
 full ±1.0 pan range. For 2.0, panning can exceed the unit range, intentionally
-widening beyond the speaker base — useful for envelopment effects but beware
+widening beyond the speaker base – useful for envelopment effects but beware
 mono compatibility.
 
 One thing I would change in a future version: the tap delays should ideally be
@@ -380,7 +438,7 @@ For now, setting `er_count` to 16–24 rather than 64 reduces this risk.
 
 ### What It Does
 
-Morphing takes two existing IRs — say, a small room and a large hall — and
+Morphing takes two existing IRs – say, a small room and a large hall – and
 interpolates between them to create a new IR that has characteristics of both.
 You control the blend position with `--alpha` (0.0 = first IR, 1.0 = second IR,
 0.5 = midpoint). The cache means repeated morphs at the same parameters are
@@ -403,7 +461,7 @@ h_{\mathrm{out}}[n] = (1-\alpha) h_A[n] + \alpha h_B[n]
 $$
 
 Fast but acoustically naive. If $A$ and $B$ have different RT60 values, the
-crossfaded IR will have a decay shape that is neither $A$'s nor $B$'s — it will
+crossfaded IR will have a decay shape that is neither $A$'s nor $B$'s – it will
 be a linear interpolation of amplitudes, which for exponential decays means
 the instantaneous decay rate changes non-monotonically with $\alpha$. At
 $\alpha=0.5$ between a 1s and 4s RT60, you get approximately a 2s decay, but the shape
@@ -470,7 +528,7 @@ a batch of 50 renders that all use the same IR parameters, regenerating it every
 time is wasteful and slows iteration.
 
 The cache stores both the audio and a metadata sidecar, so a cache hit is just
-a file read — negligible latency.
+a file read – negligible latency.
 
 ### How the Hash Key Works
 
@@ -478,16 +536,16 @@ The cache key is a 16-character hex prefix of SHA-256 applied to the
 JSON-serialized `IRGenConfig` dataclass:
 
     payload = asdict(config)
-    payload["_schema"] = "verbx-ir-v0.4"
+    payload["_schema"] = "verbx-ir-v0.5"
     text = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     key = sha256(text.encode("utf-8")).hexdigest()[:16]
 
-Every field of `IRGenConfig` contributes to the hash — `mode`, `length`, `sr`,
+Every field of `IRGenConfig` contributes to the hash – `mode`, `length`, `sr`,
 `channels`, `seed`, `rt60`, all FDN topology flags, all modal parameters, all
 resonator settings, tuning, normalization target, everything. Changing any
 single field produces a different hash and therefore a different cache entry.
 
-The schema version string `"verbx-ir-v0.4"` is a namespace guard. When the
+The schema version string `"verbx-ir-v0.5"` is a namespace guard. When the
 IRGenConfig schema changes in a breaking way (field added, removed, or renamed),
 bump this version string. All existing cache entries will become unreachable
 (not deleted, just miss) and will be regenerated on next access. This is
@@ -500,7 +558,11 @@ Cache files live at:
     .verbx_cache/irs/<hash>.meta.json
 
 The metadata JSON contains the full config, version, seed, and IR metrics
-(RT60 measured, spectral centroid, etc.) as computed by `analyze_ir()`.
+(RT60 measured, spectral centroid, etc.) as computed by `analyze_ir()`. For a
+Scala-tuned IR it also preserves the source filename, description, SHA-256
+content hash, root frequency and degree, all resolved targets, filter width,
+gain, strength, and target budget. The source hash is part of the cache identity,
+so editing a scale in place cannot silently reuse the previous IR.
 
 Management:
 
@@ -541,7 +603,7 @@ hatch run verbx ir gen irs/cinematic_hybrid.wav \
   --er-room 1.3 --er-stereo-width 1.2 --mod-depth-ms 2.0 --mod-rate-hz 0.1
 ```
 
-### Pitched Modal — Tuned Resonance
+### Pitched Modal – Tuned Resonance
 
 For pitched instruments where you want the room to harmonize with the source.
 Set `--f0` to the root note of your key. High $Q$ range (7–90) gives a mix of
@@ -554,11 +616,41 @@ hatch run verbx ir gen irs/pitched_modal.wav \
   --modal-low-hz 60 --modal-high-hz 9000 --modal-spread-cents 8
 ```
 
+### Microtonal Hybrid from a Scala Scale
+
+This recipe maps degree 0 of the included 19-EDO example to 220 Hz, expands the
+scale through the useful audio range, and gives every late-tail family a
+moderate pitch affinity. The generated WAV is an ordinary convolution IR.
+
+```bash
+hatch run verbx ir gen irs/19edo_hybrid.wav \
+  --mode hybrid --length 18 --rt60 7 --seed 19 \
+  --scala-file examples/scales/19edo.scl \
+  --scala-root-hz 220 --scala-root-degree 0 \
+  --scala-low-hz 90 --scala-high-hz 10000 \
+  --scala-strength 0.65 --scala-bandwidth-cents 22 \
+  --scala-gain-db 5 --scala-max-targets 128
+
+hatch run verbx render source.wav tuned_space.wav \
+  --engine conv --ir irs/19edo_hybrid.wav --wet 0.35 --dry 1
+```
+
+For realtime use, generate the IR before opening the stream:
+
+```bash
+hatch run verbx realtime \
+  --engine conv --ir irs/19edo_hybrid.wav --block-size 128
+```
+
+The realtime latency is the same as for any other IR with the same partition
+and block settings. Scala parsing and filter-bank construction do not run on
+the callback thread.
+
 ### Resonator-Colored Hybrid (Modalys-Inspired)
 
 The Modalys resonator layer sits on top of the hybrid tail starting at
 `--resonator-late-start-ms`. Good for adding physical resonance character
-to an otherwise smooth hybrid — think the body resonance of a large wooden
+to an otherwise smooth hybrid – think the body resonance of a large wooden
 instrument or a tuned metal plate. `--resonator-mix 0.38` is a conservative
 setting; go to 0.6+ for obviously colored effects.
 
@@ -624,7 +716,7 @@ flutter risk, bright spectral character, strong IACC asymmetry.
 ```
 
 Keep `er_count` high and `er_max_delay_ms` short. The dense early cloud in
-a small room is the defining character — do not cut corners here. Low `--rt60`
+a small room is the defining character – do not cut corners here. Low `--rt60`
 with moderate `--damping` will give you that tight, controlled sound.
 
 ### Medium Hall (recital hall, 300–800 seats)
@@ -640,7 +732,7 @@ longer at low frequencies.
 ```
 
 The three-band RT60 control is worth using here. Real halls have longer bass
-decay — it is the signature of mass and volume. Skipping this makes algorithmic
+decay – it is the signature of mass and volume. Skipping this makes algorithmic
 reverb sound synthetic quickly.
 
 ### Cathedral / Large Church
@@ -662,7 +754,7 @@ long distances. With a 30-second IR the cache becomes practically essential.
 
 ### Metal Plate / Physical Resonator
 
-Not a room at all — a physical resonator with well-defined modal structure.
+Not a room at all – a physical resonator with well-defined modal structure.
 The modal mode is the right tool here, not hybrid.
 
 ```bash
@@ -679,7 +771,7 @@ spring reverb.
 
 ### Infinite / Frozen Pad
 
-Not physically realistic, obviously, but useful as a creative tool — the IR
+Not physically realistic, obviously, but useful as a creative tool – the IR
 never really decays. Very long length with high RT60 relative to length.
 
 ```bash
@@ -688,7 +780,7 @@ never really decays. Very long length with high RT60 relative to length.
 ```
 
 The RT60 exceeding the IR length means the decay envelope never reaches –60 dB
-within the buffer — the tail is essentially flat. Combined with high diffusion
+within the buffer – the tail is essentially flat. Combined with high diffusion
 you get a dense, white-ish wash. Works well convolved with a long pad or a
 heavily sustained note.
 
@@ -753,7 +845,7 @@ selection (or phase interpolation via circular statistics) would be more robust.
 
 **FDN IR length.** Very long FDN IRs (60s+) are slow to generate because the
 FDN must be simulated sample-by-sample (or block-by-block). There is no shortcut
-for a time-varying FDN — you cannot analytically compute its IR without running
+for a time-varying FDN – you cannot analytically compute its IR without running
 the network. The cache makes this practical for production use, but the first
 generation of a long FDN IR takes wall-clock time proportional to IR length.
 
@@ -770,7 +862,7 @@ From the R3 milestones:
   resampling. An IR generated at 96kHz should be retrievable (with a quality
   warning) by a 48kHz render job without full regeneration.
 
-- `R3.2 operational QA`: morph diagnostic artifacts — small reference renders
+- `R3.2 operational QA`: morph diagnostic artifacts – small reference renders
   that can be compared against golden files in CI. The morph metadata already
   includes RT60 drift and spectral distance; R3.2 formalizes the acceptance
   thresholds.

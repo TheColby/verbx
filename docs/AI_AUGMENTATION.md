@@ -149,6 +149,16 @@ it. RT60 covers orders of magnitude, so $\log T_{60}$ often produces a better-co
 regression target than raw seconds. Circular angles need periodic losses; categorical matrices
 need classification or embeddings rather than pretending their names form a numeric scale.
 
+Scala-tuned synthetic IRs add controlled pitch-lattice supervision for music,
+source-separation, transcription, and robust acoustic-retrieval experiments.
+Generate them with `verbx ir gen --scala-file SCALE.scl`, preserve the emitted
+scale hash and resolved frequency list, and treat scale family as a grouping
+identity during dataset splitting. If variants derived from one `.scl` file
+appear in both training and test sets, an apparently strong model may only have
+memorized the same resonance lattice. Useful ablations vary scale, root degree,
+root frequency, emphasis strength, bandwidth, and RT60 independently while
+holding the dry source and random seed fixed.
+
 ### Framewise targets
 
 Time-varying room estimation, adaptive dereverberation, and online control models require targets
@@ -724,6 +734,181 @@ Absolute source paths are included in current signatures for local reproducibili
 a dataset externally, publish a path-remapping policy or content-addressed source registry rather
 than assuming another machine has the same directory layout. Do not publish private paths or
 source bytes that the dataset license forbids.
+
+## TensorFlow and PyTorch integration
+
+verbx should sit at a clearly defined boundary in a machine-learning input pipeline.
+There are two valid patterns. A **materialized pipeline** renders WAV files and manifests
+before training. An **on-the-fly pipeline** renders or convolves inside a dataset worker.
+Materialization costs storage but makes every waveform inspectable, cacheable, and exactly
+repeatable. On-the-fly augmentation saves storage and can expose a model to more variants,
+but it complicates worker safety, distributed determinism, performance, and postmortem
+analysis. Use materialized data for validation and test even when training is dynamic.
+
+The governing rule is
+
+$$
+\mathcal{D}_{\mathrm{train}}^{(e)}=A(\mathcal{D}_{\mathrm{train}}, e, s),\qquad
+\mathcal{D}_{\mathrm{val}}'=A(\mathcal{D}_{\mathrm{val}}, s_{\mathrm{val}}),\qquad
+\mathcal{D}_{\mathrm{test}}'=A(\mathcal{D}_{\mathrm{test}}, s_{\mathrm{test}}),
+$$
+
+where epoch $e$ may change training variants, while validation and test seeds remain
+fixed. The clean source split must be created before $A$ is applied. No recording,
+speaker, session, musical stem family, room capture, or generated IR family designated as
+a leakage group may cross that boundary.
+
+### A split-safe materialized workflow
+
+1. Assign immutable `source_id`, `group_id`, and `split` fields to the clean corpus.
+2. Freeze the split ledger in version control or content-addressed object storage.
+3. Assign disjoint room or IR families when room generalization is an evaluation target.
+4. Plan augmentation from the frozen ledger and write the planned JSONL manifest.
+5. Smoke-render a small stratified sample and run audio, label, and tail checks.
+6. Render training variants, then render one fixed validation and test matrix.
+7. Hash every output and join acoustic analysis fields back into the manifest.
+8. Train from the manifest rather than rediscovering labels from directory names.
+9. Report clean, seen-room, unseen-room, and severity-bucket metrics separately.
+
+For a dereverberation model, each row should retain the dry target, reverberant input,
+IR identifier, direct-arrival convention, wet/dry policy, output gain, and seed. For ASR,
+the transcript remains attached to the dry source identity while room metadata describes
+the transformed observation. For music tasks, stems from one multitrack session usually
+belong to one leakage group even when their filenames differ.
+
+### PyTorch `Dataset` and `DataLoader`
+
+The simplest robust PyTorch design reads a verbx JSONL manifest and returns already
+materialized paths. The dataset object does not invoke a subprocess in `__getitem__`, so
+worker restarts cannot create partial files or race for one output path.
+
+```python
+import json
+from pathlib import Path
+
+import soundfile as sf
+import torch
+from torch.utils.data import Dataset
+
+
+class VerbxManifestDataset(Dataset):
+    def __init__(self, manifest_path: str, split: str):
+        rows = [json.loads(line) for line in Path(manifest_path).read_text().splitlines()]
+        self.rows = [row for row in rows if row["split"] == split]
+
+    def __len__(self):
+        return len(self.rows)
+
+    def __getitem__(self, index):
+        row = self.rows[index]
+        audio, sample_rate = sf.read(row["output_path"], dtype="float32", always_2d=True)
+        waveform = torch.from_numpy(audio.T.copy())
+        target = torch.tensor(row["target"], dtype=torch.long)
+        return waveform, sample_rate, target, row["source_id"], row["room_id"]
+```
+
+Use a collate function that pads or crops waveforms deliberately and returns a valid-
+sample mask. Do not silently truncate long reverb tails if the task depends on decay.
+With `DistributedSampler`, shard rows after loading the fixed manifest, call
+`sampler.set_epoch(e)` for training order, and keep validation order fixed. Seed each
+worker from a run seed, rank, worker identifier, and epoch when any residual online
+randomness remains.
+
+For on-the-fly training, prefer an in-process convolution or Python API over spawning the
+CLI for every item. Load IRs once per worker, bound the cache, derive the variant seed from
+`hash(source_id, epoch, global_seed)`, and return the chosen parameters with the waveform.
+Never overwrite the source manifest with epoch-specific values. Record enough seed state
+to regenerate a failed or unusually informative example later.
+
+### TensorFlow `tf.data`
+
+TensorFlow follows the same evidence contract. Construct the dataset from manifest
+columns, shard deterministically in distributed jobs, decode audio, and batch with an
+explicit shape policy.
+
+```python
+import json
+from pathlib import Path
+
+import tensorflow as tf
+
+rows = [json.loads(line) for line in Path("manifests/augmented.jsonl").read_text().splitlines()]
+train_rows = [row for row in rows if row["split"] == "train"]
+
+paths = [row["output_path"] for row in train_rows]
+labels = [row["target"] for row in train_rows]
+dataset = tf.data.Dataset.from_tensor_slices((paths, labels))
+
+options = tf.data.Options()
+options.experimental_deterministic = True
+dataset = dataset.with_options(options)
+
+def decode(path, label):
+    audio_bytes = tf.io.read_file(path)
+    waveform, sample_rate = tf.audio.decode_wav(audio_bytes, desired_channels=-1)
+    return waveform, sample_rate, label
+
+dataset = dataset.map(decode, num_parallel_calls=tf.data.AUTOTUNE, deterministic=True)
+dataset = dataset.padded_batch(16, padded_shapes=([None, None], [], []))
+dataset = dataset.prefetch(tf.data.AUTOTUNE)
+```
+
+`tf.py_function` can wrap Python DSP, but it weakens graph portability, shape inference,
+and accelerator input optimization. Use it only for training-time experiments whose
+reproducibility and throughput have been measured. A stronger production path renders
+with verbx ahead of time or exports tensors into sharded TFRecord files while retaining
+the original JSONL provenance ledger.
+
+### Validation, test, and challenge matrices
+
+A single random reverberant test set cannot answer whether a model generalizes. Freeze a
+matrix with meaningful axes:
+
+| Axis | Example buckets |
+|---|---|
+| Room identity | seen room, unseen measured room, unseen synthesized family |
+| Decay | dry, short, medium, long, extreme |
+| Direct-to-reverberant ratio | foreground, balanced, distant |
+| Noise | clean, stationary, transient, competing speech |
+| Device | matched microphone, unseen microphone, codec path |
+| Spatial layout | mono, stereo, array, binaural or immersive fold-down |
+
+Keep a clean test condition in the same report. For ASR, report word error rate by each
+cell and the relative degradation from clean. For dereverberation, combine signal metrics
+with acoustic estimates such as residual RT60, DRR change, spectral distortion, and
+listening tests. For tagging or separation, inspect class or source-specific failures;
+reverberation can alter instruments with sparse attacks more than sustained ones.
+
+### Caching, distributed workers, and failure recovery
+
+Hash the transformation specification, source content, verbx version, and IR content into
+one cache key. A filename alone is not sufficient because a file may be replaced in place.
+Write to a temporary path, validate the container and expected duration, then atomically
+publish the completed artifact. In a multi-worker render farm, acquire work from immutable
+manifest rows and make retries idempotent.
+
+For PyTorch Distributed Data Parallel, JAX, TensorFlow MultiWorkerMirroredStrategy, or TPU
+input services, avoid letting each rank invent a different interpretation of the split.
+Distribute the same frozen manifest and shard by stable row index or source group. Measure
+input-stall time, cache hit rate, augmentation CPU time, storage throughput, and accelerator
+utilization together. A theoretically rich online augmenter that starves the model can
+reduce effective experimental coverage compared with a simpler pre-rendered corpus.
+
+### Preventing augmentation leakage
+
+Augmentation leakage has several forms. A dry utterance and its reverberant copy in
+different splits is direct leakage. Two excerpts from one recording session can leak the
+same speaker, noise floor, and microphone. Two IRs measured in the same room can leak room
+identity even when filenames differ. Two synthesized IRs created from one parameter seed
+family can leak generator fingerprints. The split ledger must therefore name the unit of
+independence appropriate to the scientific claim.
+
+When evaluating unseen-room robustness, hold out room families before generating any
+variants. When evaluating a neural reverb estimator, hold out both source recordings and
+IR families. When training generative audio, audit whether wet tails reveal copyrighted or
+sensitive source material beyond the intended crop. A defensible result states not only
+the framework and model but also exactly what was isolated between training, validation,
+and test.
 
 ## Scaling and operational behavior
 

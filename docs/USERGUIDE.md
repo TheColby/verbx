@@ -84,29 +84,25 @@ auditable rather than a claim to have measured or cloned a particular hardware
 tank.
 
 The spring tank is a set of lumped mass-spring-damper chains. Its continuous
-reference equation is
+reference equation is:
 
-$$
-\boldsymbol{M}\ddot{\boldsymbol{x}}
-+ \boldsymbol{C}\dot{\boldsymbol{x}}
-+ \boldsymbol{K}\boldsymbol{x}
-= \boldsymbol{e}u(t),
-$$
+```text
+M x'' + C x' + K x = e u(t)
+```
 
-where $\boldsymbol{M}$ distributes spring mass to nodes,
-$\boldsymbol{K}$ assembles segment compliance, tension, end constraints, and
-optional tank-to-tank coupling, and $\boldsymbol{C}$ represents loss. verbx
-solves the associated generalized eigenproblem
+Here `M` distributes spring mass to nodes, `K` assembles segment compliance,
+tension, end constraints, and optional tank-to-tank coupling, and `C`
+represents loss. verbx solves the associated generalized eigenproblem:
 
-$$
-\boldsymbol{K}\boldsymbol{q}_r = \lambda_r\boldsymbol{M}\boldsymbol{q}_r,
-\qquad \omega_r=\sqrt{\lambda_r},
-$$
+```text
+K q[r] = lambda[r] M q[r]
+omega[r] = sqrt(lambda[r])
+```
 
 then sums the driven/pickup modal responses with RT60-calibrated decay. The
 plate path uses the corresponding structured, mass-lumped clamped grid, where
-$\boldsymbol{K}=D\boldsymbol{L}^{T}\boldsymbol{L}+T\boldsymbol{L}$ combines
-thin-plate bending rigidity $D$ with optional tension $T$.
+$K = D L^{\mathsf T}L + TL$ combines thin-plate bending rigidity $D$ with
+optional tension $T$.
 
 ```bash
 verbx render guitar.wav tank.wav --engine algo --algo-model spring \
@@ -5620,59 +5616,55 @@ verbx render vocal.wav plate_fe.wav --engine algo --algo-model plate \
   --plate-pickup-x 0.18 --plate-pickup-y 0.76 --rt60 3.4 --wet 1 --dry 0
 ```
 
-For a spring, verbx assembles a block mass matrix $\boldsymbol{M}$ and a
-tridiagonal chain stiffness matrix $\boldsymbol{K}$. Multi-spring tanks add a
-small coupling stiffness between adjacent chains. Normal modes solve
+For a spring, verbx assembles a block mass matrix `M` and a tridiagonal chain
+stiffness matrix `K`. Multi-spring tanks add a small coupling stiffness between
+adjacent chains. Normal modes solve:
 
-$$
-\boldsymbol{K}\boldsymbol{q}_r = \lambda_r\boldsymbol{M}\boldsymbol{q}_r,
-\qquad \omega_r = \sqrt{\lambda_r}.
-$$
+```text
+K q[r] = lambda[r] M q[r]
+omega[r] = sqrt(lambda[r])
+```
 
 The driven/pickup impulse response is a causal sum of damped modes,
 
-$$
-h(t) = \sum_r \frac{(\boldsymbol{p}^{T}\boldsymbol{q}_r)
-(\boldsymbol{q}_r^{T}\boldsymbol{e})}{\omega_{d,r}}
-e^{-\sigma_r t}\sin(\omega_{d,r}t),
-$$
+```text
+h(t) = sum over r of [ pickup(r) * drive(r) / omega_d(r) ]
+       * exp(-sigma(r) * t) * sin(omega_d(r) * t)
+```
 
-where $\boldsymbol{e}$ is the input weight and $\boldsymbol{p}$ the pickup.
-RT60 sets $\sigma=3\ln(10)/T_{60}$; `--spring-fe-loss` increases high-mode
-loss and `--spring-fe-coupling` controls adjacent-spring coupling.
+`drive` is the input-transducer weighting and `pickup` is the output weighting.
+RT60 sets the base decay rate; `--spring-fe-loss` increases high-mode loss and
+`--spring-fe-coupling` controls adjacent-spring coupling.
 
 At element level, the spring displacement vector follows the familiar
 mass-spring-damper equation
 
-$$
-\boldsymbol{M}\ddot{\boldsymbol{x}}
-+ \boldsymbol{C}\dot{\boldsymbol{x}}
-+ \boldsymbol{K}\boldsymbol{x}
-= \boldsymbol{e}u(t).
-$$
+```text
+M x'' + C x' + K x = e u(t)
+```
 
-For a chain with $N$ nodes, verbx assigns node mass
-$m_i=m_{\mathrm{total}}/N$ and segment stiffness
-$k_s=(N-1)/c_{\mathrm{total}}$, where $c_{\mathrm{total}}$ is the requested
-compliance in metres per newton. The tridiagonal stiffness block is assembled
-from $k_s[1,-1;-1,1]$ element contributions and a driven-end clamp.
+For a chain with `N` nodes, verbx assigns node mass
+`m[i] = total_mass / N` and segment stiffness
+`k[s] = (N - 1) / total_compliance`, where `total_compliance` is the requested
+metres-per-newton compliance. The tridiagonal stiffness block is assembled from
+the element contribution `k[s] * [[1, -1], [-1, 1]]` plus a driven-end clamp.
 The solver does not time-step a stiff system sample by sample: it projects the
-system into normal modes and applies the stable modal decay $e^{-\sigma_rt}$.
+system into normal modes and applies stable exponential modal decay.
 That retains a mass-spring-damper resonance structure without making the
 offline render sensitive to an integration step size.
 
 ![Clamped plate finite-element grid](assets/modal_fe_plate_grid.png)
 
 The plate solver uses a structured, mass-lumped clamped grid. Its stiffness is
-the discrete thin-plate bending term plus optional membrane tension,
+the discrete thin-plate bending term plus optional membrane tension:
 
-$$
-\boldsymbol{K}=D\boldsymbol{L}^{T}\boldsymbol{L}+T\boldsymbol{L},
-\qquad M_{ii}=\rho h\Delta x\Delta y,
-$$
+```text
+K = D L^T L + T L
+M[i,i] = density * thickness * dx * dy
+D = Youngs_modulus * thickness^3 / (12 * (1 - Poisson_ratio^2))
+```
 
-where $\boldsymbol{L}$ is the positive finite-difference Laplacian and
-$D=Eh^3/[12(1-\nu^2)]$. `--plate-fe-nx`, `--plate-fe-ny`, and
+Here `L` is the positive finite-difference Laplacian. `--plate-fe-nx`, `--plate-fe-ny`, and
 `--plate-fe-modes` trade computation for detail; `--plate-fe-loss` gives
 higher modes stronger decay. The input is fixed off-centre while
 `--plate-pickup-x/y` select a bilinearly interpolated pickup. This is a
@@ -5789,10 +5781,43 @@ folder-sorted buckets by length (`tiny`, `short`, `medium`, `long`) and mode
 | Neutral hall, natural decay | `stochastic` | `--rt60 3.0 --damping 0.4` |
 | Match your FDN render topology | `fdn` | Same `--fdn-lines`, `--fdn-matrix` as render |
 | Musical, pitched resonances | `modal` | `--f0 "64 Hz" --modal-count 40` |
+| Microtonal or alternate-tuning resonance | any mode | `--scala-file scale.scl --scala-root-hz 220` |
 | General cinematic space | `hybrid` | `--length 120 --seed 42` |
 | Analyze and match audio source | `hybrid` | `--analyze-input source.wav` |
 
-Generated IRs are cached by content hash + parameters. Repeated calls with the same settings return from cache instantly.
+### Scala and microtonal resonance tuning
+
+`verbx ir gen` can read a standard Scala `.scl` file and emphasize its pitch
+classes across a bounded frequency range. Scala cents, integer ratios,
+fractional ratios, comments, non-octave repeat intervals, and a selectable root
+degree are supported. The same target set tunes modal frequencies and adds a
+bounded constant-Q emphasis layer to `fdn`, `stochastic`, `modal`, and `hybrid`
+IRs, so the result can reinforce a scale without turning every tail into a set
+of isolated sine tones.
+
+```bash
+verbx ir gen irs/19edo_room.wav \
+  --mode hybrid --length 12 --rt60 5.5 \
+  --scala-file examples/scales/19edo.scl \
+  --scala-root-hz 220 --scala-root-degree 0 \
+  --scala-low-hz 100 --scala-high-hz 8000 \
+  --scala-strength 0.7 --scala-bandwidth-cents 24 --scala-gain-db 5
+
+verbx render in.wav out.wav --engine conv --ir irs/19edo_room.wav
+verbx realtime --engine conv --ir irs/19edo_room.wav --block-size 128
+```
+
+Scala processing happens while the IR is generated, not inside the realtime
+callback. This keeps realtime latency unchanged and makes one tuned IR usable
+from the CLI, a DAW convolution host, or an ML data pipeline. The metadata
+sidecar records the scale description, SHA-256 content hash, root mapping,
+resolved target frequencies, strength, bandwidth, gain, and target budget.
+`--scala-file` is intentionally exclusive with `--analyze-input` and `--f0`;
+use `--scala-root-hz` when a scale is active.
+
+Generated IRs are cached by content hash plus parameters. Repeated calls with
+the same settings return from cache immediately; changing the `.scl` contents
+changes its hash and cache identity even when the filename stays the same.
 
 ```bash
 verbx ir gen my_space.wav --mode hybrid --length 120 --rt60 8.0 --seed 42
@@ -6168,7 +6193,7 @@ verbx ir sofa-info FILE.sofa              # inspect SOFA conventions/dimensions
 verbx ir sofa-extract FILE.sofa OUT.wav   # extract FIR matrix for convolution renders
 ```
 
-**`ir gen` key flags:** `--mode [fdn|stochastic|modal|hybrid]`, `--length`, `--rt60`, `--damping`, `--seed`, `--sr`, `--channels`, `--er-count`, `--diffusion`, `--fdn-lines`, `--fdn-matrix`, `--resonator`, `--resonator-mix`, `--analyze-input`, `--harmonic-align-strength`, `--f0`
+**`ir gen` key flags:** `--mode [fdn|stochastic|modal|hybrid]`, `--length`, `--rt60`, `--damping`, `--seed`, `--sr`, `--channels`, `--er-count`, `--diffusion`, `--fdn-lines`, `--fdn-matrix`, `--resonator`, `--resonator-mix`, `--analyze-input`, `--harmonic-align-strength`, `--f0`, `--scala-file`, `--scala-root-hz`, `--scala-root-degree`, `--scala-low-hz`, `--scala-high-hz`, `--scala-strength`, `--scala-bandwidth-cents`, `--scala-gain-db`, `--scala-max-targets`
 
 **`ir morph` key flags:** `--mode [linear|equal-power|spectral|envelope-aware]`, `--alpha`, `--early-ms`, `--early-alpha`, `--late-alpha`, `--align-decay`, `--phase-coherence`, `--mismatch-policy [coerce|strict]`
 
@@ -7175,6 +7200,7 @@ Additional guides in `docs/`:
 - [AI augmentation guide](docs/AI_AUGMENTATION.md) – dataset generation workflow documentation
 - [Schema reference](docs/SCHEMA_REFERENCE.md) – JSON/CSV formats for manifests and automation
 - [Dataset augmentation notebook](examples/dataset_augmentation.ipynb) – Python API workflow for ML pipelines
+- [Scala tuning examples](examples/scales/README.md) – microtonal `.scl` input and convolution workflow
 - [IR morph QA guide](docs/IR_MORPH_QA.md) – morph-sweep QA artifacts and CI integration
 - [Benchmark baseline guide](docs/benchmarks/README.md) – CI/runtime comparison workflow
 - [Extreme cookbook](docs/EXTREME_COOKBOOK.md) – 100 additional workflow examples
@@ -9699,6 +9725,27 @@ Do not edit manually.
 │ --density                                <float range>     [default: 1.0]    │
 │                                          [x>=0.01]                           │
 │ --tuning                                 <str>             [default: A4=440] │
+│ --scala-file                             <path>            Scala .scl scale  │
+│                                                            used to tune and  │
+│                                                            emphasize         │
+│                                                            synthetic IR      │
+│                                                            resonances.       │
+│ --scala-root-hz                          <float range>     [default: 440.0]  │
+│                                          [x>=1.0]                            │
+│ --scala-root-deg…                        <int range>       [default: 0]      │
+│                                          [x>=0]                              │
+│ --scala-low-hz                           <float range>                       │
+│                                          [x>=20.0]                           │
+│ --scala-high-hz                          <float range>                       │
+│                                          [x>=30.0]                           │
+│ --scala-strength                         <float range>     [default: 1.0]    │
+│                                          [0.0<=x<=1.0]                       │
+│ --scala-bandwidt…                        <float range>     [default: 25.0]   │
+│                                          [1.0<=x<=1200.0]                    │
+│ --scala-gain-db                          <float range>     [default: 4.0]    │
+│                                          [0.0<=x<=24.0]                      │
+│ --scala-max-targ…                        <int range>       [default: 128]    │
+│                                          [1<=x<=512]                         │
 │ --modal-count                            <int range>       [default: 48]     │
 │                                          [x>=1]                              │
 │ --modal-q-min                            <float range>     [default: 5.0]    │
@@ -22248,6 +22295,63 @@ collapse to exact harmonics – a fully pitched comb. At 0.0, no alignment.
 Values around 0.5–0.7 give a nice blend of harmonic coloration without the
 artificiality of a pure comb filter.
 
+#### Scala scales and microtonal emphasis
+
+`--scala-file SCALE.scl` replaces the ordinary harmonic target list with pitch
+classes parsed from a Scala scale. verbx accepts cents entries such as `63.1579`,
+integer ratios such as `2`, and fractional ratios such as `7/4`. Lines beginning
+with `!`, and text following `!` on a data line, are comments. The final declared
+pitch defines the repeat interval, so octave, tritave, and other non-octave
+scales use the same path.
+
+Let $r_d$ be the ratio of scale degree $d$, $r_p$ the repeat interval, $f_r$ the
+root frequency, and $d_r$ the selected root degree. The resolved frequency for
+degree $d$ in register $k$ is
+
+$$
+f_{d,k} = f_r\frac{r_d}{r_{d_r}}r_p^k.
+$$
+
+verbx expands this lattice only between `--scala-low-hz` and
+`--scala-high-hz`, then removes targets above 0.49 times the sample rate. If a
+high-division scale exceeds `--scala-max-targets`, targets are selected at even
+positions on the logarithmically ordered list so low and high registers remain
+represented. This is a deterministic DSP budget, not a random pitch omission.
+
+The resolved frequencies serve two related purposes. First, modal frequencies
+are pulled toward the nearest scale target by `--scala-strength`. Second, after
+the selected synthesis mode is complete, a parallel constant-Q filter bank
+reinforces those bands in every mode. For a center frequency $f_c$ and bandwidth
+$b$ cents, the approximate filter quality is
+
+$$
+Q = \frac{f_c}{f_c\left(2^{b/2400}-2^{-b/2400}\right)}.
+$$
+
+The filtered bank is RMS-normalized before `--scala-gain-db` and
+`--scala-strength` are applied. Final IR normalization still runs afterward,
+which bounds export headroom but does not erase the relative spectral emphasis.
+Narrow widths produce clearly pitched resonances; broader widths produce a
+gentler spectral affinity. Start at 20 to 35 cents, 3 to 6 dB, and strength 0.5
+to 0.75 for musical material.
+
+| Option | Default | Meaning |
+|---|---:|---|
+| `--scala-file` | none | UTF-8 Scala `.scl` file |
+| `--scala-root-hz` | 440 Hz | Frequency assigned to the selected root degree |
+| `--scala-root-degree` | 0 | Zero-based degree treated as the root |
+| `--scala-low-hz` | modal low limit | Lowest generated target |
+| `--scala-high-hz` | modal high limit | Highest target before Nyquist clamping |
+| `--scala-strength` | 1.0 | Modal attraction and emphasis blend, 0 to 1 |
+| `--scala-bandwidth-cents` | 25 cents | Constant-Q emphasis width |
+| `--scala-gain-db` | 4 dB | Emphasis-bank gain before final normalization |
+| `--scala-max-targets` | 128 | Maximum filter and tuning target count |
+
+The parser rejects malformed counts, nonpositive ratios, unsorted degrees,
+invalid root degrees, and empty post-Nyquist ranges before synthesis. Scala
+tuning cannot be combined with `--analyze-input` or `--f0` because those options
+would define a competing frequency target set. Use `--scala-root-hz` instead.
+
 An air noise bed at amplitude $0.02\,r_{\mathrm{RMS}}$ is added to prevent the IR from
 being spectrally empty between modal peaks. Without it, convolution with
 broadband content can reveal the gaps as spectral dips.
@@ -22295,9 +22399,10 @@ it produces the smoothest late tail, modal adds tonal character, FDN adds
 algorithmic density structure. These weights are fixed in the current release;
 future versions may expose them as parameters.
 
-The post-blend pipeline applies globally: harmonic alignment, optional Modalys
-resonator layer, then IR shaping (filters, normalization). So tuning flags like
-`--f0` and `--resonator` work across all modes, not just modal.
+The post-blend pipeline applies globally: harmonic alignment, Scala constant-Q
+emphasis, optional Modalys resonator layer, then IR shaping (filters,
+normalization). Tuning flags such as `--f0`, `--scala-file`, and `--resonator`
+therefore work across all modes, not just modal.
 
 ---
 
@@ -22488,7 +22593,7 @@ The cache key is a 16-character hex prefix of SHA-256 applied to the
 JSON-serialized `IRGenConfig` dataclass:
 
     payload = asdict(config)
-    payload["_schema"] = "verbx-ir-v0.4"
+    payload["_schema"] = "verbx-ir-v0.5"
     text = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     key = sha256(text.encode("utf-8")).hexdigest()[:16]
 
@@ -22497,7 +22602,7 @@ Every field of `IRGenConfig` contributes to the hash – `mode`, `length`, `sr`,
 resonator settings, tuning, normalization target, everything. Changing any
 single field produces a different hash and therefore a different cache entry.
 
-The schema version string `"verbx-ir-v0.4"` is a namespace guard. When the
+The schema version string `"verbx-ir-v0.5"` is a namespace guard. When the
 IRGenConfig schema changes in a breaking way (field added, removed, or renamed),
 bump this version string. All existing cache entries will become unreachable
 (not deleted, just miss) and will be regenerated on next access. This is
@@ -22510,7 +22615,11 @@ Cache files live at:
     .verbx_cache/irs/<hash>.meta.json
 
 The metadata JSON contains the full config, version, seed, and IR metrics
-(RT60 measured, spectral centroid, etc.) as computed by `analyze_ir()`.
+(RT60 measured, spectral centroid, etc.) as computed by `analyze_ir()`. For a
+Scala-tuned IR it also preserves the source filename, description, SHA-256
+content hash, root frequency and degree, all resolved targets, filter width,
+gain, strength, and target budget. The source hash is part of the cache identity,
+so editing a scale in place cannot silently reuse the previous IR.
 
 Management:
 
@@ -22563,6 +22672,36 @@ hatch run verbx ir gen irs/pitched_modal.wav \
   --modal-count 64 --modal-q-min 7 --modal-q-max 90 \
   --modal-low-hz 60 --modal-high-hz 9000 --modal-spread-cents 8
 ```
+
+### Microtonal Hybrid from a Scala Scale
+
+This recipe maps degree 0 of the included 19-EDO example to 220 Hz, expands the
+scale through the useful audio range, and gives every late-tail family a
+moderate pitch affinity. The generated WAV is an ordinary convolution IR.
+
+```bash
+hatch run verbx ir gen irs/19edo_hybrid.wav \
+  --mode hybrid --length 18 --rt60 7 --seed 19 \
+  --scala-file examples/scales/19edo.scl \
+  --scala-root-hz 220 --scala-root-degree 0 \
+  --scala-low-hz 90 --scala-high-hz 10000 \
+  --scala-strength 0.65 --scala-bandwidth-cents 22 \
+  --scala-gain-db 5 --scala-max-targets 128
+
+hatch run verbx render source.wav tuned_space.wav \
+  --engine conv --ir irs/19edo_hybrid.wav --wet 0.35 --dry 1
+```
+
+For realtime use, generate the IR before opening the stream:
+
+```bash
+hatch run verbx realtime \
+  --engine conv --ir irs/19edo_hybrid.wav --block-size 128
+```
+
+The realtime latency is the same as for any other IR with the same partition
+and block settings. Scala parsing and filter-bank construction do not run on
+the callback thread.
 
 ### Resonator-Colored Hybrid (Modalys-Inspired)
 
@@ -22968,6 +23107,16 @@ or a composite parameter vector. Use bounded or transformed targets where the ge
 it. RT60 covers orders of magnitude, so $\log T_{60}$ often produces a better-conditioned
 regression target than raw seconds. Circular angles need periodic losses; categorical matrices
 need classification or embeddings rather than pretending their names form a numeric scale.
+
+Scala-tuned synthetic IRs add controlled pitch-lattice supervision for music,
+source-separation, transcription, and robust acoustic-retrieval experiments.
+Generate them with `verbx ir gen --scala-file SCALE.scl`, preserve the emitted
+scale hash and resolved frequency list, and treat scale family as a grouping
+identity during dataset splitting. If variants derived from one `.scl` file
+appear in both training and test sets, an apparently strong model may only have
+memorized the same resonance lattice. Useful ablations vary scale, root degree,
+root frequency, emphasis strength, bandwidth, and RT60 independently while
+holding the dry source and random seed fixed.
 
 ### Framewise targets
 
@@ -24125,6 +24274,36 @@ Required columns: `target`, `time_s`, `value`. Optional: `interp`.
 | `ir-blend-alpha` | conv | 0.0 – 1.0 | IR morph blend (convolution engine) |
 
 **Aliases:** Most targets accept common shorthand – e.g. `t60` → `rt60`, `gain` → `gain-db`, `room` → `room-size`, `blend-alpha` → `ir-blend-alpha`.
+
+---
+
+## Generated IR Metadata (`*.ir.meta.json`)
+
+`verbx ir gen OUT.wav` writes `OUT.wav.ir.meta.json` unless `--silent` is
+used. The top-level `version`, `mode`, and `seed` identify the generator; the
+`params` object contains the complete resolved `IRGenConfig`; and `metrics`
+contains measurements of the rendered IR. Every parameter contributes to the
+deterministic cache key.
+
+Scala-tuned IRs add the following fields inside `params`:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `scala_file_name` | string or null | Source `.scl` basename |
+| `scala_description` | string or null | First non-comment Scala line |
+| `scala_sha256` | string or null | SHA-256 of the exact source bytes |
+| `scala_root_hz` | number or null | Frequency assigned to the root degree |
+| `scala_root_degree` | integer | Zero-based selected degree |
+| `scala_targets_hz` | array of numbers | Resolved in-range frequency targets |
+| `scala_strength` | number | Tuning and emphasis blend from 0 to 1 |
+| `scala_bandwidth_cents` | number | Constant-Q band width in cents |
+| `scala_gain_db` | number | Pre-normalization emphasis gain in dB |
+| `scala_max_targets` | integer | Deterministic DSP target budget |
+
+The hash, resolved target list, and root mapping are the reproducibility
+contract. A consumer does not need the original Scala file to audit which
+frequencies shaped an existing IR. The synthetic IR cache namespace is
+`verbx-ir-v0.5`; older entries miss once and regenerate under this schema.
 
 ---
 
@@ -30989,6 +31168,17 @@ not enough to reproduce the result.
 Treat every render as an evidence-producing transformation: preserve the source, specify
 the operation, inspect the plan, retain machine-readable results, and listen at matched
 level. That habit scales from one musical experiment to a distributed research corpus.
+
+**Q101. Can verbx use a Scala file for microtonal reverb?**
+
+Yes. Pass `--scala-file SCALE.scl` to `verbx ir gen`, set the reference with
+`--scala-root-hz` and `--scala-root-degree`, and control the effect with
+`--scala-strength`, `--scala-bandwidth-cents`, and `--scala-gain-db`. verbx
+expands the scale across the requested frequency range, tunes modal targets,
+and emphasizes those bands in every synthetic IR mode. Generate the IR once,
+then use it with `verbx render --engine conv --ir ...`, `verbx realtime --engine
+conv --ir ...`, a convolution plug-in, or a dataset pipeline. The realtime
+callback never parses the Scala file, so this feature adds no callback latency.
 
 
 \newpage

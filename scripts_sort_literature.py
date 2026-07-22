@@ -20,7 +20,7 @@ ENTRY_BLOCK_PATTERN = re.compile(
     r"(?P<entry>\*\*\[[^]]+\]\*\*\s+[^\n]+)"
     r"(?P<annotation>(?:\n\n(?:>[^\n]*(?:\n>[^\n]*)*))?)"
 )
-SECTION_PATTERN = re.compile(r"(?m)^## Section \d+: .+$")
+SECTION_PATTERN = re.compile(r"(?m)^## Section \d+[A-Z]?: .+$")
 
 
 def _plain(value: str) -> str:
@@ -33,7 +33,7 @@ def _plain(value: str) -> str:
 def _author_key(value: str) -> tuple[str, ...]:
     value = re.sub(r"^\*\*\d+\.\s*", "", value.strip())
     value = re.sub(r"^\*\*", "", value)
-    value = value.split(" — ", 1)[0]
+    value = value.split(" – ", 1)[0]
     value = value.split(" (", 1)[0]
     value = value.split(":", 1)[0]
     first_author = value.split(";", 1)[0].strip()
@@ -50,8 +50,11 @@ def _entry_key(block: str) -> tuple[str, ...]:
     )
     if match is None:
         raise ValueError(f"Cannot parse reference entry: {entry}")
+    first_author = match.group("authors").split(";", 1)[0].strip()
+    surname = first_author.split(",", 1)[0].strip()
     return (
-        *_author_key(match.group("authors")),
+        _plain(surname),
+        _plain(first_author),
         _plain(match.group("year")),
         _plain(match.group("title")),
     )
