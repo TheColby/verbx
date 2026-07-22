@@ -5606,7 +5606,7 @@ spring chains allow 4 through 128 lumped nodes and plate grids allow 4 through
 32 nodes per axis. `--spring-fe-modes` and `--plate-fe-modes` retain up to 128 modes; the
 render report records the active post-Nyquist mode range.
 
-![Coupled mass-spring-damper tank finite-element model](assets/modal_fe_spring_tank.svg)
+![Coupled mass-spring-damper tank finite-element model](assets/modal_fe_spring_tank.png)
 
 ```bash
 verbx render guitar.wav guitar_tank_fe.wav --engine algo --algo-model spring \
@@ -5661,7 +5661,7 @@ system into normal modes and applies the stable modal decay $e^{-\sigma_rt}$.
 That retains a mass-spring-damper resonance structure without making the
 offline render sensitive to an integration step size.
 
-![Clamped plate finite-element grid](assets/modal_fe_plate_grid.svg)
+![Clamped plate finite-element grid](assets/modal_fe_plate_grid.png)
 
 The plate solver uses a structured, mass-lumped clamped grid. Its stiffness is
 the discrete thin-plate bending term plus optional membrane tension,
