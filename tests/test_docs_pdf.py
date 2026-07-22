@@ -866,6 +866,19 @@ def test_epigraph_literary_titles_are_italicized() -> None:
     assert r"John Milton, \emph{Comus}}{1637}" in rendered
 
 
+def test_epigraph_immediately_precedes_its_chapter_after_exercise_insertion() -> None:
+    source = "# verbx\n\nBody.\n\n# What Is Reverb? (and why verbx sounds different)\n\nBody."
+    rendered = DOCS_PDF._add_chapter_epigraphs(
+        DOCS_PDF._add_chapter_exercises(source)
+    )
+
+    chapter_start = rendered.index("# What Is Reverb? (and why verbx sounds different)")
+    prior_content = rendered[:chapter_start].rstrip()
+    assert prior_content.endswith("```")
+    assert r"\verbxChapterEpigraph" in prior_content[-500:]
+    assert "Suggested Exercises" not in prior_content[-500:]
+
+
 def test_every_full_page_epigraph_has_an_explicit_date() -> None:
     assert DOCS_PDF.CHAPTER_EPIGRAPHS
     for quote, attribution, date in DOCS_PDF.CHAPTER_EPIGRAPHS:

@@ -641,8 +641,9 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
     markdown = _remove_generated_pdf_preamble(markdown)
     markdown = _add_book_parts(markdown)
     markdown = _promote_reverb_primer_to_chapter(markdown)
-    markdown = _add_chapter_epigraphs(markdown)
     markdown = _add_chapter_exercises(markdown)
+    # Keep each epigraph flush with the chapter it introduces.
+    markdown = _add_chapter_epigraphs(markdown)
     markdown = _italicize_musical_titles(markdown)
     markdown = re.sub(r'(?:<a\s+id="[^"]+"></a>)+', replace_anchor_run, markdown)
     markdown = _replace_mermaid_with_static_assets(markdown)
