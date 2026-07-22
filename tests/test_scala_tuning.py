@@ -25,6 +25,21 @@ SCALE_12_EDO = """! Twelve-tone equal temperament
 2/1
 """
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_bundled_scala_examples_parse_with_expected_periods() -> None:
+    expected = {
+        "19edo.scl": (19, 2.0),
+        "5_limit_major.scl": (7, 2.0),
+        "bohlen_pierce_13edo.scl": (13, 3.0),
+    }
+
+    for filename, (pitch_count, period_ratio) in expected.items():
+        scale = parse_scala_file(REPO_ROOT / "examples" / "scales" / filename)
+        assert scale.pitch_count == pitch_count
+        assert scale.period_ratio == period_ratio
+
 
 def test_parse_scala_file_supports_cents_ratios_comments_and_hash(tmp_path: Path) -> None:
     scale_path = tmp_path / "12edo.scl"

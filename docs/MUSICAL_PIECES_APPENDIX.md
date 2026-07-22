@@ -24,6 +24,33 @@ When a named recording is central to the entry, use that recording or a document
 
 **Olivier Messiaen, *Et exspecto resurrectionem mortuorum* (1964).** Monumental wind and percussion sonorities are written to activate a large resonant space, with silence functioning as part of the decay. Listen through the rests rather than treating them as empty time. Build a study with sparse gong or tam-tam attacks, long multiband decay, and enough headroom that each tail can be heard to disappear naturally.
 
+## Marcel Pérès and Ensemble Organum: Ritual, Place, and Vocal Grain
+
+Marcel Pérès founded Ensemble Organum in 1982. Its work is especially useful here
+because it treats medieval repertory as embodied, situated sound rather than as
+neutral notation placed in a generic “church reverb.” The ensemble’s work moves
+among European and Mediterranean sacred traditions, and its research-oriented
+approach makes vocal color, declamation, drone, ornament, tuning, and architectural
+resonance mutually dependent listening variables. The ensemble’s own history and
+discography document that breadth, from early medieval repertories to later regional
+chant traditions. [Ensemble Organum history](https://organumcirma.com/ensemble-organum/)
+and [discography](https://organumcirma.com/en_GB/discographie/).
+
+For verbx work, do not imitate a recording’s room by immediately choosing a huge,
+bright cathedral preset. First preserve the direct vocal event: narrow the early
+field, use enough pre-delay for consonants and melismas to remain legible, darken
+the return gradually, and compare a close, dryer perspective against a more distant
+one. The artistic question is not simply “how long is the tail?” but how breath,
+unison, drone, ornament, and reverberant memory establish ritual time. A useful
+analysis compares energy decay with the persistence of vowels and with the moment
+at which individual singers stop reading as separate sources.
+
+**Ensemble Organum and Marcel Pérès, *École de Notre-Dame de Paris: Mass for the Nativity of the Virgin* (1995).** The twelfth- and thirteenth-century Notre-Dame repertory invites a close comparison between written polyphony, vocal blend, and the imagined or recorded architectural field. Listen for how sustained tones establish a shared acoustic ground while rhythmic and textual detail remains locally articulated. Build two versions of an original vocal study: a controlled early-reflection field with a modest late tail, and a more diffuse late field. Match loudness, then identify the point at which the second version begins to obscure the line. The [Harmonia Mundi release page](https://www.harmoniamundi.com/en/albums/ecole-notre-dame-de-paris/) confirms the program and artists.
+
+**Ensemble Organum and Marcel Pérès, *Guillaume de Machaut: Messe de Notre-Dame* (1996).** Machaut’s *Messe de Nostre Dame* (c. 1365) is a powerful reverb test because independent vocal entries must remain intelligible while the whole mass acquires ceremonial continuity. Listen for the way dense contrapuntal activity changes the maximum usable decay more than a single RT60 number predicts. In verbx, send four to eight original vocal layers through one coherent late field but vary their early-reflection timing and direct-to-reverberant ratio; compare the result with a single shared stereo return. The [album record](https://music.apple.com/fr/album/guillaume-de-machaut-messe-de-notre-dame/1441776841) identifies the Pérès and Ensemble Organum recording.
+
+**Ensemble Organum and Marcel Pérès, *Chant Corse: Manuscrits franciscains des XVIIe–XVIIIe siècles* (1994).** This Corsican chant program is a reminder that resonant sacred sound is not one homogeneous northern-European cathedral style. Attend to the relation of solo and collective vocal weight, drone-like support, irregular phrase length, and the acoustic space between entries. A productive verbx exercise is to make three alternate responses for an original chant-like phrase: intimate and nearly dry, a short stone enclosure, and a dark extended field. Keep the source performance identical, log the render parameters, and judge which spatial treatment clarifies rather than exoticizes the material. The [release listing](https://www.fnac.com/a365943/Requiem-CD-album) identifies the 1994 recording and repertory.
+
 ## Recorded Space and Tape-Era Studio Craft
 
 **Les Paul and Mary Ford, *How High the Moon* (1951).** Layering, close recording, speed manipulation, and repeated parts create an impossible studio ensemble whose space is assembled rather than documented. Listen for the contrast between intimate vocal presence and the depth implied by overdubs. Use a short room, narrow slap, and different pre-delays per layer; avoid one wash that flattens the arrangement.

@@ -263,10 +263,14 @@ than the same laboratory quantity obtained from a clean excitation and response.
 
 **Q33. What do EDR and frame-level outputs add?**
 
-An energy-decay relief shows decay across both time and frequency, revealing bands that
-ring longer than a single broadband RT60 suggests. Frame output preserves local
-measurements for plotting, quality control, or downstream research instead of reducing
-the file to one summary number.
+An energy decay relief is a time-frequency generalization of the energy decay curve. It
+backward-integrates the squared magnitude of every STFT bin, so a narrow resonance can remain
+visible even when a broadband RT60 averages it away. `--edr` currently reports median,
+low-, middle-, and high-band RT60 summaries plus the number of usable fitted bins; it does
+not write the complete EDR matrix. Frame output preserves separate local descriptors for
+plotting, quality control, or downstream research. See Julius O. Smith III's
+[Energy Decay Relief](https://ccrma.stanford.edu/~jos/pasp/Energy_Decay_Relief.html)
+derivation for the underlying definition.
 
 **Q34. Can verbx estimate room properties from an ordinary recording?**
 

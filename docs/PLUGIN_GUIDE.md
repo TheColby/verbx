@@ -1812,7 +1812,10 @@ Record host rate, quality mode, block size, layout, effective RT60, reported lat
 
 ## 20. Automation Study Cards
 
-### 20.1 Pre-Delay
+### 20.1 Slow rise
+
+**Motion grammar:** Move from the lower setting to the upper setting over eight or more bars.
+**Primary listening question:** This pattern reveals zipper noise and coefficient discontinuities.
 
 **Automation card: Pre-Delay: Slow rise**
 
@@ -1830,56 +1833,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Pre-Delay: Slow fall**
-
-- Host parameter: `pre_delay_ms`.
-- Motion: return gradually toward the dry or compact state.
-- Primary observation: separates the direct event from the room onset.
-- Transition requirement: use a ramp or delay-line crossfade.
-
-Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Pre-Delay: Tempo pulse**
-
-- Host parameter: `pre_delay_ms`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: separates the direct event from the room onset.
-- Transition requirement: use a ramp or delay-line crossfade.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Pre-Delay: Scene switch**
-
-- Host parameter: `pre_delay_ms`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: separates the direct event from the room onset.
-- Transition requirement: use a ramp or delay-line crossfade.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.2 Room Size
-
 **Automation card: Room Size: Slow rise**
 
 - Host parameter: `room_size`.
@@ -1890,6 +1843,187 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: RT60 Coarse: Slow rise**
+
+- Host parameter: `rt60_coarse`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: moves through the full logarithmic decay range.
+- Transition requirement: display the effective seconds value.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: RT60 Fine: Slow rise**
+
+- Host parameter: `rt60_fine`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: trims decay proportionally around the coarse value.
+- Transition requirement: keep zero as the exact neutral point.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Damping: Slow rise**
+
+- Host parameter: `damping`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: changes high-frequency persistence.
+- Transition requirement: interpolate stable filter coefficients.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Width: Slow rise**
+
+- Host parameter: `width`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: changes lateral energy and correlation.
+- Transition requirement: monitor mono compatibility during movement.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Diffusion: Slow rise**
+
+- Host parameter: `diffusion`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: changes echo-density buildup.
+- Transition requirement: crossfade when topology must change.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Wet: Slow rise**
+
+- Host parameter: `wet`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: sets processed contribution.
+- Transition requirement: choose and document the mix law.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Dry: Slow rise**
+
+- Host parameter: `dry`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: sets direct contribution.
+- Transition requirement: preserve bypass and gain staging.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Freeze: Slow rise**
+
+- Host parameter: `freeze`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: changes network energy behavior.
+- Transition requirement: use a debounced, smoothed mode transition.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Reverse: Slow rise**
+
+- Host parameter: `reverse`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: changes the envelope and buffering model.
+- Transition requirement: report added latency before activation.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Quality: Slow rise**
+
+- Host parameter: `quality_mode`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: selects the internal rate policy.
+- Transition requirement: apply through a safe reprepare boundary.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+### 20.2 Slow fall
+
+**Motion grammar:** Return gradually toward the dry or compact state.
+**Primary listening question:** This pattern tests whether stored energy decays naturally.
+
+**Automation card: Pre-Delay: Slow fall**
+
+- Host parameter: `pre_delay_ms`.
+- Motion: return gradually toward the dry or compact state.
+- Primary observation: separates the direct event from the room onset.
+- Transition requirement: use a ramp or delay-line crossfade.
+
+Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 
@@ -1912,56 +2046,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Room Size: Tempo pulse**
-
-- Host parameter: `room_size`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: changes perceived scale and reflection spacing.
-- Transition requirement: stage structural changes outside the callback.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Room Size: Scene switch**
-
-- Host parameter: `room_size`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: changes perceived scale and reflection spacing.
-- Transition requirement: stage structural changes outside the callback.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.3 RT60 Coarse
-
-**Automation card: RT60 Coarse: Slow rise**
-
-- Host parameter: `rt60_coarse`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: moves through the full logarithmic decay range.
-- Transition requirement: display the effective seconds value.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
 **Automation card: RT60 Coarse: Slow fall**
 
 - Host parameter: `rt60_coarse`.
@@ -1972,56 +2056,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: RT60 Coarse: Tempo pulse**
-
-- Host parameter: `rt60_coarse`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: moves through the full logarithmic decay range.
-- Transition requirement: display the effective seconds value.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: RT60 Coarse: Scene switch**
-
-- Host parameter: `rt60_coarse`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: moves through the full logarithmic decay range.
-- Transition requirement: display the effective seconds value.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.4 RT60 Fine
-
-**Automation card: RT60 Fine: Slow rise**
-
-- Host parameter: `rt60_fine`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: trims decay proportionally around the coarse value.
-- Transition requirement: keep zero as the exact neutral point.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 
@@ -2044,56 +2078,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: RT60 Fine: Tempo pulse**
-
-- Host parameter: `rt60_fine`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: trims decay proportionally around the coarse value.
-- Transition requirement: keep zero as the exact neutral point.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: RT60 Fine: Scene switch**
-
-- Host parameter: `rt60_fine`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: trims decay proportionally around the coarse value.
-- Transition requirement: keep zero as the exact neutral point.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.5 Damping
-
-**Automation card: Damping: Slow rise**
-
-- Host parameter: `damping`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: changes high-frequency persistence.
-- Transition requirement: interpolate stable filter coefficients.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
 **Automation card: Damping: Slow fall**
 
 - Host parameter: `damping`.
@@ -2104,56 +2088,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Damping: Tempo pulse**
-
-- Host parameter: `damping`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: changes high-frequency persistence.
-- Transition requirement: interpolate stable filter coefficients.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Damping: Scene switch**
-
-- Host parameter: `damping`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: changes high-frequency persistence.
-- Transition requirement: interpolate stable filter coefficients.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.6 Width
-
-**Automation card: Width: Slow rise**
-
-- Host parameter: `width`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: changes lateral energy and correlation.
-- Transition requirement: monitor mono compatibility during movement.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 
@@ -2176,56 +2110,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Width: Tempo pulse**
-
-- Host parameter: `width`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: changes lateral energy and correlation.
-- Transition requirement: monitor mono compatibility during movement.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Width: Scene switch**
-
-- Host parameter: `width`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: changes lateral energy and correlation.
-- Transition requirement: monitor mono compatibility during movement.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.7 Diffusion
-
-**Automation card: Diffusion: Slow rise**
-
-- Host parameter: `diffusion`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: changes echo-density buildup.
-- Transition requirement: crossfade when topology must change.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
 **Automation card: Diffusion: Slow fall**
 
 - Host parameter: `diffusion`.
@@ -2236,56 +2120,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Diffusion: Tempo pulse**
-
-- Host parameter: `diffusion`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: changes echo-density buildup.
-- Transition requirement: crossfade when topology must change.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Diffusion: Scene switch**
-
-- Host parameter: `diffusion`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: changes echo-density buildup.
-- Transition requirement: crossfade when topology must change.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.8 Wet
-
-**Automation card: Wet: Slow rise**
-
-- Host parameter: `wet`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: sets processed contribution.
-- Transition requirement: choose and document the mix law.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 
@@ -2308,56 +2142,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Wet: Tempo pulse**
-
-- Host parameter: `wet`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: sets processed contribution.
-- Transition requirement: choose and document the mix law.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Wet: Scene switch**
-
-- Host parameter: `wet`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: sets processed contribution.
-- Transition requirement: choose and document the mix law.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.9 Dry
-
-**Automation card: Dry: Slow rise**
-
-- Host parameter: `dry`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: sets direct contribution.
-- Transition requirement: preserve bypass and gain staging.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
 **Automation card: Dry: Slow fall**
 
 - Host parameter: `dry`.
@@ -2368,56 +2152,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Dry: Tempo pulse**
-
-- Host parameter: `dry`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: sets direct contribution.
-- Transition requirement: preserve bypass and gain staging.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Dry: Scene switch**
-
-- Host parameter: `dry`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: sets direct contribution.
-- Transition requirement: preserve bypass and gain staging.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.10 Freeze
-
-**Automation card: Freeze: Slow rise**
-
-- Host parameter: `freeze`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: changes network energy behavior.
-- Transition requirement: use a debounced, smoothed mode transition.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 
@@ -2440,56 +2174,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Freeze: Tempo pulse**
-
-- Host parameter: `freeze`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: changes network energy behavior.
-- Transition requirement: use a debounced, smoothed mode transition.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Freeze: Scene switch**
-
-- Host parameter: `freeze`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: changes network energy behavior.
-- Transition requirement: use a debounced, smoothed mode transition.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.11 Reverse
-
-**Automation card: Reverse: Slow rise**
-
-- Host parameter: `reverse`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: changes the envelope and buffering model.
-- Transition requirement: report added latency before activation.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
 **Automation card: Reverse: Slow fall**
 
 - Host parameter: `reverse`.
@@ -2500,56 +2184,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Reverse: Tempo pulse**
-
-- Host parameter: `reverse`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: changes the envelope and buffering model.
-- Transition requirement: report added latency before activation.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Reverse: Scene switch**
-
-- Host parameter: `reverse`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: changes the envelope and buffering model.
-- Transition requirement: report added latency before activation.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.12 Quality
-
-**Automation card: Quality: Slow rise**
-
-- Host parameter: `quality_mode`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: selects the internal rate policy.
-- Transition requirement: apply through a safe reprepare boundary.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 
@@ -2572,6 +2206,187 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
+### 20.3 Tempo pulse
+
+**Motion grammar:** Alternate two musically useful values on a bar or phrase boundary.
+**Primary listening question:** This pattern tests repeatability and transition timing.
+
+**Automation card: Pre-Delay: Tempo pulse**
+
+- Host parameter: `pre_delay_ms`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: separates the direct event from the room onset.
+- Transition requirement: use a ramp or delay-line crossfade.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Room Size: Tempo pulse**
+
+- Host parameter: `room_size`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: changes perceived scale and reflection spacing.
+- Transition requirement: stage structural changes outside the callback.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: RT60 Coarse: Tempo pulse**
+
+- Host parameter: `rt60_coarse`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: moves through the full logarithmic decay range.
+- Transition requirement: display the effective seconds value.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: RT60 Fine: Tempo pulse**
+
+- Host parameter: `rt60_fine`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: trims decay proportionally around the coarse value.
+- Transition requirement: keep zero as the exact neutral point.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Damping: Tempo pulse**
+
+- Host parameter: `damping`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: changes high-frequency persistence.
+- Transition requirement: interpolate stable filter coefficients.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Width: Tempo pulse**
+
+- Host parameter: `width`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: changes lateral energy and correlation.
+- Transition requirement: monitor mono compatibility during movement.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Diffusion: Tempo pulse**
+
+- Host parameter: `diffusion`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: changes echo-density buildup.
+- Transition requirement: crossfade when topology must change.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Wet: Tempo pulse**
+
+- Host parameter: `wet`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: sets processed contribution.
+- Transition requirement: choose and document the mix law.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Dry: Tempo pulse**
+
+- Host parameter: `dry`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: sets direct contribution.
+- Transition requirement: preserve bypass and gain staging.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Freeze: Tempo pulse**
+
+- Host parameter: `freeze`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: changes network energy behavior.
+- Transition requirement: use a debounced, smoothed mode transition.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Reverse: Tempo pulse**
+
+- Host parameter: `reverse`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: changes the envelope and buffering model.
+- Transition requirement: report added latency before activation.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
 **Automation card: Quality: Tempo pulse**
 
 - Host parameter: `quality_mode`.
@@ -2582,6 +2397,187 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+### 20.4 Scene switch
+
+**Motion grammar:** Change once at an arrangement boundary and hold.
+**Primary listening question:** This pattern tests state recall and discrete transition behavior.
+
+**Automation card: Pre-Delay: Scene switch**
+
+- Host parameter: `pre_delay_ms`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: separates the direct event from the room onset.
+- Transition requirement: use a ramp or delay-line crossfade.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Room Size: Scene switch**
+
+- Host parameter: `room_size`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: changes perceived scale and reflection spacing.
+- Transition requirement: stage structural changes outside the callback.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: RT60 Coarse: Scene switch**
+
+- Host parameter: `rt60_coarse`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: moves through the full logarithmic decay range.
+- Transition requirement: display the effective seconds value.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: RT60 Fine: Scene switch**
+
+- Host parameter: `rt60_fine`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: trims decay proportionally around the coarse value.
+- Transition requirement: keep zero as the exact neutral point.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Damping: Scene switch**
+
+- Host parameter: `damping`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: changes high-frequency persistence.
+- Transition requirement: interpolate stable filter coefficients.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Width: Scene switch**
+
+- Host parameter: `width`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: changes lateral energy and correlation.
+- Transition requirement: monitor mono compatibility during movement.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Diffusion: Scene switch**
+
+- Host parameter: `diffusion`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: changes echo-density buildup.
+- Transition requirement: crossfade when topology must change.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Wet: Scene switch**
+
+- Host parameter: `wet`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: sets processed contribution.
+- Transition requirement: choose and document the mix law.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Dry: Scene switch**
+
+- Host parameter: `dry`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: sets direct contribution.
+- Transition requirement: preserve bypass and gain staging.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Freeze: Scene switch**
+
+- Host parameter: `freeze`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: changes network energy behavior.
+- Transition requirement: use a debounced, smoothed mode transition.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Reverse: Scene switch**
+
+- Host parameter: `reverse`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: changes the envelope and buffering model.
+- Transition requirement: report added latency before activation.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 

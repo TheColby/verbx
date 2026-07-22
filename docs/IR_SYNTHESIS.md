@@ -624,33 +624,226 @@ hatch run verbx ir gen irs/pitched_modal.wav \
 
 ### Microtonal Hybrid from a Scala Scale
 
-This recipe maps degree 0 of the included 19-EDO example to 220 Hz, expands the
-scale through the useful audio range, and gives every late-tail family a
-moderate pitch affinity. The generated WAV is an ordinary convolution IR.
+Scale-tuned reverberation can range from a nearly invisible spectral affinity
+to an exposed bank of sympathetic resonances. The examples below keep Scala
+import offline and deterministic: each command generates an ordinary WAV IR
+that can be auditioned through convolution, reused in a DAW, or archived with
+its metadata sidecar. They also demonstrate why scale, root, degree mapping,
+bandwidth, register, synthesis mode, and source material must be considered as
+one musical design.
+
+The included scale library provides three contrasting starting points:
+
+- `19edo.scl` divides the octave into 19 equal steps.
+- `5_limit_major.scl` uses a seven-degree, 5-limit just-intonation collection.
+- `bohlen_pierce_13edo.scl` divides the $3/1$ tritave into 13 equal steps rather
+  than repeating at the octave.
+
+#### Example 1: A subtle 19-EDO harmonic halo
+
+This first recipe maps degree 0 of 19-EDO to 220 Hz and expands the lattice
+through the useful audio range. Moderate strength, 36-cent bandwidth, and 3 dB
+of emphasis make the tuning more likely to be heard as room color than as a
+separate resonator. The hybrid mode retains diffuse energy between scale bands,
+which lets chromatic and continuously pitched source material move without
+feeling quantized.
 
 ```bash
-hatch run verbx ir gen irs/19edo_hybrid.wav \
+mkdir -p irs renders
+
+hatch run verbx ir gen irs/19edo_halo.wav \
   --mode hybrid --length 18 --rt60 7 --seed 19 \
   --scala-file examples/scales/19edo.scl \
   --scala-root-hz 220 --scala-root-degree 0 \
-  --scala-low-hz 90 --scala-high-hz 10000 \
-  --scala-strength 0.65 --scala-bandwidth-cents 22 \
-  --scala-gain-db 5 --scala-max-targets 128
+  --scala-low-hz 140 --scala-high-hz 9000 \
+  --scala-strength 0.48 --scala-bandwidth-cents 36 \
+  --scala-gain-db 3 --scala-max-targets 128
 
-hatch run verbx render source.wav tuned_space.wav \
-  --engine conv --ir irs/19edo_hybrid.wav --wet 0.35 --dry 1
+hatch run verbx render examples/audio/realistic_music_dry.wav \
+  renders/19edo_halo.wav --engine conv --ir irs/19edo_halo.wav \
+  --wet 0.28 --dry 1
 ```
 
-For realtime use, generate the IR before opening the stream:
+Listen first at the stated wet level, then solo the wet return. In context, the
+tail should feel unusually coherent without producing obvious isolated notes.
+Soloed, the 19-step lattice should be easier to hear in sustained harmonics and
+broadband attacks. Raising `--scala-low-hz` keeps the reverb from inventing a
+strong bass pedal beneath harmonically mobile music.
+
+#### Example 2: Exposed 5-limit just-intonation resonance
+
+The next design uses a sparse 5-limit scale and modal synthesis. Ratios such as
+$5/4$, $3/2$, and $5/3$ generate exact frequency relationships to the mapped
+root. Narrower 14-cent bands, stronger attraction, and a lower target ceiling
+turn the IR into an audible resonant object. Dry clicks and percussion are good
+test sources because their broad attacks excite many modes at once.
 
 ```bash
-hatch run verbx realtime \
-  --engine conv --ir irs/19edo_hybrid.wav --block-size 128
+hatch run verbx ir gen irs/just_modal_A3.wav \
+  --mode modal --length 12 --rt60 8 --seed 51 \
+  --modal-count 72 --modal-q-min 18 --modal-q-max 110 \
+  --scala-file examples/scales/5_limit_major.scl \
+  --scala-root-hz 220 --scala-root-degree 0 \
+  --scala-low-hz 80 --scala-high-hz 5000 \
+  --scala-strength 0.88 --scala-bandwidth-cents 14 \
+  --scala-gain-db 8 --scala-max-targets 96
+
+hatch run verbx render examples/audio/dry_click.wav \
+  renders/just_modal_click.wav --engine conv \
+  --ir irs/just_modal_A3.wav --wet 1 --dry 0
+
+hatch run verbx render examples/audio/realistic_drums_dry.wav \
+  renders/just_modal_drums.wav --engine conv \
+  --ir irs/just_modal_A3.wav --wet 0.42 --dry 1
 ```
 
+On the click, identify the lowest stable pitch and then follow upper modes as
+they decay at different rates. On drums, listen for a pitched residue after the
+transient. If the result sounds like an added chord rather than reverberation,
+reduce strength toward 0.65, increase bandwidth toward 24 cents, or change from
+`modal` to `hybrid`. If the kick drum pulls the perceived root too strongly,
+raise `--scala-low-hz` instead of removing low frequencies from the source.
+
+#### Example 3: A non-octave Bohlen–Pierce field
+
+Bohlen–Pierce tuning repeats at the $3/1$ tritave. Its scale degrees therefore
+do not return to equivalent pitch classes at each octave. This example uses a
+hybrid tail, a restrained lower limit, and a 7.5-second RT60 so the non-octave
+relationships can overlap without creating an indefinitely accumulating drone.
+
+```bash
+hatch run verbx ir gen irs/bohlen_pierce_space.wav \
+  --mode hybrid --length 16 --rt60 7.5 --seed 313 \
+  --scala-file examples/scales/bohlen_pierce_13edo.scl \
+  --scala-root-hz 130.8128 --scala-root-degree 0 \
+  --scala-low-hz 90 --scala-high-hz 7800 \
+  --scala-strength 0.72 --scala-bandwidth-cents 26 \
+  --scala-gain-db 5 --scala-max-targets 104
+
+hatch run verbx render examples/audio/realistic_speech_dry.wav \
+  renders/bohlen_pierce_speech.wav --engine conv \
+  --ir irs/bohlen_pierce_space.wav --wet 0.34 --dry 1
+
+hatch run verbx render examples/audio/realistic_music_dry.wav \
+  renders/bohlen_pierce_music.wav --engine conv \
+  --ir irs/bohlen_pierce_space.wav --wet 0.34 --dry 1
+```
+
+Speech reveals the scale as a changing coloration because vowels excite
+different subsets of the lattice. Harmonic music reveals disagreement between
+octave-repeating source partials and tritave-repeating resonances. Compare the
+two renders at matched level: the same IR may read as timbre on speech and as a
+second harmonic system on sustained music.
+
+#### Example 4: Rotate the root degree without changing the reference pitch
+
+`--scala-root-degree` decides which scale degree receives
+`--scala-root-hz`. The following matched-seed pair assigns 220 Hz first to the
+implicit $1/1$ and then to degree 5 of 19-EDO. Every non-tuning parameter is held
+constant, so the comparison isolates degree rotation rather than random-tail
+variation.
+
+```bash
+hatch run verbx ir gen irs/19edo_degree_0.wav \
+  --mode hybrid --length 14 --rt60 6 --seed 1905 \
+  --scala-file examples/scales/19edo.scl \
+  --scala-root-hz 220 --scala-root-degree 0 \
+  --scala-low-hz 100 --scala-high-hz 8000 \
+  --scala-strength 0.68 --scala-bandwidth-cents 22 --scala-gain-db 5
+
+hatch run verbx ir gen irs/19edo_degree_5.wav \
+  --mode hybrid --length 14 --rt60 6 --seed 1905 \
+  --scala-file examples/scales/19edo.scl \
+  --scala-root-hz 220 --scala-root-degree 5 \
+  --scala-low-hz 100 --scala-high-hz 8000 \
+  --scala-strength 0.68 --scala-bandwidth-cents 22 --scala-gain-db 5
+
+hatch run verbx render examples/audio/realistic_music_dry.wav \
+  renders/19edo_degree_0.wav --engine conv --ir irs/19edo_degree_0.wav \
+  --wet 0.38 --dry 1
+
+hatch run verbx render examples/audio/realistic_music_dry.wav \
+  renders/19edo_degree_5.wav --engine conv --ir irs/19edo_degree_5.wav \
+  --wet 0.38 --dry 1
+```
+
+The second IR does not merely transpose the first by five ordinary semitones.
+It maps a different degree ratio to the same physical reference frequency, then
+reconstructs the complete lattice around that mapping. Compare sustained notes,
+cadences, and silence after phrase endings. The changed relationship is often
+most audible after the dry source stops.
+
+#### Example 5: Separate tuning from random topology in an A/B test
+
+A rigorous comparison needs an untuned control. Use the same mode, seed, length,
+RT60, filters, and channel count, then change only the Scala options. The first
+IR below establishes the control; the second adds a broad, moderate 5-limit
+affinity.
+
+```bash
+hatch run verbx ir gen irs/control_seed_808.wav \
+  --mode hybrid --length 20 --rt60 9 --seed 808 \
+  --lowcut 70 --highcut 11000
+
+hatch run verbx ir gen irs/just_seed_808.wav \
+  --mode hybrid --length 20 --rt60 9 --seed 808 \
+  --lowcut 70 --highcut 11000 \
+  --scala-file examples/scales/5_limit_major.scl \
+  --scala-root-hz 196 --scala-root-degree 0 \
+  --scala-low-hz 100 --scala-high-hz 9000 \
+  --scala-strength 0.55 --scala-bandwidth-cents 32 --scala-gain-db 4
+
+hatch run verbx render examples/audio/realistic_music_dry.wav \
+  renders/control_seed_808.wav --engine conv --ir irs/control_seed_808.wav \
+  --wet 0.4 --dry 1
+
+hatch run verbx render examples/audio/realistic_music_dry.wav \
+  renders/just_seed_808.wav --engine conv --ir irs/just_seed_808.wav \
+  --wet 0.4 --dry 1
+
+hatch run verbx analyze renders/control_seed_808.wav \
+  --json-out renders/control_seed_808.analysis.json
+
+hatch run verbx analyze renders/just_seed_808.wav \
+  --json-out renders/just_seed_808.analysis.json
+```
+
+Level-match before judging the pair. Use the JSON reports to check that a level
+or decay difference is not masquerading as a tuning preference. Then describe
+whether the scale-conditioned version changes perceived consonance, roughness,
+brightness, pitch stability, or the boundary between source and room.
+
+#### Example 6: Prepare a rooted bank for realtime or DAW use
+
+A static convolution IR cannot follow chord symbols automatically, but a small
+rooted library can be generated before a performance or mix. The command below
+shows one member of such a bank. Repeat it with the same seed and different
+root frequencies, preserving a filename that states the mapping.
+
+```bash
+hatch run verbx ir gen irs/ji_root_C3_130.8128.wav \
+  --mode hybrid --length 10 --rt60 4.8 --seed 5150 \
+  --scala-file examples/scales/5_limit_major.scl \
+  --scala-root-hz 130.8128 --scala-root-degree 0 \
+  --scala-low-hz 90 --scala-high-hz 7500 \
+  --scala-strength 0.6 --scala-bandwidth-cents 28 --scala-gain-db 4
+
+hatch run verbx realtime --engine conv \
+  --ir irs/ji_root_C3_130.8128.wav --block-size 128
+```
+
+For section changes, overlap two wet returns and use an equal-power crossfade
+long enough to preserve the old IR's early field. An abrupt replacement cuts
+off the previous convolution state and can sound like a gate. In a DAW, place
+each rooted IR on a separate return and automate sends or return gains. In an
+offline CLI workflow, render sections with complete tails and assemble them
+afterward.
+
 The realtime latency is the same as for any other IR with the same partition
-and block settings. Scala parsing and filter-bank construction do not run on
-the callback thread.
+and block settings. Scala parsing, target expansion, and filter-bank
+construction do not run on the callback thread. The metadata sidecar records
+the scale hash and resolved targets, so an IR bank remains auditable even if two
+source files happen to share a filename.
 
 ### Resonator-Colored Hybrid (Modalys-Inspired)
 

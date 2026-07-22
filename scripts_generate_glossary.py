@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "docs" / "GLOSSARY.md"
-MINIMUM_ENTRY_COUNT = 450
+MINIMUM_ENTRY_COUNT = 700
 
 ENTRY_DATA = r"""
 A-weighting :: A frequency weighting that approximates human sensitivity at moderate levels and is commonly used for environmental-noise measurements.
@@ -585,6 +585,141 @@ Zipper noise :: Audible stepping caused by abrupt or insufficiently smoothed par
 Zobel network :: An impedance-equalization network used in loudspeaker and analog circuit design.
 Zone :: A defined spatial region assigned distinct playback, measurement, routing, or acoustic behavior.
 Z-transform :: Complex-frequency representation of discrete-time signals and systems used to analyze poles, zeros, and stability.
+Air-loss filter :: A frequency-dependent attenuation filter placed in a propagation or feedback path to model energy lost while sound travels through air.
+Artificial reverberation :: Deliberate creation or modification of reflected and decaying sound by architectural, mechanical, electromechanical, electronic, or digital means.
+Backward energy integration :: Reverse cumulative summation of squared impulse-response samples used to form an energy decay curve from the response tail toward its onset.
+Bass ratio :: Room-acoustic measure comparing low-frequency reverberation times with mid-frequency values to describe perceived warmth or bass persistence.
+Binaural quality index :: Spatial metric derived from interaural cross-correlation and used to characterize apparent source width or listener envelopment.
+Brilliance ratio :: Room-acoustic ratio comparing high-frequency reverberation with mid-frequency reverberation to characterize treble liveliness or damping.
+Brute-force convolution :: Direct application of a long impulse response without structural approximation, often accurate but computationally expensive for realtime multichannel reverberation.
+Center time :: Energy-weighted mean arrival time of an impulse response, commonly written $T_s$, that summarizes the balance between early and late energy.
+Channel decorrelation :: Reduction of similarity between output channels so a reverberant field spreads spatially instead of collapsing toward a phantom source.
+Chorus artifact :: Audible pitch wandering or ensemble-like motion caused when delay modulation in a reverberator becomes too deep, fast, or coherent.
+Circulant feedback matrix :: FDN matrix whose rows are cyclic shifts of one another, enabling structured eigenanalysis and efficient implementations.
+Coloration-duration factorization :: Reverberator design strategy that separates control of spectral character from control of decay time as nearly independently as possible.
+Colorless reverberation :: Artificial reverberation designed to avoid conspicuous periodic resonances, metallic ringing, and comb-filter spectral coloration.
+Common delay divisor :: Integer factor shared by several delay lengths that can align recurrences and reduce the effective modal richness of a delay network.
+Computational room model :: Numerical representation of acoustic propagation and boundary interaction used to estimate impulse responses or sound fields in an enclosure.
+Conformal damping map :: Interpretation of frequency-dependent delay-line loss as a mapping that moves lossless poles from the unit circle to frequency-dependent radii inside it.
+Contractive matrix :: Matrix whose induced gain does not exceed one, useful for ensuring that a feedback network does not increase signal energy.
+Coprime delay lengths :: Delay lengths whose greatest common divisor is one, chosen to reduce coincident recurrences and improve modal distribution.
+Courant stability condition :: Time-step and grid-spacing constraint that keeps an explicit finite-difference wave simulation numerically stable.
+Damping filter :: Filter inside a reverberant feedback path that imposes frequency-dependent loss and therefore frequency-dependent decay time.
+Damping substitution :: Replacement of each unit delay by a delay combined with a propagation-loss filter to convert a lossless reverberator into a decaying one.
+Decay curvature :: Departure of a decay trace from a straight line in decibels, indicating changing decay rate, coupled spaces, modes, noise, or time variance.
+Decay eigenvalue :: Eigenvalue of a recursive network whose magnitude and angle determine a modal decay rate and oscillation frequency.
+Decay intercept :: Level at which a fitted decay line crosses a chosen time origin, used with slope when estimating reverberation time.
+Decay ridge :: Persistent narrowband feature in an energy decay relief that reveals a mode or resonance lasting longer than neighboring frequencies.
+Decay slope :: Rate of level reduction over time on a decibel decay curve, usually expressed in decibels per second.
+Delay density :: Number and distribution of distinct delay events available to a reverberator over a specified interval.
+Delay distribution :: Statistical or designed arrangement of delay lengths that controls mode spacing, recurrence, density buildup, and temporal texture.
+Delay-line damping filter :: Loss filter associated with a particular reverberator delay line and designed from a target frequency-dependent reverberation time.
+Delay-line scaling :: Multiplication of nominal delay lengths by room-size, sample-rate, or tuning factors while preserving required ordering and stability constraints.
+Density buildup :: Increase in the number of audible reflections per unit time as energy recirculates through a room or delay network.
+Definition index :: Early-to-total energy ratio, commonly $D_{50}$ for speech, expressing how much impulse-response energy arrives during the first 50 milliseconds.
+Diffuse-field assumption :: Approximation that reverberant energy is statistically uniform in position and direction, underlying many classical room-acoustic formulas.
+Diffuse reflection :: Boundary interaction that redistributes incident sound across many outgoing directions rather than preserving a single mirror-like ray.
+Diffusion time :: Time required for a reverberator to develop a sufficiently dense, spatially distributed response after excitation.
+Distance law :: Relationship between propagation distance and sound level, such as inverse-distance pressure decay in an ideal free field.
+Doppler-free modulation :: Delay or network modulation designed to reduce audible pitch shift while still breaking up static resonances.
+Double-slope decay :: Energy decay containing two approximately linear decibel regions with different slopes, often caused by coupled spaces or layered processing.
+Early resonance :: Low-frequency room or reverberator mode that remains individually perceptible before modal density becomes statistically high.
+Early-to-late ratio :: Ratio of impulse-response energy before a selected boundary to energy after it, used to quantify clarity and distance.
+Echo-density growth :: Time evolution of reflection count or normalized echo density as a reverberant response transitions from sparse echoes to a dense tail.
+Eigenmode :: Characteristic oscillation associated with an eigenvector and eigenvalue of a linear acoustic or feedback system.
+Elliptic feedback delay network :: Structured FDN family using elliptic or related matrix constructions to shape mode distribution and computational behavior.
+Energy decay relief :: Time-frequency surface formed by backward-integrating energy within spectral bins, revealing frequency-dependent decay and resonant ridges.
+Energy preservation :: Property of a lossless structure whose output or state energy equals its input or previous-state energy under the chosen norm.
+Energy reflection coefficient :: Fraction of incident acoustic energy returned by a boundary, equal to one minus absorbed and transmitted fractions when accounting is complete.
+Exact transfer-function model :: Point-to-point room model that represents every relevant source-receiver impulse response directly rather than approximating its perceptual structure.
+Extrapolated RT60 :: Sixty-decibel decay time inferred from a shorter fitted interval such as EDT, T20, or T30 rather than observed over the full range.
+FDN reverberation :: Late-reverberation synthesis using multiple delays coupled through a feedback matrix, with losses and output mixing controlling decay and spatial character.
+Feedback comb bank :: Parallel or coupled collection of feedback comb filters used to create many decaying modes and a dense reverberant tail.
+Finite-difference time-domain method :: Grid-based numerical method that advances discretized wave-equation variables through time while respecting stability and boundary conditions.
+First-order delay filter :: One-pole or one-zero loss filter designed for a reverberator delay line to approximate a target decay at selected frequencies.
+Freeverb :: Widely implemented Schroeder-Moorer-style reverberator using parallel lowpass-feedback comb filters followed by serial allpass-like diffusers.
+Freeverb allpass approximation :: Freeverb diffusion section conventionally called allpass although its implementation and coefficient choices only approximate ideal allpass behavior.
+Frequency-dependent energy decay curve :: Family of decay curves computed in bands or spectral bins instead of after broadband energy summation.
+Frequency-dependent reverberation time :: Reverberation-time function over frequency, commonly specified in octave or fractional-octave bands and realized with feedback-path damping filters.
+Grid dispersion :: Frequency- and direction-dependent wave-speed error introduced by spatial discretization in finite-difference or waveguide-mesh simulation.
+Grid point :: Discrete spatial sample at which a numerical acoustic model stores and updates pressure, velocity, or traveling-wave variables.
+Homogeneous feedback delay network :: FDN whose delay paths or attenuation structure follow a uniform design pattern rather than path-specific heterogeneous models.
+Image-source order :: Number of boundary reflections represented by a virtual source in the image-source method.
+Impulse-response smoothness :: Degree to which a late impulse response avoids isolated spikes, periodic gaps, and abrupt statistical changes.
+Inhomogeneous feedback delay network :: FDN with path-dependent delays, filters, gains, or routing intended to model nonuniform propagation and decay.
+Input-output room model :: Representation of a room by transfer functions or impulse responses between chosen source and receiver points without explicitly simulating the full field.
+Interaural cross-correlation coefficient :: Normalized similarity of left- and right-ear signals over a specified window and frequency band, used in spatial-acoustic assessment.
+Junction scattering :: Redistribution of incoming traveling waves into outgoing branches according to impedance and conservation constraints at a waveguide junction.
+Late-field isotropy :: Condition in which late reverberant energy arrives with approximately equal statistics from all directions.
+Late-reverberation approximation :: Efficient statistical or recursive model that replaces explicit computation of every high-order reflection after the early response.
+Late-tail onset :: Time at which a reverberant response becomes dense enough to treat as a statistical late field rather than isolated reflections.
+Listener envelopment :: Perception of being surrounded by reverberant sound, strongly influenced by late lateral energy and interaural decorrelation.
+Lossless feedback matrix :: Feedback matrix that preserves state energy, typically orthogonal in real-valued FDNs or unitary in complex-valued FDNs.
+Lossless prototype reverberator :: Recursive network configured without attenuation so its modes do not decay, used as a starting point before damping is introduced.
+Lowpass-feedback comb filter :: Feedback comb filter containing a low-pass loss filter in its loop so high frequencies decay faster than low frequencies.
+Matrix modulation :: Time variation of a feedback or mixing matrix used to move resonances, alter diffusion, or decorrelate channels.
+Mean absorption coefficient :: Surface-area-weighted average of frequency-dependent absorption coefficients across the boundaries of a room.
+Mean scattering coefficient :: Surface-area-weighted average of boundary scattering coefficients used in geometric-acoustic estimates.
+Metallic ringing :: Audible pitched or bell-like persistence caused by sparse, regularly spaced, or insufficiently damped reverberator modes.
+Mode-density threshold :: Frequency or time region beyond which modes or echoes are numerous enough that statistical description becomes more useful than individual tracking.
+Mode-frequency distribution :: Arrangement of resonant frequencies in a room or recursive network, including spacing, degeneracy, clustering, and irregularity.
+Modal decay time :: Time constant or RT60 associated with one resonant mode rather than a broadband or band-averaged response.
+Modal degeneracy :: Coincidence of two or more theoretically distinct modes at the same frequency, often increasing resonance strength.
+Moorer reverberator :: Artificial-reverberation architecture extending Schroeder structures with explicit early reflections and frequency-dependent damping in feedback comb filters.
+Multiband delay filter :: Feedback-path filter designed from several target decay bands to approximate a detailed frequency-dependent RT60 curve.
+Nested allpass filter :: Diffusion structure in which an allpass or delay network is embedded inside another allpass loop to increase echo complexity efficiently.
+Noise-floor bend :: Point where a measured decay curve departs from its reverberant slope because background noise begins to dominate backward-integrated energy.
+Nonexponential decay :: Reverberant decay that cannot be represented adequately by one constant exponential slope over the interval of interest.
+Normalized echo density :: Echo-density measure normalized against a Gaussian or reference process so responses with different levels and durations can be compared.
+Orthogonal mixing :: Energy-preserving mixing of real-valued channels or delay states using an orthogonal matrix.
+Orthogonalized delay filter :: Delay-line damping design transformed to preserve a desired lossless or orthogonal network relationship while imposing frequency-dependent decay.
+Output decorrelation delay :: Short channel-specific delay used at reverberator outputs to reduce interchannel correlation and broaden spatial imaging.
+Parallel comb bank :: Set of comb filters driven in parallel and summed, producing a superposition of modal families with different delay periods.
+Paraunitary matrix :: Frequency-dependent matrix whose conjugate-transpose product is identity on the unit circle, preserving energy across frequency.
+Passivity :: Property that a system cannot generate net energy, providing a strong sufficient condition for stable physical and feedback-network models.
+Perceptual reverberator :: Reverberator optimized to reproduce salient auditory cues rather than every geometrical reflection or exact point-to-point transfer function.
+Point-to-point transfer function :: Acoustic transfer function from one specified source position to one specified receiver position.
+Pole angle :: Angular position of a pole in the complex plane, determining its oscillation frequency in a discrete-time resonant system.
+Pole radius :: Distance of a pole from the origin, determining modal decay rate and stability for a discrete-time recursive system.
+Pressure reflection coefficient :: Complex ratio of reflected to incident acoustic pressure at a boundary, carrying both magnitude and phase information.
+Prime delay length :: Delay length chosen as a prime integer to reduce shared periodicities with other paths in a delay network.
+Prime-power delay length :: Delay length selected from powers of distinct primes to structure recurrence and mode distribution in an FDN.
+Propagation-loss filter :: Filter representing distance- and frequency-dependent energy loss accumulated while sound travels through a medium.
+Ray-tracing order :: Maximum number of reflections followed for each acoustic ray in a geometric room simulation.
+Receiver directivity :: Direction-dependent sensitivity of a microphone, ear model, or virtual receiver used during acoustic rendering or measurement.
+Rectilinear waveguide mesh :: Digital waveguide mesh arranged on an orthogonal grid, simple to implement but subject to direction-dependent dispersion.
+Reflection path :: Geometric route from source to receiver containing one or more boundary interactions and associated delay, loss, and filtering.
+Regression interval :: Selected decibel or time range over which a line is fitted to a decay curve for RT estimation.
+Reverberant power gain :: Frequency-dependent ratio of reverberator output power to input power under specified stationary excitation and routing.
+Reverberation coloration :: Audible spectral shaping caused by uneven modal amplitudes, delays, feedback, damping, or output mixing in a reverberant system.
+Reverberation diffusion :: Temporal and spatial spreading that converts sparse reflections into a dense, less localized decay field.
+Reverberation problem :: Engineering task of reproducing the perceptually important behavior of a space under finite computation, memory, latency, and control constraints.
+Reverse cumulative integration :: Summation from the end of a sequence toward its beginning, used in Schroeder energy-decay analysis.
+Room constant :: Absorption-related room quantity used in steady-state level and critical-distance formulas, often written from area and mean absorption.
+Room-mode transition frequency :: Approximate frequency separating sparse individually resolvable room modes from an increasingly overlapping statistical field.
+Sabine absorption area :: Equivalent perfectly absorbing area obtained by summing each surface area multiplied by its absorption coefficient.
+Sample-rate delay scaling :: Adjustment of delay lengths in proportion to sampling rate so physical delay times remain approximately constant.
+Scattering delay network :: Room-reverberation structure connecting delay lines through scattering nodes derived from room geometry and boundary properties.
+Scattering junction :: Network node that maps incoming traveling-wave components to outgoing components while satisfying continuity and conservation relations.
+Schroeder allpass section :: Recursive delay structure with nominally flat magnitude response used to increase echo density and phase dispersion.
+Series allpass chain :: Cascade of allpass diffusers used to build echo density before or after a recursive reverberation stage.
+Specific echo density :: Echo count per unit time under a stated amplitude or statistical criterion, used to assess reverberant texture.
+Spectral coloration equalizer :: Filter used outside or around a reverberant network to correct its steady-state magnitude response independently of decay design.
+Statistical late field :: Dense reverberant tail characterized through distributions, correlation, decay, and spectrum rather than individually modeled reflections.
+Steady-state energy density :: Average acoustic energy per unit volume after a continuous source and room losses reach statistical equilibrium.
+Surface scattering coefficient :: Frequency-dependent fraction of reflected energy redistributed away from the specular direction by boundary roughness or geometry.
+Tapped-delay early-reflection model :: Finite set of delayed, scaled, filtered, and spatialized taps approximating the perceptually important first room reflections.
+Time-varying delay line :: Delay whose read position changes over time, requiring interpolation and potentially producing Doppler shift or decorrelation.
+Time-varying reverberator :: Reverberator whose delays, filters, matrices, or gains change over time to suppress static modes or create intentional motion.
+Tonal correction filter :: Equalizer that compensates the average spectral coloration of a reverberator without redefining its modal decay times.
+Transfer-function matrix :: Matrix of point-to-point transfer functions mapping multiple acoustic or electrical inputs to multiple outputs.
+Triangular feedback matrix :: Upper- or lower-triangular FDN matrix whose eigenvalues are visible on its diagonal and whose coupling has a directed structure.
+Triangular waveguide mesh :: Mesh using triangular spatial cells to improve angular isotropy relative to a simple rectilinear grid.
+Unit-circle pole :: Pole lying exactly on the complex unit circle, corresponding to an undamped discrete-time mode in an ideal lossless system.
+Unitary mixing :: Energy-preserving mixing of complex-valued states or channels using a unitary matrix.
+Waveguide-mesh reverberation :: Physical-modeling approach that propagates traveling waves across an interconnected spatial mesh to approximate room acoustics.
+Waveguide numerical dispersion :: Frequency- and direction-dependent propagation-speed error caused by discrete mesh geometry and sampling.
+Zita-Rev1 :: Open-source FDN reverberator by Fons Adriaensen with eight delay lines, frequency-dependent decay controls, and stereo output processing.
 """
 
 
@@ -638,9 +773,6 @@ def _render(entries: list[tuple[str, str]]) -> str:
             "with the surrounding chapter before comparing results. Acronyms are cross-defined "
             "where they are common enough to be encountered independently."
         ),
-        "",
-        "**Alphabetical guide:** "
-        + " · ".join(f"[{letter}](#{letter.lower()})" for letter in groups),
         "",
     ]
     for letter, letter_entries in groups.items():

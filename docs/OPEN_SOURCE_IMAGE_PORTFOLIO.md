@@ -28,7 +28,7 @@ musical practice whose acoustic meaning changed over time.
 13. Hagia Sophia was completed in 537 during the Byzantine period; its dome and semidomes demonstrate why a visually centralized enclosure can produce acoustically distributed energy.
 14. Hamilton Mausoleum was constructed in the mid-nineteenth century; its hard circular interior became known for persistent discrete echoes as well as long decay.
 15. The Inchindown oil tanks were built during the Second World War; their vast hard-walled industrial volumes became accidental laboratories for extraordinary reverberation.
-16. Cockatoo Island's convict grain silos belong to nineteenth-century colonial industrial infrastructure, where excavation and hard masonry created a resonant space never designed as a musical room.
+16. *Silophone* (2000–2001), by The User, transformed four empty chambers in Montréal's Silo No. 5 into a remotely playable public instrument. Participants sent sound by telephone or web; loudspeakers projected it into the silo, microphones captured the response, and the return was broadcast back to listeners.
 17. York Minster's present Gothic fabric developed from the thirteenth through fifteenth centuries, combining a long nave, transepts, tower volume, furnishings, and changing occupancy.
 18. The EMT 140, introduced in 1957, converted an electromechanically driven steel plate into a compact studio decay whose density did not depend on a room-sized air volume.
 19. Spring reverberators developed through twentieth-century communications, organ, guitar-amplifier, and studio practice; the exposed tank makes wave propagation and transducer coupling physically visible.
@@ -165,13 +165,13 @@ The Inchindown oil-storage tunnel in Figure 17-15 leads toward enormous undergro
 
 *Source and license:* Dave Thompson, [Wikimedia Commons file record](https://commons.wikimedia.org/wiki/File:Inchindown_Oil_Tanks_Tunnel_-_geograph.org.uk_-_7584066.jpg), [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/). Reproduced without alteration except scaling.
 
-Figure 17-16 shows the interior of a hand-hewn grain silo on Cockatoo Island. Unlike a finished concert hall, the cavity exposes rough stone and an irregular section. Those surfaces can scatter high frequencies while the enclosed volume supports resonant buildup. A grain-silo-inspired reverb should therefore avoid the generic equation of “industrial” with metallic brightness. Start from a dark, uneven decay, add a few strong early paths, and audition percussive material for flutter or ringing. The result can be intimate and strange even when the nominal decay is not extreme.
+Figure 17-16 documents *Silophone* (2000–2001), by The User, at Montréal's Silo No. 5. The public stations in the foreground make its central idea legible: architecture, sound system, and network interface were one instrument. Submitted sounds were played through loudspeakers in four empty grain-storage chambers, captured by microphones, and returned to listeners. This is more than a grain-silo-inspired preset. Its reverb depended on a specific building, loudspeaker and microphone positions, live noise, and a public routing system.
 
-![Interior of the Cockatoo Island convict grain silo.](assets/open_source_portfolio/16_cockatoo_grain_silo.jpg)
+![Silophone public listening and playback stations with Montréal Silo No. 5 in the background.](assets/open_source_portfolio/16_silophone_montreal.jpg)
 
-**Figure: Hand-hewn interior of a Cockatoo Island grain silo, with rough stone boundaries and an irregular resonant cavity.**
+**Figure: *Silophone* public listening and playback stations, with Montréal Silo No. 5 behind them.**
 
-*Source and license:* Harryp2, [Wikimedia Commons file record](https://commons.wikimedia.org/wiki/File:Cockatoo_Island_convict_grain_silo.jpg), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Reproduced without alteration except scaling.
+*Source and license:* art_inthecity, [Wikimedia Commons file record](https://commons.wikimedia.org/wiki/File:Silophone,_-The_User-,_2000,_Vieux-Port_de_Montr%C3%A9al_(5875027452).jpg), [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/). Reproduced without alteration except scaling.
 
 York Minster's nave in Figure 17-17 completes the architectural sequence with a broad frontal view. The image reveals strong axial depth, tall lateral boundaries, and extensive overhead volume while retaining visually complex scattering surfaces. Use it to separate three controls that are often collapsed: apparent source distance, room width, and decay time. More pre-delay can bring a source forward even in a long tail; stronger lateral early energy can widen the room without lengthening it; and multiband decay can preserve warmth without sacrificing consonant clarity.
 

@@ -17,7 +17,7 @@ This ledger records the source and rights statement for every image in `docs/OPE
 13. `13_hagia_sophia_interior.jpg`: Hagia Sophia interior panorama by Ronan Reinart. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Hagia_Sophia_Interior_Panorama.jpg). CC BY-SA 3.0.
 14. `14_hamilton_mausoleum.jpg`: Hamilton Mausoleum interior by Supergolden. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Hamilton_Mausoleum_Interior.jpg). CC BY-SA 3.0.
 15. `15_inchindown_tunnel.jpg`: Inchindown oil-tank tunnel by Dave Thompson. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Inchindown_Oil_Tanks_Tunnel_-_geograph.org.uk_-_7584066.jpg). CC BY-SA 2.0.
-16. `16_cockatoo_grain_silo.jpg`: Cockatoo Island convict grain silo by Harryp2. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Cockatoo_Island_convict_grain_silo.jpg). CC BY-SA 4.0.
+16. `16_silophone_montreal.jpg`: *Silophone*, The User, at Montréal's Old Port by art_inthecity. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Silophone,_-The_User-,_2000,_Vieux-Port_de_Montr%C3%A9al_(5875027452).jpg). CC BY 2.0.
 17. `17_york_minster_nave.jpg`: York Minster nave by Michael D. Beckwith. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:York_Minster_Nave.jpg). CC0 1.0.
 18. `18_emt_140_plate.jpg`: EMT 140 plate reverberator by EMT-Archiv-Lahr. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:EMT_140.jpg). CC BY-SA 4.0.
 19. `19_spring_reverb_tank.jpg`: Spring reverb tank by Ashley Pomeroy. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Spring_Reverb_8325.jpg). CC BY-SA 4.0.

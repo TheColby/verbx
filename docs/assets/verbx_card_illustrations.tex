@@ -112,10 +112,24 @@
     \verbxVisualFrame
     \draw[->,verbxInk,line width=1pt] (1.2,1.0)--(14.25,1.0) node[below,verbx label]{host time};
     \draw[->,verbxInk,line width=1pt] (1.2,1.0)--(1.2,4.75) node[above,verbx label]{value};
-    \draw[verbxTeal,line width=2.2pt,smooth] plot coordinates
-      {(1.3,1.35)(3.0,1.5)(4.6,2.05)(6.3,3.1)(8.2,4.15)(10.0,3.45)(12.0,4.35)(14.0,3.9)};
-    \foreach \x/\y in {1.3/1.35,4.6/2.05,8.2/4.15,12/4.35,14/3.9}
-      \fill[verbxGold] (\x,\y) circle (0.11);
+    \def\verbxShape{#2}%
+    \def\verbxRise{Slow rise}%
+    \def\verbxFall{Slow fall}%
+    \def\verbxPulse{Tempo pulse}%
+    \ifx\verbxShape\verbxRise
+      \draw[verbxTeal,line width=2.2pt,smooth] plot coordinates {(1.3,1.3)(4.0,1.5)(7.0,2.4)(10.4,3.65)(14.0,4.35)};
+      \foreach \x/\y in {1.3/1.3,7.0/2.4,14.0/4.35} \fill[verbxTeal] (\x,\y) circle (0.11);
+    \else\ifx\verbxShape\verbxFall
+      \draw[verbxRust,line width=2.2pt,smooth] plot coordinates {(1.3,4.35)(4.0,4.15)(7.0,3.2)(10.4,1.9)(14.0,1.3)};
+      \foreach \x/\y in {1.3/4.35,7.0/3.2,14.0/1.3} \fill[verbxRust] (\x,\y) circle (0.11);
+    \else\ifx\verbxShape\verbxPulse
+      \draw[verbxGold,line width=2.2pt] plot coordinates {(1.3,1.4)(3.0,1.4)(3.0,4.1)(5.0,4.1)(5.0,1.4)(7.0,1.4)(7.0,4.1)(9.0,4.1)(9.0,1.4)(11.0,1.4)(11.0,4.1)(14.0,4.1)};
+      \foreach \x/\y in {3.0/4.1,5.0/1.4,7.0/4.1,9.0/1.4,11.0/4.1} \fill[verbxGold] (\x,\y) circle (0.11);
+    \else
+      \draw[verbxPlum,line width=2.2pt] plot coordinates {(1.3,1.4)(7.1,1.4)(7.1,4.15)(14.0,4.15)};
+      \draw[verbxPlum,dashed,line width=1pt] (7.1,1.0)--(7.1,4.55);
+      \fill[verbxPlum] (7.1,4.15) circle (0.13);
+    \fi\fi\fi
     \node[verbx node,draw=verbxTeal,text width=3.0cm] at (4.0,4.55) {#1};
     \node[verbx node,draw=verbxGold,text width=3.0cm] at (11.2,2.05) {#2};
   \end{tikzpicture}\end{center}
@@ -176,22 +190,67 @@
   \end{tikzpicture}\end{center}
 }
 
-\newcommand{\verbxInteractionVisual}[2]{%
+\newcommand{\verbxInteractionVisual}[3]{%
   \begin{center}\begin{tikzpicture}[x=1cm,y=1.3cm]
     \verbxVisualFrame
-    \node[circle,minimum size=1.7cm,inner sep=0pt,draw=verbxBlue,line width=3pt] (leftDial) at (2.3,3.0) {};
-    \draw[verbxBlue,line width=2pt] (leftDial.center)--++(55:0.65cm);
-    \node[circle,minimum size=1.7cm,inner sep=0pt,draw=verbxRust,line width=3pt] (rightDial) at (5.2,3.0) {};
-    \draw[verbxRust,line width=2pt] (rightDial.center)--++(125:0.65cm);
-    \node[verbx note,text width=2.4cm] at (2.3,1.65) {#1}; \node[verbx note,text width=2.4cm] at (5.2,1.65) {#2};
-    \draw[verbx arrow] (6.25,3.0)--(7.45,3.0);
-    \foreach \x in {0,...,4} \foreach \y in {0,...,3}{
-      \pgfmathsetmacro\shade{20+12*\x+8*\y}
-      \fill[verbxTeal!\shade!verbxPlate] (7.7+0.72*\x,1.35+0.72*\y) rectangle +(0.58,0.58);
-    }
-    \draw[verbx arrow] (11.25,3.0)--(12.2,3.0);
-    \draw[verbxPlum,line width=1.6pt,smooth] plot[samples=45,domain=0:1.8] (12.3+\x,{3+0.8*sin(600*\x)*exp(-0.7*\x)});
-    \node[verbx note] at (9.2,0.85) {four corners \quad center \quad opposing move};
+    \ifcase#3
+      % Timing: two controls reshape the position and slope of a decay envelope.
+      \draw[->,verbxInk,line width=1pt] (1.25,1.15)--(14.4,1.15) node[below,verbx label]{time (s)};
+      \draw[->,verbxInk,line width=1pt] (1.25,1.15)--(1.25,4.85) node[above,verbx label]{level (dB)};
+      \draw[verbxBlue,line width=1.7pt] (1.4,4.35)--(3.4,4.35)--(12.9,1.45);
+      \draw[verbxRust,dashed,line width=1.7pt] (1.4,4.35)--(5.3,4.35)--(10.3,1.45);
+      \draw[verbxGold,<->,line width=1pt] (3.4,3.85)--(5.3,3.85) node[midway,above,verbx label]{shift};
+      \node[verbx node,draw=verbxBlue,text width=2.5cm] at (3.0,2.1) {#1};
+      \node[verbx node,draw=verbxRust,text width=2.5cm] at (8.8,3.25) {#2};
+      \node[verbx note] at (12.1,4.35) {onset / slope};
+    \or
+      % Spectral: controls trade a shaped spectrum against the late field.
+      \draw[->,verbxInk,line width=1pt] (1.25,1.15)--(14.4,1.15) node[below,verbx label]{frequency (Hz)};
+      \draw[->,verbxInk,line width=1pt] (1.25,1.15)--(1.25,4.85) node[above,verbx label]{gain (dB)};
+      \foreach \x/\lab in {2.0/125,4.6/500,7.2/2k,9.8/8k,12.4/16k} \draw[verbxGrid] (\x,1.15)--(\x,4.65) node[above,verbx label]{\lab};
+      \draw[verbxBlue,line width=1.9pt,smooth] plot coordinates {(1.4,4.0) (3.0,3.85) (5.0,3.4) (7.2,2.75) (9.8,1.95) (13.9,1.45)};
+      \draw[verbxRust,dashed,line width=1.7pt,smooth] plot coordinates {(1.4,3.35) (3.0,3.25) (5.0,3.05) (7.2,2.85) (9.8,2.65) (13.9,2.45)};
+      \node[verbx node,draw=verbxBlue,text width=2.8cm] at (3.05,2.15) {#1};
+      \node[verbx node,draw=verbxRust,text width=2.8cm] at (11.6,3.75) {#2};
+    \or
+      % Spatial: map a source and reflection field instead of showing generic knobs.
+      \draw[verbxBlue,line width=1.35pt] (7.8,3.0) circle (1.85);
+      \draw[verbxTeal,line width=1.1pt] (7.8,3.0) circle (1.22);
+      \foreach \a/\c in {15/verbxRust,75/verbxGold,145/verbxTeal,215/verbxBlue,285/verbxPlum}{
+        \fill[\c] ($(7.8,3.0)+(\a:1.85)$) circle (0.12);
+        \draw[\c,line width=0.9pt] (7.8,3.0)--($(7.8,3.0)+(\a:1.70)$);
+      }
+      \fill[verbxInk] (7.8,3.0) circle (0.16);
+      \node[verbx node,draw=verbxBlue,text width=2.7cm] at (2.35,3.85) {#1};
+      \node[verbx node,draw=verbxTeal,text width=2.7cm] at (13.2,3.85) {#2};
+      \node[verbx note] at (7.8,0.95) {source, lateral field, and diffusion};
+    \or
+      % Level: show gain staging and a parallel wet/dry balance.
+      \node[verbx node,draw=verbxBlue,text width=2.65cm] (in) at (2.0,3.0) {input};
+      \draw[verbx arrow] (3.35,3.0)--(4.25,3.0);
+      \draw[verbxTeal,line width=1.5pt] (4.35,3.0)--(5.35,4.15)--(7.8,4.15);
+      \draw[verbxRust,line width=1.5pt] (4.35,3.0)--(5.35,1.85)--(7.8,1.85);
+      \foreach \x/\c/\lab in {8.4/verbxTeal/wet,10.1/verbxRust/dry}{
+        \draw[\c,line width=2.2pt] (\x,1.55)--(\x,4.45);
+        \fill[\c] (\x,3.1) rectangle +(0.38,0.2);
+        \node[above,verbx label] at (\x+0.18,4.45) {\lab};
+      }
+      \draw[verbx arrow] (10.65,3.0)--(12.15,3.0);
+      \node[verbx node,draw=verbxGold,text width=2.2cm] at (13.25,3.0) {sum};
+      \node[verbx note,text width=2.8cm] at (5.6,5.0) {#1};
+      \node[verbx note,text width=2.8cm] at (5.6,0.85) {#2};
+    \else
+      % State / quality: a mode decision changes the rendered signal path.
+      \node[verbx node,draw=verbxBlue,text width=2.65cm] (a) at (2.0,3.0) {#1};
+      \node[diamond,aspect=1.65,draw=verbxGold,fill=verbxGold!18,line width=1.3pt,font=\small\bfseries] (gate) at (6.25,3.0) {mode};
+      \node[verbx node,draw=verbxRust,text width=2.65cm] (b) at (10.25,4.25) {#2};
+      \node[verbx node,draw=verbxTeal,text width=2.65cm] (out) at (13.35,2.0) {render};
+      \draw[verbx arrow] (3.35,3.0)--(4.95,3.0);
+      \draw[verbx arrow,draw=verbxRust] (7.55,3.0)--(8.95,4.1);
+      \draw[verbx arrow,draw=verbxTeal] (7.55,3.0)--(12.0,2.15);
+      \draw[verbx arrow,draw=verbxRust] (11.6,4.0)--(12.25,2.6);
+      \node[verbx note] at (6.25,0.95) {explicit state transition};
+    \fi
   \end{tikzpicture}\end{center}
 }
 

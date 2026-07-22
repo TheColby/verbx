@@ -326,6 +326,74 @@ Immersive width requires difference among channels, but random difference is not
 
 verbx exposes front, rear, and top decorrelation controls so these regions can be tuned independently. Start conservatively, then compare the discrete layout, stereo fold-down, and binaural render. If the immersive version sounds expansive but the stereo version becomes hollow, the channel relationships are too antagonistic.
 
+### 4.6 Wave field synthesis: virtual sources, real arrays, and verbx stems
+
+**Wave field synthesis (WFS)** is not a larger surround bed. A conventional channel-based mix assigns waveforms to named loudspeakers. Ambisonics stores coefficients for a sound field and defers decoding. WFS starts from a different practical question: given a dense, measured loudspeaker array, what signals should its individual loudspeakers radiate so that listeners over a useful region encounter the wavefront of a chosen virtual source? The goal is not merely to distribute energy around a room. It is to approximate the propagation of a virtual point source, plane wave, or other source geometry through an extended listening area.
+
+That distinction has musical consequences. In an ideal WFS system, a virtual source can appear in front of, behind, or beyond the loudspeaker array while retaining a meaningful wavefront relationship as listeners move. The apparent source does not depend on one fixed loudspeaker pair or one sweet-spot panning law. In practice, the result is bounded by array geometry, loudspeaker spacing, room reflections, calibration, processing delay, listening distance, and the frequency range over which the array can reproduce the intended field without conspicuous spatial aliasing. WFS is therefore an electroacoustic instrument and an installation discipline, not a file format.
+
+At a conceptual frequency-domain level, an array renderer seeks loudspeaker driving functions $D_\ell(\omega)$ such that the emitted field approximates a target field:
+
+$$
+p(\mathbf{r},\omega) \approx \sum_{\ell=1}^{L} D_\ell(\omega)\,G(\mathbf{r}\mid\mathbf{r}_\ell,\omega),
+$$
+
+where $\mathbf{r}$ is a listening position, $\mathbf{r}_\ell$ is the position of loudspeaker $\ell$, $G$ is the propagation model from that loudspeaker to the listener, and $L$ is the number of secondary sources. The approximation is deliberately qualified. A real array is finite, sampled in space, installed in a reflective room, and driven by loudspeakers with nonideal directivity and response. As speaker spacing increases, the usable frequency range for a convincing synthesized wavefront decreases; as the array becomes sparse, the renderer increasingly trades physical precision for practical coverage.
+
+Reverberation in WFS must be designed as a field, not as a stereo send copied around a perimeter. A source-bound early field can be rendered from virtual images that support the direct source's location. A broad late field can be made from many low-level, decorrelated virtual sources or from a diffuse-field strategy chosen by the WFS system. The first approach can articulate architecture and motion; the second can support envelopment without turning every reflection into a locatable event. Neither is automatically better. A sparse musical gesture may benefit from audible moving reflection images, while a dense ensemble often needs a stable, low-attention field whose directionality does not compete with the players.
+
+WFS also clarifies why an apparently impressive reverb can fail in an installation. If every wet component follows the dry virtual source, the room may feel glued to the performer rather than to the venue. If the late field is rendered as many coherent copies, it can become loud and spatially brittle. If the system emits a long bright return from a small subset of array elements, the result can expose aliasing, localization jumps, and room-specific combing. Treat direct sound, early reflections, late field, and special gestures as separate musical layers. Decide whether each layer is source-bound, environment-bound, or intentionally impossible before assigning it to the WFS renderer.
+
+**verbx's role is upstream and adjacent to the WFS renderer.** verbx can prepare deterministic dry sources, early and late reverb stems, matrix-routed convolution assets, analysis JSON, and repeatable gain and spectral decisions. It can also analyze microphone captures made in the completed array room. It does **not** currently calculate WFS driving functions, ingest an array's loudspeaker-coordinate file, compensate per-loudspeaker latency or transfer functions, select active secondary sources, or directly address the hundreds of channels that a large WFS renderer may use. Those tasks belong to the array renderer, its calibration system, and the installation's routing environment.
+
+This boundary is useful rather than limiting. Keep the reverb design independent of a particular array until the point where array geometry is needed. For example, create a concise early-return candidate and a darker, longer late-return candidate in verbx; retain the dry source unchanged; then let the WFS environment place the dry source, the early images, and the late-field virtual ensemble separately. The verbx reports make the audio decisions auditable, while the WFS session retains the spatial configuration that cannot be represented by a conventional multichannel WAV alone.
+
+#### A practical WFS preparation workflow
+
+Start with three assets rather than one premixed “WFS reverb” file:
+
+1. **Dry source:** preserve the unprocessed event for the WFS renderer's direct virtual source. Do not bake a stereo pan or unrelated room into it.
+2. **Early-return candidate:** use a short, controlled reverb or measured early-response asset for virtual reflection images. Keep attacks readable and document the intended source-to-reflection relationship.
+3. **Late-return candidate:** render a darker, denser, 100-percent-wet field that the WFS system can distribute as an environmental layer or a cloud of virtual secondary sources.
+
+The following pair creates deliberately separate early and late candidates. They are not WFS driving signals; they are musical source material for the WFS renderer:
+
+```bash
+verbx render source.wav wfs_early_return.wav \
+  --engine algo \
+  --rt60 0.42 \
+  --predelay 4 \
+  --damping 0.30 \
+  --wet 1.0 --dry 0.0 \
+  --output-layout mono \
+  --json-out wfs_early_return.analysis.json
+
+verbx render source.wav wfs_late_return.wav \
+  --engine algo \
+  --rt60 3.4 \
+  --predelay 38 \
+  --damping 0.62 \
+  --wet 1.0 --dry 0.0 \
+  --output-layout mono \
+  --json-out wfs_late_return.analysis.json
+```
+
+In the WFS environment, audition the dry source first. Add only the early-return candidate and test whether its virtual reflection positions support distance rather than blur the source. Add the late return last, initially at a lower level than a stereo instinct might suggest. Walk the intended audience area. Listen for changes in localization, tonal balance, echo density, and stability as the listener leaves the nominal center. A reverb decision that works only at one chair is not necessarily unusable, but it should be described honestly as a local effect rather than as uniform field synthesis.
+
+After the array is tuned, capture representative positions with calibrated microphones and analyze them as a set. Use one report per position, retain the array preset and loudspeaker map with the report, and compare early decay, spectral decay, direct-to-reverberant relationship, and interposition consistency. A minimal evidence pass is:
+
+```bash
+verbx analyze wfs_position_a.wav \
+  --edr --room \
+  --json-out wfs_position_a.analysis.json
+```
+
+Repeat at the center, near an array boundary, and at one musically important off-axis location. The resulting differences are not merely faults. They reveal where the installation produces the intended perspective, where the venue dominates the renderer, and where a composition may exploit a change in apparent source distance or field texture.
+
+For live WFS, keep latency budgeting explicit. The renderer's delay compensation, audio interface buffers, network transport if present, loudspeaker DSP, and any realtime verbx stage all add to the end-to-end path. A reverb tail can tolerate substantial delay more easily than a direct virtual source, but a source-bound early field cannot be casually delayed without changing precedence and distance cues. If verbx is used live, place it on a dedicated return or pre-render its stems unless its measured realtime latency fits the installation's direct-sound budget.
+
+The compositional opportunity is substantial. WFS can make a dry instrumental line appear to approach from beyond the stage while its late field remains behind the audience; it can let a frozen chord become a stationary architectural surface while solo gestures move through it; it can separate a virtual ensemble into depth layers without equating depth with reverb level. verbx contributes repeatable acoustic materials and analysis to that process. The WFS renderer contributes the physical wavefront strategy. Keeping those roles separate is what makes the workflow both creatively open and technically defensible.
+
 ## 5. What verbx Can Produce Today
 
 The following boundary is intentionally explicit.

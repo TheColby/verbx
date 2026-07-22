@@ -1,10 +1,8 @@
 # Glossary
 
-This colossal glossary defines 574 terms used throughout verbx and the wider literature of acoustics, reverberation, dereverberation, spatial audio, recording, music production, plug-in engineering, measurement, and Audio AI. Definitions are intentionally compact: each establishes the book's working meaning without pretending to replace the cited standards, textbooks, or research papers.
+This colossal glossary defines 709 terms used throughout verbx and the wider literature of acoustics, reverberation, dereverberation, spatial audio, recording, music production, plug-in engineering, measurement, and Audio AI. Definitions are intentionally compact: each establishes the book's working meaning without pretending to replace the cited standards, textbooks, or research papers.
 
 A term may have narrower meanings in a particular standard or discipline. Read units, channel conventions, measurement windows, reference levels, and algorithm settings with the surrounding chapter before comparing results. Acronyms are cross-defined where they are common enough to be encountered independently.
-
-**Alphabetical guide:** [A](#a) · [B](#b) · [C](#c) · [D](#d) · [E](#e) · [F](#f) · [G](#g) · [H](#h) · [I](#i) · [J](#j) · [K](#k) · [L](#l) · [M](#m) · [N](#n) · [O](#o) · [P](#p) · [Q](#q) · [R](#r) · [S](#s) · [T](#t) · [U](#u) · [V](#v) · [W](#w) · [X](#x) · [Y](#y) · [Z](#z)
 
 ## A
 
@@ -48,6 +46,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Air absorption.** Frequency-dependent attenuation during propagation through air, strongest at high frequencies and dependent on humidity and temperature.
 
+**Air-loss filter.** A frequency-dependent attenuation filter placed in a propagation or feedback path to model energy lost while sound travels through air.
+
 **Algorithmic latency.** Delay caused by an algorithm's required lookahead, block size, transform, buffering, or internal state rather than hardware transport.
 
 **Algorithmic reverb.** Artificial reverberation produced by delay networks, filters, modulation, and feedback rather than direct convolution with a measured IR.
@@ -88,6 +88,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Artifact.** An unintended audible or measurable product of processing, encoding, estimation, clipping, modulation, or numerical error.
 
+**Artificial reverberation.** Deliberate creation or modification of reflected and decaying sound by architectural, mechanical, electromechanical, electronic, or digital means.
+
 **Attack.** The onset portion of a sound or the time constant with which a processor responds to increasing level.
 
 **Attenuation.** Reduction in amplitude, power, or level caused by distance, absorption, filtering, gain control, or cancellation.
@@ -118,6 +120,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Back wall.** The room boundary behind the listener, often responsible for strong delayed reflections and low-frequency modal behavior.
 
+**Backward energy integration.** Reverse cumulative summation of squared impulse-response samples used to form an energy decay curve from the response tail toward its onset.
+
 **Backward prediction.** Estimation of a sample from future samples, used in some linear-prediction and dereverberation formulations.
 
 **Band-pass filter.** A filter that passes a selected frequency region while attenuating frequencies below and above it.
@@ -125,6 +129,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Bandlimited signal.** A signal whose spectrum is zero or negligible above a specified maximum frequency.
 
 **Bandwidth.** The frequency span occupied or passed by a signal, filter, channel, mode, or process.
+
+**Bass ratio.** Room-acoustic measure comparing low-frequency reverberation times with mid-frequency values to describe perceived warmth or bass persistence.
 
 **Batch processing.** Noninteractive execution of the same or parameterized operation across many files or manifest entries.
 
@@ -135,6 +141,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Bell filter.** A parametric equalizer band that boosts or cuts around a center frequency with controlled width.
 
 **Binaural audio.** Two-channel audio designed to reproduce ear-input cues for headphone listening.
+
+**Binaural quality index.** Spatial metric derived from interaural cross-correlation and used to characterize apparent source width or listener envelopment.
 
 **Binaural room impulse response.** An impulse response measured or modeled from a source to the listener's two ears in a room.
 
@@ -150,7 +158,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Brightness.** Perceived emphasis of high-frequency energy, influenced by spectrum, transients, decay, and level.
 
+**Brilliance ratio.** Room-acoustic ratio comparing high-frequency reverberation with mid-frequency reverberation to characterize treble liveliness or damping.
+
 **Brown noise.** Noise with power decreasing approximately $6$ dB per octave, produced by integrating white noise.
+
+**Brute-force convolution.** Direct application of a long impulse response without structural approximation, often accurate but computationally expensive for realtime multichannel reverberation.
 
 **Buffer underrun.** Failure to supply playback samples before the device deadline, typically heard as a click, dropout, or gap.
 
@@ -170,9 +182,13 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Causality.** The requirement that a realtime system's output at a given instant cannot depend on future input.
 
+**Center time.** Energy-weighted mean arrival time of an impulse response, commonly written $T_s$, that summarizes the balance between early and late energy.
+
 **Cepstrum.** A transform-domain representation useful for separating source and filter periodicities, detecting echoes, or estimating pitch.
 
 **Channel.** One discrete stream or component of audio within a file, bus, device, spatial format, or processor.
+
+**Channel decorrelation.** Reduction of similarity between output channels so a reverberant field spreads spatially instead of collapsing toward a phantom source.
 
 **Channel layout.** The ordered set of channel roles, labels, and positions associated with a multichannel signal.
 
@@ -181,6 +197,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Chirped echo.** An echo whose dominant frequency changes over time because geometry, diffraction, dispersion, or a sequence of reflections reorganizes an impulsive source.
 
 **Chorus.** A modulation effect that combines a signal with slowly varying delayed copies to create width and ensemble-like motion.
+
+**Chorus artifact.** Audible pitch wandering or ensemble-like motion caused when delay modulation in a reverberator becomes too deep, fast, or coherent.
+
+**Circulant feedback matrix.** FDN matrix whose rows are cyclic shifts of one another, enabling structured eigenanalysis and efficient implementations.
 
 **Clarity index.** A room metric comparing early to late energy, such as $C_{50}$ for speech or $C_{80}$ for music.
 
@@ -196,9 +216,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Coefficient.** A numerical multiplier controlling a filter, matrix, predictor, transform, or model term.
 
+**Coloration-duration factorization.** Reverberator design strategy that separates control of spectral character from control of decay time as nearly independently as possible.
+
+**Colorless reverberation.** Artificial reverberation designed to avoid conspicuous periodic resonances, metallic ringing, and comb-filter spectral coloration.
+
 **Comb filter.** A feedforward or feedback delay filter with regularly spaced spectral peaks and notches.
 
 **Comb-filter coloration.** Audible pitch or hollowness caused by interference between a signal and one or more delayed copies.
+
+**Common delay divisor.** Integer factor shared by several delay lengths that can align recurrences and reduce the effective modal richness of a delay network.
 
 **Common-mode signal.** A component shared by multiple channels, often contrasted with differential or side information.
 
@@ -208,9 +234,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Compressor knee.** The transition shape between uncompressed and compressed gain behavior around threshold.
 
+**Computational room model.** Numerical representation of acoustic propagation and boundary interaction used to estimate impulse responses or sound fields in an enclosure.
+
 **Concert hall.** A performance room designed to balance clarity, blend, envelopment, loudness, and musical decay.
 
 **Condenser microphone.** A microphone using a charged capacitive element and impedance-conversion electronics.
+
+**Conformal damping map.** Interpretation of frequency-dependent delay-line loss as a mapping that moves lossless poles from the unit circle to frequency-dependent radii inside it.
+
+**Contractive matrix.** Matrix whose induced gain does not exceed one, useful for ensuring that a feedback network does not increase signal energy.
 
 **Convolution.** The operation that applies a linear time-invariant system's impulse response to an input signal.
 
@@ -218,9 +250,13 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Convolution reverb.** Reverberation created by convolving audio with measured, synthesized, or designed impulse responses.
 
+**Coprime delay lengths.** Delay lengths whose greatest common divisor is one, chosen to reduce coincident recurrences and improve modal distribution.
+
 **Correlation.** Statistical similarity between signals, channels, time regions, or variables.
 
 **Correlation coefficient.** A normalized measure of linear relationship, typically ranging from minus one to one.
+
+**Courant stability condition.** Time-step and grid-spacing constraint that keeps an explicit finite-difference wave simulation numerically stable.
 
 **CPU load.** The fraction of available processor time consumed by computation, scheduling, and data movement.
 
@@ -246,7 +282,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Damping.** Frequency-dependent dissipation that reduces resonance amplitude or shortens decay.
 
+**Damping filter.** Filter inside a reverberant feedback path that imposes frequency-dependent loss and therefore frequency-dependent decay time.
+
 **Damping ratio.** A dimensionless measure relating decay to oscillation in a second-order resonant system.
+
+**Damping substitution.** Replacement of each unit delay by a delay combined with a propagation-loss filter to convert a lossless reverberator into a decaying one.
 
 **DAW.** Digital audio workstation software used to record, edit, route, process, automate, and mix audio.
 
@@ -254,7 +294,17 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Decay.** Reduction of sound energy or amplitude after excitation stops.
 
+**Decay curvature.** Departure of a decay trace from a straight line in decibels, indicating changing decay rate, coupled spaces, modes, noise, or time variance.
+
 **Decay curve.** Level or energy plotted against time to characterize reverberation, damping, or release behavior.
+
+**Decay eigenvalue.** Eigenvalue of a recursive network whose magnitude and angle determine a modal decay rate and oscillation frequency.
+
+**Decay intercept.** Level at which a fitted decay line crosses a chosen time origin, used with slope when estimating reverberation time.
+
+**Decay ridge.** Persistent narrowband feature in an energy decay relief that reveals a mode or resonance lasting longer than neighboring frequencies.
+
+**Decay slope.** Rate of level reduction over time on a decibel decay curve, usually expressed in decibels per second.
 
 **Decay time.** The duration required for a specified drop in level or energy under defined measurement conditions.
 
@@ -268,7 +318,13 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Decorrelation.** Reduction of similarity between channels or signal paths, often used to increase spaciousness and diffusion.
 
+**Definition index.** Early-to-total energy ratio, commonly $D_{50}$ for speech, expressing how much impulse-response energy arrives during the first 50 milliseconds.
+
 **Delay.** A time shift measured in samples, milliseconds, seconds, or musical duration.
+
+**Delay density.** Number and distribution of distinct delay events available to a reverberator over a specified interval.
+
+**Delay distribution.** Statistical or designed arrangement of delay lengths that controls mode spacing, recurrence, density buildup, and temporal texture.
 
 **Delay line.** Memory that stores samples so they can be read after a controlled time interval.
 
@@ -276,15 +332,25 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Delay network.** An interconnected system of delays, filters, gains, and matrices used for reverberation or physical modeling.
 
+**Delay-line damping filter.** Loss filter associated with a particular reverberator delay line and designed from a target frequency-dependent reverberation time.
+
+**Delay-line scaling.** Multiplication of nominal delay lengths by room-size, sample-rate, or tuning factors while preserving required ordering and stability constraints.
+
 **Delta function.** An idealized unit impulse with unit area and zero duration, used to define system response.
 
 **Density.** The number or perceptual concentration of reflections, grains, echoes, or events per unit time.
+
+**Density buildup.** Increase in the number of audible reflections per unit time as energy recirculates through a room or delay network.
 
 **Dereverberation.** Estimation or recovery of a less reverberant signal from audio containing room reflections and decay.
 
 **Determinism.** Property that identical inputs, parameters, seeds, and environment produce identical outputs.
 
 **Diffuse field.** A statistical sound field with energy arriving approximately uniformly from many directions.
+
+**Diffuse reflection.** Boundary interaction that redistributes incident sound across many outgoing directions rather than preserving a single mirror-like ray.
+
+**Diffuse-field assumption.** Approximation that reverberant energy is statistically uniform in position and direction, underlying many classical room-acoustic formulas.
 
 **Diffuse-field equalization.** Spectral correction referenced to the average response of sound arriving from many directions.
 
@@ -293,6 +359,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Diffusion.** The spreading of acoustic or signal energy across directions, delays, channels, or modes.
 
 **Diffusion coefficient.** A measure of how evenly a surface distributes reflected energy over direction relative to a reference.
+
+**Diffusion time.** Time required for a reverberator to develop a sufficiently dense, spatially distributed response after excitation.
 
 **Digital signal processing.** Numerical representation, analysis, transformation, generation, and control of sampled signals.
 
@@ -308,11 +376,17 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Distance attenuation.** Reduction in direct level as source-receiver distance increases, modified by geometry and environment.
 
+**Distance law.** Relationship between propagation distance and sound level, such as inverse-distance pressure decay in an ideal free field.
+
 **Dither.** Low-level noise added before quantization to decorrelate error and preserve small-signal linearity.
 
 **Dolby Atmos.** An immersive-audio ecosystem combining beds, objects, metadata, rendering, and defined delivery formats.
 
 **Doppler shift.** Apparent frequency change caused by relative motion between source and receiver.
+
+**Doppler-free modulation.** Delay or network modulation designed to reduce audible pitch shift while still breaking up static resonances.
+
+**Double-slope decay.** Energy decay containing two approximately linear decibel regions with different slopes, often caused by coupled spaces or layered processing.
 
 **Downmix.** Reduction of a multichannel mix to fewer output channels using specified gains and routing.
 
@@ -338,6 +412,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Early reflections.** The first individually structured room reflections arriving after the direct sound.
 
+**Early resonance.** Low-frequency room or reverberator mode that remains individually perceptible before modal density becomes statistically high.
+
+**Early-to-late ratio.** Ratio of impulse-response energy before a selected boundary to energy after it, used to quantify clarity and distance.
+
 **Echo.** A delayed sound perceived as a distinguishable repetition rather than fused reverberation.
 
 **Echo cancellation.** Estimation and subtraction of a known echo path, especially in communication systems.
@@ -346,7 +424,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Echo return loss enhancement.** Additional echo reduction achieved by nonlinear post-processing after linear cancellation.
 
+**Echo-density growth.** Time evolution of reflection count or normalized echo density as a reverberant response transitions from sparse echoes to a dense tail.
+
 **Eigenfrequency.** A natural resonant frequency associated with a system mode.
+
+**Eigenmode.** Characteristic oscillation associated with an eigenvector and eigenvalue of a linear acoustic or feedback system.
 
 **Eigenvalue.** A scalar describing how a matrix transforms a corresponding eigenvector, central to feedback-network stability and decay.
 
@@ -354,7 +436,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Elevation.** Vertical angle of a source or loudspeaker relative to the listener or coordinate origin.
 
+**Elliptic feedback delay network.** Structured FDN family using elliptic or related matrix constructions to shape mode distribution and computational behavior.
+
 **Energy decay curve.** Integrated impulse-response energy plotted backward in time, commonly used to estimate reverberation time.
+
+**Energy decay relief.** Time-frequency surface formed by backward-integrating energy within spectral bins, revealing frequency-dependent decay and resonant ridges.
+
+**Energy preservation.** Property of a lossless structure whose output or state energy equals its input or previous-state energy under the chosen norm.
+
+**Energy reflection coefficient.** Fraction of incident acoustic energy returned by a boundary, equal to one minus absorbed and transmitted fractions when accounting is complete.
 
 **Energy-time curve.** Squared impulse-response magnitude plotted against time to reveal direct sound and reflection structure.
 
@@ -372,11 +462,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **ERB.** Equivalent rectangular bandwidth, a psychoacoustic measure approximating auditory-filter width.
 
+**Exact transfer-function model.** Point-to-point room model that represents every relevant source-receiver impulse response directly rather than approximating its perceptual structure.
+
 **Excitation signal.** A known signal used to stimulate a system for measurement, modeling, or synthesis.
 
 **Exponential decay.** A decay whose amplitude changes by a constant ratio per unit time and appears linear in decibels.
 
 **External sidechain.** A detector input derived from a signal other than the processor's main input.
+
+**Extrapolated RT60.** Sixty-decibel decay time inferred from a shorter fitted interval such as EDT, T20, or T30 rather than observed over the full range.
 
 ## F
 
@@ -390,7 +484,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Fast Fourier transform.** An efficient algorithm for computing the discrete Fourier transform and its inverse.
 
+**FDN reverberation.** Late-reverberation synthesis using multiple delays coupled through a feedback matrix, with losses and output mixing controlling decay and spatial character.
+
 **Feedback.** Routing a portion of a system's output back to its input.
+
+**Feedback comb bank.** Parallel or coupled collection of feedback comb filters used to create many decaying modes and a dense reverberant tail.
 
 **Feedback delay network.** A reverberator architecture containing multiple delays coupled by a feedback matrix and associated filters.
 
@@ -407,6 +505,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Filterbank.** A collection of filters that decomposes or reconstructs a signal across frequency bands.
 
 **Finite impulse response filter.** A filter with a response that becomes exactly zero after a finite number of samples.
+
+**Finite-difference time-domain method.** Grid-based numerical method that advances discretized wave-equation variables through time while respecting stability and boundary conditions.
+
+**First-order delay filter.** One-pole or one-zero loss filter designed for a reverberator delay line to approximate a target decay at selected frequencies.
 
 **Flanging.** A modulation effect created by mixing a signal with a very short varying delay, producing moving comb filtering.
 
@@ -428,6 +530,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Free field.** An ideal or approximated environment without significant reflections.
 
+**Freeverb.** Widely implemented Schroeder-Moorer-style reverberator using parallel lowpass-feedback comb filters followed by serial allpass-like diffusers.
+
+**Freeverb allpass approximation.** Freeverb diffusion section conventionally called allpass although its implementation and coefficient choices only approximate ideal allpass behavior.
+
 **Freeze.** A reverb state that sustains circulating energy by approaching lossless feedback while controlling stability.
 
 **Frequency.** Repetition rate measured in hertz, equal to cycles per second.
@@ -437,6 +543,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Frequency response.** Magnitude and phase behavior of a system as a function of frequency.
 
 **Frequency-dependent decay.** Reverberation in which different frequency bands decay at different rates.
+
+**Frequency-dependent energy decay curve.** Family of decay curves computed in bands or spectral bins instead of after broadband energy summation.
+
+**Frequency-dependent reverberation time.** Reverberation-time function over frequency, commonly specified in octave or fractional-octave bands and realized with feedback-path damping filters.
 
 **Frequency-domain processing.** Signal processing performed on spectral representations rather than directly on time samples.
 
@@ -463,6 +573,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Grain.** A short windowed segment of sound used as an elementary unit in granular processing.
 
 **Granular reverb.** Reverberant texture assembled from overlapping short grains with controlled delay, pitch, envelope, and spatial distribution.
+
+**Grid dispersion.** Frequency- and direction-dependent wave-speed error introduced by spatial discretization in finite-difference or waveguide-mesh simulation.
+
+**Grid point.** Discrete spatial sample at which a numerical acoustic model stores and updates pressure, velocity, or traveling-wave variables.
 
 **Group delay.** Negative derivative of phase with respect to angular frequency, interpreted as frequency-dependent envelope delay.
 
@@ -496,6 +610,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Histogram.** A count or probability display showing how values are distributed across ranges.
 
+**Homogeneous feedback delay network.** FDN whose delay paths or attenuation structure follow a uniform design pattern rather than path-specific heterogeneous models.
+
 **Hop size.** The sample advance between successive overlapping analysis or synthesis frames.
 
 **Householder matrix.** An orthogonal reflection matrix useful for efficient mixing and diffusion in feedback networks.
@@ -512,11 +628,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Image-source method.** A geometric room model that replaces specular reflection paths with mirrored virtual sources.
 
+**Image-source order.** Number of boundary reflections represented by a virtual source in the image-source method.
+
 **Immersive audio.** Audio designed to create enveloping three-dimensional experience using channels, objects, scenes, or binaural rendering.
 
 **Impulse.** A brief excitation approximating a unit sample or Dirac delta for testing system response.
 
 **Impulse response.** The output of a system excited by an impulse, fully describing a linear time-invariant system.
+
+**Impulse-response smoothness.** Degree to which a late impulse response avoids isolated spikes, periodic gaps, and abrupt statistical changes.
 
 **In situ measurement.** Measurement performed in the actual operating environment rather than a laboratory approximation.
 
@@ -524,13 +644,19 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Infinite reverb.** A sustained reverb mode in which decay is halted or made extremely long under explicit stability controls.
 
+**Inhomogeneous feedback delay network.** FDN with path-dependent delays, filters, gains, or routing intended to model nonuniform propagation and decay.
+
 **Initial time-delay gap.** The interval between direct sound and the first significant reflection.
 
 **Input gain.** Gain applied before the main processing network.
 
 **Input matrix.** A matrix that maps external channels into an internal multichannel or delay-network representation.
 
+**Input-output room model.** Representation of a room by transfer functions or impulse responses between chosen source and receiver points without explicitly simulating the full field.
+
 **Integrated loudness.** Program loudness accumulated over an interval using gating and frequency weighting defined by a standard.
+
+**Interaural cross-correlation coefficient.** Normalized similarity of left- and right-ear signals over a specified window and frequency band, used in spatial-acoustic assessment.
 
 **Interaural level difference.** Difference in level between the ears, important for horizontal localization at higher frequencies.
 
@@ -560,6 +686,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **JSON report.** A machine-readable structured report using JavaScript Object Notation for metrics, settings, diagnostics, or provenance.
 
+**Junction scattering.** Redistribution of incoming traveling waves into outgoing branches according to impedance and conservation constraints at a waveguide junction.
+
 **Just intonation.** Tuning based on simple frequency ratios rather than equal division of the octave.
 
 **Just-noticeable difference.** The smallest change in a parameter or stimulus reliably perceived under defined conditions.
@@ -583,6 +711,12 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Late field.** The dense reverberant region after early reflections are no longer perceived as isolated events.
 
 **Late lateral energy fraction.** The fraction of late sound energy arriving laterally, associated with listener envelopment.
+
+**Late-field isotropy.** Condition in which late reverberant energy arrives with approximately equal statistics from all directions.
+
+**Late-reverberation approximation.** Efficient statistical or recursive model that replaces explicit computation of every high-order reflection after the early response.
+
+**Late-tail onset.** Time at which a reverberant response becomes dense enough to treat as a statistical late field rather than isolated reflections.
 
 **Latency.** Elapsed time from an input event or sample to the corresponding output becoming available or audible.
 
@@ -608,6 +742,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Linkwitz-Riley crossover.** A crossover family formed from cascaded Butterworth sections so adjacent bands sum flat in phase-aligned conditions.
 
+**Listener envelopment.** Perception of being surrounded by reverberant sound, strongly influenced by late lateral energy and interaural decorrelation.
+
 **Listening position.** The specified receiver location from which spatial balance, calibration, or room response is evaluated.
 
 **Localization.** Perceptual estimation of a sound source's direction, distance, or position.
@@ -616,11 +752,17 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Loop gain.** Product of gains around a feedback path, determining stability and decay.
 
+**Lossless feedback matrix.** Feedback matrix that preserves state energy, typically orthogonal in real-valued FDNs or unitary in complex-valued FDNs.
+
 **Lossless matrix.** A matrix that preserves signal energy, commonly orthogonal or unitary in an FDN.
+
+**Lossless prototype reverberator.** Recursive network configured without attenuation so its modes do not decay, used as a starting point before damping is introduced.
 
 **Low-frequency extension.** The lowest frequency region a transducer or system reproduces within stated limits.
 
 **Low-pass filter.** A filter that passes low frequencies while attenuating higher frequencies.
+
+**Lowpass-feedback comb filter.** Feedback comb filter containing a low-pass loss filter in its loop so high frequencies decay faster than low frequencies.
 
 **LU.** Loudness unit, representing a relative loudness difference of one decibel under the applicable standard.
 
@@ -640,9 +782,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Matrix convolution.** Multichannel convolution in which each input-output pair can have its own impulse response.
 
+**Matrix modulation.** Time variation of a feedback or mixing matrix used to move resonances, alter diffusion, or decorrelate channels.
+
 **Maximum length sequence.** A deterministic pseudorandom binary sequence used for system identification and impulse-response measurement.
 
+**Mean absorption coefficient.** Surface-area-weighted average of frequency-dependent absorption coefficients across the boundaries of a room.
+
 **Mean free path.** Average distance traveled by a sound ray between reflections in an enclosure.
+
+**Mean scattering coefficient.** Surface-area-weighted average of boundary scattering coefficients used in geometric-acoustic estimates.
 
 **Measurement microphone.** A microphone designed for known, stable, and often approximately flat response.
 
@@ -652,6 +800,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Metadata.** Descriptive information about audio, channels, objects, parameters, rights, measurements, or processing history.
 
+**Metallic ringing.** Audible pitched or bell-like persistence caused by sparse, regularly spaced, or insufficiently damped reverberator modes.
+
 **Metering.** Visual or machine-readable measurement of levels, loudness, peaks, dynamics, spectra, or processing state.
 
 **Mid-side processing.** Stereo processing in the sum-and-difference domain rather than directly on left and right channels.
@@ -660,11 +810,19 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Mix.** The combination of multiple sources, channels, buses, and processing paths into a program.
 
+**Modal decay time.** Time constant or RT60 associated with one resonant mode rather than a broadband or band-averaged response.
+
+**Modal degeneracy.** Coincidence of two or more theoretically distinct modes at the same frequency, often increasing resonance strength.
+
 **Modal density.** Number of acoustic modes per unit frequency, generally increasing with frequency and room volume.
 
 **Modal frequency.** Resonant frequency associated with a room or system mode.
 
 **Modal overlap.** Degree to which neighboring resonances overlap in bandwidth, contributing to a smoother statistical response.
+
+**Mode-density threshold.** Frequency or time region beyond which modes or echoes are numerous enough that statistical description becomes more useful than individual tracking.
+
+**Mode-frequency distribution.** Arrangement of resonant frequencies in a room or recursive network, including spacing, degeneracy, clustering, and irregularity.
 
 **Modulation.** Time variation of amplitude, frequency, phase, delay, filter, matrix, or another parameter.
 
@@ -676,7 +834,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Monophonic.** Containing one audio channel or one musical line, depending on context.
 
+**Moorer reverberator.** Artificial-reverberation architecture extending Schroeder structures with explicit early reflections and frequency-dependent damping in feedback comb filters.
+
 **Moving average.** A filter or statistic formed by averaging values over a sliding interval.
+
+**Multiband delay filter.** Feedback-path filter designed from several target decay bands to approximate a detailed frequency-dependent RT60 curve.
 
 **Multiband processing.** Independent or linked processing of frequency regions separated by a filterbank or crossover.
 
@@ -702,6 +864,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Near field.** Region close to a source where pressure and particle velocity behavior is complex and simple far-field laws may not apply.
 
+**Nested allpass filter.** Diffusion structure in which an allpass or delay network is embedded inside another allpass loop to increase echo complexity efficiently.
+
 **Neural audio codec.** A learned encoder-decoder that represents audio with compact latent variables and neural synthesis.
 
 **Neural dereverberation.** Dereverberation performed partly or wholly by a learned model trained on reverberant and target audio.
@@ -716,11 +880,17 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Noise shaping.** Spectral redistribution of quantization noise, usually moving energy toward less audible regions.
 
+**Noise-floor bend.** Point where a measured decay curve departs from its reverberant slope because background noise begins to dominate backward-integrated energy.
+
+**Nonexponential decay.** Reverberant decay that cannot be represented adequately by one constant exponential slope over the interval of interest.
+
 **Nonlinear distortion.** New frequency components or waveform changes produced by a system that does not obey superposition.
 
 **Nonstationarity.** Time variation in a signal's statistical properties, spectrum, level, source, or environment.
 
 **Normalization.** Gain adjustment or numerical scaling to meet a peak, loudness, energy, or representational target.
+
+**Normalized echo density.** Echo-density measure normalized against a Gaussian or reference process so responses with different levels and durations can be compared.
 
 **Normalized frequency.** Frequency expressed relative to sample rate, Nyquist frequency, or another reference.
 
@@ -746,7 +916,13 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Orthogonal matrix.** A real square matrix whose transpose equals its inverse and that preserves Euclidean energy.
 
+**Orthogonal mixing.** Energy-preserving mixing of real-valued channels or delay states using an orthogonal matrix.
+
+**Orthogonalized delay filter.** Delay-line damping design transformed to preserve a desired lossless or orthogonal network relationship while imposing frequency-dependent decay.
+
 **Oscillation.** Repeated variation around an equilibrium, periodic or quasi-periodic in time.
+
+**Output decorrelation delay.** Short channel-specific delay used at reverberator outputs to reduce interchannel correlation and broaden spatial imaging.
 
 **Output gain.** Gain applied after the principal processing network.
 
@@ -764,6 +940,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Panning.** Distribution of a source among output channels or spatial directions.
 
+**Parallel comb bank.** Set of comb filters driven in parallel and summed, producing a superposition of modal families with different delay periods.
+
 **Parallel compression.** Mixing a compressed path with a less compressed path to combine density and transient definition.
 
 **Parallel reverb.** Reverb placed on a return path and blended with the dry signal rather than inserted destructively.
@@ -772,7 +950,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Parameter smoothing.** Gradual interpolation of parameter changes to avoid clicks, zipper noise, and unstable transitions.
 
+**Paraunitary matrix.** Frequency-dependent matrix whose conjugate-transpose product is identity on the unit circle, preserving energy across frequency.
+
 **Partitioned convolution.** FFT convolution that divides a long impulse response into partitions to manage latency and computation.
+
+**Passivity.** Property that a system cannot generate net energy, providing a strong sufficient condition for stable physical and feedback-network models.
 
 **Peak hold.** A meter function that retains the maximum observed value for a defined time or until reset.
 
@@ -783,6 +965,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Perceptual loss.** A training objective based on features or distances intended to correlate with human hearing.
 
 **Perceptual model.** A computational approximation of auditory sensitivity, masking, localization, quality, or preference.
+
+**Perceptual reverberator.** Reverberator optimized to reproduce salient auditory cues rather than every geometrical reflection or exact point-to-point transfer function.
 
 **Phase.** Position within a periodic cycle or the angular component of a complex spectrum.
 
@@ -800,9 +984,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Plugin delay compensation.** Host alignment based on latency reported by plug-ins so parallel paths remain synchronized.
 
+**Point-to-point transfer function.** Acoustic transfer function from one specified source position to one specified receiver position.
+
 **Polar pattern.** Directional sensitivity or radiation shown as magnitude versus angle.
 
 **Pole.** A complex-frequency location where a transfer function becomes unbounded, governing resonance and decay.
+
+**Pole angle.** Angular position of a pole in the complex plane, determining its oscillation frequency in a discrete-time resonant system.
+
+**Pole radius.** Distance of a pole from the origin, determining modal decay rate and stability for a discrete-time recursive system.
 
 **Pre-delay.** Time between dry sound and the onset of a reverberant response.
 
@@ -812,7 +1002,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Preset.** A named stored configuration of parameters and states.
 
+**Pressure reflection coefficient.** Complex ratio of reflected to incident acoustic pressure at a boundary, carrying both magnitude and phase information.
+
 **Pressure zone microphone.** A microphone designed for placement at a boundary to reduce direct-reflection comb filtering.
+
+**Prime delay length.** Delay length chosen as a prime integer to reduce shared periodicities with other paths in a delay network.
+
+**Prime-power delay length.** Delay length selected from powers of distinct primes to structure recurrence and mode distribution in an FDN.
+
+**Propagation-loss filter.** Filter representing distance- and frequency-dependent energy loss accumulated while sound travels through a medium.
 
 **Psychoacoustics.** Scientific study of relationships between physical sound and auditory perception.
 
@@ -836,11 +1034,17 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Ray tracing.** Geometric simulation that follows many sound paths through reflections, transmission, scattering, and attenuation.
 
+**Ray-tracing order.** Maximum number of reflections followed for each acoustic ray in a geometric room simulation.
+
 **Real-time factor.** Processing time divided by signal duration; values below one indicate faster-than-realtime offline performance.
 
 **Realtime processing.** Processing that must produce each output before a fixed playback or interaction deadline.
 
 **Receiver.** The microphone, listener, ear, probe, or modeled point at which an acoustic response is evaluated.
+
+**Receiver directivity.** Direction-dependent sensitivity of a microphone, ear model, or virtual receiver used during acoustic rendering or measurement.
+
+**Rectilinear waveguide mesh.** Digital waveguide mesh arranged on an orthogonal grid, simple to implement but subject to direction-dependent dispersion.
 
 **Recursive filter.** A filter that uses previous outputs, giving an impulse response that may continue indefinitely.
 
@@ -853,6 +1057,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Reflection density.** Number of reflections arriving per unit time within an impulse response.
 
 **Reflection order.** Number of boundary interactions along a geometric propagation path.
+
+**Reflection path.** Geometric route from source to receiver containing one or more boundary interactions and associated delay, loss, and filtering.
+
+**Regression interval.** Selected decibel or time range over which a line is fitted to a decay curve for RT estimation.
 
 **Release.** The time behavior with which a processor returns toward unity gain or a sound decays after excitation.
 
@@ -876,13 +1084,25 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Reverberance.** Perceived prominence and duration of reverberant energy.
 
+**Reverberant power gain.** Frequency-dependent ratio of reverberator output power to input power under specified stationary excitation and routing.
+
+**Reverberation coloration.** Audible spectral shaping caused by uneven modal amplitudes, delays, feedback, damping, or output mixing in a reverberant system.
+
+**Reverberation diffusion.** Temporal and spatial spreading that converts sparse reflections into a dense, less localized decay field.
+
+**Reverberation problem.** Engineering task of reproducing the perceptually important behavior of a space under finite computation, memory, latency, and control constraints.
+
 **Reverberation radius.** Another name for critical distance in some room-acoustic contexts.
 
 **Reverberation time.** Time required for sound energy to decay by a specified amount, conventionally 60 dB.
 
+**Reverse cumulative integration.** Summation from the end of a sequence toward its beginning, used in Schroeder energy-decay analysis.
+
 **Reverse reverb.** Reverb whose envelope swells toward an event, commonly created by reversing a source or impulse-response workflow.
 
 **Ringing.** Sustained oscillation after excitation, often caused by high-Q resonance, filtering, or unstable feedback.
+
+**Room constant.** Absorption-related room quantity used in steady-state level and critical-distance formulas, often written from area and mean absorption.
 
 **Room correction.** Measurement-guided equalization and sometimes timing control intended to improve playback at selected positions.
 
@@ -891,6 +1111,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Room mode.** Standing-wave resonance determined by room dimensions and boundary conditions.
 
 **Room tone.** Background sound of a location without the foreground performance.
+
+**Room-mode transition frequency.** Approximate frequency separating sparse individually resolvable room modes from an increasingly overlapping statistical field.
 
 **Root mean square.** Square root of mean squared amplitude, used as an energy-related level measure.
 
@@ -906,6 +1128,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 ## S
 
+**Sabine absorption area.** Equivalent perfectly absorbing area obtained by summing each surface area multiplied by its absorption coefficient.
+
 **Sabine equation.** Statistical relation among room volume, equivalent absorption area, and reverberation time under diffuse-field assumptions.
 
 **Sample.** One discrete-time amplitude value for one channel.
@@ -914,11 +1138,19 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Sample-rate conversion.** Resampling between different rates with appropriate reconstruction and anti-alias filtering.
 
+**Sample-rate delay scaling.** Adjustment of delay lengths in proportion to sampling rate so physical delay times remain approximately constant.
+
 **Saturation.** Gradual nonlinear limiting that adds harmonics and compresses peaks rather than clipping abruptly.
 
 **Scattering.** Redistribution of reflected sound caused by surface irregularity, geometry, or wavelength-scale structures.
 
 **Scattering coefficient.** Fraction of reflected energy redirected away from the specular direction under a defined measurement method.
+
+**Scattering delay network.** Room-reverberation structure connecting delay lines through scattering nodes derived from room geometry and boundary properties.
+
+**Scattering junction.** Network node that maps incoming traveling-wave components to outgoing components while satisfying continuity and conservation relations.
+
+**Schroeder allpass section.** Recursive delay structure with nominally flat magnitude response used to increase echo density and phase dispersion.
 
 **Schroeder frequency.** Approximate transition above which room modes overlap sufficiently for statistical treatment.
 
@@ -935,6 +1167,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Sensitivity.** Change in output, metric, or perception produced by a change in input or parameter.
 
 **Serial processing.** Processing in which one stage's output feeds the next stage's input.
+
+**Series allpass chain.** Cascade of allpass diffusers used to build echo density before or after a recursive reverberation stage.
 
 **Shelf filter.** A filter that boosts or cuts frequencies above or below a transition region by an approximately constant amount.
 
@@ -990,7 +1224,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Spatialization.** Placement, motion, extent, or environmental rendering of sound in a spatial scene.
 
+**Specific echo density.** Echo count per unit time under a stated amplitude or statistical criterion, used to assess reverberant texture.
+
 **Spectral centroid.** Energy-weighted mean frequency, often correlated with perceived brightness.
+
+**Spectral coloration equalizer.** Filter used outside or around a reverberant network to correct its steady-state magnitude response independently of decay design.
 
 **Spectral convergence.** Degree to which an estimated spectrum approaches a target spectrum over iterations or time.
 
@@ -1022,6 +1260,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **State.** Stored information required for a processor's future output, such as delay contents, filter memories, envelopes, and random generators.
 
+**Statistical late field.** Dense reverberant tail characterized through distributions, correlation, decay, and spectrum rather than individually modeled reflections.
+
+**Steady-state energy density.** Average acoustic energy per unit volume after a continuous source and room losses reach statistical equilibrium.
+
 **Stem.** A grouped audio submix intended for independent routing, processing, delivery, or reconstruction.
 
 **Stereo.** Two-channel reproduction or representation conventionally associated with left and right.
@@ -1033,6 +1275,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Subwoofer.** Loudspeaker designed primarily for low-frequency reproduction.
 
 **Summing.** Combining signals by addition, with gains and routing determining the result.
+
+**Surface scattering coefficient.** Frequency-dependent fraction of reflected energy redistributed away from the specular direction by boundary roughness or geometry.
 
 **Surround sound.** Playback using loudspeakers around the listener to represent direction and envelopment beyond frontal stereo.
 
@@ -1052,6 +1296,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Tap.** One read location and gain from a delay line.
 
+**Tapped-delay early-reflection model.** Finite set of delayed, scaled, filtered, and spatialized taps approximating the perceptually important first room reflections.
+
 **Target curve.** Desired frequency, loudness, decay, or spatial response used to guide correction or optimization.
 
 **Temporal masking.** Reduced audibility of one sound because another occurs shortly before or after it.
@@ -1070,17 +1316,29 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Time-frequency mask.** A matrix of gains applied to spectral bins over time for separation, enhancement, or dereverberation.
 
+**Time-varying delay line.** Delay whose read position changes over time, requiring interpolation and potentially producing Doppler shift or decorrelation.
+
+**Time-varying reverberator.** Reverberator whose delays, filters, matrices, or gains change over time to suppress static modes or create intentional motion.
+
 **Toeplitz matrix.** A matrix constant along each diagonal, arising naturally in convolution and linear prediction.
+
+**Tonal correction filter.** Equalizer that compensates the average spectral coloration of a reverberator without redefining its modal decay times.
 
 **Tonality.** Degree to which a sound contains stable pitch or narrowband structure rather than noise-like energy.
 
 **Total harmonic distortion.** Ratio of harmonic-distortion energy to fundamental energy under a specified test.
+
+**Transfer-function matrix.** Matrix of point-to-point transfer functions mapping multiple acoustic or electrical inputs to multiple outputs.
 
 **Transient.** A short, rapidly changing event such as an attack, click, or percussion hit.
 
 **Transient preservation.** Retention of onset definition and peak structure through processing.
 
 **Transmission loss.** Reduction in sound power transmitted through a partition, usually frequency dependent.
+
+**Triangular feedback matrix.** Upper- or lower-triangular FDN matrix whose eigenvalues are visible on its diagonal and whose coupling has a directed structure.
+
+**Triangular waveguide mesh.** Mesh using triangular spatial cells to improve angular isotropy relative to a simple rectilinear grid.
 
 **True peak.** Estimated maximum of the reconstructed continuous waveform, which can exceed individual sample peaks.
 
@@ -1100,7 +1358,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Unit impulse.** A discrete signal equal to one at one sample and zero elsewhere.
 
+**Unit-circle pole.** Pole lying exactly on the complex unit circle, corresponding to an undamped discrete-time mode in an ideal lossless system.
+
 **Unitary matrix.** A complex matrix whose conjugate transpose equals its inverse and that preserves energy.
+
+**Unitary mixing.** Energy-preserving mixing of complex-valued states or channels using a unitary matrix.
 
 **Unity gain.** Gain of one, corresponding to zero decibels of level change.
 
@@ -1147,6 +1409,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Wave field synthesis.** Spatial reproduction method using dense loudspeaker arrays to approximate desired wavefronts over an area.
 
 **Waveguide.** A physical or digital structure that constrains wave propagation along one or more dimensions.
+
+**Waveguide numerical dispersion.** Frequency- and direction-dependent propagation-speed error caused by discrete mesh geometry and sampling.
+
+**Waveguide-mesh reverberation.** Physical-modeling approach that propagates traveling waves across an interconnected spatial mesh to approximate room acoustics.
 
 **Wavelength.** Distance traveled by one wave cycle, equal to sound speed divided by frequency.
 
@@ -1201,6 +1467,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Zero-phase filter.** A noncausal offline filter with no phase shift, often implemented by forward-backward processing.
 
 **Zipper noise.** Audible stepping caused by abrupt or insufficiently smoothed parameter changes.
+
+**Zita-Rev1.** Open-source FDN reverberator by Fons Adriaensen with eight delay lines, frequency-dependent decay controls, and stereo output processing.
 
 **Zobel network.** An impedance-equalization network used in loudspeaker and analog circuit design.
 

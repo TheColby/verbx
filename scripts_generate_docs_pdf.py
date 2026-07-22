@@ -20,6 +20,8 @@ DEFAULT_MD = ROOT / "docs" / "USERGUIDE.md"
 DEFAULT_PDF = ROOT / "USERGUIDE.pdf"
 PDF_PREAMBLE = ROOT / "docs" / "assets" / "pandoc_pdf_preamble.tex"
 CARD_ILLUSTRATIONS = ROOT / "docs" / "assets" / "verbx_card_illustrations.tex"
+TABLE_CAPTION_FILTER = ROOT / "docs" / "assets" / "caption_tables.lua"
+DIRECTIONAL_QUOTES_FILTER = ROOT / "docs" / "assets" / "directional_quotes.lua"
 INDEX_STYLE = ROOT / "docs" / "assets" / "verbx_index.ist"
 REFERENCE_METADATA = ROOT / "docs" / "reference_metadata.json"
 PLUGIN_GUIDE_GENERATOR = ROOT / "scripts_generate_plugin_guide.py"
@@ -151,6 +153,102 @@ CHAPTER_EPIGRAPHS: tuple[tuple[str, str, str], ...] = (
     ),
 )
 
+# Exercises belong to the principal teaching chapters. Appendices, the command
+# schema, bibliography, FAQ, alpha notes, and glossary are reference matter.
+CHAPTER_EXERCISES: dict[str, tuple[str, ...]] = {
+    "verbx": (
+        "Render one dry excerpt through a short room, a plate, and a long hall; loudness-match the results and describe the change in distance, width, and spectral decay.",
+        "Create a fully wet return for one source and a parallel wet/dry insert for the same source. Compare the two routing models in a short mix.",
+        "Run `verbx analyze` on a dry file and one rendered file, then identify which reported quantities support, complicate, or contradict your listening notes.",
+        "Make three deterministic variations of one preset by changing only RT60, pre-delay, and damping. Preserve the command lines and JSON reports.",
+        "Build a one-minute listening test that alternates dry, early-field, late-field, and complete versions without revealing their order to a listener.",
+    ),
+    "What Is Reverb? (and why verbx sounds different)": (
+        "Measure the direct arrival and first five reflections in a supplied or self-recorded impulse response; sketch the likely boundary geometry without claiming more precision than the evidence permits.",
+        "Compare a feedback comb, an allpass diffuser, and an FDN using the same impulse. Relate audible density to the corresponding signal-flow diagram.",
+        "Plot an energy-decay curve for two rooms or two presets, fit EDT and T30 where valid, and explain why the estimates disagree or agree.",
+        "Make a short percussion study in which early reflections establish one apparent room while the late field establishes another. State the intended perceptual contradiction.",
+        "Choose one pole-zero plot from the chapter and predict its magnitude response before viewing the accompanying response graph.",
+    ),
+    "verbx Reference": (
+        "Use a labeled impulse to verify every route in one multichannel or matrix-convolution configuration; document channel order, arrival time, polarity, and level.",
+        "Capture three candidate impulse responses from one space using unchanged geometry, then compare their noise floors and decay estimates before choosing a production version.",
+        "Create one convolution render and one algorithmic approximation of the same room role. Identify what the approximation preserves and what it changes.",
+        "Design a safe long-tail render with explicit duration, container, limiter, and report settings. Explain each guardrail.",
+        "Create a minimal repeatable render manifest containing input hashes, command line, version, output format, and analysis sidecar location.",
+    ),
+    "Immersive Reverb, Surround Sound, and Dolby Atmos": (
+        "Build a source-bound early field, an environment-bound late field, and one gesture-bound effect from the same dry source. Assign a distinct spatial role to each.",
+        "Verify a 7.1.2 or 7.1.4 handoff with spoken labels or impulses before auditioning music; record the exact channel map used by the receiving DAW.",
+        "Render an FOA intermediate, rotate it, decode it, and compare that result with a fixed stereo or surround print at matched loudness.",
+        "Prepare separate dry, early, and late stems for a WFS renderer. State which spatial decision belongs to verbx and which belongs to the calibrated array system.",
+        "Audit one immersive mix on its target layout, binaural render, stereo fold-down, and one reduced layout. List the hierarchy that survives each translation.",
+    ),
+    "System Orientation Through Block Diagrams": (
+        "Trace one CLI render from input file to output file and annotate every stage at which gain, channel count, or time alignment can change.",
+        "Redraw one block diagram for a mono source and one for a multichannel source, naming the data contract at each boundary.",
+        "Choose one failure mode from the diagrams and design a minimal diagnostic signal that isolates it.",
+        "Compare offline render and realtime paths for one preset. Identify the state that must be shared and the state that must remain host or device specific.",
+        "Explain one diagram to a collaborator using only source, early field, late field, safety, and output as your vocabulary.",
+    ),
+    "CLI Reference": (
+        "Write a command that creates a 100-percent-wet stereo return with an analysis JSON, then explain why each output option is explicit.",
+        "Use `--dry-run` or the equivalent validation path on one expensive render and record which estimated resources or warnings change after one parameter edit.",
+        "Create a preset, render it twice with a fixed seed, and verify reproducibility using hashes and analysis reports.",
+        "Deliberately submit one invalid layout or incompatible option combination, then rewrite the command so it fails fast for the right reason.",
+        "Make a concise shell script that renders three controlled variants and preserves their reports beside the audio.",
+    ),
+    "verbx Extreme Workflow Cookbook (with 100 Recipes)": (
+        "Select five recipes that target the same source class and arrange them from most transparent to most transformed; explain the progression.",
+        "Take one recipe and create a conservative, moderate, and extreme version while changing only the parameters essential to its stated effect.",
+        "Convert one recipe into a reusable preset and add a machine-readable analysis report to the output directory.",
+        "Test one recipe on speech, percussion, and sustained harmony. Identify which source property determines whether it succeeds.",
+        "Invent a recipe title and provide a runnable command, a listening goal, a safety check, and one likely failure mode.",
+    ),
+    "VERBX AUv3/VST3 Plug-in Handbook": (
+        "Recreate one CLI reverb design in the plug-in, then print the return and analyze it with the CLI. Document intentional differences.",
+        "Automate RT60 coarse and fine controls separately over a phrase. Describe the musical reason to use each control's range.",
+        "Use the Expert page to make a stable wide late field without changing the dry source's localization; compare stereo and mono fold-downs.",
+        "Use the spectrum analyzer to identify a spectral buildup, then correct it with one reverb parameter before reaching for unrelated channel EQ.",
+        "Create a DAW preset with a reverse or freeze gesture and record the host automation so another session can reproduce the form.",
+    ),
+    "IR Synthesis – A Dual-Layer Reference": (
+        "Synthesize three IRs with equal nominal RT60 but different early-reflection structures. Compare direct-to-reverberant ratio and perceived distance.",
+        "Morph two IRs while retaining a fixed source and output level; identify the moment at which the result stops reading as one coherent room.",
+        "Create a stereo or multichannel IR matrix and verify every route with isolated impulses before processing musical audio.",
+        "Analyze a synthesized IR for decay, spectrum, and channel correlation, then revise only the parameter most directly related to the weakest metric.",
+        "Design an IR library naming convention that preserves geometry, source/receiver roles, normalization, sample rate, and licensing evidence.",
+    ),
+    "AI Research and Data Augmentation": (
+        "Create a small train, validation, and test augmentation plan that prevents room-identity leakage across splits.",
+        "Render a controlled augmentation set in which RT60 changes while source, seed, level, and channel layout remain fixed. Produce a CSV or JSON comparison.",
+        "Choose one task, such as ASR or source separation, and state which acoustic variations should be invariant versus predictive for the model.",
+        "Run quality checks on a small batch and reject at least one intentionally implausible output using an explicit metric rule.",
+        "Write a compact dataset card that records provenance, render parameters, split policy, and known limitations of the augmented audio.",
+    ),
+    "Illustrated Guide": (
+        "Choose five figures from different chapters and write one prediction before reading each caption, then compare prediction with the diagram's actual claim.",
+        "Redraw one signal-flow diagram with different parameter values while preserving its causal structure.",
+        "Use one sonogram pair to identify a time-scale and frequency-scale invariant, then explain why equal axes matter for the comparison.",
+        "Pair one pole-zero plot with its magnitude response and identify a feature that cannot be inferred safely from one plot alone.",
+        "Make one original labeled figure from a verbx render, including units, a caption, source data, and a one-paragraph interpretation.",
+    ),
+    "Finite-Element Modeling for Reverb and Resonant Systems": (
+        "Model a simple rectangular cavity with stated boundary conditions and compare its lowest predicted modes with a measured or synthesized response.",
+        "Change one material or boundary parameter at a time and relate the simulated change to absorption, damping, or modal spacing.",
+        "Estimate the computational cost of refining a mesh in time and space, then explain why a faster method may be preferable for late reverberation.",
+        "Use a finite-element result only for the early or low-frequency part of a hybrid design, then choose a statistical late-field model for the remainder.",
+        "Write a validation plan that distinguishes agreement with one microphone position from agreement across a meaningful listening region.",
+    ),
+    "Microtonal Workflows, Scala Import, and Scale-Tuned Reverberation": (
+        "Import one Scala scale and create two scale-tuned reverb designs with different root frequencies. Compare their interaction with the same sustained chord.",
+        "Use an impulse, a chromatic sweep, a harmonic sound, and a musical excerpt to test whether a tuned resonance design generalizes across sources.",
+        "Compare a five-degree, twelve-degree, and thirty-one-degree scale with matched target budgets. Describe changes in spectral density and beating.",
+        "Compose a short phrase in which reverb tuning changes at a harmonic boundary without changing the dry instrument's tuning.",
+        "Document the Scala file, root mapping, frequency range, target count, and any transposition used so another listener can reproduce the scale-tuned field.",
+    ),
+}
+
 
 def _rel(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
@@ -191,8 +289,8 @@ def _markdown_for_userguide(source: Path) -> str:
         # semantic value inside fenced blocks and makes the generated book dirty.
         markdown = "\n".join(line.rstrip() for line in markdown.splitlines()) + "\n"
     if source == ROOT / "docs" / "GLOSSARY.md":
-        # Keep Appendix F itself numbered, but present its A-Z dividers as plain
-        # navigational headings rather than F.1 through F.26.
+        # Keep the glossary appendix numbered, but present its A-Z dividers as
+        # unnumbered headings that never create table-of-contents entries.
         def unnumbered_glossary_letter(match: re.Match[str]) -> str:
             letter = match.group(1)
             target = letter.lower()
@@ -201,8 +299,6 @@ def _markdown_for_userguide(source: Path) -> str:
                 rf"\hypertarget{{{target}}}{{}}"
                 "\n"
                 rf"\section*{{{letter}}}"
-                "\n"
-                rf"\addcontentsline{{toc}}{{section}}{{{letter}}}"
                 "\n```"
             )
 
@@ -326,9 +422,10 @@ def _pandoc_base_command(markdown_path: Path, author: str) -> list[str]:
     return [
         "pandoc",
         str(markdown_path),
-        "--from=gfm+tex_math_dollars+raw_attribute",
+        "--from=gfm+tex_math_dollars+raw_attribute+smart",
         "--toc",
         "--list-of-figures",
+        "--list-of-tables",
         "--number-sections",
         "--standalone",
         "--top-level-division=chapter",
@@ -342,6 +439,10 @@ def _pandoc_base_command(markdown_path: Path, author: str) -> list[str]:
         str(PDF_PREAMBLE),
         "--include-in-header",
         str(CARD_ILLUSTRATIONS),
+        "--lua-filter",
+        str(TABLE_CAPTION_FILTER),
+        "--lua-filter",
+        str(DIRECTIONAL_QUOTES_FILTER),
         "-V",
         "documentclass=book",
         "-V",
@@ -541,11 +642,12 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
     markdown = _add_book_parts(markdown)
     markdown = _promote_reverb_primer_to_chapter(markdown)
     markdown = _add_chapter_epigraphs(markdown)
+    markdown = _add_chapter_exercises(markdown)
     markdown = _italicize_musical_titles(markdown)
     markdown = re.sub(r'(?:<a\s+id="[^"]+"></a>)+', replace_anchor_run, markdown)
     markdown = _replace_mermaid_with_static_assets(markdown)
-    markdown = _keep_code_leads_with_examples(markdown)
     markdown = _ensure_image_captions(markdown)
+    markdown = _keep_code_leads_with_examples(markdown)
     markdown = _compact_illustrated_guide(markdown)
     markdown = _illustrate_operational_cards(markdown)
     markdown = _convert_figure_captions(markdown)
@@ -557,7 +659,7 @@ def _markdown_with_pdf_targets(markdown: str) -> str:
     )
     markdown = markdown.replace(
         "# Research Papers and References",
-        "```{=latex}\n\\cleardoublepage\n```\n\n# Research Papers and References",
+        "```{=latex}\n\\clearpage\n```\n\n# Research Papers and References",
         1,
     )
     markdown = _add_pdf_index(markdown)
@@ -636,7 +738,20 @@ def _keep_code_leads_with_examples(markdown: str) -> str:
         paragraph = lines[paragraph_start : paragraph_end + 1]
         if not paragraph or len(paragraph) > 4:
             continue
-        disallowed_prefixes = ("#", "-", "* ", "+ ", ">", "|", "<", "\\", "![", "```")
+        disallowed_prefixes = (
+            "#",
+            "-",
+            "* ",
+            "+ ",
+            ">",
+            "|",
+            "<",
+            "\\",
+            "![",
+            "```",
+            "**Figure",
+            "**Block diagram",
+        )
         if any(
             not value.strip()
             or value.startswith("    ")
@@ -670,7 +785,11 @@ def _keep_code_leads_with_examples(markdown: str) -> str:
 def _validate_figure_sequence(markdown: str) -> None:
     """Require one prose lead before every figure caption in document order."""
 
-    events = re.findall(r"\\verbxFigure(Lead|Caption)\{", markdown)
+    raw_events = re.findall(
+        r"\\verbx(?P<event>FigureLead|FigureCaption|PlateCaption)\{",
+        markdown,
+    )
+    events = ["Lead" if event == "FigureLead" else "Caption" for event in raw_events]
     if not events or len(events) % 2:
         raise ValueError("Every figure must have one prose lead and one caption")
     malformed = [
@@ -744,6 +863,44 @@ def _promote_reverb_primer_to_chapter(markdown: str) -> str:
     primer = re.sub(r"(?m)^#### ", "### ", primer)
     reference = "# verbx Reference\n\n" + markdown[end:]
     return markdown[:start] + primer + reference
+
+
+def _add_chapter_exercises(markdown: str) -> str:
+    """Add five tailored exercises to the end of every principal book chapter."""
+
+    output: list[str] = []
+    fence: str | None = None
+    active_heading: str | None = None
+    has_exercises = False
+
+    def append_exercises() -> None:
+        if active_heading not in CHAPTER_EXERCISES or has_exercises:
+            return
+        output.extend(["", "## Suggested Exercises", ""])
+        output.extend(f"{index}. {exercise}" for index, exercise in enumerate(
+            CHAPTER_EXERCISES[active_heading], start=1
+        ))
+        output.append("")
+
+    for line in markdown.splitlines():
+        stripped = line.lstrip()
+        marker = stripped[:3]
+        if marker in {"```", "~~~"}:
+            if fence is None:
+                fence = marker
+            elif fence == marker:
+                fence = None
+
+        if fence is None and re.match(r"^# [^#]", line):
+            append_exercises()
+            active_heading = line[2:].strip()
+            has_exercises = False
+        elif fence is None and line.strip() == "## Suggested Exercises":
+            has_exercises = True
+        output.append(line)
+
+    append_exercises()
+    return "\n".join(output)
 
 
 def _epigraph_tex(value: str) -> str:
@@ -876,7 +1033,12 @@ def _convert_figure_captions(markdown: str) -> str:
         caption = f"```{{=latex}}\n\\verbxFigureCaption{{{title}}}\n```"
         path = match.group("path")
         if "open_source_portfolio/" in path:
-            full_page = path.endswith("01_spem_in_alium_opening.png")
+            full_page = path.endswith(
+                (
+                    "01_spem_in_alium_opening.png",
+                    "01_spem_in_alium_tutti-22.png",
+                )
+            )
             page_open = "\\clearpage\n" if full_page else ""
             page_close = "\n\\clearpage" if full_page else ""
             max_height = "0.72\\textheight" if full_page else "0.57\\textheight"
@@ -888,7 +1050,7 @@ def _convert_figure_captions(markdown: str) -> str:
                 f"\\includegraphics[width=\\linewidth,height={max_height},keepaspectratio]"
                 f"{{\\detokenize{{{path}}}}}\n"
                 "\\par}\n"
-                f"\\verbxFigureCaption{{{title}}}\n"
+                f"\\verbxPlateCaption{{{title}}}\n"
                 "```"
             )
             if credit:
@@ -1069,7 +1231,6 @@ def _card_visual_command(title: str) -> str:
         (r"Automation card: (.+): (.+)", "verbxAutomationVisual"),
         (r"Validation card: (.+): (.+)", "verbxValidationVisual"),
         (r"Preset card: (.+) / (.+)", "verbxPresetVisual"),
-        (r"Interaction card \d+: (.+) with (.+)", "verbxInteractionVisual"),
         (r"Audition card: (.+) on (.+)", "verbxMonitoringVisual"),
         (r"Asset card: (.+): (.+)", "verbxAssetVisual"),
         (r"Release card: (.+): (.+)", "verbxReleaseVisual"),
@@ -1083,6 +1244,12 @@ def _card_visual_command(title: str) -> str:
             left, right = (_latex_text(value) for value in match.groups())
             return rf"\{macro}{{{left}}}{{{right}}}"
 
+    interaction = re.fullmatch(r"Interaction card \d+: (.+) with (.+)", title)
+    if interaction:
+        left, right = interaction.groups()
+        family = _interaction_visual_family(left, right)
+        return rf"\verbxInteractionVisual{{{_latex_text(left)}}}{{{_latex_text(right)}}}{{{family}}}"
+
     quality = re.fullmatch(r"Quality card \d+: (\d+) Hz, (.+), (\d+) frames", title)
     if quality:
         rate, mode, block = (_latex_text(value) for value in quality.groups())
@@ -1092,6 +1259,21 @@ def _card_visual_command(title: str) -> str:
     if troubleshooting:
         return rf"\verbxTroubleshootingVisual{{{_latex_text(troubleshooting.group(1))}}}"
     raise ValueError(f"No illustration mapping for card title: {title}")
+
+
+def _interaction_visual_family(left: str, right: str) -> int:
+    """Choose a diagram grammar that reflects the interaction being described."""
+
+    pair = f"{left} {right}".lower()
+    if any(term in pair for term in ("freeze", "reverse", "quality")):
+        return 4  # State and quality: routing / decision diagram.
+    if any(term in pair for term in ("wet", "dry", "duck", "mix", "gain")):
+        return 3  # Level: faders and gain structure.
+    if any(term in pair for term in ("damping", "shimmer", "bloom", "tone")):
+        return 1  # Spectral: frequency-domain response.
+    if any(term in pair for term in ("room size", "width", "diffusion", "spread")):
+        return 2  # Spatial: field geometry and distribution.
+    return 0  # Timing: delay and decay envelopes.
 
 
 def _latex_text(value: str) -> str:
@@ -1106,6 +1288,7 @@ def _latex_text(value: str) -> str:
         "}": r"\}",
         "~": r"\textasciitilde{}",
         "^": r"\textasciicircum{}",
+        "|": r"\textbar{}",
     }
     return "".join(replacements.get(char, char) for char in value)
 
@@ -1213,7 +1396,7 @@ def _add_pdf_index(markdown: str) -> str:
     markdown = _typeset_research_references(markdown)
 
     figure_pattern = re.compile(
-        r"(?m)^(?P<command>\\verbxFigureCaption\{"
+        r"(?m)^(?P<command>\\verbx(?:Figure|Plate)Caption\{"
         r"(?P<title>(?:[^{}]|\{[^{}]*\})*)\})$"
     )
 
@@ -1230,7 +1413,12 @@ def _add_pdf_index(markdown: str) -> str:
 
         def index_work(match: re.Match[str]) -> str:
             term = _musical_index_term(match.group("term"))
-            marker = f"```{{=latex}}\n\\index{{{term}}}\n```\n\n"
+            marker = (
+                "```{=latex}\n"
+                f"\\index{{{term}}}\n"
+                f"\\verbxWorkIndex{{{term}}}\n"
+                "```\n\n"
+            )
             return marker + match.group(0)
 
         appendix = work_pattern.sub(index_work, appendix)
@@ -1239,11 +1427,16 @@ def _add_pdf_index(markdown: str) -> str:
         markdown.rstrip()
         + "\n\n```{=latex}\n"
         + "\\backmatter\n"
+        + "\\verbxAfterword\n"
+        + "\\verbxAboutAuthor\n"
+        + "\\verbxErrata\n"
+        + "\\verbxPrintMusicalWorksIndex\n"
         + "\\clearpage\n"
         + "\\phantomsection\n"
         + "\\addcontentsline{toc}{chapter}{Index}\n"
         + "\\printindex\n"
         + "\\verbxColophon\n"
+        + "\\verbxRepositoryQR\n"
         + "```\n"
     )
 
@@ -1604,15 +1797,57 @@ def _plain_index_term(value: str) -> str:
 
 
 def _figure_index_term(value: str) -> str:
-    """Preserve caption typography while using plain text as the index sort key."""
+    """Reduce a descriptive figure caption to a concise index subject."""
+
+    musical = re.search(
+        r"(?:Opening measures|Score page|Page) of (?P<creator>.+?)(?:'s|’s)\s+"
+        r"\\emph\{(?P<title>[^{}]+)\}\s+\((?P<date>[^)]+)\)",
+        value,
+        flags=re.IGNORECASE,
+    )
+    if musical is not None:
+        creator = _musical_creator_index_name(musical.group("creator"))
+        plain = f"{creator}. {musical.group('title')} ({musical.group('date')})"
+        display = (
+            _latex_text(creator)
+            + ". \\textit{"
+            + _latex_text(musical.group("title"))
+            + "} ("
+            + _latex_text(musical.group("date"))
+            + ")"
+        )
+        return f"{_latex_index_term(plain)}@{display}"
 
     plain = _plain_index_term(value)
-    sort_key = _latex_index_term(plain)
-    if value == plain:
-        return sort_key
-    display = value.replace('"', "").replace("!", " - ").replace("@", " at ")
-    display = display.replace("|", " / ")
-    return f"{sort_key}@{display}"
+    folded = plain.casefold()
+    controlled_subjects = (
+        ("Energy decay relief", ("energy decay relief",)),
+        ("Energy decay curve", ("energy decay curve",)),
+        ("Pole-zero plot", ("pole-zero", "pole zero")),
+        ("Feedback comb filter", ("feedback comb",)),
+        ("Feedback delay network", ("feedback delay network", "fdn")),
+        ("Schroeder allpass filter", ("schroeder allpass",)),
+        ("Schroeder reverberator", ("schroeder reverberator", "schroeder-style")),
+        ("Reverberation time", ("rt60", "t_{60}", "t60")),
+        ("Spectrogram", ("spectrogram", "sonogram")),
+        ("Signal flowgraph", ("flowgraph", "signal flow")),
+    )
+    for subject, needles in controlled_subjects:
+        if any(needle in folded for needle in needles):
+            return _latex_index_term(subject)
+
+    concise = re.split(
+        r"\s*(?:[,;:]|\bwith\b|\bshowing\b|\bused to\b|\bcompared with\b|"
+        r"\bthrough\b|\bagainst\b|\bwhere\b|\bwhose\b)\s*",
+        plain,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0]
+    concise = re.sub(r"^(?:Implementation-level|Illustrative|Expanded)\s+", "", concise)
+    words = concise.split()
+    if len(words) > 7:
+        concise = " ".join(words[:7])
+    return _latex_index_term(concise or "Figure")
 
 
 def _musical_index_term(value: str) -> str:
@@ -1780,13 +2015,19 @@ def _latex_index_term(value: str) -> str:
 
 def _force_table_of_figures_page_break(latex_path: Path) -> None:
     latex = latex_path.read_text(encoding="utf-8")
-    marker = "\n\\listoffigures\n"
-    if latex.count(marker) != 1:
+    figure_marker = "\n\\listoffigures\n"
+    table_marker = "\n\\listoftables\n"
+    if latex.count(figure_marker) != 1:
         raise ValueError("Expected exactly one body-level \\listoffigures command")
-    latex_path.write_text(
-        latex.replace(marker, "\n\\clearpage\n\\listoffigures\n", 1),
-        encoding="utf-8",
+    if latex.count(table_marker) != 1:
+        raise ValueError("Expected exactly one body-level \\listoftables command")
+    latex = latex.replace(figure_marker, "\n\\clearpage\n\\listoffigures\n", 1)
+    latex = latex.replace(
+        table_marker,
+        "\n\\clearpage\n\\listoftables\n\\clearpage\n\\listofplates\n",
+        1,
     )
+    latex_path.write_text(latex, encoding="utf-8")
 
 
 def _render_pdf(markdown_path: Path, pdf_path: Path, author: str) -> None:
@@ -1828,6 +2069,18 @@ def _render_pdf(markdown_path: Path, pdf_path: Path, author: str) -> None:
             if pass_index == 0:
                 subprocess.run(
                     ["makeindex", "-s", str(INDEX_STYLE), "userguide.idx"],
+                    cwd=tmpdir,
+                    check=True,
+                )
+                subprocess.run(
+                    [
+                        "makeindex",
+                        "-s",
+                        str(INDEX_STYLE),
+                        "-o",
+                        "userguide.mwi",
+                        "userguide.mwx",
+                    ],
                     cwd=tmpdir,
                     check=True,
                 )

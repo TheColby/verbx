@@ -4,7 +4,7 @@ Focused bibliography for extreme reverberation DSP and reverberation research in
 
 Pruned from the broader bibliography on 2026-03-01 to keep only reverb-centric papers.
 
-Total entries: 1,064 (164 curated and primary-source entries + 900 extended Crossref entries)
+Total entries: 1,066 (166 curated and primary-source entries + 900 extended Crossref entries)
 
 Within each topical section, entries are alphabetized by first-author surname. Records
 without credited authors sort under "Unknown authors."
@@ -433,6 +433,14 @@ RT60, energy decay curves, Sabine/Eyring theory, and the physics of reverberant 
 
 > Context entry. Describes physical treatment of reverberation time; tangential to algorithmic approaches. It remains useful as a reminder that algorithmic controls model only part of a larger acoustic design problem: real spaces use absorbers, resonators, diffusers, and tunable devices to change decay behavior in ways that can be uneven across frequency and position.
 
+**[BOOK3]** Smith, J. O. (2010). Artificial Reverberation. *Physical Audio Signal Processing; W3K Publishing*. Source: [Artificial Reverberation](https://ccrma.stanford.edu/~jos/pasp/Artificial_Reverberation.html)
+
+> Annotation: A systems-level treatment of artificial reverberation spanning exact transfer-function and physical room models, perceptual requirements, early reflections, Schroeder and Freeverb structures, feedback delay networks, lossless feedback matrices, delay-length selection, frequency-dependent damping, digital waveguide reverberators, time variation, and scattering delay networks. The expanded verbx glossary uses this chapter as a primary terminology audit while retaining compact definitions suited to production and implementation work.
+
+**[BOOK2]** Smith, Julius O., III (2010). Physical Audio Signal Processing. *W3K Publishing; ISBN 978-0-9745607-2-4*. Source: [Energy Decay Relief](https://ccrma.stanford.edu/~jos/pasp/Energy_Decay_Relief.html)
+
+> Annotation: Defines the energy decay relief as reverse cumulative STFT-bin energy and explains its relationship to the broadband energy decay curve. This is the primary source for verbx's `--edr` analysis, including the distinction between a complete time-frequency decay surface and the compact per-band RT60 summaries written to analysis reports.
+
 **[RA17]** Stephenson, UM (2023). On the Influence of Ceiling and Audience Profile on the Reverberation Time and Other Room Acoustical Parameters. *Auditorium Acoustics 2008*. DOI: [10.25144/17526](https://doi.org/10.25144/17526)
 
 > Context entry. Geometric acoustics study of audience and ceiling geometry effects on RT60. Background context for physical room modeling. It reinforces that audience layout and architectural geometry can change decay and clarity in ways that are not captured by volume and average absorption alone, which matters for any future room-parameter import or venue-style preset work.
@@ -716,6 +724,11 @@ Papers on speech intelligibility in reverberant environments, dereverberation fo
 
 Papers whose "reverberation" subject matter refers to underwater acoustics, seabed scattering, structural media, musicology, or other domains unrelated to architectural room acoustics. Included because they were in the source bibliography; they have no direct bearing on verbx's current design. Retained for bibliographic completeness, search disambiguation, and to make clear which references should not be used as evidence for room-reverb DSP decisions.
 
+<a id="ref-burns-women-music-2002"></a>
+**[BOOK1]** Burns, Kristine H., ed. (2002). Women and Music in America Since 1900: An Encyclopedia. *Greenwood Press, Westport, CT; 2 vols.; ISBN 978-1-57356-267-6*. Source: [American Library Association](https://www.ala.org/winner/women-and-music-america-1900-encyclopedia)
+
+> Annotation: This wide-ranging reference documents women as composers, performers, educators, producers, technologists, and institutional leaders across twentieth-century American music. It provides historical context for the guide's listening catalog and helps connect production techniques with the people and professional communities that developed and used them.
+
 **[UW2]** Chotiros, Nicholas (2012). Non-Rayleigh reverberation statistics. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.4708991](https://doi.org/10.1121/1.4708991)
 
 > Context entry. Statistical characterization of underwater backscatter. Retained for completeness. It is useful mostly as a vocabulary boundary marker: similar statistical language appears in room acoustics, but the physical scattering mechanisms and operating assumptions are different from architectural reverberation.
@@ -758,24 +771,9 @@ Papers whose "reverberation" subject matter refers to underwater acoustics, seab
 
 ---
 
-## Section 9A: Music History and Reference Works
-
-Reference works used to establish biographical, historical, and professional context for the musical catalog and educational chapters.
-
-<a id="ref-burns-women-music-2002"></a>
-**[BOOK1]** Burns, Kristine H., ed. (2002). Women and Music in America Since 1900: An Encyclopedia. *Greenwood Press, Westport, CT; 2 vols.; ISBN 978-1-57356-267-6*. Source: [American Library Association](https://www.ala.org/winner/women-and-music-america-1900-encyclopedia)
-
-> Annotation: This wide-ranging reference documents women as composers, performers, educators, producers, technologists, and institutional leaders across twentieth-century American music. It provides historical context for the guide's listening catalog and helps connect production techniques with the people and professional communities that developed and used them.
-
----
-
----
-
----
-
 ## Section 10: Extended Crossref Literature Index
 
-This unannotated discovery index adds 900 Crossref-derived references to the 164 curated and primary-source entries above, bringing the guide bibliography to 1,064 total entries.
+This unannotated discovery index adds 900 Crossref-derived references to the 166 curated and primary-source entries above, bringing the guide bibliography to 1,066 total entries.
 
 The entries below are intentionally not treated as vetted design authority. They are included to make the PDF a much broader literature map for reverberation, dereverberation, spatial audio, room acoustics, and related acoustic measurement work. Use the annotated sections above for canonical implementation guidance.
 
@@ -1671,7 +1669,7 @@ Discovery queries:
 
 **[XREF0415]** Lewers, T. (1993). A combined beam tracing and radiatn exchange computer model of room acoustics. *Applied Acoustics*. DOI: [10.1016/0003-682x(93)90049-c](https://doi.org/10.1016/0003-682x(93)90049-c)
 
-**[XREF0555]** Lewitz, JA (2024). Electroacoustics in 'Surround' Halls. *Room Acoustics with Emphasis on Electroacoustics 1979*. DOI: [10.25144/23452](https://doi.org/10.25144/23452)
+**[XREF0555]** Lewitz, JA (2024). Electroacoustics in ‘Surround’ Halls. *Room Acoustics with Emphasis on Electroacoustics 1979*. DOI: [10.25144/23452](https://doi.org/10.25144/23452)
 
 **[XREF0833]** Li, Junfeng; Xia, Risheng; Yan, Yonghong (2012). A hybrid approach for simulation of room reverberation. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.4707996](https://doi.org/10.1121/1.4707996)
 

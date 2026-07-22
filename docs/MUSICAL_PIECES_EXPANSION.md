@@ -1,6 +1,6 @@
 ## Expanded Listening Canon
 
-The following 192 additions broaden the appendix across sacred, orchestral, jazz, popular, ambient, theater, installation, environmental, game, and contemporary immersive practices. Piece and album titles are italicized throughout. Each entry pairs a listening cue with a practical study prompt. Links open a stable YouTube catalog search so readers can select an authorized or territorially available recording; recording-specific citations in the preceding section and the primary documentation below remain the preferred references where supplied. For broader biographical and professional context on women in American music, consult Kristine H. Burns's edited two-volume *Women and Music in America Since 1900: An Encyclopedia* (2002), cited in the research bibliography.
+The following 192 additions broaden the appendix across sacred, orchestral, jazz, popular, ambient, theater, installation, environmental, game, and contemporary immersive practices. Piece and album titles are italicized throughout. Each entry pairs a listening cue with a practical study prompt. Links open a stable YouTube catalog search so readers can select an authorized or territorially available recording; recording-specific citations in the preceding section and the primary documentation below remain the preferred references where supplied.
 
 ### Curated Listening Routes
 
@@ -287,7 +287,7 @@ The following 192 additions broaden the appendix across sacred, orchestral, jazz
 
 > **Study prompt.** Automate only one spatial parameter across a short form inspired by *Seigfried* (2016); test whether the form remains legible without level automation.
 
-**Lee 'Scratch' Perry and the Upsetters, *Dub Revolution* (1973).** from *Blackboard Jungle Dub*. Mutes, spring-like splashes, filtering, and feedback demonstrate that the wet return can function as an improvising answer rather than a fixed background. [YouTube catalog search](https://www.youtube.com/results?search_query=Lee+%27Scratch%27+Perry+and+the+Upsetters+Dub+Revolution+official).
+**Lee “Scratch” Perry and the Upsetters, *Dub Revolution* (1973).** from *Blackboard Jungle Dub*. Mutes, spring-like splashes, filtering, and feedback demonstrate that the wet return can function as an improvising answer rather than a fixed background. [YouTube catalog search](https://www.youtube.com/results?search_query=Lee+%E2%80%9CScratch%E2%80%9D+Perry+and+the+Upsetters+Dub+Revolution+official).
 
 > **Study prompt.** Rebuild one 20–30 second spatial gesture from *Dub Revolution* (1973) with original material, then preserve the exact render command and JSON report.
 

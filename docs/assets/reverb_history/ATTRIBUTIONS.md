@@ -3,7 +3,7 @@
 This ledger records every photograph reused in `docs/HISTORY_OF_ARTIFICIAL_REVERBERATION.md`. Local copies are unaltered except for resizing or recompression. Creative Commons terms apply to each image as identified below.
 
 1. `open_source_portfolio/10_san_marco_interior.jpg`: Interior of St. Mark's Basilica by Andrek02. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Interni_basilica_san_Marco_01.jpg). CC0 1.0.
-2. `open_source_portfolio/16_cockatoo_grain_silo.jpg`: Cockatoo Island convict grain silo by Harryp2. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Cockatoo_Island_convict_grain_silo.jpg). CC BY-SA 4.0.
+2. `open_source_portfolio/16_silophone_montreal.jpg`: *Silophone*, The User, at Montréal's Old Port by art_inthecity. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Silophone,_-The_User-,_2000,_Vieux-Port_de_Montr%C3%A9al_(5875027452).jpg). CC BY 2.0.
 3. `open_source_portfolio/23_tu_dresden_echo_chamber.jpg`: TU Dresden acoustic echo chamber by Henry Muhlpfordt. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Hallraum_TU_Dresden_2009-06-21.jpg). CC BY-SA 3.0.
 4. `open_source_portfolio/21_folded_line_reverb_front.jpg`: O. C. Electronics Folded-Line device exterior by Grebe. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Reverb-6.jpg). CC BY-SA 3.0.
 5. `open_source_portfolio/22_folded_line_reverb_interior.jpg`: O. C. Electronics Folded-Line device interior by Grebe. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Reverb-4.jpg). CC BY-SA 3.0.

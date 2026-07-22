@@ -26,6 +26,11 @@
 \definecolor{verbxCoverPaper}{HTML}{F6F0E3}
 \newcounter{verbxfigure}[chapter]
 \renewcommand{\theverbxfigure}{\thechapter-\arabic{verbxfigure}}
+\renewcommand{\thetable}{\thechapter-\arabic{table}}
+% Keep captions legible as separate units before the next paragraph, credit, or table.
+\newlength{\verbxCaptionAfterSkip}
+\setlength{\verbxCaptionAfterSkip}{0.12in}
+\setlength{\belowcaptionskip}{\verbxCaptionAfterSkip}
 \newcommand{\verbxFigureLead}[1]{%
   \refstepcounter{verbxfigure}%
   \par\smallskip\noindent
@@ -36,8 +41,39 @@
   \addcontentsline{lof}{figure}{\protect\numberline{\theverbxfigure}#1}%
   \par\vspace{1pt}\noindent
   {\footnotesize\textbf{Figure \theverbxfigure: #1}}%
-  \par\smallskip
+  \par\vspace{\verbxCaptionAfterSkip}
 }
+\makeatletter
+\newcommand*\l@plate{\@dottedtocline{1}{0em}{4.2em}}
+\newcommand{\listofplates}{%
+  \chapter*{List of Plates}%
+  \addcontentsline{toc}{chapter}{List of Plates}%
+  \@starttoc{lop}%
+}
+\makeatother
+\newcommand{\verbxPlateCaption}[1]{%
+  \verbxFigureCaption{#1}%
+  \addcontentsline{lop}{plate}{\protect\numberline{\theverbxfigure}#1}%
+}
+\makeatletter
+\newwrite\verbxworksfile
+\AtBeginDocument{\immediate\openout\verbxworksfile=\jobname.mwx}
+\AtEndDocument{\immediate\closeout\verbxworksfile}
+\newcommand{\verbxWorkIndex}[1]{%
+  \@bsphack
+  \protected@write\verbxworksfile{}{\string\indexentry{#1}{\thepage}}%
+  \@esphack
+}
+\newcommand{\verbxPrintMusicalWorksIndex}{%
+  \clearpage
+  \phantomsection
+  \addcontentsline{toc}{chapter}{Index of Musical Works}%
+  \begingroup
+    \renewcommand{\indexname}{Index of Musical Works}%
+    \IfFileExists{\jobname.mwi}{\input{\jobname.mwi}}{\chapter*{Index of Musical Works}}%
+  \endgroup
+}
+\makeatother
 \AtBeginEnvironment{longtable}{\footnotesize}
 \AtBeginEnvironment{longtable}{\rowcolors{2}{verbxTableOdd}{verbxTableEven}}
 
@@ -145,7 +181,700 @@
 
 % Publication front matter: title, imprint, and edition note.
 \makeatletter
+\newcommand{\verbxHalfTitle}{%
+  \begin{titlepage}
+    \pagecolor{white}\color{verbxCover}
+    \thispagestyle{empty}
+    \null\vfill
+    \begin{center}
+      {\fontsize{27}{32}\selectfont\scshape verbx User Guide}\par
+      \vspace{0.22in}
+      {\color{verbxCoverGold}\rule{0.32\textwidth}{1.2pt}}
+    \end{center}
+    \vfill\null
+  \end{titlepage}
+}
+
+\newcommand{\verbxFrontispiece}{%
+  \begin{titlepage}
+    \pagecolor{white}\color{black}
+    \thispagestyle{empty}
+    \begin{center}
+      \vspace*{\fill}
+      \includegraphics[width=\textwidth,height=0.75\textheight,keepaspectratio]
+        {docs/assets/open_source_portfolio/12_laon_cathedral_nave.jpg}\par
+      \vspace{0.18in}
+      {\small\textit{Frontispiece.} The nave of Laon Cathedral, built chiefly during
+      the late twelfth and early thirteenth centuries: a long direct axis joined to
+      lateral aisles, repeated bays, and a high vaulted reflection field.}\par
+      \vspace{0.08in}
+      {\scriptsize Photograph by David Iliff, CC BY-SA 3.0, via Wikimedia Commons.}
+      \addcontentsline{lop}{plate}{Frontispiece: Nave of Laon Cathedral}
+      \vspace*{\fill}
+    \end{center}
+  \end{titlepage}
+}
+
+\newcommand{\verbxPreface}{%
+  \clearpage
+  \chapter*{Preface}
+  \addcontentsline{toc}{chapter}{Preface}
+  \begin{center}
+    \vspace{0.65in}
+    {\large\itshape [forthcoming]}
+  \end{center}
+  \clearpage
+}
+
+\newcommand{\verbxAcknowledgments}{%
+  \chapter*{Acknowledgments}
+  \addcontentsline{toc}{chapter}{Acknowledgments}
+  This book and the verbx software stand on a long continuum of work in room acoustics,
+  electroacoustic music, artificial reverberation, digital signal processing, spatial
+  audio, measurement, and software engineering. The research bibliography identifies
+  the authors whose equations, experiments, algorithms, and perceptual models provide
+  the technical foundation; the listening appendix recognizes composers, performers,
+  producers, engineers, architects, and recording traditions that make reverberation a
+  musical material rather than merely an effect.
+
+  Particular thanks are due to the maintainers of Python, NumPy, SciPy, SoundFile,
+  Rich, Typer, JUCE, Pandoc, XeLaTeX, TeX Live, MakeIndex, Mermaid, and the many other
+  open-source tools used to build, test, illustrate, typeset, and distribute the project.
+  Museums, libraries, archives, photographers, and score repositories that release
+  public-domain or openly licensed material make the historical plates possible. Every
+  reproduced plate carries its source and license beside the image or in its caption.
+
+  Finally, gratitude belongs to the musicians, students, engineers, and patient readers
+  who test long tails, difficult routing, unusual tunings, high channel counts, and the
+  boundary between useful resonance and beautiful excess.
+  \clearpage
+}
+
+\newcommand{\verbxSymbolRow}[2]{#1 & #2\tabularnewline\noalign{\vskip 5pt}}
+\newcommand{\verbxSymbolGroup}[1]{%
+  \multicolumn{2}{@{}l@{}}{\bfseries #1}\tabularnewline\noalign{\vskip 3pt}%
+}
+\newcommand{\verbxSymbols}{%
+  \chapter*{List of Symbols and Notation}
+  \addcontentsline{toc}{chapter}{List of Symbols and Notation}
+  Symbols are italicized in mathematical prose; vectors and matrices are identified by
+  boldface and by context or dimension. Uppercase letters commonly denote transforms,
+  matrices, or totals; lowercase letters commonly denote samples, scalars, vectors, or
+  indices. Unless a section states otherwise, discrete-time indices are integers,
+  frequency is in hertz, time is in seconds, angles are in radians, and level is in
+  decibels. A symbol intentionally reused by different disciplines is defined again in
+  its local equation; subscripts such as \textquotedblleft{}in,\textquotedblright{}
+  \textquotedblleft{}out,\textquotedblright{} \textquotedblleft{}FDN,\textquotedblright{}
+  and \textquotedblleft{}IR\textquotedblright{} disambiguate
+  dimensions in complexity statements.
+
+  \begingroup
+  \renewcommand{\arraystretch}{1.08}
+  \begin{longtable}{@{}p{0.18\textwidth}p{0.72\textwidth}@{}}
+    \verbxSymbolGroup{Discrete time, transforms, and filters}
+    \verbxSymbolRow{$n$, $m$, $k$, $\ell$}{Integer sample, delay, frequency-bin, frame, mode, or summation indices as defined locally.}
+    \verbxSymbolRow{$x[n]$, $y[n]$}{Input and output samples at discrete-time index $n$.}
+    \verbxSymbolRow{$\mathbf{x}[n]$, $\mathbf{y}[n]$}{Multichannel input and output sample vectors.}
+    \verbxSymbolRow{$x_c[n]$, $y_o[n]$}{Sample on input channel $c$ and output channel $o$.}
+    \verbxSymbolRow{$\delta[n]$}{Unit impulse: one at $n=0$ and zero elsewhere.}
+    \verbxSymbolRow{$u[n]$}{Discrete unit-step sequence.}
+    \verbxSymbolRow{$h[n]$}{Impulse response of a linear time-invariant system.}
+    \verbxSymbolRow{$h_{oc}[n]$}{Impulse response from input channel $c$ to output channel $o$.}
+    \verbxSymbolRow{$X(z)$, $Y(z)$}{One-sided or bilateral $z$ transforms of $x[n]$ and $y[n]$.}
+    \verbxSymbolRow{$H(z)$}{Transfer function $Y(z)/X(z)$ in the $z$ domain.}
+    \verbxSymbolRow{$z$}{Complex transform variable; $z=e^{j\Omega}$ lies on the unit circle.}
+    \verbxSymbolRow{$z^{-M}$}{Delay of $M$ samples, typeset with a true negative superscript.}
+    \verbxSymbolRow{$D_M(z)$}{Delay operator, normally equal to $z^{-M}$.}
+    \verbxSymbolRow{$X[k]$, $H[k]$}{Discrete Fourier-transform bins of a signal and filter.}
+    \verbxSymbolRow{$F_s$}{Sampling frequency in hertz.}
+    \verbxSymbolRow{$T_s$}{Sampling period $1/F_s$ in seconds.}
+    \verbxSymbolRow{$f$}{Ordinary frequency in hertz.}
+    \verbxSymbolRow{$\omega$}{Angular frequency $2\pi f$ in radians per second.}
+    \verbxSymbolRow{$\Omega$}{Normalized digital angular frequency in radians per sample.}
+    \verbxSymbolRow{$N$}{Signal-frame count, FFT length, transform order, or locally declared problem size.}
+    \verbxSymbolRow{$B$}{Audio block size or FFT partition length in samples.}
+    \verbxSymbolRow{$L$}{Signal, filter, delay-line, or impulse-response length in samples.}
+    \verbxSymbolRow{$P$, $Q$}{Polynomial orders, partition size and count, or locally declared dimensions.}
+    \verbxSymbolRow{$a_k$, $b_k$}{Feedback and feedforward coefficients of a difference equation.}
+    \verbxSymbolRow{$A(z)$, $B(z)$}{Denominator and numerator polynomials of a rational transfer function.}
+    \verbxSymbolRow{$\ast$}{Linear convolution.}
+    \verbxSymbolRow{$\odot$}{Elementwise multiplication when explicitly declared.}
+    \verbxSymbolRow{$(\cdot)^{*}$, $(\cdot)^{\mathsf{H}}$}{Complex conjugation and conjugate transpose.}
+    \verbxSymbolRow{$\Re\{\cdot\}$, $|\cdot|$}{Real part and scalar magnitude.}
+
+    \verbxSymbolGroup{Reverberation and room-acoustic measures}
+    \verbxSymbolRow{$T_{60}$, $RT_{60}$}{Time required for reverberant energy level to decay by 60 dB.}
+    \verbxSymbolRow{$T_{20}$, $T_{30}$}{RT estimates extrapolated from 20 dB and 30 dB fitted ranges.}
+    \verbxSymbolRow{$EDT$}{Early decay time extrapolated from the first 10 dB of decay.}
+    \verbxSymbolRow{$E(t)$}{Remaining or instantaneous acoustic energy at elapsed time $t$, as defined locally.}
+    \verbxSymbolRow{$L_E(t)$}{Energy-decay level, commonly $10\log_{10}(E(t)/E(0))$ dB.}
+    \verbxSymbolRow{$\tau$}{Exponential time constant.}
+    \verbxSymbolRow{$\gamma$, $\beta$}{Decay rate, damping factor, or boundary reflection factor as defined locally.}
+    \verbxSymbolRow{$C_{50}$, $C_{80}$}{Early-to-late clarity indices using 50 ms and 80 ms boundaries.}
+    \verbxSymbolRow{$D_{50}$}{Fraction of total energy arriving in the first 50 ms.}
+    \verbxSymbolRow{$T_s^{\mathrm{center}}$}{Center time of an impulse response; the superscript distinguishes it from sampling period.}
+    \verbxSymbolRow{$DRR$}{Direct-to-reverberant energy ratio, normally reported in decibels.}
+    \verbxSymbolRow{$IACC$}{Interaural cross-correlation coefficient.}
+    \verbxSymbolRow{$G_{\mathrm{room}}$}{Room strength or a context-specific room gain.}
+    \verbxSymbolRow{$V$, $S$}{Room volume and total boundary surface area.}
+    \verbxSymbolRow{$S_i$, $\alpha_i$}{Area and absorption coefficient of boundary region $i$.}
+    \verbxSymbolRow{$\overline{\alpha}$}{Area-weighted mean absorption coefficient.}
+    \verbxSymbolRow{$A_{\mathrm{abs}}$}{Equivalent absorption area $\sum_i \alpha_i S_i$.}
+    \verbxSymbolRow{$c$}{Speed of sound in the propagation medium.}
+    \verbxSymbolRow{$\bar{\ell}$}{Mean free path, approximately $4V/S$ in a diffuse room.}
+    \verbxSymbolRow{$f_{\mathrm{Sch}}$}{Schroeder transition frequency between sparse modal and statistical behavior.}
+    \verbxSymbolRow{$\mathbf{x}_s$, $\mathbf{x}_r$}{Source and receiver position vectors.}
+    \verbxSymbolRow{$r_p$, $t_p$}{Length and arrival time $r_p/c$ of propagation path $p$.}
+
+    \verbxSymbolGroup{Feedback delay networks and recursive reverberators}
+    \verbxSymbolRow{$N_{\mathrm{FDN}}$}{Number of delay lines or state channels in an FDN.}
+    \verbxSymbolRow{$m_i$}{Delay length of FDN line $i$ in samples.}
+    \verbxSymbolRow{$\mathbf{s}[n]$}{FDN delay-state vector at sample $n$.}
+    \verbxSymbolRow{$\mathbf{A}$}{Feedback, mixing, state-transition, or system matrix defined locally.}
+    \verbxSymbolRow{$\mathbf{b}$, $\mathbf{c}$}{Input and output projection vectors.}
+    \verbxSymbolRow{$\mathbf{B}$, $\mathbf{C}$}{Multichannel input and output projection matrices.}
+    \verbxSymbolRow{$\mathbf{D}(z)$}{Diagonal matrix of delay operators.}
+    \verbxSymbolRow{$\mathbf{G}(z)$}{Diagonal or coupled loop-filter matrix.}
+    \verbxSymbolRow{$g$, $g_i(f)$}{Scalar feedback gain and frequency-dependent gain of delay line $i$.}
+    \verbxSymbolRow{$\lambda_k$}{Eigenvalue, pole, or modal decay factor at index $k$.}
+    \verbxSymbolRow{$\rho(\mathbf{A})$}{Spectral radius: maximum magnitude of the eigenvalues of $\mathbf{A}$.}
+    \verbxSymbolRow{$\mathbf{I}$}{Identity matrix of the dimension required by context.}
+    \verbxSymbolRow{$\mathbf{H}_N$}{Hadamard matrix of order $N$ when that matrix family is selected.}
+    \verbxSymbolRow{$\operatorname{diag}(\cdot)$}{Diagonal matrix formed from the listed scalar or filter entries.}
+
+    \verbxSymbolGroup{Convolution, dereverberation, and statistical estimation}
+    \verbxSymbolRow{$M_{\mathrm{IR}}$}{Impulse-response length in samples.}
+    \verbxSymbolRow{$C_{\mathrm{in}}$, $C_{\mathrm{out}}$}{Input and output channel counts.}
+    \verbxSymbolRow{$R$}{Number of active input-output convolution routes.}
+    \verbxSymbolRow{$H_q[k]$}{Frequency-domain filter coefficients for IR partition $q$.}
+    \verbxSymbolRow{$X(t,f)$, $Y(t,f)$}{Desired and observed short-time Fourier-transform coefficients.}
+    \verbxSymbolRow{$t$, $f$}{STFT frame and frequency-bin indices when used as discrete arguments.}
+    \verbxSymbolRow{$K_{\mathrm{FFT}}$}{Number of retained FFT frequency bins.}
+    \verbxSymbolRow{$T_{\mathrm{STFT}}$}{Number of STFT frames in an analyzed signal.}
+    \verbxSymbolRow{$\Delta$}{Prediction delay in frames for WPE or a finite increment elsewhere.}
+    \verbxSymbolRow{$\mathbf{g}(f)$}{Multichannel delayed-prediction coefficient vector at frequency $f$.}
+    \verbxSymbolRow{$\lambda(t,f)$}{Time-frequency source variance in statistical dereverberation.}
+    \verbxSymbolRow{$G(t,f)$}{Bounded spectral suppression gain.}
+    \verbxSymbolRow{$\mathbf{R}_{yy}(f)$}{Observed-signal spatial covariance matrix.}
+    \verbxSymbolRow{$\mathbf{w}(f)$}{Beamformer or multichannel filter vector.}
+    \verbxSymbolRow{$\varepsilon$}{Small regularization, floor, or numerical-stability constant.}
+    \verbxSymbolRow{$\widehat{x}$, $\widehat{\theta}$}{Estimated signal or parameter; a hat denotes an estimate.}
+    \verbxSymbolRow{$\mathbb{E}[\cdot]$}{Expectation under the probability model stated locally.}
+
+    \verbxSymbolGroup{Spatial audio, geometry, and physical models}
+    \verbxSymbolRow{$\theta$, $\phi$, $r$}{Azimuth, elevation, and radial distance in a spatial coordinate system.}
+    \verbxSymbolRow{$\boldsymbol{\Omega}$}{Unit direction or solid-angle coordinate; not complexity lower-bound notation.}
+    \verbxSymbolRow{$Y_l^m(\boldsymbol{\Omega})$}{Spherical harmonic of degree $l$ and order $m$.}
+    \verbxSymbolRow{$l$, $m$}{Spherical-harmonic degree and signed order.}
+    \verbxSymbolRow{$q=l(l+1)+m$}{ACN channel index for a spherical-harmonic component.}
+    \verbxSymbolRow{$\mathbf{R}$}{Rotation matrix or spatial covariance matrix, identified by context.}
+    \verbxSymbolRow{$H_L(f,\boldsymbol{\Omega})$, $H_R(f,\boldsymbol{\Omega})$}{Left- and right-ear transfer functions for direction $\boldsymbol{\Omega}$.}
+    \verbxSymbolRow{$N_s$, $N_r$}{Numbers of modeled source and receiver positions.}
+    \verbxSymbolRow{$N_{\mathrm{surf}}$, $N_{\mathrm{ray}}$}{Numbers of geometry surfaces and traced rays.}
+    \verbxSymbolRow{$\mathbf{M}$, $\mathbf{C}$, $\mathbf{K}$}{Mass, damping, and stiffness matrices in a finite-element model.}
+    \verbxSymbolRow{$\mathbf{q}(t)$, $\dot{\mathbf{q}}(t)$, $\ddot{\mathbf{q}}(t)$}{Generalized displacement, velocity, and acceleration vectors.}
+    \verbxSymbolRow{$E$, $\nu$, $\rho_m$, $h$}{Young's modulus, Poisson ratio, material density, and plate thickness.}
+    \verbxSymbolRow{$D$}{Flexural rigidity $Eh^3/[12(1-\nu^2)]$ of an isotropic thin plate.}
+    \verbxSymbolRow{$\mathbf{L}$}{Discrete positive Laplacian used by the structured plate model.}
+    \verbxSymbolRow{$\Delta x$, $\Delta y$}{Finite-element or finite-difference grid spacing.}
+    \verbxSymbolRow{$\phi_j$, $\omega_j$, $\zeta_j$}{Mode shape, natural angular frequency, and damping ratio of mode $j$.}
+    \verbxSymbolRow{$N_{\mathrm{mode}}$, $N_{\mathrm{node}}$}{Retained modal count and spatial node count.}
+
+    \verbxSymbolGroup{Norms, optimization, and complexity}
+    \verbxSymbolRow{$\lVert\cdot\rVert_p$}{Vector, matrix, or signal $p$-norm stated by context.}
+    \verbxSymbolRow{$\langle\mathbf{x},\mathbf{y}\rangle$}{Inner product of compatible vectors or signals.}
+    \verbxSymbolRow{$\mathcal{L}(\theta)$}{Loss or objective function evaluated at parameters $\theta$.}
+    \verbxSymbolRow{$\nabla_{\theta}\mathcal{L}$}{Gradient of the objective with respect to $\theta$.}
+    \verbxSymbolRow{$\mathcal{D}_{\mathrm{train}}$, $\mathcal{D}_{\mathrm{val}}$, $\mathcal{D}_{\mathrm{test}}$}{Training, validation, and test datasets.}
+    \verbxSymbolRow{$\mathcal{O}(g(n))$}{Asymptotic upper bound, normally worst-case unless qualified.}
+    \verbxSymbolRow{$\Omega(g(n))$}{Asymptotic lower bound; context distinguishes it from angular frequency.}
+    \verbxSymbolRow{$\Theta(g(n))$}{Asymptotically tight bound.}
+    \verbxSymbolRow{$\lceil x\rceil$, $\lfloor x\rfloor$}{Ceiling and floor of a scalar value.}
+  \end{longtable}
+  \endgroup
+  \clearpage
+}
+
+\newcommand{\verbxAbbrevRow}[2]{#1 & #2\tabularnewline\noalign{\vskip 5pt}}
+\newcommand{\verbxAbbreviations}{%
+  \chapter*{List of Abbreviations}
+  \addcontentsline{toc}{chapter}{List of Abbreviations}
+  \begingroup
+  \renewcommand{\arraystretch}{1.08}
+  \begin{longtable}{@{}p{0.20\textwidth}p{0.70\textwidth}@{}}
+    \verbxAbbrevRow{ADM BWF}{Audio Definition Model metadata carried in a Broadcast Wave Format file.}
+    \verbxAbbrevRow{AI}{Artificial intelligence.}
+    \verbxAbbrevRow{API}{Application programming interface.}
+    \verbxAbbrevRow{AUv3}{Audio Unit version 3 plug-in format.}
+    \verbxAbbrevRow{BRIR}{Binaural room impulse response.}
+    \verbxAbbrevRow{CLI}{Command-line interface.}
+    \verbxAbbrevRow{DAW}{Digital audio workstation.}
+    \verbxAbbrevRow{DRR}{Direct-to-reverberant ratio.}
+    \verbxAbbrevRow{EDC}{Energy decay curve.}
+    \verbxAbbrevRow{EDR}{Energy decay relief.}
+    \verbxAbbrevRow{EDT}{Early decay time.}
+    \verbxAbbrevRow{FDN}{Feedback delay network.}
+    \verbxAbbrevRow{FEM}{Finite-element method.}
+    \verbxAbbrevRow{FFT}{Fast Fourier transform.}
+    \verbxAbbrevRow{FIR}{Finite impulse response.}
+    \verbxAbbrevRow{FOA}{First-order Ambisonics.}
+    \verbxAbbrevRow{FDTD}{Finite-difference time-domain method.}
+    \verbxAbbrevRow{GPU}{Graphics processing unit.}
+    \verbxAbbrevRow{HRTF}{Head-related transfer function.}
+    \verbxAbbrevRow{IACC}{Interaural cross-correlation coefficient.}
+    \verbxAbbrevRow{IR}{Impulse response.}
+    \verbxAbbrevRow{LFE}{Low-frequency effects channel.}
+    \verbxAbbrevRow{LUFS}{Loudness units relative to full scale.}
+    \verbxAbbrevRow{ML}{Machine learning.}
+    \verbxAbbrevRow{OLA}{Overlap-add convolution.}
+    \verbxAbbrevRow{OLS}{Overlap-save convolution.}
+    \verbxAbbrevRow{RT60}{Reverberation time extrapolated to a 60 dB decay.}
+    \verbxAbbrevRow{SIMD}{Single instruction, multiple data.}
+    \verbxAbbrevRow{SOFA}{Spatially Oriented Format for Acoustics.}
+    \verbxAbbrevRow{STFT}{Short-time Fourier transform.}
+    \verbxAbbrevRow{VST3}{Steinberg Virtual Studio Technology version 3.}
+    \verbxAbbrevRow{WPE}{Weighted prediction error dereverberation.}
+  \end{longtable}
+  \endgroup
+  \clearpage
+}
+
+\newcommand{\verbxChronRow}[2]{#1 & #2\tabularnewline\noalign{\vskip 7pt}}
+\newcommand{\verbxChronology}{%
+  \chapter*{Chronology of Reverberation}
+  \addcontentsline{toc}{chapter}{Chronology of Reverberation}
+  This selective chronology is a historical reading map, not a story in which one
+  technology neatly replaces another. Architecture, chambers, plates, springs, magnetic
+  delay, digital networks, convolution, physical modeling, spatial rendering, and learned
+  systems continue to coexist because each stores, shapes, and spatializes acoustic energy
+  differently. Dates identify useful landmarks; broad periods acknowledge practices whose
+  origins are distributed across cultures, institutions, patents, laboratories, studios,
+  compositions, and oral engineering traditions.
+
+  Each entry asks three questions. What medium stores the acoustic memory? Which controls
+  become available to a musician or engineer? Which assumptions become hidden? Read the
+  chronology alongside Chapter 2's illustrated history and Appendix E's research
+  bibliography, where primary papers, patents, institutional histories, and surveys supply
+  fuller attribution and technical context.
+
+  \begingroup
+  \renewcommand{\arraystretch}{1.10}
+  \begin{longtable}{@{}p{0.18\textwidth}p{0.72\textwidth}@{}}
+    \verbxChronRow{Prehistory}{Caves, rock shelters, canyons, and other resonant sites join
+      sound to place long before acoustics exists as a named science. Repetition, sustained
+      vocalization, percussion, and movement reveal echoes and modes empirically. Modern
+      archaeoacoustics studies these relationships cautiously, combining measurement with
+      archaeological and cultural evidence rather than treating resonance alone as proof
+      of historical intention.}
+    \verbxChronRow{Classical antiquity}{Open-air theaters, enclosed ritual spaces, and
+      monumental stone architecture organize projection and reflection through geometry.
+      Builders and performers work with audibility, speech rhythm, ensemble placement, and
+      audience distribution without reducing the result to one decay number. Direct sound,
+      early support, and intelligibility already form a practical design problem.}
+    \verbxChronRow{c. 20 BCE}{Vitruvius's \emph{De architectura} describes theater geometry,
+      voice projection, and resonant bronze vessels associated with Greek performance
+      practice. The account mixes observation, inherited theory, and idealized prescription,
+      but it is an early written attempt to connect built form, resonant frequency, and
+      intelligibility. Modern readers should resist treating the vessels as electronic
+      equalizers in disguise: the larger historical fact is that architecture and tuned
+      resonance were already discussed as parts of one system.}
+    \verbxChronRow{Sixth century}{Hagia Sophia, completed in 537, demonstrates the acoustic
+      consequences of a vast central dome joined to semidomes, galleries, columns, and
+      reflective masonry. Its field is neither a simple rectangular decay nor a uniform
+      diffuse bath. Long paths, coupled volumes, focusing, and changing occupancy make the
+      building a continuing case study in architectural and liturgical sound.}
+    \verbxChronRow{Medieval sacred architecture}{Romanesque and Gothic churches enlarge
+      vertical volume, multiply bays and aisles, and place sung text within long, spectrally
+      evolving decays. Chant and early polyphony are shaped by breath, syllabic pacing,
+      processional movement, and architecture. The room is not an effect added afterward;
+      it is part of performance timing and collective intonation.}
+    \verbxChronRow{c. 800--1200}{Maya ceremonial architecture supplies a distinct history of
+      reflection and resonance. At Chich\'en Itz\'a, handclaps near the stairway of El Castillo
+      can return as a descending, chirp-like echo because the stepped geometry disperses
+      frequency components in time. Archaeoacoustic study compares measurements, models,
+      architecture, and cultural evidence; the striking sound does not by itself establish
+      that builders intended to imitate a bird. The example remains an unusually clear lesson
+      in how repeated geometry transforms a transient.}
+    \verbxChronRow{c. 1365}{Guillaume de Machaut's \emph{Messe de Nostre Dame} (c. 1365)
+      illustrates how sustained lines, staggered syllables, and contrapuntal density can
+      cooperate with a resonant church. Overlap joins phrases, but excessive late energy
+      can erase textual and rhythmic distinctions. The musical problem already resembles
+      modern reverb mixing: continuity must not destroy articulation.}
+    \verbxChronRow{1436}{Guillaume Dufay's \emph{Nuper rosarum flores} (1436) was performed
+      for the consecration of Florence Cathedral. Its ceremonial pacing, alternating forces,
+      and sustained sonorities demonstrate how composition, procession, and monumental
+      architecture can be heard as one event. Claims that every musical proportion directly
+      encodes the cathedral remain debated, but the performance history still offers a useful
+      reminder: acoustic space affects formal scale, ensemble deployment, and the listener's
+      perception of arrival.}
+    \verbxChronRow{Sixteenth century}{Large ceremonial vocal repertories increasingly use
+      separated groups, registral contrast, and antiphonal exchange. Thomas Tallis's
+      \emph{Spem in alium} (c. 1570) places forty independent parts in a texture whose
+      intelligibility depends on attack spacing, ensemble geometry, and the room's ability
+      to unify without collapsing many lines into one spectral mass.}
+    \verbxChronRow{Late sixteenth--early seventeenth centuries}{Venetian polychoral practice
+      makes architectural separation explicitly compositional. Giovanni Gabrieli's
+      \emph{In ecclesiis} (c. 1615) coordinates voices, instruments, balconies, and shared
+      decay. Local early reflections help distinguish groups while the late field connects
+      them, anticipating modern object placement feeding a common immersive reverberator.}
+    \verbxChronRow{1650}{Athanasius Kircher's \emph{Musurgia universalis} (1650) gathers
+      contemporary ideas about echo, speaking tubes, resonant spaces, instruments, and the
+      transmission of sound. Its engravings are as important historically as its uneven
+      explanations: they show acoustics becoming a visual and mechanical subject whose paths
+      can be drawn, redirected, and demonstrated. The book belongs to a long prehistory of
+      signal-flow thinking, even though its categories differ sharply from modern linear
+      systems and measured impulse responses.}
+    \verbxChronRow{Seventeenth--eighteenth centuries}{Opera houses, court theaters, chapels,
+      and purpose-built concert rooms develop alongside changing ensemble sizes and public
+      listening practices. Designers reason through proportion, materials, ornament,
+      occupancy, and empirical adjustment. Musicians adapt tempo, articulation, scoring,
+      continuo, and dynamics to the response of particular rooms.}
+    \verbxChronRow{Nineteenth century}{Industrial materials, larger halls, orchestral
+      expansion, public organs, and new audience expectations intensify questions of power,
+      blend, clarity, and reverberant support. Individual resonances and coupled volumes
+      remain audible, but statistical thinking becomes increasingly attractive as rooms
+      grow and measurement practices mature.}
+    \verbxChronRow{1877--1890s}{The phonograph, improved microphones, telephone circuits,
+      and early electrical transmission alter the meaning of acoustic memory. A sound can be
+      stored, replayed, transmitted, and auditioned away from its originating room. Recording
+      initially captures reverberation as an inseparable trace, but repeatability makes
+      comparison possible: performers and engineers can hear how placement, horn geometry,
+      enclosure, and medium change the balance between direct energy and reflected sound.}
+    \verbxChronRow{1890s}{Wallace Clement Sabine's work connects room volume, effective
+      absorption, and reverberation time through repeatable experiments. Reverberation
+      becomes a quantity that can be estimated, compared, and designed, while the limits of
+      the diffuse-field assumption remain important. The resulting framework establishes
+      a durable bridge between architectural choices and temporal decay.}
+    \verbxChronRow{1900}{Boston Symphony Hall opens after Sabine advises its design. The hall
+      becomes a prominent demonstration that architectural acoustics can combine calculation,
+      material specification, model reasoning, and musical judgment before construction is
+      complete. Its history also cautions against reducing quality to reverberation time:
+      lateral energy, stage support, frequency balance, occupancy, geometry, and performer
+      experience all contribute to the result listeners call a successful room.}
+    \verbxChronRow{Early twentieth century}{Telephone, radio, electroacoustic transducers,
+      electrical recording, and amplification separate sound production from immediate
+      acoustic radiation. Once microphones and loudspeakers can connect distant spaces, a
+      room can become a signal-processing component. The conceptual ingredients of an
+      effects send, remote chamber, and returned ambience begin to align.}
+    \verbxChronRow{1920s}{Electrical recording improves bandwidth and permits microphones,
+      amplifiers, loudspeakers, and mixers to participate more directly in spatial design.
+      Engineers can favor controlled capture and then restore a chosen sense of space.
+      Reverberation starts to become separable from the original performance location,
+      though editing and routing remain physically cumbersome.}
+    \verbxChronRow{1930}{Carl F. Eyring publishes a reverberation relation that improves on
+      the Sabine approximation when average absorption is not small. The distinction is more
+      than a competing formula: it exposes the assumptions behind a decay estimate and the
+      difference between discrete energy loss at boundaries and a continuous exponential
+      model. Later software can compute a number instantly, but responsible interpretation
+      still depends on field diffuseness, source-receiver placement, bandwidth, and fit range.}
+    \verbxChronRow{1930s}{Radio, sound film, public-address work, and electrical organs
+      create demand for compact or repeatable ambience. Stairwells, tiled rooms, tanks,
+      pipes, acoustic labyrinths, magnetic paths, and resonant objects are evaluated as
+      practical devices. Noise, isolation, flutter, transducer placement, and bandwidth
+      become engineering constraints as important as nominal decay time.}
+    \verbxChronRow{1939--1941}{Laurens Hammond's spring-reverberation patent documents a
+      compact electromechanical route for extending an electrical instrument's decay.
+      Torsional waves, transducers, dispersion, and mechanical damping create a response
+      unlike a miniature room. The spring's audible identity later becomes central to organ,
+      guitar, surf, dub, studio, and experimental practices.}
+    \verbxChronRow{1940s}{Studios increasingly treat reflective rooms as outboard processors.
+      A console send drives a loudspeaker in the chamber; microphones capture the response;
+      equalization, compression, placement, and return level shape the result. This topology
+      remains recognizable in every modern auxiliary reverb bus even after the physical
+      room is replaced by code.}
+    \verbxChronRow{1947}{Bill Putnam's work on the Harmonicats' \emph{Peg o' My Heart}
+      (1947) is frequently cited as an early artistic landmark for chamber reverberation in
+      record production. The important shift is authorship: reflected sound is deliberately
+      captured, balanced, and printed as a production layer rather than accepted only as an
+      inseparable property of the recording venue.}
+    \verbxChronRow{Late 1940s--1950s}{Magnetic tape makes delay, repetition, reversal, varispeed,
+      splicing, and feedback available as compositional operations. Tape echo is not diffuse
+      reverberation, yet recirculating repeats can be filtered, saturated, offset, and layered
+      until they function as an artificial acoustic field. Reversing a printed wet signal
+      creates the rising envelope later associated with reverse reverb, while a gate can turn
+      an otherwise continuous decay into a precisely timed rhythmic event.}
+    \verbxChronRow{1950s}{Purpose-built studio chambers turn architecture into repeatable
+      infrastructure. Major facilities develop identifiable spatial signatures, while
+      engineers learn to vary apparent size and brightness through loudspeaker position,
+      microphone pattern, distance, filtering, and return dynamics. Chambers are expensive
+      and fixed, but their physical complexity is difficult to duplicate exactly.}
+    \verbxChronRow{1957}{The EMT 140 plate reverberator stores energy in a driven steel
+      sheet and captures vibration with pickups. It supplies dense, bright decay without a
+      room-sized air volume and allows mechanical damping to shorten the tail. Plate sound
+      becomes both a technical solution and a production category, especially effective on
+      voices, drums, and sustained instruments.}
+    \verbxChronRow{Late 1950s--1960s}{Springs, plates, chambers, tape delay, magnetic drums,
+      pipes, folded acoustic paths, and electronic feedback coexist. No single device wins;
+      each exposes a different compromise among size, cost, bandwidth, noise, density,
+      portability, controllability, and coloration. Studio practice develops around
+      combining these media rather than pursuing one universal room simulation.}
+    \verbxChronRow{1960}{Harry F. Olson and John C. Bleazey describe a synthetic
+      reverberator using loudspeaker, pipe, microphone, and feedback. The system makes the
+      cross-domain abstraction visible: propagation supplies delay, the path supplies
+      frequency-dependent loss, transducers cross between acoustic and electrical domains,
+      and feedback extends effective decay.}
+    \verbxChronRow{1961}{Manfred R. Schroeder and Benjamin F. Logan formalize
+      \textquotedblleft{}colorless\textquotedblright{}
+      artificial reverberation using parallel feedback comb filters and serial allpass
+      sections. Delay lengths, loop gains, mode distribution, echo density, and spectral
+      coloration become analyzable design variables. The topology establishes a vocabulary
+      still heard in software reverberators and teaching diagrams.}
+    \verbxChronRow{1961--1962}{Schroeder's related work on natural-sounding artificial
+      reverberation develops the perceptual argument: exact simulation of every reflection
+      is unnecessary when a compact system reproduces the statistics listeners use. This
+      reframes reverberator design as a negotiated relation among physical plausibility,
+      computational economy, coloration, density, and auditory expectation.}
+    \verbxChronRow{1960s measurement practice}{Warble tones, interrupted noise, pistol shots,
+      balloon bursts, spark sources, and loudspeaker-driven test signals support increasingly
+      repeatable room measurements. Each excitation reveals a different compromise among
+      bandwidth, directivity, crest factor, portability, repeatability, and signal-to-noise
+      ratio. The shift toward measured decay curves encourages octave-band reporting and
+      separates source behavior, room response, microphone response, and background noise as
+      distinct parts of an experimental chain.}
+    \verbxChronRow{1960s computer music}{Digital delay and filter ideas enter computer-music
+      research before economical commercial realtime hardware is widespread. Offline and
+      institutional systems permit experiments with recursion, stochastic structures,
+      spatial projection, and durations impractical in electromechanical devices. Reverb
+      becomes compositional code as well as room simulation.}
+    \verbxChronRow{Late 1960s--early 1970s}{Integrated circuits, converters, semiconductor
+      memory, and digital control improve steadily, but high-quality realtime delay remains
+      costly. Designers work under severe memory and bandwidth constraints. Those limits
+      encourage short delays, carefully tuned feedback, restricted bandwidth, and compact
+      control sets that become part of early digital reverb's recognizable sound.}
+    \verbxChronRow{Early 1970s}{Feedback delay network concepts emerge from work on coupled
+      digital delay systems and multichannel reverberation. Cross-coupling delay states
+      offers greater richness than independent parallel combs. Matrix structure brings new
+      questions of stability, energy preservation, eigenvalues, mode distribution, and
+      computationally efficient mixing.}
+    \verbxChronRow{1970s spatial audio}{Michael Gerzon and collaborators develop Ambisonic
+      theory for representing and reproducing a sound field independently of one fixed
+      loudspeaker feed. Reverberation now has directional order: early reflections, diffuse
+      energy, source rotation, decoding, and listening-area behavior can be expressed within
+      a spatial representation. The work supplies conceptual foundations for later surround,
+      higher-order Ambisonics, binaural conversion, and scene-based reverberation.}
+    \verbxChronRow{1976}{The EMT 250 becomes a landmark commercial digital reverberator.
+      Memory-based processing, converters, program selection, and a distinctive tactile
+      control surface turn abstract algorithms into a studio instrument. Digital reverb can
+      now be recalled and adjusted without moving microphones, changing plates, or occupying
+      a purpose-built chamber.}
+    \verbxChronRow{Late 1970s}{The Lexicon 224 lineage brings influential modulated digital
+      room and plate programs into major studios. Modulation helps break up fixed resonances
+      and gives tails motion, but excessive depth can reveal chorus or pitch wandering.
+      Remote-console operation anticipates the separation between an engine and its
+      production-facing control surface.}
+    \verbxChronRow{1979}{James A. Moorer's
+      \textquotedblleft{}About This Reverberation Business\textquotedblright{} surveys and
+      extends practical digital reverberator design. The discussion treats early reflections,
+      comb and allpass structures, low-pass feedback, mode density, and the relation between
+      measurable structure and audible character. Its continuing pedagogical value lies in
+      connecting implementation choices to listening consequences: delay topology is never
+      merely a block diagram when every recirculation changes density, spectrum, and time.}
+    \verbxChronRow{Early 1980s}{AMS RMX16, Quantec, Yamaha, Lexicon, and other systems expand
+      program-oriented reverberation, nonlinear envelopes, room simulation, and multichannel
+      possibilities. Named programs become a practical vocabulary: hall, room, plate,
+      ambience, reverse, and nonlinear describe production intentions even when the internal
+      structures differ substantially.}
+    \verbxChronRow{Early--mid 1980s}{Gated and reverse-style reverbs move the wet envelope
+      into the foreground of arrangement. Noise gates, printed room microphones, digital
+      nonlinear programs, reversed tapes, and transient-aware routing create tails that rise,
+      terminate abruptly, or occupy only selected beats. Reverberation becomes rhythmic
+      orchestration rather than passive environmental realism.}
+    \verbxChronRow{Mid-to-late 1980s}{Affordable racks such as Yamaha SPX and Alesis systems
+      bring multiple digital spaces to project studios, live rigs, and individual musicians.
+      MIDI program change and automation improve repeatability. Limited converters, short
+      memory, coarse parameters, and characteristic algorithms become audible aesthetics
+      rather than defects to be forgotten.}
+    \verbxChronRow{1980s sampling and IR experiments}{Longer digital storage encourages
+      sampled responses, cross-synthesis, and laboratory convolution even before routine
+      low-latency native processing is practical. An impulse response can be edited like
+      recorded material: trimmed, windowed, equalized, reversed, resampled, or combined.
+      Those freedoms also introduce methodological risks. A transformed IR may be musically
+      useful while no longer documenting the room, device, source position, or microphone
+      geometry named by its filename.}
+    \verbxChronRow{Late 1980s--early 1990s}{Multi-effects processors combine reverb with
+      pitch shifting, chorus, delay, gating, dynamics, and modulation. Shimmer-like and
+      impossible-room ideas arise from feedback paths that no physical enclosure would
+      produce. The distinction between \textquotedblleft{}room simulator\textquotedblright{}
+      and \textquotedblleft{}spatial instrument\textquotedblright{} becomes
+      increasingly explicit.}
+    \verbxChronRow{1992}{Jean-Marc Jot's analysis/synthesis framework connects perceptual
+      controls to realtime artificial reverberation. Frequency-dependent decay, statistical
+      time-frequency behavior, and a more independent treatment of coloration and duration
+      move beyond ad hoc tuning. Reverb design becomes easier to specify in terms meaningful
+      to listeners and production engineers.}
+    \verbxChronRow{1993}{Realtime binaural concert-hall simulation research joins room
+      modeling to headphone presentation. A reverberant field must now preserve direction,
+      interaural cues, source distance, and listener interpretation, not merely produce a
+      convincing monophonic decay. This work anticipates virtual acoustics, games, VR, and
+      mobile spatial rendering.}
+    \verbxChronRow{Mid-1990s}{Faster processors and native audio systems support longer
+      networks, more modulation, multiband damping, surround outputs, and increasingly
+      detailed parameter automation. Algorithm design and user-interface design begin to
+      separate: many internal coefficients may be controlled through a smaller perceptual
+      parameter set.}
+    \verbxChronRow{1996}{Time-frequency analysis and synthesis of room reverberation support
+      restoration of impulse responses corrupted by measurement noise. Decay estimation,
+      noise-floor handling, and model-based reconstruction connect room measurement to
+      synthetic tail generation. The impulse response becomes both evidence and editable
+      source material.}
+    \verbxChronRow{1997}{Work by Jot and Chaigne, and by Rocchesso and Smith, sharpens FDN
+      design through diffuseness, matrix structure, and modal analysis. Stability alone is
+      not enough: a network can be mathematically bounded yet ring metallically. Delay
+      selection, feedback eigenstructure, damping, and input-output projection jointly
+      determine audible quality.}
+    \verbxChronRow{Late 1990s}{Long convolution becomes more practical as FFT methods,
+      partitioning, memory, and processor performance improve. Measured rooms and devices
+      can travel as impulse-response files. The method preserves one linear response with
+      high specificity, but source position, listener position, level dependence, motion,
+      and nonlinear hardware behavior remain outside an ordinary fixed convolution.}
+    \verbxChronRow{1997 onward}{ISO 3382 and related standards consolidate definitions and
+      procedures for measuring room-acoustic parameters in performance spaces and, in later
+      parts and revisions, other room classes. EDT, T20, T30, clarity, definition, strength,
+      and spatial measures describe different evidence rather than interchangeable quality
+      scores. Standardization improves comparison, but a report remains incomplete without
+      source, receiver, occupancy, bandwidth, noise-floor, fitting, and uncertainty details.}
+    \verbxChronRow{2000}{The exponential sine-sweep method associated with Angelo Farina
+      provides a robust route from played sweep and recorded room response to an impulse
+      response, while separating harmonic distortion responses in time. Measurement moves
+      closer to an accessible production workflow, and deconvolution becomes standard
+      vocabulary for capturing spaces and devices.}
+    \verbxChronRow{Early 2000s}{Native convolution reverbs and growing IR libraries make
+      concert halls, chambers, plates, springs, cabinets, and unusual spaces available as
+      recallable software assets. Fast convolution scheduling must balance direct heads,
+      short early partitions, long late partitions, CPU cost, memory, and monitored latency.
+      Provenance becomes part of good library practice.}
+    \verbxChronRow{2000s fast convolution}{Nonuniform partitioned convolution separates an
+      inexpensive low-latency head from progressively larger tail partitions. The scheduling
+      pattern makes long stereo and multichannel responses usable in interactive systems
+      without assigning one giant transform to every audio block. Fast convolution is an
+      algorithmic family, not a promise of zero latency: block size, partition plan, channel
+      count, transform implementation, device transfer, and host buffering still determine
+      end-to-end behavior.}
+    \verbxChronRow{2000s}{Plug-in abundance ends the practical scarcity of one shared studio
+      reverberator. Every track can host a different space, but unlimited instances can
+      weaken spatial coherence. Production practice responds with shared buses, early/late
+      separation, return equalization, ducking, automation, and deliberate use of a small
+      family of related rooms.}
+    \verbxChronRow{2000s speech processing}{Dereverberation develops through inverse
+      filtering, spectral enhancement, multichannel prediction, source separation, and
+      statistical room models. The goal differs from creative reverb removal: speech systems
+      optimize intelligibility, recognition, localization, or estimation under assumptions
+      about stationarity, microphones, noise, and room-response length.}
+    \verbxChronRow{2010s}{Weighted prediction error and related multichannel methods become
+      influential for blind speech dereverberation. Delayed linear prediction estimates late
+      reverberation while attempting to preserve the desired direct and early components.
+      Window length, delay, model order, channel geometry, and source motion define the
+      boundary between suppression and damage.}
+    \verbxChronRow{2012}{The survey \emph{Fifty Years of Artificial Reverberation} gathers
+      the field's development from Schroeder structures through FDNs, convolution,
+      modulation, and perceptual approaches. Historical synthesis matters because familiar
+      labels often conceal different mechanisms; the same audible goal may be reached by
+      physical, statistical, recursive, or measured-response methods.}
+    \verbxChronRow{2010s immersive audio}{Ambisonics, object audio, binaural rendering, and
+      height-channel formats make reverberation a scene component rather than a stereo insert.
+      Early reflections need directional plausibility; late fields need envelopment and
+      decorrelation; metadata and channel ordering become part of correctness. Fold-down and
+      headphone translation expose errors hidden by a large loudspeaker array.}
+    \verbxChronRow{2012 onward}{Cinema and broadcast object-audio workflows, including Dolby
+      Atmos production, increase the practical demand for reverberation that scales across
+      beds, objects, heights, binaural renderers, and changing playback layouts. A convincing
+      mix must survive more than one loudspeaker count. Send design, object width, decorrelated
+      late energy, LFE policy, metadata, renderer behavior, and stereo fold-down all become
+      parts of the reverberation decision.}
+    \verbxChronRow{2015}{Scattering delay network research derives efficient room synthesis
+      from geometry-linked delay paths and scattering nodes. First-order reflections can be
+      represented accurately while higher orders become progressively coarser. The approach
+      occupies a useful middle ground between image-source precision and statistical FDN
+      efficiency.}
+    \verbxChronRow{Mid-to-late 2010s}{GPU processing, vectorized FFT libraries, and larger
+      memory systems make dense multichannel convolution and corpus-scale rendering more
+      accessible. Acceleration changes throughput but not representation: unnecessary routing
+      paths, oversized transforms, device transfers, and poor partition schedules can still
+      dominate cost or create unacceptable realtime latency.}
+    \verbxChronRow{Late 2010s}{Neural networks estimate room parameters, map reverberant
+      speech toward cleaner targets, generate or transform impulse responses, and emulate
+      devices from examples. Data introduces a new acoustic medium: rooms and hardware may
+      be compressed into model weights. Dataset coverage, licensing, determinism, and
+      disclosure become engineering concerns alongside spectral and temporal quality.}
+    \verbxChronRow{Late 2010s--early 2020s}{Realtime ray tracing and geometric-acoustics
+      engines become increasingly practical for interactive media. Image sources, stochastic
+      rays, beam tracing, and path validation estimate specular and diffuse arrivals from
+      scene geometry, while a statistical or recursive tail supplies affordable density.
+      CAD ingestion does not solve acoustics automatically: watertight geometry, scale,
+      material absorption and scattering, source directivity, diffraction, and listener
+      motion remain modeling decisions that must be validated against measurement.}
+    \verbxChronRow{Early 2020s}{Differentiable DSP and hybrid neural structures retain
+      explicit delays, filters, feedback, convolution, or physical states while learning
+      selected parameters and residual behavior. This can improve interpretability and
+      stability compared with an unconstrained black box, while still permitting data-driven
+      fitting of complex plate, spring, room, or dereverberation behavior.}
+    \verbxChronRow{2020s physical simulation}{Finite-element, boundary-element, finite-
+      difference, digital-waveguide, ray-tracing, and hybrid solvers benefit from improved
+      computation and CAD workflows. No solver removes scale limits: wavelength, mesh
+      resolution, boundary models, source directivity, and listener motion determine cost.
+      Practical systems divide early geometry, low modes, and statistical late decay.}
+    \verbxChronRow{2020s Audio AI}{Synthetic and measured reverberation become tools for data
+      augmentation, domain randomization, robustness testing, and spatial learning. Training,
+      validation, and test partitions must avoid room leakage and duplicated IR families.
+      Reverb parameters, random seeds, source licenses, model versions, and analysis reports
+      become part of reproducible dataset provenance.}
+    \verbxChronRow{2020s creative practice}{Musicians combine convolution onsets, algorithmic
+      tails, freeze, shimmer, reverse envelopes, gates, ducking, resonators, microtonal scale
+      emphasis, and immersive motion. Historical categories become modular layers rather
+      than mutually exclusive products. The artistic question shifts from
+      \textquotedblleft{}Which room?\textquotedblright{} to
+      \textquotedblleft{}How should acoustic memory evolve through this phrase?\textquotedblright{}}
+    \verbxChronRow{2026}{verbx assembles algorithmic and convolution reverberation,
+      dereverberation, measurement, JSON analysis, long and infinite tails, Scala-tuned
+      resonance, surround and immersive routing, CLI automation, and AUv3/VST3 preparation
+      in one documented system. Its design treats historical vocabulary as testable behavior
+      rather than as preset marketing.}
+    \verbxChronRow{Beyond 2026}{The likely direction is hybrid: measured early responses,
+      geometry-aware paths, stable parametric late networks, learned material or residual
+      models, listener-aware spatial rendering, and machine-readable provenance. The durable
+      criteria remain musical and scientific: articulation, stability, controllability,
+      spatial coherence, reproducibility, attribution, and the ability to make a decay serve
+      the form of a sound.}
+  \end{longtable}
+  \endgroup
+
+  This chronology deliberately ends without declaring a winner. Chambers retain physical
+  complexity; plates and springs retain characteristic matter; recursive networks retain
+  controllability; convolution retains measured specificity; physical models retain causal
+  geometry; learned systems retain interpolation capacity. The history of reverberation is
+  therefore not a march toward invisibility. It is an expanding collection of ways to make
+  acoustic memory audible, editable, spatial, measurable, and musical.
+  \clearpage
+}
+
+\newcommand{\verbxBibliographicalNote}{%
+  \chapter*{Bibliographical Note}
+  \addcontentsline{toc}{chapter}{Bibliographical Note}
+  The bibliography is intentionally broader than a software manual's dependency list.
+  It joins foundational papers, standards, books, conference publications, patents,
+  measurement literature, historical documentation, spatial-audio research, and selected
+  production sources. Annotated entries identify why a source matters to verbx; the
+  extended discovery list provides additional paths into the literature without claiming
+  equal depth of review for every record.
+
+  Readers new to the field should begin with Sabine and modern room-acoustics texts, then
+  proceed through Schroeder's comb and allpass work, feedback delay network analysis,
+  perceptual and statistical approaches associated with Jean-Marc Jot and collaborators,
+  convolution and impulse-response measurement, and contemporary spatial or learned
+  systems. Citations attached to photographs, scores, quotations, recordings, and web
+  resources serve a different purpose: they document provenance, attribution, date, and
+  license rather than establish a DSP claim.
+
+  Titles and author names follow the best available source metadata, normalized for this
+  edition. DOI links are preferred for research papers; stable institutional or author
+  pages are used when no DOI is available. The repository is the correction record for
+  malformed metadata, dead links, duplicate entries, and later bibliographic discoveries.
+  \clearpage
+}
+
 \renewcommand{\maketitle}{%
+  \verbxHalfTitle
+  \verbxFrontispiece
   \begin{titlepage}
     \pagecolor{white}\color{verbxCover}
     \thispagestyle{empty}
@@ -210,6 +939,8 @@
   \vfill
   \null
   \clearpage
+  \verbxPreface
+  \verbxAcknowledgments
   \chapter*{About This Edition}
   \addcontentsline{toc}{chapter}{About This Edition}
   This book combines the verbx command-line manual, plug-in architecture handbook,
@@ -230,13 +961,93 @@
       \textbf{Part III} & Analysis, IRs, schemas, figures, and benchmarks\\
       \textbf{Appendix A} & Important musical pieces and recording citations\\
       \textbf{Appendix B} & Thirty-three project assignments and assessment guidance\\
-      \textbf{Appendix C} & Research papers and references\\
-      \textbf{Appendix D} & Frequently asked questions\\
-      \textbf{Appendix E} & Public alpha notes\\
+      \textbf{Appendix C} & Finite-element modeling for reverb and resonant systems\\
+      \textbf{Appendix D} & Microtonal workflows, Scala import, and scale-tuned reverberation\\
+      \textbf{Appendix E} & Research papers and references\\
+      \textbf{Appendix F} & Frequently asked questions\\
+      \textbf{Appendix G} & Public alpha notes\\
+      \textbf{Appendix H} & Glossary\\
+      \textbf{Front matter} & Preface, acknowledgments, symbols, abbreviations, and chronology\\
       \textbf{Table of Figures} & Numbered visual titles with page references\\
-      \textbf{Back matter} & Index and colophon
+      \textbf{Lists} & Tables and historical plates with page references\\
+      \textbf{Back matter} & Afterword, author note, errata, two indexes, and colophon
     \end{tabular}
   \end{center}
+  \clearpage
+  \verbxSymbols
+  \verbxAbbreviations
+  \verbxChronology
+  \verbxBibliographicalNote
+}
+
+\newcommand{\verbxAfterword}{%
+  \clearpage
+  \chapter*{Afterword}
+  \addcontentsline{toc}{chapter}{Afterword}
+  Reverberation begins as persistence: energy leaves a source, encounters a world, and
+  returns changed. Every technique in this book chooses what part of that encounter to
+  preserve. A measured impulse response preserves one source-receiver relationship. An
+  algorithm preserves selected temporal and spectral statistics. A physical model
+  preserves geometry and boundary behavior at a chosen resolution. A learned model
+  preserves patterns represented in data. A musician may preserve none of these
+  literally and instead use decay, resonance, reversal, gating, or spatial motion as
+  independent compositional materials.
+
+  The command line and the plug-in embody complementary ways of working. The CLI favors
+  reproducibility, inspection, batch rendering, datasets, reports, and unusual parameter
+  ranges. The plug-in favors touch, automation, immediate comparison, and performance
+  inside a DAW. Neither interface is the definition of the instrument. The durable center
+  is a set of audible transformations whose assumptions can be measured, documented,
+  repeated, and deliberately broken.
+
+  Future reverberation systems will likely combine measured spaces, parametric networks,
+  geometry, scene metadata, differentiable models, and listener-aware rendering. Their
+  success should not be judged by novelty alone. The useful questions remain old ones:
+  Does the sound retain articulation? Does the room support the phrase? Does the decay
+  reveal or conceal structure? Does the spatial field remain convincing when the listener
+  moves? Most importantly, does the result invite another kind of music?
+  \clearpage
+}
+
+\newcommand{\verbxAboutAuthor}{%
+  \chapter*{About the Author}
+  \addcontentsline{toc}{chapter}{About the Author}
+  Colby Leider, PhD, is the author and principal developer of verbx. His work on the
+  project joins musical production, acoustics, digital signal processing, spatial audio,
+  software design, technical writing, and education. He created this guide as both an
+  operational manual and a durable reference for musicians, engineers, researchers,
+  developers, and students who want to understand not only which controls to use, but why
+  reverberant systems behave as they do.
+
+  verbx and its documentation are developed in Miami, Florida, USA. Current source,
+  releases, examples, corrections, and generated editions are published at
+  \url{https://github.com/TheColby/verbx}.
+  \clearpage
+}
+
+\newcommand{\verbxErrata}{%
+  \chapter*{Errata and Corrigenda}
+  \addcontentsline{toc}{chapter}{Errata and Corrigenda}
+  Corrections belong to the edition in which an error appears. Before reporting one,
+  record the edition date from the copyright page, the PDF page number, the printed page
+  number when different, the chapter or appendix heading, and the shortest quotation that
+  identifies the passage. For equations, figures, tables, commands, and citations, include
+  the corrected form and enough surrounding context to distinguish a typographical error
+  from a change in software behavior.
+
+  The live correction record is maintained with the source repository at
+  \url{https://github.com/TheColby/verbx/issues}. Use an issue title beginning with
+  \texttt{Book erratum:} and include the verbx version or commit when the correction
+  concerns generated CLI output. Confirmed corrections are applied to the source files,
+  protected by tests when practical, and incorporated into the next generated edition.
+  Earlier PDFs remain historical artifacts; the edition date and repository history make
+  the correction trail auditable.
+
+  A \emph{corrigendum} records a substantive correction to reasoning, data, attribution,
+  or technical instruction. An \emph{erratum} records a smaller production error such as
+  a misspelling, malformed symbol, incorrect page reference, or broken link. Suggestions,
+  feature requests, and changes caused by later software releases should be filed
+  separately so the correction record remains precise.
   \clearpage
 }
 
@@ -273,6 +1084,19 @@
   \end{center}
 }
 
+\newcommand{\verbxRepositoryQR}{%
+  \clearpage
+  \thispagestyle{empty}
+  \pagecolor{white}
+  \null\vfill
+  \begin{center}
+    \href{https://github.com/TheColby/verbx}{%
+      \includegraphics[width=4.0in]{docs/assets/verbx_github_qr.png}%
+    }
+  \end{center}
+  \vfill\null
+}
+
 \newcommand{\verbxChapterEpigraph}[3]{%
   \clearpage
   \thispagestyle{empty}
@@ -280,7 +1104,8 @@
   \begin{flushright}
     \begin{minipage}{0.72\textwidth}
       \raggedleft
-      \fontsize{17}{24}\selectfont\itshape ``#1''\par
+      \fontsize{17}{24}\selectfont\itshape
+      \textquotedblleft{}#1\textquotedblright{}\par
       \vspace{1.5\baselineskip}
       \fontsize{11}{15}\selectfont\upshape \textemdash\ #2%
       \if\relax\detokenize{#3}\relax\else\ (#3)\fi\par

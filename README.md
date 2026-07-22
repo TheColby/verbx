@@ -46,26 +46,66 @@ then convolves that response with the input. The result is deterministic and
 auditable rather than a claim to have measured or cloned a particular hardware
 tank.
 
+The following figure makes that last operation concrete. The synthesized
+structural impulse response $h[k]$ is shifted across the source $x[k]$. At each
+output sample $n$, verbx multiplies the overlapping sample pairs and sums those
+products to obtain
+
+$$
+y[n] = (x * h)[n] = \sum_{k=-\infty}^{\infty} x[k]h[n-k].
+$$
+
+![Discrete convolution shown as shift, multiply, and sum](docs/assets/modal_fe_convolution_process.png)
+
+**Figure: Discrete convolution of an input with a synthesized structural impulse response.**
+
+**How to read this figure.** The first two panels show the source and the
+decaying impulse response. The third panel freezes one output position,
+$n=6$, and displays the pointwise products created by their overlap. Summing
+those bars produces the highlighted sample in the final output. Repeating the
+same shift-and-sum operation for every $n$ produces the complete wet signal.
+
 The spring tank is a set of lumped mass-spring-damper chains. Its continuous
 reference equation is:
 
-```text
-M x'' + C x' + K x = e u(t)
-```
+$$
+\begin{aligned}
+\mathbf{M}\ddot{\boldsymbol{x}}(t)
+  &+ \mathbf{C}\dot{\boldsymbol{x}}(t)
+  + \mathbf{K}\boldsymbol{x}(t) \\
+  &= \boldsymbol{e}\,u(t).
+\end{aligned}
+$$
 
-Here `M` distributes spring mass to nodes, `K` assembles segment compliance,
-tension, end constraints, and optional tank-to-tank coupling, and `C`
-represents loss. verbx solves the associated generalized eigenproblem:
+For $J$ structural degrees of freedom,
+$\mathbf{M},\mathbf{C},\mathbf{K}\in\mathbb{R}^{J\times J}$ are the mass,
+damping, and stiffness matrices; $\boldsymbol{x}(t),\boldsymbol{e}\in
+\mathbb{R}^{J}$ are the displacement and drive-location vectors; and $u(t)$
+is the scalar excitation. The matrix $\mathbf{M}$ distributes spring mass to
+nodes, $\mathbf{K}$ assembles segment compliance, tension, end constraints,
+and optional tank-to-tank coupling, and $\mathbf{C}$ represents loss. verbx
+solves the associated generalized eigenproblem
 
-```text
-K q[r] = lambda[r] M q[r]
-omega[r] = sqrt(lambda[r])
-```
+$$
+\begin{aligned}
+\mathbf{K}\boldsymbol{q}_r
+  &= \lambda_r\mathbf{M}\boldsymbol{q}_r,\\
+\omega_r &= \sqrt{\lambda_r}.
+\end{aligned}
+$$
 
-then sums the driven/pickup modal responses with RT60-calibrated decay. The
+where $\boldsymbol{q}_r$ is mode shape $r$, $\lambda_r$ is its generalized
+eigenvalue, and $\omega_r$ is its undamped natural angular frequency in radians
+per second. verbx then sums the driven/pickup modal responses with
+$T_{60}$-calibrated decay. The
 plate path uses the corresponding structured, mass-lumped clamped grid, where
-$K = D L^{\mathsf T}L + TL$ combines thin-plate bending rigidity $D$ with
-optional tension $T$.
+
+$$
+\mathbf{K} = D\mathbf{L}^{\mathsf{T}}\mathbf{L} + T\mathbf{L}
+$$
+
+combines thin-plate bending rigidity $D$, the discrete positive Laplacian
+$\mathbf{L}$, and optional membrane tension $T$.
 
 ```bash
 verbx render guitar.wav tank.wav --engine algo --algo-model spring \
@@ -1769,6 +1809,13 @@ At extreme RT60 values, $g$ approaches one. Small numerical or spectral errors t
 circulate for a long time, which is why internal precision and loop conditioning matter
 more at 360 seconds than at 1.2 seconds.
 
+The companion magnitude plot turns the pole ring into an audible spectral prediction.
+Each regular resonance corresponds to one of the equally spaced modal angles above.
+
+![Magnitude response for a representative feedback comb filter.](docs/assets/reverb_primer/44_feedback_comb_magnitude.png)
+
+**Figure: Normalized magnitude response of the representative feedback comb, with frequency in cycles per sample and magnitude in decibels.**
+
 #### Schroeder Allpass Filters: Density Without Magnitude Coloration
 
 An allpass filter changes phase while maintaining a flat ideal magnitude response. A
@@ -1837,6 +1884,14 @@ circle, numerator and denominator magnitudes therefore match even though their p
 do not. The exterior zeros do not make the causal filter unstable because stability is
 governed by poles. They do make the system non-minimum-phase, which is precisely how the
 network can redistribute transient energy in time while preserving ideal magnitude.
+
+The following magnitude plot is deliberately flat. It is the essential check on the
+allpass claim: a non-flat curve would mean the reciprocal-root or gain relationship had
+been implemented incorrectly.
+
+![Magnitude response for a representative Schroeder allpass filter.](docs/assets/reverb_primer/45_schroeder_allpass_magnitude.png)
+
+**Figure: Normalized magnitude response of the representative Schroeder allpass, with frequency in cycles per sample and magnitude in decibels.**
 
 #### Allpass Networks: From Echoes to a Diffuse Excitation
 
@@ -1941,6 +1996,13 @@ hear the comb modes. Restore one stage at a time and hear density increase. Chan
 delay until it shares a common divisor with another and hear periodicity emerge. These
 experiments turn abstract topology into an audible vocabulary.
 
+The following response emphasizes how unequal comb sections populate the spectrum with
+many nearby resonances even before the allpass stages redistribute the transient energy.
+
+![Magnitude response for the reduced-order parameterized Schroeder reverberator.](docs/assets/reverb_primer/46_parameterized_schroeder_magnitude.png)
+
+**Figure: Normalized magnitude response for the reduced-order parameterized Schroeder example, with frequency in cycles per sample and magnitude in decibels.**
+
 #### Feedback Delay Networks: Coupled Modal Systems
 
 An $N$-line Feedback Delay Network replaces independent comb feedback with a vector
@@ -2025,6 +2087,14 @@ Circulant and elliptic families have interpretable eigenstructure. Random orthog
 matrices reduce obvious regularity. Graph-derived matrices make connectivity a design
 parameter. Time-varying unitary matrices alter the modal basis slowly while retaining
 controlled loop energy.
+
+The matching magnitude response shows one projected observation of the same coupled
+modal system. Its fine structure is not a universal FDN fingerprint: changing the input
+or output projection changes which modes are emphasized or cancelled.
+
+![Magnitude response for the reduced-order expanded FDN modal projection.](docs/assets/reverb_primer/47_expanded_fdn_magnitude.png)
+
+**Figure: Normalized magnitude response for the illustrative expanded FDN projection, with frequency in cycles per sample and magnitude in decibels.**
 
 #### The Five Independent Design Coordinates of an FDN
 
@@ -2213,6 +2283,14 @@ replicates their influence across many modes. Stability must therefore be checke
 complete loop, not inferred from three scalar gains alone. A smooth target decay curve
 should produce a smooth radial transition with frequency; abrupt radial clusters can
 become audible as bands that detach from one another during the tail.
+
+The separate magnitude plot gives that radial family a spectral interpretation. It is a
+representative loop-filter view, not the transfer function of every possible FDN matrix
+and delay set that uses these three decay targets.
+
+![Magnitude response for a representative multiband FDN loop filter.](docs/assets/reverb_primer/48_multiband_loop_filter_magnitude.png)
+
+**Figure: Normalized magnitude response of the representative multiband FDN loop filter, with frequency in cycles per sample and magnitude in decibels.**
 
 ```bash
 verbx render music.wav /tmp/multiband_hall.wav \
@@ -2472,6 +2550,105 @@ seconds instead of demanding one extreme peak. Repeat each source-receiver pair 
 twice. If the recovered responses disagree, diagnose motion, clipping, clock drift, noise,
 or time variance before averaging them. Measure the background noise separately and leave
 headroom in the playback, microphone, preamplifier, and converter stages.
+
+#### Practical Impulse Sources: Pops, Clappers, and Purpose-Built Devices
+
+An impulsive source is useful because its energy arrives in a short interval, making the
+first arrival, early reflection pattern, and decay visible directly in the recording. It is
+also easy to misuse. No hand-held source is perfectly omnidirectional, spectrally flat, or
+repeatable. Treat a pop or strike as a field observation unless the source has been
+characterized, repeated, and documented. Record several takes without moving the source or
+microphone, retain every take, and compare them before selecting a representative response.
+
+| Source or device | What it is good for | What can mislead you |
+|---|---|---|
+| Handclap or hand snap | Fast location scouting and audience-perspective listening | Strong performer-to-performer variation; limited bass energy; directional radiation |
+| Balloon pop | Cheap broadband transient for large spaces | Burst position, balloon material, and pop direction vary; latex debris and venue restrictions may apply |
+| Two-by-four clapper or paired hardwood boards | Repeatable mechanical strike with useful midrange energy | It is not an ideal impulse; wood resonances and the operator's geometry color the result |
+| Slate clapper, castanets, or a purpose-built impulse clapper | Compact controlled transient with a recognizable onset | Limited low-frequency output and a characteristic source spectrum |
+| Pistol-style starter device | Very high peak level and a clear onset in a suitable, permitted outdoor or industrial setting | Legal, facility, hearing-safety, fire-safety, and microphone-overload risks; never use it casually or where a firearm-like report is inappropriate |
+| Small loudspeaker playing a needle pulse | Known digital timing and repeatable routing | Loudspeaker bandwidth, excursion, and nonlinear distortion limit the usable impulse |
+| Omnidirectional loudspeaker playing an exponential sweep | Best general-purpose choice for archival room IR work | Requires playback hardware, a matched inverse filter, and time for setup and deconvolution |
+
+The two-by-four clapper is worth distinguishing from a random board strike. Two straight,
+dry hardwood boards with handles can make a practical reusable clapper: bring the broad
+faces together sharply, keep the operator out of the direct path from source to microphone,
+and repeat the same stance and height. It provides a more consistent onset than a handclap
+and avoids the disposal and surprise of balloons. It still produces a device-specific
+signature, so do not divide a recorded room response by an imaginary flat spectrum. Use it
+to compare locations, identify obvious flutter or long echoes, and make musically useful
+rough captures, not to claim laboratory calibration.
+
+A balloon is often the quickest first visit tool. Use one size and material for a session,
+inflate each balloon similarly, position it at the intended source coordinate, and pop it
+remotely or with the operator well away from the microphone. A close microphone can clip
+even when the distant tail looks quiet, so leave generous preamp headroom. Do not use
+balloons where fragments, noise, accessibility concerns, animals, or fire regulations make
+them inappropriate. A handclap, wooden clapper, or low-level sweep is usually a better
+choice for a public venue.
+
+Starter-pistol-style sources appear in older room-acoustics practice because they can
+provide a high-level, abrupt event outdoors or in large empty structures. Their practical
+drawbacks are serious: local law and venue rules may treat them as weapons; the report can
+injure hearing, alarm people, trigger safety systems, overload microphones and converters,
+and invalidate an otherwise quiet session. Use such a source only under explicit facility
+authorization, with trained operators and an approved safety plan. In most music-production
+and research captures, a calibrated loudspeaker sweep is safer, more repeatable, and more
+informative.
+
+Other useful inventions include a calibrated dodecahedral loudspeaker, an omni source with
+known response, a small battery-powered clapper for difficult access, and a synchronized
+electrical loopback box. The loopback does not excite the room; it records a copy of the
+playback signal beside the microphone capture so later processing can identify latency and
+clock behavior. For a matrix measurement, label every physical source, microphone, and
+take before recording. A beautiful IR with uncertain coordinates is not a reusable spatial
+measurement.
+
+#### Capturing an IR in Apple Logic Pro
+
+Logic Pro is a capable playback-and-recording environment for an impulse-response session,
+but it is not a complete measurement application. Its [Test Oscillator](https://support.apple.com/en-asia/guide/logicpro/lgcef2d8c9eb/mac)
+can generate a user-defined sine sweep, and ordinary audio tracks can record microphone
+inputs. The missing step is matched deconvolution: export the sweep and capture, then use a
+validated measurement tool or scientific workflow to apply the inverse sweep and recover the
+IR. Do not mistake a recorded sweep WAV for an impulse response.
+
+1. **Prepare the project.** Set a documented sample rate and 24-bit recording depth, choose
+   WAV or AIFF, and disable processing on the measurement path. Logic supports common
+   PCM formats and sample rates through 192 kHz; choose a rate that matches the interface,
+   microphone system, and intended IR library rather than changing it mid-session.
+2. **Create separate source and capture tracks.** Put the Test Oscillator on a dedicated
+   source track or auxiliary routed only to the measurement loudspeaker. Create a mono audio
+   track for the measurement microphone, select the correct interface input, and record-enable
+   it. If the interface has a spare input, record a loopback from the playback chain on a
+   second mono track.
+3. **Set safe routing and levels.** Mute every effect, limiter, automatic gain stage, and
+   spatializer that is not part of the system being measured. Use direct hardware monitoring
+   where appropriate; do not let software-monitoring latency confuse the measurement path.
+   Set the microphone preamp so the direct sound has headroom, then confirm the loudest part
+   of the sweep or impulsive source never clips.
+4. **Generate and record.** In the Test Oscillator, select Sine Sweep mode, set the desired
+   start and end frequencies and a duration long enough for the venue and noise floor, then
+   trigger it while recording the microphone and loopback tracks. Start recording before the
+   sweep, allow the full decay to finish, and leave several seconds of post-tail noise for a
+   defensible noise-floor decision. For balloon or clapper work, record the same pre-roll and
+   post-roll, then make at least three takes at each geometry.
+5. **Export without alteration.** Keep the raw regions, note source and microphone coordinates
+   in Logic's project or track notes, and bounce or export the raw microphone and loopback
+   files with normalization off. Logic's [audio-recording guide](https://support.apple.com/guide/logicpro/record-sound-a-microphone-electric-instrument-lgcpb19e49e4/10.7/mac/11.0)
+   covers input assignment and record enable; its [bounce documentation](https://support.apple.com/en-gb/guide/logicpro/lgcp785a41c3/mac)
+   explains how output format and tail length affect exported files.
+6. **Deconvolve externally, then return to verbx.** Use the exact inverse for the sweep that
+   was played, inspect the recovered direct arrival and harmonic-distortion regions, and save
+   the raw sweep, raw capture, inverse filter, recovered IR, and geometry notes together.
+   Then run `verbx ir analyze`, `verbx ir process`, and a convolution audition as shown below.
+
+For Logic sessions using a physical impulse rather than a sweep, the microphone track is
+already a rough IR candidate. Trim only after preserving an untouched original; identify the
+direct arrival, retain meaningful propagation delay if the capture will represent the real
+source distance, and apply a gentle terminal fade only after the tail reaches the noise
+floor. Compare takes before choosing one. A single dramatic pop can be musically compelling
+but is weak evidence of a room's repeatable transfer function.
 
 The measurement chain is
 
@@ -3071,6 +3248,14 @@ reason signed projections can create width while preserving a coherent room. Mon
 fold-down combines the two transfer numerators, so it must be checked explicitly: a
 left-right zero that sounds spacious in stereo can become a broad cancellation after
 summation.
+
+The final companion plot makes the projection dependency concrete. It is one channel's
+response; a different signed output vector retains the shared poles while changing the
+locations and depths of transmission cancellations.
+
+![Magnitude response for one stereo output projection from a shared FDN.](docs/assets/reverb_primer/49_stereo_projection_magnitude.png)
+
+**Figure: Normalized magnitude response of one stereo FDN output projection, with frequency in cycles per sample and magnitude in decibels.**
 
 ### The Science and DSP of Dereverberation
 
@@ -4223,6 +4408,86 @@ field. T20 and T30 exclude the first 5 dB so the direct event and the earliest r
 pattern have less leverage. T30 reaches deepest and can be the most representative late
 estimate, but only if its –35 dB boundary remains safely above the noise-contaminated bend.
 
+#### Energy Decay Relief
+
+A broadband energy decay curve collapses the spectrum before integration. That is useful
+for one decay estimate, but it can hide a narrow room mode, a plate resonance, or a high
+band that dies much sooner than the rest of the response. An **energy decay relief** (EDR)
+retains both time and frequency. It is a time-frequency generalization of the EDC: every
+frequency bin receives its own backward-integrated decay curve.
+
+Let $H(m,k)$ be STFT bin $k$ in frame $m$, and let $M$ be the final frame. Following
+Julius O. Smith III's definition, the remaining energy at frame $n$ and frequency bin $k$
+is
+
+$$
+\operatorname{EDR}(t_n,f_k)
+=\sum_{m=n}^{M}\left|H(m,k)\right|^2,
+$$
+
+with
+
+$$
+t_n=\frac{nR}{F_s},
+\qquad
+f_k=\frac{kF_s}{N},
+$$
+
+where $R$ is the STFT hop size in samples, $F_s$ is sample rate in hertz, and $N$ is FFT
+length. Normalizing each frequency bin at the selected onset gives a decibel surface:
+
+$$
+L_{\mathrm{EDR}}(n,k)
+=10\log_{10}\!\left(
+\frac{\operatorname{EDR}(t_n,f_k)}
+{\operatorname{EDR}(t_0,f_k)}
+\right)\ \mathrm{dB}.
+$$
+
+Figure 3-3 shows this surface as a heatmap. Horizontal position is elapsed time, vertical
+position is logarithmic frequency, and color is normalized remaining energy in decibels.
+A horizontal ridge indicates a frequency region that stores energy longer than its
+neighbors. A nearly vertical change shared by all bands is more likely a broadband event,
+edit, gate, or noise-floor transition. Curved or interrupted ridges can reveal multiple
+decay regimes that disappear inside one scalar RT60.
+
+![Energy decay relief](docs/assets/userguide_figures/25_energy_decay_relief.png)
+
+**Figure: Energy decay relief with elapsed time in seconds, logarithmic frequency in kilohertz, and normalized remaining energy in decibels.**
+
+**How to read Figure 3-3.** Darker cells contain more remaining energy. Most frequencies
+fade from left to right, but narrow ridges near 0.22, 0.66, 1.8, and 4.2 kHz persist at
+different rates. Those ridges model the kind of resonant structure that a broadband EDC
+averages away. The plotted data are synthetic and explanatory; they are not a measurement
+of a named room or instrument.
+
+Time-frequency resolution is a design choice. A longer window separates close modes but
+smears their start and end in time. A shorter window tracks abrupt changes more closely but
+spreads energy across frequency bins. Smith describes Hann windows around 30–40 ms as a
+typical starting range. verbx currently uses a 2,048-sample Hann window and a one-quarter
+window hop for `--edr`; at 48 kHz those values are approximately 42.7 ms and 10.7 ms.
+Analysis settings therefore belong beside the result whenever EDR values are compared
+across files, sample rates, or software.
+
+`verbx analyze --edr` computes this reverse cumulative STFT-energy surface internally,
+fits a decay slope in each usable frequency bin, and then returns a compact summary:
+`edr_rt60_median_s`, `edr_rt60_low_s`, `edr_rt60_mid_s`,
+`edr_rt60_high_s`, and `edr_valid_bins`. The current JSON report stores those summaries,
+not the complete matrix. This distinction matters: the summary is appropriate for batch
+comparison and room-size inference, while the full relief is the better diagnostic for
+isolated modes, plate resonances, coupled slopes, and frequency-selective dereverberation.
+
+Use EDR most confidently on a measured or synthesized impulse response. On music or speech,
+later source events are included in the backward sum and can resemble stored room energy.
+The result remains useful as a descriptive recording diagnostic, but it is not a
+standards-style room measurement. Preserve the input classification, window, hop, sample
+rate, fit range, valid-bin count, and noise context before interpreting differences as
+changes in the acoustic system.
+
+The primary derivation is Julius O. Smith III's
+[Energy Decay Relief](https://ccrma.stanford.edu/~jos/pasp/Energy_Decay_Relief.html)
+chapter in *Physical Audio Signal Processing* (2010).
+
 #### Frequency-Dependent and Multiband Decay
 
 A room does not have one decay envelope shared perfectly by every frequency. Air absorption
@@ -4254,7 +4519,7 @@ crossovers. The broadband `--rt60` remains the central reference, while
 `--fdn-rt60-tilt` control skews low and high decay around the middle when a three-number
 specification would interrupt a production workflow.
 
-Figure 3-3 compares three bandwise decays that share a direct event but diverge as loop loss
+Figure 3-4 compares three bandwise decays that share a direct event but diverge as loop loss
 accumulates. It is the visual distinction between warmth caused by persistent low-frequency
 energy and simple bass boost.
 
@@ -4276,7 +4541,7 @@ and confidence rather than presenting a smooth colored curve as exact ground tru
 
 **Figure: Low-, mid-, and high-frequency reverberation decay levels in decibels against time after excitation in seconds.**
 
-**How to read Figure 3-3.** At the left edge, all bands are normalized to the same level.
+**How to read Figure 3-4.** At the left edge, all bands are normalized to the same level.
 The high band then falls fastest, the mid band defines the nominal body of the tail, and the
 low band persists longest. Their vertical separation grows with time because their slopes,
 not merely their initial gains, differ. If the high curve were shifted downward but remained
@@ -4361,14 +4626,14 @@ and constructing an equally long proxy impulse response can look like a hung pro
 deliberately, and treat freeze as a performance mode or bounded sound-design operation rather
 than as permission to allocate an unbounded file.
 
-Figure 3-4 contrasts a normal stable decay, an extremely slow finite decay, an idealized
+Figure 3-5 contrasts a normal stable decay, an extremely slow finite decay, an idealized
 freeze, and an unstable trajectory. The distinction is central to safe long-tail design.
 
 ![Infinite-style reverberation behavior](docs/assets/userguide_figures/24_infinite_reverb.png)
 
 **Figure: Stable, near-infinite, frozen, and unstable reverberation-state levels against elapsed time in seconds.**
 
-**How to read Figure 3-4.** The ordinary stable curve slopes visibly downward. The
+**How to read Figure 3-5.** The ordinary stable curve slopes visibly downward. The
 near-infinite curve also descends, but so slowly that a short display can make it look flat.
 The freeze trajectory remains approximately constant after capture and is intentionally
 marginal. The unstable trajectory rises; even slow growth is unacceptable because repeated
@@ -4888,11 +5153,21 @@ mass-spring-damper equation
 M x'' + C x' + K x = e u(t)
 ```
 
-For a chain with `N` nodes, verbx assigns node mass
-`m[i] = total_mass / N` and segment stiffness
-`k[s] = (N - 1) / total_compliance`, where `total_compliance` is the requested
+For a chain with $N$ nodes, verbx assigns node mass
+$m_i = m_{\mathrm{total}}/N$ and segment stiffness
+$k_s = (N-1)/C_{\mathrm{total}}$, where $C_{\mathrm{total}}$ is the requested
 metres-per-newton compliance. The tridiagonal stiffness block is assembled from
-the element contribution `k[s] * [[1, -1], [-1, 1]]` plus a driven-end clamp.
+the element contribution
+
+$$
+k_s
+\begin{bmatrix}
+1 & -1\\
+-1 & 1
+\end{bmatrix}
+$$
+
+plus a driven-end clamp.
 The solver does not time-step a stiff system sample by sample: it projects the
 system into normal modes and applies stable exponential modal decay.
 That retains a mass-spring-damper resonance structure without making the
@@ -4903,11 +5178,13 @@ offline render sensitive to an integration step size.
 The plate solver uses a structured, mass-lumped clamped grid. Its stiffness is
 the discrete thin-plate bending term plus optional membrane tension:
 
-```text
-K = D L^T L + T L
-M[i,i] = density * thickness * dx * dy
-D = Youngs_modulus * thickness^3 / (12 * (1 - Poisson_ratio^2))
-```
+$$
+\begin{aligned}
+K &= D L^{\mathsf{T}}L + T L,\\
+M_{ii} &= \rho h\,\Delta x\,\Delta y,\\
+D &= \frac{E h^3}{12\left(1-\nu^2\right)}.
+\end{aligned}
+$$
 
 Here `L` is the positive finite-difference Laplacian. `--plate-fe-nx`, `--plate-fe-ny`, and
 `--plate-fe-modes` trade computation for detail; `--plate-fe-loss` gives
@@ -5151,6 +5428,8 @@ Use `--bloom-mix` when you want the bloom time constant from `--bloom` but a mor
 For most uses, stereo output is all you need. Multichannel processing becomes relevant when you are delivering to a surround format, working in Ambisonics, or routing reverb through a spatial bus.
 
 For a complete treatment of channel beds, height layers, Ambisonics, Dolby Atmos beds and objects, binaural monitoring, DAW handoff, deliverables, and immersive QC, read [Immersive Reverb, Surround Sound, and Dolby Atmos](docs/IMMERSIVE_AUDIO.md). The chapter includes signal-flow diagrams, routing recipes, and a precise account of what verbx can and cannot author today.
+
+**Wave field synthesis (WFS):** verbx can prepare deterministic dry, early-return, and late-return stems plus analysis reports for a WFS installation, but it does not calculate array driving functions, import loudspeaker coordinates, or replace the calibrated WFS renderer. Keep direct source, early images, and late field as separate assets; let the WFS system assign virtual sources and array channels. See [Wave Field Synthesis: Virtual Sources, Real Arrays, and verbx Stems](docs/IMMERSIVE_AUDIO.md#46-wave-field-synthesis-virtual-sources-real-arrays-and-verbx-stems) for the full workflow.
 
 **Channel layouts:**
 

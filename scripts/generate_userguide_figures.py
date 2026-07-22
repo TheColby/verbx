@@ -498,6 +498,95 @@ def fig_edc_windows() -> None:
     save(img, "04_edc_fit_windows.png")
 
 
+def fig_energy_decay_relief() -> None:
+    img, d = canvas(
+        "Energy Decay Relief",
+        "Backward-integrated STFT energy reveals frequency-dependent decay ridges.",
+    )
+    box = (220, 180, 1380, 700)
+    d.rectangle(box, fill=PAPER, outline=GRID, width=3)
+
+    times = np.linspace(0.0, 4.0, 144)
+    frequencies = np.geomspace(0.125, 8.0, 64)
+    log_frequency = np.log2(frequencies / frequencies[0])
+    log_frequency /= log_frequency[-1]
+
+    rt60 = 1.4 + 0.9 * np.exp(-frequencies / 1.8)
+    for center, width, extension in (
+        (0.22, 0.09, 2.0),
+        (0.66, 0.12, 1.1),
+        (1.80, 0.18, 1.5),
+        (4.20, 0.24, 0.8),
+    ):
+        distance = np.log2(frequencies / center)
+        rt60 += extension * np.exp(-0.5 * np.square(distance / width))
+
+    decay_db = -60.0 * times[np.newaxis, :] / rt60[:, np.newaxis]
+    decay_db = np.clip(decay_db, -60.0, 0.0)
+    x_edges = np.linspace(box[0], box[2], decay_db.shape[1] + 1)
+    y_centers = box[3] - log_frequency * (box[3] - box[1])
+
+    for row in range(decay_db.shape[0] - 1):
+        y0 = round(y_centers[row + 1])
+        y1 = round(y_centers[row])
+        for column, value in enumerate(decay_db[row]):
+            level = float((value + 60.0) / 60.0)
+            color = (
+                int(247 - 214 * level),
+                int(242 - 118 * level),
+                int(232 - 92 * level),
+            )
+            d.rectangle(
+                (int(x_edges[column]), y0, int(x_edges[column + 1]) + 1, y1 + 1),
+                fill=color,
+            )
+
+    d.rectangle(box, outline=INK, width=3)
+    x_label = "Time after excitation (s)"
+    x_bbox = d.textbbox((0, 0), x_label, font=F_SMALL)
+    d.text(
+        ((box[0] + box[2] - (x_bbox[2] - x_bbox[0])) / 2, box[3] + 24),
+        x_label,
+        fill=MUTED,
+        font=F_SMALL,
+    )
+    y_label = "Frequency (kHz, logarithmic)"
+    y_bbox = F_SMALL.getbbox(y_label)
+    rotated = Image.new(
+        "L",
+        (y_bbox[2] - y_bbox[0] + 12, y_bbox[3] - y_bbox[1] + 12),
+        0,
+    )
+    ImageDraw.Draw(rotated).text(
+        (6 - y_bbox[0], 6 - y_bbox[1]), y_label, fill=255, font=F_SMALL
+    )
+    rotated = rotated.rotate(90, expand=True)
+    d.bitmap((64, (box[1] + box[3] - rotated.height) / 2), rotated, fill=MUTED)
+    for time_s in range(5):
+        x = box[0] + time_s / 4.0 * (box[2] - box[0])
+        d.line((x, box[3], x, box[3] + 10), fill=INK, width=2)
+        d.text((x - 8, box[3] + 14), str(time_s), fill=MUTED, font=F_SMALL)
+    for frequency in (0.125, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0):
+        fraction = math.log2(frequency / 0.125) / math.log2(8.0 / 0.125)
+        y = box[3] - fraction * (box[3] - box[1])
+        d.line((box[0] - 10, y, box[0], y), fill=INK, width=2)
+        label = f"{frequency:g}"
+        label_bbox = d.textbbox((0, 0), label, font=F_SMALL)
+        d.text(
+            (box[0] - 18 - (label_bbox[2] - label_bbox[0]), y - 12),
+            label,
+            fill=MUTED,
+            font=F_SMALL,
+        )
+    d.text(
+        (430, 790),
+        "Color scale: normalized remaining energy, 0 dB (dark) to –60 dB (light)",
+        fill=INK,
+        font=F_BODY,
+    )
+    save(img, "25_energy_decay_relief.png")
+
+
 def fig_fdn_matrix() -> None:
     img, d = canvas("Feedback Matrix Texture", "Dense orthogonal feedback spreads energy across delay lines.")
     n = 16
@@ -1262,6 +1351,7 @@ def main() -> int:
         fig_realtime_latency,
         fig_rt60_curves,
         fig_edc_windows,
+        fig_energy_decay_relief,
         fig_fdn_matrix,
         fig_window_functions,
         fig_limiter_curve,

@@ -85,26 +85,66 @@ then convolves that response with the input. The result is deterministic and
 auditable rather than a claim to have measured or cloned a particular hardware
 tank.
 
+The following figure makes that last operation concrete. The synthesized
+structural impulse response $h[k]$ is shifted across the source $x[k]$. At each
+output sample $n$, verbx multiplies the overlapping sample pairs and sums those
+products to obtain
+
+$$
+y[n] = (x * h)[n] = \sum_{k=-\infty}^{\infty} x[k]h[n-k].
+$$
+
+![Discrete convolution shown as shift, multiply, and sum](assets/modal_fe_convolution_process.png)
+
+**Figure: Discrete convolution of an input with a synthesized structural impulse response.**
+
+**How to read this figure.** The first two panels show the source and the
+decaying impulse response. The third panel freezes one output position,
+$n=6$, and displays the pointwise products created by their overlap. Summing
+those bars produces the highlighted sample in the final output. Repeating the
+same shift-and-sum operation for every $n$ produces the complete wet signal.
+
 The spring tank is a set of lumped mass-spring-damper chains. Its continuous
 reference equation is:
 
-```text
-M x'' + C x' + K x = e u(t)
-```
+$$
+\begin{aligned}
+\mathbf{M}\ddot{\boldsymbol{x}}(t)
+  &+ \mathbf{C}\dot{\boldsymbol{x}}(t)
+  + \mathbf{K}\boldsymbol{x}(t) \\
+  &= \boldsymbol{e}\,u(t).
+\end{aligned}
+$$
 
-Here `M` distributes spring mass to nodes, `K` assembles segment compliance,
-tension, end constraints, and optional tank-to-tank coupling, and `C`
-represents loss. verbx solves the associated generalized eigenproblem:
+For $J$ structural degrees of freedom,
+$\mathbf{M},\mathbf{C},\mathbf{K}\in\mathbb{R}^{J\times J}$ are the mass,
+damping, and stiffness matrices; $\boldsymbol{x}(t),\boldsymbol{e}\in
+\mathbb{R}^{J}$ are the displacement and drive-location vectors; and $u(t)$
+is the scalar excitation. The matrix $\mathbf{M}$ distributes spring mass to
+nodes, $\mathbf{K}$ assembles segment compliance, tension, end constraints,
+and optional tank-to-tank coupling, and $\mathbf{C}$ represents loss. verbx
+solves the associated generalized eigenproblem
 
-```text
-K q[r] = lambda[r] M q[r]
-omega[r] = sqrt(lambda[r])
-```
+$$
+\begin{aligned}
+\mathbf{K}\boldsymbol{q}_r
+  &= \lambda_r\mathbf{M}\boldsymbol{q}_r,\\
+\omega_r &= \sqrt{\lambda_r}.
+\end{aligned}
+$$
 
-then sums the driven/pickup modal responses with RT60-calibrated decay. The
+where $\boldsymbol{q}_r$ is mode shape $r$, $\lambda_r$ is its generalized
+eigenvalue, and $\omega_r$ is its undamped natural angular frequency in radians
+per second. verbx then sums the driven/pickup modal responses with
+$T_{60}$-calibrated decay. The
 plate path uses the corresponding structured, mass-lumped clamped grid, where
-$K = D L^{\mathsf T}L + TL$ combines thin-plate bending rigidity $D$ with
-optional tension $T$.
+
+$$
+\mathbf{K} = D\mathbf{L}^{\mathsf{T}}\mathbf{L} + T\mathbf{L}
+$$
+
+combines thin-plate bending rigidity $D$, the discrete positive Laplacian
+$\mathbf{L}$, and optional membrane tension $T$.
 
 ```bash
 verbx render guitar.wav tank.wav --engine algo --algo-model spring \
@@ -1166,7 +1206,7 @@ musical practice whose acoustic meaning changed over time.
 13. Hagia Sophia was completed in 537 during the Byzantine period; its dome and semidomes demonstrate why a visually centralized enclosure can produce acoustically distributed energy.
 14. Hamilton Mausoleum was constructed in the mid-nineteenth century; its hard circular interior became known for persistent discrete echoes as well as long decay.
 15. The Inchindown oil tanks were built during the Second World War; their vast hard-walled industrial volumes became accidental laboratories for extraordinary reverberation.
-16. Cockatoo Island's convict grain silos belong to nineteenth-century colonial industrial infrastructure, where excavation and hard masonry created a resonant space never designed as a musical room.
+16. *Silophone* (2000–2001), by The User, transformed four empty chambers in Montréal's Silo No. 5 into a remotely playable public instrument. Participants sent sound by telephone or web; loudspeakers projected it into the silo, microphones captured the response, and the return was broadcast back to listeners.
 17. York Minster's present Gothic fabric developed from the thirteenth through fifteenth centuries, combining a long nave, transepts, tower volume, furnishings, and changing occupancy.
 18. The EMT 140, introduced in 1957, converted an electromechanically driven steel plate into a compact studio decay whose density did not depend on a room-sized air volume.
 19. Spring reverberators developed through twentieth-century communications, organ, guitar-amplifier, and studio practice; the exposed tank makes wave propagation and transducer coupling physically visible.
@@ -1303,13 +1343,13 @@ The Inchindown oil-storage tunnel in the following figure leads toward enormous 
 
 *Source and license:* Dave Thompson, [Wikimedia Commons file record](https://commons.wikimedia.org/wiki/File:Inchindown_Oil_Tanks_Tunnel_-_geograph.org.uk_-_7584066.jpg), [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/). Reproduced without alteration except scaling.
 
-The following figure shows the interior of a hand-hewn grain silo on Cockatoo Island. Unlike a finished concert hall, the cavity exposes rough stone and an irregular section. Those surfaces can scatter high frequencies while the enclosed volume supports resonant buildup. A grain-silo-inspired reverb should therefore avoid the generic equation of “industrial” with metallic brightness. Start from a dark, uneven decay, add a few strong early paths, and audition percussive material for flutter or ringing. The result can be intimate and strange even when the nominal decay is not extreme.
+The following figure documents *Silophone* (2000–2001), by The User, at Montréal's Silo No. 5. The public stations in the foreground make its central idea legible: architecture, sound system, and network interface were one instrument. Submitted sounds were played through loudspeakers in four empty grain-storage chambers, captured by microphones, and returned to listeners. This is more than a grain-silo-inspired preset. Its reverb depended on a specific building, loudspeaker and microphone positions, live noise, and a public routing system.
 
-![Interior of the Cockatoo Island convict grain silo.](assets/open_source_portfolio/16_cockatoo_grain_silo.jpg)
+![Silophone public listening and playback stations with Montréal Silo No. 5 in the background.](assets/open_source_portfolio/16_silophone_montreal.jpg)
 
-**Figure: Hand-hewn interior of a Cockatoo Island grain silo, with rough stone boundaries and an irregular resonant cavity.**
+**Figure: *Silophone* public listening and playback stations, with Montréal Silo No. 5 behind them.**
 
-*Source and license:* Harryp2, [Wikimedia Commons file record](https://commons.wikimedia.org/wiki/File:Cockatoo_Island_convict_grain_silo.jpg), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Reproduced without alteration except scaling.
+*Source and license:* art_inthecity, [Wikimedia Commons file record](https://commons.wikimedia.org/wiki/File:Silophone,_-The_User-,_2000,_Vieux-Port_de_Montr%C3%A9al_(5875027452).jpg), [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/). Reproduced without alteration except scaling.
 
 York Minster's nave in the following figure completes the architectural sequence with a broad frontal view. The image reveals strong axial depth, tall lateral boundaries, and extensive overhead volume while retaining visually complex scattering surfaces. Use it to separate three controls that are often collapsed: apparent source distance, room width, and decay time. More pre-delay can bring a source forward even in a long tail; stronger lateral early energy can widen the room without lengthening it; and multiband decay can preserve warmth without sacrificing consonant clarity.
 
@@ -2106,6 +2146,13 @@ At extreme RT60 values, $g$ approaches one. Small numerical or spectral errors t
 circulate for a long time, which is why internal precision and loop conditioning matter
 more at 360 seconds than at 1.2 seconds.
 
+The companion magnitude plot turns the pole ring into an audible spectral prediction.
+Each regular resonance corresponds to one of the equally spaced modal angles above.
+
+![Magnitude response for a representative feedback comb filter.](assets/reverb_primer/44_feedback_comb_magnitude.png)
+
+**Figure: Normalized magnitude response of the representative feedback comb, with frequency in cycles per sample and magnitude in decibels.**
+
 #### Schroeder Allpass Filters: Density Without Magnitude Coloration
 
 An allpass filter changes phase while maintaining a flat ideal magnitude response. A
@@ -2174,6 +2221,14 @@ circle, numerator and denominator magnitudes therefore match even though their p
 do not. The exterior zeros do not make the causal filter unstable because stability is
 governed by poles. They do make the system non-minimum-phase, which is precisely how the
 network can redistribute transient energy in time while preserving ideal magnitude.
+
+The following magnitude plot is deliberately flat. It is the essential check on the
+allpass claim: a non-flat curve would mean the reciprocal-root or gain relationship had
+been implemented incorrectly.
+
+![Magnitude response for a representative Schroeder allpass filter.](assets/reverb_primer/45_schroeder_allpass_magnitude.png)
+
+**Figure: Normalized magnitude response of the representative Schroeder allpass, with frequency in cycles per sample and magnitude in decibels.**
 
 #### Allpass Networks: From Echoes to a Diffuse Excitation
 
@@ -2278,6 +2333,13 @@ hear the comb modes. Restore one stage at a time and hear density increase. Chan
 delay until it shares a common divisor with another and hear periodicity emerge. These
 experiments turn abstract topology into an audible vocabulary.
 
+The following response emphasizes how unequal comb sections populate the spectrum with
+many nearby resonances even before the allpass stages redistribute the transient energy.
+
+![Magnitude response for the reduced-order parameterized Schroeder reverberator.](assets/reverb_primer/46_parameterized_schroeder_magnitude.png)
+
+**Figure: Normalized magnitude response for the reduced-order parameterized Schroeder example, with frequency in cycles per sample and magnitude in decibels.**
+
 #### Feedback Delay Networks: Coupled Modal Systems
 
 An $N$-line Feedback Delay Network replaces independent comb feedback with a vector
@@ -2362,6 +2424,14 @@ Circulant and elliptic families have interpretable eigenstructure. Random orthog
 matrices reduce obvious regularity. Graph-derived matrices make connectivity a design
 parameter. Time-varying unitary matrices alter the modal basis slowly while retaining
 controlled loop energy.
+
+The matching magnitude response shows one projected observation of the same coupled
+modal system. Its fine structure is not a universal FDN fingerprint: changing the input
+or output projection changes which modes are emphasized or cancelled.
+
+![Magnitude response for the reduced-order expanded FDN modal projection.](assets/reverb_primer/47_expanded_fdn_magnitude.png)
+
+**Figure: Normalized magnitude response for the illustrative expanded FDN projection, with frequency in cycles per sample and magnitude in decibels.**
 
 #### The Five Independent Design Coordinates of an FDN
 
@@ -2550,6 +2620,14 @@ replicates their influence across many modes. Stability must therefore be checke
 complete loop, not inferred from three scalar gains alone. A smooth target decay curve
 should produce a smooth radial transition with frequency; abrupt radial clusters can
 become audible as bands that detach from one another during the tail.
+
+The separate magnitude plot gives that radial family a spectral interpretation. It is a
+representative loop-filter view, not the transfer function of every possible FDN matrix
+and delay set that uses these three decay targets.
+
+![Magnitude response for a representative multiband FDN loop filter.](assets/reverb_primer/48_multiband_loop_filter_magnitude.png)
+
+**Figure: Normalized magnitude response of the representative multiband FDN loop filter, with frequency in cycles per sample and magnitude in decibels.**
 
 ```bash
 verbx render music.wav /tmp/multiband_hall.wav \
@@ -2809,6 +2887,105 @@ seconds instead of demanding one extreme peak. Repeat each source-receiver pair 
 twice. If the recovered responses disagree, diagnose motion, clipping, clock drift, noise,
 or time variance before averaging them. Measure the background noise separately and leave
 headroom in the playback, microphone, preamplifier, and converter stages.
+
+#### Practical Impulse Sources: Pops, Clappers, and Purpose-Built Devices
+
+An impulsive source is useful because its energy arrives in a short interval, making the
+first arrival, early reflection pattern, and decay visible directly in the recording. It is
+also easy to misuse. No hand-held source is perfectly omnidirectional, spectrally flat, or
+repeatable. Treat a pop or strike as a field observation unless the source has been
+characterized, repeated, and documented. Record several takes without moving the source or
+microphone, retain every take, and compare them before selecting a representative response.
+
+| Source or device | What it is good for | What can mislead you |
+|---|---|---|
+| Handclap or hand snap | Fast location scouting and audience-perspective listening | Strong performer-to-performer variation; limited bass energy; directional radiation |
+| Balloon pop | Cheap broadband transient for large spaces | Burst position, balloon material, and pop direction vary; latex debris and venue restrictions may apply |
+| Two-by-four clapper or paired hardwood boards | Repeatable mechanical strike with useful midrange energy | It is not an ideal impulse; wood resonances and the operator's geometry color the result |
+| Slate clapper, castanets, or a purpose-built impulse clapper | Compact controlled transient with a recognizable onset | Limited low-frequency output and a characteristic source spectrum |
+| Pistol-style starter device | Very high peak level and a clear onset in a suitable, permitted outdoor or industrial setting | Legal, facility, hearing-safety, fire-safety, and microphone-overload risks; never use it casually or where a firearm-like report is inappropriate |
+| Small loudspeaker playing a needle pulse | Known digital timing and repeatable routing | Loudspeaker bandwidth, excursion, and nonlinear distortion limit the usable impulse |
+| Omnidirectional loudspeaker playing an exponential sweep | Best general-purpose choice for archival room IR work | Requires playback hardware, a matched inverse filter, and time for setup and deconvolution |
+
+The two-by-four clapper is worth distinguishing from a random board strike. Two straight,
+dry hardwood boards with handles can make a practical reusable clapper: bring the broad
+faces together sharply, keep the operator out of the direct path from source to microphone,
+and repeat the same stance and height. It provides a more consistent onset than a handclap
+and avoids the disposal and surprise of balloons. It still produces a device-specific
+signature, so do not divide a recorded room response by an imaginary flat spectrum. Use it
+to compare locations, identify obvious flutter or long echoes, and make musically useful
+rough captures, not to claim laboratory calibration.
+
+A balloon is often the quickest first visit tool. Use one size and material for a session,
+inflate each balloon similarly, position it at the intended source coordinate, and pop it
+remotely or with the operator well away from the microphone. A close microphone can clip
+even when the distant tail looks quiet, so leave generous preamp headroom. Do not use
+balloons where fragments, noise, accessibility concerns, animals, or fire regulations make
+them inappropriate. A handclap, wooden clapper, or low-level sweep is usually a better
+choice for a public venue.
+
+Starter-pistol-style sources appear in older room-acoustics practice because they can
+provide a high-level, abrupt event outdoors or in large empty structures. Their practical
+drawbacks are serious: local law and venue rules may treat them as weapons; the report can
+injure hearing, alarm people, trigger safety systems, overload microphones and converters,
+and invalidate an otherwise quiet session. Use such a source only under explicit facility
+authorization, with trained operators and an approved safety plan. In most music-production
+and research captures, a calibrated loudspeaker sweep is safer, more repeatable, and more
+informative.
+
+Other useful inventions include a calibrated dodecahedral loudspeaker, an omni source with
+known response, a small battery-powered clapper for difficult access, and a synchronized
+electrical loopback box. The loopback does not excite the room; it records a copy of the
+playback signal beside the microphone capture so later processing can identify latency and
+clock behavior. For a matrix measurement, label every physical source, microphone, and
+take before recording. A beautiful IR with uncertain coordinates is not a reusable spatial
+measurement.
+
+#### Capturing an IR in Apple Logic Pro
+
+Logic Pro is a capable playback-and-recording environment for an impulse-response session,
+but it is not a complete measurement application. Its [Test Oscillator](https://support.apple.com/en-asia/guide/logicpro/lgcef2d8c9eb/mac)
+can generate a user-defined sine sweep, and ordinary audio tracks can record microphone
+inputs. The missing step is matched deconvolution: export the sweep and capture, then use a
+validated measurement tool or scientific workflow to apply the inverse sweep and recover the
+IR. Do not mistake a recorded sweep WAV for an impulse response.
+
+1. **Prepare the project.** Set a documented sample rate and 24-bit recording depth, choose
+   WAV or AIFF, and disable processing on the measurement path. Logic supports common
+   PCM formats and sample rates through 192 kHz; choose a rate that matches the interface,
+   microphone system, and intended IR library rather than changing it mid-session.
+2. **Create separate source and capture tracks.** Put the Test Oscillator on a dedicated
+   source track or auxiliary routed only to the measurement loudspeaker. Create a mono audio
+   track for the measurement microphone, select the correct interface input, and record-enable
+   it. If the interface has a spare input, record a loopback from the playback chain on a
+   second mono track.
+3. **Set safe routing and levels.** Mute every effect, limiter, automatic gain stage, and
+   spatializer that is not part of the system being measured. Use direct hardware monitoring
+   where appropriate; do not let software-monitoring latency confuse the measurement path.
+   Set the microphone preamp so the direct sound has headroom, then confirm the loudest part
+   of the sweep or impulsive source never clips.
+4. **Generate and record.** In the Test Oscillator, select Sine Sweep mode, set the desired
+   start and end frequencies and a duration long enough for the venue and noise floor, then
+   trigger it while recording the microphone and loopback tracks. Start recording before the
+   sweep, allow the full decay to finish, and leave several seconds of post-tail noise for a
+   defensible noise-floor decision. For balloon or clapper work, record the same pre-roll and
+   post-roll, then make at least three takes at each geometry.
+5. **Export without alteration.** Keep the raw regions, note source and microphone coordinates
+   in Logic's project or track notes, and bounce or export the raw microphone and loopback
+   files with normalization off. Logic's [audio-recording guide](https://support.apple.com/guide/logicpro/record-sound-a-microphone-electric-instrument-lgcpb19e49e4/10.7/mac/11.0)
+   covers input assignment and record enable; its [bounce documentation](https://support.apple.com/en-gb/guide/logicpro/lgcp785a41c3/mac)
+   explains how output format and tail length affect exported files.
+6. **Deconvolve externally, then return to verbx.** Use the exact inverse for the sweep that
+   was played, inspect the recovered direct arrival and harmonic-distortion regions, and save
+   the raw sweep, raw capture, inverse filter, recovered IR, and geometry notes together.
+   Then run `verbx ir analyze`, `verbx ir process`, and a convolution audition as shown below.
+
+For Logic sessions using a physical impulse rather than a sweep, the microphone track is
+already a rough IR candidate. Trim only after preserving an untouched original; identify the
+direct arrival, retain meaningful propagation delay if the capture will represent the real
+source distance, and apply a gentle terminal fade only after the tail reaches the noise
+floor. Compare takes before choosing one. A single dramatic pop can be musically compelling
+but is weak evidence of a room's repeatable transfer function.
 
 The measurement chain is
 
@@ -3182,13 +3359,15 @@ Early chambers were not always designed from scratch. Bathrooms, stairwells, hal
 
 Accounts of Bill Putnam's work on the Harmonicats' *Peg o' My Heart* in 1947 are often used to mark an early artistic milestone in record-production chamber reverb. The exact priority claim matters less than the workflow it represents: a recorded signal was deliberately sent into a separate reflective room, captured, and blended as an authored layer. By the 1950s, purpose-built chambers became prestige infrastructure in major studios. Capitol's underground chambers, for example, treated architecture as a repeatable part of the recording system rather than an accidental bathroom effect. The [AES Reverb Collection](https://aes2.org/community/aes-committees/aes-historical-committee/aes-e-library-collections/) places chamber design alongside spring, plate, algorithmic, and perceptual research, emphasizing that chamber history belongs inside audio engineering rather than outside it.
 
-Unusual spaces demonstrate why chamber selection was an empirical art. Figure 2-34 shows a hand-hewn grain silo on Cockatoo Island. It was not built as studio equipment, but its hard boundaries and irregular geometry illustrate the class of resonant enclosure that engineers and artists have repeatedly recruited for recording, playback, and impulse-response capture.
+Unusual spaces demonstrate why chamber selection was an empirical art. Figure 2-34 documents a particularly direct example: *Silophone* (2000–2001), a public sound installation by The User, the Montréal collaboration of Thomas McIntosh and Emmanuel Madan. It transformed four empty storage chambers in Montréal's Silo No. 5 into a remotely playable instrument: visitors submitted sounds by telephone or the web, loudspeakers projected them into the silo, microphones captured the resulting resonance, and the return was broadcast back to listeners.
 
-![Hand-hewn Cockatoo Island grain silo](assets/open_source_portfolio/16_cockatoo_grain_silo.jpg)
+The project treated reverberation as both material and interface. A participant did not simply select a large-room preset; they addressed a specific industrial structure with its own chamber geometry, modes, noise, access constraints, and playback chain. The feedback path between remote sender, loudspeaker, chamber, microphone, and stream made the space audible as a changing instrument rather than a passive effect. This is a useful corrective to the generic “silo reverb” trope: the acoustic result belongs to the actual site and its electroacoustic routing, not merely to a building type.
 
-**Figure: A grain silo as an accidental reverberator.** Rough stone, a long enclosed volume, and nonuniform boundaries produce a response unlike a polished studio chamber. Such spaces can yield strong low-frequency modes, discrete early paths, and a late field whose texture is inseparable from construction irregularities.
+![Silophone listening and playback stations with Montréal Silo No. 5 in the background](assets/open_source_portfolio/16_silophone_montreal.jpg)
 
-*Source and license:* Harryp2, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Cockatoo_Island_convict_grain_silo.jpg), CC BY-SA 4.0.
+**Figure: *Silophone* public listening and playback stations in Montréal, with Silo No. 5 behind them.** The installation made the silo's reverberation reachable through a civic interface rather than treating the building as scenery.
+
+*Source and license:* art_inthecity, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Silophone,_-The_User-,_2000,_Vieux-Port_de_Montr%C3%A9al_(5875027452).jpg), CC BY 2.0.
 
 The chamber made several production ideas explicit. First, **dry and wet became separable assets**. The dry performance could remain intelligible while the chamber return was filtered, compressed, faded, or muted. Second, **one space could unify many sources**. Vocal, percussion, and instrumental sends could excite the same chamber and acquire shared decay statistics. Third, **space became routable**. A console's auxiliary system determined which events entered the room and when. Fourth, **reverb became recordable independent of performance**. Engineers could print wet stems or rerecord the response.
 
@@ -3828,6 +4007,14 @@ reason signed projections can create width while preserving a coherent room. Mon
 fold-down combines the two transfer numerators, so it must be checked explicitly: a
 left-right zero that sounds spacious in stereo can become a broad cancellation after
 summation.
+
+The final companion plot makes the projection dependency concrete. It is one channel's
+response; a different signed output vector retains the shared poles while changing the
+locations and depths of transmission cancellations.
+
+![Magnitude response for one stereo output projection from a shared FDN.](assets/reverb_primer/49_stereo_projection_magnitude.png)
+
+**Figure: Normalized magnitude response of one stereo FDN output projection, with frequency in cycles per sample and magnitude in decibels.**
 
 ### The Science and DSP of Dereverberation
 
@@ -4980,6 +5167,86 @@ field. T20 and T30 exclude the first 5 dB so the direct event and the earliest r
 pattern have less leverage. T30 reaches deepest and can be the most representative late
 estimate, but only if its –35 dB boundary remains safely above the noise-contaminated bend.
 
+#### Energy Decay Relief
+
+A broadband energy decay curve collapses the spectrum before integration. That is useful
+for one decay estimate, but it can hide a narrow room mode, a plate resonance, or a high
+band that dies much sooner than the rest of the response. An **energy decay relief** (EDR)
+retains both time and frequency. It is a time-frequency generalization of the EDC: every
+frequency bin receives its own backward-integrated decay curve.
+
+Let $H(m,k)$ be STFT bin $k$ in frame $m$, and let $M$ be the final frame. Following
+Julius O. Smith III's definition, the remaining energy at frame $n$ and frequency bin $k$
+is
+
+$$
+\operatorname{EDR}(t_n,f_k)
+=\sum_{m=n}^{M}\left|H(m,k)\right|^2,
+$$
+
+with
+
+$$
+t_n=\frac{nR}{F_s},
+\qquad
+f_k=\frac{kF_s}{N},
+$$
+
+where $R$ is the STFT hop size in samples, $F_s$ is sample rate in hertz, and $N$ is FFT
+length. Normalizing each frequency bin at the selected onset gives a decibel surface:
+
+$$
+L_{\mathrm{EDR}}(n,k)
+=10\log_{10}\!\left(
+\frac{\operatorname{EDR}(t_n,f_k)}
+{\operatorname{EDR}(t_0,f_k)}
+\right)\ \mathrm{dB}.
+$$
+
+Figure 3-3 shows this surface as a heatmap. Horizontal position is elapsed time, vertical
+position is logarithmic frequency, and color is normalized remaining energy in decibels.
+A horizontal ridge indicates a frequency region that stores energy longer than its
+neighbors. A nearly vertical change shared by all bands is more likely a broadband event,
+edit, gate, or noise-floor transition. Curved or interrupted ridges can reveal multiple
+decay regimes that disappear inside one scalar RT60.
+
+![Energy decay relief](assets/userguide_figures/25_energy_decay_relief.png)
+
+**Figure: Energy decay relief with elapsed time in seconds, logarithmic frequency in kilohertz, and normalized remaining energy in decibels.**
+
+**How to read Figure 3-3.** Darker cells contain more remaining energy. Most frequencies
+fade from left to right, but narrow ridges near 0.22, 0.66, 1.8, and 4.2 kHz persist at
+different rates. Those ridges model the kind of resonant structure that a broadband EDC
+averages away. The plotted data are synthetic and explanatory; they are not a measurement
+of a named room or instrument.
+
+Time-frequency resolution is a design choice. A longer window separates close modes but
+smears their start and end in time. A shorter window tracks abrupt changes more closely but
+spreads energy across frequency bins. Smith describes Hann windows around 30–40 ms as a
+typical starting range. verbx currently uses a 2,048-sample Hann window and a one-quarter
+window hop for `--edr`; at 48 kHz those values are approximately 42.7 ms and 10.7 ms.
+Analysis settings therefore belong beside the result whenever EDR values are compared
+across files, sample rates, or software.
+
+`verbx analyze --edr` computes this reverse cumulative STFT-energy surface internally,
+fits a decay slope in each usable frequency bin, and then returns a compact summary:
+`edr_rt60_median_s`, `edr_rt60_low_s`, `edr_rt60_mid_s`,
+`edr_rt60_high_s`, and `edr_valid_bins`. The current JSON report stores those summaries,
+not the complete matrix. This distinction matters: the summary is appropriate for batch
+comparison and room-size inference, while the full relief is the better diagnostic for
+isolated modes, plate resonances, coupled slopes, and frequency-selective dereverberation.
+
+Use EDR most confidently on a measured or synthesized impulse response. On music or speech,
+later source events are included in the backward sum and can resemble stored room energy.
+The result remains useful as a descriptive recording diagnostic, but it is not a
+standards-style room measurement. Preserve the input classification, window, hop, sample
+rate, fit range, valid-bin count, and noise context before interpreting differences as
+changes in the acoustic system.
+
+The primary derivation is Julius O. Smith III's
+[Energy Decay Relief](https://ccrma.stanford.edu/~jos/pasp/Energy_Decay_Relief.html)
+chapter in *Physical Audio Signal Processing* (2010).
+
 #### Frequency-Dependent and Multiband Decay
 
 A room does not have one decay envelope shared perfectly by every frequency. Air absorption
@@ -5011,7 +5278,7 @@ crossovers. The broadband `--rt60` remains the central reference, while
 `--fdn-rt60-tilt` control skews low and high decay around the middle when a three-number
 specification would interrupt a production workflow.
 
-Figure 3-3 compares three bandwise decays that share a direct event but diverge as loop loss
+Figure 3-4 compares three bandwise decays that share a direct event but diverge as loop loss
 accumulates. It is the visual distinction between warmth caused by persistent low-frequency
 energy and simple bass boost.
 
@@ -5033,7 +5300,7 @@ and confidence rather than presenting a smooth colored curve as exact ground tru
 
 **Figure: Low-, mid-, and high-frequency reverberation decay levels in decibels against time after excitation in seconds.**
 
-**How to read Figure 3-3.** At the left edge, all bands are normalized to the same level.
+**How to read Figure 3-4.** At the left edge, all bands are normalized to the same level.
 The high band then falls fastest, the mid band defines the nominal body of the tail, and the
 low band persists longest. Their vertical separation grows with time because their slopes,
 not merely their initial gains, differ. If the high curve were shifted downward but remained
@@ -5118,14 +5385,14 @@ and constructing an equally long proxy impulse response can look like a hung pro
 deliberately, and treat freeze as a performance mode or bounded sound-design operation rather
 than as permission to allocate an unbounded file.
 
-Figure 3-4 contrasts a normal stable decay, an extremely slow finite decay, an idealized
+Figure 3-5 contrasts a normal stable decay, an extremely slow finite decay, an idealized
 freeze, and an unstable trajectory. The distinction is central to safe long-tail design.
 
 ![Infinite-style reverberation behavior](assets/userguide_figures/24_infinite_reverb.png)
 
 **Figure: Stable, near-infinite, frozen, and unstable reverberation-state levels against elapsed time in seconds.**
 
-**How to read Figure 3-4.** The ordinary stable curve slopes visibly downward. The
+**How to read Figure 3-5.** The ordinary stable curve slopes visibly downward. The
 near-infinite curve also descends, but so slowly that a short display can make it look flat.
 The freeze trajectory remains approximately constant after capture and is intentionally
 marginal. The unstable trajectory rises; even slow growth is unacceptable because repeated
@@ -5645,11 +5912,21 @@ mass-spring-damper equation
 M x'' + C x' + K x = e u(t)
 ```
 
-For a chain with `N` nodes, verbx assigns node mass
-`m[i] = total_mass / N` and segment stiffness
-`k[s] = (N - 1) / total_compliance`, where `total_compliance` is the requested
+For a chain with $N$ nodes, verbx assigns node mass
+$m_i = m_{\mathrm{total}}/N$ and segment stiffness
+$k_s = (N-1)/C_{\mathrm{total}}$, where $C_{\mathrm{total}}$ is the requested
 metres-per-newton compliance. The tridiagonal stiffness block is assembled from
-the element contribution `k[s] * [[1, -1], [-1, 1]]` plus a driven-end clamp.
+the element contribution
+
+$$
+k_s
+\begin{bmatrix}
+1 & -1\\
+-1 & 1
+\end{bmatrix}
+$$
+
+plus a driven-end clamp.
 The solver does not time-step a stiff system sample by sample: it projects the
 system into normal modes and applies stable exponential modal decay.
 That retains a mass-spring-damper resonance structure without making the
@@ -5660,11 +5937,13 @@ offline render sensitive to an integration step size.
 The plate solver uses a structured, mass-lumped clamped grid. Its stiffness is
 the discrete thin-plate bending term plus optional membrane tension:
 
-```text
-K = D L^T L + T L
-M[i,i] = density * thickness * dx * dy
-D = Youngs_modulus * thickness^3 / (12 * (1 - Poisson_ratio^2))
-```
+$$
+\begin{aligned}
+K &= D L^{\mathsf{T}}L + T L,\\
+M_{ii} &= \rho h\,\Delta x\,\Delta y,\\
+D &= \frac{E h^3}{12\left(1-\nu^2\right)}.
+\end{aligned}
+$$
 
 Here `L` is the positive finite-difference Laplacian. `--plate-fe-nx`, `--plate-fe-ny`, and
 `--plate-fe-modes` trade computation for detail; `--plate-fe-loss` gives
@@ -5908,6 +6187,8 @@ Use `--bloom-mix` when you want the bloom time constant from `--bloom` but a mor
 For most uses, stereo output is all you need. Multichannel processing becomes relevant when you are delivering to a surround format, working in Ambisonics, or routing reverb through a spatial bus.
 
 For a complete treatment of channel beds, height layers, Ambisonics, Dolby Atmos beds and objects, binaural monitoring, DAW handoff, deliverables, and immersive QC, read [Immersive Reverb, Surround Sound, and Dolby Atmos](docs/IMMERSIVE_AUDIO.md). The chapter includes signal-flow diagrams, routing recipes, and a precise account of what verbx can and cannot author today.
+
+**Wave field synthesis (WFS):** verbx can prepare deterministic dry, early-return, and late-return stems plus analysis reports for a WFS installation, but it does not calculate array driving functions, import loudspeaker coordinates, or replace the calibrated WFS renderer. Keep direct source, early images, and late field as separate assets; let the WFS system assign virtual sources and array channels. See [Wave Field Synthesis: Virtual Sources, Real Arrays, and verbx Stems](docs/IMMERSIVE_AUDIO.md#46-wave-field-synthesis-virtual-sources-real-arrays-and-verbx-stems) for the full workflow.
 
 **Channel layouts:**
 
@@ -7560,6 +7841,74 @@ As a default, keep diffuse reverb out of LFE unless there is a clear artistic or
 Immersive width requires difference among channels, but random difference is not automatically coherent. Useful decorrelation preserves a shared decay envelope and tonal identity while varying delay, modulation phase, diffusion state, or allpass structure. The goal is a single room observed from many directions, not twelve unrelated reverbs.
 
 verbx exposes front, rear, and top decorrelation controls so these regions can be tuned independently. Start conservatively, then compare the discrete layout, stereo fold-down, and binaural render. If the immersive version sounds expansive but the stereo version becomes hollow, the channel relationships are too antagonistic.
+
+### 4.6 Wave field synthesis: virtual sources, real arrays, and verbx stems
+
+**Wave field synthesis (WFS)** is not a larger surround bed. A conventional channel-based mix assigns waveforms to named loudspeakers. Ambisonics stores coefficients for a sound field and defers decoding. WFS starts from a different practical question: given a dense, measured loudspeaker array, what signals should its individual loudspeakers radiate so that listeners over a useful region encounter the wavefront of a chosen virtual source? The goal is not merely to distribute energy around a room. It is to approximate the propagation of a virtual point source, plane wave, or other source geometry through an extended listening area.
+
+That distinction has musical consequences. In an ideal WFS system, a virtual source can appear in front of, behind, or beyond the loudspeaker array while retaining a meaningful wavefront relationship as listeners move. The apparent source does not depend on one fixed loudspeaker pair or one sweet-spot panning law. In practice, the result is bounded by array geometry, loudspeaker spacing, room reflections, calibration, processing delay, listening distance, and the frequency range over which the array can reproduce the intended field without conspicuous spatial aliasing. WFS is therefore an electroacoustic instrument and an installation discipline, not a file format.
+
+At a conceptual frequency-domain level, an array renderer seeks loudspeaker driving functions $D_\ell(\omega)$ such that the emitted field approximates a target field:
+
+$$
+p(\mathbf{r},\omega) \approx \sum_{\ell=1}^{L} D_\ell(\omega)\,G(\mathbf{r}\mid\mathbf{r}_\ell,\omega),
+$$
+
+where $\mathbf{r}$ is a listening position, $\mathbf{r}_\ell$ is the position of loudspeaker $\ell$, $G$ is the propagation model from that loudspeaker to the listener, and $L$ is the number of secondary sources. The approximation is deliberately qualified. A real array is finite, sampled in space, installed in a reflective room, and driven by loudspeakers with nonideal directivity and response. As speaker spacing increases, the usable frequency range for a convincing synthesized wavefront decreases; as the array becomes sparse, the renderer increasingly trades physical precision for practical coverage.
+
+Reverberation in WFS must be designed as a field, not as a stereo send copied around a perimeter. A source-bound early field can be rendered from virtual images that support the direct source's location. A broad late field can be made from many low-level, decorrelated virtual sources or from a diffuse-field strategy chosen by the WFS system. The first approach can articulate architecture and motion; the second can support envelopment without turning every reflection into a locatable event. Neither is automatically better. A sparse musical gesture may benefit from audible moving reflection images, while a dense ensemble often needs a stable, low-attention field whose directionality does not compete with the players.
+
+WFS also clarifies why an apparently impressive reverb can fail in an installation. If every wet component follows the dry virtual source, the room may feel glued to the performer rather than to the venue. If the late field is rendered as many coherent copies, it can become loud and spatially brittle. If the system emits a long bright return from a small subset of array elements, the result can expose aliasing, localization jumps, and room-specific combing. Treat direct sound, early reflections, late field, and special gestures as separate musical layers. Decide whether each layer is source-bound, environment-bound, or intentionally impossible before assigning it to the WFS renderer.
+
+**verbx's role is upstream and adjacent to the WFS renderer.** verbx can prepare deterministic dry sources, early and late reverb stems, matrix-routed convolution assets, analysis JSON, and repeatable gain and spectral decisions. It can also analyze microphone captures made in the completed array room. It does **not** currently calculate WFS driving functions, ingest an array's loudspeaker-coordinate file, compensate per-loudspeaker latency or transfer functions, select active secondary sources, or directly address the hundreds of channels that a large WFS renderer may use. Those tasks belong to the array renderer, its calibration system, and the installation's routing environment.
+
+This boundary is useful rather than limiting. Keep the reverb design independent of a particular array until the point where array geometry is needed. For example, create a concise early-return candidate and a darker, longer late-return candidate in verbx; retain the dry source unchanged; then let the WFS environment place the dry source, the early images, and the late-field virtual ensemble separately. The verbx reports make the audio decisions auditable, while the WFS session retains the spatial configuration that cannot be represented by a conventional multichannel WAV alone.
+
+#### A practical WFS preparation workflow
+
+Start with three assets rather than one premixed “WFS reverb” file:
+
+1. **Dry source:** preserve the unprocessed event for the WFS renderer's direct virtual source. Do not bake a stereo pan or unrelated room into it.
+2. **Early-return candidate:** use a short, controlled reverb or measured early-response asset for virtual reflection images. Keep attacks readable and document the intended source-to-reflection relationship.
+3. **Late-return candidate:** render a darker, denser, 100-percent-wet field that the WFS system can distribute as an environmental layer or a cloud of virtual secondary sources.
+
+The following pair creates deliberately separate early and late candidates. They are not WFS driving signals; they are musical source material for the WFS renderer:
+
+```bash
+verbx render source.wav wfs_early_return.wav \
+  --engine algo \
+  --rt60 0.42 \
+  --predelay 4 \
+  --damping 0.30 \
+  --wet 1.0 --dry 0.0 \
+  --output-layout mono \
+  --json-out wfs_early_return.analysis.json
+
+verbx render source.wav wfs_late_return.wav \
+  --engine algo \
+  --rt60 3.4 \
+  --predelay 38 \
+  --damping 0.62 \
+  --wet 1.0 --dry 0.0 \
+  --output-layout mono \
+  --json-out wfs_late_return.analysis.json
+```
+
+In the WFS environment, audition the dry source first. Add only the early-return candidate and test whether its virtual reflection positions support distance rather than blur the source. Add the late return last, initially at a lower level than a stereo instinct might suggest. Walk the intended audience area. Listen for changes in localization, tonal balance, echo density, and stability as the listener leaves the nominal center. A reverb decision that works only at one chair is not necessarily unusable, but it should be described honestly as a local effect rather than as uniform field synthesis.
+
+After the array is tuned, capture representative positions with calibrated microphones and analyze them as a set. Use one report per position, retain the array preset and loudspeaker map with the report, and compare early decay, spectral decay, direct-to-reverberant relationship, and interposition consistency. A minimal evidence pass is:
+
+```bash
+verbx analyze wfs_position_a.wav \
+  --edr --room \
+  --json-out wfs_position_a.analysis.json
+```
+
+Repeat at the center, near an array boundary, and at one musically important off-axis location. The resulting differences are not merely faults. They reveal where the installation produces the intended perspective, where the venue dominates the renderer, and where a composition may exploit a change in apparent source distance or field texture.
+
+For live WFS, keep latency budgeting explicit. The renderer's delay compensation, audio interface buffers, network transport if present, loudspeaker DSP, and any realtime verbx stage all add to the end-to-end path. A reverb tail can tolerate substantial delay more easily than a direct virtual source, but a source-bound early field cannot be casually delayed without changing precedence and distance cues. If verbx is used live, place it on a dedicated return or pre-render its stems unless its measured realtime latency fits the installation's direct-sound budget.
+
+The compositional opportunity is substantial. WFS can make a dry instrumental line appear to approach from beyond the stage while its late field remains behind the audience; it can let a frozen chord become a stationary architectural surface while solo gestures move through it; it can separate a virtual ensemble into depth layers without equating depth with reverb level. verbx contributes repeatable acoustic materials and analysis to that process. The WFS renderer contributes the physical wavefront strategy. Keeping those roles separate is what makes the workflow both creatively open and technically defensible.
 
 ## 5. What verbx Can Produce Today
 
@@ -13751,7 +14100,10 @@ Record host rate, quality mode, block size, layout, effective RT60, reported lat
 
 ## 20. Automation Study Cards
 
-### 20.1 Pre-Delay
+### 20.1 Slow rise
+
+**Motion grammar:** Move from the lower setting to the upper setting over eight or more bars.
+**Primary listening question:** This pattern reveals zipper noise and coefficient discontinuities.
 
 **Automation card: Pre-Delay: Slow rise**
 
@@ -13769,56 +14121,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Pre-Delay: Slow fall**
-
-- Host parameter: `pre_delay_ms`.
-- Motion: return gradually toward the dry or compact state.
-- Primary observation: separates the direct event from the room onset.
-- Transition requirement: use a ramp or delay-line crossfade.
-
-Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Pre-Delay: Tempo pulse**
-
-- Host parameter: `pre_delay_ms`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: separates the direct event from the room onset.
-- Transition requirement: use a ramp or delay-line crossfade.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Pre-Delay: Scene switch**
-
-- Host parameter: `pre_delay_ms`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: separates the direct event from the room onset.
-- Transition requirement: use a ramp or delay-line crossfade.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.2 Room Size
-
 **Automation card: Room Size: Slow rise**
 
 - Host parameter: `room_size`.
@@ -13829,6 +14131,187 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: RT60 Coarse: Slow rise**
+
+- Host parameter: `rt60_coarse`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: moves through the full logarithmic decay range.
+- Transition requirement: display the effective seconds value.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: RT60 Fine: Slow rise**
+
+- Host parameter: `rt60_fine`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: trims decay proportionally around the coarse value.
+- Transition requirement: keep zero as the exact neutral point.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Damping: Slow rise**
+
+- Host parameter: `damping`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: changes high-frequency persistence.
+- Transition requirement: interpolate stable filter coefficients.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Width: Slow rise**
+
+- Host parameter: `width`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: changes lateral energy and correlation.
+- Transition requirement: monitor mono compatibility during movement.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Diffusion: Slow rise**
+
+- Host parameter: `diffusion`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: changes echo-density buildup.
+- Transition requirement: crossfade when topology must change.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Wet: Slow rise**
+
+- Host parameter: `wet`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: sets processed contribution.
+- Transition requirement: choose and document the mix law.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Dry: Slow rise**
+
+- Host parameter: `dry`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: sets direct contribution.
+- Transition requirement: preserve bypass and gain staging.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Freeze: Slow rise**
+
+- Host parameter: `freeze`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: changes network energy behavior.
+- Transition requirement: use a debounced, smoothed mode transition.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Reverse: Slow rise**
+
+- Host parameter: `reverse`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: changes the envelope and buffering model.
+- Transition requirement: report added latency before activation.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Quality: Slow rise**
+
+- Host parameter: `quality_mode`.
+- Motion: move from the lower setting to the upper setting over eight or more bars.
+- Primary observation: selects the internal rate policy.
+- Transition requirement: apply through a safe reprepare boundary.
+
+Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+### 20.2 Slow fall
+
+**Motion grammar:** Return gradually toward the dry or compact state.
+**Primary listening question:** This pattern tests whether stored energy decays naturally.
+
+**Automation card: Pre-Delay: Slow fall**
+
+- Host parameter: `pre_delay_ms`.
+- Motion: return gradually toward the dry or compact state.
+- Primary observation: separates the direct event from the room onset.
+- Transition requirement: use a ramp or delay-line crossfade.
+
+Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 
@@ -13851,56 +14334,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Room Size: Tempo pulse**
-
-- Host parameter: `room_size`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: changes perceived scale and reflection spacing.
-- Transition requirement: stage structural changes outside the callback.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Room Size: Scene switch**
-
-- Host parameter: `room_size`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: changes perceived scale and reflection spacing.
-- Transition requirement: stage structural changes outside the callback.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.3 RT60 Coarse
-
-**Automation card: RT60 Coarse: Slow rise**
-
-- Host parameter: `rt60_coarse`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: moves through the full logarithmic decay range.
-- Transition requirement: display the effective seconds value.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
 **Automation card: RT60 Coarse: Slow fall**
 
 - Host parameter: `rt60_coarse`.
@@ -13911,56 +14344,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: RT60 Coarse: Tempo pulse**
-
-- Host parameter: `rt60_coarse`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: moves through the full logarithmic decay range.
-- Transition requirement: display the effective seconds value.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: RT60 Coarse: Scene switch**
-
-- Host parameter: `rt60_coarse`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: moves through the full logarithmic decay range.
-- Transition requirement: display the effective seconds value.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.4 RT60 Fine
-
-**Automation card: RT60 Fine: Slow rise**
-
-- Host parameter: `rt60_fine`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: trims decay proportionally around the coarse value.
-- Transition requirement: keep zero as the exact neutral point.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 
@@ -13983,56 +14366,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: RT60 Fine: Tempo pulse**
-
-- Host parameter: `rt60_fine`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: trims decay proportionally around the coarse value.
-- Transition requirement: keep zero as the exact neutral point.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: RT60 Fine: Scene switch**
-
-- Host parameter: `rt60_fine`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: trims decay proportionally around the coarse value.
-- Transition requirement: keep zero as the exact neutral point.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.5 Damping
-
-**Automation card: Damping: Slow rise**
-
-- Host parameter: `damping`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: changes high-frequency persistence.
-- Transition requirement: interpolate stable filter coefficients.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
 **Automation card: Damping: Slow fall**
 
 - Host parameter: `damping`.
@@ -14043,56 +14376,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Damping: Tempo pulse**
-
-- Host parameter: `damping`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: changes high-frequency persistence.
-- Transition requirement: interpolate stable filter coefficients.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Damping: Scene switch**
-
-- Host parameter: `damping`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: changes high-frequency persistence.
-- Transition requirement: interpolate stable filter coefficients.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.6 Width
-
-**Automation card: Width: Slow rise**
-
-- Host parameter: `width`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: changes lateral energy and correlation.
-- Transition requirement: monitor mono compatibility during movement.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 
@@ -14115,56 +14398,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Width: Tempo pulse**
-
-- Host parameter: `width`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: changes lateral energy and correlation.
-- Transition requirement: monitor mono compatibility during movement.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Width: Scene switch**
-
-- Host parameter: `width`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: changes lateral energy and correlation.
-- Transition requirement: monitor mono compatibility during movement.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.7 Diffusion
-
-**Automation card: Diffusion: Slow rise**
-
-- Host parameter: `diffusion`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: changes echo-density buildup.
-- Transition requirement: crossfade when topology must change.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
 **Automation card: Diffusion: Slow fall**
 
 - Host parameter: `diffusion`.
@@ -14175,56 +14408,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Diffusion: Tempo pulse**
-
-- Host parameter: `diffusion`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: changes echo-density buildup.
-- Transition requirement: crossfade when topology must change.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Diffusion: Scene switch**
-
-- Host parameter: `diffusion`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: changes echo-density buildup.
-- Transition requirement: crossfade when topology must change.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.8 Wet
-
-**Automation card: Wet: Slow rise**
-
-- Host parameter: `wet`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: sets processed contribution.
-- Transition requirement: choose and document the mix law.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 
@@ -14247,56 +14430,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Wet: Tempo pulse**
-
-- Host parameter: `wet`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: sets processed contribution.
-- Transition requirement: choose and document the mix law.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Wet: Scene switch**
-
-- Host parameter: `wet`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: sets processed contribution.
-- Transition requirement: choose and document the mix law.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.9 Dry
-
-**Automation card: Dry: Slow rise**
-
-- Host parameter: `dry`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: sets direct contribution.
-- Transition requirement: preserve bypass and gain staging.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
 **Automation card: Dry: Slow fall**
 
 - Host parameter: `dry`.
@@ -14307,56 +14440,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Dry: Tempo pulse**
-
-- Host parameter: `dry`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: sets direct contribution.
-- Transition requirement: preserve bypass and gain staging.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Dry: Scene switch**
-
-- Host parameter: `dry`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: sets direct contribution.
-- Transition requirement: preserve bypass and gain staging.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.10 Freeze
-
-**Automation card: Freeze: Slow rise**
-
-- Host parameter: `freeze`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: changes network energy behavior.
-- Transition requirement: use a debounced, smoothed mode transition.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 
@@ -14379,56 +14462,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
-**Automation card: Freeze: Tempo pulse**
-
-- Host parameter: `freeze`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: changes network energy behavior.
-- Transition requirement: use a debounced, smoothed mode transition.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Freeze: Scene switch**
-
-- Host parameter: `freeze`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: changes network energy behavior.
-- Transition requirement: use a debounced, smoothed mode transition.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.11 Reverse
-
-**Automation card: Reverse: Slow rise**
-
-- Host parameter: `reverse`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: changes the envelope and buffering model.
-- Transition requirement: report added latency before activation.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
 **Automation card: Reverse: Slow fall**
 
 - Host parameter: `reverse`.
@@ -14439,56 +14472,6 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the slow fall move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement tests whether stored energy decays naturally. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Reverse: Tempo pulse**
-
-- Host parameter: `reverse`.
-- Motion: alternate two musically useful values on a bar or phrase boundary.
-- Primary observation: changes the envelope and buffering model.
-- Transition requirement: report added latency before activation.
-
-Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-**Automation card: Reverse: Scene switch**
-
-- Host parameter: `reverse`.
-- Motion: change once at an arrangement boundary and hold.
-- Primary observation: changes the envelope and buffering model.
-- Transition requirement: report added latency before activation.
-
-Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
-
-Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
-
-
-\newpage
-
-### 20.12 Quality
-
-**Automation card: Quality: Slow rise**
-
-- Host parameter: `quality_mode`.
-- Motion: move from the lower setting to the upper setting over eight or more bars.
-- Primary observation: selects the internal rate policy.
-- Transition requirement: apply through a safe reprepare boundary.
-
-Write the slow rise move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
-
-Listen at the beginning, during the transition, and after the value settles. This movement reveals zipper noise and coefficient discontinuities. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 
@@ -14511,6 +14494,187 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 
 \newpage
 
+### 20.3 Tempo pulse
+
+**Motion grammar:** Alternate two musically useful values on a bar or phrase boundary.
+**Primary listening question:** This pattern tests repeatability and transition timing.
+
+**Automation card: Pre-Delay: Tempo pulse**
+
+- Host parameter: `pre_delay_ms`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: separates the direct event from the room onset.
+- Transition requirement: use a ramp or delay-line crossfade.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Room Size: Tempo pulse**
+
+- Host parameter: `room_size`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: changes perceived scale and reflection spacing.
+- Transition requirement: stage structural changes outside the callback.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: RT60 Coarse: Tempo pulse**
+
+- Host parameter: `rt60_coarse`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: moves through the full logarithmic decay range.
+- Transition requirement: display the effective seconds value.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: RT60 Fine: Tempo pulse**
+
+- Host parameter: `rt60_fine`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: trims decay proportionally around the coarse value.
+- Transition requirement: keep zero as the exact neutral point.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Damping: Tempo pulse**
+
+- Host parameter: `damping`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: changes high-frequency persistence.
+- Transition requirement: interpolate stable filter coefficients.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Width: Tempo pulse**
+
+- Host parameter: `width`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: changes lateral energy and correlation.
+- Transition requirement: monitor mono compatibility during movement.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Diffusion: Tempo pulse**
+
+- Host parameter: `diffusion`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: changes echo-density buildup.
+- Transition requirement: crossfade when topology must change.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Wet: Tempo pulse**
+
+- Host parameter: `wet`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: sets processed contribution.
+- Transition requirement: choose and document the mix law.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Dry: Tempo pulse**
+
+- Host parameter: `dry`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: sets direct contribution.
+- Transition requirement: preserve bypass and gain staging.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Freeze: Tempo pulse**
+
+- Host parameter: `freeze`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: changes network energy behavior.
+- Transition requirement: use a debounced, smoothed mode transition.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Reverse: Tempo pulse**
+
+- Host parameter: `reverse`.
+- Motion: alternate two musically useful values on a bar or phrase boundary.
+- Primary observation: changes the envelope and buffering model.
+- Transition requirement: report added latency before activation.
+
+Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
 **Automation card: Quality: Tempo pulse**
 
 - Host parameter: `quality_mode`.
@@ -14521,6 +14685,187 @@ Document whether the control is continuously smooth, crossfaded, or intentionall
 Write the tempo pulse move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
 
 Listen at the beginning, during the transition, and after the value settles. This movement tests repeatability and transition timing. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+### 20.4 Scene switch
+
+**Motion grammar:** Change once at an arrangement boundary and hold.
+**Primary listening question:** This pattern tests state recall and discrete transition behavior.
+
+**Automation card: Pre-Delay: Scene switch**
+
+- Host parameter: `pre_delay_ms`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: separates the direct event from the room onset.
+- Transition requirement: use a ramp or delay-line crossfade.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Room Size: Scene switch**
+
+- Host parameter: `room_size`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: changes perceived scale and reflection spacing.
+- Transition requirement: stage structural changes outside the callback.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: RT60 Coarse: Scene switch**
+
+- Host parameter: `rt60_coarse`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: moves through the full logarithmic decay range.
+- Transition requirement: display the effective seconds value.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: RT60 Fine: Scene switch**
+
+- Host parameter: `rt60_fine`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: trims decay proportionally around the coarse value.
+- Transition requirement: keep zero as the exact neutral point.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Damping: Scene switch**
+
+- Host parameter: `damping`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: changes high-frequency persistence.
+- Transition requirement: interpolate stable filter coefficients.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Width: Scene switch**
+
+- Host parameter: `width`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: changes lateral energy and correlation.
+- Transition requirement: monitor mono compatibility during movement.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Diffusion: Scene switch**
+
+- Host parameter: `diffusion`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: changes echo-density buildup.
+- Transition requirement: crossfade when topology must change.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Wet: Scene switch**
+
+- Host parameter: `wet`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: sets processed contribution.
+- Transition requirement: choose and document the mix law.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Dry: Scene switch**
+
+- Host parameter: `dry`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: sets direct contribution.
+- Transition requirement: preserve bypass and gain staging.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Freeze: Scene switch**
+
+- Host parameter: `freeze`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: changes network energy behavior.
+- Transition requirement: use a debounced, smoothed mode transition.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
+
+Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
+
+
+\newpage
+
+**Automation card: Reverse: Scene switch**
+
+- Host parameter: `reverse`.
+- Motion: change once at an arrangement boundary and hold.
+- Primary observation: changes the envelope and buffering model.
+- Transition requirement: report added latency before activation.
+
+Write the scene switch move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.
+
+Listen at the beginning, during the transition, and after the value settles. This movement tests state recall and discrete transition behavior. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.
 
 Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.
 
@@ -22694,33 +23039,226 @@ hatch run verbx ir gen irs/pitched_modal.wav \
 
 ### Microtonal Hybrid from a Scala Scale
 
-This recipe maps degree 0 of the included 19-EDO example to 220 Hz, expands the
-scale through the useful audio range, and gives every late-tail family a
-moderate pitch affinity. The generated WAV is an ordinary convolution IR.
+Scale-tuned reverberation can range from a nearly invisible spectral affinity
+to an exposed bank of sympathetic resonances. The examples below keep Scala
+import offline and deterministic: each command generates an ordinary WAV IR
+that can be auditioned through convolution, reused in a DAW, or archived with
+its metadata sidecar. They also demonstrate why scale, root, degree mapping,
+bandwidth, register, synthesis mode, and source material must be considered as
+one musical design.
+
+The included scale library provides three contrasting starting points:
+
+- `19edo.scl` divides the octave into 19 equal steps.
+- `5_limit_major.scl` uses a seven-degree, 5-limit just-intonation collection.
+- `bohlen_pierce_13edo.scl` divides the $3/1$ tritave into 13 equal steps rather
+  than repeating at the octave.
+
+#### Example 1: A subtle 19-EDO harmonic halo
+
+This first recipe maps degree 0 of 19-EDO to 220 Hz and expands the lattice
+through the useful audio range. Moderate strength, 36-cent bandwidth, and 3 dB
+of emphasis make the tuning more likely to be heard as room color than as a
+separate resonator. The hybrid mode retains diffuse energy between scale bands,
+which lets chromatic and continuously pitched source material move without
+feeling quantized.
 
 ```bash
-hatch run verbx ir gen irs/19edo_hybrid.wav \
+mkdir -p irs renders
+
+hatch run verbx ir gen irs/19edo_halo.wav \
   --mode hybrid --length 18 --rt60 7 --seed 19 \
   --scala-file examples/scales/19edo.scl \
   --scala-root-hz 220 --scala-root-degree 0 \
-  --scala-low-hz 90 --scala-high-hz 10000 \
-  --scala-strength 0.65 --scala-bandwidth-cents 22 \
-  --scala-gain-db 5 --scala-max-targets 128
+  --scala-low-hz 140 --scala-high-hz 9000 \
+  --scala-strength 0.48 --scala-bandwidth-cents 36 \
+  --scala-gain-db 3 --scala-max-targets 128
 
-hatch run verbx render source.wav tuned_space.wav \
-  --engine conv --ir irs/19edo_hybrid.wav --wet 0.35 --dry 1
+hatch run verbx render examples/audio/realistic_music_dry.wav \
+  renders/19edo_halo.wav --engine conv --ir irs/19edo_halo.wav \
+  --wet 0.28 --dry 1
 ```
 
-For realtime use, generate the IR before opening the stream:
+Listen first at the stated wet level, then solo the wet return. In context, the
+tail should feel unusually coherent without producing obvious isolated notes.
+Soloed, the 19-step lattice should be easier to hear in sustained harmonics and
+broadband attacks. Raising `--scala-low-hz` keeps the reverb from inventing a
+strong bass pedal beneath harmonically mobile music.
+
+#### Example 2: Exposed 5-limit just-intonation resonance
+
+The next design uses a sparse 5-limit scale and modal synthesis. Ratios such as
+$5/4$, $3/2$, and $5/3$ generate exact frequency relationships to the mapped
+root. Narrower 14-cent bands, stronger attraction, and a lower target ceiling
+turn the IR into an audible resonant object. Dry clicks and percussion are good
+test sources because their broad attacks excite many modes at once.
 
 ```bash
-hatch run verbx realtime \
-  --engine conv --ir irs/19edo_hybrid.wav --block-size 128
+hatch run verbx ir gen irs/just_modal_A3.wav \
+  --mode modal --length 12 --rt60 8 --seed 51 \
+  --modal-count 72 --modal-q-min 18 --modal-q-max 110 \
+  --scala-file examples/scales/5_limit_major.scl \
+  --scala-root-hz 220 --scala-root-degree 0 \
+  --scala-low-hz 80 --scala-high-hz 5000 \
+  --scala-strength 0.88 --scala-bandwidth-cents 14 \
+  --scala-gain-db 8 --scala-max-targets 96
+
+hatch run verbx render examples/audio/dry_click.wav \
+  renders/just_modal_click.wav --engine conv \
+  --ir irs/just_modal_A3.wav --wet 1 --dry 0
+
+hatch run verbx render examples/audio/realistic_drums_dry.wav \
+  renders/just_modal_drums.wav --engine conv \
+  --ir irs/just_modal_A3.wav --wet 0.42 --dry 1
 ```
 
+On the click, identify the lowest stable pitch and then follow upper modes as
+they decay at different rates. On drums, listen for a pitched residue after the
+transient. If the result sounds like an added chord rather than reverberation,
+reduce strength toward 0.65, increase bandwidth toward 24 cents, or change from
+`modal` to `hybrid`. If the kick drum pulls the perceived root too strongly,
+raise `--scala-low-hz` instead of removing low frequencies from the source.
+
+#### Example 3: A non-octave Bohlen–Pierce field
+
+Bohlen–Pierce tuning repeats at the $3/1$ tritave. Its scale degrees therefore
+do not return to equivalent pitch classes at each octave. This example uses a
+hybrid tail, a restrained lower limit, and a 7.5-second RT60 so the non-octave
+relationships can overlap without creating an indefinitely accumulating drone.
+
+```bash
+hatch run verbx ir gen irs/bohlen_pierce_space.wav \
+  --mode hybrid --length 16 --rt60 7.5 --seed 313 \
+  --scala-file examples/scales/bohlen_pierce_13edo.scl \
+  --scala-root-hz 130.8128 --scala-root-degree 0 \
+  --scala-low-hz 90 --scala-high-hz 7800 \
+  --scala-strength 0.72 --scala-bandwidth-cents 26 \
+  --scala-gain-db 5 --scala-max-targets 104
+
+hatch run verbx render examples/audio/realistic_speech_dry.wav \
+  renders/bohlen_pierce_speech.wav --engine conv \
+  --ir irs/bohlen_pierce_space.wav --wet 0.34 --dry 1
+
+hatch run verbx render examples/audio/realistic_music_dry.wav \
+  renders/bohlen_pierce_music.wav --engine conv \
+  --ir irs/bohlen_pierce_space.wav --wet 0.34 --dry 1
+```
+
+Speech reveals the scale as a changing coloration because vowels excite
+different subsets of the lattice. Harmonic music reveals disagreement between
+octave-repeating source partials and tritave-repeating resonances. Compare the
+two renders at matched level: the same IR may read as timbre on speech and as a
+second harmonic system on sustained music.
+
+#### Example 4: Rotate the root degree without changing the reference pitch
+
+`--scala-root-degree` decides which scale degree receives
+`--scala-root-hz`. The following matched-seed pair assigns 220 Hz first to the
+implicit $1/1$ and then to degree 5 of 19-EDO. Every non-tuning parameter is held
+constant, so the comparison isolates degree rotation rather than random-tail
+variation.
+
+```bash
+hatch run verbx ir gen irs/19edo_degree_0.wav \
+  --mode hybrid --length 14 --rt60 6 --seed 1905 \
+  --scala-file examples/scales/19edo.scl \
+  --scala-root-hz 220 --scala-root-degree 0 \
+  --scala-low-hz 100 --scala-high-hz 8000 \
+  --scala-strength 0.68 --scala-bandwidth-cents 22 --scala-gain-db 5
+
+hatch run verbx ir gen irs/19edo_degree_5.wav \
+  --mode hybrid --length 14 --rt60 6 --seed 1905 \
+  --scala-file examples/scales/19edo.scl \
+  --scala-root-hz 220 --scala-root-degree 5 \
+  --scala-low-hz 100 --scala-high-hz 8000 \
+  --scala-strength 0.68 --scala-bandwidth-cents 22 --scala-gain-db 5
+
+hatch run verbx render examples/audio/realistic_music_dry.wav \
+  renders/19edo_degree_0.wav --engine conv --ir irs/19edo_degree_0.wav \
+  --wet 0.38 --dry 1
+
+hatch run verbx render examples/audio/realistic_music_dry.wav \
+  renders/19edo_degree_5.wav --engine conv --ir irs/19edo_degree_5.wav \
+  --wet 0.38 --dry 1
+```
+
+The second IR does not merely transpose the first by five ordinary semitones.
+It maps a different degree ratio to the same physical reference frequency, then
+reconstructs the complete lattice around that mapping. Compare sustained notes,
+cadences, and silence after phrase endings. The changed relationship is often
+most audible after the dry source stops.
+
+#### Example 5: Separate tuning from random topology in an A/B test
+
+A rigorous comparison needs an untuned control. Use the same mode, seed, length,
+RT60, filters, and channel count, then change only the Scala options. The first
+IR below establishes the control; the second adds a broad, moderate 5-limit
+affinity.
+
+```bash
+hatch run verbx ir gen irs/control_seed_808.wav \
+  --mode hybrid --length 20 --rt60 9 --seed 808 \
+  --lowcut 70 --highcut 11000
+
+hatch run verbx ir gen irs/just_seed_808.wav \
+  --mode hybrid --length 20 --rt60 9 --seed 808 \
+  --lowcut 70 --highcut 11000 \
+  --scala-file examples/scales/5_limit_major.scl \
+  --scala-root-hz 196 --scala-root-degree 0 \
+  --scala-low-hz 100 --scala-high-hz 9000 \
+  --scala-strength 0.55 --scala-bandwidth-cents 32 --scala-gain-db 4
+
+hatch run verbx render examples/audio/realistic_music_dry.wav \
+  renders/control_seed_808.wav --engine conv --ir irs/control_seed_808.wav \
+  --wet 0.4 --dry 1
+
+hatch run verbx render examples/audio/realistic_music_dry.wav \
+  renders/just_seed_808.wav --engine conv --ir irs/just_seed_808.wav \
+  --wet 0.4 --dry 1
+
+hatch run verbx analyze renders/control_seed_808.wav \
+  --json-out renders/control_seed_808.analysis.json
+
+hatch run verbx analyze renders/just_seed_808.wav \
+  --json-out renders/just_seed_808.analysis.json
+```
+
+Level-match before judging the pair. Use the JSON reports to check that a level
+or decay difference is not masquerading as a tuning preference. Then describe
+whether the scale-conditioned version changes perceived consonance, roughness,
+brightness, pitch stability, or the boundary between source and room.
+
+#### Example 6: Prepare a rooted bank for realtime or DAW use
+
+A static convolution IR cannot follow chord symbols automatically, but a small
+rooted library can be generated before a performance or mix. The command below
+shows one member of such a bank. Repeat it with the same seed and different
+root frequencies, preserving a filename that states the mapping.
+
+```bash
+hatch run verbx ir gen irs/ji_root_C3_130.8128.wav \
+  --mode hybrid --length 10 --rt60 4.8 --seed 5150 \
+  --scala-file examples/scales/5_limit_major.scl \
+  --scala-root-hz 130.8128 --scala-root-degree 0 \
+  --scala-low-hz 90 --scala-high-hz 7500 \
+  --scala-strength 0.6 --scala-bandwidth-cents 28 --scala-gain-db 4
+
+hatch run verbx realtime --engine conv \
+  --ir irs/ji_root_C3_130.8128.wav --block-size 128
+```
+
+For section changes, overlap two wet returns and use an equal-power crossfade
+long enough to preserve the old IR's early field. An abrupt replacement cuts
+off the previous convolution state and can sound like a gate. In a DAW, place
+each rooted IR on a separate return and automate sends or return gains. In an
+offline CLI workflow, render sections with complete tails and assemble them
+afterward.
+
 The realtime latency is the same as for any other IR with the same partition
-and block settings. Scala parsing and filter-bank construction do not run on
-the callback thread.
+and block settings. Scala parsing, target expansion, and filter-bank
+construction do not run on the callback thread. The metadata sidecar records
+the scale hash and resolved targets, so an IR bank remains auditable even if two
+source files happen to share a filename.
 
 ### Resonator-Colored Hybrid (Modalys-Inspired)
 
@@ -25568,6 +26106,33 @@ When a named recording is central to the entry, use that recording or a document
 
 **Olivier Messiaen, *Et exspecto resurrectionem mortuorum* (1964).** Monumental wind and percussion sonorities are written to activate a large resonant space, with silence functioning as part of the decay. Listen through the rests rather than treating them as empty time. Build a study with sparse gong or tam-tam attacks, long multiband decay, and enough headroom that each tail can be heard to disappear naturally.
 
+## Marcel Pérès and Ensemble Organum: Ritual, Place, and Vocal Grain
+
+Marcel Pérès founded Ensemble Organum in 1982. Its work is especially useful here
+because it treats medieval repertory as embodied, situated sound rather than as
+neutral notation placed in a generic “church reverb.” The ensemble’s work moves
+among European and Mediterranean sacred traditions, and its research-oriented
+approach makes vocal color, declamation, drone, ornament, tuning, and architectural
+resonance mutually dependent listening variables. The ensemble’s own history and
+discography document that breadth, from early medieval repertories to later regional
+chant traditions. [Ensemble Organum history](https://organumcirma.com/ensemble-organum/)
+and [discography](https://organumcirma.com/en_GB/discographie/).
+
+For verbx work, do not imitate a recording’s room by immediately choosing a huge,
+bright cathedral preset. First preserve the direct vocal event: narrow the early
+field, use enough pre-delay for consonants and melismas to remain legible, darken
+the return gradually, and compare a close, dryer perspective against a more distant
+one. The artistic question is not simply “how long is the tail?” but how breath,
+unison, drone, ornament, and reverberant memory establish ritual time. A useful
+analysis compares energy decay with the persistence of vowels and with the moment
+at which individual singers stop reading as separate sources.
+
+**Ensemble Organum and Marcel Pérès, *École de Notre-Dame de Paris: Mass for the Nativity of the Virgin* (1995).** The twelfth- and thirteenth-century Notre-Dame repertory invites a close comparison between written polyphony, vocal blend, and the imagined or recorded architectural field. Listen for how sustained tones establish a shared acoustic ground while rhythmic and textual detail remains locally articulated. Build two versions of an original vocal study: a controlled early-reflection field with a modest late tail, and a more diffuse late field. Match loudness, then identify the point at which the second version begins to obscure the line. The [Harmonia Mundi release page](https://www.harmoniamundi.com/en/albums/ecole-notre-dame-de-paris/) confirms the program and artists.
+
+**Ensemble Organum and Marcel Pérès, *Guillaume de Machaut: Messe de Notre-Dame* (1996).** Machaut’s *Messe de Nostre Dame* (c. 1365) is a powerful reverb test because independent vocal entries must remain intelligible while the whole mass acquires ceremonial continuity. Listen for the way dense contrapuntal activity changes the maximum usable decay more than a single RT60 number predicts. In verbx, send four to eight original vocal layers through one coherent late field but vary their early-reflection timing and direct-to-reverberant ratio; compare the result with a single shared stereo return. The [album record](https://music.apple.com/fr/album/guillaume-de-machaut-messe-de-notre-dame/1441776841) identifies the Pérès and Ensemble Organum recording.
+
+**Ensemble Organum and Marcel Pérès, *Chant Corse: Manuscrits franciscains des XVIIe–XVIIIe siècles* (1994).** This Corsican chant program is a reminder that resonant sacred sound is not one homogeneous northern-European cathedral style. Attend to the relation of solo and collective vocal weight, drone-like support, irregular phrase length, and the acoustic space between entries. A productive verbx exercise is to make three alternate responses for an original chant-like phrase: intimate and nearly dry, a short stone enclosure, and a dark extended field. Keep the source performance identical, log the render parameters, and judge which spatial treatment clarifies rather than exoticizes the material. The [release listing](https://www.fnac.com/a365943/Requiem-CD-album) identifies the 1994 recording and repertory.
+
 ## Recorded Space and Tape-Era Studio Craft
 
 **Les Paul and Mary Ford, *How High the Moon* (1951).** Layering, close recording, speed manipulation, and repeated parts create an impossible studio ensemble whose space is assembled rather than documented. Listen for the contrast between intimate vocal presence and the depth implied by overdubs. Use a short room, narrow slap, and different pre-delays per layer; avoid one wash that flattens the arrangement.
@@ -25762,7 +26327,7 @@ The listening notes are interpretive and intentionally avoid reproducing lyrics 
 
 ## Expanded Listening Canon
 
-The following 192 additions broaden the appendix across sacred, orchestral, jazz, popular, ambient, theater, installation, environmental, game, and contemporary immersive practices. Piece and album titles are italicized throughout. Each entry pairs a listening cue with a practical study prompt. Links open a stable YouTube catalog search so readers can select an authorized or territorially available recording; recording-specific citations in the preceding section and the primary documentation below remain the preferred references where supplied. For broader biographical and professional context on women in American music, consult Kristine H. Burns's edited two-volume *Women and Music in America Since 1900: An Encyclopedia* (2002), cited in the research bibliography.
+The following 192 additions broaden the appendix across sacred, orchestral, jazz, popular, ambient, theater, installation, environmental, game, and contemporary immersive practices. Piece and album titles are italicized throughout. Each entry pairs a listening cue with a practical study prompt. Links open a stable YouTube catalog search so readers can select an authorized or territorially available recording; recording-specific citations in the preceding section and the primary documentation below remain the preferred references where supplied.
 
 ### Curated Listening Routes
 
@@ -26049,7 +26614,7 @@ The following 192 additions broaden the appendix across sacred, orchestral, jazz
 
 > **Study prompt.** Automate only one spatial parameter across a short form inspired by *Seigfried* (2016); test whether the form remains legible without level automation.
 
-**Lee 'Scratch' Perry and the Upsetters, *Dub Revolution* (1973).** from *Blackboard Jungle Dub*. Mutes, spring-like splashes, filtering, and feedback demonstrate that the wet return can function as an improvising answer rather than a fixed background. [YouTube catalog search](https://www.youtube.com/results?search_query=Lee+%27Scratch%27+Perry+and+the+Upsetters+Dub+Revolution+official).
+**Lee “Scratch” Perry and the Upsetters, *Dub Revolution* (1973).** from *Blackboard Jungle Dub*. Mutes, spring-like splashes, filtering, and feedback demonstrate that the wet return can function as an improvising answer rather than a fixed background. [YouTube catalog search](https://www.youtube.com/results?search_query=Lee+%E2%80%9CScratch%E2%80%9D+Perry+and+the+Upsetters+Dub+Revolution+official).
 
 > **Study prompt.** Rebuild one 20–30 second spatial gesture from *Dub Revolution* (1973) with original material, then preserve the exact render command and JSON report.
 
@@ -28257,6 +28822,235 @@ listed degrees before the final period. Degree zero is therefore the implicit
 $1/1$. Assigning 220 Hz to degree zero places the unison lattice on 220 Hz;
 assigning 220 Hz to another degree rotates the same scale around that reference.
 
+## Tuning Mathematics for Reverb Designers
+
+Microtonal work becomes easier when ratios, cents, and frequencies are treated
+as different views of the same interval. A ratio $r$ converts to cents by
+
+$$
+c(r)=1200\log_2(r),
+$$
+
+and a cent value $c$ converts back to a ratio by
+
+$$
+r(c)=2^{c/1200}.
+$$
+
+Equal divisions of a period use one repeated step. If a period ratio $r_p$ is
+divided into $N$ equal parts, degree $d$ has ratio
+
+$$
+r_d=r_p^{d/N}.
+$$
+
+For ordinary $N$-EDO, $r_p=2$; for 13 equal divisions of the Bohlen–Pierce
+tritave, $r_p=3$. The distinction is structural. An octave-period scale repeats
+its pitch classes when frequency doubles, while a tritave-period scale repeats
+when frequency triples. Convolution exposes that difference because every
+source partial encounters a fixed lattice extending through many registers.
+
+Just-intonation scales specify small-integer ratios instead of equal steps. A
+$3/2$ perfect fifth above 220 Hz resolves to 330 Hz, while a $5/4$ major third
+resolves to 275 Hz. Those exact values matter when tuned resonances are narrow.
+If a source partial lies at frequency $f_s$ and the corresponding IR resonance
+lies at $f_r$, their beating rate is approximately
+
+$$
+f_b=\lvert f_s-f_r\rvert.
+$$
+
+A 1 Hz difference produces a slow pulse; a 12 Hz difference can produce
+obvious roughness; a much larger difference may be heard as separate spectral
+components. The perceptual boundary is frequency dependent and affected by
+level, duration, masking, and the spectra of both source and return. This is why
+one fixed cent tolerance cannot describe every register equally well.
+
+### Bandwidth, quality factor, and selectivity
+
+verbx expresses resonance width in cents because that is musically portable
+across frequency. If the full bandwidth is $b$ cents around center frequency
+$f_c$, the approximate linear bandwidth is
+
+$$
+\Delta f=f_c\left(2^{b/2400}-2^{-b/2400}\right),
+$$
+
+and the corresponding quality factor is
+
+$$
+Q=\frac{f_c}{\Delta f}.
+$$
+
+The same cent width therefore occupies more hertz in the treble than in the
+bass while preserving approximately equal pitch selectivity. Narrow bands
+produce long, identifiable ringing and reveal small tuning differences. Broad
+bands tolerate vibrato, bends, ensemble intonation, and detuned partials, but
+they also reduce the identity of individual scale degrees.
+
+Bandwidth should be chosen with the source, not in isolation. A fixed-pitch
+synthesizer can support narrow bands; a choir, string ensemble, or analog
+oscillator often benefits from a wider field. Percussive noise may excite every
+band strongly enough that even moderate widths create an unmistakably pitched
+tail.
+
+## A Signal Model for Scale-Conditioned Decay
+
+For input $x[n]$ and IR $h[n]$, convolution produces
+
+$$
+y[n]=\sum_m x[m]h[n-m].
+$$
+
+A useful conceptual decomposition writes the tuned IR as
+
+$$
+h[n]=(1-\alpha)h_u[n]+\alpha h_s[n],
+$$
+
+where $h_u[n]$ is the underlying untuned or diffuse response, $h_s[n]$ is the
+scale-conditioned component, and $\alpha$ represents the effective tuning
+strength. This equation is conceptual rather than an exact statement of every
+internal normalization stage, but it explains the audible continuum. Near
+$\alpha=0$, the result behaves like an ordinary room with slight color. Near
+$\alpha=1$, the tail behaves more like a resonator bank.
+
+The tuned component may be approximated as a sum of damped modes:
+
+$$
+h_s[n]=\sum_{k=1}^{K} A_k e^{-n/\tau_k}
+\sin\!\left(2\pi f_k n/f_s+\phi_k\right),
+$$
+
+where each $f_k$ is attracted toward a resolved Scala target. The input does
+not activate every mode equally. In the frequency domain,
+
+$$
+Y(e^{j\omega})=X(e^{j\omega})H(e^{j\omega}),
+$$
+
+so a resonance becomes prominent only when the source supplies energy near it.
+This explains why the same IR can sound gently colored on one instrument and
+strongly pitched on another.
+
+The tail also acts as a memory. If note $i$ ends at time $t_i$ with decay
+constant $\tau_i$, its residual amplitude at later time $t$ is proportional to
+
+$$
+a_i(t)=a_i(t_i)e^{-(t-t_i)/\tau_i}.
+$$
+
+The harmony heard at time $t$ therefore includes the present source plus
+weighted remnants of earlier events. Tuning and RT60 cannot be separated
+musically: the scale selects what persists, while decay time determines how
+many prior events remain available to interact.
+
+## Psychoacoustics of Tuned Reverberation
+
+### Fusion, beating, and roughness
+
+Two nearby components may fuse into one fluctuating tone, produce audible
+beats, or separate into distinct pitches. Tuned reverb can place the dry source
+and wet resonance on either side of those perceptual regimes. Narrow bands and
+high wet level emphasize discrepancies; broad bands and diffuse energy promote
+fusion. Slow beating can sound like life or motion, while dense beating across
+many partials can make a tail grainy, unstable, or harsh.
+
+The relationship changes over time. During the attack, the direct source often
+masks the return. After the source stops, the resonance is exposed and its
+pitch may appear to “resolve” even though the system is linear and time
+invariant. This temporal unmasking is one reason tuned reverberation can affect
+phrase endings more strongly than note beginnings.
+
+### Auditory masking and register
+
+Strong source energy can hide nearby wet resonances during a phrase. A sparse
+arrangement or a rest reveals them. Low resonances need little gain to imply a
+pedal because the bass contains fewer competing modes and anchors pitch
+strongly. Midrange resonances interact with fundamentals and low partials, so
+they most readily alter perceived harmony. High resonances often read as sheen,
+metal, or air unless they form a sparse and sustained pattern.
+
+Masking also explains why soloing the wet return is necessary but insufficient.
+The solo reveals the IR's vocabulary; the full mix reveals whether that
+vocabulary survives, supports, or interferes with the source. Decisions should
+be made in both conditions at matched playback level.
+
+### Pitch salience versus spatial plausibility
+
+Ordinary room reverberation contains modes, but a dense, irregular distribution
+usually prevents one scale from dominating. Pulling modes toward a pitch
+lattice increases pitch salience and can reduce the impression of a neutral
+physical room. There is no universal optimum. Production work may favor a
+plausible space with subtle affinity, while installation, electroacoustic, or
+experimental work may intentionally cross into an audible instrument.
+
+Three controls move the result along this continuum:
+
+1. Increase `--scala-strength` to align and blend more strongly.
+2. Increase `--scala-gain-db` to expose the conditioned bands.
+3. Decrease `--scala-bandwidth-cents` to make each band more selective.
+
+Changing all three at once makes diagnosis difficult. Move one coordinate at a
+time, level-match, and preserve the previous IR for comparison.
+
+## How Each Synthesis Mode Expresses a Scale
+
+The same `.scl` file does not produce the same musical behavior in every mode.
+
+| Mode | Scale mechanism | Typical impression | Best first use |
+|---|---|---|---|
+| `fdn` | Conditioned bands color a recursively mixed late field | Smooth space with a persistent spectral center | General musical reverb that must remain cohesive |
+| `stochastic` | Constant-Q emphasis shapes a noise-derived decay | Diffuse, breath-like spectrum with weak note identity | Vocals, speech, pads, and subtle alternate-tuning color |
+| `modal` | Resonator frequencies are attracted toward scale targets, then emphasized | Clearly pitched object or sympathetic resonator | Percussion, impulses, drones, and exposed sound design |
+| `hybrid` | Early field and multiple late families combine before conditioning | Balanced room cues plus audible harmonic affinity | Default composition and production workflow |
+
+`modal` is the most revealing diagnostic mode because individual resonances are
+easy to hear. It is also the easiest mode to overstate. `stochastic` can hide
+scale identity when bands are broad or gain is low, but that restraint may be
+exactly right for a vocal mix. `hybrid` is usually the safest starting point
+because untuned energy fills gaps between targets and maintains a continuous
+tail.
+
+The selected mode should match the artistic metaphor. If the desired result is
+“a room sympathetic to this scale,” begin with `hybrid` or `fdn`. If it is “an
+instrument made from this scale,” begin with `modal`. If it is “air colored by
+this scale,” begin with `stochastic`.
+
+## Designing and Auditing a Scala File
+
+A scale file is small enough to inspect manually, and it should be. Before
+generation, verify:
+
+1. The description identifies the scale and source clearly.
+2. The declared count equals the number of pitch rows.
+3. Every degree lies strictly above the implicit $1/1$ and below or at the
+   final period.
+4. Degrees are strictly increasing.
+5. Decimal cents and ratios express the intended values.
+6. The last entry is the intended repeat period, not accidentally the last
+   pitch class below it.
+7. The file is UTF-8 text and comments begin with `!`.
+
+Do not infer tuning from a filename alone. A file called `just_major.scl` may
+use a different seventh, omit a degree, or repeat at a nonstandard period. The
+SHA-256 stored by verbx identifies the actual bytes used in synthesis.
+
+For a new scale, begin with a narrow frequency range and print or inspect the
+resolved metadata. Confirm that the selected root appears where expected and
+that the highest targets remain below Nyquist. Then expand the range. This
+staged procedure catches root-degree and period mistakes before a long IR is
+rendered.
+
+The bundled examples provide useful parser contrasts:
+
+- `examples/scales/19edo.scl` uses cents and an octave period.
+- `examples/scales/5_limit_major.scl` uses integer ratios and an octave period.
+- `examples/scales/bohlen_pierce_13edo.scl` uses cents with a $3/1$ period.
+
+They are demonstrations, not canonical definitions of every performance
+practice associated with those tuning families.
+
 ## First Complete Workflow
 
 Generate the tuned IR once, inspect it, and then use it in as many renders as
@@ -28391,6 +29185,81 @@ hard channel-specific peaks that disappear under downmixing. Treat each IR as
 part of a spatial harmony, then check mono, stereo, binaural, and speaker-array
 translations at matched level.
 
+## Source-Aware Orchestration
+
+The scale file defines available resonances, but orchestration determines which
+ones receive energy. Designing the IR without considering the source is like
+specifying sympathetic strings without asking what will excite them.
+
+### Voice and choir
+
+Vowels contain moving formants and a harmonic series whose exact frequencies
+follow the sung fundamental. Consonants provide broadband transients that can
+excite the entire tuned field. A narrow IR may reinforce stable vowels while
+making consonant tails unexpectedly pitched. For solo voice, begin above the
+lowest expected fundamental and use 25–45-cent bandwidth. For choir, broaden
+further unless exposing intonation differences is part of the piece.
+
+Test vibrato at the slowest and fastest expected rates. If the dry pitch moves
+outside a narrow resonance while the tail remains fixed, the result can alternate
+between reinforcement and attenuation. That may sound luminous, unstable, or
+simply out of tune depending on context. A broad hybrid field generally follows
+human pitch variation more gracefully than a high-$Q$ modal bank.
+
+### Strings and winds
+
+String spectra change with bow position, pressure, mute, register, and
+articulation. Sul ponticello playing supplies abundant upper-partial energy and
+can reveal high Scala targets dramatically; a soft fundamental-rich tone may
+activate only a few low modes. Glissandi create a useful diagnostic because
+resonances brighten as partials cross the fixed lattice.
+
+Wind instruments differ in harmonic structure and noise content. Clarinet-like
+odd-partial emphasis, flute-like breath energy, and brass brightness illuminate
+different degree subsets even on the same written pitch. Test representative
+registers independently. A tuning that flatters a low horn line may turn a high
+reed texture into a dense whistle bank.
+
+### Piano, harp, and fixed-pitch instruments
+
+Fixed-pitch instruments make tuning differences easy to reproduce. They also
+carry long natural decays, so instrument resonance and room resonance overlap.
+Before increasing RT60, compare the dry decay with the wet-only decay. If the
+source already sustains for several seconds, a shorter tuned IR may create more
+clarity than a long one.
+
+Pedal behavior matters. A sustained piano resonance can feed the reverb with
+partials from many earlier notes, producing a two-stage memory: strings retain
+the harmony, then the IR retains the strings. Sparse textures expose this
+beautifully; dense pedal can turn even a seven-degree IR into broadband
+accumulation.
+
+### Percussion and impulsive excitation
+
+Clicks, woodblocks, snare attacks, and mallet transients approximate broad
+excitation and make the IR's pitch set audible. A modal Scala IR can transform
+an unpitched attack into a pitched gesture. This is one of the clearest ways to
+treat reverberation as orchestration rather than ambience.
+
+The apparent pitch may depend more on modal amplitude and damping than on the
+formal root. If one low target dominates, adjust `--scala-low-hz`, use a higher
+root, or reduce modal emphasis before changing the scale itself. Preserve peak
+headroom because simultaneous excitation of many resonances can create a large
+wet transient followed by a deceptively quiet tail.
+
+### Electronics, distortion, and noise
+
+An ideal sine excites only a narrow part of the IR. Saturation or distortion
+adds harmonics that can awaken many more degrees. If tuning seems absent on a
+pure oscillator, compare the same line after gentle saturation. Conversely, if
+a distorted source makes the field overwhelming, generate a version with a
+lower high-frequency limit rather than merely reducing global wet level.
+
+Noise reveals the transfer function almost directly. Filtered noise can audit
+one register at a time, while full-band noise exposes the complete lattice.
+Because noise is not harmonically committed, the tuned return may become the
+primary pitch-bearing layer.
+
 ## Composition and Production Strategies
 
 ### Stable halo
@@ -28444,6 +29313,84 @@ Use `hybrid` or `stochastic`, strength below 0.6, 30–60-cent bandwidth, and a
 moderate gain. This leaves enough untuned energy to bind the tail together and
 reduces the impression of a parallel synthesizer.
 
+## Worked Harmonic-Time Scenarios
+
+### One chord, several decay windows
+
+Begin with one sustained sonority followed by silence. Render it through three
+IRs sharing scale, root, seed, and spectral limits but using RT60 values of 1.5,
+5, and 15 seconds. The short response behaves primarily as color. The middle
+response lets individual degrees become legible after release. The long
+response turns the chord into a formal background for whatever follows.
+
+This comparison demonstrates why scale-tuned reverb cannot be specified by
+tuning alone. The same frequency lattice may function as timbre, cadence, pedal,
+or independent layer solely because decay changes the listening window.
+
+### Diatonic phrase against a just field
+
+Use a 5-limit scale rooted on the phrase's structural center, then play or
+render a 12-EDO phrase through it. Stable notes may align closely with IR
+targets, while tempered thirds and sevenths create slow discrepancies. Use
+broad bands first. Narrow the bands only after deciding whether the resulting
+beats articulate tension meaningfully.
+
+Then transpose the dry phrase without changing the IR. This converts the field
+from confirmation to contradiction. Finally, transpose both source and root by
+the same ratio. The three conditions distinguish absolute resonance placement
+from interval structure.
+
+### Modulation between two roots
+
+Prepare two IRs from the same scale, seed, mode, RT60, and bandwidth, but assign
+different root frequencies. Put each on a separate wet return. Before the
+harmonic modulation, fade the destination return in while the source still
+occupies the old region. Let both tails coexist briefly, then fade the old
+return after its important decay has passed.
+
+The overlap is not merely technical concealment. It creates a harmonic corridor
+in which both resonant memories coexist. A short crossfade reads as a spatial
+switch; a long crossfade can become a composed modulation. Keep the dry signal
+stable so the listener can attribute the transformation to the field rather
+than to level movement.
+
+### Scale mutation with a fixed root
+
+Generate matched IRs from two scales sharing the same root and period but
+differing in selected degrees. The common degrees preserve continuity while
+changed degrees alter the decay's internal harmony. Equal-power IR morphing
+creates one static midpoint; parallel returns with automated gains create a
+time-varying transition.
+
+Use an impulse to confirm that the two endpoint IRs have comparable onset and
+energy. Then test sustained material. A difference that is subtle on the
+impulse may become obvious after repeated harmonic excitation.
+
+### Non-octave form
+
+With a tritave-period IR, orchestrate successive registers rather than treating
+octave duplication as neutral. A bass note and its octave may excite different
+relations to the field, while a frequency tripling returns to the scale's
+periodic structure. Alternate octave and tritave displacement to make the
+reverb reveal the difference after each attack.
+
+Non-octave design is especially effective when the source itself is inharmonic
+or when register functions structurally. Bells, metallic percussion, granular
+spectra, and synthesized partial sets can cooperate with the field without
+implying conventional octave-based harmony.
+
+### Silence as harmonic exposure
+
+Compose rests long enough to hear the tuned return without the direct source.
+The attack may conceal differences that become clear only after 300 ms or one
+second. A rest can therefore operate as a harmonic microscope. Compare early
+silence, where room cues dominate, with late silence, where the narrowest and
+longest modes survive.
+
+When a phrase ending sounds wrong, do not inspect only its final chord. The tail
+contains weighted remnants of earlier notes. Shorten RT60, reduce low-frequency
+participation, or alter harmonic rhythm before changing the final sonority.
+
 ## Transposition, Modulation, and Changing Harmony
 
 A scale-conditioned IR has a fixed root. To transpose the resonant field,
@@ -28464,6 +29411,108 @@ strategies include overlapping wet returns, equal-power crossfades longer than
 the important early field, or rendering sections separately with complete
 tails. A future dynamic resonator could track harmony continuously, but that is
 a different DSP architecture from static convolution.
+
+## Stereo, Surround, and Immersive Deployment
+
+Scale tuning adds a harmonic dimension to spatial routing. A multichannel field
+can repeat one lattice everywhere, distribute related lattices, or separate
+diffuse and pitched responsibilities between layers.
+
+### Shared-field strategy
+
+Use one multichannel IR or closely matched IRs with the same scale, root, and
+conditioning. This produces the strongest sense of one coherent room. Vary
+early reflections and decorrelation while keeping the late spectral center
+shared. It is the safest strategy for film, vocal, and ensemble work where
+spatial continuity matters more than hearing individual degrees move.
+
+### Complementary-degree strategy
+
+Divide a scale into overlapping subsets and assign them to different returns.
+For example, front channels can carry stable structural degrees while side and
+rear returns emphasize tensions or upper extensions. Always retain common
+diffuse energy; completely disjoint narrow lattices can make head movement or
+downmixing expose holes.
+
+This strategy is compositional, not a claim of physical-room realism. Document
+which degrees belong to each layer and test every fold-down. A stereo or mono
+sum may combine subsets into a denser spectrum than any individual speaker
+reveals.
+
+### Height as spectral perspective
+
+Height returns often tolerate brighter target ranges because listeners can
+associate elevated energy with air or halo. Rather than sending the complete
+low-frequency lattice overhead, use a higher `--scala-low-hz`, moderate gain,
+and enough diffuse content to avoid isolated whistles. Keep bass and structural
+root information in the bed unless a deliberately disembodied image is wanted.
+
+### Moving objects and fixed tuned fields
+
+An object can move through a fixed bed or field return while retaining one
+scale-conditioned decay. If several location-specific IRs use different roots,
+movement also becomes harmonic transformation. Crossfade states rather than
+hard-switching them, and distinguish panning automation from IR-state
+automation in the session record.
+
+### Translation checks
+
+Evaluate at least speaker-array, binaural, stereo, and mono versions. Listen for
+degree cancellation, exaggerated shared bands, center buildup, and a height
+layer that disappears when folded down. Use matched loudness and include both
+sustained and transient material. A spatial design is not complete because its
+native layout sounds impressive.
+
+## Measurement and Analytical Listening
+
+Standard room metrics do not fully describe scale conditioning. RT60, EDT, and
+clarity remain useful, but they should be paired with frequency-target evidence.
+
+### Target-to-neighbor contrast
+
+For each resolved frequency $f_k$, compare energy in a narrow target band with
+energy in adjacent off-target bands. A simple contrast measure is
+
+$$
+C_k=10\log_{10}\!\left(\frac{E_{\mathrm{target},k}}
+{E_{\mathrm{neighbor},k}+\epsilon}\right),
+$$
+
+where $\epsilon$ prevents division by zero. Report the distribution of $C_k$
+rather than only its mean. One dominant low mode can otherwise hide weak upper
+conditioning.
+
+### Decay by target degree
+
+Filter the IR around selected degrees and fit decay slopes separately. Two
+targets can have similar peak magnitude but different persistence. Degree-wise
+decay is musically important because late harmony is governed by the modes that
+survive, not merely those that begin loudly.
+
+### Matched-seed controls
+
+Generate an untuned and tuned IR with identical mode, seed, length, RT60,
+channel count, and broad spectral shaping. Render the same source through both
+and loudness-match the results. This isolates conditioning from random topology
+and gross level. Repeat across several seeds before making a general claim;
+one favorable random realization is an anecdote, not a robust result.
+
+### A listening vocabulary
+
+Use consistent descriptors so notes can be compared across sessions:
+
+- **Pitch salience:** how clearly the return suggests stable pitch.
+- **Roughness:** how strongly close components produce rapid fluctuation.
+- **Fusion:** whether source and return form one object.
+- **Harmonic drag:** whether old tail energy resists a new harmony.
+- **Spectral halo:** broad affinity without distinct notes.
+- **Resonator identity:** perception of the return as an instrument.
+- **Register bias:** concentration of the effect in bass, middle, or treble.
+- **Decay revoicing:** change in apparent harmony as modes disappear.
+
+Collect notes during full-mix, wet-only, and post-release listening. The three
+conditions answer different questions and should not be collapsed into one
+preference score.
 
 ## Reproducible Scale Libraries
 
@@ -28487,6 +29536,90 @@ roots, seeds, RT60 values, and source files. Variants from one scale should not
 leak across training, validation, and test sets if the experiment claims
 generalization to unseen tunings. Include untuned controls and level-matched
 ablation renders so a model cannot solve the task from loudness alone.
+
+## Scale-Tuned Reverb for Audio AI and Data Augmentation
+
+Scale-conditioned IRs can test whether an audio model is robust to structured,
+musically meaningful coloration rather than only generic room decay. They are
+useful for source separation, pitch estimation, transcription, instrument
+recognition, dereverberation, acoustic-scene classification, and generative
+audio evaluation, but only when the data split prevents tuning leakage.
+
+### Define the experimental factor
+
+Decide what “tuning variation” means before generating files. Possible factors
+include scale family, degree count, period ratio, root mapping, bandwidth,
+strength, target range, or the relation between source tuning and IR tuning.
+Changing all of them together produces variety but weak scientific evidence.
+
+A controlled factorial design might vary:
+
+| Factor | Example levels |
+|---|---|
+| Scale family | 19-EDO, 5-limit just collection, 13-EDT Bohlen–Pierce |
+| Root relation | matched, one degree displaced, unrelated |
+| Strength | 0, 0.4, 0.7, 1.0 |
+| Bandwidth | 12, 30, 60 cents |
+| RT60 | 1.5, 5, 12 seconds |
+| Source class | speech, monophonic music, polyphonic music, percussion, noise |
+
+The strength-zero condition is essential. It reveals whether performance
+changes come from reverberation itself or from the scale-conditioned component.
+
+### Split by lineage, not rendered filename
+
+One `.scl` file can generate hundreds of roots, seeds, RT60 values, and source
+combinations. Randomly splitting those WAV files allows nearly identical tuning
+lattices into training and evaluation sets. Instead, assign the parent scale or
+scale family to a split first, then generate descendants inside that split.
+
+For tests of unseen roots but known interval structure, keep scale files shared
+and split root mappings. For tests of unseen tuning systems, keep complete scale
+families out of training. State which generalization claim the split supports.
+
+### Preserve dry and wet evidence
+
+For supervised dereverberation or augmentation, retain the dry source, IR,
+wet-only convolution, final mixture, and exact gain relation. A useful linear
+mixture is
+
+$$
+y[n]=g_d x[n]+g_w(x*h)[n],
+$$
+
+where $g_d$ and $g_w$ are documented dry and wet gains. If normalization runs
+after mixing, record it because it changes the direct-to-reverberant relation.
+
+Do not let filenames encode the target class if a data loader or model can see
+them. Store scale identity and parameters in a manifest. Hash the source,
+Scala file, IR, and output so regenerated corpora can be audited.
+
+### Avoid shortcut learning
+
+A classifier may appear to recognize a tuning while actually recognizing
+loudness, spectral tilt, IR length, one source instrument, or one random seed.
+Use matched-seed controls, loudness matching, balanced source classes, and
+multiple roots. Include adversarial controls where scale is held constant but
+gain and RT60 change, and where room statistics remain constant while the scale
+changes.
+
+For dereverberation, evaluate whether the model removes the tail without
+flattening legitimate source harmonics near Scala targets. A model trained only
+on untuned rooms may interpret stable tuned decay as part of the instrument; a
+model trained too aggressively on tuned IRs may suppress sustained musical
+partials.
+
+### Evaluation beyond one aggregate score
+
+Report task metrics separately by scale family, root relation, source class,
+strength, bandwidth, and RT60. Add target-band residual measurements for
+dereverberation and pitch error for transcription. A single mean can hide a
+model that performs well on diffuse fields and fails on sparse modal ones.
+
+Listen to representative errors. Scale-conditioned tails can create musically
+important artifacts that generic perceptual scores underweight, including a
+wrong residual pedal, beating around a held note, or late energy that changes
+apparent chord quality.
 
 ## Failure Modes and Corrections
 
@@ -28518,6 +29651,100 @@ the root by one scale degree. The exercise reveals a central principle:
 scale-tuned reverberation is not one effect but a continuum between diffuse
 space and resonant composition.
 
+## Extended Laboratory and Composition Studies
+
+### Study 1: Cents, ratios, and audible beating
+
+Create three two-note source files whose upper frequencies differ slightly
+around one target ratio. Render them through a narrow modal IR. Measure the
+frequency difference, predict the beat rate, and compare prediction with the
+wet-only decay. Repeat one octave higher while preserving the same cent offset.
+Explain why the hertz difference changes.
+
+### Study 2: Bandwidth as performance tolerance
+
+Generate IRs at 10, 25, 50, and 100 cents with all other parameters fixed.
+Process a stable oscillator, a singer or string tone with vibrato, and a
+glissando. Identify the point at which tuning changes from selective resonance
+to broad coloration for each source.
+
+### Study 3: Scale cardinality and modal density
+
+Compare five-, seven-, 12-, 19-, and 31-degree octave-period scales over the
+same frequency range and target budget. Keep seed, mode, RT60, strength, and
+gain fixed. Count resolved targets, inspect spectral spacing, and describe when
+individual pitch identity gives way to a continuous field.
+
+### Study 4: Octave and non-octave periodicity
+
+Process the same sequence through an octave-period IR and a tritave-period IR.
+Transpose the source by $2/1$, then by $3/1$. Determine which transposition
+preserves the relation to each field. Compose a short passage in which the
+reverb, rather than the dry line, reveals the periodic structure.
+
+### Study 5: Harmonic memory and tempo
+
+Use one chord progression at three tempi and three RT60 settings. Do not change
+the scale or wet gain. Mark where prior harmonies remain audible under later
+ones. Find a tempo-decay combination that supports continuity and another that
+creates deliberate harmonic drag.
+
+### Study 6: Root-degree rotation
+
+Hold `--scala-root-hz` fixed while changing `--scala-root-degree`. Compare the
+resolved target lists before listening. Render one source through each IR and
+explain why rotation is not equivalent to an ordinary equal-tempered
+transposition.
+
+### Study 7: Orchestration as excitation
+
+Render click, speech, bowed string, piano, cymbal, sine, and noise through one
+IR. Use wet-only outputs and matched levels. Create a table of which registers
+and degrees each source excites most strongly, then orchestrate a one-minute
+study that reveals the lattice gradually without changing the IR.
+
+### Study 8: Two-root modulation
+
+Build two rooted IRs with identical seeds. Place them on parallel returns and
+compose a transition using a short crossfade, a long crossfade, and a period of
+intentional overlap. Compare whether each version sounds like a key change,
+room change, or emergence of a second instrument.
+
+### Study 9: Spatial harmony
+
+Assign a shared diffuse field to all channels and complementary tuned layers to
+front, side, rear, and height groups. Produce speaker-array, binaural, stereo,
+and mono renders. Document which harmonic relationships survive each
+translation and revise the layout to reduce cancellation or buildup.
+
+### Study 10: Matched-seed perceptual test
+
+Generate an untuned control and three conditioned IRs from the same seed.
+Loudness-match randomized renders and conduct a blinded listening test. Ask
+participants to rate pitch salience, roughness, fusion, and spatial plausibility.
+Report individual responses as well as means; tuned reverb can divide listeners
+according to attention and musical experience.
+
+### Study 11: Dereverberation stress test
+
+Create matched dry, ordinary-reverb, and scale-tuned-reverb examples. Run the
+same dereverberation configuration on both wet conditions. Compare target-band
+residuals, source-harmonic damage, RT60 reduction, and listening quality. Explain
+whether the estimator treats tuned decay as room energy or musical sustain.
+
+### Study 12: A composed resonant architecture
+
+Design a five-minute work in which at least three formal sections use the same
+dry instrumental palette but different relationships to a fixed Scala IR.
+Section one should confirm the field, section two should contradict it, and
+section three should use silence to expose accumulated decay. Submit the scale,
+commands, IR metadata, analysis JSON, score or timeline, and a commentary on
+how reverberation carries form.
+
+These studies progress from isolated variables to complete musical design. In
+every case, retain an untuned or matched control and distinguish what the
+measurement demonstrates from what the listening interpretation suggests.
+
 
 \newpage
 
@@ -28529,7 +29756,7 @@ Focused bibliography for extreme reverberation DSP and reverberation research in
 
 Pruned from the broader bibliography on 2026-03-01 to keep only reverb-centric papers.
 
-Total entries: 1,064 (164 curated and primary-source entries + 900 extended Crossref entries)
+Total entries: 1,066 (166 curated and primary-source entries + 900 extended Crossref entries)
 
 Within each topical section, entries are alphabetized by first-author surname. Records
 without credited authors sort under "Unknown authors."
@@ -28958,6 +30185,14 @@ RT60, energy decay curves, Sabine/Eyring theory, and the physics of reverberant 
 
 > Context entry. Describes physical treatment of reverberation time; tangential to algorithmic approaches. It remains useful as a reminder that algorithmic controls model only part of a larger acoustic design problem: real spaces use absorbers, resonators, diffusers, and tunable devices to change decay behavior in ways that can be uneven across frequency and position.
 
+**[BOOK3]** Smith, J. O. (2010). Artificial Reverberation. *Physical Audio Signal Processing; W3K Publishing*. Source: [Artificial Reverberation](https://ccrma.stanford.edu/~jos/pasp/Artificial_Reverberation.html)
+
+> Annotation: A systems-level treatment of artificial reverberation spanning exact transfer-function and physical room models, perceptual requirements, early reflections, Schroeder and Freeverb structures, feedback delay networks, lossless feedback matrices, delay-length selection, frequency-dependent damping, digital waveguide reverberators, time variation, and scattering delay networks. The expanded verbx glossary uses this chapter as a primary terminology audit while retaining compact definitions suited to production and implementation work.
+
+**[BOOK2]** Smith, Julius O., III (2010). Physical Audio Signal Processing. *W3K Publishing; ISBN 978-0-9745607-2-4*. Source: [Energy Decay Relief](https://ccrma.stanford.edu/~jos/pasp/Energy_Decay_Relief.html)
+
+> Annotation: Defines the energy decay relief as reverse cumulative STFT-bin energy and explains its relationship to the broadband energy decay curve. This is the primary source for verbx's `--edr` analysis, including the distinction between a complete time-frequency decay surface and the compact per-band RT60 summaries written to analysis reports.
+
 **[RA17]** Stephenson, UM (2023). On the Influence of Ceiling and Audience Profile on the Reverberation Time and Other Room Acoustical Parameters. *Auditorium Acoustics 2008*. DOI: [10.25144/17526](https://doi.org/10.25144/17526)
 
 > Context entry. Geometric acoustics study of audience and ceiling geometry effects on RT60. Background context for physical room modeling. It reinforces that audience layout and architectural geometry can change decay and clarity in ways that are not captured by volume and average absorption alone, which matters for any future room-parameter import or venue-style preset work.
@@ -29241,6 +30476,11 @@ Papers on speech intelligibility in reverberant environments, dereverberation fo
 
 Papers whose "reverberation" subject matter refers to underwater acoustics, seabed scattering, structural media, musicology, or other domains unrelated to architectural room acoustics. Included because they were in the source bibliography; they have no direct bearing on verbx's current design. Retained for bibliographic completeness, search disambiguation, and to make clear which references should not be used as evidence for room-reverb DSP decisions.
 
+<a id="ref-burns-women-music-2002"></a>
+**[BOOK1]** Burns, Kristine H., ed. (2002). Women and Music in America Since 1900: An Encyclopedia. *Greenwood Press, Westport, CT; 2 vols.; ISBN 978-1-57356-267-6*. Source: [American Library Association](https://www.ala.org/winner/women-and-music-america-1900-encyclopedia)
+
+> Annotation: This wide-ranging reference documents women as composers, performers, educators, producers, technologists, and institutional leaders across twentieth-century American music. It provides historical context for the guide's listening catalog and helps connect production techniques with the people and professional communities that developed and used them.
+
 **[UW2]** Chotiros, Nicholas (2012). Non-Rayleigh reverberation statistics. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.4708991](https://doi.org/10.1121/1.4708991)
 
 > Context entry. Statistical characterization of underwater backscatter. Retained for completeness. It is useful mostly as a vocabulary boundary marker: similar statistical language appears in room acoustics, but the physical scattering mechanisms and operating assumptions are different from architectural reverberation.
@@ -29283,24 +30523,9 @@ Papers whose "reverberation" subject matter refers to underwater acoustics, seab
 
 ---
 
-## Section 9A: Music History and Reference Works
-
-Reference works used to establish biographical, historical, and professional context for the musical catalog and educational chapters.
-
-<a id="ref-burns-women-music-2002"></a>
-**[BOOK1]** Burns, Kristine H., ed. (2002). Women and Music in America Since 1900: An Encyclopedia. *Greenwood Press, Westport, CT; 2 vols.; ISBN 978-1-57356-267-6*. Source: [American Library Association](https://www.ala.org/winner/women-and-music-america-1900-encyclopedia)
-
-> Annotation: This wide-ranging reference documents women as composers, performers, educators, producers, technologists, and institutional leaders across twentieth-century American music. It provides historical context for the guide's listening catalog and helps connect production techniques with the people and professional communities that developed and used them.
-
----
-
----
-
----
-
 ## Section 10: Extended Crossref Literature Index
 
-This unannotated discovery index adds 900 Crossref-derived references to the 164 curated and primary-source entries above, bringing the guide bibliography to 1,064 total entries.
+This unannotated discovery index adds 900 Crossref-derived references to the 166 curated and primary-source entries above, bringing the guide bibliography to 1,066 total entries.
 
 The entries below are intentionally not treated as vetted design authority. They are included to make the PDF a much broader literature map for reverberation, dereverberation, spatial audio, room acoustics, and related acoustic measurement work. Use the annotated sections above for canonical implementation guidance.
 
@@ -30196,7 +31421,7 @@ Discovery queries:
 
 **[XREF0415]** Lewers, T. (1993). A combined beam tracing and radiatn exchange computer model of room acoustics. *Applied Acoustics*. DOI: [10.1016/0003-682x(93)90049-c](https://doi.org/10.1016/0003-682x(93)90049-c)
 
-**[XREF0555]** Lewitz, JA (2024). Electroacoustics in 'Surround' Halls. *Room Acoustics with Emphasis on Electroacoustics 1979*. DOI: [10.25144/23452](https://doi.org/10.25144/23452)
+**[XREF0555]** Lewitz, JA (2024). Electroacoustics in ‘Surround’ Halls. *Room Acoustics with Emphasis on Electroacoustics 1979*. DOI: [10.25144/23452](https://doi.org/10.25144/23452)
 
 **[XREF0833]** Li, Junfeng; Xia, Risheng; Yan, Yonghong (2012). A hybrid approach for simulation of room reverberation. *The Journal of the Acoustical Society of America*. DOI: [10.1121/1.4707996](https://doi.org/10.1121/1.4707996)
 
@@ -31394,10 +32619,14 @@ than the same laboratory quantity obtained from a clean excitation and response.
 
 **Q33. What do EDR and frame-level outputs add?**
 
-An energy-decay relief shows decay across both time and frequency, revealing bands that
-ring longer than a single broadband RT60 suggests. Frame output preserves local
-measurements for plotting, quality control, or downstream research instead of reducing
-the file to one summary number.
+An energy decay relief is a time-frequency generalization of the energy decay curve. It
+backward-integrates the squared magnitude of every STFT bin, so a narrow resonance can remain
+visible even when a broadband RT60 averages it away. `--edr` currently reports median,
+low-, middle-, and high-band RT60 summaries plus the number of usable fitted bins; it does
+not write the complete EDR matrix. Frame output preserves separate local descriptors for
+plotting, quality control, or downstream research. See Julius O. Smith III's
+[Energy Decay Relief](https://ccrma.stanford.edu/~jos/pasp/Energy_Decay_Relief.html)
+derivation for the underlying definition.
 
 **Q34. Can verbx estimate room properties from an ordinary recording?**
 
@@ -31925,16 +33154,13 @@ realtime duplex auditioning.
 
 # Glossary
 
-This colossal glossary defines 574 terms used throughout verbx and the wider literature of acoustics, reverberation, dereverberation, spatial audio, recording, music production, plug-in engineering, measurement, and Audio AI. Definitions are intentionally compact: each establishes the book's working meaning without pretending to replace the cited standards, textbooks, or research papers.
+This colossal glossary defines 709 terms used throughout verbx and the wider literature of acoustics, reverberation, dereverberation, spatial audio, recording, music production, plug-in engineering, measurement, and Audio AI. Definitions are intentionally compact: each establishes the book's working meaning without pretending to replace the cited standards, textbooks, or research papers.
 
 A term may have narrower meanings in a particular standard or discipline. Read units, channel conventions, measurement windows, reference levels, and algorithm settings with the surrounding chapter before comparing results. Acronyms are cross-defined where they are common enough to be encountered independently.
-
-**Alphabetical guide:** [A](#a) · [B](#b) · [C](#c) · [D](#d) · [E](#e) · [F](#f) · [G](#g) · [H](#h) · [I](#i) · [J](#j) · [K](#k) · [L](#l) · [M](#m) · [N](#n) · [O](#o) · [P](#p) · [Q](#q) · [R](#r) · [S](#s) · [T](#t) · [U](#u) · [V](#v) · [W](#w) · [X](#x) · [Y](#y) · [Z](#z)
 
 ```{=latex}
 \hypertarget{a}{}
 \section*{A}
-\addcontentsline{toc}{section}{A}
 ```
 
 **A-weighting.** A frequency weighting that approximates human sensitivity at moderate levels and is commonly used for environmental-noise measurements.
@@ -31977,6 +33203,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Air absorption.** Frequency-dependent attenuation during propagation through air, strongest at high frequencies and dependent on humidity and temperature.
 
+**Air-loss filter.** A frequency-dependent attenuation filter placed in a propagation or feedback path to model energy lost while sound travels through air.
+
 **Algorithmic latency.** Delay caused by an algorithm's required lookahead, block size, transform, buffering, or internal state rather than hardware transport.
 
 **Algorithmic reverb.** Artificial reverberation produced by delay networks, filters, modulation, and feedback rather than direct convolution with a measured IR.
@@ -32017,6 +33245,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Artifact.** An unintended audible or measurable product of processing, encoding, estimation, clipping, modulation, or numerical error.
 
+**Artificial reverberation.** Deliberate creation or modification of reflected and decaying sound by architectural, mechanical, electromechanical, electronic, or digital means.
+
 **Attack.** The onset portion of a sound or the time constant with which a processor responds to increasing level.
 
 **Attenuation.** Reduction in amplitude, power, or level caused by distance, absorption, filtering, gain control, or cancellation.
@@ -32044,12 +33274,13 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{b}{}
 \section*{B}
-\addcontentsline{toc}{section}{B}
 ```
 
 **B-format.** A conventional name for an Ambisonic component signal set before loudspeaker or binaural decoding.
 
 **Back wall.** The room boundary behind the listener, often responsible for strong delayed reflections and low-frequency modal behavior.
+
+**Backward energy integration.** Reverse cumulative summation of squared impulse-response samples used to form an energy decay curve from the response tail toward its onset.
 
 **Backward prediction.** Estimation of a sample from future samples, used in some linear-prediction and dereverberation formulations.
 
@@ -32058,6 +33289,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Bandlimited signal.** A signal whose spectrum is zero or negligible above a specified maximum frequency.
 
 **Bandwidth.** The frequency span occupied or passed by a signal, filter, channel, mode, or process.
+
+**Bass ratio.** Room-acoustic measure comparing low-frequency reverberation times with mid-frequency values to describe perceived warmth or bass persistence.
 
 **Batch processing.** Noninteractive execution of the same or parameterized operation across many files or manifest entries.
 
@@ -32068,6 +33301,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Bell filter.** A parametric equalizer band that boosts or cuts around a center frequency with controlled width.
 
 **Binaural audio.** Two-channel audio designed to reproduce ear-input cues for headphone listening.
+
+**Binaural quality index.** Spatial metric derived from interaural cross-correlation and used to characterize apparent source width or listener envelopment.
 
 **Binaural room impulse response.** An impulse response measured or modeled from a source to the listener's two ears in a room.
 
@@ -32083,7 +33318,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Brightness.** Perceived emphasis of high-frequency energy, influenced by spectrum, transients, decay, and level.
 
+**Brilliance ratio.** Room-acoustic ratio comparing high-frequency reverberation with mid-frequency reverberation to characterize treble liveliness or damping.
+
 **Brown noise.** Noise with power decreasing approximately $6$ dB per octave, produced by integrating white noise.
+
+**Brute-force convolution.** Direct application of a long impulse response without structural approximation, often accurate but computationally expensive for realtime multichannel reverberation.
 
 **Buffer underrun.** Failure to supply playback samples before the device deadline, typically heard as a click, dropout, or gap.
 
@@ -32094,7 +33333,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{c}{}
 \section*{C}
-\addcontentsline{toc}{section}{C}
 ```
 
 **C-weighting.** A relatively broad frequency weighting used for high-level sound measurements and peak-oriented assessment.
@@ -32107,9 +33345,13 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Causality.** The requirement that a realtime system's output at a given instant cannot depend on future input.
 
+**Center time.** Energy-weighted mean arrival time of an impulse response, commonly written $T_s$, that summarizes the balance between early and late energy.
+
 **Cepstrum.** A transform-domain representation useful for separating source and filter periodicities, detecting echoes, or estimating pitch.
 
 **Channel.** One discrete stream or component of audio within a file, bus, device, spatial format, or processor.
+
+**Channel decorrelation.** Reduction of similarity between output channels so a reverberant field spreads spatially instead of collapsing toward a phantom source.
 
 **Channel layout.** The ordered set of channel roles, labels, and positions associated with a multichannel signal.
 
@@ -32118,6 +33360,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Chirped echo.** An echo whose dominant frequency changes over time because geometry, diffraction, dispersion, or a sequence of reflections reorganizes an impulsive source.
 
 **Chorus.** A modulation effect that combines a signal with slowly varying delayed copies to create width and ensemble-like motion.
+
+**Chorus artifact.** Audible pitch wandering or ensemble-like motion caused when delay modulation in a reverberator becomes too deep, fast, or coherent.
+
+**Circulant feedback matrix.** FDN matrix whose rows are cyclic shifts of one another, enabling structured eigenanalysis and efficient implementations.
 
 **Clarity index.** A room metric comparing early to late energy, such as $C_{50}$ for speech or $C_{80}$ for music.
 
@@ -32133,9 +33379,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Coefficient.** A numerical multiplier controlling a filter, matrix, predictor, transform, or model term.
 
+**Coloration-duration factorization.** Reverberator design strategy that separates control of spectral character from control of decay time as nearly independently as possible.
+
+**Colorless reverberation.** Artificial reverberation designed to avoid conspicuous periodic resonances, metallic ringing, and comb-filter spectral coloration.
+
 **Comb filter.** A feedforward or feedback delay filter with regularly spaced spectral peaks and notches.
 
 **Comb-filter coloration.** Audible pitch or hollowness caused by interference between a signal and one or more delayed copies.
+
+**Common delay divisor.** Integer factor shared by several delay lengths that can align recurrences and reduce the effective modal richness of a delay network.
 
 **Common-mode signal.** A component shared by multiple channels, often contrasted with differential or side information.
 
@@ -32145,9 +33397,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Compressor knee.** The transition shape between uncompressed and compressed gain behavior around threshold.
 
+**Computational room model.** Numerical representation of acoustic propagation and boundary interaction used to estimate impulse responses or sound fields in an enclosure.
+
 **Concert hall.** A performance room designed to balance clarity, blend, envelopment, loudness, and musical decay.
 
 **Condenser microphone.** A microphone using a charged capacitive element and impedance-conversion electronics.
+
+**Conformal damping map.** Interpretation of frequency-dependent delay-line loss as a mapping that moves lossless poles from the unit circle to frequency-dependent radii inside it.
+
+**Contractive matrix.** Matrix whose induced gain does not exceed one, useful for ensuring that a feedback network does not increase signal energy.
 
 **Convolution.** The operation that applies a linear time-invariant system's impulse response to an input signal.
 
@@ -32155,9 +33413,13 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Convolution reverb.** Reverberation created by convolving audio with measured, synthesized, or designed impulse responses.
 
+**Coprime delay lengths.** Delay lengths whose greatest common divisor is one, chosen to reduce coincident recurrences and improve modal distribution.
+
 **Correlation.** Statistical similarity between signals, channels, time regions, or variables.
 
 **Correlation coefficient.** A normalized measure of linear relationship, typically ranging from minus one to one.
+
+**Courant stability condition.** Time-step and grid-spacing constraint that keeps an explicit finite-difference wave simulation numerically stable.
 
 **CPU load.** The fraction of available processor time consumed by computation, scheduling, and data movement.
 
@@ -32182,12 +33444,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{d}{}
 \section*{D}
-\addcontentsline{toc}{section}{D}
 ```
 
 **Damping.** Frequency-dependent dissipation that reduces resonance amplitude or shortens decay.
 
+**Damping filter.** Filter inside a reverberant feedback path that imposes frequency-dependent loss and therefore frequency-dependent decay time.
+
 **Damping ratio.** A dimensionless measure relating decay to oscillation in a second-order resonant system.
+
+**Damping substitution.** Replacement of each unit delay by a delay combined with a propagation-loss filter to convert a lossless reverberator into a decaying one.
 
 **DAW.** Digital audio workstation software used to record, edit, route, process, automate, and mix audio.
 
@@ -32195,7 +33460,17 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Decay.** Reduction of sound energy or amplitude after excitation stops.
 
+**Decay curvature.** Departure of a decay trace from a straight line in decibels, indicating changing decay rate, coupled spaces, modes, noise, or time variance.
+
 **Decay curve.** Level or energy plotted against time to characterize reverberation, damping, or release behavior.
+
+**Decay eigenvalue.** Eigenvalue of a recursive network whose magnitude and angle determine a modal decay rate and oscillation frequency.
+
+**Decay intercept.** Level at which a fitted decay line crosses a chosen time origin, used with slope when estimating reverberation time.
+
+**Decay ridge.** Persistent narrowband feature in an energy decay relief that reveals a mode or resonance lasting longer than neighboring frequencies.
+
+**Decay slope.** Rate of level reduction over time on a decibel decay curve, usually expressed in decibels per second.
 
 **Decay time.** The duration required for a specified drop in level or energy under defined measurement conditions.
 
@@ -32209,7 +33484,13 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Decorrelation.** Reduction of similarity between channels or signal paths, often used to increase spaciousness and diffusion.
 
+**Definition index.** Early-to-total energy ratio, commonly $D_{50}$ for speech, expressing how much impulse-response energy arrives during the first 50 milliseconds.
+
 **Delay.** A time shift measured in samples, milliseconds, seconds, or musical duration.
+
+**Delay density.** Number and distribution of distinct delay events available to a reverberator over a specified interval.
+
+**Delay distribution.** Statistical or designed arrangement of delay lengths that controls mode spacing, recurrence, density buildup, and temporal texture.
 
 **Delay line.** Memory that stores samples so they can be read after a controlled time interval.
 
@@ -32217,15 +33498,25 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Delay network.** An interconnected system of delays, filters, gains, and matrices used for reverberation or physical modeling.
 
+**Delay-line damping filter.** Loss filter associated with a particular reverberator delay line and designed from a target frequency-dependent reverberation time.
+
+**Delay-line scaling.** Multiplication of nominal delay lengths by room-size, sample-rate, or tuning factors while preserving required ordering and stability constraints.
+
 **Delta function.** An idealized unit impulse with unit area and zero duration, used to define system response.
 
 **Density.** The number or perceptual concentration of reflections, grains, echoes, or events per unit time.
+
+**Density buildup.** Increase in the number of audible reflections per unit time as energy recirculates through a room or delay network.
 
 **Dereverberation.** Estimation or recovery of a less reverberant signal from audio containing room reflections and decay.
 
 **Determinism.** Property that identical inputs, parameters, seeds, and environment produce identical outputs.
 
 **Diffuse field.** A statistical sound field with energy arriving approximately uniformly from many directions.
+
+**Diffuse reflection.** Boundary interaction that redistributes incident sound across many outgoing directions rather than preserving a single mirror-like ray.
+
+**Diffuse-field assumption.** Approximation that reverberant energy is statistically uniform in position and direction, underlying many classical room-acoustic formulas.
 
 **Diffuse-field equalization.** Spectral correction referenced to the average response of sound arriving from many directions.
 
@@ -32234,6 +33525,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Diffusion.** The spreading of acoustic or signal energy across directions, delays, channels, or modes.
 
 **Diffusion coefficient.** A measure of how evenly a surface distributes reflected energy over direction relative to a reference.
+
+**Diffusion time.** Time required for a reverberator to develop a sufficiently dense, spatially distributed response after excitation.
 
 **Digital signal processing.** Numerical representation, analysis, transformation, generation, and control of sampled signals.
 
@@ -32249,11 +33542,17 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Distance attenuation.** Reduction in direct level as source-receiver distance increases, modified by geometry and environment.
 
+**Distance law.** Relationship between propagation distance and sound level, such as inverse-distance pressure decay in an ideal free field.
+
 **Dither.** Low-level noise added before quantization to decorrelate error and preserve small-signal linearity.
 
 **Dolby Atmos.** An immersive-audio ecosystem combining beds, objects, metadata, rendering, and defined delivery formats.
 
 **Doppler shift.** Apparent frequency change caused by relative motion between source and receiver.
+
+**Doppler-free modulation.** Delay or network modulation designed to reduce audible pitch shift while still breaking up static resonances.
+
+**Double-slope decay.** Energy decay containing two approximately linear decibel regions with different slopes, often caused by coupled spaces or layered processing.
 
 **Downmix.** Reduction of a multichannel mix to fewer output channels using specified gains and routing.
 
@@ -32276,12 +33575,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{e}{}
 \section*{E}
-\addcontentsline{toc}{section}{E}
 ```
 
 **Early decay time.** A reverberation estimate derived from the first 10 dB of decay and extrapolated to a 60 dB rate.
 
 **Early reflections.** The first individually structured room reflections arriving after the direct sound.
+
+**Early resonance.** Low-frequency room or reverberator mode that remains individually perceptible before modal density becomes statistically high.
+
+**Early-to-late ratio.** Ratio of impulse-response energy before a selected boundary to energy after it, used to quantify clarity and distance.
 
 **Echo.** A delayed sound perceived as a distinguishable repetition rather than fused reverberation.
 
@@ -32291,7 +33593,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Echo return loss enhancement.** Additional echo reduction achieved by nonlinear post-processing after linear cancellation.
 
+**Echo-density growth.** Time evolution of reflection count or normalized echo density as a reverberant response transitions from sparse echoes to a dense tail.
+
 **Eigenfrequency.** A natural resonant frequency associated with a system mode.
+
+**Eigenmode.** Characteristic oscillation associated with an eigenvector and eigenvalue of a linear acoustic or feedback system.
 
 **Eigenvalue.** A scalar describing how a matrix transforms a corresponding eigenvector, central to feedback-network stability and decay.
 
@@ -32299,7 +33605,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Elevation.** Vertical angle of a source or loudspeaker relative to the listener or coordinate origin.
 
+**Elliptic feedback delay network.** Structured FDN family using elliptic or related matrix constructions to shape mode distribution and computational behavior.
+
 **Energy decay curve.** Integrated impulse-response energy plotted backward in time, commonly used to estimate reverberation time.
+
+**Energy decay relief.** Time-frequency surface formed by backward-integrating energy within spectral bins, revealing frequency-dependent decay and resonant ridges.
+
+**Energy preservation.** Property of a lossless structure whose output or state energy equals its input or previous-state energy under the chosen norm.
+
+**Energy reflection coefficient.** Fraction of incident acoustic energy returned by a boundary, equal to one minus absorbed and transmitted fractions when accounting is complete.
 
 **Energy-time curve.** Squared impulse-response magnitude plotted against time to reveal direct sound and reflection structure.
 
@@ -32317,16 +33631,19 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **ERB.** Equivalent rectangular bandwidth, a psychoacoustic measure approximating auditory-filter width.
 
+**Exact transfer-function model.** Point-to-point room model that represents every relevant source-receiver impulse response directly rather than approximating its perceptual structure.
+
 **Excitation signal.** A known signal used to stimulate a system for measurement, modeling, or synthesis.
 
 **Exponential decay.** A decay whose amplitude changes by a constant ratio per unit time and appears linear in decibels.
 
 **External sidechain.** A detector input derived from a signal other than the processor's main input.
 
+**Extrapolated RT60.** Sixty-decibel decay time inferred from a shorter fitted interval such as EDT, T20, or T30 rather than observed over the full range.
+
 ```{=latex}
 \hypertarget{f}{}
 \section*{F}
-\addcontentsline{toc}{section}{F}
 ```
 
 **Fabry-Pérot resonance.** Resonance created by repeated reflections between approximately parallel boundaries.
@@ -32339,7 +33656,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Fast Fourier transform.** An efficient algorithm for computing the discrete Fourier transform and its inverse.
 
+**FDN reverberation.** Late-reverberation synthesis using multiple delays coupled through a feedback matrix, with losses and output mixing controlling decay and spatial character.
+
 **Feedback.** Routing a portion of a system's output back to its input.
+
+**Feedback comb bank.** Parallel or coupled collection of feedback comb filters used to create many decaying modes and a dense reverberant tail.
 
 **Feedback delay network.** A reverberator architecture containing multiple delays coupled by a feedback matrix and associated filters.
 
@@ -32356,6 +33677,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Filterbank.** A collection of filters that decomposes or reconstructs a signal across frequency bands.
 
 **Finite impulse response filter.** A filter with a response that becomes exactly zero after a finite number of samples.
+
+**Finite-difference time-domain method.** Grid-based numerical method that advances discretized wave-equation variables through time while respecting stability and boundary conditions.
+
+**First-order delay filter.** One-pole or one-zero loss filter designed for a reverberator delay line to approximate a target decay at selected frequencies.
 
 **Flanging.** A modulation effect created by mixing a signal with a very short varying delay, producing moving comb filtering.
 
@@ -32377,6 +33702,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Free field.** An ideal or approximated environment without significant reflections.
 
+**Freeverb.** Widely implemented Schroeder-Moorer-style reverberator using parallel lowpass-feedback comb filters followed by serial allpass-like diffusers.
+
+**Freeverb allpass approximation.** Freeverb diffusion section conventionally called allpass although its implementation and coefficient choices only approximate ideal allpass behavior.
+
 **Freeze.** A reverb state that sustains circulating energy by approaching lossless feedback while controlling stability.
 
 **Frequency.** Repetition rate measured in hertz, equal to cycles per second.
@@ -32387,6 +33716,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Frequency-dependent decay.** Reverberation in which different frequency bands decay at different rates.
 
+**Frequency-dependent energy decay curve.** Family of decay curves computed in bands or spectral bins instead of after broadband energy summation.
+
+**Frequency-dependent reverberation time.** Reverberation-time function over frequency, commonly specified in octave or fractional-octave bands and realized with feedback-path damping filters.
+
 **Frequency-domain processing.** Signal processing performed on spectral representations rather than directly on time samples.
 
 **Full scale.** The maximum nominal magnitude representable by a digital format or signal convention.
@@ -32394,7 +33727,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{g}{}
 \section*{G}
-\addcontentsline{toc}{section}{G}
 ```
 
 **Gain.** A multiplier or logarithmic level change applied to a signal.
@@ -32417,6 +33749,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Granular reverb.** Reverberant texture assembled from overlapping short grains with controlled delay, pitch, envelope, and spatial distribution.
 
+**Grid dispersion.** Frequency- and direction-dependent wave-speed error introduced by spatial discretization in finite-difference or waveguide-mesh simulation.
+
+**Grid point.** Discrete spatial sample at which a numerical acoustic model stores and updates pressure, velocity, or traveling-wave variables.
+
 **Group delay.** Negative derivative of phase with respect to angular frequency, interpreted as frequency-dependent envelope delay.
 
 **GUI.** Graphical user interface containing visual controls, meters, displays, navigation, and interaction feedback.
@@ -32424,7 +33760,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{h}{}
 \section*{H}
-\addcontentsline{toc}{section}{H}
 ```
 
 **Haas effect.** Perceptual localization dominated by the first arrival when a similar delayed sound follows within a short interval.
@@ -32453,6 +33788,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Histogram.** A count or probability display showing how values are distributed across ranges.
 
+**Homogeneous feedback delay network.** FDN whose delay paths or attenuation structure follow a uniform design pattern rather than path-specific heterogeneous models.
+
 **Hop size.** The sample advance between successive overlapping analysis or synthesis frames.
 
 **Householder matrix.** An orthogonal reflection matrix useful for efficient mixing and diffusion in feedback networks.
@@ -32464,7 +33801,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{i}{}
 \section*{I}
-\addcontentsline{toc}{section}{I}
 ```
 
 **IACC.** Interaural cross-correlation coefficient, a room and spatial metric related to similarity between ear signals.
@@ -32473,11 +33809,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Image-source method.** A geometric room model that replaces specular reflection paths with mirrored virtual sources.
 
+**Image-source order.** Number of boundary reflections represented by a virtual source in the image-source method.
+
 **Immersive audio.** Audio designed to create enveloping three-dimensional experience using channels, objects, scenes, or binaural rendering.
 
 **Impulse.** A brief excitation approximating a unit sample or Dirac delta for testing system response.
 
 **Impulse response.** The output of a system excited by an impulse, fully describing a linear time-invariant system.
+
+**Impulse-response smoothness.** Degree to which a late impulse response avoids isolated spikes, periodic gaps, and abrupt statistical changes.
 
 **In situ measurement.** Measurement performed in the actual operating environment rather than a laboratory approximation.
 
@@ -32485,13 +33825,19 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Infinite reverb.** A sustained reverb mode in which decay is halted or made extremely long under explicit stability controls.
 
+**Inhomogeneous feedback delay network.** FDN with path-dependent delays, filters, gains, or routing intended to model nonuniform propagation and decay.
+
 **Initial time-delay gap.** The interval between direct sound and the first significant reflection.
 
 **Input gain.** Gain applied before the main processing network.
 
 **Input matrix.** A matrix that maps external channels into an internal multichannel or delay-network representation.
 
+**Input-output room model.** Representation of a room by transfer functions or impulse responses between chosen source and receiver points without explicitly simulating the full field.
+
 **Integrated loudness.** Program loudness accumulated over an interval using gating and frequency weighting defined by a standard.
+
+**Interaural cross-correlation coefficient.** Normalized similarity of left- and right-ear signals over a specified window and frequency band, used in spatial-acoustic assessment.
 
 **Interaural level difference.** Difference in level between the ears, important for horizontal localization at higher frequencies.
 
@@ -32516,7 +33862,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{j}{}
 \section*{J}
-\addcontentsline{toc}{section}{J}
 ```
 
 **Jackknife estimate.** A resampling method that estimates bias or variance by systematically omitting observations.
@@ -32525,6 +33870,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **JSON report.** A machine-readable structured report using JavaScript Object Notation for metrics, settings, diagnostics, or provenance.
 
+**Junction scattering.** Redistribution of incoming traveling waves into outgoing branches according to impedance and conservation constraints at a waveguide junction.
+
 **Just intonation.** Tuning based on simple frequency ratios rather than equal division of the octave.
 
 **Just-noticeable difference.** The smallest change in a parameter or stimulus reliably perceived under defined conditions.
@@ -32532,7 +33879,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{k}{}
 \section*{K}
-\addcontentsline{toc}{section}{K}
 ```
 
 **K-metering.** A monitoring and metering system relating average level, peak headroom, and calibrated playback.
@@ -32548,7 +33894,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{l}{}
 \section*{L}
-\addcontentsline{toc}{section}{L}
 ```
 
 **Lagrange interpolation.** Polynomial interpolation commonly used for fractional-delay filters with controlled time-domain behavior.
@@ -32556,6 +33901,12 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Late field.** The dense reverberant region after early reflections are no longer perceived as isolated events.
 
 **Late lateral energy fraction.** The fraction of late sound energy arriving laterally, associated with listener envelopment.
+
+**Late-field isotropy.** Condition in which late reverberant energy arrives with approximately equal statistics from all directions.
+
+**Late-reverberation approximation.** Efficient statistical or recursive model that replaces explicit computation of every high-order reflection after the early response.
+
+**Late-tail onset.** Time at which a reverberant response becomes dense enough to treat as a statistical late field rather than isolated reflections.
 
 **Latency.** Elapsed time from an input event or sample to the corresponding output becoming available or audible.
 
@@ -32581,6 +33932,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Linkwitz-Riley crossover.** A crossover family formed from cascaded Butterworth sections so adjacent bands sum flat in phase-aligned conditions.
 
+**Listener envelopment.** Perception of being surrounded by reverberant sound, strongly influenced by late lateral energy and interaural decorrelation.
+
 **Listening position.** The specified receiver location from which spatial balance, calibration, or room response is evaluated.
 
 **Localization.** Perceptual estimation of a sound source's direction, distance, or position.
@@ -32589,11 +33942,17 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Loop gain.** Product of gains around a feedback path, determining stability and decay.
 
+**Lossless feedback matrix.** Feedback matrix that preserves state energy, typically orthogonal in real-valued FDNs or unitary in complex-valued FDNs.
+
 **Lossless matrix.** A matrix that preserves signal energy, commonly orthogonal or unitary in an FDN.
+
+**Lossless prototype reverberator.** Recursive network configured without attenuation so its modes do not decay, used as a starting point before damping is introduced.
 
 **Low-frequency extension.** The lowest frequency region a transducer or system reproduces within stated limits.
 
 **Low-pass filter.** A filter that passes low frequencies while attenuating higher frequencies.
+
+**Lowpass-feedback comb filter.** Feedback comb filter containing a low-pass loss filter in its loop so high frequencies decay faster than low frequencies.
 
 **LU.** Loudness unit, representing a relative loudness difference of one decibel under the applicable standard.
 
@@ -32602,7 +33961,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{m}{}
 \section*{M}
-\addcontentsline{toc}{section}{M}
 ```
 
 **Machine learning.** Methods that infer mappings, representations, decisions, or generative behavior from data rather than only explicit rules.
@@ -32617,9 +33975,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Matrix convolution.** Multichannel convolution in which each input-output pair can have its own impulse response.
 
+**Matrix modulation.** Time variation of a feedback or mixing matrix used to move resonances, alter diffusion, or decorrelate channels.
+
 **Maximum length sequence.** A deterministic pseudorandom binary sequence used for system identification and impulse-response measurement.
 
+**Mean absorption coefficient.** Surface-area-weighted average of frequency-dependent absorption coefficients across the boundaries of a room.
+
 **Mean free path.** Average distance traveled by a sound ray between reflections in an enclosure.
+
+**Mean scattering coefficient.** Surface-area-weighted average of boundary scattering coefficients used in geometric-acoustic estimates.
 
 **Measurement microphone.** A microphone designed for known, stable, and often approximately flat response.
 
@@ -32629,6 +33993,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Metadata.** Descriptive information about audio, channels, objects, parameters, rights, measurements, or processing history.
 
+**Metallic ringing.** Audible pitched or bell-like persistence caused by sparse, regularly spaced, or insufficiently damped reverberator modes.
+
 **Metering.** Visual or machine-readable measurement of levels, loudness, peaks, dynamics, spectra, or processing state.
 
 **Mid-side processing.** Stereo processing in the sum-and-difference domain rather than directly on left and right channels.
@@ -32637,11 +34003,19 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Mix.** The combination of multiple sources, channels, buses, and processing paths into a program.
 
+**Modal decay time.** Time constant or RT60 associated with one resonant mode rather than a broadband or band-averaged response.
+
+**Modal degeneracy.** Coincidence of two or more theoretically distinct modes at the same frequency, often increasing resonance strength.
+
 **Modal density.** Number of acoustic modes per unit frequency, generally increasing with frequency and room volume.
 
 **Modal frequency.** Resonant frequency associated with a room or system mode.
 
 **Modal overlap.** Degree to which neighboring resonances overlap in bandwidth, contributing to a smoother statistical response.
+
+**Mode-density threshold.** Frequency or time region beyond which modes or echoes are numerous enough that statistical description becomes more useful than individual tracking.
+
+**Mode-frequency distribution.** Arrangement of resonant frequencies in a room or recursive network, including spacing, degeneracy, clustering, and irregularity.
 
 **Modulation.** Time variation of amplitude, frequency, phase, delay, filter, matrix, or another parameter.
 
@@ -32653,7 +34027,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Monophonic.** Containing one audio channel or one musical line, depending on context.
 
+**Moorer reverberator.** Artificial-reverberation architecture extending Schroeder structures with explicit early reflections and frequency-dependent damping in feedback comb filters.
+
 **Moving average.** A filter or statistic formed by averaging values over a sliding interval.
+
+**Multiband delay filter.** Feedback-path filter designed from several target decay bands to approximate a detailed frequency-dependent RT60 curve.
 
 **Multiband processing.** Independent or linked processing of frequency regions separated by a filterbank or crossover.
 
@@ -32674,7 +34052,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{n}{}
 \section*{N}
-\addcontentsline{toc}{section}{N}
 ```
 
 **N-channel.** Describing a signal or system with an arbitrary stated number $N$ of channels.
@@ -32682,6 +34059,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Natural reverb.** Reverberation generated by a physical acoustic environment rather than an electronic processor.
 
 **Near field.** Region close to a source where pressure and particle velocity behavior is complex and simple far-field laws may not apply.
+
+**Nested allpass filter.** Diffusion structure in which an allpass or delay network is embedded inside another allpass loop to increase echo complexity efficiently.
 
 **Neural audio codec.** A learned encoder-decoder that represents audio with compact latent variables and neural synthesis.
 
@@ -32697,11 +34076,17 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Noise shaping.** Spectral redistribution of quantization noise, usually moving energy toward less audible regions.
 
+**Noise-floor bend.** Point where a measured decay curve departs from its reverberant slope because background noise begins to dominate backward-integrated energy.
+
+**Nonexponential decay.** Reverberant decay that cannot be represented adequately by one constant exponential slope over the interval of interest.
+
 **Nonlinear distortion.** New frequency components or waveform changes produced by a system that does not obey superposition.
 
 **Nonstationarity.** Time variation in a signal's statistical properties, spectrum, level, source, or environment.
 
 **Normalization.** Gain adjustment or numerical scaling to meet a peak, loudness, energy, or representational target.
+
+**Normalized echo density.** Echo-density measure normalized against a Gaussian or reference process so responses with different levels and durations can be compared.
 
 **Normalized frequency.** Frequency expressed relative to sample rate, Nyquist frequency, or another reference.
 
@@ -32712,7 +34097,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{o}{}
 \section*{O}
-\addcontentsline{toc}{section}{O}
 ```
 
 **Object-based audio.** Spatial audio represented as audio objects plus time-varying metadata interpreted by a renderer.
@@ -32731,7 +34115,13 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Orthogonal matrix.** A real square matrix whose transpose equals its inverse and that preserves Euclidean energy.
 
+**Orthogonal mixing.** Energy-preserving mixing of real-valued channels or delay states using an orthogonal matrix.
+
+**Orthogonalized delay filter.** Delay-line damping design transformed to preserve a desired lossless or orthogonal network relationship while imposing frequency-dependent decay.
+
 **Oscillation.** Repeated variation around an equilibrium, periodic or quasi-periodic in time.
+
+**Output decorrelation delay.** Short channel-specific delay used at reverberator outputs to reduce interchannel correlation and broaden spatial imaging.
 
 **Output gain.** Gain applied after the principal processing network.
 
@@ -32748,10 +34138,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{p}{}
 \section*{P}
-\addcontentsline{toc}{section}{P}
 ```
 
 **Panning.** Distribution of a source among output channels or spatial directions.
+
+**Parallel comb bank.** Set of comb filters driven in parallel and summed, producing a superposition of modal families with different delay periods.
 
 **Parallel compression.** Mixing a compressed path with a less compressed path to combine density and transient definition.
 
@@ -32761,7 +34152,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Parameter smoothing.** Gradual interpolation of parameter changes to avoid clicks, zipper noise, and unstable transitions.
 
+**Paraunitary matrix.** Frequency-dependent matrix whose conjugate-transpose product is identity on the unit circle, preserving energy across frequency.
+
 **Partitioned convolution.** FFT convolution that divides a long impulse response into partitions to manage latency and computation.
+
+**Passivity.** Property that a system cannot generate net energy, providing a strong sufficient condition for stable physical and feedback-network models.
 
 **Peak hold.** A meter function that retains the maximum observed value for a defined time or until reset.
 
@@ -32772,6 +34167,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Perceptual loss.** A training objective based on features or distances intended to correlate with human hearing.
 
 **Perceptual model.** A computational approximation of auditory sensitivity, masking, localization, quality, or preference.
+
+**Perceptual reverberator.** Reverberator optimized to reproduce salient auditory cues rather than every geometrical reflection or exact point-to-point transfer function.
 
 **Phase.** Position within a periodic cycle or the angular component of a complex spectrum.
 
@@ -32789,9 +34186,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Plugin delay compensation.** Host alignment based on latency reported by plug-ins so parallel paths remain synchronized.
 
+**Point-to-point transfer function.** Acoustic transfer function from one specified source position to one specified receiver position.
+
 **Polar pattern.** Directional sensitivity or radiation shown as magnitude versus angle.
 
 **Pole.** A complex-frequency location where a transfer function becomes unbounded, governing resonance and decay.
+
+**Pole angle.** Angular position of a pole in the complex plane, determining its oscillation frequency in a discrete-time resonant system.
+
+**Pole radius.** Distance of a pole from the origin, determining modal decay rate and stability for a discrete-time recursive system.
 
 **Pre-delay.** Time between dry sound and the onset of a reverberant response.
 
@@ -32801,7 +34204,15 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Preset.** A named stored configuration of parameters and states.
 
+**Pressure reflection coefficient.** Complex ratio of reflected to incident acoustic pressure at a boundary, carrying both magnitude and phase information.
+
 **Pressure zone microphone.** A microphone designed for placement at a boundary to reduce direct-reflection comb filtering.
+
+**Prime delay length.** Delay length chosen as a prime integer to reduce shared periodicities with other paths in a delay network.
+
+**Prime-power delay length.** Delay length selected from powers of distinct primes to structure recurrence and mode distribution in an FDN.
+
+**Propagation-loss filter.** Filter representing distance- and frequency-dependent energy loss accumulated while sound travels through a medium.
 
 **Psychoacoustics.** Scientific study of relationships between physical sound and auditory perception.
 
@@ -32810,7 +34221,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{q}{}
 \section*{Q}
-\addcontentsline{toc}{section}{Q}
 ```
 
 **Q factor.** Ratio of center frequency to bandwidth for a resonance or filter, indicating selectivity.
@@ -32828,16 +34238,21 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{r}{}
 \section*{R}
-\addcontentsline{toc}{section}{R}
 ```
 
 **Ray tracing.** Geometric simulation that follows many sound paths through reflections, transmission, scattering, and attenuation.
+
+**Ray-tracing order.** Maximum number of reflections followed for each acoustic ray in a geometric room simulation.
 
 **Real-time factor.** Processing time divided by signal duration; values below one indicate faster-than-realtime offline performance.
 
 **Realtime processing.** Processing that must produce each output before a fixed playback or interaction deadline.
 
 **Receiver.** The microphone, listener, ear, probe, or modeled point at which an acoustic response is evaluated.
+
+**Receiver directivity.** Direction-dependent sensitivity of a microphone, ear model, or virtual receiver used during acoustic rendering or measurement.
+
+**Rectilinear waveguide mesh.** Digital waveguide mesh arranged on an orthogonal grid, simple to implement but subject to direction-dependent dispersion.
 
 **Recursive filter.** A filter that uses previous outputs, giving an impulse response that may continue indefinitely.
 
@@ -32850,6 +34265,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Reflection density.** Number of reflections arriving per unit time within an impulse response.
 
 **Reflection order.** Number of boundary interactions along a geometric propagation path.
+
+**Reflection path.** Geometric route from source to receiver containing one or more boundary interactions and associated delay, loss, and filtering.
+
+**Regression interval.** Selected decibel or time range over which a line is fitted to a decay curve for RT estimation.
 
 **Release.** The time behavior with which a processor returns toward unity gain or a sound decays after excitation.
 
@@ -32873,13 +34292,25 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Reverberance.** Perceived prominence and duration of reverberant energy.
 
+**Reverberant power gain.** Frequency-dependent ratio of reverberator output power to input power under specified stationary excitation and routing.
+
+**Reverberation coloration.** Audible spectral shaping caused by uneven modal amplitudes, delays, feedback, damping, or output mixing in a reverberant system.
+
+**Reverberation diffusion.** Temporal and spatial spreading that converts sparse reflections into a dense, less localized decay field.
+
+**Reverberation problem.** Engineering task of reproducing the perceptually important behavior of a space under finite computation, memory, latency, and control constraints.
+
 **Reverberation radius.** Another name for critical distance in some room-acoustic contexts.
 
 **Reverberation time.** Time required for sound energy to decay by a specified amount, conventionally 60 dB.
 
+**Reverse cumulative integration.** Summation from the end of a sequence toward its beginning, used in Schroeder energy-decay analysis.
+
 **Reverse reverb.** Reverb whose envelope swells toward an event, commonly created by reversing a source or impulse-response workflow.
 
 **Ringing.** Sustained oscillation after excitation, often caused by high-Q resonance, filtering, or unstable feedback.
+
+**Room constant.** Absorption-related room quantity used in steady-state level and critical-distance formulas, often written from area and mean absorption.
 
 **Room correction.** Measurement-guided equalization and sometimes timing control intended to improve playback at selected positions.
 
@@ -32888,6 +34319,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Room mode.** Standing-wave resonance determined by room dimensions and boundary conditions.
 
 **Room tone.** Background sound of a location without the foreground performance.
+
+**Room-mode transition frequency.** Approximate frequency separating sparse individually resolvable room modes from an increasingly overlapping statistical field.
 
 **Root mean square.** Square root of mean squared amplitude, used as an energy-related level measure.
 
@@ -32904,8 +34337,9 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{s}{}
 \section*{S}
-\addcontentsline{toc}{section}{S}
 ```
+
+**Sabine absorption area.** Equivalent perfectly absorbing area obtained by summing each surface area multiplied by its absorption coefficient.
 
 **Sabine equation.** Statistical relation among room volume, equivalent absorption area, and reverberation time under diffuse-field assumptions.
 
@@ -32915,11 +34349,19 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Sample-rate conversion.** Resampling between different rates with appropriate reconstruction and anti-alias filtering.
 
+**Sample-rate delay scaling.** Adjustment of delay lengths in proportion to sampling rate so physical delay times remain approximately constant.
+
 **Saturation.** Gradual nonlinear limiting that adds harmonics and compresses peaks rather than clipping abruptly.
 
 **Scattering.** Redistribution of reflected sound caused by surface irregularity, geometry, or wavelength-scale structures.
 
 **Scattering coefficient.** Fraction of reflected energy redirected away from the specular direction under a defined measurement method.
+
+**Scattering delay network.** Room-reverberation structure connecting delay lines through scattering nodes derived from room geometry and boundary properties.
+
+**Scattering junction.** Network node that maps incoming traveling-wave components to outgoing components while satisfying continuity and conservation relations.
+
+**Schroeder allpass section.** Recursive delay structure with nominally flat magnitude response used to increase echo density and phase dispersion.
 
 **Schroeder frequency.** Approximate transition above which room modes overlap sufficiently for statistical treatment.
 
@@ -32936,6 +34378,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Sensitivity.** Change in output, metric, or perception produced by a change in input or parameter.
 
 **Serial processing.** Processing in which one stage's output feeds the next stage's input.
+
+**Series allpass chain.** Cascade of allpass diffusers used to build echo density before or after a recursive reverberation stage.
 
 **Shelf filter.** A filter that boosts or cuts frequencies above or below a transition region by an approximately constant amount.
 
@@ -32991,7 +34435,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Spatialization.** Placement, motion, extent, or environmental rendering of sound in a spatial scene.
 
+**Specific echo density.** Echo count per unit time under a stated amplitude or statistical criterion, used to assess reverberant texture.
+
 **Spectral centroid.** Energy-weighted mean frequency, often correlated with perceived brightness.
+
+**Spectral coloration equalizer.** Filter used outside or around a reverberant network to correct its steady-state magnitude response independently of decay design.
 
 **Spectral convergence.** Degree to which an estimated spectrum approaches a target spectrum over iterations or time.
 
@@ -33023,6 +34471,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **State.** Stored information required for a processor's future output, such as delay contents, filter memories, envelopes, and random generators.
 
+**Statistical late field.** Dense reverberant tail characterized through distributions, correlation, decay, and spectrum rather than individually modeled reflections.
+
+**Steady-state energy density.** Average acoustic energy per unit volume after a continuous source and room losses reach statistical equilibrium.
+
 **Stem.** A grouped audio submix intended for independent routing, processing, delivery, or reconstruction.
 
 **Stereo.** Two-channel reproduction or representation conventionally associated with left and right.
@@ -33035,6 +34487,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Summing.** Combining signals by addition, with gains and routing determining the result.
 
+**Surface scattering coefficient.** Frequency-dependent fraction of reflected energy redistributed away from the specular direction by boundary roughness or geometry.
+
 **Surround sound.** Playback using loudspeakers around the listener to represent direction and envelopment beyond frontal stereo.
 
 **Sustain.** Continued portion of a sound or envelope after onset, or maintenance of reverberant energy in a freeze system.
@@ -33046,7 +34500,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{t}{}
 \section*{T}
-\addcontentsline{toc}{section}{T}
 ```
 
 **T20.** Common shorthand for a reverberation estimate based on a measured 20 dB decay range.
@@ -33056,6 +34509,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Tail length.** Rendered or effective duration of a reverberant decay after the source ends.
 
 **Tap.** One read location and gain from a delay line.
+
+**Tapped-delay early-reflection model.** Finite set of delayed, scaled, filtered, and spatialized taps approximating the perceptually important first room reflections.
 
 **Target curve.** Desired frequency, loudness, decay, or spatial response used to guide correction or optimization.
 
@@ -33075,17 +34530,29 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Time-frequency mask.** A matrix of gains applied to spectral bins over time for separation, enhancement, or dereverberation.
 
+**Time-varying delay line.** Delay whose read position changes over time, requiring interpolation and potentially producing Doppler shift or decorrelation.
+
+**Time-varying reverberator.** Reverberator whose delays, filters, matrices, or gains change over time to suppress static modes or create intentional motion.
+
 **Toeplitz matrix.** A matrix constant along each diagonal, arising naturally in convolution and linear prediction.
+
+**Tonal correction filter.** Equalizer that compensates the average spectral coloration of a reverberator without redefining its modal decay times.
 
 **Tonality.** Degree to which a sound contains stable pitch or narrowband structure rather than noise-like energy.
 
 **Total harmonic distortion.** Ratio of harmonic-distortion energy to fundamental energy under a specified test.
+
+**Transfer-function matrix.** Matrix of point-to-point transfer functions mapping multiple acoustic or electrical inputs to multiple outputs.
 
 **Transient.** A short, rapidly changing event such as an attack, click, or percussion hit.
 
 **Transient preservation.** Retention of onset definition and peak structure through processing.
 
 **Transmission loss.** Reduction in sound power transmitted through a partition, usually frequency dependent.
+
+**Triangular feedback matrix.** Upper- or lower-triangular FDN matrix whose eigenvalues are visible on its diagonal and whose coupling has a directed structure.
+
+**Triangular waveguide mesh.** Mesh using triangular spatial cells to improve angular isotropy relative to a simple rectilinear grid.
 
 **True peak.** Estimated maximum of the reconstructed continuous waveform, which can exceed individual sample peaks.
 
@@ -33098,7 +34565,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{u}{}
 \section*{U}
-\addcontentsline{toc}{section}{U}
 ```
 
 **Uncorrelated signals.** Signals with negligible linear correlation over the measurement interval.
@@ -33109,7 +34575,11 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Unit impulse.** A discrete signal equal to one at one sample and zero elsewhere.
 
+**Unit-circle pole.** Pole lying exactly on the complex unit circle, corresponding to an undamped discrete-time mode in an ideal lossless system.
+
 **Unitary matrix.** A complex matrix whose conjugate transpose equals its inverse and that preserves energy.
+
+**Unitary mixing.** Energy-preserving mixing of complex-valued states or channels using a unitary matrix.
 
 **Unity gain.** Gain of one, corresponding to zero decibels of level change.
 
@@ -33122,7 +34592,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{v}{}
 \section*{V}
-\addcontentsline{toc}{section}{V}
 ```
 
 **Validation.** Checking that inputs, parameters, outputs, formats, and invariants meet defined requirements.
@@ -33154,7 +34623,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{w}{}
 \section*{W}
-\addcontentsline{toc}{section}{W}
 ```
 
 **WAV.** A RIFF-based audio file container commonly storing PCM or floating-point samples and metadata chunks.
@@ -33164,6 +34632,10 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Wave field synthesis.** Spatial reproduction method using dense loudspeaker arrays to approximate desired wavefronts over an area.
 
 **Waveguide.** A physical or digital structure that constrains wave propagation along one or more dimensions.
+
+**Waveguide numerical dispersion.** Frequency- and direction-dependent propagation-speed error caused by discrete mesh geometry and sampling.
+
+**Waveguide-mesh reverberation.** Physical-modeling approach that propagates traveling waves across an interconnected spatial mesh to approximate room acoustics.
 
 **Wavelength.** Distance traveled by one wave cycle, equal to sound speed divided by frequency.
 
@@ -33190,7 +34662,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{x}{}
 \section*{X}
-\addcontentsline{toc}{section}{X}
 ```
 
 **X-curve.** A cinema monitoring target response defined for calibrated dubbing stages and theaters.
@@ -33204,7 +34675,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{y}{}
 \section*{Y}
-\addcontentsline{toc}{section}{Y}
 ```
 
 **Yaw.** Rotation around the vertical axis, corresponding approximately to turning the head left or right.
@@ -33216,7 +34686,6 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 ```{=latex}
 \hypertarget{z}{}
 \section*{Z}
-\addcontentsline{toc}{section}{Z}
 ```
 
 **Z-transform.** Complex-frequency representation of discrete-time signals and systems used to analyze poles, zeros, and stability.
@@ -33230,6 +34699,8 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 **Zero-phase filter.** A noncausal offline filter with no phase shift, often implemented by forward-backward processing.
 
 **Zipper noise.** Audible stepping caused by abrupt or insufficiently smoothed parameter changes.
+
+**Zita-Rev1.** Open-source FDN reverberator by Fons Adriaensen with eight delay lines, frequency-dependent decay controls, and stereo output processing.
 
 **Zobel network.** An impedance-equalization network used in loudspeaker and analog circuit design.
 

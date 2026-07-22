@@ -678,11 +678,19 @@ def production_cards(lines: list[str]) -> None:
 
 def automation_cards(lines: list[str]) -> None:
     lines.extend(["## 20. Automation Study Cards", ""])
-    for parameter_index, parameter in enumerate(PARAMETERS):
-        label, key, meaning, transition = parameter
-        lines.extend([f"### 20.{parameter_index + 1} {label}", ""])
-        for shape in SHAPES:
-            shape_name, motion, risk = shape
+    for shape_index, shape in enumerate(SHAPES, start=1):
+        shape_name, motion, risk = shape
+        lines.extend(
+            [
+                f"### 20.{shape_index} {shape_name}",
+                "",
+                f"**Motion grammar:** {motion.capitalize()}.",
+                f"**Primary listening question:** This pattern {risk}.",
+                "",
+            ]
+        )
+        for parameter in PARAMETERS:
+            label, key, meaning, transition = parameter
             title = f"Automation card: {label}: {shape_name}"
             metadata = [
                 f"Host parameter: `{key}`.",
