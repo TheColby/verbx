@@ -1,12 +1,12 @@
 # verbx Roadmap
 
-_Last updated: 2026-07-22. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
+_Last updated: 2026-07-23. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
 
 ---
 
 ## 1. Release Posture
 
-**Current release:** `v0.9.0`
+**Current release:** `v0.9.1`
 **Status:** public alpha (research-grade)
 **Versioning policy:** semantic prerelease (`0.x` during public alpha)
 
@@ -17,7 +17,22 @@ CLI-selectable realtime duplex auditioning.
 
 ---
 
-## 2. v0.9 Physical Room Slice (Completed)
+## 2. v0.9.1 Stabilization and Validation Slice
+
+- [x] Expose composed, typed views over the monolithic render configuration
+  while retaining CLI and report compatibility.
+- [x] Promote render-performance regression detection to a blocking CI gate.
+- [x] Tighten the deterministic native-render behavior covered by the parity
+  contract.
+- [x] Add an analytic rectangular-room ISM reference corpus covering direct
+  and first-order path distance, sample timing, and material-dependent gain.
+
+`v0.9.1` is intentionally a hardening release. Broader SDN, neural, and
+arbitrary-CAD expansion remains gated on repeatable evaluation evidence.
+
+---
+
+## 3. v0.9 Physical Room Slice (Completed)
 
 - [x] Ship `--engine ism-fdn` for a rectangular image-source early field fed
   into the established FDN late field.
@@ -31,7 +46,7 @@ The native `verbx-c` executable does not claim ISM/FDN parity in `v0.9`; the
 physical room path remains Python-reference functionality until the native FDN
 port and parity contract can support the same scene model.
 
-## 2a. Experimental Electro-Mechanical Modal FE (Completed)
+## 3a. Experimental Electro-Mechanical Modal FE (Completed)
 
 - [x] Add `--electromechanical-solver modal-fe` alongside the fast default
   proxy voice for `--algo-model spring|plate`.

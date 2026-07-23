@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
+- `v0.9.1` exposes immutable typed render-configuration sections for engine,
+  execution, tail, and output settings while preserving the flat CLI, preset,
+  and report compatibility surface.
+- Added an analytic rectangular-room ISM reference corpus and a public
+  pre-convolution path enumerator, with regression coverage for direct and
+  first-order distances, sample delays, and material-dependent gain.
+- Added blocking CI jobs for render-performance budgets and native structural
+  parity; missing benchmark baselines now fail closed and failure reports are
+  still uploaded as artifacts.
+- Native tail completion now preserves a deterministic source-duration floor
+  for active, dry-only, and silent input instead of permitting truncation below
+  the source extent.
 - Scala `.scl` tuning for `verbx ir gen`, including cents and ratio parsing,
   arbitrary repeat intervals, root-degree mapping, bounded cross-register target
   expansion, constant-Q band emphasis, deterministic cache identity, and full

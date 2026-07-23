@@ -913,7 +913,7 @@ def magnitude_response_plot(
         draw.line((left, y, right, y), fill=GRID, width=2)
         draw.text(
             (left - 18, y),
-            f"{value:+.2g}",
+            f"{value:+.2g} dB",
             fill=MUTED,
             font=F_SMALL,
             anchor="rm",
@@ -935,7 +935,7 @@ def magnitude_response_plot(
         font=F_SMALL,
         anchor="ma",
     )
-    vertical = "Magnitude (dB, median normalized)"
+    vertical = "Magnitude (dB)"
     vertical_box = draw.textbbox((0, 0), vertical, font=F_SMALL)
     vertical_image = Image.new(
         "RGBA",
@@ -955,6 +955,65 @@ def magnitude_response_plot(
             draw.text((150, note_y), line, fill=INK, font=F_SMALL)
             note_y += 25
         note_y += 12
+    save(image, name)
+
+
+def schroeder_allpass_phase_plot(name: str) -> None:
+    """Plot unwrapped phase and group delay for a reduced Schroeder allpass."""
+
+    image, draw = canvas(
+        "Schroeder Allpass Phase and Group Delay",
+        "Flat magnitude still permits frequency-dependent delay and transient dispersion.",
+    )
+    left, top, right, bottom = 125, 190, 1480, 690
+    draw.rectangle((left, top, right, bottom), fill="#fbfaf6", outline=GRID, width=3)
+    frequencies = np.linspace(0.0, 0.5, 2_049)
+    order, feedback = 8, 0.82**8
+    delayed = np.exp(-2j * np.pi * frequencies * order)
+    response = (-feedback + delayed) / (1.0 - feedback * delayed)
+    phase = np.unwrap(np.angle(response))
+    group_delay = -np.gradient(phase, 2.0 * np.pi * (frequencies[1] - frequencies[0]))
+    phase_min, phase_max = float(phase.min()), float(phase.max())
+    padding = max((phase_max - phase_min) * 0.08, 0.5)
+    phase_min -= padding
+    phase_max += padding
+    group_max = max(float(np.percentile(group_delay, 99.5)), 1.0)
+
+    def map_x(value: float) -> float:
+        return left + value / 0.5 * (right - left)
+
+    def map_y(value: float) -> float:
+        return bottom - (value - phase_min) / (phase_max - phase_min) * (bottom - top)
+
+    for value in (0.0, 0.125, 0.25, 0.375, 0.5):
+        x = map_x(value)
+        draw.line((x, top, x, bottom), fill=GRID, width=2)
+        draw.text((x, bottom + 18), f"{value:g}", fill=MUTED, font=F_SMALL, anchor="ma")
+    for value in np.linspace(phase_min, phase_max, 5):
+        y = map_y(float(value))
+        draw.line((left, y, right, y), fill=GRID, width=2)
+        draw.text((left - 18, y), f"{value / math.pi:.1f}pi", fill=MUTED, font=F_SMALL, anchor="rm")
+    draw.line(
+        [(map_x(float(frequency)), map_y(float(value))) for frequency, value in zip(frequencies, phase, strict=True)],
+        fill=TEAL,
+        width=5,
+        joint="curve",
+    )
+    inset_top, inset_bottom = 270, 435
+    draw.rectangle((left + 35, inset_top, right - 35, inset_bottom), fill="#fffdf8", outline=GRID, width=2)
+    draw.line(
+        [
+            (map_x(float(frequency)), inset_bottom - min(max(float(value), 0.0), group_max) / group_max * (inset_bottom - inset_top))
+            for frequency, value in zip(frequencies, group_delay, strict=True)
+        ],
+        fill=RUST,
+        width=4,
+        joint="curve",
+    )
+    draw.text((left + 55, inset_top + 12), "group delay (samples, normalized inset)", fill=RUST, font=F_SMALL)
+    draw.text(((left + right) / 2, bottom + 65), "Normalized frequency (cycles/sample)", fill=MUTED, font=F_SMALL, anchor="ma")
+    draw.text((left - 62, top + 8), "phase", fill=MUTED, font=F_SMALL, anchor="ma")
+    _flow_note(draw, "Teal: unwrapped phase. Rust: group delay, showing frequency-dependent arrival time.")
     save(image, name)
 
 
@@ -1010,6 +1069,7 @@ def generate_pole_zero_plots() -> None:
             "The allpass changes timing and phase, not the ideal steady-state spectrum.",
         ),
     )
+    schroeder_allpass_phase_plot("50_schroeder_allpass_phase.png")
 
     schroeder_poles: list[complex] = []
     for count, radius, phase in ((7, 0.79, 0.0), (9, 0.84, 0.10), (11, 0.88, 0.04), (13, 0.91, 0.08)):

@@ -49,30 +49,26 @@ LimiterMode = Literal["tanh", "arctan", "softsign", "hard"]
 LimiterDetect = Literal["peak", "rms"]
 
 
-@dataclass(slots=True)
-class RenderConfig:
-    """Typed render configuration used by CLI and pipeline.
+@dataclass(frozen=True, slots=True)
+class EngineSettings:
+    """Core engine and mix settings extracted from :class:`RenderConfig`."""
 
-    Centralizing options in one dataclass reduces drift between CLI parsing,
-    validation, and DSP pipeline behavior.
-    """
+    engine: EngineName
+    algo_model: AlgoModel
+    rt60: float
+    pre_delay_ms: float
+    damping: float
+    width: float
+    wet: float
+    dry: float
+    repeat: int
+    freeze: bool
 
     def __post_init__(self) -> None:
-        """Validate field constraints that would cause silent corruption or crashes."""
         if self.algo_model not in {"fdn", "spring", "plate"}:
             raise ValueError(f"algo_model must be fdn, spring, or plate, got {self.algo_model}")
         if self.rt60 < 0.0:
             raise ValueError(f"rt60 must be >= 0, got {self.rt60}")
-        if self.fdn_lines < 1:
-            raise ValueError(f"fdn_lines must be >= 1, got {self.fdn_lines}")
-        if self.block_size < 1:
-            raise ValueError(f"block_size must be >= 1, got {self.block_size}")
-        if self.partition_size < 1:
-            raise ValueError(f"partition_size must be >= 1, got {self.partition_size}")
-        if self.target_sr is not None and int(self.target_sr) < 1:
-            raise ValueError(f"target_sr must be >= 1, got {self.target_sr}")
-        if self.tail_stop_hold_ms < 0.0:
-            raise ValueError(f"tail_stop_hold_ms must be >= 0, got {self.tail_stop_hold_ms}")
         if self.pre_delay_ms < 0.0:
             raise ValueError(f"pre_delay_ms must be >= 0, got {self.pre_delay_ms}")
         if not 0.0 <= self.damping <= 1.0:
@@ -83,6 +79,119 @@ class RenderConfig:
             raise ValueError(f"dry must be >= 0, got {self.dry}")
         if self.repeat < 1:
             raise ValueError(f"repeat must be >= 1, got {self.repeat}")
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionSettings:
+    """Buffering and compute-backend settings for a render."""
+
+    block_size: int
+    partition_size: int
+    target_sr: int | None
+    threads: int | None
+    device: DeviceName
+    algo_stream: bool
+    algo_proxy_ir_max_seconds: float
+    algo_gpu_proxy: bool
+
+    def __post_init__(self) -> None:
+        if self.block_size < 1:
+            raise ValueError(f"block_size must be >= 1, got {self.block_size}")
+        if self.partition_size < 1:
+            raise ValueError(f"partition_size must be >= 1, got {self.partition_size}")
+        if self.target_sr is not None and int(self.target_sr) < 1:
+            raise ValueError(f"target_sr must be >= 1, got {self.target_sr}")
+        if self.algo_proxy_ir_max_seconds <= 0.0:
+            raise ValueError(
+                f"algo_proxy_ir_max_seconds must be > 0, got {self.algo_proxy_ir_max_seconds}"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class TailSettings:
+    """Tail truncation and silence-detection settings."""
+
+    limit: float | None
+    stop_threshold_db: float
+    stop_hold_ms: float
+    stop_metric: TailStopMetric
+
+    def __post_init__(self) -> None:
+        if self.stop_hold_ms < 0.0:
+            raise ValueError(f"tail_stop_hold_ms must be >= 0, got {self.stop_hold_ms}")
+
+
+@dataclass(frozen=True, slots=True)
+class OutputSettings:
+    """Output encoding, normalization, and limiter settings."""
+
+    subtype: OutputSubtype
+    container: OutputContainer
+    peak_norm: OutputPeakNorm
+    peak_target_dbfs: float | None
+    target_lufs: float | None
+    target_peak_dbfs: float | None
+    use_true_peak: bool
+    limiter: bool
+    limiter_mode: LimiterMode
+    limiter_detect: LimiterDetect
+    limiter_threshold_dbfs: float | None
+    limiter_ceiling_dbfs: float | None
+    limiter_knee_db: float
+    limiter_drive: float
+    limiter_mix: float
+    limiter_attack_ms: float
+    limiter_release_ms: float
+    limiter_lookahead_ms: float
+    limiter_stereo_link: bool
+    limiter_oversample: int
+    limiter_pre_gain_db: float
+    limiter_post_gain_db: float
+    limiter_dc_block: bool
+    normalize_stage: NormalizeStage
+
+    def __post_init__(self) -> None:
+        if self.limiter_knee_db < 0.0:
+            raise ValueError(f"limiter_knee_db must be >= 0, got {self.limiter_knee_db}")
+        if self.limiter_drive <= 0.0:
+            raise ValueError(f"limiter_drive must be > 0, got {self.limiter_drive}")
+        if not 0.0 <= self.limiter_mix <= 1.0:
+            raise ValueError(f"limiter_mix must be 0-1, got {self.limiter_mix}")
+        if self.limiter_attack_ms < 0.0:
+            raise ValueError(f"limiter_attack_ms must be >= 0, got {self.limiter_attack_ms}")
+        if self.limiter_release_ms < 0.0:
+            raise ValueError(f"limiter_release_ms must be >= 0, got {self.limiter_release_ms}")
+        if self.limiter_lookahead_ms < 0.0:
+            raise ValueError(f"limiter_lookahead_ms must be >= 0, got {self.limiter_lookahead_ms}")
+        if self.limiter_oversample < 1:
+            raise ValueError(f"limiter_oversample must be >= 1, got {self.limiter_oversample}")
+
+
+@dataclass(frozen=True, slots=True)
+class RenderConfigSections:
+    """Coherent snapshots of the most commonly consumed render settings."""
+
+    engine: EngineSettings
+    execution: ExecutionSettings
+    tail: TailSettings
+    output: OutputSettings
+
+
+@dataclass(slots=True)
+class RenderConfig:
+    """Typed render configuration used by CLI and pipeline.
+
+    Centralizing options in one dataclass reduces drift between CLI parsing,
+    validation, and DSP pipeline behavior.
+    """
+
+    def __post_init__(self) -> None:
+        """Validate field constraints that would cause silent corruption or crashes."""
+        # Constructing the typed sections delegates their local invariants while
+        # retaining the flat constructor used by the CLI and saved presets.
+        _ = self.sections
+        if self.fdn_lines < 1:
+            raise ValueError(f"fdn_lines must be >= 1, got {self.fdn_lines}")
         if self.allpass_stages < 0:
             raise ValueError(f"allpass_stages must be >= 0, got {self.allpass_stages}")
         if not 0.0 <= self.allpass_gain <= 1.0:
@@ -106,24 +215,6 @@ class RenderConfig:
             )
         if self.unsafe_loop_gain <= 0.0:
             raise ValueError(f"unsafe_loop_gain must be > 0, got {self.unsafe_loop_gain}")
-        if self.algo_proxy_ir_max_seconds <= 0.0:
-            raise ValueError(
-                f"algo_proxy_ir_max_seconds must be > 0, got {self.algo_proxy_ir_max_seconds}"
-            )
-        if self.limiter_knee_db < 0.0:
-            raise ValueError(f"limiter_knee_db must be >= 0, got {self.limiter_knee_db}")
-        if self.limiter_drive <= 0.0:
-            raise ValueError(f"limiter_drive must be > 0, got {self.limiter_drive}")
-        if not 0.0 <= self.limiter_mix <= 1.0:
-            raise ValueError(f"limiter_mix must be 0-1, got {self.limiter_mix}")
-        if self.limiter_attack_ms < 0.0:
-            raise ValueError(f"limiter_attack_ms must be >= 0, got {self.limiter_attack_ms}")
-        if self.limiter_release_ms < 0.0:
-            raise ValueError(f"limiter_release_ms must be >= 0, got {self.limiter_release_ms}")
-        if self.limiter_lookahead_ms < 0.0:
-            raise ValueError(f"limiter_lookahead_ms must be >= 0, got {self.limiter_lookahead_ms}")
-        if self.limiter_oversample < 1:
-            raise ValueError(f"limiter_oversample must be >= 1, got {self.limiter_oversample}")
         if self.fdn_matrix_morph_seconds < 0.0:
             raise ValueError(
                 f"fdn_matrix_morph_seconds must be >= 0, got {self.fdn_matrix_morph_seconds}"
@@ -398,3 +489,83 @@ class RenderConfig:
     feature_vector_trace_out: str | None = None
     silent: bool = False
     progress: bool = True
+
+    @property
+    def engine_settings(self) -> EngineSettings:
+        """Return an immutable snapshot of core engine and mix settings."""
+        return EngineSettings(
+            engine=self.engine,
+            algo_model=self.algo_model,
+            rt60=self.rt60,
+            pre_delay_ms=self.pre_delay_ms,
+            damping=self.damping,
+            width=self.width,
+            wet=self.wet,
+            dry=self.dry,
+            repeat=self.repeat,
+            freeze=self.freeze,
+        )
+
+    @property
+    def execution_settings(self) -> ExecutionSettings:
+        """Return an immutable snapshot of buffering and backend settings."""
+        return ExecutionSettings(
+            block_size=self.block_size,
+            partition_size=self.partition_size,
+            target_sr=self.target_sr,
+            threads=self.threads,
+            device=self.device,
+            algo_stream=self.algo_stream,
+            algo_proxy_ir_max_seconds=self.algo_proxy_ir_max_seconds,
+            algo_gpu_proxy=self.algo_gpu_proxy,
+        )
+
+    @property
+    def tail_settings(self) -> TailSettings:
+        """Return an immutable snapshot of tail handling settings."""
+        return TailSettings(
+            limit=self.tail_limit,
+            stop_threshold_db=self.tail_stop_threshold_db,
+            stop_hold_ms=self.tail_stop_hold_ms,
+            stop_metric=self.tail_stop_metric,
+        )
+
+    @property
+    def output_settings(self) -> OutputSettings:
+        """Return an immutable snapshot of encoding and limiter settings."""
+        return OutputSettings(
+            subtype=self.output_subtype,
+            container=self.output_container,
+            peak_norm=self.output_peak_norm,
+            peak_target_dbfs=self.output_peak_target_dbfs,
+            target_lufs=self.target_lufs,
+            target_peak_dbfs=self.target_peak_dbfs,
+            use_true_peak=self.use_true_peak,
+            limiter=self.limiter,
+            limiter_mode=self.limiter_mode,
+            limiter_detect=self.limiter_detect,
+            limiter_threshold_dbfs=self.limiter_threshold_dbfs,
+            limiter_ceiling_dbfs=self.limiter_ceiling_dbfs,
+            limiter_knee_db=self.limiter_knee_db,
+            limiter_drive=self.limiter_drive,
+            limiter_mix=self.limiter_mix,
+            limiter_attack_ms=self.limiter_attack_ms,
+            limiter_release_ms=self.limiter_release_ms,
+            limiter_lookahead_ms=self.limiter_lookahead_ms,
+            limiter_stereo_link=self.limiter_stereo_link,
+            limiter_oversample=self.limiter_oversample,
+            limiter_pre_gain_db=self.limiter_pre_gain_db,
+            limiter_post_gain_db=self.limiter_post_gain_db,
+            limiter_dc_block=self.limiter_dc_block,
+            normalize_stage=self.normalize_stage,
+        )
+
+    @property
+    def sections(self) -> RenderConfigSections:
+        """Return typed snapshots without changing the flat serialization contract."""
+        return RenderConfigSections(
+            engine=self.engine_settings,
+            execution=self.execution_settings,
+            tail=self.tail_settings,
+            output=self.output_settings,
+        )

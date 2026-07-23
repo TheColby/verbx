@@ -249,6 +249,105 @@ CHAPTER_EXERCISES: dict[str, tuple[str, ...]] = {
     ),
 }
 
+# Five additional chapter-specific prompts keep the book's closing exercises
+# substantial without turning the appendices into repeated coursework.
+CHAPTER_EXERCISE_EXTENSIONS: dict[str, tuple[str, ...]] = {
+    "verbx": (
+        "Create a before-and-after production note that names the source, room role, routing, target loudness, and the one parameter you would revisit first.",
+        "Render the same preset at two sample rates and compare the tail after level matching; distinguish audible differences from file-format assumptions.",
+        "Use a supplied preset as a starting point, then make a version appropriate for dialogue, one for drums, and one for sustained harmony.",
+        "Prepare a one-page handoff for another engineer containing the command, assets, expected output, and a reversible troubleshooting step.",
+        "Choose one surprising render result and explain whether it arises from source material, parameter interaction, monitoring, or an actual defect.",
+    ),
+    "What Is Reverb? (and why verbx sounds different)": (
+        "Record a hand clap or balloon pop in two contrasting spaces and compare their onset-to-late-field transition with the chapter's vocabulary.",
+        "Derive the feedback gain required for a chosen RT60 and delay length, then test whether the resulting decay is perceptually plausible.",
+        "Make a sonogram pair with identical time and frequency axes for two reverb designs, then annotate three meaningful differences.",
+        "Construct a simple allpass or comb filter in any DSP environment and compare its impulse response with the corresponding idealized equation.",
+        "Write a listening guide for a nontechnical collaborator that distinguishes echo, early reflections, diffusion, and late reverberation.",
+    ),
+    "verbx Reference": (
+        "Use the reference to design a safe batch job, then estimate disk use, render duration, and tail duration before running it.",
+        "Create a failure-report bundle from a deliberately problematic input and identify the smallest evidence set another developer would need.",
+        "Compare two output formats and bit depths for a single render, documenting both interoperability and numerical consequences.",
+        "Validate a channel layout with a single-sample impulse in every channel and archive the result with the render metadata.",
+        "Write an explicit stop condition for a very long tail, then explain why it is safer than relying on an implicit default.",
+    ),
+    "Immersive Reverb, Surround Sound, and Dolby Atmos": (
+        "Build a moving source with stationary room energy and a stationary source with moving room energy; compare the two spatial narratives.",
+        "Create an immersive reverb plan for a one-minute scene, specifying bed channels, objects, height treatment, and fold-down priorities.",
+        "Measure or listen for interchannel correlation in one return and revise the design to improve envelopment without losing image stability.",
+        "Use a channel-identification recording to diagnose one incorrect height or surround routing problem in a DAW session.",
+        "Explain why LFE is normally excluded from a reverb return and identify one exceptional creative use that still preserves mix clarity.",
+    ),
+    "System Orientation Through Block Diagrams": (
+        "Turn one block diagram into pseudocode, explicitly naming buffers, persistent state, control-rate updates, and output accumulation.",
+        "Add meters to a diagram at the three most diagnostic points, then justify what each meter can reveal that the others cannot.",
+        "Identify one feedback loop and explain its stability condition in both signal-flow and musical terms.",
+        "Make a timing diagram showing audio-block processing, parameter automation, and report generation for one realtime configuration.",
+        "Review one diagram for an ambiguous arrow, label, or unit; redraw it so a new reader cannot mistake control flow for audio flow.",
+    ),
+    "CLI Reference": (
+        "Use shell variables to make a parameter sweep readable, then save the expanded commands with their output names and reports.",
+        "Write one command that intentionally uses a nondefault sample rate, floating-point output, and explicit channel layout; verify every choice in the report.",
+        "Build a command-line recipe for reverse reverb and identify the source duration and tail conditions that make it practical.",
+        "Compare two limiter configurations on the same extreme tail and document the tradeoff between peak safety and transient character.",
+        "Create a JSON-only analysis workflow that can run in CI without auditioning audio, then list its blind spots.",
+    ),
+    "verbx Extreme Workflow Cookbook (with 100 Recipes)": (
+        "Combine two compatible recipes in serial and in parallel, then explain which result preserves source intelligibility better.",
+        "Translate one recipe to a different tempo and meter while retaining its musical timing relationship.",
+        "Create a troubleshooting variant of one recipe with deliberately conservative settings and compare it to the published extreme version.",
+        "Organize ten recipes into a preset browser taxonomy based on musical function rather than algorithm name.",
+        "Document a recipe failure on unsuitable material and propose a revised source-selection rule for future users.",
+    ),
+    "VERBX AUv3/VST3 Plug-in Handbook": (
+        "Build an A/B automation lane that compares two room sizes without changing gain, then blind-test the result with a collaborator.",
+        "Use the analyzer during a full mix and make one intervention that reduces masking without lowering the reverb return fader.",
+        "Design a performance-safe freeze patch with a clear entry, sustain, exit, and emergency-reset gesture.",
+        "Compare host tempo-synced pre-delay with a fixed-millisecond pre-delay across two tempi and describe the musical consequence.",
+        "Create a preset naming scheme that distinguishes source role, room role, algorithm, and expected automation behavior.",
+    ),
+    "IR Synthesis – A Dual-Layer Reference": (
+        "Capture or synthesize an IR with a clearly audible early reflection, then attenuate that reflection and compare localization.",
+        "Create an IR with the same magnitude spectrum but a different temporal distribution, then explain why convolution results still differ.",
+        "Test IR normalization methods on the same source and decide which supports fair listening comparison.",
+        "Use a logarithmic sine sweep and deconvolution workflow to make an IR, documenting latency, trimming, and noise-reduction decisions.",
+        "Build a hybrid IR whose early part comes from measurement and whose late part is synthesized; state the crossfade criterion.",
+    ),
+    "AI Research and Data Augmentation": (
+        "Create a manifest that makes augmentation seed, room identity, parameter range, and source identity queryable for every output.",
+        "Design an ablation in which only early reflections vary, then predict the downstream task effect before training a model.",
+        "Define a perceptual and a machine-oriented acceptance criterion for augmented files, and explain why neither alone is sufficient.",
+        "Create one realistic and one adversarial reverberant example for a target model, documenting why each belongs in the dataset.",
+        "Write a reproducibility checklist for rerunning an augmentation corpus six months later on another machine.",
+    ),
+    "Illustrated Guide": (
+        "Compare two figures that use different visual encodings and identify which question each encoding answers most directly.",
+        "Audit one graph for axis units, scale choice, and caption completeness; revise its caption to stand alone outside the chapter.",
+        "Create a small figure sequence that shows input, processing state, and output rather than a single left-to-right block chain.",
+        "Use one figure as evidence in a short technical argument, clearly separating what it shows from what you infer.",
+        "Design an accessible text description for a diagram so a reader can understand its causal structure without seeing it.",
+    ),
+    "Finite-Element Modeling for Reverb and Resonant Systems": (
+        "Compare a finite-element prediction with a modal or waveguide approximation and state the domain in which each is most useful.",
+        "Perform a mesh-convergence thought experiment for one cavity and identify the evidence needed before trusting a high-frequency result.",
+        "Map one simulated mode onto a musical note range and propose an audible experiment to test the prediction.",
+        "Estimate memory and computational complexity for a three-dimensional simulation as resolution increases, using stated assumptions.",
+        "Write a short report that separates model inputs, numerical assumptions, validation evidence, and artistic interpretation.",
+    ),
+    "Microtonal Workflows, Scala Import, and Scale-Tuned Reverberation": (
+        "Use the same Scala file with two different tonal centers and identify which resonant bands move and which remain fixed.",
+        "Compare a just-intonation scale and an equal-division scale in a scale-tuned reverb, using a sustained drone and a melodic line.",
+        "Design a scale-aware preset for an ensemble with two tunings, then state how the reverb should behave at their shared and conflicting degrees.",
+        "Create a sweep visualization showing the emphasized bands from a Scala import, with frequency in hertz and cents clearly labeled.",
+        "Compose a brief transition between two scale maps and document how reverberant tuning supports, obscures, or reframes the modulation.",
+    ),
+}
+
+for _chapter_heading, _extra_exercises in CHAPTER_EXERCISE_EXTENSIONS.items():
+    CHAPTER_EXERCISES[_chapter_heading] += _extra_exercises
+
 
 def _rel(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
@@ -381,7 +480,9 @@ def _chapter_two_portfolio_supplement() -> str:
     """Fold the rights-cleared portfolio into the early reverb chapter."""
 
     markdown = OPEN_SOURCE_PORTFOLIO_SOURCE.read_text(encoding="utf-8").strip()
-    markdown = _demote_markdown_headings(_demote_markdown_headings(markdown))
+    # One demotion makes the portfolio a Chapter 2 section. The chapter-promotion
+    # pass later turns its third-level source entries into chronological children.
+    markdown = _demote_markdown_headings(markdown)
     markdown = re.sub(r"\bFigure 17-\d+\b", "the following figure", markdown)
     markdown = markdown.replace("\nthe following figure", "\nThe following figure")
     return markdown

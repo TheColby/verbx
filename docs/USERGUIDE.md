@@ -53,16 +53,17 @@ reference material, and practical tips shipped in `docs/`.
 
 You can batch reverberate a directory of audio files to create lush Dolby Atmos beds. Or use it as part of your corpus-augmentation workflow for audio AI projects.
 
-Under the hood, everything runs in 64-bit floating point. The algorithmic engine is built around a configurable Feedback Delay Network with eight matrix families, multiband decay, optional pre-FDN comb-cloud coloration, and optional time-varying behavior. The convolution engine uses partitioned FFT with optional CUDA acceleration and full $M$-input-to-$N$-output matrix routing. Both engines share the same diffusion, shimmer, ducking, freeze, loudness, and spatial controls.
+This is not a "set RT60 and go" tool. The parameter surface is wide by design,
+but the first successful render only needs a source, a destination, and a
+musical intention. Start by choosing whether you need an offline asset or an
+interactive DAW return, then follow the practical workflow below.
 
-The latest `v0.9.0` work adds selectable algorithmic spring and plate models,
-while continuing to bridge pure parametric design with
-explicit acoustics. There is now a reusable room-geometry model for dimensions,
-materials, source/listener placement, Bolt-style proportion warnings, and RT60
-to rectangular-room inversion via `verbx room-model`.
+The detailed engine material, including algorithmic architectures, convolution,
+spring and plate models, room geometry, and finite-element modeling, appears
+later in the technical reference after the practical workflow has been
+established.
 
-This is not a "set RT60 and go" tool. The parameter surface is wide by design. Most users start with three flags and expand from there.
-
+<!-- verbx-pdf-exclude-start -->
 For classic electro-mechanical colors on the algorithmic path, choose a model
 directly or begin with a named preset:
 
@@ -199,6 +200,8 @@ verbx render voice.wav out.wav \
   --shimmer --shimmer-semitones 12 --shimmer-mix 0.45 \
   --bloom 2.8 --tilt 2.0
 ```
+
+<!-- verbx-pdf-exclude-end -->
 
 ## Two Production Paths: Command Line and DAW Plug-ins
 
@@ -825,18 +828,15 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.9.0**.
+Current public alpha release: **v0.9.1**.
 
 Current stabilization status:
 
-- Python `0.7.x` render/realtime behavior is stabilized for the current cycle:
-  realtime device failures are clearer, render long-tail flows have fail-fast
-  safeguards or early status output, and render/realtime/dereverb emit
-  machine-readable reports where applicable.
-- CLI/docs/test consolidation is complete for Weeks 1–3 of the short-horizon
-  plan: shared validators are extracted, generated docs/PDF are in sync, and
-  focused regression coverage covers realtime, dereverb, limiter, and long-tail
-  behaviors.
+- `v0.9.1` adds immutable typed render-configuration sections while preserving
+  the flat CLI, preset, and report compatibility surface.
+- Render-performance budgets and native structural parity are now blocking CI
+  gates. Native source-duration floors and analytic ISM timing references have
+  focused regression coverage.
 - Current native-track decision: `v0.8` is a hybrid transition release, with
   `verbx-c` shipped as an opt-in native render/doctor binary while the Python
   CLI remains the public alpha default. See
@@ -1176,7 +1176,7 @@ while retaining a large room. Rolling low frequencies out of the return can redu
 masking without making the room seem smaller. The art is to decide which distance cues
 the music needs and which it can contradict for expressive reasons.
 
-### Open-Source Acoustic Image Portfolio
+## Open-Source Acoustic Image Portfolio
 
 Reverberation is heard, but it is also designed, built, notated, photographed, and remembered. This chapter gathers twenty-five rights-cleared score pages, manuscript leaves, architectural photographs, and images of physical reverberation devices. Together they connect musical texture to the spaces and mechanisms that prolong it. Every image is stored locally so that the guide remains reproducible offline, every figure has a source and license directly beneath its caption, and the complete provenance ledger follows in [`assets/open_source_portfolio/ATTRIBUTIONS.md`](assets/open_source_portfolio/ATTRIBUTIONS.md).
 
@@ -1184,7 +1184,7 @@ Two requested twentieth-century examples require a firm rights boundary. Aaron C
 
 The portfolio is arranged in three sequences. The first reads notation as a spatial plan: entrances, rests, registral layers, and antiphonal groups imply an acoustic before a note sounds. The second reads buildings as filters whose volume, materials, and geometry govern early reflections and decay. The third opens the machinery of artificial reverberation, from vibrating metal to folded acoustic paths and deliberately reflective test rooms.
 
-##### Historical timeline and extended viewing guide
+#### Historical timeline and extended viewing guide
 
 The dates below distinguish the age of a composition, building, or device from the date
 of its particular photograph or edition. They also prevent an attractive image from
@@ -1217,7 +1217,7 @@ musical practice whose acoustic meaning changed over time.
 24. NASA's Reverberant Acoustic Test Facility is a modern aerospace chamber whose horn array and hard enclosure create extreme diffuse acoustic loading for spacecraft qualification, not musical ambience.
 25. The IETR chamber is a modern electromagnetic reverberation facility rather than an acoustic room; it is included as a caution that identical terminology can name physically different wave domains.
 
-#### Scores, Manuscripts, and Spatial Notation
+### Scores, Manuscripts, and Spatial Notation
 
 Thomas Tallis's *Spem in alium* (c. 1570) is an ideal threshold because its forty independent parts make space structurally audible. The following figure replaces the sparse opening with a later climactic page on which all eight five-part choirs are active. Read downward to compare the simultaneous choirs; read horizontally to see sustained tones, imitative entries, and cadential motion overlap in time. In performance, choir placement turns that polyphonic density into motion around the listener. The full-page reproduction deliberately preserves all forty staves because the disposition of active voices is itself a spatial score.
 
@@ -1293,7 +1293,7 @@ Giovanni Gabrieli's *In ecclesiis* (c. 1615) closes the notation sequence becaus
 
 *Source and license:* Giovanni Gabrieli, [Wikimedia Commons file record](https://commons.wikimedia.org/wiki/File:Giovanni_Gabrieli_in_Ecclesiis.png), [public domain](https://creativecommons.org/publicdomain/mark/1.0/). Reproduced without alteration except scaling.
 
-#### Resonant Architecture
+### Resonant Architecture
 
 The interior of St. Mark's Basilica in the following figure supplies an architectural counterpart to Gabrieli's notation. Galleries, domes, stone surfaces, and separated performance positions create multiple paths between source and listener. The photograph should not be read as a complete acoustic model, but it identifies the geometry a model must explain: strong local reflections, coupled volumes, long paths, and a diffuse late field. When building a St. Mark's-inspired preset, avoid representing the entire space with RT60 alone; combine pre-delay, reflection clusters, frequency-dependent decay, and multichannel placement.
 
@@ -1359,7 +1359,7 @@ York Minster's nave in the following figure completes the architectural sequence
 
 *Source and license:* Michael D. Beckwith, [Wikimedia Commons file record](https://commons.wikimedia.org/wiki/File:York_Minster_Nave.jpg), [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). Reproduced without alteration except scaling.
 
-#### Mechanical and Laboratory Reverberation
+### Mechanical and Laboratory Reverberation
 
 The EMT 140 in the following figure makes plate reverberation physically legible. An electromechanical driver excites a large suspended steel plate, pickups capture its vibration, and damping changes the decay. The device is not a miniature room; it is a distributed resonant surface whose dense modal response produces a smooth, characteristic tail. When designing a plate-like algorithm, prioritize rapid density growth, controlled low-frequency behavior, and a bright but non-grainy decay. The photograph also explains why a classic plate occupies substantial physical space even though a plug-in reduces it to a few controls.
 
@@ -1425,7 +1425,7 @@ The IETR chamber in the following figure is an electromagnetic reverberation cha
 
 *Source and license:* Manuamador, [Wikimedia Commons file record](https://commons.wikimedia.org/wiki/File:Reverberation_chamber.jpg), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Reproduced without alteration except scaling.
 
-#### Reuse and Verification
+### Reuse and Verification
 
 The repository copies are layout derivatives only: they have been rendered from source PDFs where noted, resized, or recompressed without creative alteration. Public-domain and CC0 images may be reused under their source statements. Creative Commons images retain their individual attribution and share-alike requirements; the surrounding verbx text and software do not replace those licenses. Before republishing an image outside this guide, follow its source-page link and verify the current file history, jurisdictional notice, attribution wording, and license version. The checked-in attribution ledger records the exact local filename used by the build so later replacements cannot silently inherit an unrelated credit.
 
@@ -2229,6 +2229,26 @@ been implemented incorrectly.
 ![Magnitude response for a representative Schroeder allpass filter.](assets/reverb_primer/45_schroeder_allpass_magnitude.png)
 
 **Figure: Normalized magnitude response of the representative Schroeder allpass, with frequency in cycles per sample and magnitude in decibels.**
+
+Magnitude alone cannot explain why an allpass diffuser is audible. The unwrapped phase
+response below rotates rapidly near delay-related frequencies, while the group-delay
+inset shows how long each frequency neighborhood is held relative to nearby frequencies.
+A group-delay peak does not add energy: it redistributes the arrival time of that energy.
+For a click, this creates a denser, less obviously periodic cloud of arrivals; for speech
+or percussion, it can soften the transition from attack to tail without an ideal spectral
+EQ curve.
+
+![Phase and group-delay response for a representative Schroeder allpass filter.](assets/reverb_primer/50_schroeder_allpass_phase.png)
+
+**Figure: Unwrapped phase in radians and group delay in samples for the representative Schroeder allpass, plotted against normalized frequency in cycles per sample.**
+
+Read the teal phase trace as accumulated rotation rather than an amplitude measurement.
+Its slope is the important audible quantity: a steeper slope means larger group delay.
+The rust trace makes that relationship explicit. Increasing feedback raises and sharpens
+the group-delay peaks, lengthening the echo pattern and increasing diffusion, but it can
+also reveal metallic ringing when delay lengths or stages are too regular. In a serial
+diffuser, choose mutually incommensurate delays and moderate gains so the individual
+delay peaks overlap into texture rather than announcing a single repeat rate.
 
 #### Allpass Networks: From Echoes to a Diffuse Excitation
 
@@ -7507,7 +7527,7 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.9.0 - current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.9.1 - current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 
 \newpage
@@ -33101,11 +33121,11 @@ explains the musical tradeoffs and reproducible workflow.
 
 <!-- docs/PUBLIC_ALPHA_NOTES.md -->
 
-# Public Alpha Notes (v0.7.7)
+# Public Alpha Notes (v0.9.1)
 
-_Updated: 2026-04-03_
+_Updated: 2026-07-23_
 
-`verbx` v0.7.7 is a public alpha focused on robust offline rendering,
+`verbx` v0.9.1 is a public alpha focused on robust offline rendering,
 reproducibility, advanced DSP control, structural cleanup, and initial
 realtime duplex auditioning.
 

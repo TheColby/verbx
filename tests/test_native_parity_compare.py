@@ -100,3 +100,32 @@ def test_compare_audio_files_flags_metric_deltas(tmp_path: Path) -> None:
     assert result["passed"] is False
     assert result["checks"]["peak_abs_tolerance"] is False
     assert result["checks"]["duration_tolerance_ms"] is False
+
+
+def test_structural_gate_can_pass_while_full_dsp_parity_is_pending() -> None:
+    module = _load_module()
+    checks = {
+        "sample_rate_exact": True,
+        "channel_count_exact": True,
+        "finite_samples_only": True,
+        "tail_ends_in_exact_zeros": True,
+        "peak_abs_tolerance": False,
+        "rms_tolerance_db": False,
+        "duration_tolerance_ms": False,
+    }
+    report = {"scenarios": [{"checks": checks, "passed": False}], "passed": False}
+
+    assert module.evaluate_required_checks(report) is True
+
+
+def test_structural_gate_rejects_missing_or_failed_checks() -> None:
+    module = _load_module()
+    checks = {
+        "sample_rate_exact": True,
+        "channel_count_exact": True,
+        "finite_samples_only": False,
+        "tail_ends_in_exact_zeros": True,
+    }
+
+    assert module.evaluate_required_checks({"scenarios": [{"checks": checks}]}) is False
+    assert module.evaluate_required_checks({"scenarios": []}) is False

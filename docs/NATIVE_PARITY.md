@@ -58,6 +58,20 @@ The report is allowed to fail metric tolerances while the native DSP remains a
 foundational core. The harness itself must continue to run and emit JSON so the
 gap is measurable.
 
+CI enforces the parity checks that the current native slice claims:
+
+```bash
+uv run python scripts/compare_native_render_parity.py \
+  --build-native \
+  --strict-structural \
+  --report native_parity_report.json
+```
+
+This blocking tier requires exact sample rate and channel count, finite samples,
+and an exact-zero tail for every fixture. Peak, RMS, and duration tolerances
+remain in the same report as the explicit full-DSP convergence target; use
+`--strict` locally to require every metric.
+
 ## Before Expanding Native Scope
 
 For each new native feature slice:

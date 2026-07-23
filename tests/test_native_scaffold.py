@@ -146,6 +146,82 @@ def test_native_render_accepts_plugin_minimum_rt60(tmp_path: Path) -> None:
     assert np.all(np.isfinite(rendered))
 
 
+def test_native_tail_completion_preserves_source_duration(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    exe = _build_native_executable(tmp_path)
+    sr = 16_000
+    audio = np.zeros((4_096, 1), dtype=np.float64)
+    audio[100, 0] = 0.5
+    infile = tmp_path / "source_floor_in.wav"
+    outfile = tmp_path / "source_floor_out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    subprocess.run(
+        [
+            str(exe),
+            "render",
+            str(infile),
+            str(outfile),
+            "--rt60",
+            "0.1",
+            "--wet",
+            "0.0",
+            "--dry",
+            "1.0",
+            "--tail-threshold-db",
+            "-20",
+            "--tail-hold-ms",
+            "5",
+            "--out-format",
+            "float64",
+        ],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    rendered, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == sr
+    assert rendered.shape == audio.shape
+    assert np.max(np.abs(rendered[-80:, :])) == 0.0
+
+
+def test_native_silent_stereo_render_preserves_source_duration(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    exe = _build_native_executable(tmp_path)
+    sr = 22_050
+    input_frames = 257
+    audio = np.zeros((input_frames, 2), dtype=np.float64)
+    infile = tmp_path / "silence_in.wav"
+    outfile = tmp_path / "silence_out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    subprocess.run(
+        [
+            str(exe),
+            "render",
+            str(infile),
+            str(outfile),
+            "--rt60",
+            "0.1",
+            "--tail-hold-ms",
+            "5",
+            "--out-format",
+            "float64",
+        ],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    rendered, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == sr
+    assert rendered.shape == (input_frames, 2)
+    assert np.max(np.abs(rendered)) == 0.0
+
+
 def test_native_render_supports_spring_and_plate_models(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     exe = _build_native_executable(tmp_path)
@@ -465,7 +541,7 @@ def test_native_render_stereo_pcm16_output(tmp_path: Path) -> None:
     assert rendered.shape[0] > audio.shape[0]
 
 
-def test_native_render_silent_input_trims_to_short_zero_tail(tmp_path: Path) -> None:
+def test_native_render_silent_input_preserves_source_duration(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     exe = _build_native_executable(tmp_path)
     sr = 48_000
@@ -495,7 +571,7 @@ def test_native_render_silent_input_trims_to_short_zero_tail(tmp_path: Path) -> 
 
     rendered, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
     assert out_sr == sr
-    assert rendered.shape == (240, 1)
+    assert rendered.shape == audio.shape
     assert np.max(np.abs(rendered)) == 0.0
 
 

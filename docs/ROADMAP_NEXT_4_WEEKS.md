@@ -1,198 +1,96 @@
-# verbx Next 4 Weeks
+# verbx v0.9.1 and Next 4 Weeks
 
-_Execution checklist derived from the active roadmap in `README.md`,
-`CHANGELOG.md`, and `docs/ROADMAP.md`._
+_Execution checklist derived from `README.md`, `CHANGELOG.md`, and
+`docs/ROADMAP.md`._
 
-_Last updated: 2026-07-12._
+_Last updated: 2026-07-23._
 
 ---
 
 ## Goal
 
-Use this document as the short-horizon execution checklist for the current
-`0.7.x` stabilization phase, the initial `v0.8` native parity track, and one
-bounded research prototype.
+Ship `v0.9.1` as a focused hardening release, then use its enforced quality
+gates as the baseline for the next native and physical-acoustics increments.
+New feature breadth remains secondary to compatibility, repeatability, and
+measured validation.
 
----
+## v0.9.1 Release Slice
 
-## Priority Order
+### Python Core
 
-- [x] 1. Stabilize Python `0.7.x` render and realtime behavior.
-- [x] 2. Finish CLI, docs, and test consolidation.
-- [ ] 3. Push native render parity on a narrow deterministic slice.
+- [x] Add immutable typed section views for engine, execution, tail, and output
+  settings without breaking the flat `RenderConfig` constructor or reports.
+- [ ] Continue extracting implementation helpers from `src/verbx/cli.py`.
+- [ ] Enforce streaming/in-memory parity for the convolution path.
+- [ ] Split the remaining delay-kernel, nonlinearity, and spatial-coupling
+  responsibilities out of `algo_reverb.py`.
 
-## Active Focus
+### Quality Gates
 
-Use these as the working top-line priorities for the current cycle:
+- [x] Fail CI when a render benchmark exceeds its checked-in budget.
+- [x] Fail CI when a benchmark scenario lacks a baseline.
+- [x] Preserve benchmark reports as CI artifacts even on failure.
+- [x] Build `verbx-c` and enforce the checked-in structural parity contract in
+  a dedicated CI job.
 
-- [x] Stabilize Python `0.7.x` render and realtime behavior.
-- [x] Finish CLI, docs, and test consolidation.
-- [ ] Push native render parity on a narrow, deterministic feature slice.
+### Native and Plug-in Readiness
 
----
-
-## Track 1: Shipping Work
-
-### Week 1
-
-- [x] Continue shrinking `src/verbx/cli.py` by extracting implementation-heavy command handlers into `src/verbx/commands/`.
-- [x] Add focused regression coverage for the extracted IR command registry path.
-- [x] Re-sync generated command documentation:
-  - [x] `docs/CLI_REFERENCE.md`
-  - [x] `docs/USERGUIDE.md`
-  - [x] `USERGUIDE.pdf`
-- [x] Identify the next safe extraction slice after IR (`shared validators`) and land it in `src/verbx/commands/validators.py`.
-- [x] Add a short “command-module split status” note to `CHANGELOG.md` when the next slice lands.
-
-### Week 2
-
-- [x] Harden realtime UX:
-  - [x] clearer startup summaries
-  - [x] better device/input-output error reporting
-  - [x] safer defaults for live dereverb and freeze/infinite-style reverb
-- [x] Add consistent machine-readable analysis/report outputs anywhere render, realtime, and dereverb still diverge.
-- [x] Close the remaining “looks hung” and “surprising default” render flows with fail-fast validation or clearer status output.
-  - [x] Add shared render/realtime preflight rows for render path, tail risk, proxy budget, and block latency.
-  - [x] Add explicit realtime stream-open diagnostics for surprising backend/device defaults.
-
-### Week 3
-
-- [x] Finalize limiter and output-delivery ergonomics:
-  - [x] limiter behavior sanity pass
-  - [x] peak and ceiling handling review
-  - [x] output subtype/container validation review
-  - [x] long-render safeguard review
-- [x] Expand presets so new room-model, dereverb, and limiter features are represented in ready-to-run examples.
-- [x] Run a release-readiness docs/examples pass across `README.md`, launch examples, and generated guides.
-
-### Week 4
-
-- [ ] Freeze the Python CLI surface enough to support native parity work cleanly.
-- [ ] Prioritize bug fixes over new flag growth for the release window.
-- [ ] Cut a focused `0.7.x` stabilization release.
-
----
-
-## Track 2: Native Parity Work
-
-### Week 1
-
-- [x] Define the minimum `verbx-c` parity target for offline render.
-- [x] Write down the parity contract for:
-  - [x] input/output formats
-  - [x] tail handling
-  - [x] core algorithmic controls
-- [x] Add a small parity matrix in tests or fixtures so native work has a concrete target.
-
-### Week 2
-
-- [ ] Expand native render flags for the most-used offline slice first:
-  - [x] `rt60`
-  - [x] `wet`
-  - [x] `dry`
-  - [x] subtype/format selection
-  - [x] tail metrics
-  - [x] peak-safe output
-- [x] Add golden-file or metric-based Python/native comparisons for a deterministic fixture set.
-
-### Week 3
-
-- [x] Add analysis/report parity where feasible so native runs can emit a comparable JSON support bundle.
-- [x] Improve native doctor/build ergonomics and packaging scripts.
-
-### Week 4
-
-- [x] Decide the `v0.8` release shape:
-  - [ ] native render only
-  - [ ] native render + doctor + analysis
-  - [x] hybrid wrapper phase before full replacement
-- [x] Document the chosen `v0.8` parity scope in `README.md` and `docs/ROADMAP.md`.
-
-### Native Plug-in Slice
-
-- [x] Replace pass-through processing with persistent, allocation-free
-  mono/stereo Schroeder DSP.
-- [x] Connect all twelve initial parameters to audible DSP or host quality
-  state, with 20 ms smoothing for continuous controls.
-- [x] Add the complete initial JUCE control dock, effective-RT60 readout, and
-  realtime post-DSP spectrum overlay.
-- [x] Build and validate standalone, AU, and VST3 Release artifacts.
-- [x] Add impulse-tail/reset tests and run AddressSanitizer/UBSan coverage.
-- [ ] Repair the local Xcode framework mismatch, then generate and validate the
-  AUv3 app-extension target in an AUv3-capable sandbox host.
-- [x] Implement real allocation-free wet-path oversampling for Host, 2x, 4x,
-  and Target 192 kHz modes, including off-callback quality reprepare and live
-  effective-rate/factor status.
-- [ ] Implement true bounded-lookahead reverse processing.
+- [x] Preserve source duration when native tail completion truncates an active
+  or dry-only render.
+- [x] Preserve a deterministic source-duration floor for silent native input.
+- [ ] Replace the foundational native Schroeder/Moorer loop with the
+  higher-order FDN used by the Python reference.
+- [ ] Implement bounded-lookahead reverse processing.
+- [ ] Complete signed AUv3 and representative DAW-host validation.
 - [ ] Add multichannel layouts and host compatibility certification.
 
----
+### Physical-Acoustics Validation
 
-## Track 3: Research Bets
+- [x] Expose deterministic image-source paths before tap aggregation.
+- [x] Check in an analytic rectangular-room reference corpus.
+- [x] Validate direct and first-order distance, delay, and per-material gain.
+- [ ] Add measured anechoic/convolution references with documented capture
+  provenance.
+- [ ] Make an explicit graduate/retain-experimental decision for DXF tracing.
 
-### Week 1
+## Week 1: Release Closure
 
-- [x] Pick exactly one topology-expansion prototype for this cycle; candidate now includes DXF/CAD ray-tracing IR import.
-- [x] Prefer one bounded physical-acoustics prototype (DXF ray tracing or geometry-to-FDN) over starting geometry, neural, and topology branches at once.
-- [x] Write down success criteria for the chosen prototype before implementation starts.
+- [ ] Run the full Python test, lint, and type-check suites.
+- [ ] Run native C tests and the strict structural parity job locally.
+- [ ] Confirm generated CLI and user-guide outputs still match the shipped
+  interface.
+- [ ] Review release notes for research-grade and experimental claims.
+- [ ] Tag and publish `v0.9.1` only after all required checks pass.
 
-### Week 2
+## Week 2: Architecture
 
-- [x] Build one prototype behind an explicit experimental command.
-- [ ] Candidate directions:
-  - [ ] denser delay-feedback matrix variants
-  - [x] DXF/CAD ray-tracing IR prototype (`verbx ir trace ROOM.dxf OUT_IR.wav`)
-  - [ ] geometry-to-FDN parameter derivation improvements
-  - [ ] intelligibility-aware dereverb scoring
-- [x] If DXF ray tracing is selected, constrain MVP scope:
-  - [x] closed room-like DXF geometry only
-  - [x] source/listener coordinates required on CLI
-  - [x] default material with octave-band material profile metadata
-  - [x] output IR WAV plus `trace-report-v1` JSON
+- [ ] Move one cohesive helper cluster out of `cli.py`.
+- [ ] Add convolution streaming/in-memory parity coverage.
+- [ ] Define the native higher-order FDN state and coefficient contract.
+- [ ] Measure current Python/native DSP deltas before changing the native loop.
 
-### Week 3
+## Week 3: Native DSP and Hosts
 
-- [ ] Build evaluation harnesses before broadening scope:
-  - [ ] render benchmarks
-  - [ ] repeatable presets
-  - [x] objective metrics
-  - [ ] example corpus
-  - [x] DXF fixture rooms with expected direct-path and first-reflection timing
+- [ ] Port one bounded FDN slice with allocation-free realtime behavior.
+- [ ] Add impulse, reset, automation, and sanitizer coverage for that slice.
+- [ ] Validate AU/VST3 loading and audible wet-tail output in supported hosts.
+- [ ] Record host, OS, architecture, sample rate, block size, and result.
 
-### Week 4
+## Week 4: Evidence Review
 
-- [ ] Decide whether the prototype:
-  - [ ] graduates into `0.7.x`
-  - [ ] waits for `0.8`
-  - [ ] remains experimental only
-  - [ ] remains experimental only until DXF import robustness and acoustic validation are proven
-
----
-
-## Recommended Sequence
-
-- [ ] Stabilize Python `0.7.x` render and realtime behavior.
-- [ ] Finish CLI, docs, and test consolidation.
-- [ ] Push native render parity on a narrow, deterministic feature slice.
-- [ ] Defer broader research expansion until the three priorities above are stable.
-
----
+- [ ] Compare benchmark trends against the `v0.9.1` baseline.
+- [ ] Review ISM timing against the first measured reference.
+- [ ] Decide whether DXF tracing advances, remains experimental, or pauses.
+- [ ] Select the next release from evidence: native FDN parity, physical-room
+  validation, or further stabilization.
 
 ## Exit Criteria
 
-### Shipping
-
-- [x] `src/verbx/cli.py` is meaningfully smaller and mostly orchestration plus shared compatibility helpers.
-- [x] Generated docs are in sync with the shipped CLI surface.
-- [x] New realtime, dereverb, limiter, and long-tail behaviors have focused regression coverage.
-
-### Native
-
-- [ ] Native render parity is defined against a stable fixture set.
-- [ ] Python/native comparison runs produce repeatable results for the chosen slice.
-
-### Research
-
-- [ ] Prototype is behind a flag.
-- [ ] Prototype has an evaluation harness.
-- [ ] Prototype has a go/no-go decision by the end of Week 4.
+- `v0.9.1` metadata and release notes agree.
+- Python tests, lint, and type checking pass.
+- Performance and native structural parity are blocking CI checks.
+- Native render never shortens output below its deterministic source floor.
+- ISM timing has a checked-in analytic reference and a clear measured-reference
+  follow-up.
+- No new production claim is made for experimental DXF, SDN, neural, or modal
+  workflows without corresponding validation evidence.

@@ -951,13 +951,14 @@ def test_chapter_three_and_section_three_one_have_substantial_introductions() ->
     assert "**Representation is not musical function.**" in section_intro
 
 
-def test_principal_book_chapters_end_with_five_tailored_exercises() -> None:
+def test_principal_book_chapters_end_with_ten_tailored_exercises() -> None:
     book = DOCS_PDF._markdown_with_pdf_targets(
         DOCS_PDF._build_markdown("Colby Leider, PhD")
     )
     assert book.count("## Suggested Exercises") == len(DOCS_PDF.CHAPTER_EXERCISES)
 
     for heading, exercises in DOCS_PDF.CHAPTER_EXERCISES.items():
+        assert len(exercises) == 10
         assert f"# {heading}\n" in book
         for index, exercise in enumerate(exercises, start=1):
             assert book.count(f"{index}. {exercise}") == 1
@@ -1063,8 +1064,8 @@ def test_readme_book_promotion_is_permanently_excluded_from_pdf_source() -> None
     )
 
     assert promo in readme
-    assert readme.count("<!-- verbx-pdf-exclude-start -->") == 1
-    assert readme.count("<!-- verbx-pdf-exclude-end -->") == 1
+    assert readme.count("<!-- verbx-pdf-exclude-start -->") == 2
+    assert readme.count("<!-- verbx-pdf-exclude-end -->") == 2
 
     pdf_source = DOCS_PDF._remove_pdf_exclusions(readme)
 
@@ -1073,7 +1074,37 @@ def test_readme_book_promotion_is_permanently_excluded_from_pdf_source() -> None
     assert "educational projects, figures, and the research bibliography" not in pdf_source
     assert "The guide's new [open-source acoustic image portfolio]" not in pdf_source
     assert "Colossal 64-bit spatial audio reverberator" not in pdf_source
+    assert "Finite-Element Spring Tanks and Plates" not in pdf_source
+    assert pdf_source.index("## Two Production Paths") < pdf_source.index("## AUv3 / VST3 Plug-in Track")
     assert "verbx-pdf-exclude" not in pdf_source
+
+
+def test_chapter_one_is_workflow_oriented_and_contains_no_mathematical_exposition() -> None:
+    book = DOCS_PDF._markdown_with_pdf_targets(
+        DOCS_PDF._build_markdown("Colby Leider, PhD")
+    )
+    chapter_one_start = book.index("# verbx\n")
+    chapter_two_start = book.index("# What Is Reverb? (and why verbx sounds different)\n")
+    chapter_one = book[chapter_one_start:chapter_two_start]
+
+    assert "## Two Production Paths: Command Line and DAW Plug-ins" in chapter_one
+    assert "Finite-Element Spring Tanks and Plates" not in chapter_one
+    assert "Discrete convolution shown as shift, multiply, and sum" not in chapter_one
+    assert "$$" not in chapter_one
+    assert r"\\begin{aligned}" not in chapter_one
+
+
+def test_chapter_two_portfolio_timeline_has_a_chronological_heading_hierarchy() -> None:
+    book = DOCS_PDF._markdown_with_pdf_targets(
+        DOCS_PDF._build_markdown("Colby Leider, PhD")
+    )
+    chapter_two_start = book.index("# What Is Reverb? (and why verbx sounds different)\n")
+    chapter_two_end = book.index("# verbx Reference\n", chapter_two_start)
+    chapter_two = book[chapter_two_start:chapter_two_end]
+
+    assert "## Open-Source Acoustic Image Portfolio" in chapter_two
+    assert "### Historical timeline and extended viewing guide" in chapter_two
+    assert "##### Historical timeline and extended viewing guide" not in chapter_two
 
 
 def test_pdf_exclusion_markers_must_be_balanced() -> None:
@@ -1532,8 +1563,8 @@ def test_reverb_primer_has_textbook_depth_and_complete_figure_set() -> None:
     assert "### DSP Overview" in primer
     assert "### The Science and DSP of Dereverberation" in primer
     assert primer.count("```mermaid") == 19
-    assert len(re.findall(r"^!\[", primer, flags=re.MULTILINE)) == 30
-    assert len(re.findall(r"^\*\*Figure:", primer, flags=re.MULTILINE)) == 49
+    assert len(re.findall(r"^!\[", primer, flags=re.MULTILINE)) == 31
+    assert len(re.findall(r"^\*\*Figure:", primer, flags=re.MULTILINE)) == 50
     assert "Schroeder_Reverberators.html" in primer
     assert "Reverb begins when a sound should be over but the room keeps it alive." in primer
     assert "This chapter treats reverb as three things at once" not in primer
@@ -1657,11 +1688,11 @@ def test_reverb_primer_mermaid_assets_convert_for_pdf() -> None:
 
     converted = DOCS_PDF._replace_mermaid_with_static_assets(primer)
     assert "```mermaid" not in converted
-    assert converted.count("docs/assets/reverb_primer/") == 49
-    assert converted.count("**Figure:") == 49
+    assert converted.count("docs/assets/reverb_primer/") == 50
+    assert converted.count("**Figure:") == 50
 
     generated_paths = re.findall(r"\]\((docs/assets/reverb_primer/[^)]+)\)", converted)
-    assert len(generated_paths) == 49
+    assert len(generated_paths) == 50
     for path in generated_paths:
         assert (REPO_ROOT / path).is_file()
 
@@ -1849,7 +1880,6 @@ def test_book_sources_mark_mathematical_variables_as_inline_math() -> None:
     ).read_text(encoding="utf-8")
 
     for expected in (
-        "full $M$-input-to-$N$-output matrix routing",
         "delay length $M$ and loop gain $g$",
         "an explicit internal state, $M$-sample delay",
         "fully coupled $N$-line FDN",
