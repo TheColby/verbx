@@ -24,6 +24,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
       - name: Install Linux system dependencies
         if: runner.os == 'Linux'
         run: |
@@ -57,11 +62,16 @@ jobs:
       - name: Verify installer script + man pages
         run: |
           PREFIX="$RUNNER_TEMP/verbx-prefix"
-          ./scripts/install.sh --prefix "$PREFIX" --python python3 --wheel
+          ./scripts/install.sh --prefix "$PREFIX" --python python3 --wheel --skip-plugins
           test -f "$PREFIX/share/man/man1/verbx.1"
           test -f "$PREFIX/share/man/man1/verbx-render.1"
           man -M "$PREFIX/share/man" verbx | head -n 30 > "$RUNNER_TEMP/man_verbx.txt"
           man -M "$PREFIX/share/man" verbx-render | head -n 30 > "$RUNNER_TEMP/man_verbx_render.txt"
+
+      - name: Verify npm launcher flow
+        run: |
+          node npm/verbx.js --help >/dev/null
+          node npm/verbx.js quickstart --verify --strict --json-out "$RUNNER_TEMP/quickstart_npm.json" >/dev/null
 
       - name: Upload verification artifacts
         if: always()
@@ -71,5 +81,6 @@ jobs:
           path: |
             ${{ runner.temp }}/quickstart_uv.json
             ${{ runner.temp }}/quickstart_venv.json
+            ${{ runner.temp }}/quickstart_npm.json
             ${{ runner.temp }}/man_verbx.txt
             ${{ runner.temp }}/man_verbx_render.txt

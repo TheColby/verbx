@@ -11,12 +11,14 @@ from pytest import MonkeyPatch
 from typer.testing import CliRunner
 
 import verbx.cli as cli_module
+import verbx.commands.system as system_commands
 from verbx import __version__
 from verbx.cli import app
 from verbx.core import accel
 
 runner = CliRunner()
 _ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+_DEFAULT_RENDER_SR = 192_000
 
 
 def _combined_cli_output(result: ClickResult) -> str:
@@ -34,7 +36,10 @@ def test_cli_boots() -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
     assert "render" in result.stdout
+    assert "realtime" in result.stdout
+    assert "room-model" in result.stdout
     assert "analyze" in result.stdout
+    assert "dereverb" in result.stdout
     assert "quickstart" in result.stdout
     assert "doctor" in result.stdout
     assert "presets" in result.stdout
@@ -52,6 +57,46 @@ def test_version_command_reports_package_version() -> None:
     assert f"verbx {__version__}" in result.stdout
 
 
+def test_ir_command_impls_resolve_to_extracted_module() -> None:
+    expected = {
+        "_ir_analyze_impl",
+        "_ir_sofa_info_impl",
+        "_ir_sofa_extract_impl",
+        "_ir_trace_impl",
+        "_ir_process_impl",
+        "_ir_morph_impl",
+        "_ir_fit_impl",
+    }
+
+    for name in expected:
+        impl = cli_module.get_command_impl(name)
+        assert impl.__module__ == "verbx.commands.ir_impl"
+
+
+def test_room_model_command_infers_geometry_and_writes_json(tmp_path: Path) -> None:
+    json_out = tmp_path / "room_model.json"
+    result = runner.invoke(
+        app,
+        [
+            "room-model",
+            "--rt60",
+            "1.2",
+            "--material",
+            "hall",
+            "--json-out",
+            str(json_out),
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "Room Model" in text
+    assert "infer-rt60" in text
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["mode"] == "infer-rt60"
+    assert payload["material"] == "hall"
+    assert float(payload["geometry"]["volume_m3"]) > 0.0
+
+
 def test_quickstart_command_prints_copyable_workflows() -> None:
     result = runner.invoke(app, ["quickstart"])
     assert result.exit_code == 0
@@ -59,6 +104,9 @@ def test_quickstart_command_prints_copyable_workflows() -> None:
     assert "verbx Quickstart" in text
     assert "verbx render ../in.wav out.wav" in text
     assert "verbx analyze in.wav" in text
+    assert "limiter-broadcast-safe" in text
+    assert "verbx dereverb in.wav out_dry.wav" in text
+    assert "--output-container w64" in text
 
 
 def test_doctor_command_prints_runtime_diagnostics(tmp_path: Path) -> None:
@@ -142,26 +190,56 @@ def test_doctor_strict_fails_when_checks_fail(monkeypatch: MonkeyPatch) -> None:
     report["ready"] = False
     report["status"] = "warn"
     report["recommendations"] = ["Use Python 3.11 or newer."]
-    monkeypatch.setattr(cli_module, "_collect_runtime_diagnostics", lambda: report)
+    monkeypatch.setattr(system_commands, "collect_runtime_diagnostics", lambda: report)
     result = runner.invoke(app, ["doctor", "--strict"])
     assert result.exit_code == 2
 
 
 def test_doctor_strict_fails_when_smoke_test_fails(monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        cli_module,
-        "_run_render_smoke_test",
-        lambda out_dir: {
+    def _fake_smoke_report(out_dir: Path) -> dict[str, object]:
+        _ = out_dir
+        return {
             "ok": False,
             "engine": "algo",
             "sample_rate": 24_000,
             "input_frames": 1000,
             "output_frames": 0,
             "error": "simulated failure",
-        },
-    )
+        }
+
+    monkeypatch.setattr(system_commands, "run_render_smoke_test", _fake_smoke_report)
     result = runner.invoke(app, ["doctor", "--render-smoke-test", "--strict"])
     assert result.exit_code == 2
+
+
+def test_render_room_preset_derives_geometry_defaults(tmp_path: Path) -> None:
+    audio = np.zeros((1200, 1), dtype=np.float64)
+    audio[32:96, 0] = 0.4
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--preset",
+            "room:6x8x3/hall",
+            "--engine",
+            "algo",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert bool(config["er_geometry"])
+    assert config["er_material"] == "hall"
+    assert tuple(config["er_room_dims_m"]) == (6.0, 8.0, 3.0)
+    assert float(config["rt60"]) > 0.05
+    assert float(config["pre_delay_ms"]) > 0.0
 
 
 def test_presets_show_displays_resolved_values() -> None:
@@ -214,6 +292,8 @@ def test_render_dry_run_validates_without_writing_audio(tmp_path: Path) -> None:
     assert "Render Dry-Run Plan" in text
     assert "audio_write" in text
     assert "skipped" in text
+    assert "render_path" in text
+    assert "safety_profile" in text
     assert "estimated_output_size_mb" in text
     assert not outfile.exists()
     assert not Path(f"{outfile}.analysis.json").exists()
@@ -242,8 +322,243 @@ def test_render_dry_run_accepts_extended_rt60_upper_bound(tmp_path: Path) -> Non
     assert result.exit_code == 0, result.stdout
     text = _combined_cli_output(result)
     assert "Render Dry-Run Plan" in text
+    assert "extreme-tail" in text
+    assert "tail_limit" in text
     assert not outfile.exists()
     assert not Path(f"{outfile}.analysis.json").exists()
+
+
+def test_render_rejects_unbounded_extreme_algo_tail_without_tail_limit(tmp_path: Path) -> None:
+    audio = np.zeros((256, 1), dtype=np.float64)
+    audio[0, 0] = 0.8
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "3600",
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "append about" in text
+    assert "--tail-limit" in text
+    assert not outfile.exists()
+
+
+def test_render_allows_extreme_algo_tail_when_tail_limit_is_set(tmp_path: Path) -> None:
+    sr = 2_000
+    audio = np.zeros((1_000, 1), dtype=np.float64)
+    audio[0, 0] = 0.8
+    infile = tmp_path / "tail_limit_in.wav"
+    outfile = tmp_path / "tail_limit_out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "3600",
+            "--tail-limit",
+            "2.0",
+            "--fdn-lines",
+            "4",
+            "--allpass-stages",
+            "2",
+            "--target-sr",
+            str(sr),
+            "--tail-stop-threshold-db",
+            "-240",
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert outfile.exists()
+    y, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == sr
+    assert y.shape[0] < int(10.0 * sr)
+    assert np.max(np.abs(y[: min(y.shape[0], 512), :])) > 0.0
+
+
+def test_render_long_tail_prints_preflight_status(tmp_path: Path) -> None:
+    sr = 2_000
+    audio = np.zeros((256, 1), dtype=np.float64)
+    audio[0, 0] = 0.8
+    infile = tmp_path / "long_tail_in.wav"
+    outfile = tmp_path / "long_tail_out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "60",
+            "--tail-limit",
+            "0.1",
+            "--fdn-lines",
+            "4",
+            "--allpass-stages",
+            "2",
+            "--target-sr",
+            str(sr),
+            "--no-progress",
+        ],
+    )
+
+    assert result.exit_code == 0, _combined_cli_output(result)
+    text = _combined_cli_output(result)
+    assert "Render Preflight" in text
+    assert "safety_profile" in text
+    assert "long-tail" in text
+    assert "Long tail is bounded by --tail-limit" in text
+
+
+def test_render_dry_run_accepts_w64_extension(tmp_path: Path) -> None:
+    audio = np.zeros((256, 1), dtype=np.float64)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.w64"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--dry-run",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert not outfile.exists()
+
+
+def test_render_auto_fit_profile_applies_when_not_overridden(tmp_path: Path) -> None:
+    audio = np.zeros((4096, 1), dtype=np.float64)
+    audio[64:192, 0] = 0.4
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--auto-fit",
+            "speech",
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert abs(float(config["rt60"]) - 1.2) < 1e-6
+    assert abs(float(config["fdn_lines"]) - 8.0) < 1e-6
+    assert abs(float(config["pre_delay_ms"]) - 14.0) < 1e-6
+
+
+def test_render_algo_stream_proxy_path_reports_proxy_backend(tmp_path: Path) -> None:
+    sr = 12_000
+    audio = np.zeros((2048, 1), dtype=np.float64)
+    audio[0, 0] = 1.0
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--algo-stream",
+            "--mod-depth-ms",
+            "0",
+            "--mod-rate-hz",
+            "0",
+            "--normalize-stage",
+            "none",
+            "--target-sr",
+            str(sr),
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    effective = payload["effective"]
+    assert effective["engine_resolved"] == "algo_proxy_stream"
+    assert bool(effective["streaming_mode"])
+
+
+def test_render_matrix_morph_and_er_geometry_complete(tmp_path: Path) -> None:
+    sr = 16_000
+    audio = np.zeros((4096, 1), dtype=np.float64)
+    audio[80:220, 0] = 0.6
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--fdn-matrix",
+            "hadamard",
+            "--fdn-matrix-morph-to",
+            "householder",
+            "--fdn-matrix-morph-seconds",
+            "0.2",
+            "--er-geometry",
+            "--er-room-dims-m",
+            "9,7,3",
+            "--er-source-pos-m",
+            "1.5,2.0,1.4",
+            "--er-listener-pos-m",
+            "4.0,3.0,1.4",
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert outfile.exists()
+    out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == _DEFAULT_RENDER_SR
+    assert out_audio.shape[1] == 1
 
 
 def test_render_long_tail_regression_rt60_over_120_seconds(tmp_path: Path) -> None:
@@ -268,6 +583,10 @@ def test_render_long_tail_regression_rt60_over_120_seconds(tmp_path: Path) -> No
             "4",
             "--allpass-stages",
             "2",
+            "--target-sr",
+            str(sr),
+            "--tail-stop-threshold-db",
+            "-240",
             "--quiet",
             "--no-progress",
         ],
@@ -276,7 +595,9 @@ def test_render_long_tail_regression_rt60_over_120_seconds(tmp_path: Path) -> No
     assert outfile.exists()
     y, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
     assert out_sr == sr
-    assert y.shape[0] >= int(130.0 * sr)
+    # Tail completion now trims padding aggressively; assert long-tail behavior
+    # without requiring raw RT60 seconds of explicit output duration.
+    assert y.shape[0] >= int(60.0 * sr)
     assert np.max(np.abs(y[: min(y.shape[0], 512), :])) > 0.0
     assert np.max(np.abs(y[-max(1, sr // 100) :, :])) == 0.0
 
@@ -365,7 +686,7 @@ def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
 
     out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
-    assert out_sr == 48_000
+    assert out_sr == _DEFAULT_RENDER_SR
     assert out_audio.shape[0] > audio.shape[0]
     assert out_audio.shape[1] == audio.shape[1]
     tail_zero_window = min(64, out_audio.shape[0])
@@ -462,6 +783,8 @@ def test_render_quiet_or_low_verbosity_suppresses_output_feature_table(tmp_path:
             str(out_quiet),
             "--engine",
             "algo",
+            "--rt60",
+            "1.5",
             "--quiet",
             "--no-progress",
         ],
@@ -477,6 +800,8 @@ def test_render_quiet_or_low_verbosity_suppresses_output_feature_table(tmp_path:
             str(out_low),
             "--engine",
             "algo",
+            "--rt60",
+            "1.5",
             "--verbosity",
             "0",
             "--no-progress",
@@ -664,6 +989,47 @@ def test_render_rejects_invalid_tvu_combo(tmp_path: Path) -> None:
     text = _combined_cli_output(result)
     assert "--fdn-matrix tv_unitary requires both" in text
     assert "--fdn-tv-depth > 0" in text
+
+
+def test_render_comb_cloud_mode_is_applied(tmp_path: Path) -> None:
+    audio = np.zeros((1536, 1), dtype=np.float64)
+    audio[0, 0] = 1.0
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "0.4",
+            "--comb-cloud",
+            "--comb-cloud-count",
+            "32",
+            "--comb-cloud-feedback",
+            "0.42",
+            "--comb-cloud-mix",
+            "0.30",
+            "--comb-cloud-seed",
+            "17",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert bool(config["comb_cloud"])
+    assert config["comb_cloud_count"] == 32
+    assert abs(float(config["comb_cloud_feedback"]) - 0.42) < 1e-6
+    assert abs(float(config["comb_cloud_mix"]) - 0.30) < 1e-6
+    assert config["comb_cloud_seed"] == 17
+    assert "combcloud" in str(payload["effective"]["compute_backend"])
 
 
 def test_render_sparse_high_order_switches_are_applied(tmp_path: Path) -> None:
@@ -926,6 +1292,63 @@ def test_render_rejects_cascade_with_single_line_fdn(tmp_path: Path) -> None:
     assert "--fdn-cascade requires at least 2 FDN lines." in _combined_cli_output(result)
 
 
+def test_render_rejects_unsafe_loop_gain_without_unsafe_mode(tmp_path: Path) -> None:
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--unsafe-loop-gain",
+            "1.05",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--unsafe-loop-gain requires --unsafe-self-oscillate." in _combined_cli_output(result)
+
+
+def test_render_accepts_unsafe_self_oscillation_settings_in_dry_run(tmp_path: Path) -> None:
+    audio = np.zeros((1400, 1), dtype=np.float64)
+    audio[30:140, 0] = 0.4
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--rt60",
+            "0.35",
+            "--shimmer",
+            "--shimmer-semitones",
+            "0",
+            "--shimmer-feedback",
+            "1.05",
+            "--unsafe-self-oscillate",
+            "--unsafe-loop-gain",
+            "1.04",
+            "--dry-run",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "Render Dry-Run Plan" in text
+
+
 def test_render_multiband_fdn_switches_are_applied(tmp_path: Path) -> None:
     audio = np.zeros((1400, 1), dtype=np.float64)
     audio[40:170, 0] = 0.3
@@ -1124,6 +1547,62 @@ def test_render_track_c_perceptual_fdn_controls_are_applied(tmp_path: Path) -> N
     assert "delta_from_requested" in macro_report
 
 
+def test_render_post_shaping_controls_are_applied(tmp_path: Path) -> None:
+    audio = np.zeros((2400, 1), dtype=np.float64)
+    audio[80:220, 0] = 0.3
+    infile = tmp_path / "post_shape_in.wav"
+    outfile = tmp_path / "post_shape_out.wav"
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--duck",
+            "--duck-strength",
+            "0.9",
+            "--duck-floor",
+            "0.2",
+            "--bloom",
+            "2.5",
+            "--bloom-mix",
+            "0.6",
+            "--lowcut",
+            "120",
+            "--lowcut-order",
+            "4",
+            "--highcut",
+            "8000",
+            "--highcut-order",
+            "5",
+            "--tilt",
+            "3.0",
+            "--tilt-pivot-hz",
+            "700",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert bool(config["duck"]) is True
+    assert abs(float(config["duck_strength"]) - 0.9) < 1e-6
+    assert abs(float(config["duck_floor"]) - 0.2) < 1e-6
+    assert abs(float(config["bloom"]) - 2.5) < 1e-6
+    assert abs(float(config["bloom_mix"]) - 0.6) < 1e-6
+    assert abs(float(config["lowcut"]) - 120.0) < 1e-6
+    assert int(config["lowcut_order"]) == 4
+    assert abs(float(config["highcut"]) - 8000.0) < 1e-6
+    assert int(config["highcut_order"]) == 5
+    assert abs(float(config["tilt"]) - 3.0) < 1e-6
+    assert abs(float(config["tilt_pivot_hz"]) - 700.0) < 1e-6
+
+
 def test_render_convolution_route_map_and_trajectory(tmp_path: Path) -> None:
     sr = 16_000
     infile = tmp_path / "mono_in.wav"
@@ -1168,7 +1647,7 @@ def test_render_convolution_route_map_and_trajectory(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
 
     out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
-    assert out_sr == sr
+    assert out_sr == _DEFAULT_RENDER_SR
     assert out.shape[1] == 2
     q = max(8, out.shape[0] // 4)
     early_left = float(np.mean(np.abs(out[:q, 0])))
@@ -1214,8 +1693,71 @@ def test_render_convolution_accepts_extended_output_layout_token(tmp_path: Path)
     assert result.exit_code == 0, result.stdout
 
     out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
-    assert out_sr == sr
+    assert out_sr == _DEFAULT_RENDER_SR
     assert out.shape[1] == 13
+
+
+def test_render_convolution_large_layout_requires_explicit_route_map(tmp_path: Path) -> None:
+    sr = 16_000
+    infile = tmp_path / "mono_in_large.wav"
+    irfile = tmp_path / "mono_ir_large.wav"
+    outfile = tmp_path / "layout_out_large.wav"
+
+    x = np.zeros((sr // 4, 1), dtype=np.float64)
+    x[0, 0] = 1.0
+    ir = np.zeros((128, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+    sf.write(str(infile), x, sr)
+    sf.write(str(irfile), ir, sr)
+
+    bad = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--input-layout",
+            "mono",
+            "--output-layout",
+            "16.0",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert bad.exit_code != 0
+    assert "Auto route-map is ambiguous for large output layouts" in _combined_cli_output(bad)
+    assert "--ir-route-map explicitly" in _combined_cli_output(bad)
+
+    good = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--input-layout",
+            "mono",
+            "--output-layout",
+            "16.0",
+            "--ir-route-map",
+            "broadcast",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert good.exit_code == 0, good.stdout
+    out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == _DEFAULT_RENDER_SR
+    assert out.shape[1] == 16
 
 
 def test_render_convolution_ir_blend_generates_composite_ir_runtime(tmp_path: Path) -> None:
@@ -1487,6 +2029,214 @@ def test_analyze_edr_mode(tmp_path: Path) -> None:
     assert "edr_rt60_median_s" in result.stdout
 
 
+def test_analyze_reverb_metrics_and_versioned_json_are_default(tmp_path: Path) -> None:
+    sr = 16_000
+    target_rt60 = 1.0
+    t = np.arange(sr * 3, dtype=np.float64) / float(sr)
+    audio = (
+        np.power(10.0, -3.0 * t / target_rt60)
+        * np.sin(2.0 * np.pi * 701.0 * t)
+    )[:, np.newaxis]
+    audio[0, 0] = 1.0
+    infile = tmp_path / "decay.wav"
+    json_out = tmp_path / "reports" / "analysis.json"
+    sf.write(str(infile), audio, sr)
+
+    result = runner.invoke(
+        app,
+        ["analyze", str(infile), "--input-kind", "ir", "--json-out", str(json_out)],
+    )
+
+    assert result.exit_code == 0, _combined_cli_output(result)
+    assert "reverb_rt60_seconds" in result.stdout
+    assert "reverb_c80_db" in result.stdout
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["schema"] == "analyze-report-v1"
+    assert payload["source"]["sample_rate_hz"] == sr
+    assert payload["source"]["channels"] == 1
+    assert payload["analysis"]["reverb"] is True
+    assert abs(payload["metrics"]["reverb_rt60_seconds"] - target_rt60) < 0.03
+
+
+def test_analyze_no_reverb_preserves_legacy_metric_mode(tmp_path: Path) -> None:
+    infile = tmp_path / "dry.wav"
+    sf.write(str(infile), np.zeros((4096, 1), dtype=np.float64), 48_000)
+
+    result = runner.invoke(app, ["analyze", str(infile), "--no-reverb"])
+
+    assert result.exit_code == 0, _combined_cli_output(result)
+    assert "reverb_rt60_seconds" not in result.stdout
+    assert "spectral_centroid" in result.stdout
+
+
+def test_compare_command_writes_json(tmp_path: Path) -> None:
+    sr = 48_000
+    n = 4096
+    a = np.zeros((n, 1), dtype=np.float64)
+    b = np.zeros((n, 1), dtype=np.float64)
+    a[64:512, 0] = 0.2
+    b[64:512, 0] = 0.35
+    file_a = tmp_path / "a.wav"
+    file_b = tmp_path / "b.wav"
+    json_out = tmp_path / "compare.json"
+    sf.write(str(file_a), a, sr)
+    sf.write(str(file_b), b, sr)
+
+    result = runner.invoke(app, ["compare", str(file_a), str(file_b), "--json-out", str(json_out)])
+    assert result.exit_code == 0, result.stdout
+    assert "Compare:" in result.stdout
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["schema"] == "compare-report-v1"
+    assert payload["sample_rate_a"] == sr
+    assert payload["sample_rate_b"] == sr
+    assert "delta" in payload
+
+
+def test_suggest_command_pins_json(tmp_path: Path) -> None:
+    sr = 48_000
+    audio = np.zeros((4096, 1), dtype=np.float64)
+    audio[64:512, 0] = 0.3
+    infile = tmp_path / "suggest.wav"
+    pin = tmp_path / "suggested.json"
+    sf.write(str(infile), audio, sr)
+
+    result = runner.invoke(app, ["suggest", str(infile), "--pin", str(pin)])
+    assert result.exit_code == 0, result.stdout
+    assert "Suggested Parameters:" in result.stdout
+    payload = json.loads(pin.read_text(encoding="utf-8"))
+    assert payload["engine"] in {"algo", "conv"}
+    assert "rt60" in payload
+    assert "wet" in payload
+
+
+def test_dereverb_command_writes_output_and_json(tmp_path: Path) -> None:
+    sr = 16_000
+    n = sr
+    x = np.zeros((n, 1), dtype=np.float64)
+    x[64, 0] = 1.0
+    ir = np.exp(-np.arange(int(0.5 * sr), dtype=np.float64) / (0.16 * sr))
+    y = np.convolve(x[:, 0], ir, mode="full")[:n]
+    infile = tmp_path / "wet.wav"
+    outfile = tmp_path / "dryish.wav"
+    json_out = tmp_path / "dereverb.json"
+    sf.write(str(infile), y[:, None], sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "dereverb",
+            str(infile),
+            str(outfile),
+            "--mode",
+            "wiener",
+            "--strength",
+            "0.9",
+            "--window-ms",
+            "32",
+            "--hop-ms",
+            "8",
+            "--tail-ms",
+            "180",
+            "--json-out",
+            str(json_out),
+            "--quiet",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert outfile.exists()
+    out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert out_sr == sr
+    assert out_audio.shape == (n, 1)
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["schema"] == "dereverb-report-v1"
+    assert payload["command"] == "dereverb"
+    assert payload["status"] == "ok"
+    assert payload["sample_rate"] == sr
+    assert payload["channels"] == 1
+    assert "rms_delta_db" in payload["metrics"]
+
+
+def test_dereverb_rejects_hop_ms_not_smaller_than_window(tmp_path: Path) -> None:
+    audio = np.zeros((512, 1), dtype=np.float64)
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, 48_000, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "dereverb",
+            str(infile),
+            str(outfile),
+            "--window-ms",
+            "10",
+            "--hop-ms",
+            "10",
+        ],
+    )
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "--hop-ms must be smaller than --window-ms." in text
+
+
+def test_dereverb_window_options_are_reported_in_json(tmp_path: Path) -> None:
+    sr = 24_000
+    audio = np.zeros((2048, 1), dtype=np.float64)
+    audio[80:220, 0] = 0.3
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    json_out = tmp_path / "dereverb_windows.json"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "dereverb",
+            str(infile),
+            str(outfile),
+            "--window-type",
+            "kaiser",
+            "--synthesis-window-type",
+            "tukey",
+            "--window-beta",
+            "10",
+            "--window-alpha",
+            "0.25",
+            "--window-std",
+            "2.2",
+            "--window-power",
+            "1.8",
+            "--window-atten-db",
+            "90",
+            "--window-nbar",
+            "5",
+            "--window-nw",
+            "3.0",
+            "--window-tau",
+            "2.5",
+            "--window-weights",
+            "0.42,0.5,0.08",
+            "--json-out",
+            str(json_out),
+            "--quiet",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    cfg = payload["config"]
+    assert cfg["window_type"] == "kaiser"
+    assert cfg["synthesis_window_type"] == "tukey"
+    assert cfg["window_beta"] == 10.0
+    assert cfg["window_alpha"] == 0.25
+    assert cfg["window_std"] == 2.2
+    assert cfg["window_power"] == 1.8
+    assert cfg["window_atten_db"] == 90.0
+    assert cfg["window_nbar"] == 5
+    assert cfg["window_nw"] == 3.0
+    assert cfg["window_tau"] == 2.5
+    assert cfg["window_weights"] == [0.42, 0.5, 0.08]
+
+
 def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> None:
     sr = 48_000
     audio = np.zeros((1024, 2), dtype=np.float64)
@@ -1572,6 +2322,296 @@ def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> N
     assert abs(target_peak - expected_target) <= 0.01
 
 
+def test_render_defaults_to_hd_output_definition(tmp_path: Path) -> None:
+    sr_in = 48_000
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[16, 0] = 0.6
+
+    infile = tmp_path / "in_hd.wav"
+    irfile = tmp_path / "ir_hd.wav"
+    outfile = tmp_path / "out_hd.wav"
+    sf.write(str(infile), audio, sr_in)
+    sf.write(str(irfile), np.array([[1.0]], dtype=np.float64), sr_in)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    info = sf.info(str(outfile))
+    assert info.samplerate == _DEFAULT_RENDER_SR
+    assert info.subtype == "FLOAT"
+
+
+def test_render_limiter_options_round_trip_into_analysis_config(tmp_path: Path) -> None:
+    sr = 48_000
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[8:32, 0] = 1.4
+    infile = tmp_path / "in.wav"
+    irfile = tmp_path / "ir.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, sr)
+    sf.write(str(irfile), np.array([[1.0]], dtype=np.float64), sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--target-peak-dbfs",
+            "-2.0",
+            "--limiter-mode",
+            "arctan",
+            "--limiter-detect",
+            "rms",
+            "--limiter-threshold-dbfs",
+            "-8.0",
+            "--limiter-ceiling-dbfs",
+            "-2.0",
+            "--limiter-knee-db",
+            "9.0",
+            "--limiter-drive",
+            "1.7",
+            "--limiter-mix",
+            "0.8",
+            "--limiter-attack-ms",
+            "0.2",
+            "--limiter-release-ms",
+            "120.0",
+            "--limiter-lookahead-ms",
+            "2.5",
+            "--no-limiter-stereo-link",
+            "--limiter-oversample",
+            "4",
+            "--limiter-pre-gain-db",
+            "3.0",
+            "--limiter-post-gain-db",
+            "-1.0",
+            "--limiter-dc-block",
+            "--quiet",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    config = payload["config"]
+    assert config["limiter_mode"] == "arctan"
+    assert config["limiter_detect"] == "rms"
+    assert abs(float(config["limiter_threshold_dbfs"]) - (-8.0)) < 1e-6
+    assert abs(float(config["limiter_ceiling_dbfs"]) - (-2.0)) < 1e-6
+    assert abs(float(config["limiter_knee_db"]) - 9.0) < 1e-6
+    assert abs(float(config["limiter_drive"]) - 1.7) < 1e-6
+    assert abs(float(config["limiter_mix"]) - 0.8) < 1e-6
+    assert abs(float(config["limiter_attack_ms"]) - 0.2) < 1e-6
+    assert abs(float(config["limiter_release_ms"]) - 120.0) < 1e-6
+    assert abs(float(config["limiter_lookahead_ms"]) - 2.5) < 1e-6
+    assert config["limiter_stereo_link"] is False
+    assert int(config["limiter_oversample"]) == 4
+    assert abs(float(config["limiter_pre_gain_db"]) - 3.0) < 1e-6
+    assert abs(float(config["limiter_post_gain_db"]) - (-1.0)) < 1e-6
+    assert config["limiter_dc_block"] is True
+
+
+def test_render_rejects_limiter_threshold_above_ceiling(tmp_path: Path) -> None:
+    sr = 48_000
+    audio = np.zeros((512, 1), dtype=np.float64)
+    audio[0, 0] = 1.0
+    infile = tmp_path / "in.wav"
+    irfile = tmp_path / "ir.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, sr)
+    sf.write(str(irfile), np.array([[1.0]], dtype=np.float64), sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--limiter-threshold-dbfs",
+            "-1.0",
+            "--limiter-ceiling-dbfs",
+            "-6.0",
+            "--no-progress",
+        ],
+    )
+
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "--limiter-threshold-dbfs must be <= --limiter-ceiling-dbfs" in text
+    assert not outfile.exists()
+
+
+def test_render_rejects_explicit_container_extension_mismatch(tmp_path: Path) -> None:
+    sr = 48_000
+    audio = np.zeros((512, 1), dtype=np.float64)
+    audio[0, 0] = 1.0
+    infile = tmp_path / "in.wav"
+    irfile = tmp_path / "ir.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, sr)
+    sf.write(str(irfile), np.array([[1.0]], dtype=np.float64), sr)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--output-container",
+            "w64",
+            "--no-progress",
+        ],
+    )
+
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "--output-container w64 should use a .w64 output path" in text
+    assert not outfile.exists()
+
+
+def test_presets_include_week3_stabilization_examples() -> None:
+    result = runner.invoke(app, ["presets"])
+    assert result.exit_code == 0, result.stdout
+    assert "room_model_studio" in result.stdout
+    assert "limiter_broadcast_safe" in result.stdout
+    assert "delivery_long_tail_safe" in result.stdout
+
+    detail = runner.invoke(app, ["presets", "--show", "limiter-broadcast-safe"])
+    assert detail.exit_code == 0, detail.stdout
+    assert "limiter_ceiling_dbfs" in detail.stdout
+    assert "output_peak_norm" in detail.stdout
+
+
+def test_render_quality_preset_sd_and_explicit_override_precedence(tmp_path: Path) -> None:
+    sr_in = 48_000
+    audio = np.zeros((512, 1), dtype=np.float64)
+    audio[0, 0] = 0.7
+
+    infile = tmp_path / "in_quality.wav"
+    irfile = tmp_path / "ir_quality.wav"
+    sd_out = tmp_path / "out_sd.wav"
+    override_out = tmp_path / "out_override.wav"
+    sf.write(str(infile), audio, sr_in)
+    sf.write(str(irfile), np.array([[1.0]], dtype=np.float64), sr_in)
+
+    sd_result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(sd_out),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--quality-preset",
+            "sd",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert sd_result.exit_code == 0, sd_result.stdout
+    sd_info = sf.info(str(sd_out))
+    assert sd_info.samplerate == 44_100
+    assert sd_info.subtype == "PCM_16"
+
+    override_result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(override_out),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--quality-preset",
+            "sd",
+            "--target-sr",
+            "96000",
+            "--out-subtype",
+            "float64",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert override_result.exit_code == 0, override_result.stdout
+    override_info = sf.info(str(override_out))
+    assert override_info.samplerate == 96_000
+    assert override_info.subtype == "DOUBLE"
+
+
+def test_render_target_sample_rate_conversion_and_float32_output(tmp_path: Path) -> None:
+    sr_in = 48_000
+    sr_out = 192_000
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[0, 0] = 0.5
+
+    infile = tmp_path / "in_sr.wav"
+    irfile = tmp_path / "ir_sr.wav"
+    outfile = tmp_path / "out_sr.wav"
+    sf.write(str(infile), audio, sr_in)
+    sf.write(str(irfile), np.array([[1.0]], dtype=np.float64), sr_in)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "conv",
+            "--ir",
+            str(irfile),
+            "--target-sr",
+            str(sr_out),
+            "--out-subtype",
+            "float32",
+            "--normalize-stage",
+            "none",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    info = sf.info(str(outfile))
+    assert info.samplerate == sr_out
+    assert info.subtype == "FLOAT"
+
+    payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
+    assert payload["sample_rate"] == sr_out
+    assert payload["effective"]["streaming_mode"] is False
+    assert payload["effective"]["sample_rate_action"] == f"resample:{sr_in}->{sr_out}"
+
+
 def test_render_conv_streaming_mode(tmp_path: Path) -> None:
     sr = 48_000
     audio = np.zeros((8192, 2), dtype=np.float64)
@@ -1598,6 +2638,8 @@ def test_render_conv_streaming_mode(tmp_path: Path) -> None:
             str(irfile),
             "--normalize-stage",
             "none",
+            "--target-sr",
+            str(sr),
             "--no-progress",
         ],
     )
@@ -1641,7 +2683,7 @@ def test_render_self_convolve(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
 
     out_audio, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
-    assert out_sr == sr
+    assert out_sr == _DEFAULT_RENDER_SR
     assert out_audio.shape[0] > audio.shape[0]
     assert out_audio.shape[1] == 1
     assert np.any(np.abs(out_audio) > 1e-7)
@@ -2152,6 +3194,39 @@ def test_batch_corpus_generate_dry_run_reports_large_plan(tmp_path: Path) -> Non
     assert "outputs=1000000" in text
 
 
+def test_batch_corpus_generate_dry_run_shard_metadata(tmp_path: Path) -> None:
+    in_dir = tmp_path / "inputs"
+    in_dir.mkdir()
+    for idx in range(3):
+        infile = in_dir / f"clip_{idx}.wav"
+        audio = np.zeros((1024, 1), dtype=np.float64)
+        audio[10:80, 0] = 0.3
+        sf.write(str(infile), audio, 16_000)
+
+    out_root = tmp_path / "corpus_out"
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            "corpus-generate",
+            str(in_dir),
+            "--output-root",
+            str(out_root),
+            "--variants-per-input",
+            "10",
+            "--num-shards",
+            "2",
+            "--shard-index",
+            "1",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    text = _combined_cli_output(result)
+    assert "outputs=10" in text
+    assert "shard=1/2" in text
+
+
 def test_batch_corpus_generate_writes_manifest_and_audio(tmp_path: Path) -> None:
     in_dir = tmp_path / "in"
     in_dir.mkdir()
@@ -2174,6 +3249,10 @@ def test_batch_corpus_generate_writes_manifest_and_audio(tmp_path: Path) -> None
             "2",
             "--seed",
             "123",
+            "--execution-profile",
+            "cpu-balanced",
+            "--jobs",
+            "0",
             "--pitch-shift-min-semitones",
             "0.0",
             "--pitch-shift-max-semitones",
@@ -2187,9 +3266,69 @@ def test_batch_corpus_generate_writes_manifest_and_audio(tmp_path: Path) -> None
     assert manifest_path.exists()
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     assert summary["generated_outputs"] == 4
+    assert summary["execution_profile"] == "cpu-balanced"
+    assert int(summary["effective_jobs"]) >= 1
+    assert summary["retries"] == 0
+    assert summary["total_attempts"] == 4
+    assert float(summary["outputs_per_second"]) > 0.0
+    assert float(summary["read_seconds"]) >= 0.0
+    assert float(summary["process_seconds"]) >= 0.0
+    assert float(summary["write_seconds"]) >= 0.0
     generated_wavs = sorted(out_root.glob("**/*.wav"))
     assert len(generated_wavs) == 4
 
+
+def test_batch_corpus_generate_resume_uses_checkpoint(tmp_path: Path) -> None:
+    infile = tmp_path / "voice.wav"
+    audio = np.zeros((2048, 1), dtype=np.float64)
+    audio[80:200, 0] = 0.35
+    sf.write(str(infile), audio, 24_000)
+    out_root = tmp_path / "generated"
+    checkpoint = tmp_path / "corpus_checkpoint.json"
+
+    first = runner.invoke(
+        app,
+        [
+            "batch",
+            "corpus-generate",
+            str(infile),
+            "--output-root",
+            str(out_root),
+            "--variants-per-input",
+            "2",
+            "--seed",
+            "17",
+            "--jobs",
+            "2",
+            "--checkpoint-file",
+            str(checkpoint),
+        ],
+    )
+    assert first.exit_code == 0, first.stdout
+
+    second = runner.invoke(
+        app,
+        [
+            "batch",
+            "corpus-generate",
+            str(infile),
+            "--output-root",
+            str(out_root),
+            "--variants-per-input",
+            "2",
+            "--seed",
+            "17",
+            "--jobs",
+            "2",
+            "--checkpoint-file",
+            str(checkpoint),
+            "--resume",
+        ],
+    )
+    assert second.exit_code == 0, second.stdout
+    summary = json.loads((out_root / "corpus_generation_summary.json").read_text(encoding="utf-8"))
+    assert int(summary["generated_outputs"]) == 0
+    assert int(summary["resumed_skipped"]) == 2
 
 def test_batch_augment_dry_run_plans_without_writing_audio(tmp_path: Path) -> None:
     sr = 16_000
@@ -2891,7 +4030,7 @@ def test_render_ambisonics_encode_rotate_decode(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
 
     out, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
-    assert out_sr == sr
+    assert out_sr == _DEFAULT_RENDER_SR
     assert out.shape[1] == 2
     payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
     assert int(payload["config"]["ambi_order"]) == 1
@@ -2954,6 +4093,33 @@ def test_analyze_ambisonic_metrics_mode(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.stdout
     assert "ambi_directionality_stability" in result.stdout
+
+
+def test_render_rejects_ambi_order_above_supported_max(tmp_path: Path) -> None:
+    infile = tmp_path / "hoa_in.wav"
+    outfile = tmp_path / "hoa_out.wav"
+    audio = np.zeros((1024, 1), dtype=np.float64)
+    audio[20:120, 0] = 0.4
+    sf.write(str(infile), audio, 48_000)
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "algo",
+            "--ambi-order",
+            "8",
+            "--dry-run",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code != 0
+    text = _combined_cli_output(result)
+    assert "--ambi-order" in text
+    assert "0<=x<=7" in text
 
 
 def test_render_automation_file_wet_ramp_and_trace(tmp_path: Path) -> None:

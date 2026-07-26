@@ -8,48 +8,89 @@ const rootDir = path.resolve(__dirname, "..");
 const srcDir = path.join(rootDir, "src");
 const args = process.argv.slice(2);
 
-function pythonCommand() {
-  return process.env.PYTHON || "python3";
+function pythonCandidates() {
+  const candidates = [];
+  if (process.env.PYTHON && process.env.PYTHON.trim()) {
+    candidates.push(process.env.PYTHON.trim());
+  }
+  candidates.push("python3", "python");
+  if (process.platform === "win32") {
+    candidates.push("py");
+  }
+  return [...new Set(candidates)];
 }
 
-function runCli() {
+function printCaptured(result) {
+  if (result && result.stdout) {
+    process.stdout.write(String(result.stdout));
+  }
+  if (result && result.stderr) {
+    process.stderr.write(String(result.stderr));
+  }
+}
+
+function runCli(pythonExec) {
   const env = { ...process.env };
-  env.PYTHONPATH = env.PYTHONPATH ? `${srcDir}:${env.PYTHONPATH}` : srcDir;
+  env.PYTHONPATH = env.PYTHONPATH
+    ? `${srcDir}${path.delimiter}${env.PYTHONPATH}`
+    : srcDir;
   return spawnSync(
-    pythonCommand(),
+    pythonExec,
     ["-m", "verbx.cli", ...args],
     {
-      stdio: "inherit",
+      encoding: "utf8",
+      stdio: "pipe",
       env,
     },
   );
 }
 
-function bootstrapPythonDeps() {
+function bootstrapPythonDeps(pythonExec) {
   return spawnSync(
-    pythonCommand(),
+    pythonExec,
     ["-m", "pip", "install", "--user", rootDir],
-    { stdio: "inherit" },
+    { encoding: "utf8", stdio: "pipe" },
   );
 }
 
-let result = runCli();
-if (result.status === 0) {
-  process.exit(0);
+let result = null;
+let selectedPython = null;
+for (const candidate of pythonCandidates()) {
+  const attempt = runCli(candidate);
+  if (attempt.error && attempt.error.code === "ENOENT") {
+    continue;
+  }
+  result = attempt;
+  selectedPython = candidate;
+  break;
+}
+if (!result || !selectedPython) {
+  console.error(
+    "[verbx npm launcher] Python not found. Install Python 3.11+ and retry, or set $PYTHON.",
+  );
+  process.exit(1);
 }
 
 const stderrText = String(result.stderr || "");
-if (!stderrText.includes("ModuleNotFoundError")) {
-  process.exit(result.status || 1);
+const missingModule = stderrText.includes("ModuleNotFoundError");
+if (!missingModule) {
+  printCaptured(result);
+  process.exit(typeof result.status === "number" ? result.status : 1);
 }
 
+printCaptured(result);
 console.error(
-  "[verbx npm launcher] Missing Python dependencies detected; installing with pip --user...",
+  `[verbx npm launcher] Missing Python dependencies; bootstrapping with ${selectedPython} -m pip install --user ...`,
 );
-const bootstrap = bootstrapPythonDeps();
+const bootstrap = bootstrapPythonDeps(selectedPython);
+printCaptured(bootstrap);
 if (bootstrap.status !== 0) {
+  console.error(
+    "[verbx npm launcher] Bootstrap failed. Ensure pip is available and that your user site bin path is on PATH.",
+  );
   process.exit(bootstrap.status || 1);
 }
 
-result = runCli();
+result = runCli(selectedPython);
+printCaptured(result);
 process.exit(result.status || 0);
