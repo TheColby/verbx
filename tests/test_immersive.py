@@ -51,6 +51,11 @@ def test_extended_layout_hints_and_labels() -> None:
     assert labels[0] == "L"
     assert labels[3] == "LFE1"
     assert labels[12] == "Rtr"
+    labels16 = channel_labels_for_layout("16.0", 16)
+    assert labels16[12] == "Lw"
+    labels64 = channel_labels_for_layout("64.4", 68)
+    assert labels64[0] == "B1"
+    assert labels64[-1] == "LFE4"
 
 
 def test_evaluate_immersive_qc_returns_gate_payload() -> None:
@@ -76,6 +81,16 @@ def test_evaluate_immersive_qc_accepts_extended_layout_hint() -> None:
     report = evaluate_immersive_qc(audio=audio, sr=48_000, label="bus16", layout="16.0")
     assert report["layout"] == "16.0"
     assert int(report["channels"]) == 16
+    assert bool(report["passes"]["layout_channels"])
+
+
+def test_evaluate_immersive_qc_flags_layout_channel_mismatch() -> None:
+    audio = np.zeros((512, 16), dtype=np.float64)
+    report = evaluate_immersive_qc(audio=audio, sr=48_000, label="bad_layout", layout="7.1.4")
+    assert report["layout"] == "7.1.4"
+    assert int(report["channels"]) == 16
+    assert not bool(report["passes"]["layout_channels"])
+    assert "layout_channels" in list(report["failed_gates"])
 
 
 def test_generate_immersive_handoff_package_writes_outputs(tmp_path: Path) -> None:
