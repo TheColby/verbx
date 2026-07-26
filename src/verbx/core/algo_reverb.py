@@ -10,13 +10,14 @@ Signal flow (per channel):
 
 1. pre-delay line,
 2. short all-pass diffusion network,
-3. FDN late field with configurable delay-line count/lengths and:
+3. optional comb-cloud coloration stage,
+4. FDN late field with configurable delay-line count/lengths and:
    - RT60-calibrated per-line gains,
    - one-pole damping in each feedback path,
    - DC blocking in the loop,
    - subtle delay modulation to reduce metallic ringing.
-4. optional stereo width stage (for 2ch),
-5. optional shimmer stage on the wet path.
+5. optional stereo width stage (for 2ch),
+6. optional shimmer stage on the wet path.
 """
 
 from __future__ import annotations
@@ -80,6 +81,12 @@ class AlgoReverbConfig:
     allpass_gains: tuple[float, ...] = ()
     allpass_delays_ms: tuple[float, ...] = ()
     comb_delays_ms: tuple[float, ...] = ()
+    comb_cloud: bool = False
+    comb_cloud_count: int = 24
+    comb_cloud_feedback: float = 0.35
+    comb_cloud_mix: float = 0.25
+    comb_cloud_delays_ms: tuple[float, ...] = ()
+    comb_cloud_seed: int = 2026
     fdn_lines: int = 8
     fdn_matrix: str = "hadamard"
     fdn_tv_rate_hz: float = 0.0
@@ -105,6 +112,8 @@ class AlgoReverbConfig:
     fdn_graph_topology: str = "ring"
     fdn_graph_degree: int = 2
     fdn_graph_seed: int = 2026
+    fdn_matrix_morph_to: str | None = None
+    fdn_matrix_morph_seconds: float = 0.0
     fdn_spatial_coupling_mode: str = "none"
     fdn_spatial_coupling_strength: float = 0.0
     fdn_nonlinearity: str = "none"
@@ -126,6 +135,11 @@ class AlgoReverbConfig:
     shimmer_feedback: float = 0.35
     shimmer_highcut: float | None = 10_000.0
     shimmer_lowcut: float | None = 300.0
+    shimmer_spatial: bool = False
+    shimmer_spread_cents: float = 8.0
+    shimmer_decorrelation_ms: float = 1.5
+    unsafe_self_oscillate: bool = False
+    unsafe_loop_gain: float = 1.02
     output_layout: str = "auto"
     device: str = "cpu"
 
@@ -167,7 +181,24 @@ class AlgoReverbEngine(ReverbEngine):
 
     def __init__(self, config: AlgoReverbConfig) -> None:
         self._config = config
+        self._unsafe_self_oscillate = bool(config.unsafe_self_oscillate)
+        self._feedback_gain_ceiling = 1.25 if self._unsafe_self_oscillate else 0.995
+        unsafe_loop_gain = float(config.unsafe_loop_gain)
+        if self._unsafe_self_oscillate and unsafe_loop_gain <= 1.0:
+            unsafe_loop_gain = 1.02
+        self._feedback_gain_scale = unsafe_loop_gain if self._unsafe_self_oscillate else 1.0
+        self._state_guard_peak = 1e12 if self._unsafe_self_oscillate else 64.0
+        self._state_guard_scale = np.float64(0.25 if self._unsafe_self_oscillate else 0.5)
         self._base_delay_ms = self._resolve_fdn_delay_ms(config)
+        self._comb_cloud_delay_ms = self._resolve_comb_cloud_delay_ms(config)
+        self._comb_cloud_enabled = (
+            bool(config.comb_cloud or len(config.comb_cloud_delays_ms) > 0)
+            and self._comb_cloud_delay_ms.size > 0
+            and float(config.comb_cloud_mix) > 0.0
+        )
+        self._comb_cloud_feedback = float(np.clip(config.comb_cloud_feedback, 0.0, 0.95))
+        self._comb_cloud_mix = float(np.clip(config.comb_cloud_mix, 0.0, 1.0))
+        self._comb_cloud_seed = int(config.comb_cloud_seed)
         self._diffusion_delay_ms = self._resolve_diffusion_delay_ms(config)
         self._dfm_delay_ms = self._resolve_dfm_delay_ms(config, int(self._base_delay_ms.shape[0]))
         self._allpass_gains = self._resolve_allpass_gains(
@@ -229,6 +260,24 @@ class AlgoReverbEngine(ReverbEngine):
             int(self._base_delay_ms.shape[0]),
             config.fdn_matrix,
         )
+        morph_to = None
+        if config.fdn_matrix_morph_to is not None and str(config.fdn_matrix_morph_to).strip() != "":
+            morph_to = self._normalize_matrix_type(config.fdn_matrix_morph_to)
+        self._matrix_morph_target = (
+            None
+            if morph_to is None
+            else self._build_fdn_matrix(
+                int(self._base_delay_ms.shape[0]),
+                morph_to,
+            )
+        )
+        self._matrix_morph_seconds = max(0.0, float(config.fdn_matrix_morph_seconds))
+        self._matrix_morph_enabled = (
+            self._matrix_morph_target is not None
+            and self._matrix_kind not in {"graph"}
+            and not self._sparse_enabled
+            and self._matrix_morph_seconds > 0.0
+        )
         if self._sparse_enabled:
             self._fdn_matrix = self._build_sparse_mix_matrix(
                 size=int(self._base_delay_ms.shape[0]),
@@ -267,6 +316,7 @@ class AlgoReverbEngine(ReverbEngine):
         self._use_numba = (
             _numba_available
             and config.device != "cuda"
+            and not self._unsafe_self_oscillate
             and not self._tv_matrix_enabled
             and not self._graph_enabled
             and not self._dfm_enabled
@@ -274,6 +324,7 @@ class AlgoReverbEngine(ReverbEngine):
             and not self._link_filter_enabled
             and not self._cascade_enabled
             and not self._nonlinearity_enabled
+            and not self._comb_cloud_enabled
             and abs(float(config.room_size_macro)) <= 1e-9
             and abs(float(config.clarity_macro)) <= 1e-9
             and abs(float(config.warmth_macro)) <= 1e-9
@@ -287,6 +338,10 @@ class AlgoReverbEngine(ReverbEngine):
                 feedback=config.shimmer_feedback,
                 highcut=config.shimmer_highcut,
                 lowcut=config.shimmer_lowcut,
+                unsafe_self_oscillate=self._unsafe_self_oscillate,
+                spatial=bool(config.shimmer_spatial),
+                spread_cents=float(config.shimmer_spread_cents),
+                decorrelation_ms=float(config.shimmer_decorrelation_ms),
             )
         )
         self._parameter_automation: CurveMap = {}
@@ -321,6 +376,11 @@ class AlgoReverbEngine(ReverbEngine):
             target in curves
             for target in (
                 "fdn-rt60-tilt",
+                "fdn-rt60-low",
+                "fdn-rt60-mid",
+                "fdn-rt60-high",
+                "fdn-xover-low-hz",
+                "fdn-xover-high-hz",
                 "clarity-macro",
                 "warmth-macro",
                 "fdn-tonal-correction-strength",
@@ -360,6 +420,12 @@ class AlgoReverbEngine(ReverbEngine):
                 vec = np.asarray(np.clip(vec, -1.0, 1.0), dtype=np.float64)
             elif target == "fdn-tonal-correction-strength":
                 vec = np.asarray(np.clip(vec, 0.0, 1.0), dtype=np.float64)
+            elif target in {"fdn-rt60-low", "fdn-rt60-mid", "fdn-rt60-high"}:
+                vec = np.asarray(np.clip(vec, RT60_MIN_SECONDS, RT60_MAX_SECONDS), dtype=np.float64)
+            elif target == "fdn-xover-low-hz":
+                vec = np.asarray(np.clip(vec, 20.0, 20_000.0), dtype=np.float64)
+            elif target == "fdn-xover-high-hz":
+                vec = np.asarray(np.clip(vec, 20.0, 20_000.0), dtype=np.float64)
             resolved[target] = vec
         return resolved
 
@@ -376,6 +442,7 @@ class AlgoReverbEngine(ReverbEngine):
             wet[:, channel] = self._process_channel(
                 x[:, channel],
                 sr,
+                channel_index=channel,
                 parameter_automation=param_automation,
             )
 
@@ -560,6 +627,12 @@ class AlgoReverbEngine(ReverbEngine):
             suffixes.append("spatialcouple")
         if self._nonlinearity_enabled:
             suffixes.append("nonlinear")
+        if self._comb_cloud_enabled:
+            suffixes.append("combcloud")
+        if self._matrix_morph_enabled:
+            suffixes.append("matrixmorph")
+        if self._unsafe_self_oscillate:
+            suffixes.append("unsafeosc")
         if len(suffixes) == 0:
             return base
         return f"{base}-{'-'.join(suffixes)}"
@@ -926,26 +999,41 @@ class AlgoReverbEngine(ReverbEngine):
         # "hadamard", "tv_unitary", and unknown values default here.
         return cls._build_hadamard_matrix(size=size)
 
-    def _current_block_matrix(self, sr: int, block_samples: int) -> npt.NDArray[np.float64]:
+    def _current_block_matrix(
+        self,
+        sr: int,
+        block_samples: int,
+        *,
+        block_start: int = 0,
+    ) -> npt.NDArray[np.float64]:
         """Return the active FDN matrix for one processing block."""
-        if not self._tv_matrix_enabled:
-            return self._fdn_matrix
-
-        block_seconds = float(block_samples) / float(max(1, sr))
-        phase_inc = np.float64((2.0 * np.pi * float(self._config.fdn_tv_rate_hz)) * block_seconds)
-        self._tv_phase += phase_inc
-        while self._tv_phase >= np.float64(2.0 * np.pi):
-            self._tv_phase -= np.float64(2.0 * np.pi)
-            seed = int(self._tv_rng.integers(0, 2_147_483_647))
-            self._tv_target_matrix = self._build_random_orthogonal_matrix(
-                size=int(self._fdn_matrix.shape[0]),
-                seed=seed,
+        base_matrix = self._fdn_matrix
+        if self._tv_matrix_enabled:
+            block_seconds = float(block_samples) / float(max(1, sr))
+            phase_inc = np.float64(
+                (2.0 * np.pi * float(self._config.fdn_tv_rate_hz)) * block_seconds
             )
+            self._tv_phase += phase_inc
+            while self._tv_phase >= np.float64(2.0 * np.pi):
+                self._tv_phase -= np.float64(2.0 * np.pi)
+                seed = int(self._tv_rng.integers(0, 2_147_483_647))
+                self._tv_target_matrix = self._build_random_orthogonal_matrix(
+                    size=int(self._fdn_matrix.shape[0]),
+                    seed=seed,
+                )
 
-        depth = float(np.clip(self._config.fdn_tv_depth, 0.0, 1.0))
-        blend = depth * (0.5 * (1.0 + np.sin(float(self._tv_phase))))
-        candidate = ((1.0 - blend) * self._fdn_matrix) + (blend * self._tv_target_matrix)
-        return self._orthonormalize(candidate.astype(np.float64))
+            depth = float(np.clip(self._config.fdn_tv_depth, 0.0, 1.0))
+            blend = depth * (0.5 * (1.0 + np.sin(float(self._tv_phase))))
+            candidate = ((1.0 - blend) * self._fdn_matrix) + (blend * self._tv_target_matrix)
+            base_matrix = self._orthonormalize(candidate.astype(np.float64))
+
+        if self._matrix_morph_enabled and self._matrix_morph_target is not None:
+            morph_samples = max(1.0, float(self._matrix_morph_seconds) * float(max(1, sr)))
+            alpha = float(np.clip(float(block_start) / morph_samples, 0.0, 1.0))
+            candidate = ((1.0 - alpha) * base_matrix) + (alpha * self._matrix_morph_target)
+            return self._orthonormalize(np.asarray(candidate, dtype=np.float64))
+
+        return np.asarray(base_matrix, dtype=np.float64)
 
     @classmethod
     def _resolve_fdn_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float64]:
@@ -962,6 +1050,30 @@ class AlgoReverbEngine(ReverbEngine):
                 next_delay = defaults[-1] + 0.25
             defaults.append(next_delay)
         return np.asarray(defaults[:requested], dtype=np.float64)
+
+    @classmethod
+    def _resolve_comb_cloud_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float64]:
+        """Resolve optional comb-cloud delay lengths for the pre-FDN color stage."""
+        enabled = bool(config.comb_cloud or len(config.comb_cloud_delays_ms) > 0)
+        if not enabled:
+            return np.zeros((0,), dtype=np.float64)
+
+        if len(config.comb_cloud_delays_ms) > 0:
+            delays = [max(0.1, float(value)) for value in config.comb_cloud_delays_ms]
+            return np.asarray(delays, dtype=np.float64)
+
+        requested = max(1, int(config.comb_cloud_count))
+        rng = np.random.default_rng(int(config.comb_cloud_seed))
+        base = np.linspace(7.5, 89.0, requested, dtype=np.float64)
+        spread = rng.uniform(0.94, 1.06, size=requested).astype(np.float64)
+        jitter = rng.uniform(-1.5, 1.5, size=requested).astype(np.float64)
+        delays = np.clip((base * spread) + jitter, 3.0, 120.0)
+        delays.sort()
+        for index in range(1, requested):
+            minimum = delays[index - 1] + 0.35
+            if delays[index] < minimum:
+                delays[index] = minimum
+        return np.asarray(np.clip(delays, 3.0, 120.0), dtype=np.float64)
 
     @staticmethod
     def _resolve_dfm_delay_ms(
@@ -1182,9 +1294,10 @@ class AlgoReverbEngine(ReverbEngine):
         signal: npt.NDArray[np.float64],
         sr: int,
         *,
+        channel_index: int = 0,
         parameter_automation: CurveMap | None = None,
     ) -> npt.NDArray[np.float64]:
-        """Run one channel through pre-delay, diffusion, and FDN late reverb."""
+        """Run one channel through pre-delay, diffusion, comb cloud, and FDN late reverb."""
         automation = parameter_automation or {}
         rt60_curve = automation.get("rt60")
         damping_curve = automation.get("damping")
@@ -1195,6 +1308,11 @@ class AlgoReverbEngine(ReverbEngine):
         envelopment_macro_curve = automation.get("envelopment-macro")
         fdn_rt60_tilt_curve = automation.get("fdn-rt60-tilt")
         tonal_correction_strength_curve = automation.get("fdn-tonal-correction-strength")
+        fdn_rt60_low_curve = automation.get("fdn-rt60-low")
+        fdn_rt60_mid_curve = automation.get("fdn-rt60-mid")
+        fdn_rt60_high_curve = automation.get("fdn-rt60-high")
+        fdn_xover_low_hz_curve = automation.get("fdn-xover-low-hz")
+        fdn_xover_high_hz_curve = automation.get("fdn-xover-high-hz")
         multiband_active = self._multiband_enabled or self._automation_requires_multiband(
             automation
         )
@@ -1208,6 +1326,11 @@ class AlgoReverbEngine(ReverbEngine):
             or envelopment_macro_curve is not None
             or fdn_rt60_tilt_curve is not None
             or tonal_correction_strength_curve is not None
+            or fdn_rt60_low_curve is not None
+            or fdn_rt60_mid_curve is not None
+            or fdn_rt60_high_curve is not None
+            or fdn_xover_low_hz_curve is not None
+            or fdn_xover_high_hz_curve is not None
         )
         if self._use_numba and not has_dynamic_params:
             return _process_channel_kernel(
@@ -1238,6 +1361,38 @@ class AlgoReverbEngine(ReverbEngine):
             1,
             np.asarray(np.round((self._diffusion_delay_ms / 1000.0) * sr), dtype=np.int32),
         )
+        comb_cloud_delays = np.zeros((0,), dtype=np.int32)
+        comb_cloud_buffers: list[npt.NDArray[np.float64]] = []
+        comb_cloud_indices = np.zeros((0,), dtype=np.int32)
+        comb_cloud_feedback = np.zeros((0,), dtype=np.float64)
+        comb_cloud_polarity = np.zeros((0,), dtype=np.float64)
+        comb_cloud_norm = np.float64(0.0)
+        comb_cloud_enabled = self._comb_cloud_enabled
+        if comb_cloud_enabled:
+            base_comb_cloud_delays = np.maximum(
+                1,
+                np.asarray(np.round((self._comb_cloud_delay_ms / 1000.0) * sr), dtype=np.int32),
+            )
+            channel_seed = self._comb_cloud_seed + (7_919 * max(0, int(channel_index)))
+            rng = np.random.default_rng(channel_seed)
+            delay_jitter = rng.integers(-2, 3, size=base_comb_cloud_delays.shape[0], endpoint=False)
+            comb_cloud_delays = np.maximum(1, base_comb_cloud_delays + delay_jitter)
+            comb_cloud_buffers = [
+                np.zeros(int(delay) + 1, dtype=np.float64) for delay in comb_cloud_delays
+            ]
+            comb_cloud_indices = np.zeros(comb_cloud_delays.shape[0], dtype=np.int32)
+            comb_cloud_feedback = np.clip(
+                self._comb_cloud_feedback
+                * rng.uniform(0.92, 1.08, size=comb_cloud_delays.shape[0]).astype(np.float64),
+                0.0,
+                0.95,
+            )
+            comb_cloud_polarity = rng.choice(
+                np.array([-1.0, 1.0], dtype=np.float64),
+                size=comb_cloud_delays.shape[0],
+                replace=True,
+            ).astype(np.float64)
+            comb_cloud_norm = np.float64(1.0 / np.sqrt(float(comb_cloud_delays.shape[0])))
 
         allpasses = [
             _AllpassState(buffer=np.zeros(delay + 1, dtype=np.float64))
@@ -1270,8 +1425,10 @@ class AlgoReverbEngine(ReverbEngine):
         warmth_macro_default = float(np.clip(self._config.warmth_macro, -1.0, 1.0))
         envelopment_macro_default = float(np.clip(self._config.envelopment_macro, -1.0, 1.0))
         delays_sec = line_delays.astype(np.float64) / float(sr)
+        feedback_gain_ceiling = np.float64(self._feedback_gain_ceiling)
+        feedback_gain_scale = np.float64(self._feedback_gain_scale)
         feedback_gain = np.power(10.0, (-3.0 * delays_sec) / base_rt60).astype(np.float64)
-        feedback_gain = np.clip(feedback_gain, 0.0, 0.995)
+        feedback_gain = np.clip(feedback_gain * feedback_gain_scale, 0.0, feedback_gain_ceiling)
         fdn_rt60_tilt_default = float(np.clip(self._config.fdn_rt60_tilt, -1.0, 1.0))
         fdn_rt60_tilt = fdn_rt60_tilt_default
         rt60_low, rt60_mid, rt60_high = self._resolve_multiband_rt60(
@@ -1283,9 +1440,21 @@ class AlgoReverbEngine(ReverbEngine):
         feedback_gain_low = np.power(10.0, (-3.0 * delays_sec) / rt60_low).astype(np.float64)
         feedback_gain_mid = np.power(10.0, (-3.0 * delays_sec) / rt60_mid).astype(np.float64)
         feedback_gain_high = np.power(10.0, (-3.0 * delays_sec) / rt60_high).astype(np.float64)
-        feedback_gain_low = np.clip(feedback_gain_low, 0.0, 0.995)
-        feedback_gain_mid = np.clip(feedback_gain_mid, 0.0, 0.995)
-        feedback_gain_high = np.clip(feedback_gain_high, 0.0, 0.995)
+        feedback_gain_low = np.clip(
+            feedback_gain_low * feedback_gain_scale,
+            0.0,
+            feedback_gain_ceiling,
+        )
+        feedback_gain_mid = np.clip(
+            feedback_gain_mid * feedback_gain_scale,
+            0.0,
+            feedback_gain_ceiling,
+        )
+        feedback_gain_high = np.clip(
+            feedback_gain_high * feedback_gain_scale,
+            0.0,
+            feedback_gain_ceiling,
+        )
         tonal_correction_strength_default = float(
             np.clip(self._config.fdn_tonal_correction_strength, 0.0, 1.0)
         )
@@ -1312,6 +1481,8 @@ class AlgoReverbEngine(ReverbEngine):
             xover_low = max(20.0, xover_high * 0.25)
         lp_alpha_low = self._one_pole_alpha(xover_low, sr)
         lp_alpha_high = self._one_pole_alpha(xover_high, sr)
+        xover_low_current = float(xover_low)
+        xover_high_current = float(xover_high)
         mb_lp_low_state = np.zeros(num_lines, dtype=np.float64)
         mb_lp_high_state = np.zeros(num_lines, dtype=np.float64)
         link_filter_alpha = self._one_pole_alpha(float(self._config.fdn_link_filter_hz), sr)
@@ -1386,7 +1557,11 @@ class AlgoReverbEngine(ReverbEngine):
             cascade_base_gain = np.power(10.0, (-3.0 * cascade_delays_sec) / cascade_rt60).astype(
                 np.float64
             )
-            cascade_base_gain = np.clip(cascade_base_gain, 0.0, 0.995)
+            cascade_base_gain = np.clip(
+                cascade_base_gain * feedback_gain_scale,
+                0.0,
+                feedback_gain_ceiling,
+            )
             cascade_inv_sqrt_lines = np.float64(1.0 / np.sqrt(np.float64(cascade_num_lines)))
 
         macro_eps = self._TRACK_C_UPDATE_EPS
@@ -1436,6 +1611,7 @@ class AlgoReverbEngine(ReverbEngine):
                 block_matrix = self._current_block_matrix(
                     sr=sr,
                     block_samples=max(1, block_end - block_start),
+                    block_start=block_start,
                 )
             for n in range(block_start, block_end):
                 rt60_effective = float(base_rt60)
@@ -1452,6 +1628,8 @@ class AlgoReverbEngine(ReverbEngine):
                 envelopment_macro_sample = envelopment_macro_default
                 fdn_rt60_tilt_sample = fdn_rt60_tilt_default
                 tonal_correction_strength_sample = tonal_correction_strength_default
+                xover_low_sample = xover_low_current
+                xover_high_sample = xover_high_current
                 if room_size_macro_curve is not None:
                     room_size_macro_sample = float(np.clip(room_size_macro_curve[n], -1.0, 1.0))
                 if clarity_macro_curve is not None:
@@ -1468,6 +1646,25 @@ class AlgoReverbEngine(ReverbEngine):
                     tonal_correction_strength_sample = float(
                         np.clip(tonal_correction_strength_curve[n], 0.0, 1.0)
                     )
+                if fdn_xover_low_hz_curve is not None:
+                    xover_low_sample = float(
+                        np.clip(fdn_xover_low_hz_curve[n], 20.0, nyquist_guard)
+                    )
+                if fdn_xover_high_hz_curve is not None:
+                    xover_high_sample = float(
+                        np.clip(fdn_xover_high_hz_curve[n], 20.0, nyquist_guard)
+                    )
+                if xover_low_sample >= xover_high_sample:
+                    xover_low_sample = max(20.0, xover_high_sample * 0.25)
+
+                if (
+                    abs(xover_low_sample - xover_low_current) > macro_eps
+                    or abs(xover_high_sample - xover_high_current) > macro_eps
+                ):
+                    xover_low_current = xover_low_sample
+                    xover_high_current = xover_high_sample
+                    lp_alpha_low = self._one_pole_alpha(xover_low_current, sr)
+                    lp_alpha_high = self._one_pole_alpha(xover_high_current, sr)
 
                 room_size_changed = abs(room_size_macro_sample - room_size_macro) > macro_eps
                 clarity_changed = abs(clarity_macro_sample - clarity_macro) > macro_eps
@@ -1543,20 +1740,25 @@ class AlgoReverbEngine(ReverbEngine):
                         fdn_tilt_changed
                         or clarity_changed
                         or warmth_changed
+                        or fdn_rt60_low_curve is not None
+                        or fdn_rt60_mid_curve is not None
+                        or fdn_rt60_high_curve is not None
                     )
                 )
                 if rt60_changed:
                     feedback_gain[:] = np.clip(
-                        np.power(10.0, (-3.0 * delays_sec) / max(rt60_effective, 0.1)),
+                        np.power(10.0, (-3.0 * delays_sec) / max(rt60_effective, 0.1))
+                        * feedback_gain_scale,
                         0.0,
-                        0.995,
+                        feedback_gain_ceiling,
                     ).astype(np.float64)
                     if cascade_enabled and cascade_base_gain.size > 0:
                         cascade_rt60_eff = max(0.1, rt60_effective * self._cascade_rt60_ratio)
                         cascade_base_gain[:] = np.clip(
-                            np.power(10.0, (-3.0 * cascade_delays_sec) / cascade_rt60_eff),
+                            np.power(10.0, (-3.0 * cascade_delays_sec) / cascade_rt60_eff)
+                            * feedback_gain_scale,
                             0.0,
-                            0.995,
+                            feedback_gain_ceiling,
                         ).astype(np.float64)
                     last_rt60_effective = float(rt60_effective)
 
@@ -1567,24 +1769,37 @@ class AlgoReverbEngine(ReverbEngine):
                         warmth_macro=warmth_macro,
                         fdn_rt60_tilt=fdn_rt60_tilt,
                     )
+                    if fdn_rt60_low_curve is not None:
+                        rt60_low = float(
+                            np.clip(fdn_rt60_low_curve[n], RT60_MIN_SECONDS, RT60_MAX_SECONDS)
+                        )
+                    if fdn_rt60_mid_curve is not None:
+                        rt60_mid = float(
+                            np.clip(fdn_rt60_mid_curve[n], RT60_MIN_SECONDS, RT60_MAX_SECONDS)
+                        )
+                    if fdn_rt60_high_curve is not None:
+                        rt60_high = float(
+                            np.clip(fdn_rt60_high_curve[n], RT60_MIN_SECONDS, RT60_MAX_SECONDS)
+                        )
                     ratio = max(0.05, rt60_effective / max(base_rt60, 0.1))
                     rt60_low_eff = max(0.1, float(rt60_low) * ratio)
                     rt60_mid_eff = max(0.1, float(rt60_mid) * ratio)
                     rt60_high_eff = max(0.1, float(rt60_high) * ratio)
                     feedback_gain_low[:] = np.clip(
-                        np.power(10.0, (-3.0 * delays_sec) / rt60_low_eff),
+                        np.power(10.0, (-3.0 * delays_sec) / rt60_low_eff) * feedback_gain_scale,
                         0.0,
-                        0.995,
+                        feedback_gain_ceiling,
                     ).astype(np.float64)
                     feedback_gain_mid[:] = np.clip(
-                        np.power(10.0, (-3.0 * delays_sec) / rt60_mid_eff),
+                        np.power(10.0, (-3.0 * delays_sec) / rt60_mid_eff) * feedback_gain_scale,
                         0.0,
-                        0.995,
+                        feedback_gain_ceiling,
                     ).astype(np.float64)
                     feedback_gain_high[:] = np.clip(
-                        np.power(10.0, (-3.0 * delays_sec) / rt60_high_eff),
+                        np.power(10.0, (-3.0 * delays_sec) / rt60_high_eff)
+                        * feedback_gain_scale,
                         0.0,
-                        0.995,
+                        feedback_gain_ceiling,
                     ).astype(np.float64)
 
                 if multiband_active and (
@@ -1621,6 +1836,19 @@ class AlgoReverbEngine(ReverbEngine):
                         diffused,
                         ap,
                         gain=np.float64(self._allpass_gains[ap_index]),
+                    )
+                if comb_cloud_enabled:
+                    comb_cloud_out = np.float64(0.0)
+                    for i, buffer in enumerate(comb_cloud_buffers):
+                        delayed = buffer[comb_cloud_indices[i]]
+                        comb_cloud_out += comb_cloud_polarity[i] * delayed
+                        buffer[comb_cloud_indices[i]] = (
+                            diffused + (comb_cloud_feedback[i] * delayed)
+                        )
+                        comb_cloud_indices[i] = (comb_cloud_indices[i] + 1) % buffer.shape[0]
+                    diffused = np.float64(
+                        ((1.0 - self._comb_cloud_mix) * diffused)
+                        + (self._comb_cloud_mix * comb_cloud_out * comb_cloud_norm)
                     )
 
                 if cascade_enabled:
@@ -1754,25 +1982,109 @@ class AlgoReverbEngine(ReverbEngine):
                 state_peak = float(np.max(np.abs(fdn_out)))
                 if cascade_enabled and cascade_fdn_out.size > 0:
                     state_peak = max(state_peak, float(np.max(np.abs(cascade_fdn_out))))
-                if state_peak > 64.0:
+                if self._unsafe_self_oscillate:
+                    guard_needed = not np.isfinite(state_peak)
+                else:
+                    guard_needed = (
+                        not np.isfinite(state_peak)
+                    ) or state_peak > self._state_guard_peak
+                if guard_needed:
+                    guard_scale = (
+                        np.float64(0.0)
+                        if not np.isfinite(state_peak)
+                        else self._state_guard_scale
+                    )
                     for i in range(num_lines):
-                        delay_buffers[i] *= np.float64(0.5)
-                        lp_state[i] *= np.float64(0.5)
-                        dc_prev_in[i] *= np.float64(0.5)
-                        dc_prev_out[i] *= np.float64(0.5)
+                        delay_buffers[i] = np.asarray(
+                            np.nan_to_num(delay_buffers[i], nan=0.0, posinf=0.0, neginf=0.0),
+                            dtype=np.float64,
+                        )
+                        delay_buffers[i] *= guard_scale
+                        lp_state[i] = np.nan_to_num(lp_state[i], nan=0.0, posinf=0.0, neginf=0.0)
+                        lp_state[i] *= guard_scale
+                        dc_prev_in[i] = np.nan_to_num(
+                            dc_prev_in[i],
+                            nan=0.0,
+                            posinf=0.0,
+                            neginf=0.0,
+                        )
+                        dc_prev_in[i] *= guard_scale
+                        dc_prev_out[i] = np.nan_to_num(
+                            dc_prev_out[i],
+                            nan=0.0,
+                            posinf=0.0,
+                            neginf=0.0,
+                        )
+                        dc_prev_out[i] *= guard_scale
                         if self._dfm_enabled:
-                            dfm_buffers[i] *= np.float64(0.5)
+                            dfm_buffers[i] = np.asarray(
+                                np.nan_to_num(dfm_buffers[i], nan=0.0, posinf=0.0, neginf=0.0),
+                                dtype=np.float64,
+                            )
+                            dfm_buffers[i] *= guard_scale
                         if multiband_active:
-                            mb_lp_low_state[i] *= np.float64(0.5)
-                            mb_lp_high_state[i] *= np.float64(0.5)
+                            mb_lp_low_state[i] = np.nan_to_num(
+                                mb_lp_low_state[i],
+                                nan=0.0,
+                                posinf=0.0,
+                                neginf=0.0,
+                            )
+                            mb_lp_low_state[i] *= guard_scale
+                            mb_lp_high_state[i] = np.nan_to_num(
+                                mb_lp_high_state[i],
+                                nan=0.0,
+                                posinf=0.0,
+                                neginf=0.0,
+                            )
+                            mb_lp_high_state[i] *= guard_scale
                         if self._link_filter_enabled:
-                            link_filter_state[i] *= np.float64(0.5)
+                            link_filter_state[i] = np.nan_to_num(
+                                link_filter_state[i],
+                                nan=0.0,
+                                posinf=0.0,
+                                neginf=0.0,
+                            )
+                            link_filter_state[i] *= guard_scale
                     if cascade_enabled:
                         for i in range(cascade_fdn_out.shape[0]):
-                            cascade_delay_buffers[i] *= np.float64(0.5)
-                            cascade_lp_state[i] *= np.float64(0.5)
-                            cascade_dc_prev_in[i] *= np.float64(0.5)
-                            cascade_dc_prev_out[i] *= np.float64(0.5)
+                            cascade_delay_buffers[i] = np.asarray(
+                                np.nan_to_num(
+                                    cascade_delay_buffers[i],
+                                    nan=0.0,
+                                    posinf=0.0,
+                                    neginf=0.0,
+                                ),
+                                dtype=np.float64,
+                            )
+                            cascade_delay_buffers[i] *= guard_scale
+                            cascade_lp_state[i] = np.nan_to_num(
+                                cascade_lp_state[i],
+                                nan=0.0,
+                                posinf=0.0,
+                                neginf=0.0,
+                            )
+                            cascade_lp_state[i] *= guard_scale
+                            cascade_dc_prev_in[i] = np.nan_to_num(
+                                cascade_dc_prev_in[i],
+                                nan=0.0,
+                                posinf=0.0,
+                                neginf=0.0,
+                            )
+                            cascade_dc_prev_in[i] *= guard_scale
+                            cascade_dc_prev_out[i] = np.nan_to_num(
+                                cascade_dc_prev_out[i],
+                                nan=0.0,
+                                posinf=0.0,
+                                neginf=0.0,
+                            )
+                            cascade_dc_prev_out[i] *= guard_scale
+                    if comb_cloud_enabled:
+                        for i, buffer in enumerate(comb_cloud_buffers):
+                            comb_cloud_buffers[i] = np.asarray(
+                                np.nan_to_num(buffer, nan=0.0, posinf=0.0, neginf=0.0),
+                                dtype=np.float64,
+                            )
+                            comb_cloud_buffers[i] *= guard_scale
 
         return output
 

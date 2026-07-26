@@ -1,15 +1,24 @@
-# JSON Schemas and Field Contracts
+# JSON Schemas: Manifests and Automation
 
-_Status: public alpha (`0.7.x`)_
+This document defines the structured JSON contracts used by `verbx batch` and render automation.
 
-This document defines practical field contracts for machine-generated manifests
-and automation payloads used by `verbx`.
+- Batch render manifest schema id: `verbx-batch-manifest-v0.5`
+- Batch augmentation manifest schema id: `verbx-augment-manifest-v0.7`
+- Automation file schema id: `verbx-automation-v0.7`
+
+> These are documentation schemas (stable contract docs). They are designed to mirror current parser behavior.
 
 ---
 
-## 1) `batch render` manifest
+## 1) Batch Render Manifest (`verbx-batch-manifest-v0.5`)
 
-Top-level object:
+Use with:
+
+```bash
+verbx batch render manifest.json --jobs 8
+```
+
+Minimal valid shape:
 
 ```json
 {
@@ -17,101 +26,148 @@ Top-level object:
   "jobs": [
     {
       "infile": "input.wav",
-      "outfile": "out.wav",
+      "outfile": "output.wav",
       "options": {
-        "engine": "algo",
-        "rt60": 2.5,
-        "wet": 0.3,
-        "dry": 0.7
+        "engine": "auto",
+        "rt60": 60.0,
+        "wet": 0.8,
+        "dry": 0.2,
+        "repeat": 1
       }
     }
   ]
 }
 ```
 
-Required:
-- `version` (string)
-- `jobs` (array)
-- per-job: `infile`, `outfile`, `options`
+### Required fields
+
+- `jobs` (array): list of batch jobs.
+- For each `jobs[]` item:
+  - `infile` (string path)
+  - `outfile` (string path)
+  - `options` (object; any `RenderConfig` key/value)
+
+### Notes
+
+- `version` is recommended for compatibility tracking.
+- `options` is validated against `RenderConfig` semantics at runtime.
 
 ---
 
-## 2) `batch augment` manifest
+## 2) Batch Augmentation Manifest (`verbx-augment-manifest-v0.7`)
 
-Top-level object:
+Use with:
+
+```bash
+verbx batch augment augment.json --jobs 8
+```
+
+Template shape:
 
 ```json
 {
   "version": "0.7",
-  "dataset_name": "dataset_name",
+  "dataset_name": "verbx_augmented_set",
   "profile": "asr-reverb-v1",
-  "seed": 20260322,
+  "seed": 20260314,
   "variants_per_input": 4,
   "output_root": "augmented_out",
+  "write_analysis": false,
+  "default_options": {
+    "engine": "algo",
+    "repeat": 1,
+    "output_subtype": "float32",
+    "normalize_stage": "none",
+    "output_peak_norm": "input"
+  },
   "jobs": [
     {
       "id": "utt_0001",
-      "infile": "dry.wav",
+      "infile": "data/clean/utt_0001.wav",
       "split": "train",
       "label": "speaker_a",
-      "tags": ["speech"],
-      "options": {
-        "rt60": 0.35,
-        "wet": 0.25,
-        "dry": 0.9
-      }
+      "tags": ["speech", "clean"],
+      "variants": 6,
+      "options": {"rt60": 1.1},
+      "metadata": {"speaker_id": "spk_a", "language": "en"}
     }
   ]
 }
 ```
 
-Required:
-- `version`, `dataset_name`, `profile`, `jobs`
-- per-job: `id`, `infile`
+### Required fields
 
-Optional but recommended:
-- `seed`, `variants_per_input`, `output_root`, `split`, `label`, `tags`
+- `jobs` (non-empty array)
+- For each `jobs[]` item:
+  - `infile` (string path)
+
+### Common optional fields
+
+Top-level:
+- `version` (string)
+- `dataset_name` (string)
+- `profile` (string; one of built-in profiles)
+- `seed` (positive integer)
+- `variants_per_input` (positive integer, max 500)
+- `output_root` (string path)
+- `write_analysis` (boolean)
+- `default_options` (object; merged into each variant)
+
+Per-job:
+- `id`, `source_id` (string)
+- `split` (string; defaults to `train`)
+- `label` (string)
+- `tags` (array of strings)
+- `variants` (positive integer, max 500)
+- `options` (object)
+- `metadata` (object)
 
 ---
 
-## 3) `--automation-file` JSON
+## 3) Render Automation File (`verbx-automation-v0.7`)
 
-Top-level object:
+Use with:
+
+```bash
+verbx render in.wav out.wav --automation-file automation.json
+```
+
+Minimal shape:
 
 ```json
 {
-  "version": "1",
-  "points": [
-    {"target": "wet", "time_ms": 0, "value": 0.2},
-    {"target": "wet", "time_ms": 5000, "value": 0.8}
+  "mode": "block",
+  "block_ms": 20.0,
+  "lanes": [
+    {
+      "target": "wet",
+      "points": [[0.0, 0.2], [2.0, 0.8], [5.0, 0.4]],
+      "curve": "linear"
+    }
   ]
 }
 ```
 
-Required:
-- `points` array of objects with:
-  - `target` (string)
-  - `time_ms` (number, >= 0)
-  - `value` (number)
+### Top-level fields
+
+- `mode` (string): `block` or `sample`
+- `block_ms` (number): block size in milliseconds when block mode is active
+- `lanes` (array): one or more automation lanes
+
+### Lane fields (baseline)
+
+- `target` (string): automation target name (`wet`, `dry`, `rt60`, etc.)
+- `points` (array): control points as `[time_seconds, value]`
+- `curve` (string, optional): interpolation mode (for example `linear`)
+
+### Lane fields (feature-vector lanes)
+
+Feature-vector lanes are also allowed and are normalized by feature-lane parsing logic.
+A lane still requires `target`, and includes a source descriptor such as feature source, optional weighting, and bounds/clamp information.
 
 ---
 
-## 4) `batch corpus-generate` summary JSON
+## 4) Contract Stability
 
-Key fields written to `corpus_generation_summary.json`:
-
-- identity: `mode`, `source`, `output_root`, `seed`
-- scale: `inputs`, `variants_per_input`, `generated_outputs`
-- execution: `execution_profile`, `jobs`, `effective_jobs`
-- resilience: `retries`, `total_attempts`, `retried_outputs`, `failed`, `resumed_skipped`
-- throughput: `elapsed_seconds`, `outputs_per_second`, `attempts_per_output`
-- stage telemetry: `read_seconds`, `process_seconds`, `write_seconds`
-- sharding: `num_shards`, `shard_index`
-- artifacts: `manifest_jsonl`, optional `checkpoint_file`
-
----
-
-## Validation note
-
-During alpha, schemas are contract docs (not yet published as JSON-Schema files).
-CLI validations remain the source of truth.
+- These schema ids are maintained for the current public-alpha patch line (`0.7.x`).
+- If a breaking manifest/automation format change is introduced, increment the schema id and document migration notes in this file and `CHANGELOG.md`.

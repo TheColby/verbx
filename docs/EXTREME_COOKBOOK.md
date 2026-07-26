@@ -24,7 +24,7 @@ mkdir -p out
 
 **What do the output files mean?**
 
-Each output file is named with a three-digit index and a short descriptor. The index matches the recipe number. The descriptor is a rough hint at what parameter dominated the result. Output files are standard WAV unless `--out-subtype` specifies otherwise. Loudness normalization is applied at the output stage unless you explicitly disable it.
+Each output file is named with a three-digit index and a short descriptor. The index matches the recipe number. The descriptor is a rough hint at what parameter dominated the result. `verbx render` defaults to HD output (`192000 Hz`, `float32` WAV) unless overridden. Use `--quality-preset sd|md|hd`, `--target-sr`, and/or `--out-subtype` to set delivery format explicitly. Loudness normalization is applied at the output stage unless you explicitly disable it.
 
 **A note on headphones vs. speakers**
 
@@ -66,39 +66,43 @@ These five recipes are the canonical musical examples used in the public alpha
 launch narrative. They are maintained in `README.md` and mirrored here so they
 do not drift.
 
-**1) Alvin Lucier / I Am Sitting in a Room (iterative room resonance)**
+**1) Alvin Lucier / *I Am Sitting in a Room* (iterative room resonance)**
 ```bash
-mkdir -p out/lucier && cp in.wav out/lucier/pass_00.wav && current="out/lucier/pass_00.wav"
-for i in $(seq 1 20); do
-  next=$(printf "out/lucier/pass_%02d.wav" "$i")
-  verbx render "$current" "$next" --engine algo --rt60 35 --wet 1.0 --dry 0.0 --repeat 1 --output-peak-norm input --no-progress
-  current="$next"
-done
+verbx render voice.wav lucier_7pass.wav --engine algo --rt60 4.5 \
+  --wet 1.0 --dry 0.0 --repeat 7 --fdn-lines 16 --fdn-matrix hadamard --lowcut 60
 ```
 
-**2) Brian Eno / Discreet Music (ambient loopbed)**
+**2) Brian Eno / *Discreet Music* (ambient loopbed)**
 ```bash
-verbx render in.wav out/alpha_eno.wav --engine algo --rt60 95 --wet 0.92 --dry 0.08 --damping 0.35 --width 1.25 --bloom 2.0 --tilt 0.8 --target-lufs -22 --target-peak-dbfs -2
+verbx render input.wav eno_ambient.wav --engine algo --rt60 12.0 \
+  --wet 0.92 --dry 0.08 --damping 0.25 --pre-delay-ms 35 \
+  --fdn-lines 16 --fdn-matrix hadamard --lowcut 50 \
+  --target-lufs -22 --target-peak-dbfs -2
 ```
 
-**3) Pauline Oliveros / Deep Listening (extended drone-space)**
+**3) Pauline Oliveros / *Deep Listening* (extended drone-space)**
 ```bash
-verbx render in.wav out/alpha_deep_listening.wav --ir-gen --ir-gen-mode hybrid --ir-gen-length 240 --ir-gen-seed 108 --engine conv --wet 0.9 --dry 0.15 --tail-limit 180 --target-lufs -24 --target-peak-dbfs -2
+verbx render drone.wav deep_listening.wav --engine algo --rt60 18.0 \
+  --wet 0.95 --dry 0.10 --fdn-lines 32 --fdn-matrix hadamard \
+  --pre-delay-ms 55 --damping 0.15 --lowcut 30 \
+  --target-lufs -24 --target-peak-dbfs -2
 ```
 
 **4) Frippertronics-style tape-loop accumulation**
 ```bash
-mkdir -p out/fripp && cp in.wav out/fripp/pass_00.wav && current="out/fripp/pass_00.wav"
-for i in $(seq 1 12); do
-  next=$(printf "out/fripp/pass_%02d.wav" "$i")
-  verbx render "$current" "$next" --engine algo --rt60 28 --wet 0.88 --dry 0.12 --repeat 1 --output-peak-norm input --no-progress
-  current="$next"
-done
+verbx render guitar.wav frippertronics.wav --engine algo --rt60 8.0 \
+  --wet 0.82 --dry 0.28 --fdn-lines 16 --fdn-matrix hadamard \
+  --shimmer --shimmer-semitones 12 --shimmer-mix 0.45 --shimmer-feedback 0.78 \
+  --pre-delay-ms 25 --target-peak-dbfs -2
 ```
 
 **5) Shoegaze reverse-wash (freeze + shimmer)**
 ```bash
-verbx render in.wav out/alpha_shoegaze.wav --engine algo --freeze --start 1.0 --end 2.4 --shimmer --shimmer-semitones 12 --shimmer-mix 0.4 --rt60 80 --wet 0.95 --dry 0.08 --width 1.4 --target-peak-dbfs -2
+verbx render guitar.wav shoegaze.wav --engine algo \
+  --freeze --start 1.0 --end 2.4 \
+  --shimmer --shimmer-semitones 12 --shimmer-mix 0.55 --shimmer-feedback 0.72 \
+  --rt60 5.0 --wet 0.88 --dry 0.22 --fdn-matrix circulant --lowcut 80 \
+  --width 1.4 --target-peak-dbfs -2
 ```
 
 ---
@@ -107,7 +111,7 @@ verbx render in.wav out/alpha_shoegaze.wav --engine algo --freeze --start 1.0 --
 
 This section sits between the building blocks and the recipes because the way you listen matters as much as the settings you use.
 
-**For algorithmic reverbs (section 1):** Listen for the density of the diffusion network. A well-tuned algo reverb should feel like a continuous fog rather than a series of distinct echoes. Listen for colorations in the decay — most algo engines have a characteristic tone that emerges around 3-6 seconds of tail. High `--beast-mode` values will push the feedback networks toward instability; you will hear this as a shift from smooth decay to a kind of churning or fluttering texture.
+**For algorithmic reverbs (section 1):** Listen for the density of the diffusion network. A well-tuned algo reverb should feel like a continuous fog rather than a series of distinct echoes. Listen for colorations in the decay — most algo engines have a characteristic tone that emerges around 3–6 seconds of tail. High `--beast-mode` values will push the feedback networks toward instability; you will hear this as a shift from smooth decay to a kind of churning or fluttering texture.
 
 **For freeze and repeat chains (section 2):** The transition point between the frozen segment and the incoming signal is the interesting moment. Listen for phase artifacts at loop boundaries, for build-up of low-mid energy across repeats, and for how the freeze interacts with the original signal's wet/dry balance. Repeat chains tend to accumulate energy — listen for how normalization (or its absence) shapes the perceived loudness arc.
 
@@ -121,15 +125,15 @@ This section sits between the building blocks and the recipes because the way yo
 
 ---
 
-## Section 1: Algorithmic Extremes (Recipes 1-10)
+## Section 1: Algorithmic Extremes (Recipes 1–10)
 
 Algorithmic reverb builds synthetic spaces using networks of delay lines, all-pass filters, and feedback matrices — no recorded impulse required. This makes it fast to iterate and infinitely malleable, but it also means the "space" it simulates is fundamentally fictional. That is its power. In film post, algo reverbs are used for sci-fi environments, supernatural spaces, and any situation where the reverb needs to be emotionally correct rather than acoustically accurate. In electronic music, they are the texture underneath ambient pads, the wash behind a snare, the infinite hallway a note disappears into.
 
-The `--beast-mode` flag increases the density and complexity of the internal diffusion network. Low values (1-4) are broadly useful. Values above 8 begin to produce audible coloration. Values above 12 are genuinely unstable on some inputs and will produce results that range from magnificent to unusable.
+The `--beast-mode` flag increases the density and complexity of the internal diffusion network. Low values (1–4) are broadly useful. Values above 8 begin to produce audible coloration. Values above 12 are genuinely unstable on some inputs and will produce results that range from magnificent to unusable.
 
 ---
 
-**Recipe 1**
+### Recipe 1: Two-Minute Diffusion Field
 ```bash
 verbx render in.wav out/001_algo_long.wav --engine algo --rt60 120 --wet 0.95 --dry 0.1 --beast-mode 6
 ```
@@ -139,7 +143,7 @@ _DSP note:_ RT60 of 120 seconds means the energy takes two full minutes to decay
 
 ---
 
-**Recipe 2**
+### Recipe 2: Lightless Cavern
 ```bash
 verbx render in.wav out/002_algo_dark.wav --engine algo --rt60 90 --damping 0.9 --wet 0.9 --dry 0.15
 ```
@@ -149,7 +153,7 @@ _DSP note:_ `--damping 0.9` applies frequency-dependent attenuation to the high 
 
 ---
 
-**Recipe 3**
+### Recipe 3: Beyond-the-Speakers Width
 ```bash
 verbx render in.wav out/003_algo_wide.wav --engine algo --rt60 75 --width 2.0 --wet 0.85 --dry 0.2
 ```
@@ -159,7 +163,7 @@ _DSP note:_ `--width 2.0` applies a Mid-Side matrix transform to the stereo outp
 
 ---
 
-**Recipe 4**
+### Recipe 4: Twenty-Second Breathing Tail
 ```bash
 verbx render in.wav out/004_algo_mod_slow.wav --engine algo --rt60 80 --mod-depth-ms 12 --mod-rate-hz 0.05
 ```
@@ -169,7 +173,7 @@ _DSP note:_ The modulation LFO at 0.05 Hz has a period of 20 seconds. It is modu
 
 ---
 
-**Recipe 5**
+### Recipe 5: Seasick Modulation
 ```bash
 verbx render in.wav out/005_algo_mod_fast.wav --engine algo --rt60 65 --mod-depth-ms 8 --mod-rate-hz 1.2
 ```
@@ -179,7 +183,7 @@ _DSP note:_ At 1.2 Hz with 8ms depth, the modulation is fast enough to produce a
 
 ---
 
-**Recipe 6**
+### Recipe 6: Delayed Reverb Cloud
 ```bash
 verbx render in.wav out/006_algo_predelay_cloud.wav --engine algo --rt60 70 --pre-delay-ms 220 --wet 0.9
 ```
@@ -189,7 +193,7 @@ _DSP note:_ 220ms pre-delay is well above the Haas threshold (~30ms), meaning th
 
 ---
 
-**Recipe 7**
+### Recipe 7: Double-Pass Diffusion Splash
 ```bash
 verbx render in.wav out/007_algo_splash.wav --engine algo --rt60 45 --beast-mode 10 --repeat 2
 ```
@@ -199,7 +203,7 @@ _DSP note:_ `--repeat 2` runs the render pipeline twice and stacks the outputs. 
 
 ---
 
-**Recipe 8**
+### Recipe 8: Three-Minute Wet Abyss
 ```bash
 verbx render in.wav out/008_algo_massive.wav --engine algo --rt60 180 --wet 1.0 --dry 0.0 --beast-mode 12
 ```
@@ -211,7 +215,7 @@ _DSP note:_ `--wet 1.0 --dry 0.0` eliminates the direct signal path entirely. Co
 
 ---
 
-**Recipe 9**
+### Recipe 9: Airy Bright Expanse
 ```bash
 verbx render in.wav out/009_algo_air.wav --engine algo --rt60 50 --damping 0.2 --highcut 18000 --tilt 3
 ```
@@ -221,13 +225,13 @@ _DSP note:_ Low damping (0.2) preserves high-frequency content across feedback p
 
 ---
 
-**Recipe 10**
+### Recipe 10: Low-Frequency Mud Chamber
 ```bash
 verbx render in.wav out/010_algo_mud.wav --engine algo --rt60 110 --lowcut 30 --highcut 1800 --tilt -5
 ```
 _What it sounds like:_ A thick, dark, low-mid reverb that eliminates almost all high-frequency content. Like being inside a concrete room full of water.
 
-_DSP note:_ The combined effect of `--highcut 1800` and `--tilt -5` aggressively attenuates frequencies above 1.8kHz. The result is a reverb that exists almost entirely in the 30-1800Hz band. Long RT60 in this band produces the characteristic "mud" of untreated room reverb. Useful for horror sound design, industrial textures, and sub-bass reinforcement.
+_DSP note:_ The combined effect of `--highcut 1800` and `--tilt -5` aggressively attenuates frequencies above 1.8kHz. The result is a reverb that exists almost entirely in the 30–1800Hz band. Long RT60 in this band produces the characteristic "mud" of untreated room reverb. Useful for horror sound design, industrial textures, and sub-bass reinforcement.
 
 ---
 
@@ -239,13 +243,13 @@ Repeat chains stack the entire render output and re-process it. This accumulates
 
 ---
 
-## Section 2: Freeze and Repeat Chains (Recipes 11-20)
+## Section 2: Freeze and Repeat Chains (Recipes 11–20)
 
 Freeze workflows are central to ambient music production and sound design for picture. The ability to hold a moment of audio indefinitely — creating a synthetic drone from a single phrase, or sustaining a room ambience between cuts — is one of the more practically useful things `verbx` does. Repeat chains go further, iterating the reverb process multiple times and creating layered, progressively transformed textures. In scoring, this is used to build tension by accumulating reverberant energy. In experimental music, it is used to watch a source material destroy itself through repeated convolution.
 
 ---
 
-**Recipe 11**
+### Recipe 11: Triple Short Freeze
 ```bash
 verbx render in.wav out/011_freeze_short.wav --freeze --start 2 --end 3 --repeat 3 --engine algo
 ```
@@ -255,7 +259,7 @@ _DSP note:_ `--start 2 --end 3` extracts the audio between the 2-second and 3-se
 
 ---
 
-**Recipe 12**
+### Recipe 12: Wide Four-Pass Freeze
 ```bash
 verbx render in.wav out/012_freeze_wide.wav --freeze --start 4 --end 6 --repeat 4 --width 1.8
 ```
@@ -265,7 +269,7 @@ _DSP note:_ Width processing at 1.8 applied to a frozen loop will amplify any st
 
 ---
 
-**Recipe 13**
+### Recipe 13: High-Density Freeze Cascade
 ```bash
 verbx render in.wav out/013_freeze_beast.wav --freeze --start 1 --end 2.2 --repeat 5 --beast-mode 14
 ```
@@ -275,7 +279,7 @@ _DSP note:_ Beast-mode 14 pushes the diffusion network into high-complexity terr
 
 ---
 
-**Recipe 14**
+### Recipe 14: Dark Frozen Loop
 ```bash
 verbx render in.wav out/014_freeze_dark.wav --freeze --start 3 --end 5 --repeat 3 --damping 0.85 --tilt -4
 ```
@@ -285,7 +289,7 @@ _DSP note:_ High damping combined with negative tilt stacks two separate high-fr
 
 ---
 
-**Recipe 15**
+### Recipe 15: Frozen Shimmer Cloud
 ```bash
 verbx render in.wav out/015_freeze_shimmer.wav --freeze --start 2.5 --end 4 --repeat 2 --shimmer
 ```
@@ -295,7 +299,7 @@ _DSP note:_ The shimmer algorithm pitch-shifts the reverb signal up by 12 semito
 
 ---
 
-**Recipe 16**
+### Recipe 16: Six-Pass Algorithmic Accumulation
 ```bash
 verbx render in.wav out/016_repeat_algo.wav --engine algo --rt60 55 --repeat 6 --normalize-stage per-pass
 ```
@@ -305,7 +309,7 @@ _DSP note:_ `--normalize-stage per-pass` applies normalization at the output of 
 
 ---
 
-**Recipe 17**
+### Recipe 17: Four-Pass Convolution Hall
 ```bash
 verbx render in.wav out/017_repeat_conv.wav --engine conv --ir hall.wav --repeat 4 --normalize-stage per-pass
 ```
@@ -315,7 +319,7 @@ _DSP note:_ Convolving the output of a convolution with the same IR is mathemati
 
 ---
 
-**Recipe 18**
+### Recipe 18: Repeated Ducked Tail
 ```bash
 verbx render in.wav out/018_repeat_duck.wav --engine algo --repeat 5 --duck --duck-attack 5 --duck-release 800
 ```
@@ -325,7 +329,7 @@ _DSP note:_ Duck is a sidechain-style gain reduction applied to the wet signal w
 
 ---
 
-**Recipe 19**
+### Recipe 19: Four-Pass Bloom
 ```bash
 verbx render in.wav out/019_repeat_bloom.wav --engine algo --repeat 4 --bloom 4.5 --wet 0.95
 ```
@@ -335,13 +339,13 @@ _DSP note:_ Bloom delays the onset of the reverb density curve. A bloom value of
 
 ---
 
-**Recipe 20**
+### Recipe 20: Deep Noise-Floor Cathedral
 ```bash
 verbx render in.wav out/020_repeat_floor.wav --engine algo --rt60 140 --repeat 3 --target-lufs -26
 ```
 _What it sounds like:_ Three passes of a very long reverb, normalized to a broadcast-appropriate loudness level. Useful as a bed or texture layer.
 
-_DSP note:_ `--target-lufs -26` is roughly the integrated loudness target for film broadcast (-24 LUFS) plus a 2dB headroom buffer. Applying this to a three-pass, 140-second reverb tail ensures the output is at a known loudness level suitable for mixing into a larger context without additional gain staging.
+_DSP note:_ `--target-lufs -26` is roughly the integrated loudness target for film broadcast (–24 LUFS) plus a 2dB headroom buffer. Applying this to a three-pass, 140-second reverb tail ensures the output is at a known loudness level suitable for mixing into a larger context without additional gain staging.
 
 ---
 
@@ -353,7 +357,7 @@ The interesting edge cases come from using IRs that are not captured from real s
 
 ---
 
-## Section 3: Convolution Heavy Modes (Recipes 21-30)
+## Section 3: Convolution Heavy Modes (Recipes 21–30)
 
 Convolution is the workhorse of post-production reverb. It is what music supervisors use when they need a score to sound like it was performed in a specific church. It is what sound designers use when they need a gunshot to sound like it happened in a parking garage rather than a foley stage. The goal is accuracy and plausibility, and when it works well, it is invisible.
 
@@ -361,7 +365,7 @@ The recipes in this section push convolution into less conventional territory �
 
 ---
 
-**Recipe 21**
+### Recipe 21: Large-Partition Hall
 ```bash
 verbx render in.wav out/021_conv_hall.wav --engine conv --ir hall.wav --partition-size 32768
 ```
@@ -371,7 +375,7 @@ _DSP note:_ Partition-based convolution divides the IR into blocks that are conv
 
 ---
 
-**Recipe 22**
+### Recipe 22: Peak-Normalized Plate
 ```bash
 verbx render in.wav out/022_conv_plate.wav --engine conv --ir plate.wav --ir-normalize peak
 ```
@@ -381,7 +385,7 @@ _DSP note:_ `--ir-normalize peak` normalizes the impulse response to its peak sa
 
 ---
 
-**Recipe 23**
+### Recipe 23: Extended Church Tail
 ```bash
 verbx render in.wav out/023_conv_church.wav --engine conv --ir church.wav --tail-limit 150
 ```
@@ -391,7 +395,7 @@ _DSP note:_ `--tail-limit 150` truncates the IR at 150 seconds and applies a fad
 
 ---
 
-**Recipe 24**
+### Recipe 24: Mono IR Across the Field
 ```bash
 verbx render in.wav out/024_conv_mono_to_all.wav --engine conv --ir mono_ir.wav --wet 0.9 --dry 0.2
 ```
@@ -401,7 +405,7 @@ _DSP note:_ When a mono IR is used on a stereo input, `verbx` applies the IR to 
 
 ---
 
-**Recipe 25**
+### Recipe 25: Output-Major Surround Matrix
 ```bash
 verbx render in.wav out/025_conv_surround.wav --engine conv --ir matrix_5p1.wav --ir-matrix-layout output-major
 ```
@@ -411,7 +415,7 @@ _DSP note:_ Output-major matrix layout means the IR file is organized so that th
 
 ---
 
-**Recipe 26**
+### Recipe 26: Input-Major Surround Matrix
 ```bash
 verbx render in.wav out/026_conv_input_major.wav --engine conv --ir matrix_5p1.wav --ir-matrix-layout input-major
 ```
@@ -421,7 +425,7 @@ _DSP note:_ Input-major layout means the IR file is organized so that the first 
 
 ---
 
-**Recipe 27**
+### Recipe 27: High-Throughput Hall Convolution
 ```bash
 verbx render in.wav out/027_conv_fast.wav --engine conv --ir hall.wav --partition-size 65536 --normalize-stage none
 ```
@@ -431,7 +435,7 @@ _DSP note:_ Disabling normalization with `--normalize-stage none` passes the raw
 
 ---
 
-**Recipe 28**
+### Recipe 28: Triple Dense Hall
 ```bash
 verbx render in.wav out/028_conv_dense.wav --engine conv --ir hall.wav --repeat 3 --beast-mode 5
 ```
@@ -441,7 +445,7 @@ _DSP note:_ Beast-mode applied to a convolution engine increases the density of 
 
 ---
 
-**Recipe 29**
+### Recipe 29: Twenty-Second Trimmed Hall
 ```bash
 verbx render in.wav out/029_conv_trimmed.wav --engine conv --ir hall.wav --tail-limit 20
 ```
@@ -451,7 +455,7 @@ _DSP note:_ Truncating the IR at 20 seconds cuts most of the reverberation tail 
 
 ---
 
-**Recipe 30**
+### Recipe 30: Full-Tail Input-Peak Match
 ```bash
 verbx render in.wav out/030_conv_fulltail.wav --engine conv --ir hall.wav --output-peak-norm input
 ```
@@ -461,7 +465,7 @@ _DSP note:_ `--output-peak-norm input` measures the peak amplitude of the input 
 
 ---
 
-## Section 4: Self-Convolution and Feedback Smear (Recipes 31-40)
+## Section 4: Self-Convolution and Feedback Smear (Recipes 31–40)
 
 Self-convolution is where things get genuinely experimental. Using the audio as its own impulse response creates a spectral feedback loop — the signal's frequency peaks are amplified and its nulls are deepened, producing a transformation that is related to but distinct from the source. It is not a reverb in any conventional sense. It is more like the audio reflecting itself into a new shape.
 
@@ -469,7 +473,7 @@ This section is primarily useful for experimental sound design, academic study, 
 
 ---
 
-**Recipe 31**
+### Recipe 31: Raw Self-Convolution
 ```bash
 verbx render in.wav out/031_self_base.wav --self-convolve --normalize-stage none
 ```
@@ -479,7 +483,7 @@ _DSP note:_ Self-convolution in the frequency domain squares the magnitude spect
 
 ---
 
-**Recipe 32**
+### Recipe 32: High-Density Self-Convolution
 ```bash
 verbx render in.wav out/032_self_beast.wav --self-convolve --beast-mode 20 --normalize-stage none
 ```
@@ -491,7 +495,7 @@ _DSP note:_ Beast-mode 20 is at the upper end of the useful range. Applied to se
 
 ---
 
-**Recipe 33**
+### Recipe 33: Two-Hundred-Second Self Tail
 ```bash
 verbx render in.wav out/033_self_longtail.wav --self-convolve --tail-limit 200 --partition-size 32768
 ```
@@ -501,7 +505,7 @@ _DSP note:_ Self-convolution produces a signal whose duration is approximately t
 
 ---
 
-**Recipe 34**
+### Recipe 34: Bright Self-Convolution
 ```bash
 verbx render in.wav out/034_self_bright.wav --self-convolve --tilt 5 --highcut 18000
 ```
@@ -511,7 +515,7 @@ _DSP note:_ Self-convolution tends to bias toward whichever spectral region has 
 
 ---
 
-**Recipe 35**
+### Recipe 35: Dark Self-Convolution
 ```bash
 verbx render in.wav out/035_self_dark.wav --self-convolve --tilt -6 --highcut 2500
 ```
@@ -521,7 +525,7 @@ _DSP note:_ `--tilt -6` and `--highcut 2500` together severely limit the bandwid
 
 ---
 
-**Recipe 36**
+### Recipe 36: Ducked Self-Convolution
 ```bash
 verbx render in.wav out/036_self_duck.wav --self-convolve --duck --duck-attack 3 --duck-release 600
 ```
@@ -531,7 +535,7 @@ _DSP note:_ Ducking applied to self-convolution uses the dry signal as the sidec
 
 ---
 
-**Recipe 37**
+### Recipe 37: Shimmering Self-Convolution
 ```bash
 verbx render in.wav out/037_self_shimmer.wav --self-convolve --shimmer --shimmer-mix 0.55
 ```
@@ -541,27 +545,27 @@ _DSP note:_ Shimmer applied to the output of self-convolution adds a pitch-shift
 
 ---
 
-**Recipe 38**
+### Recipe 38: Triple Self-Convolution
 ```bash
 verbx render in.wav out/038_self_repeat.wav --self-convolve --repeat 3 --normalize-stage per-pass
 ```
 _What it sounds like:_ Three passes of self-convolution. The first pass is already extreme; the second and third are increasingly abstract.
 
-_DSP note:_ Each repeat pass uses the output of the previous pass as the input to the next self-convolution. Mathematically, this raises the original spectrum to the power of 2^n (where n is the pass number). By pass three, the spectral peaks are at 2^3 = 8 times their original prominence (in log scale, +18dB relative to the original spectral balance). Per-pass normalization prevents clipping between passes.
+_DSP note:_ Each repeat pass uses the output of the previous pass as the input to the next self-convolution. Mathematically, this raises the original spectrum to the power of $2^{n}$ (where $n$ is the pass number). By pass three, the spectral peaks are at $2^{3} = 8$ times their original prominence (in log scale, +18dB relative to the original spectral balance). Per-pass normalization prevents clipping between passes.
 
 ---
 
-**Recipe 39**
+### Recipe 39: Loudness-Targeted Self-Convolution
 ```bash
 verbx render in.wav out/039_self_loud.wav --self-convolve --target-lufs -16 --target-peak-dbfs -1
 ```
 _What it sounds like:_ Self-convolution normalized to streaming-loudness standards. Useful when the self-convolve output needs to be delivered at a calibrated level.
 
-_DSP note:_ `-16 LUFS` is approximately the target for music streaming platforms. Combined with `-1 dBFS` true peak headroom, this configuration takes the unpredictable amplitude of self-convolution output and brings it to a usable, deliverable level. The nature of the sound is unchanged; only the gain is adjusted.
+_DSP note:_ –16 LUFS is approximately the target for music streaming platforms. Combined with –1 dBFS true peak headroom, this configuration takes the unpredictable amplitude of self-convolution output and brings it to a usable, deliverable level. The nature of the sound is unchanged; only the gain is adjusted.
 
 ---
 
-**Recipe 40**
+### Recipe 40: Beast-Mode Self-Consumption
 ```bash
 verbx render in.wav out/040_self_huge.wav --self-convolve --beast-mode 40 --repeat 2
 ```
@@ -571,15 +575,27 @@ _DSP note:_ Beast-mode 40 is at the edge of numerical stability for most input s
 
 ---
 
-## Section 5: Shimmer, Ducking, Bloom, and Tilt (Recipes 41-50)
+## Section 5: Shimmer, Comb Cloud, Ducking, Bloom, and Tilt (Recipes 41–50)
 
-These four tools are the texture controls. Shimmer adds. Duck subtracts. Bloom delays and builds. Tilt tilts. Each has a clear sonic function that can be grasped immediately, but the interesting work happens at the intersections — when shimmer feeds into a bloomed reverb, or when duck is combined with slow attack times and long tails.
+These five tools are the texture controls. Shimmer adds pitched content. Comb cloud adds time-domain metallic density. Duck subtracts. Bloom delays and builds. Tilt tilts. Each has a clear sonic function that can be grasped immediately, but the interesting work happens at the intersections — when comb cloud roughens a pristine FDN tail, when shimmer feeds into a bloomed reverb, or when duck is combined with slow attack times and long tails.
 
-In film scoring, shimmer is used to signal memory, transcendence, or altered states. Duck is ubiquitous in dialogue-heavy mixes where reverb would otherwise obscure speech. Bloom simulates the acoustic behavior of large spaces where diffuse reflections arrive after the direct sound. Tilt shapes the perceived brightness of a space to match the scene.
+In film scoring, shimmer is used to signal memory, transcendence, or altered states. Comb cloud is good for synthetic chambers, haunted-metal interiors, and any space that should feel a little unstable before the late field smooths out. Duck is ubiquitous in dialogue-heavy mixes where reverb would otherwise obscure speech. Bloom simulates the acoustic behavior of large spaces where diffuse reflections arrive after the direct sound. Tilt shapes the perceived brightness of a space to match the scene.
+
+Quick comb-cloud starter:
+
+```bash
+verbx render in.wav out/comb_cloud_plate.wav --engine algo --rt60 4.5 \
+  --comb-cloud --comb-cloud-count 28 --comb-cloud-feedback 0.38 --comb-cloud-mix 0.24 \
+  --fdn-lines 12 --fdn-matrix hadamard
+```
+
+_What it sounds like:_ A slightly metallic, plate-adjacent haze ahead of the main tail.
+
+_DSP note:_ Comb cloud sits before the late FDN. It changes the excitation entering the network rather than replacing the FDN itself, so you get extra grain and density without throwing away the core RT60 calibration and matrix behavior.
 
 ---
 
-**Recipe 41**
+### Recipe 41: Octave Shimmer
 ```bash
 verbx render in.wav out/041_shimmer_oct.wav --engine algo --shimmer --shimmer-semitones 12 --shimmer-mix 0.35
 ```
@@ -589,7 +605,7 @@ _DSP note:_ Shimmer works by pitch-shifting the reverb output up by the specifie
 
 ---
 
-**Recipe 42**
+### Recipe 42: Two-Octave Feedback Shimmer
 ```bash
 verbx render in.wav out/042_shimmer_double.wav --engine algo --shimmer --shimmer-semitones 24 --shimmer-feedback 0.8
 ```
@@ -599,17 +615,17 @@ _DSP note:_ `--shimmer-feedback 0.8` means the pitch-shifted signal is re-inject
 
 ---
 
-**Recipe 43**
+### Recipe 43: Perfect-Fifth Shimmer
 ```bash
 verbx render in.wav out/043_shimmer_fifth.wav --engine algo --shimmer --shimmer-semitones 7 --shimmer-mix 0.5
 ```
 _What it sounds like:_ A shimmer a perfect fifth above the source. Less obviously "shimmer-y" than the octave version, more harmonically complex. Try this on minor-key source material for interesting results.
 
-_DSP note:_ Seven semitones is a perfect fifth in equal temperament. The pitch ratio is 2^(7/12) ≈ 1.498, very close to the just-intonation ratio of 3:2 (1.5). The slight deviation from pure tuning creates slow beating between the shimmer and source harmonics, which contributes to the characteristic "movement" of shimmer reverb.
+_DSP note:_ Seven semitones is a perfect fifth in equal temperament. The pitch ratio is $2^{7/12} \approx 1.498$, very close to the just-intonation ratio of 3:2 (1.5). The slight deviation from pure tuning creates slow beating between the shimmer and source harmonics, which contributes to the characteristic "movement" of shimmer reverb.
 
 ---
 
-**Recipe 44**
+### Recipe 44: Hard Reverb Ducking
 ```bash
 verbx render in.wav out/044_duck_hard.wav --engine algo --duck --duck-attack 2 --duck-release 900
 ```
@@ -619,7 +635,7 @@ _DSP note:_ 2ms attack means the sidechain engages almost instantaneously — es
 
 ---
 
-**Recipe 45**
+### Recipe 45: Soft Reverb Ducking
 ```bash
 verbx render in.wav out/045_duck_soft.wav --engine algo --duck --duck-attack 60 --duck-release 180
 ```
@@ -629,7 +645,7 @@ _DSP note:_ 60ms attack is slow enough that transients pass through before the d
 
 ---
 
-**Recipe 46**
+### Recipe 46: Five-Second Bloom
 ```bash
 verbx render in.wav out/046_bloom_long.wav --engine algo --bloom 5 --rt60 90
 ```
@@ -639,7 +655,7 @@ _DSP note:_ Bloom shapes the density envelope of the early reverb diffusion. A b
 
 ---
 
-**Recipe 47**
+### Recipe 47: Blooming Shimmer
 ```bash
 verbx render in.wav out/047_bloom_shimmer.wav --engine algo --bloom 3 --shimmer --shimmer-mix 0.4
 ```
@@ -649,7 +665,7 @@ _DSP note:_ Because shimmer feeds into the reverb input, the bloom envelope affe
 
 ---
 
-**Recipe 48**
+### Recipe 48: Upward Spectral Tilt
 ```bash
 verbx render in.wav out/048_tilt_up.wav --engine algo --tilt 6 --lowcut 120
 ```
@@ -659,17 +675,17 @@ _DSP note:_ `--tilt 6` applies a +6dB/octave high-shelf tilt to the reverb outpu
 
 ---
 
-**Recipe 49**
+### Recipe 49: Downward Spectral Tilt
 ```bash
 verbx render in.wav out/049_tilt_down.wav --engine algo --tilt -6 --highcut 4500
 ```
 _What it sounds like:_ A dark reverb with a strong low-frequency bias. The tail rumbles and warms. Good for thunder, drums, and low-frequency sound design.
 
-_DSP note:_ `--tilt -6` applies a -6dB/octave downward slope, attenuating frequencies as they increase. Combined with `--highcut 4500`, which removes everything above 4.5kHz, the result is a reverb confined to the bass and low-mid range.
+_DSP note:_ `--tilt -6` applies a –6 dB/octave downward slope, attenuating frequencies as they increase. Combined with `--highcut 4500`, which removes everything above 4.5kHz, the result is a reverb confined to the bass and low-mid range.
 
 ---
 
-**Recipe 50**
+### Recipe 50: Duck-Bloom-Shimmer Combination
 ```bash
 verbx render in.wav out/050_combo_extreme.wav --engine algo --duck --bloom 4 --tilt 4 --shimmer --beast-mode 8
 ```
@@ -681,7 +697,7 @@ _DSP note:_ The signal chain here is complex: the source is passed into the algo
 
 ---
 
-## Section 6: Loudness and Output Format (Recipes 51-60)
+## Section 6: Loudness and Output Format (Recipes 51–60)
 
 Loudness normalization is one of those topics that sounds boring until you work in a context where it matters — and then it is everything. Streaming platforms, broadcast, cinema, and immersive audio all have different integrated loudness targets, true peak limits, and gating rules. This section covers the practical configurations for common delivery requirements, as well as the edge cases where you want no normalization at all.
 
@@ -689,47 +705,47 @@ Output format matters more than most engineers think. Float32 preserves more dyn
 
 ---
 
-**Recipe 51**
+### Recipe 51: Quiet Streaming Loudness
 ```bash
 verbx render in.wav out/051_lufs_24.wav --target-lufs -24 --target-peak-dbfs -2
 ```
-_What it sounds like:_ Output normalized to -24 LUFS integrated loudness with -2 dBFS peak limit. This is a conservative broadcast target.
+_What it sounds like:_ Output normalized to –24 LUFS integrated loudness with –2 dBFS peak limit. This is a conservative broadcast target.
 
-_DSP note:_ Integrated LUFS measurement gates silence and weights frequencies according to the ITU-R BS.1770 loudness model (which de-emphasizes very low and very high frequencies relative to mid frequencies). The measurement reflects perceived loudness rather than signal amplitude. `-24 LUFS` is the US broadcast standard; the European standard is `-23 LUFS`.
+_DSP note:_ Integrated LUFS measurement gates silence and weights frequencies according to the ITU-R BS.1770 loudness model (which de-emphasizes very low and very high frequencies relative to mid frequencies). The measurement reflects perceived loudness rather than signal amplitude. –24 LUFS is the US broadcast standard; the European standard is –23 LUFS.
 
 ---
 
-**Recipe 52**
+### Recipe 52: Loud True-Peak Master
 ```bash
 verbx render in.wav out/052_lufs_18.wav --target-lufs -18 --target-peak-dbfs -1 --true-peak
 ```
 _What it sounds like:_ Music streaming target loudness with true peak limiting. Appropriate for Spotify, Apple Music, and similar platforms.
 
-_DSP note:_ True peak measurement uses oversampled analysis (typically 4x) to detect inter-sample peaks that sample-level measurement would miss. An inter-sample peak of -1 dBFS can produce a true peak well above 0 dBFS after digital-to-analog conversion, causing clipping in the playback chain. `--true-peak` engages a true peak limiter that accounts for this.
+_DSP note:_ True peak measurement uses oversampled analysis (typically 4x) to detect inter-sample peaks that sample-level measurement would miss. An inter-sample peak of –1 dBFS can produce a true peak well above 0 dBFS after digital-to-analog conversion, causing clipping in the playback chain. `--true-peak` engages a true peak limiter that accounts for this.
 
 ---
 
-**Recipe 53**
+### Recipe 53: Sample-Peak Ceiling
 ```bash
 verbx render in.wav out/053_sample_peak.wav --target-peak-dbfs -0.5 --sample-peak
 ```
-_What it sounds like:_ Peak normalized to -0.5 dBFS at the sample level. This is a basic peak normalization without loudness weighting.
+_What it sounds like:_ Peak normalized to –0.5 dBFS at the sample level. This is a basic peak normalization without loudness weighting.
 
-_DSP note:_ Sample peak normalization finds the single loudest sample in the file and applies uniform gain to bring it to the specified level. It ignores loudness perception entirely — a file that is -0.5 dBFS peak could be at -35 LUFS (very quiet) or -8 LUFS (very loud) depending on its dynamic range. Use this when you need predictable amplitude, not predictable loudness.
+_DSP note:_ Sample peak normalization finds the single loudest sample in the file and applies uniform gain to bring it to the specified level. It ignores loudness perception entirely — a file that is –0.5 dBFS peak could be at –35 LUFS (very quiet) or –8 LUFS (very loud) depending on its dynamic range. Use this when you need predictable amplitude, not predictable loudness.
 
 ---
 
-**Recipe 54**
+### Recipe 54: Per-Pass Loudness Control
 ```bash
 verbx render in.wav out/054_per_pass.wav --repeat 4 --normalize-stage per-pass --repeat-target-lufs -22
 ```
-_What it sounds like:_ Four repeat passes, each normalized to -22 LUFS before the next pass begins. The loudness remains consistent across passes but the texture accumulates.
+_What it sounds like:_ Four repeat passes, each normalized to –22 LUFS before the next pass begins. The loudness remains consistent across passes but the texture accumulates.
 
 _DSP note:_ `--repeat-target-lufs -22` sets the per-pass loudness target independently from any output-stage loudness target. This is useful for repeat chains where you want to prevent energy accumulation from causing clipping in intermediate passes while still having the final output normalized differently at the output stage.
 
 ---
 
-**Recipe 55**
+### Recipe 55: Unrestricted Tail Without Limiting
 ```bash
 verbx render in.wav out/055_no_limiter.wav --engine algo --rt60 70 --no-limiter
 ```
@@ -739,17 +755,17 @@ _DSP note:_ The `--no-limiter` flag bypasses the output-stage limiter and leaves
 
 ---
 
-**Recipe 56**
+### Recipe 56: 192 kHz Float32 Convolution
 ```bash
-verbx render in.wav out/056_float32.wav --engine conv --ir hall.wav --out-subtype float32
+verbx render in.wav out/056_float32.wav --engine conv --ir hall.wav --target-sr 192000 --out-subtype float32
 ```
 _What it sounds like:_ Hall convolution rendered to 32-bit float WAV. Transparent and suitable for further processing.
 
-_DSP note:_ Float32 encoding provides approximately 24 bits of dynamic range at any given magnitude, with the advantage that the encoding range is not fixed — levels above 0 dBFS are representable without clipping. This makes float32 ideal for intermediate processing files. The cost is slightly larger files than PCM24 for equivalent audible quality.
+_DSP note:_ Float32 encoding provides approximately 24 bits of dynamic range at any given magnitude, with the advantage that the encoding range is not fixed — levels above 0 dBFS are representable without clipping. This makes float32 ideal for intermediate processing files. The cost is slightly larger files than PCM24 for equivalent audible quality. Here, `--target-sr 192000` performs deterministic internal sample-rate conversion during render.
 
 ---
 
-**Recipe 57**
+### Recipe 57: Float64 Convolution Master
 ```bash
 verbx render in.wav out/057_float64.wav --engine conv --ir hall.wav --out-subtype float64
 ```
@@ -759,7 +775,7 @@ _DSP note:_ Float64 provides approximately 52 bits of mantissa precision. The au
 
 ---
 
-**Recipe 58**
+### Recipe 58: 24-Bit PCM Delivery
 ```bash
 verbx render in.wav out/058_pcm24.wav --engine conv --ir hall.wav --out-subtype pcm24
 ```
@@ -769,7 +785,7 @@ _DSP note:_ PCM24 provides a fixed dynamic range of approximately 144dB theoreti
 
 ---
 
-**Recipe 59**
+### Recipe 59: Input-Referenced Peak Normalization
 ```bash
 verbx render in.wav out/059_peak_input.wav --engine algo --output-peak-norm input
 ```
@@ -779,27 +795,27 @@ _DSP note:_ `--output-peak-norm input` measures the peak sample amplitude of the
 
 ---
 
-**Recipe 60**
+### Recipe 60: Fixed Target Peak Normalization
 ```bash
 verbx render in.wav out/060_peak_target.wav --engine algo --output-peak-norm target --output-peak-target-dbfs -9
 ```
-_What it sounds like:_ The reverb output is peak-normalized to a specific absolute level of -9 dBFS.
+_What it sounds like:_ The reverb output is peak-normalized to a specific absolute level of –9 dBFS.
 
-_DSP note:_ `--output-peak-norm target` enables absolute peak normalization, and `--output-peak-target-dbfs -9` sets the target. -9 dBFS is a common bus-level target for mixing — it provides substantial headroom for subsequent processing while keeping the signal well above the noise floor. This is different from LUFS normalization: -9 dBFS peak does not guarantee any particular loudness.
+_DSP note:_ `--output-peak-norm target` enables absolute peak normalization, and `--output-peak-target-dbfs -9` sets the target. –9 dBFS is a common bus-level target for mixing — it provides substantial headroom for subsequent processing while keeping the signal well above the noise floor. This is different from LUFS normalization: –9 dBFS peak does not guarantee any particular loudness.
 
 ---
 
-## Section 7: Synthetic IR Generation (Recipes 61-70)
+## Section 7: Synthetic IR Generation (Recipes 61–70)
 
 Generating synthetic impulse responses is where `verbx` overlaps with acoustic modeling. Rather than measuring a real space, these commands synthesize IRs from mathematical models — Feedback Delay Networks, stochastic noise models, and modal synthesis. The results range from plausible-but-not-real-sounding rooms to completely abstract spectral transformers.
 
 The practical value of synthetic IRs is flexibility: you can tune the RT60, the modal density, the fundamental resonant frequency, and the reflection pattern, all without access to a real space. For science fiction and fantasy sound design, this is invaluable. For electronic music, it allows creating reverbs that are tuned to the key of the track. For theatrical foley, it allows matching a reverb exactly to the visual environment.
 
-The workflow in recipes 61-70 forms a complete IR generation and processing pipeline: generate, process, analyze, then use.
+The workflow in recipes 61–70 forms a complete IR generation and processing pipeline: generate, process, analyze, then use.
 
 ---
 
-**Recipe 61**
+### Recipe 61: Hybrid Synthetic Space
 ```bash
 verbx ir gen out/061_ir_hybrid.wav --mode hybrid --length 120 --seed 61
 ```
@@ -809,7 +825,7 @@ _DSP note:_ Hybrid mode combines a deterministic early-reflection model (which g
 
 ---
 
-**Recipe 62**
+### Recipe 62: Twelve-Line FDN Impulse
 ```bash
 verbx ir gen out/062_ir_fdn.wav --mode fdn --length 180 --fdn-lines 12 --seed 62
 ```
@@ -819,7 +835,7 @@ _DSP note:_ Feedback Delay Networks use a matrix of delay lines with a feedback 
 
 ---
 
-**Recipe 63**
+### Recipe 63: Dense Stochastic Tail
 ```bash
 verbx ir gen out/063_ir_stochastic.wav --mode stochastic --length 240 --density 1.8 --seed 63
 ```
@@ -829,17 +845,17 @@ _DSP note:_ Stochastic IR synthesis models the late-field reverberation as an ex
 
 ---
 
-**Recipe 64**
+### Recipe 64: Ninety-Six-Mode Resonator Bank
 ```bash
 verbx ir gen out/064_ir_modal.wav --mode modal --length 90 --modal-count 96 --seed 64
 ```
 _What it sounds like:_ A modal IR — synthesized from 96 resonant modes. Depending on the source material, you will hear clear resonant frequencies in the reverb tail.
 
-_DSP note:_ Modal synthesis generates an IR as a sum of decaying sinusoids, each at a different frequency (mode) with a different amplitude and decay rate. 96 modes is relatively dense — individual modes may not be distinguishable. At lower mode counts (8-16), the individual resonances are clearly audible and the "room" sounds like a resonator rather than a space.
+_DSP note:_ Modal synthesis generates an IR as a sum of decaying sinusoids, each at a different frequency (mode) with a different amplitude and decay rate. 96 modes is relatively dense — individual modes may not be distinguishable. At lower mode counts (8–16), the individual resonances are clearly audible and the "room" sounds like a resonator rather than a space.
 
 ---
 
-**Recipe 65**
+### Recipe 65: Tuned 64 Hz Modal Space
 ```bash
 verbx ir gen out/065_ir_tuned.wav --mode modal --length 120 --f0 64Hz --seed 65
 ```
@@ -849,7 +865,7 @@ _DSP note:_ Setting `--f0 64Hz` anchors the modal synthesis so that the lowest-f
 
 ---
 
-**Recipe 66**
+### Recipe 66: Input-Informed Hybrid IR
 ```bash
 verbx ir gen out/066_ir_from_input.wav --mode hybrid --analyze-input in.wav --seed 66
 ```
@@ -859,7 +875,7 @@ _DSP note:_ `--analyze-input` extracts the spectral envelope, dynamic range, and
 
 ---
 
-**Recipe 67**
+### Recipe 67: Hybrid Resonator IR
 ```bash
 verbx ir gen out/067_ir_resonator.wav --mode hybrid --resonator --resonator-mix 0.6 --seed 67
 ```
@@ -869,17 +885,17 @@ _DSP note:_ The resonator adds a set of high-Q bandpass filters to the IR synthe
 
 ---
 
-**Recipe 68**
+### Recipe 68: Darkened Peak-Normalized IR
 ```bash
 verbx ir process out/067_ir_resonator.wav out/068_ir_processed.wav --tilt -4 --normalize peak
 ```
 _What it sounds like:_ The resonator IR processed with a dark tilt and peak normalized. Ready to use as a dark, resonant convolution IR.
 
-_DSP note:_ IR processing applies DSP to the impulse response itself rather than to the output of the reverb. Tilting an IR by -4dB/octave means the convolution will produce a dark, bass-heavy reverb regardless of what the source material sounds like. Peak normalizing the IR ensures consistent output levels when the IR is used in recipe 70.
+_DSP note:_ IR processing applies DSP to the impulse response itself rather than to the output of the reverb. Tilting an IR by –4 dB/octave means the convolution will produce a dark, bass-heavy reverb regardless of what the source material sounds like. Peak normalizing the IR ensures consistent output levels when the IR is used in recipe 70.
 
 ---
 
-**Recipe 69**
+### Recipe 69: Machine-Readable IR Analysis
 ```bash
 verbx ir analyze out/068_ir_processed.wav --json-out out/069_ir_analysis.json
 ```
@@ -889,11 +905,11 @@ _DSP note:_ IR analysis typically measures RT20, RT30, RT60 (derived from the de
 
 ---
 
-**Recipe 70**
+### Recipe 70: Custom-IR Double Render
 ```bash
 verbx render in.wav out/070_ir_render.wav --engine conv --ir out/068_ir_processed.wav --repeat 2
 ```
-_What it sounds like:_ The input processed with the custom IR we generated and processed in recipes 67-68, repeated twice. This completes the synthetic IR pipeline.
+_What it sounds like:_ The input processed with the custom IR we generated and processed in recipes 67–68, repeated twice. This completes the synthetic IR pipeline.
 
 _DSP note:_ This is the payoff of the IR generation workflow. The convolution engine uses the processed synthetic IR as if it were a measured room IR. Two repeat passes mean the input is convolved twice with the resonant, dark-tilted synthetic IR, producing a dense, colored reverb with the resonator's character amplified.
 
@@ -907,7 +923,7 @@ For the algorithmic multichannel recipes, pay attention to the relationship betw
 
 ---
 
-## Section 8: Multichannel and Spatial Processing (Recipes 71-80)
+## Section 8: Multichannel and Spatial Processing (Recipes 71–80)
 
 Multichannel reverb is a workflow unto itself. The spatial distribution of reverb energy — which sounds arrive from which directions, how the early reflections establish the size and shape of the space, how the late field wraps around the listener — is as important as the RT60 or the dry/wet balance. Bad multichannel reverb sounds like stereo reverb playing from four speakers. Good multichannel reverb sounds like being inside a space.
 
@@ -915,7 +931,7 @@ In cinema mixing, the surround channels carry ambient reverb and environmental i
 
 ---
 
-**Recipe 71**
+### Recipe 71: 5.1 Matrix Convolution
 ```bash
 verbx render in_5p1.wav out/071_5p1_conv.wav --engine conv --ir ir_5p1_matrix.wav --ir-matrix-layout output-major
 ```
@@ -925,7 +941,7 @@ _DSP note:_ Output-major layout: the IR file contains IR channels ordered as (IR
 
 ---
 
-**Recipe 72**
+### Recipe 72: 7.1 Matrix Convolution
 ```bash
 verbx render in_7p1.wav out/072_7p1_conv.wav --engine conv --ir ir_7p1_matrix.wav --ir-matrix-layout output-major
 ```
@@ -935,7 +951,7 @@ _DSP note:_ 7.1 requires an IR with at least 8 channels (or a matrix of 8 output
 
 ---
 
-**Recipe 73**
+### Recipe 73: Wide 5.1 Algorithmic Hall
 ```bash
 verbx render in_5p1.wav out/073_5p1_algo.wav --engine algo --rt60 85 --width 1.6
 ```
@@ -945,7 +961,7 @@ _DSP note:_ Algorithmic multichannel reverb applies the reverb engine independen
 
 ---
 
-**Recipe 74**
+### Recipe 74: Three-Pass 7.1 Beast Field
 ```bash
 verbx render in_7p1.wav out/074_7p1_algo_beast.wav --engine algo --beast-mode 12 --repeat 3
 ```
@@ -955,17 +971,17 @@ _DSP note:_ Beast-mode 12 in multichannel increases the diffusion network comple
 
 ---
 
-**Recipe 75**
+### Recipe 75: Frozen 5.1 Moment
 ```bash
 verbx render in_5p1.wav out/075_5p1_freeze.wav --engine algo --freeze --start 3 --end 4.5 --repeat 2
 ```
-_What it sounds like:_ A frozen 5.1 pad extracted from the 3-4.5 second range, repeated twice. Creates a multichannel ambient drone.
+_What it sounds like:_ A frozen 5.1 pad extracted from the 3–4.5 second range, repeated twice. Creates a multichannel ambient drone.
 
 _DSP note:_ Freeze in multichannel mode extracts the specified window from all channels simultaneously, maintaining the spatial coherence of the frozen segment. The frozen loop, when processed through the algo reverb, produces a reverberant pad that preserves the original spatial distribution of the source material.
 
 ---
 
-**Recipe 76**
+### Recipe 76: 7.1 Shimmer Field
 ```bash
 verbx render in_7p1.wav out/076_7p1_shimmer.wav --engine algo --shimmer --shimmer-mix 0.45
 ```
@@ -975,17 +991,17 @@ _DSP note:_ The shimmer feedback path in multichannel wraps around all channels.
 
 ---
 
-**Recipe 77**
+### Recipe 77: Broadcast-Loudness 5.1 Render
 ```bash
 verbx render in_5p1.wav out/077_5p1_target.wav --target-lufs -23 --target-peak-dbfs -2
 ```
-_What it sounds like:_ 5.1 loudness normalization to the European broadcast standard (-23 LUFS) with -2 dBFS peak limit.
+_What it sounds like:_ 5.1 loudness normalization to the European broadcast standard (–23 LUFS) with –2 dBFS peak limit.
 
-_DSP note:_ Integrated LUFS for multichannel uses the channel-weighting defined in ITU-R BS.1770, which applies -1.5 dB attenuation to surround channels (Ls, Rs) in the loudness measurement. This means a 5.1 mix at -23 LUFS measured will have higher actual SPL in the surrounds than a stereo mix at the same measured loudness value. Be aware of this when comparing multichannel and stereo versions.
+_DSP note:_ Integrated LUFS for multichannel uses the channel-weighting defined in ITU-R BS.1770, which applies –1.5 dB attenuation to surround channels (Ls, Rs) in the loudness measurement. This means a 5.1 mix at –23 LUFS measured will have higher actual SPL in the surrounds than a stereo mix at the same measured loudness value. Be aware of this when comparing multichannel and stereo versions.
 
 ---
 
-**Recipe 78**
+### Recipe 78: Float32 Full-Scale 7.1 Render
 ```bash
 verbx render in_7p1.wav out/078_7p1_fullscale.wav --output-peak-norm full-scale --out-subtype float32
 ```
@@ -995,7 +1011,7 @@ _DSP note:_ `--output-peak-norm full-scale` applies gain to bring the loudest sa
 
 ---
 
-**Recipe 79**
+### Recipe 79: Twelve-Second 5.1 Tail
 ```bash
 verbx render in_5p1.wav out/079_5p1_tailcap.wav --engine conv --ir ir_5p1_matrix.wav --tail-limit 12
 ```
@@ -1005,7 +1021,7 @@ _DSP note:_ 12 seconds is generous for most indoor spaces but short for cathedra
 
 ---
 
-**Recipe 80**
+### Recipe 80: Four-Minute 7.1 Tail
 ```bash
 verbx render in_7p1.wav out/080_7p1_longtail.wav --engine conv --ir ir_7p1_matrix.wav --tail-limit 240
 ```
@@ -1015,15 +1031,15 @@ _DSP note:_ 240-second tail-limit on an 8-channel 48kHz float32 file is approxim
 
 ---
 
-## Section 9: Analysis, Suggestion, and Batch Tools (Recipes 81-90)
+## Section 9: Analysis, Suggestion, and Batch Tools (Recipes 81–90)
 
-The analysis and batch tools are where `verbx` starts to function as a production pipeline rather than a single-render tool. These commands are less dramatic than the extremes in sections 1-8, but they are often more useful in practice. Understanding what your audio contains before applying reverb is good engineering. Batching a large set of renders with known parameters is how you scale up to feature-length projects.
+The analysis and batch tools are where `verbx` starts to function as a production pipeline rather than a single-render tool. These commands are less dramatic than the extremes in sections 1–8, but they are often more useful in practice. Understanding what your audio contains before applying reverb is good engineering. Batching a large set of renders with known parameters is how you scale up to feature-length projects.
 
 The `suggest` command is worth studying — it uses analysis of the input to generate parameter recommendations, which can be a useful starting point for creative decisions or a sanity check on aggressive settings.
 
 ---
 
-**Recipe 81**
+### Recipe 81: Dotted-Eighth Pre-Delay at 96 BPM
 ```bash
 verbx render in.wav out/081_predelay_8d.wav --pre-delay 1/8D --bpm 96 --engine algo
 ```
@@ -1033,7 +1049,7 @@ _DSP note:_ Tempo-synced pre-delay uses the BPM value to calculate the delay in 
 
 ---
 
-**Recipe 82**
+### Recipe 82: Sixteenth-Triplet Pre-Delay at 132 BPM
 ```bash
 verbx render in.wav out/082_predelay_triplet.wav --pre-delay 1/16T --bpm 132 --engine algo
 ```
@@ -1043,7 +1059,7 @@ _DSP note:_ A sixteenth-note triplet at 132 BPM = (60000 / 132) / 4 * (2/3) ≈ 
 
 ---
 
-**Recipe 83**
+### Recipe 83: LUFS and EDR JSON Analysis
 ```bash
 verbx analyze in.wav --lufs --edr --json-out out/083_analysis.json
 ```
@@ -1053,7 +1069,7 @@ _DSP note:_ EDR (Energy Decay Relief) is a time-frequency representation of how 
 
 ---
 
-**Recipe 84**
+### Recipe 84: Framewise EDR Export
 ```bash
 verbx analyze in.wav --frames-out out/084_frames.csv --edr
 ```
@@ -1063,7 +1079,7 @@ _DSP note:_ Per-frame analysis provides time-resolved measurement at the frame r
 
 ---
 
-**Recipe 85**
+### Recipe 85: Input-Aware Parameter Suggestions
 ```bash
 verbx suggest in.wav
 ```
@@ -1073,17 +1089,17 @@ _DSP note:_ The suggestion engine analyzes the input's dynamic range, spectral c
 
 ---
 
-**Recipe 86**
+### Recipe 86: Batch Manifest Template
 ```bash
 verbx batch template > out/086_manifest.json
 ```
 _What it sounds like:_ No audio output. Generates a template batch manifest JSON file.
 
-_DSP note:_ The manifest file defines a list of render jobs with all parameters specified. The template contains example entries for each engine type and common parameter configurations. Edit the manifest to define your actual batch before running recipes 87-88.
+_DSP note:_ The manifest file defines a list of render jobs with all parameters specified. The template contains example entries for each engine type and common parameter configurations. Edit the manifest to define your actual batch before running recipes 87–88.
 
 ---
 
-**Recipe 87**
+### Recipe 87: Longest-First Parallel Batch
 ```bash
 verbx batch render manifest.json --jobs 8 --schedule longest-first --retries 1
 ```
@@ -1093,7 +1109,7 @@ _DSP note:_ `--schedule longest-first` is a work-stealing heuristic that priorit
 
 ---
 
-**Recipe 88**
+### Recipe 88: Shortest-First Batch Dry Run
 ```bash
 verbx batch render manifest.json --jobs 4 --schedule shortest-first --dry-run
 ```
@@ -1103,7 +1119,7 @@ _DSP note:_ Always run `--dry-run` first on a new manifest to verify that all pa
 
 ---
 
-**Recipe 89**
+### Recipe 89: Cache Inventory
 ```bash
 verbx cache info
 ```
@@ -1113,7 +1129,7 @@ _DSP note:_ `verbx` caches partitioned IR FFTs to avoid recomputing them on repe
 
 ---
 
-**Recipe 90**
+### Recipe 90: Cache Cleanup
 ```bash
 verbx cache clear
 ```
@@ -1123,7 +1139,7 @@ _DSP note:_ Clearing the cache forces recomputation of IR FFTs on the next rende
 
 ---
 
-## Section 10: Lucky-Mode Wildcards (Recipes 91-100)
+## Section 10: Lucky-Mode Wildcards (Recipes 91–100)
 
 Lucky mode is what happens when you hand the parameter space to the engine and say "find something interesting." It randomizes settings within configured bounds and generates a specified number of variations in a single run. It is not random in the degenerate sense — the parameter space is constrained to avoid unlistenable results — but it covers territory you would not explore by hand.
 
@@ -1133,7 +1149,7 @@ Lucky mode is also useful at the end of a project when you think you are done. R
 
 ---
 
-**Recipe 91**
+### Recipe 91: Five Lucky Variations
 ```bash
 verbx render in.wav out/lucky.wav --lucky 5 --lucky-out-dir out/lucky_01
 ```
@@ -1143,7 +1159,7 @@ _DSP note:_ Without `--lucky-seed`, each run produces different results. Lucky m
 
 ---
 
-**Recipe 92**
+### Recipe 92: Ten Seeded Lucky Variations
 ```bash
 verbx render in.wav out/lucky.wav --lucky 10 --lucky-out-dir out/lucky_02 --lucky-seed 2026
 ```
@@ -1153,7 +1169,7 @@ _DSP note:_ The seed initializes the pseudo-random number generator used for par
 
 ---
 
-**Recipe 93**
+### Recipe 93: Twenty-Five Device-Aware Variations
 ```bash
 verbx render in.wav out/lucky.wav --lucky 25 --lucky-out-dir out/lucky_03 --device auto
 ```
@@ -1163,7 +1179,7 @@ _DSP note:_ `--device auto` allows `verbx` to select the most efficient compute 
 
 ---
 
-**Recipe 94**
+### Recipe 94: Headless Fifty-Variation Run
 ```bash
 verbx render in.wav out/lucky.wav --lucky 50 --lucky-out-dir out/lucky_04 --no-progress
 ```
@@ -1173,7 +1189,7 @@ _DSP note:_ `--no-progress` disables the progress bar and per-file status output
 
 ---
 
-**Recipe 95**
+### Recipe 95: Eight Algorithmic Wildcards
 ```bash
 verbx render in.wav out/lucky.wav --lucky 8 --lucky-out-dir out/lucky_05 --engine algo
 ```
@@ -1183,7 +1199,7 @@ _DSP note:_ Constraining lucky mode to a specific engine narrows the parameter s
 
 ---
 
-**Recipe 96**
+### Recipe 96: Eight Convolution Wildcards
 ```bash
 verbx render in.wav out/lucky.wav --lucky 8 --lucky-out-dir out/lucky_06 --engine conv --ir hall.wav
 ```
@@ -1193,7 +1209,7 @@ _DSP note:_ When lucky mode is constrained to the conv engine with a specific IR
 
 ---
 
-**Recipe 97**
+### Recipe 97: Twelve Self-Convolution Wildcards
 ```bash
 verbx render in.wav out/lucky.wav --lucky 12 --lucky-out-dir out/lucky_07 --self-convolve
 ```
@@ -1203,17 +1219,17 @@ _DSP note:_ Self-convolve lucky mode varies the beast-mode level, tilt, tail lim
 
 ---
 
-**Recipe 98**
+### Recipe 98: Loudness-Matched Lucky Set
 ```bash
 verbx render in.wav out/lucky.wav --lucky 15 --lucky-out-dir out/lucky_08 --target-lufs -20
 ```
-_What it sounds like:_ Fifteen variations, each normalized to -20 LUFS. All outputs are at a consistent loudness, making A/B comparison easier.
+_What it sounds like:_ Fifteen variations, each normalized to –20 LUFS. All outputs are at a consistent loudness, making A/B comparison easier.
 
-_DSP note:_ Applying `--target-lufs` to lucky mode normalizes each output independently after rendering. This is useful for comparative listening because the loudness differences between variations are removed, allowing you to evaluate the texture and character rather than the level. -20 LUFS is a comfortable listening level for extended auditioning.
+_DSP note:_ Applying `--target-lufs` to lucky mode normalizes each output independently after rendering. This is useful for comparative listening because the loudness differences between variations are removed, allowing you to evaluate the texture and character rather than the level. –20 LUFS is a comfortable listening level for extended auditioning.
 
 ---
 
-**Recipe 99**
+### Recipe 99: Thirty Float32 Variations
 ```bash
 verbx render in.wav out/lucky.wav --lucky 30 --lucky-out-dir out/lucky_09 --out-subtype float32
 ```
@@ -1223,7 +1239,7 @@ _DSP note:_ Using float32 for lucky output means you do not need to worry about 
 
 ---
 
-**Recipe 100**
+### Recipe 100: Hundred-Variation Reproducibility Stress Test
 ```bash
 verbx render in.wav out/lucky.wav --lucky 100 --lucky-out-dir out/lucky_10 --lucky-seed 404
 ```
@@ -1237,7 +1253,7 @@ _DSP note:_ A 100-variation lucky set with a fixed seed is a complete exploratio
 
 ## Notes for Large Runs
 
-Start with a small lucky count (3-5) to confirm runtime and output size before committing to a 50 or 100-variation run.
+Start with a small lucky count (3–5) to confirm runtime and output size before committing to a 50 or 100-variation run.
 
 Use `--no-progress` in log-friendly batch environments. The progress bar uses terminal control codes that corrupt plain-text logs.
 
@@ -1245,6 +1261,6 @@ Fix `--lucky-seed` whenever reproducibility matters. Document the seed alongside
 
 Monitor storage. Long tails, high repeat counts, and multichannel outputs in float format accumulate quickly. A batch of 100 stereo float32 files at 3 minutes each is approximately 34GB at 48kHz.
 
-The `verbx cache info` and `verbx cache clear` commands (recipes 89-90) are useful before and after large batch runs. Clear the cache if disk space is constrained; leave it in place if you will be reusing the same IRs across multiple batches.
+The `verbx cache info` and `verbx cache clear` commands (recipes 89–90) are useful before and after large batch runs. Clear the cache if disk space is constrained; leave it in place if you will be reusing the same IRs across multiple batches.
 
 When a run produces something you want to keep, immediately rename the output file out of the numbered sequence. The output directory will be overwritten if you rerun the batch with the same output path.

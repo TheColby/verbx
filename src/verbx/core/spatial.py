@@ -178,8 +178,10 @@ def rotate_ambisonic_yaw(
     y = np.asarray(canonical[:, 1], dtype=np.float64)
     z = np.asarray(canonical[:, 2], dtype=np.float64)
     x = np.asarray(canonical[:, 3], dtype=np.float64)
-    x_rot = (c * x) - (s * y)
-    y_rot = (s * x) + (c * y)
+    # Listener yaw rotates the coordinate frame, so the scene rotates in the
+    # opposite direction relative to the listener.
+    x_rot = (c * x) + (s * y)
+    y_rot = (-s * x) + (c * y)
 
     rotated = np.asarray(canonical.copy(), dtype=np.float64)
     rotated[:, 1] = np.asarray(y_rot, dtype=np.float64)
@@ -279,10 +281,10 @@ def _to_acn_sn3d(
 
     if source_channel_order == "fuma":
         # FUMA FOA: [W, X, Y, Z] -> ACN FOA: [W, Y, Z, X]
-        w = np.asarray(converted[:, 0], dtype=np.float64)
-        x = np.asarray(converted[:, 1], dtype=np.float64)
-        y = np.asarray(converted[:, 2], dtype=np.float64)
-        z = np.asarray(converted[:, 3], dtype=np.float64)
+        w = np.asarray(converted[:, 0], dtype=np.float64).copy()
+        x = np.asarray(converted[:, 1], dtype=np.float64).copy()
+        y = np.asarray(converted[:, 2], dtype=np.float64).copy()
+        z = np.asarray(converted[:, 3], dtype=np.float64).copy()
         converted[:, 0] = w
         converted[:, 1] = y
         converted[:, 2] = z
@@ -323,14 +325,13 @@ def _from_acn_sn3d(
 
     if target_channel_order == "fuma":
         # ACN FOA: [W, Y, Z, X] -> FUMA FOA: [W, X, Y, Z]
-        w = np.asarray(converted[:, 0], dtype=np.float64)
-        y = np.asarray(converted[:, 1], dtype=np.float64)
-        z = np.asarray(converted[:, 2], dtype=np.float64)
-        x = np.asarray(converted[:, 3], dtype=np.float64)
+        w = np.asarray(converted[:, 0], dtype=np.float64).copy()
+        y = np.asarray(converted[:, 1], dtype=np.float64).copy()
+        z = np.asarray(converted[:, 2], dtype=np.float64).copy()
+        x = np.asarray(converted[:, 3], dtype=np.float64).copy()
         converted[:, 0] = w
         converted[:, 1] = x
         converted[:, 2] = y
         converted[:, 3] = z
 
     return converted
-

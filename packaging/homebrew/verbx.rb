@@ -1,15 +1,16 @@
 class Verbx < Formula
   include Language::Python::Virtualenv
 
-  desc "Production-grade CLI for extreme reverb processing and analysis"
+  desc "Research-grade CLI for extreme reverb processing and analysis"
   homepage "https://github.com/TheColby/verbx"
-  url "https://github.com/TheColby/verbx/archive/refs/tags/v0.7.2.tar.gz"
-  sha256 "e35203a4dc2c3f857ea1edede925dc13ba10b91f996ca91ccb227f0bb8d0db98"
+  url "https://github.com/TheColby/verbx/archive/refs/tags/v0.7.4.tar.gz"
+  sha256 "46c5d24c7d446aa8d29921e9814c8497200ff0db2aff0d2dd8628d193bf4d95f"
   license "MIT"
 
   depends_on "libsndfile"
   depends_on "python@3.12"
-
+  depends_on "numpy"
+  depends_on "scipy"
   resource "annotated-doc" do
     url "https://files.pythonhosted.org/packages/57/ba/046ceea27344560984e26a590f90bc7f4a75b06701f653222458922b558c/annotated_doc-0.0.4.tar.gz"
     sha256 "fbcda96e87e9c92ad167c2e53839e57503ecfda18804ea28102353485033faa4"
@@ -48,11 +49,6 @@ class Verbx < Formula
   resource "idna" do
     url "https://files.pythonhosted.org/packages/6f/6d/0703ccc57f3a7233505399edb88de3cbd678da106337b9fcde432b65ed60/idna-3.11.tar.gz"
     sha256 "795dafcc9c04ed0c1fb032c2aa73654d8e8c5023a7df64a53f39190ada629902"
-  end
-
-  resource "joblib" do
-    url "https://files.pythonhosted.org/packages/41/f2/d34e8b3a08a9cc79a50b2208a93dce981fe615b64d5a4d4abee421d898df/joblib-1.5.3.tar.gz"
-    sha256 "8561a3269e6801106863fd0d6d84bb737be9e7631e33aaed3fb9ce5953688da3"
   end
 
   resource "lazy-loader" do
@@ -116,18 +112,13 @@ class Verbx < Formula
   end
 
   resource "requests" do
-    url "https://files.pythonhosted.org/packages/c9/74/b3ff8e6c8446842c3f5c837e9c3dfcfe2018ea6ecef224c710c85ef728f4/requests-2.32.5.tar.gz"
-    sha256 "dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf"
+    url "https://files.pythonhosted.org/packages/34/64/8860370b167a9721e8956ae116825caff829224fbca0ca6e7bf8ddef8430/requests-2.33.0.tar.gz"
+    sha256 "c7ebc5e8b0f21837386ad0e1c8fe8b829fa5f544d8df3b2253bff14ef29d7652"
   end
 
   resource "rich" do
     url "https://files.pythonhosted.org/packages/b3/c6/f3b320c27991c46f43ee9d856302c70dc2d0fb2dba4842ff739d5f46b393/rich-14.3.3.tar.gz"
     sha256 "b8daa0b9e4eef54dd8cf7c86c03713f53241884e814f4e2f5fb342fe520f639b"
-  end
-
-  resource "scikit-learn" do
-    url "https://files.pythonhosted.org/packages/0e/d4/40988bf3b8e34feec1d0e6a051446b1f66225f8529b9309becaeef62b6c4/scikit_learn-1.8.0.tar.gz"
-    sha256 "9bccbb3b40e3de10351f8f5068e105d0f4083b1a65fa07b6634fbc401a6287fd"
   end
 
   resource "scipy" do
@@ -148,11 +139,6 @@ class Verbx < Formula
   resource "soxr" do
     url "https://files.pythonhosted.org/packages/42/7e/f4b461944662ad75036df65277d6130f9411002bfb79e9df7dff40a31db9/soxr-1.0.0.tar.gz"
     sha256 "e07ee6c1d659bc6957034f4800c60cb8b98de798823e34d2a2bba1caa85a4509"
-  end
-
-  resource "threadpoolctl" do
-    url "https://files.pythonhosted.org/packages/b7/4d/08c89e34946fce2aec4fbb45c9016efd5f4d7f24af8e5d93296e935631d8/threadpoolctl-3.6.0.tar.gz"
-    sha256 "8ab8b4aa3491d812b623328249fab5302a68d2d71745c8a4c719a2fcaba9f44e"
   end
 
   resource "typer" do

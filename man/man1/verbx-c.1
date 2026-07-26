@@ -1,0 +1,114 @@
+.TH VERBX-C 1 "July 2026" "verbx-c 0.8.0-dev" "User Commands"
+.SH NAME
+verbx-c \- native experimental offline renderer for verbx
+.SH SYNOPSIS
+.B verbx-c
+.BR help | version
+.br
+.B verbx-c doctor
+.RB [ --json-out
+.IR report.json ]
+.br
+.B verbx-c render
+.I in.wav out.wav
+.RB [ --rt60
+.IR seconds ]
+.RB [ --wet
+.IR value ]
+.RB [ --dry
+.IR value ]
+.RB [ --pre-delay-ms
+.IR ms ]
+.RB [ --damping
+.IR value ]
+.RB [ --tail-threshold-db
+.IR db ]
+.RB [ --tail-hold-ms
+.IR ms ]
+.RB [ --tail-metric
+.BR peak | rms ]
+.RB [ --peak-safe ]
+.RB [ --peak-ceiling-db
+.IR db ]
+.RB [ --out-format
+.BR pcm16 | float32 | float64 ]
+.RB [ --json-out
+.IR report.json ]
+.SH DESCRIPTION
+.B verbx-c
+is the native C executable track for
+.BR verbx .
+It is an opt-in v0.8 transition binary, not a replacement for the Python
+.B verbx
+CLI. The current native scope is deterministic mono/stereo WAV offline render,
+doctor diagnostics, and machine-readable support reports.
+.SH COMMANDS
+.TP
+.B help
+Print command usage.
+.TP
+.B version
+Print the native executable version.
+.TP
+.B doctor
+Print native build, compiler, WAV I/O, and process-contract diagnostics.
+.TP
+.B render
+Render a mono/stereo WAV file through the foundational native algorithmic
+reverb path.
+.SH OPTIONS
+.TP
+.BI --json-out " PATH"
+Write a machine-readable JSON report. Doctor emits
+.BR native-doctor-report-v1 ;
+render emits
+.BR native-render-report-v1 .
+.TP
+.BI --rt60 " seconds"
+Set decay time for the native offline reverb core.
+.TP
+.BI --wet " value"
+Set wet gain.
+.TP
+.BI --dry " value"
+Set dry gain.
+.TP
+.BI --pre-delay-ms " ms"
+Set pre-delay in milliseconds.
+.TP
+.BI --damping " value"
+Set damping amount.
+.TP
+.BI --tail-threshold-db " db"
+Set tail-stop threshold in dBFS.
+.TP
+.BI --tail-hold-ms " ms"
+Keep this many milliseconds after the tail-stop point.
+.TP
+.BI --tail-metric " peak|rms"
+Choose the tail-stop metric.
+.TP
+.B --peak-safe
+Enable output peak-safety scaling before writing.
+.TP
+.BI --peak-ceiling-db " db"
+Set the peak-safety ceiling in dBFS.
+.TP
+.BI --out-format " pcm16|float32|float64"
+Choose the output WAV subtype.
+.SH EXAMPLES
+.nf
+verbx-c doctor --json-out native-doctor.json
+
+verbx-c render dry.wav wet.wav \\
+  --rt60 3.5 \\
+  --wet 0.85 \\
+  --dry 0.15 \\
+  --peak-safe \\
+  --peak-ceiling-db -1 \\
+  --out-format float32 \\
+  --json-out native-render.json
+.fi
+.SH SEE ALSO
+.BR verbx (1),
+.BR verbx-render (1)
