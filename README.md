@@ -4,13 +4,22 @@
 
 # verbx
 
-**Colossal 64-bit audio reverberator, accelerated with CUDA and Metal.**
+**Colossal 64-bit spatial audio reverberator, accelerated with CUDA and Metal.**
 
-`verbx` is a research-grade Python CLI for creating reverb effects that range from subtle room placement to cathedral-scale tails 3600 seconds long. It handles the complete reverb workflow: ingesting and generating impulse responses, processing audio through two independent engines, controlling every parameter with time-varying automation, delivering loudness-targeted multichannel output, and producing reproducible analysis artifacts at every step.
+> **Start with the book:** [Read the complete illustrated verbx User Guide (PDF)](USERGUIDE.pdf)
+> for CLI workflows, plug-in operation, DSP explanations, musical examples,
+> educational projects, figures, and the research bibliography.
 
-You can batch reverberate a directory of audio files to create lush Dolby Atmos beds. or use it as part of your corpus-augmentation workflow for audio AI projects. 
+`verbx` is a research-grade Python CLI for creating reverb effects that range from subtle room placement to cathedral-scale tails 3600 seconds long. It handles the complete reverb workflow: ingesting and generating impulse responses, processing audio through two independent engines, controlling every parameter with time-varying automation, delivering loudness-targeted multichannel output, reducing late-room smear with deterministic dereverberation, producing reproducible analysis artifacts at every step, and now previewing spaces in realtime from CLI-selectable audio devices.
 
-Under the hood, everything runs in 64-bit floating point. The algorithmic engine is built around a configurable Feedback Delay Network with eight matrix families, multiband decay, and optional time-varying behavior. The convolution engine uses partitioned FFT with optional CUDA acceleration and full M-input-to-N-output matrix routing. Both engines share the same diffusion, shimmer, ducking, freeze, loudness, and spatial controls.
+You can batch reverberate a directory of audio files to create lush Dolby Atmos beds. Or use it as part of your corpus-augmentation workflow for audio AI projects.
+
+Under the hood, everything runs in 64-bit floating point. The algorithmic engine is built around a configurable Feedback Delay Network with eight matrix families, multiband decay, optional pre-FDN comb-cloud coloration, and optional time-varying behavior. The convolution engine uses partitioned FFT with optional CUDA acceleration and full $M$-input-to-$N$-output matrix routing. Both engines share the same diffusion, shimmer, ducking, freeze, loudness, and spatial controls.
+
+The latest `v0.7.7` work also starts to bridge pure parametric design with
+explicit acoustics. There is now a reusable room-geometry model for dimensions,
+materials, source/listener placement, Bolt-style proportion warnings, and RT60
+to rectangular-room inversion via `verbx room-model`.
 
 This is not a "set RT60 and go" tool. The parameter surface is wide by design. Most users start with three flags and expand from there.
 
@@ -25,6 +34,96 @@ verbx render voice.wav out.wav \
   --bloom 2.8 --tilt 2.0
 ```
 
+## AUv3 / VST3 Plug-in Track
+
+![VERBX full-screen AUv3 and VST3 plug-in design](docs/assets/verbx_plugin_fullscreen.png)
+
+The image above is the approved `1920x1080` visual direction for the full-screen
+spatial console.
+
+The capture below is the currently compiled JUCE editor. It now implements the
+same spatial-console composition: loudness bank, DXF geometry theater, image
+and ray-model panels, nine live parameter cards, horizontal decay analyzer,
+quality/mode controls, and lower expert sections. The host has muted its input,
+so the live analyzer trace correctly rests at its floor.
+
+![VERBX native realtime spectrum analyzer](docs/assets/verbx_plugin_native_analyzer.jpg)
+
+The compiled **Expert** page mirrors all nine continuous parameters as both
+rotary controls and high-resolution faders, keeps the realtime spectrum in
+view, and adds twenty native selector buttons. Its five macro banks write the
+same host-automatable state for quality, width, logarithmic decay, dry/wet
+routing, and paired damping/diffusion character settings.
+
+![VERBX compiled Expert control matrix](docs/assets/verbx_plugin_expert.png)
+
+The first native plug-in foundation is implemented under
+[`native/verbx_plugin`](native/verbx_plugin/README.md):
+
+- C++17/JUCE host shell for AU, AUv3, VST3, and standalone targets
+- shared C11 parameter manifest and realtime processing boundary
+- logarithmic RT60 mapping from `0.01s` to `360s` with coarse and fine controls
+- explicit Freeze and Reverse parameters
+- real allocation-free wet-path oversampling for Host, 2x, 4x, and Target
+  192 kHz quality modes, with a 32-bit-float callback contract
+- cached lock-free parameter reads on the audio callback
+- overlaid realtime post-DSP spectrum analyzer with an 8192-point Hann FFT,
+  logarithmic frequency grid, smoothed response, and peak trace
+- allocation-free mono/stereo Schroeder realtime core with pre-delay, room
+  scaling, RT60, damping, diffusion, width, wet/dry, Freeze, and a zero-lookahead
+  reverse-style swell
+- 20 ms realtime parameter smoothing for host automation without zipper noise
+- responsive Perform/Expert pages with 18 linked continuous controls and 20
+  selector buttons; no Expert control is decorative or stored outside host state
+- full-screen 16:9 spatial-console editor with the complete initial
+  12-parameter control surface and effective-RT60 readout
+
+Target mode chooses the smallest integer factor that reaches or exceeds 192
+kHz without downsampling. It therefore runs at 4x/192 kHz in a 48 kHz project,
+2x/192 kHz at 96 kHz, and 5x/220.5 kHz at 44.1 kHz. The status strip shows the
+actual host rate, internal rate, factor, block size, and reported latency.
+Quality changes rebuild the prepared wet-path state off the audio callback.
+
+The complete installer builds and installs the CLI, native executable, man
+pages, runtime extras, VST3, Audio Unit on macOS, and the standalone app:
+
+```bash
+./install.sh
+```
+
+If JUCE is not already available, the installer downloads the pinned JUCE
+`8.0.6` source release into `build/deps/JUCE`. For an offline installation or
+an existing checkout, use:
+
+```bash
+./install.sh --juce-source /path/to/JUCE
+```
+
+The default macOS plug-in destinations are
+`~/Library/Audio/Plug-Ins/Components/VERBX.component` and
+`~/Library/Audio/Plug-Ins/VST3/VERBX.vst3`; the standalone app is installed as
+`~/Applications/VERBX.app`. That app contains and registers the true AUv3
+extension at `Contents/PlugIns/VERBX.appex`. Linux installs VST3 to `~/.vst3` and the standalone
+binary to `~/.local/bin/verbx-plugin`. Restart or rescan the audio host after
+installation. Run `./install.sh --help` for component skips, custom destination
+directories, offline operation, and build controls.
+
+Repository builds do not require JUCE unless the plug-in target is enabled
+manually:
+
+```bash
+# Verify the guarded scaffold without JUCE.
+cmake -S native/verbx_plugin -B build/native/verbx_plugin
+
+# Configure the real AU/AUv3/VST3/Standalone targets when JUCE is installed.
+cmake -S native/verbx_plugin -B build/native/verbx_plugin-juce \
+  -DVERBX_ENABLE_JUCE_PLUGIN=ON
+cmake --build build/native/verbx_plugin-juce --config Release
+```
+
+Use `-DVERBX_JUCE_SOURCE_DIR=/path/to/JUCE` when building from a JUCE source
+checkout instead of an installed CMake package.
+
 ---
 
 ## Instant Sonic Gratification
@@ -33,7 +132,7 @@ If you want immediate results with minimal decision-making, run this:
 
 ```bash
 git clone https://github.com/TheColby/verbx.git && cd verbx && \
-./scripts/install.sh --prefix "$HOME/.local" && \
+./install.sh --prefix "$HOME/.local" && \
 verbx render ../in.wav out.wav --engine algo --rt60 120 --wet 0.99 --dry 0.01
 ```
 
@@ -53,6 +152,35 @@ verbx render input.wav output.wav --engine algo --rt60 2.5 --wet 0.3 --dry 0.7
 
 This applies a natural-sounding 2.5-second algorithmic reverb. Output is written to `output.wav`, with analysis at `output.wav.analysis.json`.
 
+Need a live preview instead of an offline bounce?
+
+```bash
+verbx realtime --engine algo --input-device "Built-in Microphone" \
+  --output-device "Headphones" --rt60 20 --freeze --shimmer \
+  --fdn-matrix tv-unitary --fdn-tv-rate-hz 0.35 --fdn-tv-depth 0.12 \
+  --lowcut 120 --highcut 9000 --tilt 1.5 --duration 10
+```
+
+Initial realtime mode runs either direct convolution from `--ir` or an
+algorithmic proxy IR rendered once and monitored through the streaming
+convolver. It is meant for auditioning spaces and tails, not yet for the full
+automation/batch feature set. Realtime `--freeze` is an honest approximation:
+it renders a long self-sustaining proxy tail for live auditioning rather than
+reusing the offline segment-freeze operator.
+
+Need live cleanup instead of added space?
+
+```bash
+verbx realtime --live-mode dereverb \
+  --input-device "Built-in Microphone" \
+  --output-device "Headphones" \
+  --sample-rate 48000 --block-size 384 \
+  --dereverb-mode wiener --dereverb-strength 0.85 \
+  --dereverb-window-ms 12 --dereverb-hop-ms 4 --dereverb-tail-ms 90 \
+  --dereverb-pre-emphasis 0.2 --dereverb-max-atten-db 18 \
+  --duration 10
+```
+
 If you need to install first on macOS:
 
 ```bash
@@ -68,6 +196,14 @@ verbx suggest input.wav
 verbx quickstart
 ```
 
+Need the long-form manual?
+
+```bash
+python3 scripts_generate_docs_pdf.py
+```
+
+That writes [`docs/USERGUIDE.md`](docs/USERGUIDE.md) and `USERGUIDE.pdf`, combining this README with the user-facing guides and tip-heavy docs in `docs/`.
+
 ### Five Runnable Examples
 
 ```bash
@@ -81,12 +217,24 @@ verbx render in.wav conv.wav --engine conv --ir hall_ir.wav --partition-size 163
 verbx render in.wav shimmer.wav --engine algo --rt60 12 --wet 0.85 \
   --shimmer --shimmer-semitones 12 --shimmer-mix 0.35 --bloom 2.0
 
-# 4. Broadcast loudness target — -23 LUFS, -1 dBTP true peak
+# 4. Broadcast loudness target — –23 LUFS, –1 dBTP true peak
 verbx render in.wav broadcast.wav --target-lufs -23 --true-peak --target-peak-dbfs -1
 
 # 5. Extreme ambient — 90-second tail, slow evolution, near-frozen
 verbx render in.wav ambient.wav --engine algo --rt60 90 --wet 0.92 \
   --fdn-matrix tv_unitary --fdn-tv-rate-hz 0.08 --bloom 2.0 --tilt 0.8
+
+# 6. Comb-cloud texture — dense metallic haze before the late field
+verbx render in.wav combcloud.wav --engine algo --rt60 6 --wet 0.78 --dry 0.35 \
+  --comb-cloud --comb-cloud-count 32 --comb-cloud-feedback 0.42 --comb-cloud-mix 0.30 \
+  --fdn-lines 12 --fdn-matrix hadamard
+```
+
+```bash
+# Output-definition presets (default is HD)
+verbx render in.wav out_hd.wav --engine conv --ir hall_ir.wav
+verbx render in.wav out_md.wav --engine conv --ir hall_ir.wav --quality-preset md
+verbx render in.wav out_sd.wav --engine conv --ir hall_ir.wav --quality-preset sd
 ```
 
 ## Full Installation Instructions
@@ -98,6 +246,12 @@ git clone https://github.com/TheColby/verbx.git && cd verbx
 uv sync && uv run verbx --help
 ```
 
+For realtime audio device support:
+
+```bash
+uv sync --extra realtime
+```
+
 **With pip + venv:**
 
 ```bash
@@ -105,11 +259,63 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -e . && verbx --help
 ```
 
-**With the install script (installs man pages too):**
+For realtime audio device support:
 
 ```bash
-./scripts/install.sh --prefix "$HOME/.local"
+pip install -e ".[realtime]"
+```
+
+**Complete installation, including native CLI and plug-ins:**
+
+```bash
+./install.sh
 verbx --help && man verbx-render
+man verbx-dereverb
+```
+
+This installs the Python package with realtime and SOFA runtime extras by
+default. Use `--minimal-python`, `--skip-native`, `--skip-plugins`, `--no-man`,
+or custom `--au-dir`, `--vst3-dir`, and `--app-dir` destinations when a smaller
+or system-managed installation is preferable. Inspect the complete plan without
+changing the machine using `./install.sh --dry-run`.
+
+If VERBX does not appear after fully quitting and reopening the DAW, force a
+signed reinstall and Audio Unit cache rebuild on macOS:
+
+```bash
+./install.sh --reset-plugin-cache
+```
+
+VERBX appears under the plug-in vendor **Colby Leider**. Logic and GarageBand
+can use the AUv2 component or the AUv3 app extension; VST3 hosts use
+`VERBX.vst3`. The editor opens at a host-safe 1280x720 and remains fully
+resizable down to 800x450 while preserving the full console layout. The
+installer now signs the nested AUv3 extension before its
+containing app, registers it with PlugInKit, and seals
+and strictly verifies every installed macOS bundle, touches the plug-in paths,
+and restarts the Audio Component Registrar. The explicit cache-reset option
+backs up existing Apple Audio Unit cache files beneath
+`~/.local/share/verbx/cache-backups/` before clearing them. DAW-specific VST3
+caches may still require the host's “rescan all plug-ins” command.
+
+An ad-hoc-signed AUv3 can validate but still fail when Logic launches its app
+extension. To avoid shadowing the reliable AUv2 component, `./install.sh`
+installs but unregisters ad-hoc AUv3 hosting by default. Use an Apple signing
+identity for production AUv3 hosting:
+
+```bash
+./install.sh --codesign-identity "Apple Development: Your Name (TEAMID)"
+```
+
+`--enable-adhoc-auv3` is available only for local extension debugging.
+
+macOS plug-ins build as universal `arm64+x86_64` binaries by default so they
+remain visible to native Apple Silicon DAWs and hosts running under Rosetta.
+The default deployment floor is macOS 12. Override these release defaults only
+when intentionally producing a narrower local build:
+
+```bash
+./install.sh --macos-architectures arm64 --macos-deployment-target 14.0
 ```
 
 **With Homebrew (macOS):**
@@ -128,7 +334,7 @@ For local maintainer testing, you can also install from the in-repo formula:
 brew install --build-from-source ./packaging/homebrew/verbx.rb
 ```
 
-**Requirements:** Python 3.11+, `libsndfile` on system path. Optional: `numba` (faster algorithmic path), `cupy` (CUDA convolution).
+**Requirements:** Python 3.11+, `libsndfile` on system path. Optional: `numba` (faster algorithmic path), `cupy` (CUDA convolution), `h5py` (SOFA import/extract via `verbx ir sofa-*`), `sounddevice` (realtime input/output via `verbx realtime`).
 
 Homebrew maintainer details: [`docs/HOMEBREW.md`](docs/HOMEBREW.md)
 
@@ -138,34 +344,70 @@ If `verbx` is not found after install, add `~/.local/bin` to your PATH:
 export PATH="$HOME/.local/bin:$PATH"   # add to ~/.zshrc or ~/.bashrc
 ```
 
+## Python API (Research Workflows)
+
+Use `verbx` as a library when you need notebook/pipeline integration:
+
+```python
+from verbx.api import analyze_file, generate_ir, render_file
+from verbx.config import RenderConfig
+from verbx.ir import IRGenConfig
+
+report = render_file("dry.wav", "wet.wav", RenderConfig(engine="algo", rt60=2.5, wet=0.7))
+ir_audio, ir_sr, ir_meta = generate_ir(IRGenConfig(mode="fdn", duration=3.0, sr=48000))
+metrics = analyze_file("wet.wav", include_loudness=True)
+```
+
 ## Audio Examples
 
-Rendered examples are included in [`examples/audio/`](examples/audio/). All files are stereo, 24 kHz, PCM16.
+Rendered examples are included in [`examples/audio/`](examples/audio/). The pack is now delivered at 48 kHz, PCM24. Most examples are stereo; the utility click and short hybrid IR files are mono. The shimmer-heavy examples were re-rendered at this higher rate specifically to remove the grit from the older 24 kHz / PCM16 pack.
+
+GitHub repository README pages do not provide reliable inline audio controls. The `Play`
+links below open each asset directly in the browser's native media player with one click.
+
+### Utility and verification files
+
+| File | Play | Description |
+|------|------|-------------|
+| [`dry_click.wav`](examples/audio/dry_click.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/dry_click.wav) | One-shot dry click reference for sanity checks |
+| [`dry_click_reverbed.wav`](examples/audio/dry_click_reverbed.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/dry_click_reverbed.wav) | Reverberated click for immediate A/B verification |
+| [`hybrid_ir_short.wav`](examples/audio/hybrid_ir_short.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/hybrid_ir_short.wav) | Short hybrid IR asset used in quick convolution demos |
+
+### Realistic dry/wet example pairs
+
+| File | Play | Description |
+|------|------|-------------|
+| [`realistic_speech_dry.wav`](examples/audio/realistic_speech_dry.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_speech_dry.wav) | Dry speech source used for room and plate examples |
+| [`realistic_speech_room.wav`](examples/audio/realistic_speech_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_speech_room.wav) | Natural speech room render |
+| [`realistic_music_dry.wav`](examples/audio/realistic_music_dry.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_music_dry.wav) | Dry music source used for ambient and shimmer examples |
+| [`realistic_music_hall.wav`](examples/audio/realistic_music_hall.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_music_hall.wav) | Natural concert-hall style music render, re-tuned for a cleaner less congested tail |
+| [`realistic_drums_dry.wav`](examples/audio/realistic_drums_dry.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_drums_dry.wav) | Dry drum source used for room and cathedral examples |
+| [`realistic_drums_room.wav`](examples/audio/realistic_drums_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_drums_room.wav) | Natural drum room render |
 
 ### Extreme range demos
 
-| File | Description | Key settings |
-|------|-------------|--------------|
-| [`extreme_cathedral_drums.wav`](examples/audio/extreme_cathedral_drums.wav) | Drums → 8s Hadamard FDN cathedral | `--rt60 8.0 --fdn-lines 16 --fdn-matrix hadamard` |
-| [`extreme_shimmer_music.wav`](examples/audio/extreme_shimmer_music.wav) | Music → 6s reverb with octave shimmer | `--shimmer --shimmer-semitones 12 --shimmer-feedback 0.65` |
-| [`extreme_plate_speech.wav`](examples/audio/extreme_plate_speech.wav) | Speech → circulant FDN plate simulation | `--rt60 1.8 --fdn-matrix circulant --lowcut 200 --highcut 6000` |
-| [`extreme_frozen_music.wav`](examples/audio/extreme_frozen_music.wav) | Music → 30s near-infinite tail (32-line FDN) | `--rt60 30.0 --fdn-lines 32 --wet 0.95` |
+| File | Play | Description | Key settings |
+|------|------|-------------|--------------|
+| [`extreme_cathedral_drums.wav`](examples/audio/extreme_cathedral_drums.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/extreme_cathedral_drums.wav) | Drums → 8s Hadamard FDN cathedral | `--rt60 8.0 --fdn-lines 16 --fdn-matrix hadamard` |
+| [`extreme_shimmer_music.wav`](examples/audio/extreme_shimmer_music.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/extreme_shimmer_music.wav) | Music → 6s reverb with octave shimmer | `--shimmer --shimmer-semitones 12 --shimmer-feedback 0.65` |
+| [`extreme_plate_speech.wav`](examples/audio/extreme_plate_speech.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/extreme_plate_speech.wav) | Speech → circulant FDN plate simulation | `--rt60 1.8 --fdn-matrix circulant --lowcut 200 --highcut 6000` |
+| [`extreme_frozen_music.wav`](examples/audio/extreme_frozen_music.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/extreme_frozen_music.wav) | Music → 30s near-infinite tail (32-line FDN) | `--rt60 30.0 --fdn-lines 32 --wet 0.95` |
 
 ### Experimental music tradition demos
 
 Eight examples drawn from the experimental and avant-garde music tradition, each isolating a
 different reverb behavior or aesthetic.
 
-| File | Inspiration | What to listen for |
-|------|------------|-------------------|
-| [`lucier_sitting_room.wav`](examples/audio/lucier_sitting_room.wav) | Alvin Lucier — *I Am Sitting in a Room* | Speech run through the room 7× until only resonant frequencies survive |
-| [`eno_discreet_music.wav`](examples/audio/eno_discreet_music.wav) | Brian Eno — *Discreet Music* / Ambient series | 12s tail swallowing the source into a continuous wash |
-| [`oliveros_deep_listening.wav`](examples/audio/oliveros_deep_listening.wav) | Pauline Oliveros — *Deep Listening* | 18s cave-scale resonance, very low damping, 32-line FDN |
-| [`fripp_frippertronics.wav`](examples/audio/fripp_frippertronics.wav) | Robert Fripp — Frippertronics tape-loop | Octave shimmer with 0.78 feedback accumulating over 8s |
-| [`mbv_shoegaze.wav`](examples/audio/mbv_shoegaze.wav) | My Bloody Valentine — *Loveless* wall of sound | Dense shimmer wash (mix 0.55) through circulant FDN |
-| [`reich_phase_drums.wav`](examples/audio/reich_phase_drums.wav) | Steve Reich — phase minimalism | Tight 0.7s room on percussion, circulant diffusion |
-| [`radigue_drone.wav`](examples/audio/radigue_drone.wav) | Eliane Radigue — *ADNOS* / drone electronics | 45s near-infinite sustain, 32-line Hadamard, wet 0.97 |
-| [`feldman_sparse_room.wav`](examples/audio/feldman_sparse_room.wav) | Morton Feldman — late period | 3.8s room, low wet (0.52), allpass diffusion, contemplative space |
+| File | Play | Inspiration | What to listen for |
+|------|------|-------------|-------------------|
+| [`lucier_sitting_room.wav`](examples/audio/lucier_sitting_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/lucier_sitting_room.wav) | Alvin Lucier — *I Am Sitting in a Room* | Speech run through the room 7× until only resonant frequencies survive |
+| [`eno_discreet_music.wav`](examples/audio/eno_discreet_music.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/eno_discreet_music.wav) | Brian Eno — *Discreet Music* / Ambient series | 12s tail swallowing the source into a continuous wash |
+| [`oliveros_deep_listening.wav`](examples/audio/oliveros_deep_listening.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/oliveros_deep_listening.wav) | Pauline Oliveros — *Deep Listening* | 18s cave-scale resonance, very low damping, 32-line FDN |
+| [`fripp_frippertronics.wav`](examples/audio/fripp_frippertronics.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/fripp_frippertronics.wav) | Robert Fripp — Frippertronics tape-loop | Octave shimmer with 0.78 feedback accumulating over 8s |
+| [`mbv_shoegaze.wav`](examples/audio/mbv_shoegaze.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/mbv_shoegaze.wav) | My Bloody Valentine — *Loveless* wall of sound | Dense shimmer wash (mix 0.55) through circulant FDN |
+| [`reich_phase_drums.wav`](examples/audio/reich_phase_drums.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/reich_phase_drums.wav) | Steve Reich — phase minimalism | Tight 0.7s room on percussion, circulant diffusion |
+| [`radigue_drone.wav`](examples/audio/radigue_drone.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/radigue_drone.wav) | Eliane Radigue — *ADNOS* / drone electronics | 45s near-infinite sustain, 32-line Hadamard, wet 0.97 |
+| [`feldman_sparse_room.wav`](examples/audio/feldman_sparse_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/feldman_sparse_room.wav) | Morton Feldman — late period | 3.8s room, low wet (0.52), allpass diffusion, contemplative space |
 
 Dry source files are in the same directory. See [`examples/audio/README.md`](examples/audio/README.md) for the full render commands.
 
@@ -173,19 +415,130 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.7.2**.
+Current public alpha release: **v0.7.7**.
+
+Current stabilization status:
+
+- Python `0.7.x` render/realtime behavior is stabilized for the current cycle:
+  realtime device failures are clearer, render long-tail flows have fail-fast
+  safeguards or early status output, and render/realtime/dereverb emit
+  machine-readable reports where applicable.
+- CLI/docs/test consolidation is complete for Weeks 1–3 of the short-horizon
+  plan: shared validators are extracted, generated docs/PDF are in sync, and
+  focused regression coverage covers realtime, dereverb, limiter, and long-tail
+  behaviors.
+- Current native-track decision: `v0.8` is a hybrid transition release, with
+  `verbx-c` shipped as an opt-in native render/doctor binary while the Python
+  CLI remains the public alpha default. See
+  [`docs/ROADMAP_NEXT_4_WEEKS.md`](docs/ROADMAP_NEXT_4_WEEKS.md).
 
 - `verbx` is currently research-grade software (public alpha), not production-certified.
 - Confirm your environment with `verbx quickstart --verify --strict` and `verbx doctor`.
 - Verify one algorithmic render and one convolution render before batch usage.
+- For live monitoring, verify `verbx realtime --list-devices` before relying on realtime auditioning.
 - For reproducible reports and bug submissions, attach `--repro-bundle` outputs and `verbx doctor --json-out doctor.json`.
 - For demo-ready outputs, keep `--true-peak --target-peak-dbfs -1` enabled when files will be transcoded.
 - Public alpha scope, known limitations, and support paths:
   [`docs/PUBLIC_ALPHA_NOTES.md`](docs/PUBLIC_ALPHA_NOTES.md)
 - Launch-week pinned demo commands and expected SHA256 outputs:
   [`docs/LAUNCH_WEEK_DEMO_PINS.md`](docs/LAUNCH_WEEK_DEMO_PINS.md)
+- Canonical launch-example parity check:
+  `python scripts/check_launch_examples.py --check`
 - PyPI publish auth setup for maintainers:
   [`docs/PYPI_PUBLISH_SETUP.md`](docs/PYPI_PUBLISH_SETUP.md)
+
+---
+
+## v0.8 Native Track
+
+`v0.8` is the planned native C executable line. The released tool remains the
+Python implementation in `v0.7.x`, but the native rewrite has now started with
+an executable scaffold under [`native/verbx_c/README.md`](native/verbx_c/README.md).
+The live feature/gap table is tracked in
+[`docs/NATIVE_PARITY.md`](docs/NATIVE_PARITY.md).
+
+Chosen `v0.8` release shape: **hybrid wrapper phase before full replacement**.
+`verbx-c` is the opt-in native executable for deterministic offline render,
+doctor diagnostics, and machine-readable native support bundles. The Python
+`verbx` CLI remains the default for realtime, dereverb, convolution, IR tools,
+batch workflows, immersive utilities, and the full FDN feature surface until
+native parity is proven by the checked-in contract fixtures.
+
+Current native status:
+
+- standalone `verbx-c` executable target
+- portable C11 build path via `scripts/build_verbx_c.sh`
+- implemented commands: `help`, `version`, `doctor`, `render`
+- mono/stereo WAV input: PCM16/24/32 and float32/float64
+- mono/stereo WAV output: `pcm16`, `float32`, `float64`
+- deterministic offline render lifecycle in C: read -> process -> tail-finalize -> write
+- explicit native process/error contract surfaced in `verbx-c doctor`
+- native tail-stop metric selection: `--tail-metric peak|rms`
+- native peak-safe output: `--peak-safe --peak-ceiling-db DB`
+- native JSON reports: `doctor --json-out` and `render --json-out`
+- foundational native algorithmic reverb core with float64 internal processing
+- reusable `verbx_c_core` library with a tested plug-in parameter manifest
+- realtime context API with persistent mono/stereo reverb state, quality-target
+  status, zero-latency reporting, Freeze, and reverse-style swell behavior
+- guarded C++/JUCE AU, AUv3, VST3, and standalone shell with the complete
+  initial control dock and realtime spectrum overlay
+- plug-in RT60 coarse/fine mapping and native render floor aligned at `0.01s`
+
+`v0.8` in scope:
+
+- `verbx-c doctor` and `verbx-c render`
+- deterministic mono/stereo WAV offline render
+- `pcm16`, `float32`, and `float64` output
+- render/doctor JSON reports for support bundles
+- parity comparison against `tests/fixtures/native_render_parity_contract.json`
+
+Deferred beyond the first `v0.8` slice:
+
+- replacing Python `verbx` as the default command
+- full native realtime reverb DSP and device/DAW production validation
+- convolution, dereverb, IR synthesis/morphing, batch, immersive, and AI helpers
+- full Python FDN parity, automation lanes, shimmer/freeze/repeat, and broad preset coverage
+
+Example native smoke test:
+
+```bash
+./scripts/build_verbx_c.sh --doctor
+scripts/install_verbx_c.sh --prefix "$HOME/.local" --doctor
+./build/native/verbx_c/verbx-c render in.wav out.wav \
+  --rt60 3.5 \
+  --peak-safe \
+  --out-format float32 \
+  --json-out native-render.json
+```
+
+---
+
+## Experimental DXF Room Tracing
+
+`verbx ir trace` is the first bounded physical-acoustics prototype: it reads a
+simple room-like DXF outline, generates a stereo IR, and writes a
+`trace-report-v1` support bundle.
+
+```bash
+verbx ir trace room.dxf room_ir.wav \
+  --source 2,3,1.5 \
+  --listener 6,4,1.5 \
+  --height 3 \
+  --material studio \
+  --rays 50000 \
+  --length 4 \
+  --target-sr 48000 \
+  --json-out room_trace.json
+
+verbx render dry.wav in_room.wav --engine conv --ir room_ir.wav
+```
+
+This MVP supports ASCII DXF `LINE`/`LWPOLYLINE` 2D room outlines and derives an
+axis-aligned room box with direct path, first-order reflections, and a
+stochastic late tail. `--material` now validates against octave-band material
+profiles such as `studio`, `drywall`, `glass`, `concrete`, `carpet`,
+`acoustic-panel`, and `diffuser`; `trace-report-v1` records those absorption
+bands plus scattering metadata. See [`docs/DXF_TRACE_MVP.md`](docs/DXF_TRACE_MVP.md).
 
 ---
 
@@ -201,19 +554,2655 @@ Note: Homebrew blog posts cover Homebrew project releases and ecosystem updates;
 
 ## What Is Reverb? (and Why Does verbx Sound Different)
 
-When sound leaves a source in a physical space, it arrives at a listener via multiple paths: the direct path, early reflections from nearby surfaces, and a dense late diffuse field that gradually decays as energy is absorbed by materials and air. The perceptual result — the sense of space — depends on the timing, density, and spectral character of that decay. A bathroom might have an RT60 around 0.5 seconds. A large concert hall is typically 1.5–2.5 seconds. A cathedral can reach 8–12 seconds. The human auditory system is acutely sensitive to these cues and uses them to infer room size, distance from source, and surface hardness. This is why reverb affects not just the sound of a recording, but the perceived physicality of it.
+Reverberation is sound continuing after its cause. A bow leaves a string, a singer
+closes a consonant, or a snare head stops moving, yet acoustic energy remains in the
+room. That energy has taken paths longer than the direct route from source to listener.
+It has reflected from floors, walls, ceilings, seats, bodies, scenery, and architectural
+details; each encounter has changed its level, spectrum, direction, and arrival time.
+The sum of those arrivals is not merely an effect placed behind the source. It is part
+of how a listener estimates distance, scale, material, orientation, and even the social
+character of a performance space.
 
-In digital audio production, reverb is synthesized one of two ways. Algorithmic reverbs construct the room response from digital signal processing structures — delay networks, filters, and feedback topologies — shaped to produce the statistical properties of a real room without simulating any specific one. Convolution reverbs play back a recorded or synthesized impulse response, which captures everything about a real space in a single linear filter. Each approach has genuine advantages: algorithmic is controllable, computationally efficient at extreme lengths, and creates spaces that do not physically exist; convolution is realistic and reproducible from measured spaces.
+This chapter treats reverb as three things at once: an acoustic event, a perceptual
+cue, and a compositional material. It begins with the path from a physical source to a
+listener, moves through practical musical examples, and then opens the DSP structures
+that produce the result. The final sections explain why verbx can resemble a room at
+short settings yet become an instrument of very long musical time at extreme settings.
 
-Most reverb tools top out at RT60 values between 10 and 30 seconds. verbx is designed for extreme decay lengths — up to 3600 seconds — without the numerical instability that typically kills long algorithmic tails. The key is the Feedback Delay Network design: 64-bit internal precision everywhere, per-line gain calibration from the exact RT60-to-gain formula, and a choice of eight feedback matrix families that let you control tail diffusion and decay coloration independently from decay time. At 120 seconds of RT60, you are not simulating any physical space — you are synthesizing a temporal dimension that does not exist acoustically. That's the point. Beyond the algorithmic side, the convolution engine supports true $M \times N$ matrix routing for multichannel spaces, and the IR synthesis toolchain generates IRs up to 3600 seconds in four modes with deterministic caching so the same seed always produces the same space.
+### The Acoustic Event: Direct Sound, Early Reflections, and Late Field
 
-The Schroeder frequency is often approximated as:
+When sound leaves a source, the first arrival is usually the direct path. It carries the
+clearest localization information and the sharpest transient. Reflections arriving in
+the next several tens of milliseconds form the early-reflection pattern. Their timing
+and direction tell the ear whether boundaries are close or far, symmetrical or
+irregular, hard or absorptive. After enough reflections, individual paths become too
+dense to follow. The listener hears a late field whose statistical behavior matters
+more than the identity of any one echo.
+
+The figure below separates those three time regions before they combine at the ear.
+It is deliberately a perceptual diagram rather than a floor plan: the same room can
+produce different direct-to-reverberant balances when the source or listener moves.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/01_acoustic_event_anatomy.png
+flowchart LR
+    S["Sound source"] --> D["Direct path"]
+    S --> E["Early reflections<br/>10–80 ms"]
+    S --> L["Late diffuse field"]
+    D --> R["Listener or microphone"]
+    E --> R
+    L --> R
+    R --> P["Perceived distance,<br/>size, and material"]
+```
+
+**Figure: Anatomy of a reverberant event from source to perception.**
+
+**How to read this figure.** The upper path preserves source identity and position.
+The middle path supplies discrete boundary information: a strong floor reflection may
+add weight, while a lateral reflection may add width. The lower path carries the room's
+integrated memory. A production can alter each path separately with pre-delay,
+early/late balance, diffusion, damping, and wet/dry mix. “More reverb” is therefore not
+one operation. It may mean more early energy, a longer late decay, a darker tail, a
+wider return, or a lower direct-to-reverberant ratio.
+
+The boundaries are not absolute. A reflection at 45 ms may be heard as part of the
+source on a legato cello phrase and as a distinct slap after a rimshot. Tempo,
+articulation, register, masking, and playback level all change the perceptual threshold.
+The useful engineering question is not simply “How many milliseconds is early?” but
+“What musical role does this arrival play?”
+
+#### Four Time Scales in One Sound
+
+Reverb becomes easier to design when heard at four nested time scales. The first is the
+waveform cycle, measured in fractions of a millisecond; phase and comb filtering live
+here. The second is the onset window, roughly the first 80 ms; localization,
+pre-delay, and early reflections live here. The third is the phrase window, from a few
+hundred milliseconds to several seconds; note overlap, clarity, and cadence live here.
+The fourth is formal time, from tens of seconds to minutes; freeze, recirculation, and
+extreme RT60 settings live here.
+
+A 20 ms pre-delay is tiny compared with a symphonic phrase but large compared with the
+period of a 1 kHz tone. A two-second tail is long compared with a sixteenth note at 120
+BPM but short compared with the pause after a cathedral cadence. A 120-second tail no
+longer describes an ordinary enclosure: it becomes a layer of form. verbx sounds
+different partly because its controls remain meaningful across all four scales.
+
+#### RT60 Is Important, but It Is Not the Sound
+
+RT60 is the time required for reverberant energy to decay by 60 dB. It is a useful
+summary because it turns a complex response into a number that can be compared across
+rooms and algorithms. It is not a complete description. Two reverbs can share an RT60
+and differ radically in onset, echo density, modal coloration, high-frequency loss,
+stereo behavior, and how smoothly they reach the noise floor.
+
+For a nearly exponential decay, relative level follows
 
 $$
-f_s \approx 2000\sqrt{\frac{T_{60}}{V}}
+L(t) \approx -60\frac{t}{T_{60}} \ \text{dB}.
 $$
 
-where $f_s$ is in hertz, $T_{60}$ is RT60 in seconds, and $V$ is room volume in $\mathrm{m}^3$. This is the threshold below which modal behavior dominates over diffuse statistics. For very long tails and large virtual spaces, this boundary sits low in the frequency range, meaning the modal structure of the FDN matters more, not less, than in short-room design. verbx exposes direct control over that structure: matrix type, delay line count, per-band RT60 targets, and time-varying decorrelation rates, so you can design long tails that remain spectrally coherent rather than metallic or ringing.
+At half the RT60, the idealized tail is 30 dB below its starting level. At one quarter,
+it is 15 dB down. Music complicates this simple line: the source may continue exciting
+the room, different frequency bands may decay at different rates, and a time-varying
+network may exchange energy between modes. The number is still valuable, but the ear
+hears the complete energy distribution.
+
+The Schroeder frequency gives a second useful boundary:
+
+$$
+f_s \approx 2000\sqrt{\frac{T_{60}}{V}},
+$$
+
+where $f_s$ is in hertz, $T_{60}$ is in seconds, and $V$ is room volume in cubic
+meters. Below this approximate transition, individual modes tend to be perceptually
+important; above it, a statistical diffuse-field model becomes more plausible. In a
+virtual reverb, delay lengths and feedback topology create an analogous modal region.
+Long RT60 values make weakly damped modes easier to hear, so a stable gain formula is
+not enough: delay distribution, matrix structure, modulation, and spectral correction
+must also be designed well.
+
+#### Space, Distance, and the Direct-to-Reverberant Ratio
+
+Listeners often interpret reverb level as distance. A close source normally has a high
+direct-to-reverberant ratio; a distant source has a lower one. But level alone is
+ambiguous. A close singer in a highly reflective chamber may have more reverberant
+energy than a distant singer outdoors. High-frequency attenuation, early-reflection
+timing, and the ratio of frontal to lateral energy help resolve the scene.
+
+In a mix, preserve these relationships deliberately. Raising only the wet return can
+move a source backward, but excessive high-frequency content may make the return feel
+unnaturally close. Increasing pre-delay can preserve a close, intelligible dry onset
+while retaining a large room. Rolling low frequencies out of the return can reduce
+masking without making the room seem smaller. The art is to decide which distance cues
+the music needs and which it can contradict for expressive reasons.
+
+### Musical Examples
+
+The musical examples in this section use synthetic study recordings shipped in
+`examples/audio/`. They are not excerpts from the named historical works discussed in
+the listening appendix. Each sonogram plots time in seconds along the horizontal axis,
+frequency in hertz on a logarithmic vertical axis, and level in decibels relative to
+the loudest time-frequency cell. Light gold marks stronger energy; dark green marks
+weaker energy. A sonogram cannot replace listening, but it makes note overlap, spectral
+decay, and sustained resonances visible. Every paired figure uses one shared time scale
+from zero to the longer recording's endpoint. When the shorter recording ends, its panel
+continues at the –80 dB floor instead of stretching the source to fill the plot.
+
+#### Listening Method: Compare Dry, Wet-Only, and Context
+
+For every example, make three passes. First hear the dry source and mark attacks,
+releases, rests, and registral changes. Then hear the wet-only return and ask what the
+space is doing as an independent musical layer. Finally hear the mix and decide whether
+the return supports or contradicts the source. A tail can be beautiful alone and still
+damage a phrase by masking its next attack.
+
+Monitor at a stable level. Long tails invite level creep because their peaks are often
+lower than the dry source while their integrated energy is high. Compare at matched
+loudness, leave headroom, and listen through the final decay rather than stopping at
+the last written note. The end of the tail is part of the example.
+
+#### Example 1: The Click Reveals the Room
+
+An impulse is the most analytical source because it contains no phrase to hide the
+response. The dry click below occupies a narrow time slice across a broad frequency
+range. Its reverberated version reveals pre-delay, early clusters, the transition to a
+dense field, and the final frequency-dependent decay. Listen to the shipped
+[`dry_click.wav`](examples/audio/dry_click.wav) and
+[`dry_click_reverbed.wav`](examples/audio/dry_click_reverbed.wav) before studying the
+figure.
+
+The sonogram below makes the room's temporal spreading visible. The dry event is nearly
+vertical; the wet event extends horizontally as reflected energy persists.
+
+![Dry click and reverberated click sonograms](docs/assets/reverb_primer/11_click_room_sonogram.png)
+
+**Figure: Dry click compared with its reverberated response.**
+
+**How to read this figure.** The click's broadband stripe is an excitation, not a
+musical pitch. In the reverberated panel, later vertical traces indicate discrete
+reflections; the smoother horizontal fade is the late field. If the late field shows
+isolated horizontal ridges, the algorithm is emphasizing modes. If the entire panel
+stays uniformly bright, the return may be too dense or too compressed. A good design
+need not look perfectly smooth, but visible structures should correspond to an intended
+sonic character rather than accidental ringing.
+
+Use the click when changing matrix family, allpass count, or delay distribution. It is
+less forgiving than music and quickly exposes flutter, repeated periods, and abrupt
+gates. Then return to music: a technically smooth click response is only useful if the
+result serves phrasing.
+
+#### Example 2: Piano or Harmonic Phrase in a Hall
+
+A chordal phrase tests harmonic continuity. Short room settings add body around each
+attack; hall settings connect notes across releases and rests. The direct signal must
+remain intelligible enough that the harmony changes when the player changes it, not one
+beat later. This tension is central to piano, harp, mallet percussion, and plucked
+strings.
+
+The paired sonograms below compare the shipped dry musical phrase with its hall render.
+The same harmonic ridges appear in both panels, but the hall connects them and extends
+the final cadence beyond the source.
+
+![Dry musical phrase and hall-render sonograms](docs/assets/reverb_primer/12_music_hall_sonogram.png)
+
+**Figure: Harmonic phrase before and after hall reverberation.**
+
+**How to read this figure.** In the dry panel, each chord has a clear left edge and a
+visible release. In the hall panel, the ridges continue between attacks, especially in
+the low-middle register. That continuation is musical glue until it obscures harmonic
+rhythm. The darker high-frequency area near the end shows damping: upper partials leave
+before lower energy. If every band decayed equally, the hall would tend to sound bright
+and synthetic; if lows persisted far longer, cadences could become muddy.
+
+Reproduce a controlled version with:
+
+```bash
+verbx render examples/audio/realistic_music_dry.wav /tmp/music_hall.wav \
+  --engine algo --rt60 2.4 --pre-delay-ms 24 \
+  --wet 0.38 --dry 0.78 --fdn-lines 16 --fdn-matrix hadamard \
+  --lowcut 90 --highcut 11000 --target-peak-dbfs -1
+```
+
+For a Romantic cadence, increase RT60 before increasing wet level. For a contrapuntal
+passage, reduce wet level and length, or use ducking so each attack remains legible.
+Treat pre-delay as phrasing space: 20–35 ms can separate the hammer or pluck from the
+room without making the response feel like a discrete echo.
+
+#### Example 3: Drums, Early Reflections, and Groove
+
+Percussion makes the difference between early reflections and late decay obvious. Early
+energy changes apparent drum size and room boundary; late energy determines how long
+the groove occupies the mix. A short, bright room can make a snare feel larger without
+smearing the kick pattern. A cathedral tail can turn the same rhythm into overlapping
+waves whose accents are defined by the return rather than the source.
+
+The following sonograms compare a dry drum pattern and a room render. The attacks remain
+vertical and separately readable, while low-level energy fills the gaps.
+
+![Dry drums and room-render sonograms](docs/assets/reverb_primer/13_drums_room_sonogram.png)
+
+**Figure: Drum transients before and after a short room response.**
+
+**How to read this figure.** The dry panel has dark space between attacks. The room
+panel retains vertical transients but adds short horizontal fans after them. Those fans
+are long enough to supply body and short enough to preserve subdivision. Watch the
+low-frequency region: excessive persistence there can make a kick drum appear longer
+without sounding more spacious. A return high-pass filter often improves groove more
+effectively than shortening the entire RT60.
+
+Try a compact room and a tempo-related pre-delay:
+
+```bash
+verbx render examples/audio/realistic_drums_dry.wav /tmp/drums_room.wav \
+  --engine algo --rt60 0.85 --pre-delay 1/64 --bpm 120 \
+  --wet 0.26 --dry 0.88 --fdn-lines 8 --fdn-matrix circulant \
+  --lowcut 140 --highcut 9000
+```
+
+The note-value pre-delay makes the experiment repeatable at a new tempo. Do not assume
+that synchronizing always sounds better: a slightly non-metric onset can keep the room
+from reinforcing every beat in the same way.
+
+#### Example 4: Cathedral-Scale Percussion
+
+Very long percussion reverb changes the hierarchy of events. The first strike excites
+a field that is still active when later strikes arrive. Each new attack is therefore
+both a source event and a modulation of an existing texture. In a physical cathedral,
+architectural asymmetry and air absorption prevent perfect repetition. In an algorithm,
+matrix choice and time variation must perform some of that work.
+
+The sonogram below shows the shipped cathedral drum study. Broad attacks enter a field
+whose low and middle bands remain active for many seconds.
+
+![Cathedral-scale percussion sonogram](docs/assets/reverb_primer/14_cathedral_drums_sonogram.png)
+
+**Figure: Percussion rendered through an eight-second Hadamard FDN cathedral.**
+
+**How to read this figure.** Vertical energy identifies new strikes; horizontal clouds
+show accumulated room memory. Notice that successive attacks do not reset the field.
+They add energy to frequencies already decaying. The result can create a slow harmonic
+rhythm unrelated to the written drum rhythm. This is why long percussion reverbs often
+benefit from lower wet level, greater high-frequency damping, and automation that
+allows selected accents to enter the long return.
+
+This listening problem appears dramatically in Berlioz's *Grande Messe des morts* and
+in antiphonal repertory designed for large architecture: distance and decay become
+orchestration. A production need not imitate a specific church to learn the lesson.
+Send only structural attacks to the longest return and let smaller notes articulate the
+foreground.
+
+#### Example 5: Voice, Consonants, and Vowels
+
+Voice contains two different reverb tests. Consonants are short, often broadband, and
+carry intelligibility. Vowels are sustained, harmonic, and carry pitch and identity.
+A return that flatters vowels can mask consonants; a setting optimized for speech
+clarity may feel too dry for lyric singing.
+
+The paired sonograms below show dry speech and a room render. Read the short upper-band
+bursts as consonant activity and the horizontal harmonic stacks as vowels.
+
+![Dry speech and speech-room sonograms](docs/assets/reverb_primer/21_speech_room_sonogram.png)
+
+**Figure: Speech articulation before and after room reverberation.**
+
+**How to read this figure.** The room extends vowel bands and places a low-level veil
+after consonant bursts. Intelligibility decreases when that veil is still strong at the
+next consonant. Pre-delay can protect the initial consonant; ducking can protect every
+active syllable; high-frequency damping can prevent sibilance from turning into a
+persistent hiss. None of those changes requires abandoning a long lyrical tail.
+
+For a vocal send, start with:
+
+```bash
+verbx render vocal.wav /tmp/vocal_space.wav \
+  --engine algo --rt60 2.8 --pre-delay-ms 32 \
+  --wet 0.42 --dry 0.78 --duck --duck-attack 12 --duck-release 260 \
+  --duck-strength 0.72 --duck-floor 0.20 --lowcut 160 --highcut 9500
+```
+
+The release time is a musical control. A short release lets the tail rise between
+syllables; a longer release waits for the end of a line. Automate return level at phrase
+ends rather than forcing one static setting to solve every word.
+
+#### Example 6: Plate-Like Brightness on Speech and Singing
+
+A plate-like reverb is dense early, smooth, and often bright. It does not need to
+convince the listener that the singer occupies a literal metal plate. Its musical role
+is to extend the voice without introducing obvious room geometry. Circulant and other
+regular FDN matrices can approach this character when delay distribution, diffusion,
+and damping are carefully controlled.
+
+The single sonogram below shows the shipped plate speech study. Sibilant energy spreads
+into a fine upper-band tail while vowels remain stronger lower in the spectrum.
+
+![Plate-like speech-reverb sonogram](docs/assets/reverb_primer/22_plate_speech_sonogram.png)
+
+**Figure: Speech rendered through a bright circulant-FDN plate study.**
+
+**How to read this figure.** The upper spectrum remains active after several consonants,
+but it does not dominate the complete tail. A bright return feels polished when that
+energy is diffuse; it feels brittle when isolated high-frequency modes ring. Compare
+the visual smoothness with what you hear. A sonogram may show continuous energy while
+the ear still detects a metallic repetition, especially on headphones.
+
+Plate-like returns work well as a second vocal layer. Keep a darker room or chamber for
+depth, then add the bright plate at lower level for sustain. The two returns should have
+different onset and decay profiles; duplicating the same timing merely raises level.
+
+#### Example 7: Sparse Music and the Composition of Silence
+
+Sparse music reveals the full envelope of every return. A single note is followed by a
+field, then by the field's disappearance. The listener can hear modulation, modal
+beating, noise-floor behavior, and the exact moment the processor closes or truncates.
+In dense music these details hide under new events; in sparse music they become form.
+
+The upper panel below is a sparse-note room study, while the lower panel is a phase-drum
+study. Together they show how the same idea of “space” must behave differently when
+silence is structural versus when pulse is continuous.
+
+![Sparse-note and phase-rhythm sonograms](docs/assets/reverb_primer/17_sparse_and_phase_sonograms.png)
+
+**Figure: Sparse-note room behavior compared with a dense phase-rhythm field.**
+
+**How to read this figure.** In the sparse panel, each note owns a visible decay region;
+the dark gaps are compositional material. An abrupt cutoff would be obvious. In the
+rhythmic panel, repeated attacks create nearly continuous energy, so the return is judged
+by groove, masking, and spectral accumulation instead. The same RT60 number has
+different consequences because the excitation density differs.
+
+The practical lesson is to set reverb while hearing the actual event density. A preset
+auditioned on sustained pads says little about its behavior on isolated piano harmonics.
+For music in the orbit of Morton Feldman's spacious pacing, let the tail complete its
+gesture. For repeating-process textures, decide whether the room should reveal the
+process or fuse it into a single surface.
+
+#### Example 8: Antiphony, Choir, and Architectural Counterpoint
+
+Thomas Tallis's *Spem in alium* and Giovanni Gabrieli's *In ecclesiis* demonstrate that
+space can participate in counterpoint. Groups answer across distance; reflections bind
+the ensemble while directional differences preserve identity. A stereo reverb can
+suggest some of this behavior, but an immersive or multichannel design can make
+direction and decay independent compositional parameters.
+
+Begin by separating source groups before adding reverb. Give each group a distinct send
+level, pre-delay, or early-reflection pattern while sharing a coherent late field. If
+every group receives an unrelated complete room, the image may become wide but cease to
+feel like one architecture. If every group receives an identical mono return, the
+counterpoint may collapse toward the center.
+
+A useful exercise is to route four phrase groups into one long FDN, vary only their
+input projections or channel positions, and keep the late feedback network common. The
+shared tail supplies architectural identity; the distinct injections preserve
+antiphonal placement. At cadences, automate the longest return upward only after the
+last consonant so the room completes the formal punctuation.
+
+#### Example 9: Drone, Organ Pedal, and Slow Harmonic Time
+
+Sustained sources do not reveal RT60 directly because they keep feeding the room. They
+reveal spectral equilibrium: which bands accumulate, which modes beat, and whether the
+network remains stationary or slowly evolves. Organ pedals, bowed tones, feedback
+guitar, and electronic drones can expose a one-decibel imbalance that short sources
+never reveal.
+
+The paired sonograms below compare a layered ambient study and a long-form drone study.
+The horizontal bands make slow changes visible; the important information is not only
+how long energy lasts, but how its distribution changes while the source continues.
+
+![Ambient-layer and long-drone sonograms](docs/assets/reverb_primer/18_drone_time_sonograms.png)
+
+**Figure: Two sustained musical textures viewed across slow harmonic time.**
+
+**How to read this figure.** Persistent horizontal ridges represent stable harmonic or
+modal energy. Changes in brightness reveal entries, exits, or spectral drift. A reverb
+on this material should avoid pinning the entire texture to a few accidental resonances.
+Time-varying matrices, slight modulation, or tonal correction can distribute energy
+without turning the return into an obvious chorus.
+
+In repertoire such as Ligeti's *Lux Aeterna* or Messiaen's *Et exspecto resurrectionem
+mortuorum*, spectral mass, register, and architectural decay shape the listener's sense
+of time. For an electronic analogue, automate matrix motion more slowly than the phrase
+rate. Fast motion reads as modulation; slow motion reads as a changing room.
+
+#### Example 10: Recirculation as Musical Form
+
+Repeatedly feeding a recording back through a room or a reverb gradually replaces the
+source's detailed spectrum with the resonances of the system. Alvin Lucier's *I Am
+Sitting in a Room* makes this transformation the complete form. Tape-loop and delay
+practices create related processes: the return is not decoration but a memory that
+re-enters the next generation.
+
+The sonograms below compare a tape-loop-style study and a room-recirculation study. Both
+show source detail consolidating into longer spectral bands.
+
+![Tape-loop and room-recirculation sonograms](docs/assets/reverb_primer/19_recirculation_sonograms.png)
+
+**Figure: Recirculation processes that turn a source into a resonant field.**
+
+**How to read this figure.** Early in each panel, attacks and pitch changes remain
+distinct. Later, selected bands become dominant because every pass reinforces the same
+system. A perfectly neutral loop would preserve the source indefinitely, but musical
+recirculation depends on selective memory. The engineering task is to make that
+selection intentional and bounded.
+
+With verbx, `--repeat` performs sequential reprocessing. Start conservatively, render
+to floating point, and measure every generation:
+
+```bash
+verbx render source.wav /tmp/room_generation.wav \
+  --engine algo --rt60 3.5 --repeat 5 --wet 0.86 --dry 0.14 \
+  --fdn-lines 16 --fdn-matrix hadamard --lowcut 80 \
+  --out-format float32 --json-out /tmp/room_generation.json
+```
+
+The JSON sidecar is part of the composition record. It lets another listener reproduce
+the transformation rather than relying on a screenshot of controls.
+
+#### Example 11: Dense Guitar and Deep-Listening Fields
+
+Dense broadband material and slowly unfolding spatial material can both fill a
+sonogram, but they challenge reverb differently. A dense guitar field may already
+contain distortion, modulation, and layered delays; a new long return can reduce depth
+by filling every remaining gap. A deep-listening texture may leave more room for the
+reverb to reveal low-level spatial changes.
+
+The paired sonograms below show these contrasting fields. The upper panel is dense and
+continuous; the lower panel contains more visible internal movement and open regions.
+
+![Dense guitar-field and deep-listening sonograms](docs/assets/reverb_primer/20_dense_field_sonograms.png)
+
+**Figure: Dense production field compared with a spacious deep-listening study.**
+
+**How to read this figure.** In the dense panel, added reverb changes envelope and width
+more readily than it reveals a new room; there is little unoccupied spectrum. In the
+lower panel, the return can articulate trajectories and decays. Use this comparison to
+decide whether a source needs more duration or merely a different spatial envelope.
+
+For dense material, automate narrow throws, filter the return aggressively, or place
+only selected stems in the longest space. For sparse spatial material, preserve dynamic
+range and inspect the noise floor: the quietest part of the tail may be where motion is
+most audible.
+
+#### Example 12: Shimmer as Register, Not Glitter
+
+Shimmer pitch-shifts part of the wet field and feeds or blends it back into the return.
+The obvious octave-up setting can sound decorative when used continuously, but it
+becomes compositional when treated as register. A low source can seed a high sustained
+line; an upper melody can generate a halo that changes harmony at phrase boundaries.
+
+The sonogram below shows the shipped shimmer study. New energy appears above the source
+bands and persists through the tail.
+
+![Octave-shimmer musical sonogram](docs/assets/reverb_primer/15_shimmer_sonogram.png)
+
+**Figure: Octave-shifted feedback extending a musical phrase into the upper register.**
+
+**How to read this figure.** Compare the bright upper ridges with the lower source
+energy that excites them. Shimmer is not a broadband treble boost: it creates new
+frequency relationships. Excess feedback makes these upper bands accumulate and can
+change the harmony. A low-cut before the pitch shifter prevents bass energy from
+producing a crowded octave layer; a high-cut after it can soften alias-like brightness.
+
+```bash
+verbx render music.wav /tmp/music_shimmer.wav \
+  --engine algo --rt60 10 --wet 0.78 --dry 0.34 \
+  --shimmer --shimmer-semitones 12 --shimmer-mix 0.34 \
+  --shimmer-feedback 0.68 --shimmer-lowcut 280 --shimmer-highcut 12000 \
+  --target-peak-dbfs -2
+```
+
+Write the shimmer entry into the arrangement. Bring it in for one cadence, a bridge,
+or the final resonance rather than leaving it at one level for the entire piece.
+
+#### Example 13: Freeze and the Harmonic Field
+
+Freeze captures a segment and sustains it through a near-static or very long loop. The
+source segment becomes the “instrument body” of the frozen field. A capture containing
+one clean interval tends to remain legible; a capture spanning a chord change can
+create beating or harmonic ambiguity. The best capture point is therefore a musical
+decision, not just a technical one.
+
+The following sonogram shows the shipped frozen-music study. It extends for more than
+half a minute, making the gradual loss and redistribution of energy easy to see.
+
+![Frozen harmonic-field sonogram](docs/assets/reverb_primer/16_freeze_sonogram.png)
+
+**Figure: A captured musical interval sustained as a near-infinite reverberant field.**
+
+**How to read this figure.** The strongest initial excitation sits at the left, but
+stable harmonic bands continue across much of the panel. Their slow decline distinguishes
+this bounded freeze from a perfectly lossless loop. A truly infinite mode must still
+manage DC, denormals, modulation, and output level; “infinite” describes sustain intent,
+not permission for uncontrolled numerical growth.
+
+Compose a transition by freezing the last harmony of one section, changing the dry
+material underneath it, and releasing the field only after the new harmony has become
+stable. The listener hears the previous section as literal acoustic memory.
+
+#### Example 14: Send/Return Reverb as Counterpoint
+
+Insert reverb and send/return reverb encourage different musical thinking. An insert
+asks how a processor transforms one track. A send asks what independent spatial layer
+several sources contribute to. The return can have its own dynamics, automation,
+equalization, and formal entrances.
+
+The Mermaid signal-flow figure below shows the dry and wet paths as parallel musical
+voices. The return is intentionally labeled as counterpoint rather than residue.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/10_musical_send_return.png
+flowchart LR
+    S["Voice or instrument"] --> D["Dry fader"]
+    S --> A["Aux send level"]
+    A --> V["verbx<br/>100% wet"]
+    V --> R["Return fader<br/>and automation"]
+    D --> M["Stereo or immersive mix"]
+    R --> M
+```
+
+**Figure: Musical send and return treated as parallel articulation and spatial counterpoint.**
+
+**How to read this figure.** The dry fader controls foreground articulation. The aux
+send controls how much each source excites the shared space. The return fader controls
+the room as a layer after all excitations have combined. Automating the send changes
+what enters memory; automating the return changes how much of that memory is heard.
+Those gestures are not equivalent. A post-phrase send throw produces a different tail
+than raising a return that has been accumulating all along.
+
+### DSP Overview
+
+Digital reverberation begins with an impulse response $h[n]$: the output produced by a
+unit impulse. For a linear time-invariant system, any input $x[n]$ produces
+
+$$
+y[n] = x[n] * h[n] = \sum_{k=-\infty}^{\infty} x[k]h[n-k].
+$$
+
+Convolution reverb stores or synthesizes $h[n]$ and evaluates that sum efficiently.
+Algorithmic reverb builds a recursive system whose impulse response emerges from delay,
+filter, and feedback operations. Both approaches can produce excellent results. Their
+differences concern control, memory, latency, time variation, and the kinds of spaces
+they make easy to design.
+
+The detailed diagrams in this section use the implementation-level graph grammar found
+in Julius O. Smith's [Schroeder Reverberators](https://ccrma.stanford.edu/~jos/pasp/Schroeder_Reverberators.html):
+rectangular transfer blocks, named branch signals, explicit gains and delays, summing
+junctions, and output matrices. The figures are original verbx diagrams with independent
+example values. Read arrows as signal paths, $z^{-M}$ as a delay of $M$ samples, circles
+as sums, and a returning path as state that will affect a future output sample.
+
+#### Discrete-Time Foundations: Samples, Delays, and State
+
+A digital reverberator does not manipulate a continuous acoustic field directly. It
+updates a finite collection of numbers at the sample rate. If the sample rate is $f_s$
+hertz, sample $n$ occurs at time
+
+$$
+t_n = \frac{n}{f_s}.
+$$
+
+One sample therefore represents $1/f_s$ seconds. At 48 kHz, a 1 ms delay contains 48
+samples; at 192 kHz, the same physical delay contains 192 samples. The acoustic time is
+unchanged, but memory use and the number of arithmetic operations both increase. This
+distinction matters when a preset is moved between sample rates: delays expressed in
+samples must be recalculated from their intended duration rather than copied unchanged.
+
+The elementary delay operator is
+
+$$
+D_M(z)=z^{-M},
+$$
+
+which means “return the sample written $M$ updates earlier.” In code, that operation is
+usually a circular buffer with one write pointer and one or more read pointers. The
+buffer is state: its contents summarize enough of the past to determine future output.
+Recursive reverberators contain many such state variables, so a parameter change can
+affect audio written before the change as well as audio arriving afterward.
+
+Three implementation scales should remain conceptually separate:
+
+| Scale | Typical unit | What it controls |
+|---|---:|---|
+| Sample | samples or microseconds | Delay indexing, interpolation, phase, and causality |
+| Block | frames or milliseconds | Host scheduling, FFT partitions, automation updates, and latency |
+| Musical event | beats or seconds | Pre-delay, buildup, phrase overlap, and audible decay |
+
+A robust design converts user-facing time values into sample-domain state once per
+block or parameter event, then performs the inner audio loop without allocations. It
+also records which quantities are sample-rate dependent. A 2.4-second RT60 is a physical
+target; a 1,499-sample comb delay is a topology choice tied to one sample rate.
+
+#### Difference Equations, Transfer Functions, and Impulse Responses
+
+A block diagram, a difference equation, and a transfer function describe the same
+linear time-invariant system from different viewpoints. Consider
+
+$$
+y[n]=x[n]+g\,y[n-M].
+$$
+
+The difference equation is closest to code: read one delayed value, multiply by $g$,
+add the current input, and write the result. Taking the $z$ transform gives
+
+$$
+Y(z)=X(z)+g z^{-M}Y(z),
+$$
+
+and therefore
+
+$$
+H(z)=\frac{Y(z)}{X(z)}=\frac{1}{1-gz^{-M}}.
+$$
+
+Expanding the denominator as a geometric series gives
+
+$$
+H(z)=1+gz^{-M}+g^2z^{-2M}+g^3z^{-3M}+\cdots,
+$$
+
+which is the $z$-domain statement of the audible echo train. This three-way translation
+is a useful debugging method. If a diagram suggests one sign, the equation another, and
+the impulse response a third, the implementation is not merely “voiced differently”;
+one representation is wrong.
+
+#### Poles, Stability, and Decay
+
+The poles of a recursive filter describe the modes that can continue after the input
+stops. For the feedback comb, the pole condition is
+
+$$
+z^M=g.
+$$
+
+There are $M$ roots distributed around the complex plane. Their angles determine modal
+frequencies, while their common radius is $|g|^{1/M}$. Poles near the unit circle decay
+slowly; poles outside it grow. The practical stability requirement $|g|<1$ is therefore
+not an arbitrary range check but a statement that every circulation must lose energy.
+
+An FDN replaces one scalar pole family with the roots of a matrix-delay characteristic
+equation. The same geometric intuition survives: delay lengths distribute modal angles,
+the feedback matrix couples modes, and loop filters pull pole radii inward by
+frequency-dependent amounts. RT60 is a perceptual summary of those radii, not a complete
+description of the pole pattern. Two networks can share the same fitted RT60 while one
+rings at several exposed frequencies and the other decays smoothly.
+
+For extreme decay times, stability margin becomes an audible design parameter. A target
+of 360 seconds places loop gains extraordinarily close to unity. Parameter interpolation,
+filter normalization, matrix orthogonality, denormal handling, and limiter placement all
+matter because a tiny systematic gain error can persist through thousands of loops.
+
+#### Echo Density, Modal Density, and Mixing Time
+
+Echo density asks how many distinguishable arrivals occur in a time interval. Modal
+density asks how many resonant modes occupy a frequency interval. They are related but
+not interchangeable. A signal can have many temporal arrivals yet retain colored modes,
+or have many modes but a conspicuously sparse onset.
+
+The early response is usually nonstationary: arrivals become more frequent as reflection
+order increases. After a mixing time, individual paths are no longer the useful mental
+model and the response behaves statistically. A digital design recreates this transition
+with tapped delays, nested diffusers, scattering, or an FDN whose recirculations rapidly
+multiply path combinations. The goal is not maximum density at sample zero. The goal is
+the right density trajectory for the apparent source distance and enclosure size.
+
+Use a click to hear temporal sparsity and a sustained chord to hear modal sparsity. On
+the click, listen for flutter and repeated gaps. On the chord, listen for stable tones
+that outlive neighboring partials. Increasing allpass depth may solve the first problem
+without solving the second; changing delays or feedback topology may solve the second
+without producing a convincing onset.
+
+#### Feedback Comb Filters: Duration and Modes
+
+A feedback comb filter delays its output, scales it, and adds it back to the input. Its
+transfer function is
+
+$$
+H_{\mathrm{comb}}(z) = \frac{1}{1-gz^{-M}},
+$$
+
+where $M$ is delay in samples and $g$ is feedback gain. An impulse produces repetitions
+every $M$ samples with amplitudes $1, g, g^2, \ldots$. In frequency, those repetitions
+form a regularly spaced modal pattern. One comb therefore sounds colored; several combs
+with carefully chosen delays can create a richer decay.
+
+The diagram below exposes the feedback path that creates both duration and coloration.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/03_feedback_comb_filter.png
+flowchart LR
+    X["x[n]"] --> S(("+"))
+    S --> D["Delay z⁻ᴹ"]
+    D --> Y["y[n]"]
+    D --> G["Gain g"]
+    G --> S
+```
+
+**Figure: Feedback comb filter with delay length $M$ and loop gain $g$.**
+
+**How to read this figure.** Every trip around the loop adds $M$ samples of time and a
+factor of $g$. If $|g|<1$, the loop decays; if $|g|=1$, it is theoretically lossless;
+if $|g|>1$, it grows. Real implementations also require damping, DC control, and
+protection against finite-precision problems. The spacing $f_s/M$ between modes is as
+important as nominal RT60. Several delay lengths should avoid obvious common periods
+unless a pitched or resonant effect is intended.
+
+The expanded flowgraph below labels the internal write signal and places the transfer
+function beside the loop. It is the form to use when translating the structure into a
+sample-by-sample difference equation or checking which sample is multiplied by $g$.
+
+![Implementation-level feedback comb signal flowgraph](docs/assets/reverb_primer/23_feedback_comb_flowgraph.png)
+
+**Figure: Implementation-level feedback comb flowgraph with an explicit internal state, $M$-sample delay, loop gain, and transfer function.**
+
+**How to read this flowgraph.** The summing junction forms $w[n]$ from the new input and
+the attenuated delayed output. The delay emits $y[n]=w[n-M]$; that value branches to the
+external output and to gain $g$ before returning to the sum. Following one impulse around
+the lower return path explains the sequence at $0,M,2M,\ldots$ samples. The drawing also
+distinguishes the signal stored in memory, $w[n]$, from the signal currently leaving the
+delay, $y[n]$, a distinction that prevents common indexing mistakes in implementations.
+
+For a target $T_{60}$ and a delay duration $d=M/f_s$ seconds, the loop gain is
+
+$$
+g = 10^{-3d/T_{60}}.
+$$
+
+At extreme RT60 values, $g$ approaches one. Small numerical or spectral errors then
+circulate for a long time, which is why internal precision and loop conditioning matter
+more at 360 seconds than at 1.2 seconds.
+
+#### Schroeder Allpass Filters: Density Without Magnitude Coloration
+
+An allpass filter changes phase while maintaining a flat ideal magnitude response. A
+common Schroeder form is
+
+$$
+H_{\mathrm{AP}}(z) = \frac{-g + z^{-M}}{1-gz^{-M}}.
+$$
+
+Its direct and delayed paths cancel the comb-like magnitude coloration that the feedback
+loop would otherwise introduce. In time, however, an impulse becomes a pattern of
+decaying echoes. Serial allpasses can therefore increase echo density before the signal
+enters a longer late-field network.
+
+The Mermaid diagram below separates feedforward and feedback paths. The signs matter:
+the topology is not simply a comb with a dry mix.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/04_schroeder_allpass.png
+flowchart LR
+    X["x[n]"] --> P["Split"]
+    P --> D["Delay z⁻ᴹ"]
+    P --> N["Direct gain -g"]
+    D --> S(("+"))
+    N --> S
+    D --> G["Feedback gain g"]
+    G --> P
+    S --> Y["y[n]"]
+```
+
+**Figure: Schroeder allpass diffuser with matched feedforward and feedback coefficients.**
+
+**How to read this figure.** The delay and feedback create a decaying echo sequence;
+the direct coefficient corrects the magnitude response. “Flat magnitude” does not mean
+“inaudible.” Phase structure, transient spreading, delay length, and coefficient still
+change timbre and spatial impression. Very large $g$ values produce long diffusion
+patterns that may sound metallic; small values scatter less energy. The allpass chain
+must be judged as an onset-design tool, not merely by its frequency response.
+
+The implementation graph below separates the allpass's two sums. This makes the signs
+and the shared delayed state visible, which is essential when comparing the transfer
+function with code or tracing an impulse by hand.
+
+![Implementation-level Schroeder allpass signal flowgraph](docs/assets/reverb_primer/24_schroeder_allpass_flowgraph.png)
+
+**Figure: Implementation-level Schroeder allpass flowgraph with explicit feedforward and feedback coefficient paths.**
+
+**How to read this flowgraph.** The left sum creates the delay-line write value
+$w[n]=x[n]+g\,w[n-M]$. The right sum combines the delayed state with the negative direct
+branch, producing $y[n]=w[n-M]-g\,w[n]$. The same coefficient magnitude therefore appears
+in two different roles: positive feedback sustains the echo sequence, while negative
+feedforward corrects its magnitude response. Swapping a sign changes the topology and can
+turn a diffuser into a colored or unstable structure even though every block still looks
+plausible in isolation.
+
+#### Allpass Networks: From Echoes to a Diffuse Excitation
+
+One allpass creates a recognizable pattern. Several allpasses with mutually awkward
+delay lengths multiply the number of arrivals. If the stages are too similar, the
+patterns line up and produce periodicity. If there are too many stages or too much
+feedback, the attack loses definition before the late field begins.
+
+The serial network below shows the conceptual progression from one impulse to a dense
+excitation. Each stage is short compared with the final RT60.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/05_allpass_diffusion_network.png
+flowchart LR
+    X["Input impulse"] --> A1["Allpass 1<br/>5.1 ms"]
+    A1 --> A2["Allpass 2<br/>7.7 ms"]
+    A2 --> A3["Allpass 3<br/>12.3 ms"]
+    A3 --> U["Dense excitation"]
+```
+
+**Figure: Serial allpass network used to build early echo density.**
+
+**How to read this figure.** Every box expands the number of time-domain arrivals while
+approximately preserving spectral magnitude. The listed delays are illustrative, not
+universal defaults. Percussion may need fewer stages so the attack remains crisp; a
+synthetic pad can tolerate more diffusion. In verbx, allpass diffusion is a front-end
+stage. It prepares energy for the FDN rather than carrying the complete decay alone.
+
+#### The Schroeder Reverberator
+
+The classic Schroeder architecture places several feedback comb filters in parallel,
+sums them, and follows the sum with serial allpasses. The combs supply a long response;
+the allpasses increase density. This structure established the vocabulary of digital
+reverb and remains useful because it is efficient, understandable, and musical.
+
+The signal flow below shows the canonical division of labor. It is a family of designs,
+not one immutable set of delay values.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/02_schroeder_reverberator.png
+flowchart LR
+    X["Input"] --> S["Split"]
+    S --> C1["FBCF 1<br/>M=1499, g=0.914"]
+    S --> C2["FBCF 2<br/>M=1601, g=0.908"]
+    S --> C3["FBCF 3<br/>M=1877, g=0.894"]
+    S --> C4["FBCF 4<br/>M=2137, g=0.880"]
+    C1 --> M(("Sum"))
+    C2 --> M
+    C3 --> M
+    C4 --> M
+    M --> A1["Allpass 1<br/>M=337, g=0.70"]
+    A1 --> A2["Allpass 2<br/>M=113, g=0.70"]
+    A2 --> A3["Allpass 3<br/>M=41, g=0.70"]
+    A3 --> Y["Wet output"]
+```
+
+**Figure: Classic Schroeder reverberator with parallel combs and serial allpasses.**
+
+**How to read this figure.** The explicit branch labels show one illustrative 48 kHz,
+2.4-second design, not verbx defaults. Each comb delay $M$ establishes a different modal
+spacing, while its loop gain $g$ calibrates how quickly that branch decays. The summing
+bus recombines all four independent tails. Three short serial allpasses then increase
+echo density without intentionally changing magnitude response. Coloration remains
+possible because each comb has a regular modal series and because the branches do not
+exchange energy. Moorer-style extensions add early reflections and frequency-dependent
+damping. Modern FDNs generalize the feedback relationship so every delay line can
+exchange energy with every other line.
+
+The parameterized flowgraph below expands the canonical blocks into a traceable example.
+Its delays and gains demonstrate the notation rather than prescribe verbx defaults; the
+four output rows also show how one reverberator state can feed a multichannel matrix.
+
+![Parameterized Schroeder reverberator signal flowgraph](docs/assets/reverb_primer/25_parameterized_schroeder_flowgraph.png)
+
+**Figure: Parameterized Schroeder-style reverberator with serial allpasses, four parallel feedback combs, named branch signals, and a four-channel output matrix.**
+
+**How to read this flowgraph.** Start at `RevIn` and move through three short allpasses,
+whose unequal sample delays progressively scatter the onset. The vertical bus then sends
+the same diffuse excitation to four feedback comb filters. Each comb lists a delay $N$
+and a gain calculated for the illustrated 2.4-second target at 48 kHz. Their named outputs
+$x_1$ through $x_4$ enter a normalized Hadamard matrix, whose signed combinations produce
+four related but decorrelated outputs. The graph therefore exposes three distinct design
+layers: onset diffusion, late modal duration, and spatial projection.
+
+The Schroeder design remains an excellent teaching instrument. Bypass its allpasses and
+hear the comb modes. Restore one stage at a time and hear density increase. Change one
+delay until it shares a common divisor with another and hear periodicity emerge. These
+experiments turn abstract topology into an audible vocabulary.
+
+#### Feedback Delay Networks: Coupled Modal Systems
+
+An $N$-line Feedback Delay Network replaces independent comb feedback with a vector
+loop. Each delay line produces one state component. A matrix mixes those components
+before they are written back, allowing energy to move throughout the network. Input and
+output projections determine how the source excites modes and how the listener receives
+them.
+
+A simplified state description is
+
+$$
+\boldsymbol{s}[n+1] = \boldsymbol{G}\boldsymbol{M}\boldsymbol{D}(z)\boldsymbol{s}[n]
+                  + \boldsymbol{B}x[n],
+$$
+
+$$
+y[n] = \boldsymbol{C}^{\mathsf T}\boldsymbol{D}(z)\boldsymbol{s}[n] + d\,x[n],
+$$
+
+where $\boldsymbol{D}(z)$ is the bank of unequal delays, $\boldsymbol{M}$ is the feedback
+matrix, $\boldsymbol{G}$ contains decay gains or filters, $\boldsymbol{B}$ injects the source,
+and $\boldsymbol{C}$ projects the state to output channels.
+
+The Mermaid diagram below makes the vector feedback loop explicit.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/06_fdn_signal_flow.png
+flowchart LR
+    X["Input x[n]"] --> B["Input projection B"]
+    B --> S(("Vector sum"))
+    S --> D["Delay bank D(z)<br/>N unequal lines"]
+    D --> F["Damping and<br/>RT60 gains G"]
+    F --> C["Output projection C"]
+    C --> Y["Wet output y[n]"]
+    F --> M["Feedback matrix M"]
+    M --> S
+```
+
+**Figure: Feedback Delay Network with vector delay state and matrix feedback.**
+
+**How to read this figure.** The delay bank defines modal timing; the gain and damping
+stage defines loss; the matrix defines how energy exchanges among lines. Those roles
+interact but are independently designable. An orthonormal matrix preserves vector
+energy before damping, making RT60 calibration tractable. A poor input projection may
+leave some modes weakly excited; a poor output projection may overemphasize others.
+High line count alone does not guarantee a smooth reverb.
+
+The expanded FDN flowgraph below opens the vector blocks into four representative delay
+rows and shows both the recirculating state and the separate output tap. The four rows
+stand for an arbitrary $N$-line network, not a four-line limit.
+
+![Expanded Feedback Delay Network signal flowgraph](docs/assets/reverb_primer/26_expanded_fdn_flowgraph.png)
+
+**Figure: Expanded FDN flowgraph with input projection, unequal delay lines, per-line damping, RT60 gains, unitary feedback matrix, and output projection.**
+
+**How to read this flowgraph.** Projection $\boldsymbol{B}$ distributes the scalar input into
+the vector sum. Each row delays one state component by $m_i$ samples and filters it with
+$H_i(z)$. The gain block $\boldsymbol{G}$ calibrates loss, after which unitary matrix
+$\boldsymbol{M}$ redistributes energy before the vector returns to the input sum. Output
+projection $\boldsymbol{C}^{\mathsf T}$ observes the delayed state without replacing the
+feedback path. That separation lets a designer change stereo or immersive presentation
+without changing the poles that govern the late decay.
+
+verbx exposes several matrix families because they create different exchange patterns.
+Hadamard mixing is dense and uniform. Householder mixing is efficient and structured.
+Circulant and elliptic families have interpretable eigenstructure. Random orthogonal
+matrices reduce obvious regularity. Graph-derived matrices make connectivity a design
+parameter. Time-varying unitary matrices alter the modal basis slowly while retaining
+controlled loop energy.
+
+#### The Five Independent Design Coordinates of an FDN
+
+It is tempting to identify an FDN by line count alone, but five coordinate systems act
+together: delay timing, feedback coupling, loop loss, input excitation, and output
+observation. Figure below places those choices around the recursive state. Changing any
+one can alter the result even when the other four are held fixed.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/30_fdn_design_coordinates.png
+flowchart TB
+    D["Unequal delays<br/>m1 … mN"] --> S["Recursive FDN state"]
+    B["Input projection B"] --> S
+    M["Feedback matrix M"] --> S
+    G["Loop filters and gains G"] --> S
+    S --> C["Output projection Cᵀ"]
+```
+
+**Figure: Five design coordinates that jointly determine an FDN late field.**
+
+**How to read this figure.** The central state is not itself a sound-quality control.
+The delay set gives the state its temporal memory; the matrix redistributes that memory;
+the loop filters decide what survives; the input vector decides which modal combinations
+are excited; and the output vector decides which combinations are observed. This is why
+changing only $\boldsymbol{C}$ can alter stereo width without moving the network's poles,
+whereas changing $\boldsymbol{M}$ can alter both modal structure and energy exchange.
+
+The five coordinates suggest a disciplined design order:
+
+1. Choose delay durations for the desired scale and modal distribution.
+2. Choose a feedback matrix with known energy behavior.
+3. Calibrate broadband or multiband loop loss from the target decay.
+4. Choose an input projection that excites the state without privileged lines.
+5. Choose output projections that create the required channel image and fold-down.
+
+Randomizing all five at once may produce an interesting preset, but it makes a failure
+difficult to diagnose. A controlled listening comparison changes one coordinate at a
+time and uses the same impulse, chord, level, and output projection.
+
+#### Delay-Set Design and Number-Theoretic Structure
+
+Each delay line contributes a recurrence period and a family of modes. Equal or simply
+related delays cause recirculating paths to coincide; the network then reveals a common
+period as flutter, pitched ringing, or cyclic stereo motion. Pairwise coprime lengths
+are a useful starting heuristic, but primality alone does not guarantee a good network.
+The complete coupled pole pattern also depends on the matrix, gains, and projections.
+
+For a line of $m_i$ samples, the uncoupled comb spacing is approximately
+
+$$
+\Delta f_i=\frac{f_s}{m_i}.
+$$
+
+Longer delays create closer modes and slower recurrence. Shorter delays create wider
+spacing and faster buildup. A practical set spans a modest range around a size target
+rather than clustering at one length. Excessive spread can make branches decay with
+perceptibly different granularity even when their RT60 gains are calibrated correctly.
+
+Delay selection should satisfy several constraints at once:
+
+| Constraint | Purpose | Failure symptom |
+|---|---|---|
+| No zero or sub-sample line | Preserve causality and valid memory access | Instability or duplicated direct sound |
+| Few shared factors | Reduce coincident recurrences | Flutter or rhythmic ringing |
+| Bounded minimum delay | Limit high modal spacing | Audible isolated modes |
+| Bounded maximum delay | Control buildup and memory | Late, disconnected tail onset |
+| Sample-rate rescaling | Preserve physical durations | Preset changes size with sample rate |
+
+When a sample-rate conversion rounds several durations to nearby integers, recheck the
+set rather than assuming its number-theoretic relationships survived. Deterministic
+rounding and a stored seed make the resulting topology reproducible.
+
+#### Feedback Matrices, Energy, and Eigenstructure
+
+If the matrix is orthonormal,
+
+$$
+\boldsymbol{M}^{\mathsf T}\boldsymbol{M}=\boldsymbol{I},
+$$
+
+then it preserves Euclidean vector energy before loop loss. This separation is valuable:
+the matrix controls redistribution while $\boldsymbol{G}$ controls decay. A matrix need not
+be dense to be lossless, and a dense matrix is not automatically well conditioned.
+
+The spectral radius
+
+$$
+\rho(\boldsymbol{A})=\max_k |\lambda_k(\boldsymbol{A})|
+$$
+
+provides one stability check for a frequency-independent state transition
+$\boldsymbol{A}$. With delays and loop filters, the complete condition is frequency
+dependent, but the intuition remains: no recirculating eigenmode may receive net gain
+at any frequency. Numerical verification should therefore sweep the loop filters as
+well as checking the nominal matrix.
+
+| Matrix family | Coupling character | Useful reason to choose it |
+|---|---|---|
+| Hadamard | Dense, balanced signed mixing | Predictable diffusion and efficient transforms |
+| Householder | Structured global reflection | Low arithmetic cost with full-state interaction |
+| Circulant | Translation-invariant row structure | Controlled eigenstructure and repeatable color |
+| Random orthogonal | Irregular dense coupling | Reduced visible symmetry with energy preservation |
+| Sparse graph-derived | Local or clustered exchange | Deliberate pathways and unusual spatial textures |
+| Time-varying unitary | Slowly changing modal basis | Reduced stationary ringing in long exposed tails |
+
+Orthonormality is a starting condition, not a listening verdict. A lossless matrix can
+still align poorly with a delay set or projection vector. Conversely, a deliberately
+structured matrix may be musically useful precisely because it does not erase every
+pathway at once.
+
+#### Input and Output Projections
+
+The input projection $\boldsymbol{B}$ distributes source energy among delay lines. A vector
+with one nonzero entry excites the network from one point; a dense balanced vector begins
+with broader excitation. Multiple input channels use a matrix whose columns describe
+distinct injection patterns. Those columns should be normalized so adding channels does
+not silently increase loop energy.
+
+The output projection $\boldsymbol{C}^{\mathsf T}$ observes the state. It can be changed
+without changing the internal recurrence, which makes projection a powerful spatial
+design layer. Left and right vectors should share the same late history while weighting
+components differently enough to avoid mono duplication. Immersive outputs extend the
+same principle to side, rear, and height channels.
+
+Projection quality is measured as well as heard. Inspect channel RMS balance,
+cross-correlation, interchannel coherence by frequency, and mono fold-down. A return can
+sound impressively wide in isolation yet collapse unevenly or lose low-frequency energy
+when summed. Normalized signed projections usually provide a safer starting point than
+independent random reverbs per channel.
+
+#### Frequency-Dependent Decay in an FDN
+
+Real materials absorb frequency bands differently, and air attenuates high frequencies
+more strongly over long paths. A convincing room therefore rarely has one RT60 at every
+frequency. In an FDN, loop filters can approximate a desired decay curve. The challenge
+is to shape loss without compromising stability or creating obvious filter resonances
+inside the feedback loop.
+
+The multiband signal flow below shows low, middle, and high losses before energy returns
+to the feedback matrix.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/07_multiband_fdn.png
+flowchart LR
+    S["Delay-line state"] --> X["Crossover filter bank"]
+    X --> L["Low band<br/>RT60 low"]
+    X --> M["Middle band<br/>RT60 mid"]
+    X --> H["High band<br/>RT60 high"]
+    L --> A(("Band sum"))
+    M --> A
+    H --> A
+    A --> F["Feedback matrix"]
+```
+
+**Figure: Frequency-dependent FDN loop with independent low, middle, and high decay targets.**
+
+**How to read this figure.** Every band travels around the same spatial topology but
+loses a different amount of energy. A longer low-band RT60 adds warmth and weight; too
+much produces mud or a persistent pitched floor. A short high-band RT60 suggests soft
+materials or long air paths; too short makes the room dull and detached. Crossovers
+must be smooth because their errors recirculate.
+
+The line-level graph below zooms into one FDN damping block. It makes the decay-gain
+calculation explicit for each band before the three paths are recombined.
+
+![Multiband FDN loop-filter signal flowgraph](docs/assets/reverb_primer/27_multiband_loop_filter_flowgraph.png)
+
+**Figure: One multiband FDN loop-filter row with low-, middle-, and high-band filters and independently calibrated decay gains.**
+
+**How to read this flowgraph.** State component $s_i[n]$ is split among three complementary
+filters. Each branch receives a gain of the form $10^{-3d_i/T_{60,b}}$, where $d_i$ is the
+delay-line duration and $T_{60,b}$ is the target for band $b$. The sum reconstructs one
+conditioned state component before matrix mixing. Calibrating gain from each line's own
+duration is important: applying one coefficient to unequal delays gives those lines
+different decay times and distorts the intended spectral envelope.
+
+```bash
+verbx render music.wav /tmp/multiband_hall.wav \
+  --engine algo --rt60 3.0 --fdn-rt60-low 4.2 \
+  --fdn-rt60-mid 3.0 --fdn-rt60-high 1.7 \
+  --fdn-xover-low-hz 260 --fdn-xover-high-hz 4200 \
+  --fdn-lines 24 --fdn-matrix random_orthogonal --wet 0.45 --dry 0.72
+```
+
+Listen after the source stops. During the phrase, masking may hide a low-frequency
+problem that becomes obvious only in the final decay.
+
+#### Moving Delays, Fractional Reads, and Interpolation
+
+A delay specified in milliseconds rarely lands on an integer sample, and a modulated
+delay changes continuously. If its desired length is $d[n]$ samples, the processor reads
+the circular buffer at a fractional position. Writing
+
+$$
+d[n]=M[n]+\mu[n], \qquad 0\leq\mu[n]<1,
+$$
+
+separates the integer offset $M[n]$ from fractional part $\mu[n]$. Linear interpolation
+uses the two neighboring samples:
+
+$$
+y[n]=(1-\mu[n])x[n-M[n]]+\mu[n]x[n-M[n]-1].
+$$
+
+It is inexpensive and continuous, but its magnitude response changes with fractional
+position. Higher-order Lagrange interpolation improves high-frequency magnitude
+accuracy. A Thiran allpass interpolator prioritizes phase and delay accuracy while
+maintaining unit magnitude. The right choice depends on whether the moving read is a
+creative chorus-like voice, a subtle anti-ringing modulation, or a precision physical
+delay.
+
+Figure below separates the audio-rate memory path from the slower control path. They
+meet only at the interpolated read head.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/29_modulated_delay_control.png
+flowchart LR
+    X["Audio input"] --> W["Delay-buffer write"]
+    W --> R["Fractional read"]
+    R --> Y["Audio output"]
+    P["Automation or LFO target"] --> S["Control-rate smoother"]
+    S --> R
+```
+
+**Figure: Separate audio and control paths for a smoothly modulated fractional delay.**
+
+**How to read this figure.** Audio is written into circular memory at the sample rate.
+The target delay arrives from automation or an oscillator, passes through a smoother,
+and controls the read position. The smoother prevents a discontinuous pointer jump;
+the interpolator reconstructs a continuous value between stored samples. Neither block
+is optional when the delay moves during audible output.
+
+A changing delay introduces pitch shift because the read head moves relative to the
+write head. Slow shallow motion can decorrelate modes without calling attention to
+itself. Fast or deep motion becomes chorus, vibrato, or Doppler-like sweep. In an FDN,
+different lines should not move in lockstep unless coherent pitch motion is intended.
+The total modulation must also respect minimum and maximum delay bounds so the read head
+never crosses invalid memory or overtakes the write head.
+
+#### Parameter Smoothing and Host Automation
+
+Hosts can deliver a new parameter target once per block, at sample offsets within a
+block, or at irregular GUI rates. Applying a discontinuous target directly to a gain,
+delay, filter coefficient, or matrix can create clicks or temporarily invalidate a
+stable design. A one-pole smoother is
+
+$$
+p[n]=a\,p[n-1]+(1-a)p_{\mathrm{target}}[n],
+$$
+
+with
+
+$$
+a=e^{-1/(\tau f_s)},
+$$
+
+where $\tau$ is a smoothing time constant. Linear ramps are also useful when an exact
+arrival time matters. Gains may be smoothed in decibels or amplitude depending on the
+desired perceptual trajectory; frequencies are often smoother in logarithmic space;
+RT60 is best mapped through a bounded logarithmic parameter before loop gains are
+recalculated.
+
+Recursive parameters need special care. Interpolating directly between two unrelated
+orthogonal matrices does not generally remain orthogonal. Safer strategies interpolate
+a constrained rotation, crossfade between complete networks, or update through a
+factorization whose intermediate states preserve the required energy property. Similar
+care applies to loop-filter coefficients: every intermediate filter must remain stable,
+not only the endpoints.
+
+Smoothing has a musical cost. A 500 ms ramp is click-free but can miss a sixteenth-note
+gesture; a 1 ms ramp may preserve timing but reveal zippering on a 360-second tail.
+Document smoothing times as part of the DSP contract and test automation at different
+host block sizes.
+
+#### Early Reflections and the Early-to-Late Transition
+
+Early reflections carry geometry. Their delays and directions communicate source
+distance, nearby boundaries, and room shape before the late field becomes statistically
+dense. A tapped delay line can render a designed pattern; an image-source or ray-tracing
+model can derive paths from geometry; a measured IR can supply the complete onset.
+
+Each early tap can be represented as
+
+$$
+y_q[n]=a_q\,F_q(z)x[n-m_q],
+$$
+
+where $m_q$ is path delay, $a_q$ is spreading and reflection loss, and $F_q(z)$ models
+frequency-dependent boundary absorption. Multichannel rendering adds a directional
+projection for each path. The tap list should not merely be randomized: arrival order,
+level decay, spectral darkening, and lateral distribution jointly establish a plausible
+enclosure.
+
+The handoff to the late field is a crossfade in statistical description, not necessarily
+one literal splice sample. If the FDN begins too early and too densely, the source seems
+embedded in an abstract wash. If it begins too late, the early response sounds like a
+cluster of echoes followed by a separate effect. Match energy, spectrum, spatial width,
+and density across a transition region.
+
+#### Convolution and Partitioned FFT Processing
+
+Convolution reverb uses an impulse response measured in a real room or designed by a
+synthesis process. Direct time-domain convolution costs more as the IR grows. FFT
+convolution turns long convolution into blockwise multiplication in the frequency
+domain. Partitioning the IR lets a processor use small early blocks for latency and
+larger later blocks for efficiency.
+
+The Mermaid diagram below shows uniformly or nonuniformly partitioned overlap-save at a
+conceptual level. Exact scheduling varies by implementation.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/08_partitioned_convolution.png
+flowchart LR
+    X["Input audio blocks"] --> F["FFT"]
+    F --> P["Multiply by IR partitions<br/>H0, H1, ... HK"]
+    P --> S["Accumulate delayed spectra"]
+    S --> I["IFFT"]
+    I --> O["Overlap-save output"]
+```
+
+**Figure: Partitioned FFT convolution path for a long impulse response.**
+
+**How to read this figure.** The input is transformed once per block. Each IR partition
+multiplies a correspondingly delayed input spectrum; the products are accumulated and
+transformed back. The first partition determines a large part of algorithmic latency.
+Longer partitions improve efficiency but increase buffering. Convolution reproduces the
+captured linear response exactly within numerical and routing limits, but ordinary
+convolution cannot continuously change that response without interpolation or a new IR.
+
+For an FIR of length $L$, direct convolution evaluates
+
+$$
+y[n]=\sum_{k=0}^{L-1}h[k]x[n-k],
+$$
+
+which costs $L$ multiply-accumulates per output sample. A two-second mono IR at 192 kHz
+contains 384,000 taps; direct evaluation is therefore wasteful even before multichannel
+routing. FFT convolution groups samples into blocks and uses the convolution theorem,
+
+$$
+Y_r[k]=X_r[k]H[k],
+$$
+
+where $r$ identifies a processing block and $k$ an FFT bin. The apparent simplicity of
+that multiplication hides the scheduler that aligns past input spectra with every IR
+partition.
+
+In overlap-save processing, the FFT length must include enough historical samples to
+avoid circular-convolution contamination. The invalid prefix is discarded and only the
+new valid samples are emitted. The implementation must define whether reported latency
+includes host buffering, input accumulation, FFT scheduling, and output staging; “zero
+latency convolution” usually means that an initial direct or very small partition is
+processed before larger tail partitions, not that no buffering exists anywhere.
+
+Uniform and nonuniform partitioning trade simplicity against efficiency:
+
+| Partition plan | Latency behavior | Computational behavior |
+|---|---|---|
+| Uniform small blocks | Low and constant | Many FFTs for the complete tail |
+| Uniform large blocks | Higher and constant | Better throughput for long IRs |
+| Direct head plus FFT tail | Very low onset latency | More scheduler complexity |
+| Geometrically growing blocks | Small early, efficient late | Multiple FFT sizes and deadlines |
+
+A practical nonuniform design might process the first few milliseconds directly, the
+next region in 64- or 128-sample partitions, and the distant tail in progressively
+larger blocks. Late partitions have more wall-clock time before their contribution is
+needed, so they can be computed less frequently without delaying the direct onset.
+
+#### Matrix Convolution and Immersive Routing
+
+A multichannel IR is a matrix of filters. For $M$ inputs and $N$ outputs,
+
+$$
+Y_j(z)=\sum_{i=1}^{M}H_{ji}(z)X_i(z), \qquad j=1,\ldots,N.
+$$
+
+The off-diagonal filters are not optional decoration: they encode cross-channel energy
+that helps a measured room feel coherent. A stereo-to-Atmos bed renderer may require
+many simultaneous convolution paths, so partition spectra should be shared and batched
+rather than invoking an unrelated mono convolver for every route.
+
+Channel metadata is part of the DSP. A mathematically correct matrix with incorrect
+ordering can send left energy to a height channel or swap ambisonic components. Tests
+should use labeled impulses, one active input at a time, and verify arrival time, level,
+and polarity at every output. Fold-down and binaural decode tests reveal errors that may
+be hard to identify while monitoring the full array.
+
+#### Impulse-Response Conditioning
+
+An IR often needs preparation before it becomes a production filter. Remove unintended
+leading silence while preserving true propagation delay. Remove DC, but do not erase a
+legitimate very-low-frequency room mode. Apply fades only where measurement noise or a
+truncation edge would otherwise circulate. Normalize according to the intended contract:
+peak normalization preserves headroom, energy normalization supports comparable wet
+levels, and neither reproduces an absolute acoustic calibration by itself.
+
+Sample-rate conversion must use sufficient stop-band attenuation because any resampling
+artifact becomes part of every processed signal. Channel lengths should be aligned, and
+metadata should record sample rate, channel order, direct-arrival position, normalization
+policy, and provenance. An IR library without these facts may sound useful but is not a
+reproducible measurement collection.
+
+Choose convolution when the identity of a measured space matters. Choose algorithmic
+FDN processing when RT60, matrix motion, modulation, or extreme duration must change
+during the sound. Hybrid workflows often use a short measured early response followed
+by an algorithmic late field.
+
+#### Hybrid Reverberation: Geometry First, Statistics Later
+
+A hybrid processor uses the representation best suited to each time region. A measured,
+image-source, or ray-traced response supplies direct and early paths. A recursive network
+supplies the late field at a fraction of the storage cost and remains continuously
+controllable. Figure below shows both branches rejoining before one spatial projection.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/32_hybrid_early_late_reverb.png
+flowchart LR
+    X["Source"] --> S["Energy split"]
+    S --> E["Measured or ray-traced early IR"]
+    S --> L["Algorithmic FDN late field"]
+    E --> J["Time and level transition"]
+    L --> J
+    J --> D["Stereo or immersive projection"]
+```
+
+**Figure: Hybrid reverberator combining geometrical early energy with an algorithmic late field.**
+
+**How to read this figure.** The upper branch preserves identifiable paths and directional
+cues. The lower branch turns diffuse energy into a controllable recursive tail. The join
+is responsible for matching arrival density, spectrum, energy, and spatial character;
+the final decoder presents one coherent room rather than two stacked effects.
+
+Hybrid calibration begins by selecting a transition interval, then matching the late
+network to the measured energy-decay slope and spectrum around that interval. Excite the
+FDN with a decorrelated version of the final early energy rather than an unrelated dry
+copy when continuity matters. Preserve deterministic seeds so a rebuilt hybrid IR does
+not change every time documentation, tests, or presets are regenerated.
+
+#### Measuring Decay with Backward Integration
+
+RT60 should be measured from the response, not assumed from a parameter label. Schroeder
+backward integration estimates the energy remaining after time index $n$:
+
+$$
+E[n]=\sum_{k=n}^{L-1}h^2[k].
+$$
+
+The normalized energy-decay curve is
+
+$$
+L_E[n]=10\log_{10}\!\left(\frac{E[n]}{E[0]}\right).
+$$
+
+A straight line is fitted over a valid decay interval and extrapolated to –60 dB. EDT
+typically fits 0 to –10 dB; $T_{20}$ uses –5 to –25 dB; $T_{30}$ uses –5 to –35 dB. Those labels
+describe fitting windows, not the amount of audio that must literally reach –60 dB.
+Agreement among estimates suggests a reasonably exponential decay. Large disagreement
+may reveal multiple slopes, a noisy tail, gating, or a source that was not impulsive.
+
+Figure below traces the complete analysis path from response samples to reported
+metrics. Every transformation should preserve enough metadata to explain a failed fit.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/31_energy_decay_measurement.png
+flowchart TB
+    H["Impulse response h[n]"] --> Q["Energy h²[n]"]
+    Q --> I["Backward integration"]
+    I --> D["Normalize and convert to dB"]
+    D --> F["Fit EDT, T₂₀, and T₃₀ slopes"]
+    F --> R["T₆₀, clarity, and confidence"]
+```
+
+**Figure: Measurement pipeline from an impulse response to fitted reverberation metrics.**
+
+**How to read this figure.** Squaring removes polarity and produces instantaneous energy.
+Backward integration accumulates all future energy at each time. Decibel normalization
+turns exponential decay into an approximately straight line. The fitter selects only
+valid dynamic ranges and reports both estimates and confidence instead of forcing one
+number from an inadequate tail.
+
+Noise-floor handling is essential. Once integrated room energy approaches integrated
+background noise, the curve bends and a naive regression overestimates decay. A robust
+analyzer estimates the noise floor, limits the fitting range, reports the achieved
+dynamic range, and refuses a $T_{30}$ estimate when 30 reliable decibels are unavailable.
+Band-limited measurements should also report filter center frequencies and bandwidths.
+
+Decay time is only one descriptor. Clarity compares early and late energy:
+
+$$
+C_t=10\log_{10}\!\left(
+\frac{\sum_{n=0}^{n_t}h^2[n]}
+{\sum_{n=n_t+1}^{L-1}h^2[n]}
+\right),
+$$
+
+where $t$ is commonly 50 ms for speech or 80 ms for music. Definition $D_{50}$ expresses
+the first 50 ms as a fraction of total energy, and center time $T_s$ measures the energy-
+weighted temporal centroid. These metrics can disagree productively: a room may have a
+long RT60 yet retain useful clarity because its direct and early energy is strong.
+
+#### Numerical Precision, Denormals, and State Safety
+
+Recursive reverberators magnify small implementation choices because state circulates.
+Double precision reduces accumulated coefficient and summation error, especially when
+loop gains approach one, but it does not excuse unstable filters or an energy-increasing
+matrix. Every processing format still needs explicit bounds and failure behavior.
+
+Subnormal floating-point values can appear near the end of a long decay. Some processors
+handle them slowly; others flush them to zero. A reverb can avoid pathological tails by
+using supported flush-to-zero modes, adding an inaudible terminating rule below a defined
+threshold, or proving that the target platform handles denormals efficiently. The policy
+must not create a visible gate at normal listening levels.
+
+State safety includes:
+
+- finite-value checks at control boundaries rather than expensive checks on every sample;
+- bounded delay indices and validated circular-buffer lengths;
+- stable intermediate coefficients throughout automation ramps;
+- deterministic reset behavior for transport starts, sample-rate changes, and preset loads;
+- explicit handling of NaN and infinity before they enter recursive memory;
+- limiter and loudness stages outside the FDN loop unless nonlinear feedback is intentional.
+
+A limiter inside the recursive loop changes the system into a nonlinear reverberator.
+That may be a creative instrument, but its RT60 formula and superposition assumptions no
+longer apply. A safety limiter after wet/dry mixing controls delivery level without
+rewriting the late-field poles.
+
+#### Realtime Scheduling and End-to-End Latency
+
+The audio callback has a deadline: one host block must finish before the device needs the
+next block. If the block contains $B$ samples at sample rate $f_s$, its wall-clock budget
+is
+
+$$
+T_{\mathrm{block}}=\frac{B}{f_s}.
+$$
+
+At 192 kHz, a 64-sample block allows only 0.333 ms. CPU averages are insufficient; the
+worst callback matters. File I/O, memory allocation, locks, console output, JSON writing,
+and device discovery do not belong in that deadline.
+
+End-to-end monitoring latency includes input conversion and safety buffers, host input
+buffering, plug-in delay, host output buffering, and output conversion. An algorithmic
+FDN can add zero samples of lookahead while the complete system still has several blocks
+of latency. Partitioned convolution may add one partition or use a direct head to reduce
+its reported delay. A limiter with lookahead adds its own explicit samples. Report these
+components separately so users can distinguish DSP latency from device configuration.
+
+Block-size invariance is a release requirement. Rendering the same deterministic input
+with 32-, 64-, 256-, and 1,024-sample blocks should not change steady parameters, decay
+calibration, or automation timing beyond documented interpolation rules. Differences
+often reveal state reset errors, block-rate smoothing, or FFT partition misalignment.
+
+#### Verification: Close the Loop Between Math and Listening
+
+No single test establishes reverb quality. An impulse exposes topology, a burst exposes
+buildup, a sine sweep exposes linear response, a sustained chord exposes modes, speech
+exposes masking, percussion exposes density, and a long silence exposes numerical decay.
+Figure below organizes these probes into a repeatable engineering loop.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/33_dsp_validation_loop.png
+flowchart TB
+    D["Topology and parameter target"] --> P["Impulse, burst, and music probes"]
+    P --> M["Decay, spectrum, level, and latency"]
+    M --> A["Accept, revise, or bound"]
+    A --> L["Critical listening and failure notes"]
+    L --> D
+```
+
+**Figure: Closed DSP validation loop connecting deterministic probes, measurements, and listening.**
+
+**How to read this figure.** A design target creates deterministic renders. Analysis
+compares those renders with numerical bounds. Listening identifies perceptual failures
+that one metric cannot summarize. The decision either accepts the design, constrains its
+valid range, or feeds a specific failure back into topology and parameter choices.
+
+A minimal verification matrix includes:
+
+| Probe | Measure | Listen for |
+|---|---|---|
+| Unit impulse | Peak, first arrival, RT60, decay linearity | Flutter, isolated echoes, abrupt ending |
+| Log sweep | Magnitude and phase response | Narrow resonances and spectral tilt |
+| Sustained sine or chord | Mode balance and stationarity | Ringing, beating, unintended chorus |
+| Percussion | Echo-density growth and peak headroom | Attack loss, groove smear, pumping |
+| Speech | C50, intelligibility, wet envelope | Consonant masking and sibilant tails |
+| Silence after excitation | DC, denormals, final energy | Noise growth, gate, failure to terminate |
+| Multichannel impulses | Route matrix and correlation | Swaps, polarity errors, weak fold-down |
+
+The JSON report is evidence, not decoration. Store sample rate, block size, seed,
+topology, matrix family, delay set, smoothing policy, output format, measured latency,
+decay estimates, and warnings. A listening observation becomes actionable when another
+developer can recreate the exact state that produced it.
+
+#### The Complete verbx Algorithmic Path
+
+verbx separates onset design, diffusion, late-field recursion, creative transformation,
+and output safety. That separation is one reason the processor remains controllable at
+extreme settings. Pre-delay does not need to be hidden inside FDN delays; shimmer does
+not need to destabilize the core matrix; loudness and limiting can remain outside the
+reverberation state.
+
+The complete Mermaid overview below shows the major stages. Optional blocks can be
+bypassed, but their order is intentional.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/09_verbx_hybrid_path.png
+flowchart LR
+    X["Input"] --> P["Pre-delay"]
+    P --> A["Schroeder allpass<br/>diffusion"]
+    A --> F["Coupled FDN<br/>late field"]
+    F --> C["Shimmer, bloom,<br/>duck, freeze"]
+    C --> T["Tilt, EQ,<br/>loudness, limiter"]
+    T --> Y["Output and<br/>analysis JSON"]
+```
+
+**Figure: Complete verbx algorithmic path from source onset to analyzed output.**
+
+**How to read this figure.** The first two stages control when and how the room begins.
+The FDN controls long-term energy exchange. Creative blocks reinterpret the wet field.
+Post-processing controls presentation and delivery without changing the internal decay
+calibration. The analysis sidecar records what happened. Because the stages are
+separate, a user can design a natural two-second room and a 120-second harmonic cloud
+with the same conceptual vocabulary.
+
+### Why verbx Sounds Different
+
+No single feature explains a reverb's sound. What matters is how precision, topology,
+delay distribution, diffusion, spectral loss, time variation, dynamics, and routing
+interact. verbx is designed to keep those dimensions explicit rather than compressing
+them into one “size” macro.
+
+#### Exact Long-Tail Gain Calibration
+
+For delay line $i$ with duration $d_i$ seconds and target $T_{60}$, verbx computes
+
+$$
+g_i = 10^{-3d_i/T_{60}}.
+$$
+
+Every line receives a gain appropriate to its own delay. A single shared gain would make
+longer lines decay differently from shorter lines and would distort the modal envelope.
+At short RT60 values the error may pass unnoticed. At 120 or 360 seconds, it becomes a
+slow drift in balance that the ear hears as coloration.
+
+The algorithmic path uses 64-bit internal precision for the long-lived state. When loop
+gains approach one, rounding error persists for many circulations. Double precision does
+not make an unstable design stable, but it preserves the intended loss and reduces the
+chance that the tail becomes a numerical artifact before it becomes silence.
+
+#### Matrix Family as a Musical Texture Control
+
+The feedback matrix is not a cosmetic option. It determines how state components
+exchange energy. A dense uniform matrix can make the field smooth and neutral; a sparse
+or graph-derived matrix can preserve more audible pathways; a slowly time-varying matrix
+can reduce stationary ringing and create subtle motion.
+
+Audition matrix families with a click, then with a sparse chord, then with a dense mix.
+The click reveals periodicity. The chord reveals modal coloration. The dense mix reveals
+whether motion becomes blur. Keep RT60, delay count, damping, and wet level fixed so the
+comparison isolates topology.
+
+```bash
+for matrix in hadamard householder circulant random_orthogonal tv_unitary; do
+  verbx render examples/audio/dry_click.wav "/tmp/click_${matrix}.wav" \
+    --engine algo --rt60 8 --wet 1 --dry 0 \
+    --fdn-lines 16 --fdn-matrix "$matrix" --no-progress
+done
+```
+
+The best matrix is source-dependent. Uniformity is valuable for exposed classical
+material; controlled irregularity can be expressive on electronic percussion; slow
+motion can keep a minute-long tail alive without obvious pitch modulation.
+
+#### Diffusion Is an Envelope, Not a Quality Score
+
+“More diffusion” is often treated as “better reverb,” but diffusion changes the attack
+of the wet field. A dense immediate onset can support vocals and pads while softening
+percussion. A slower buildup can preserve transients and imply a larger volume. The
+correct density is the one that makes the room speak at the right moment in the phrase.
+
+Use allpass stages and bloom deliberately. Allpasses scatter the excitation before it
+enters the late field. Bloom shapes how the wet envelope rises. They can create related
+perceptions through different mechanisms. If an attack feels detached, reduce pre-delay
+or accelerate buildup. If it loses definition, reduce front-end diffusion before
+shortening the entire tail.
+
+#### Time Variation Without Obvious Chorus
+
+Stationary delay networks have stationary modes. On a sustained source, those modes can
+emerge as metallic pitches. Modulation and time-varying unitary matrices distribute
+energy across changing modal bases. The design goal is often to move slowly enough that
+the listener hears a living space rather than a pitch effect.
+
+`--fdn-tv-rate-hz` controls update rate and `--fdn-tv-depth` controls how far the matrix
+moves from its base state. At 0.05–0.3 Hz, motion unfolds over several seconds. That is
+appropriate for long ambient tails. Faster rates can become audible animation and may
+be exactly right for sound design.
+
+```bash
+verbx render drone.wav /tmp/drone_moving_room.wav \
+  --engine algo --rt60 45 --fdn-lines 32 --fdn-matrix tv_unitary \
+  --fdn-tv-rate-hz 0.12 --fdn-tv-depth 0.08 \
+  --wet 0.88 --dry 0.18 --target-peak-dbfs -2
+```
+
+#### Extreme RT60 as a New Compositional Dimension
+
+At 0.4 seconds, reverb behaves like surface and room size. At four seconds, it becomes
+phrase overlap and architectural scale. At forty seconds, it becomes harmonic memory.
+At 360 seconds, it becomes a slow layer whose beginning and end may belong to different
+sections of a piece. At 3600 seconds, “room simulation” is no longer the useful metaphor.
+The processor is a bounded recursive instrument.
+
+Long duration changes orchestration. Low notes occupy more future time because their
+energy often decays slowly. Dense chords accumulate until the field approaches a
+spectral average. Silence becomes the only way to hear internal evolution. A composer
+must decide what is allowed to enter the field, not merely how much of it is returned.
+
+Start extreme experiments with floating-point output and conservative wet gain:
+
+```bash
+verbx render source.wav /tmp/extreme_field.wav \
+  --engine algo --rt60 120 --wet 0.82 --dry 0.12 \
+  --fdn-lines 32 --fdn-matrix tv_unitary \
+  --fdn-tv-rate-hz 0.08 --fdn-tv-depth 0.06 \
+  --lowcut 70 --target-peak-dbfs -3 --out-format float32 \
+  --json-out /tmp/extreme_field.json
+```
+
+Do not judge the result after ten seconds. Render enough silence to hear the tail's
+middle and end. Long-tail quality includes how the field leaves, not only how it begins.
+
+#### Damping, Air, and the Meaning of Warmth
+
+Warmth is not simply a low-pass filter after the reverb. Post-EQ changes what the
+listener hears; in-loop damping changes what continues to circulate. A high-frequency
+component removed inside the loop cannot return on the next pass. Over time, this
+creates a changing spectrum similar to repeated interaction with absorptive surfaces.
+
+Use post-EQ for mix placement and loop damping for decay design. If the return is bright
+at the onset but should darken naturally, loop filtering is appropriate. If the decay
+is correct but conflicts with a vocal, post-EQ may solve the mix without changing room
+behavior. Multiband RT60 targets make this distinction explicit.
+
+#### Ducking and the Separation of Space from Articulation
+
+Ducking attenuates the wet field while the source is active and releases it into gaps.
+It allows a long decay to coexist with clear foreground articulation. This is not merely
+a corrective technique. The release envelope can become rhythmic counterpoint: the
+room inhales after each phrase.
+
+Set attack fast enough to protect the transient but not so fast that the return clicks
+or pumps unnaturally. Set release in relation to syllable, beat, or phrase. A 120 ms
+release may create a rhythmic pulse on drums; 400 ms may wait for a vocal line to open.
+The floor parameter leaves a minimum ambience so the source does not appear to jump
+between dry and wet rooms.
+
+#### Shimmer, Bloom, Freeze, and Reverse as Re-Compositions of the Tail
+
+Shimmer changes register. Bloom changes onset envelope. Freeze changes finite decay into
+sustain. Reverse changes the direction of the energy envelope so the room anticipates
+an event rather than remembering it. These modes are most convincing when written into
+the musical form.
+
+Use shimmer at a harmonic pivot, bloom before an orchestral entrance, freeze across a
+section boundary, or reverse reverb as an anacrusis into one important word. When every
+event receives every transformation, the special behavior becomes a static texture.
+When selected events receive it, reverb becomes orchestration.
+
+#### Multichannel Routing and the Shape of the Late Field
+
+Stereo width is only one spatial dimension. In multichannel work, early energy can
+localize toward the source while late energy expands to sides, rear, or height. A true
+$M\times N$ convolution matrix can preserve measured cross-channel relationships. An
+algorithmic FDN can project one internal state into several output channels with
+decorrelated but coherent returns.
+
+Avoid creating width by independent random reverbs on every channel. The result may be
+decorrelated yet lack one shared acoustic identity. Prefer a common feedback state with
+carefully designed input and output projections. Verify fold-down behavior, channel
+correlation, and level after decoding.
+
+The stereo projection flowgraph below shows a shared eight-component FDN state feeding
+two different signed projection vectors. It also keeps dry/wet summing outside the
+recursive state so mix automation cannot alter decay stability.
+
+![Stereo FDN output-projection signal flowgraph](docs/assets/reverb_primer/28_stereo_projection_flowgraph.png)
+
+**Figure: Stereo output projection from a shared eight-line FDN state through normalized signed vectors and independent dry-wet output mixers.**
+
+**How to read this flowgraph.** Every state component contributes to both wet channels,
+but the signs in $\boldsymbol{C}_L^{\mathsf T}$ and $\boldsymbol{C}_R^{\mathsf T}$ differ. The
+channels therefore share one decay history while emphasizing different modal
+combinations. Normalization prevents channel count or coefficient choice from creating
+an unintended level jump. The final mixers add the projected wet signals to their dry
+counterparts after recursion, preserving one acoustic identity and predictable fold-down
+behavior.
+
+### The Science and DSP of Dereverberation
+
+Dereverberation asks a harder question than reverberation synthesis. A reverb processor
+starts with a comparatively clean signal and a known algorithm or impulse response;
+dereverberation starts with only the mixture that reached a microphone and tries to infer
+which part belonged to the source before the room prolonged it. The dry performance, room
+response, source position, microphone response, background noise, and often even the number
+of active sources are unknown. Many different combinations of those latent quantities can
+produce nearly the same recording. Dereverberation is therefore an **ill-posed inverse
+problem**, not a literal undo button.
+
+That distinction sets the standard for honest use. A successful processor can reduce late
+energy, restore temporal contrast, improve speech intelligibility, and make a close source
+feel less distant. It cannot generally recover the exact pressure waveform that would have
+been recorded in an anechoic chamber. The most useful scientific question is consequently
+not “Did all reverb disappear?” but “Which acoustic component was estimated, under which
+assumptions, at what cost in distortion, spatial fidelity, and latency?”
+
+#### The Forward Acoustic Model
+
+For one stationary source and one microphone, the standard discrete-time model is
+
+$$
+y[n] = \sum_{q=0}^{L_h-1} h[q]x[n-q] + v[n]
+     = (h*x)[n] + v[n],
+$$
+
+where $x[n]$ is the unknown dry source, $h[n]$ is the room impulse response, $v[n]$ is
+additive noise, and $y[n]$ is the observed microphone signal. The convolution is long:
+a 1.5 s response at 48 kHz contains 72,000 samples before accounting for an even longer
+noise floor. With $S$ sources and $M$ microphones, the model becomes
+
+$$
+y_m[n] = \sum_{s=1}^{S}(h_{m,s}*x_s)[n] + v_m[n],
+\qquad m = 1,\ldots,M.
+$$
+
+Every source-to-microphone path has its own response $h_{m,s}[n]$. If a talker moves, a
+door opens, or a handheld microphone rotates, that response is time varying rather than a
+fixed convolution. The familiar linear time-invariant model remains valuable, but its
+limits should be visible whenever a method is evaluated on real capture.
+
+For dereverberation, the room response is commonly partitioned at an early/late boundary
+$n_e$:
+
+$$
+h[n] = h_{\mathrm{early}}[n] + h_{\mathrm{late}}[n],
+$$
+
+$$
+y[n] = x_{\mathrm{early}}[n] + r_{\mathrm{late}}[n] + v[n].
+$$
+
+Here $x_{\mathrm{early}}[n]=(h_{\mathrm{early}}*x)[n]$ is usually the desired signal,
+not merely the mathematically dry source. It retains the direct arrival and a short early
+window because those components support loudness, localization, source width, and
+naturalness. The interference term $r_{\mathrm{late}}[n]$ contains delayed replicas that
+smear later phonemes, notes, and transients. The boundary is task dependent: speech
+systems often preserve tens of milliseconds, while music restoration may preserve more
+of a room's early signature.
+
+The following figure places the unknown quantities around the one observation actually
+available to a blind estimator. Its non-linear layout is important: neither the room nor
+the source lies in a simple known processing chain at restoration time.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/34_dereverb_inverse_problem.png
+flowchart TB
+    X["Dry source x[n]"] --> Y["Observed microphone signal y[n]"]
+    H["Room response h[n]"] --> Y
+    V["Noise v[n]"] --> Y
+    Y --> E["Regularized estimator"]
+    P["Acoustic and source priors"] --> E
+    E --> XH["Estimated source"]
+    E --> R["Residual late field"]
+```
+
+**Figure: Dereverberation formulated as inference of a dry or early source from a reverberant, noisy observation using acoustic assumptions and regularization.**
+
+**How to read this figure.** The upper paths describe physical capture; the lower paths
+describe inference. Only $y[n]$ is observed. A processor must supply assumptions about
+decay, source statistics, sparsity, spatial covariance, or training data before it can
+separate an estimate from the residual. Stronger assumptions can produce stronger
+suppression, but they also create stronger failure modes when the recording violates them.
+
+#### Why Exact Inverse Filtering Usually Fails
+
+If $h[n]$ were perfectly known, one might propose the inverse filter
+$G(z)=1/H(z)$ so that $G(z)H(z)=1$. Three problems make that expression a poor general
+solution. First, measured room responses contain deep spectral notches. Dividing by a
+small $|H(e^{j\omega})|$ gives enormous gain and amplifies microphone noise, quantization,
+and response-estimation error. Second, a room response is commonly nonminimum phase. Its
+inverse may be unstable if zeros lie outside the unit circle, or noncausal if a stable
+inverse is constructed by moving energy before the direct arrival. Third, a room response
+is position specific. A filter that inverts one source/receiver pair can worsen a signal
+captured a few centimeters away.
+
+A regularized frequency-domain inverse makes the compromise explicit:
+
+$$
+G_{\lambda}(e^{j\omega}) =
+\frac{H^*(e^{j\omega})}
+{|H(e^{j\omega})|^2 + \lambda(\omega)}.
+$$
+
+When $|H|^2$ is large relative to $\lambda$, the expression approaches an inverse. Near
+a notch, the regularizer prevents explosive gain. The function $\lambda(\omega)$ may
+encode expected noise, uncertainty, perceptual weighting, or a hard robustness floor.
+This is closely related to Wiener deconvolution, where the regularizer is a ratio of noise
+and source power spectra. It also exposes the unavoidable bias/variance tradeoff: more
+regularization leaves more room coloration; less regularization may reduce coloration on
+one measurement while producing noise and instability elsewhere.
+
+Multichannel inverse filtering can be better conditioned because several microphone paths
+need not share the same zeros. The multiple-input/output inverse theorem method seeks FIR
+filters whose combined channel response approximates a delayed impulse. Miyoshi and
+Kaneda's formulation is foundational here. Yet it still needs measured or estimated room
+responses, accurate channel synchronization, and a sufficiently stationary geometry.
+It is best understood as **room-response equalization or shortening with known transfer
+functions**, not as a universal blind dereverberator.
+
+Blind methods avoid claiming that $h[n]$ is known. They estimate only a useful component:
+late-reverberant power, a delayed linear prediction, a time-frequency mask, a spatial
+filter, or a learned mapping. This narrower goal is why practical dereverberation can work
+despite the impossibility of exact blind inversion.
+
+#### Statistical Science of the Late Field
+
+After sufficient mixing time, a room's late field is often approximated as diffuse,
+noise-like, and exponentially decaying. If $T_{60}$ is the reverberation time, an idealized
+amplitude envelope is
+
+$$
+a(t)=10^{-3t/T_{60}},
+$$
+
+and its energy envelope is
+
+$$
+a^2(t)=10^{-6t/T_{60}}=e^{-t/\tau_E},
+\qquad
+\tau_E=\frac{T_{60}}{6\ln 10}.
+$$
+
+This does not say that every late sample follows a smooth exponential. Individual samples
+remain stochastic and interference produces fluctuations. The claim is about expected
+energy over an ensemble or local time-frequency region. Real rooms also decay at different
+rates by frequency, and low-frequency modes may violate diffuse-field assumptions
+entirely. Erkelens and Heusdens model this frequency dependence explicitly; Habets develops
+the statistical framework into practical late-reverberation estimators.
+
+In an STFT indexed by frequency bin $k$ and frame $l$, write
+
+$$
+Y_{k,l}=X_{k,l}+R_{k,l}+V_{k,l}.
+$$
+
+A simple late-power tracker uses delayed observations as evidence for energy that may still
+be arriving from earlier source frames:
+
+$$
+\widehat{\lambda}_{r,k,l}
+=\alpha_k\widehat{\lambda}_{r,k,l-1}
++(1-\alpha_k)c_k|Y_{k,l-D}|^2.
+$$
+
+The delay $D$ protects the direct and early portion; the coefficient $\alpha_k$ smooths
+the estimate; $c_k$ maps delayed energy to an expected residual according to decay rate.
+A longer $T_{60}$ implies slower forgetting. Frequency-dependent $\alpha_k$ or $c_k$
+allows a bright room, dark room, or strongly modal low end to be represented more honestly
+than one broadband constant.
+
+This model fails predictably. A sustained organ tone looks like persistent source energy
+and persistent late energy at once. A noise burst can be mistaken for a diffuse tail. A
+new note arriving while the old note decays violates the simple delayed-cause narrative.
+Nonstationary background noise biases the tail estimate upward. These are not merely tuning
+problems; they are ambiguities in the evidence. A robust implementation therefore bounds
+gain, smooths estimates, preserves a residual floor, and reports its assumptions.
+
+#### Spectral Suppression and Wiener Estimation
+
+Once desired and late-reverberant power estimates are available, a Wiener-style gain can
+be formed as
+
+$$
+G_{k,l}^{\mathrm W}
+=\frac{\widehat{\lambda}_{x,k,l}}
+{\widehat{\lambda}_{x,k,l}+\widehat{\lambda}_{r,k,l}
++\widehat{\lambda}_{v,k,l}}
+=\frac{\xi_{k,l}}{1+\xi_{k,l}},
+$$
+
+where $\xi_{k,l}$ is an a priori desired-to-interference ratio. The estimate is
+$\widehat{X}_{k,l}=G_{k,l}^{\mathrm W}Y_{k,l}$. A spectral-subtraction alternative uses
+
+$$
+|\widehat{X}_{k,l}|^p
+=\max\!\left(
+|Y_{k,l}|^p-\beta\widehat{\lambda}_{r,k,l},
+G_{\min}^{p}|Y_{k,l}|^p
+\right),
+$$
+
+with $p=1$ for magnitude subtraction or $p=2$ for power subtraction. The oversubtraction
+factor $\beta$ controls aggressiveness and $G_{\min}$ prevents complete spectral holes.
+Both families normally reuse the observed phase because estimating clean phase is much
+harder. That phase reuse is one reason a strongly processed signal can remain smeared or
+phaselike even after its magnitude envelope looks cleaner.
+
+The following figure shows the estimator as two evidence paths meeting at a bounded gain,
+rather than as a magical “remove room” block.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/35_statistical_dereverb_estimator.png
+flowchart LR
+    Y["STFT frame Y(k,l)"] --> D["Delayed history"]
+    D --> R["Late-field PSD estimate"]
+    Y --> X["Desired PSD estimate"]
+    R --> G["Bounded gain G(k,l)"]
+    X --> G
+    Y --> G
+    G --> O["iSTFT and overlap-add"]
+```
+
+**Figure: Statistical late-reverberation suppression using delayed spectral evidence, desired-signal evidence, a bounded time-frequency gain, and overlap-add resynthesis.**
+
+**How to read this figure.** The upper branch estimates interference from past frames;
+the lower branch estimates what should survive now. Their ratio drives the gain. The
+unprocessed STFT also reaches the gain because suppression scales observed complex bins
+rather than synthesizing an unrelated waveform. Resynthesis must use a compatible window
+and hop so the overlap-add sum remains level and free of modulation.
+
+The engineering details determine whether the equations sound acceptable. Frequency-only
+smoothing reduces isolated “musical noise” tones but can blur narrow harmonics. Time
+smoothing reduces pumping but lets late energy leak through attacks. A gain floor protects
+room tone and consonant texture but limits maximum reduction. Attack/release asymmetry can
+open quickly for new direct sound while closing slowly on the estimated tail. Stereo-linked
+gains protect the image; independent gains can remove more channel-specific energy but make
+a centered source wander.
+
+This is the family implemented by the current `verbx dereverb` command and the live
+dereverb front end. It is a deterministic STFT late-tail suppressor with `wiener` and
+`spectral_sub` gain laws. It is **not** currently a WPE solver, measured-RIR inverse, source
+separator, or neural dry-signal generator. The distinction matters when interpreting its
+controls:
+
+| verbx control | Estimation role | Audible risk when pushed |
+|---|---|---|
+| `--strength` | Scales estimated late-field removal | Hollow tone, transient thinning, modulation |
+| `--floor` | Sets $G_{\min}$, the minimum residual gain | Higher values leave tail; lower values expose musical noise |
+| `--window-ms` | Sets time/frequency analysis resolution | Long windows smear attacks; short windows weaken bass resolution |
+| `--hop-ms` | Sets estimator update and overlap cadence | Large hops make gains coarse; incompatible hops fail validation |
+| `--tail-ms` | Sets the late-energy tracking horizon | Too long mistakes sustain for room; too short misses slow decay |
+| `--pre-emphasis` | Changes weighting before estimation | Excess values exaggerate sibilance and sensor noise |
+| `--max-atten-db` | Caps maximum suppression | A high cap increases artifacts; a low cap limits clarity gain |
+| `--stereo-link` | Couples channel gain decisions | Linking preserves image but may retain asymmetric room energy |
+| `--mix` | Blends processed and latency-aligned original | Partial mix restores naturalness and some reverberation |
+
+The safest strategy is to begin with moderate strength, a nonzero floor, and a partial
+mix. Increase reduction while listening to sibilants, cymbal decays, piano attacks, and
+stereo ambience, not only to steady vowels. A setting that improves a spectrogram may
+still damage musical phrasing.
+
+#### Delayed Linear Prediction and WPE
+
+Weighted prediction error (WPE) approaches late reverberation from a different direction.
+Instead of estimating a scalar late-power spectrum and attenuating bins, it models late
+reverberation as a delayed linear prediction from prior STFT frames. The key insight is that
+the direct and early components belong close to the current source event, while the late
+field remains correlated with older microphone observations.
+
+For $M$ microphones, stack the current observations into
+$\boldsymbol{y}_{t,f}\in\mathbb{C}^{M}$. Construct a delayed history vector
+$\overline{\boldsymbol{y}}_{t-\Delta,f}$ from $K$ prediction taps beginning $\Delta$
+frames in the past. A selected output channel can then be modeled as
+
+$$
+Y_{t,f}=X_{t,f}+
+\boldsymbol{g}_f^{\mathsf H}
+\overline{\boldsymbol{y}}_{t-\Delta,f},
+$$
+
+so the dereverberated estimate is the prediction error
+
+$$
+\widehat{X}_{t,f}=Y_{t,f}-
+\boldsymbol{g}_f^{\mathsf H}
+\overline{\boldsymbol{y}}_{t-\Delta,f}.
+$$
+
+The prediction delay $\Delta$ is not an implementation nuisance. It defines what the
+algorithm protects. If $\Delta$ is too small, the predictor explains and subtracts direct
+or useful early energy. Attacks become dull and source color changes. If $\Delta$ is too
+large, a portion of harmful late energy lies outside the model and survives. Prediction
+order $K$ similarly trades model capacity against computation, adaptation speed, and
+overfitting.
+
+Ordinary least squares is biased toward high-energy frames. WPE assumes that the desired
+speech or source coefficient is a zero-mean complex Gaussian with time-varying variance
+$\lambda_{t,f}$ and minimizes
+
+$$
+J_f(\boldsymbol{g}_f)=
+\sum_t
+\frac{
+\left|Y_{t,f}-\boldsymbol{g}_f^{\mathsf H}
+\overline{\boldsymbol{y}}_{t-\Delta,f}\right|^2
+}{\lambda_{t,f}}.
+$$
+
+For fixed variances this is weighted least squares. For fixed predictor coefficients, the
+residual supplies an updated variance estimate. Batch WPE alternates those steps, usually
+for several iterations. The inverse-variance weighting prevents high-power source frames
+from dominating the filter and arises naturally from maximum-likelihood estimation under
+the time-varying Gaussian model described by Nakatani and colleagues.
+
+Define the weighted covariance and cross-correlation
+
+$$
+\boldsymbol{R}_f=
+\sum_t\frac{
+\overline{\boldsymbol{y}}_{t-\Delta,f}
+\overline{\boldsymbol{y}}_{t-\Delta,f}^{\mathsf H}}
+{\lambda_{t,f}},
+\qquad
+\boldsymbol{p}_f=
+\sum_t\frac{
+\overline{\boldsymbol{y}}_{t-\Delta,f}Y_{t,f}^*}
+{\lambda_{t,f}}.
+$$
+
+Then $\boldsymbol{g}_f=\boldsymbol{R}_f^{-1}\boldsymbol{p}_f$, although a numerical
+implementation should solve the linear system rather than form an explicit inverse.
+Diagonal loading, condition-number checks, and finite-value guards are essential when the
+history is poorly excited or channels are nearly redundant.
+
+The following figure separates WPE's undelayed reference, delayed predictor, and iterative
+variance path. That feedback relation is the reason WPE is more than a fixed comb-cancellation
+filter.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/36_wpe_prediction_loop.png
+flowchart TB
+    Y["Microphone STFT y(t,f)"] --> H["Delay Delta and stack history"]
+    H --> P["Weighted predictor g(f)"]
+    Y --> U["Undelayed reference Y(t,f)"]
+    U --> E["Prediction-error residual"]
+    P --> E
+    E --> L["Source variance lambda(t,f)"]
+    L --> P
+```
+
+**Figure: WPE delayed-prediction topology in which past multichannel frames estimate the late field, the current reference supplies the desired event, and residual variance reweights the predictor.**
+
+**How to read this figure.** The middle horizontal route predicts late energy from frames
+older than $\Delta$; the upper route protects the undelayed observation; the lower route
+closes the statistical iteration. Subtraction occurs only after delayed prediction, so
+the topology explicitly distinguishes a current onset from its older reverberant history.
+
+Single-channel WPE can work because one channel still contains temporal predictability,
+but multichannel WPE has a richer basis and can exploit spatial diversity. Batch WPE sees
+the whole utterance and can iterate toward a strong estimate; online WPE must update
+statistics recursively and accept an adaptation lag. Recursive least squares, recursive
+covariance updates, or Kalman formulations reduce memory and delay but introduce forgetting
+factors and tracking tradeoffs. Caroselli and colleagues demonstrate adaptive WPE for
+large-scale recognition, while Nakatani and Kinoshita formulate frame-by-frame low-latency
+joint processing.
+
+WPE also has characteristic failure modes. A predictor can suppress sustained harmonic
+material because periodic music is itself predictable. Rapid movement invalidates its
+filter before adaptation catches up. Background noise corrupts covariance and variance
+estimates. Very long filters become computationally expensive: for each frequency, the
+history dimension grows with $MK$, and a dense solve scales steeply with that dimension.
+Practical systems therefore regularize, limit order, update less frequently than every
+sample, and sometimes estimate source variance with a neural network.
+
+#### Multichannel Spatial Dereverberation
+
+Multiple microphones do more than provide more samples. They observe different mixtures
+of the same direct source and reflected field. Direct sound from a compact source has a
+structured steering vector; a sufficiently diffuse late field has a different spatial
+covariance; directional interferers differ again. Spatial filtering can exploit those
+differences even when their spectra overlap.
+
+For STFT observation vector $\boldsymbol{y}_{t,f}$, the spatial covariance is
+
+$$
+\boldsymbol{R}_{yy,f}=
+\mathbb{E}\{\boldsymbol{y}_{t,f}\boldsymbol{y}_{t,f}^{\mathsf H}\}.
+$$
+
+If a desired steering vector $\boldsymbol{d}_f$ and interference covariance
+$\boldsymbol{R}_{vv,f}$ are available, an MVDR beamformer uses
+
+$$
+\boldsymbol{w}_{\mathrm{MVDR},f}=
+\frac{\boldsymbol{R}_{vv,f}^{-1}\boldsymbol{d}_f}
+{\boldsymbol{d}_f^{\mathsf H}\boldsymbol{R}_{vv,f}^{-1}\boldsymbol{d}_f}.
+$$
+
+The denominator enforces unity response in the desired direction while minimizing output
+power attributed to interference. A multichannel Wiener filter relaxes the distortionless
+constraint to minimize mean-square error. Weighted power minimization distortionless
+response (WPD) convolutional beamforming unifies delayed dereverberation and spatial
+filtering in one spatio-temporal objective.
+
+These methods are complementary rather than interchangeable. WPE attacks temporal
+predictability in the late tail. Beamforming attacks spatial directions and covariance
+structure. Applying WPE before a spatial filter can shorten the effective response and
+improve covariance estimates; joint formulations can avoid a suboptimal fixed cascade.
+Drude and colleagues report that integrating WPE with neural beamforming outperforms the
+standalone components in their far-field recognition experiments. That result is evidence
+for the tested conditions, not a promise that every musical array recording benefits from
+the same ordering.
+
+The following figure shows the two evidence streams that a serious multichannel system
+must maintain: calibrated geometry and spatial statistics above, delayed temporal
+prediction below.
+
+```mermaid
+%% verbx-static: docs/assets/reverb_primer/37_multichannel_dereverb_stack.png
+flowchart LR
+    A["Microphone array y1 through yM"] --> C["Clock gain and geometry validation"]
+    A --> W["Multichannel WPE"]
+    C --> R["Spatial covariance estimates"]
+    W --> B["MVDR MWF or WPD filter"]
+    R --> B
+    B --> O["Dereverberated spatial output"]
+```
+
+**Figure: A multichannel dereverberation stack combining array calibration, delayed late-tail prediction, spatial covariance estimation, and distortion-controlled beamforming.**
+
+**How to read this figure.** The lower path shortens temporal reverberation; the upper path
+describes array geometry and spatial energy. The spatial filter needs both. A channel-count
+increase is not automatically useful: unsynchronized clocks, mismatched gains, unknown
+microphone positions, or poor aperture can make the additional covariance unreliable.
+
+For music and immersive production, the target output also needs definition. Collapsing a
+concert recording to one beamformed channel may improve speechlike clarity while destroying
+ensemble width and hall envelopment. A stereo or Ambisonic dereverberator should preserve
+interchannel level, time, phase, and diffuseness cues intentionally. Gains may be linked,
+estimated in a mid/side basis, or constrained by a multichannel target covariance. Every
+choice decides which part of “the room” is unwanted and which part is artistic evidence.
+
+#### Neural and Hybrid Methods
+
+Neural dereverberation learns a mapping from reverberant observations to a chosen target.
+The model may estimate a complex ratio mask, desired magnitude, clean waveform, room
+response, source variance for WPE, or spatial covariance for beamforming. Architectures
+include convolutional and recurrent networks, temporal convolutional networks,
+transformers, complex-valued mask estimators, and waveform-domain encoder/decoders.
+
+Supervision makes the target question unavoidable. An anechoic target asks the model to
+remove both early and late room energy. An “early” target preserves the response up to a
+chosen boundary. A close-microphone target includes that microphone's coloration and
+bleed. A studio stem may contain processing absent from the distant observation. These are
+different inverse problems. Training labels that silently mix them teach inconsistent
+behavior.
+
+Neural systems can use source regularities unavailable to blind statistical estimators.
+A speech model learns phonetic and harmonic structure; a music model can learn attacks,
+sustain, and instrument spectra. That prior can reconstruct plausible detail after severe
+smearing. It can also hallucinate plausible but incorrect consonants, suppress unfamiliar
+instruments, or imprint the training corpus's room and microphone biases. For archival,
+forensic, scientific, and classical-music work, plausibility is not equivalent to fidelity.
+
+Hybrid systems keep an interpretable acoustic core and learn the hard statistics around it.
+A network may estimate $\lambda_{t,f}$ for WPE, generate masks for covariance estimation,
+predict $T_{60}$ and direct-to-reverberant ratio, or synthesize a virtual second channel for
+multichannel WPE. Yang and Chang's virtual acoustic channel expansion is one example;
+neural-network-assisted Kalman WPE is another. These designs can retain a known prediction
+topology while improving source/noise discrimination.
+
+Real-time neural deployment adds constraints beyond model accuracy. Look-ahead, receptive
+field, frame accumulation, accelerator transfer, dynamic allocation, denormal handling,
+and worst-case execution time all affect audio safety. A model reporting a small arithmetic
+cost can still miss a callback deadline because of memory traffic or runtime scheduling.
+Any future neural `verbx` mode should publish model identity, target definition, causal
+context, algorithmic delay, hardware, confidence, and deterministic fallback behavior in
+its JSON report.
+
+#### Psychoacoustics: What Should Be Removed?
+
+The ear does not classify all reflections as damage. Early lateral reflections can increase
+apparent source width and support intelligibility; a moderate room response can make speech
+or music sound natural. Late energy is more likely to fill temporal gaps, reduce modulation
+depth, mask following consonants, and fuse successive notes. But listeners also adapt to a
+room, and context changes perceived reverberance. The perceptually optimal estimate is often
+an early response, not an anechoic signal.
+
+Speech illustrates temporal masking clearly. Energy from a vowel extends into the weaker
+consonant that follows it. The consonant may still exist physically, yet its contrast is
+reduced by the vowel's late field. Dereverberation restores modulation depth by attenuating
+that older energy. Music complicates the rule: the same overlap may be legato, resonance,
+or orchestration rather than interference. A piano pedal and a cathedral tail both prolong
+energy, but only one is a room response. An estimator driven only by predictability can
+damage both.
+
+Direct-to-reverberant ratio (DRR), early-to-late ratio, clarity $C_{50}$ or $C_{80}$, and
+modulation transfer describe different perceptual axes from $T_{60}$. Two recordings can
+share one decay time while one has a strong direct onset and the other sounds distant.
+Reducing $T_{60}$ alone does not guarantee restored presence. Conversely, increasing the
+early-to-late ratio by suppressing only late energy may improve clarity without changing
+the fitted slope of the residual decay very much.
+
+Tsilfidis and Mourjopoulos explicitly connect late suppression to perceptual reverberation
+modeling. Their work supports a product principle: the goal should be selective reduction
+of harmful audible late energy, not maximizing numerical attenuation. The best setting is
+often the lowest strength that reveals articulation without advertising the processor.
+
+#### Artifacts and the Quality Frontier
+
+Dereverberation sits on a Pareto frontier. More late-tail reduction normally increases at
+least one cost: coloration, transient damage, background-noise modulation, spatial change,
+or latency. There is no single strength value that optimizes every source and task.
+
+| Artifact | DSP cause | Diagnostic source | Conservative remedy |
+|---|---|---|---|
+| Musical noise | Isolated time-frequency gains fluctuate around estimation errors | Sustained noise, cymbal tail, breath | Raise floor; smooth gains; reduce strength |
+| Phasiness | Observed phase is retained while magnitude changes rapidly | Solo voice, strings, stereo room tone | Increase time smoothing; use partial mix |
+| Transient erosion | Predictor or long window treats onset energy as late field | Castanets, piano, consonants | Shorten window; protect delay; reduce order or strength |
+| Spectral holes | Oversubtraction drives narrow bins near zero | Harmonic sweep, pink noise | Cap attenuation; use Wiener gain; raise floor |
+| Pumping | Tail estimate follows source envelope too directly | Speech pauses, kick pattern | Lengthen release/tracker; reduce strength |
+| Image wobble | Channels receive unrelated gain trajectories | Centered mono source in stereo ambience | Link gains or constrain spatial covariance |
+| Noise breathing | Noise is classified as source in one frame and late field in another | HVAC, preamp hiss, location bed | Estimate noise separately; retain stable floor |
+| Comb coloration | Inaccurate inverse or prediction cancels correlated direct energy | Sweeps, sustained vowels | Increase regularization or prediction delay |
+| Over-dry isolation | Useful early room cues are removed with the tail | Chamber music, location dialogue | Preserve early target; lower mix or strength |
+
+Listening tests should include bypass matched for loudness. Dereverberated output often
+sounds “better” simply because transients become louder or average level changes. Match
+integrated loudness and peak headroom before judging clarity. Also audition the residual
+$y[n]-\widehat{x}[n]$. A good residual should sound predominantly like diffuse late energy;
+recognizable dry words, melody, or attacks reveal source cancellation.
+
+#### Causality, Adaptation, and End-to-End Latency
+
+Offline algorithms may inspect future samples, estimate statistics over a complete file,
+iterate until convergence, and use zero-phase filtering. A real-time processor must commit
+to output before that future exists. “Real-time” only means processing keeps pace; it does
+not mean zero latency. The end-to-end monitoring delay is approximately
+
+$$
+L_{\mathrm{total}}=
+L_{\mathrm{ADC}}+L_{\mathrm{input\ buffer}}+L_{\mathrm{analysis}}
++L_{\mathrm{algorithm}}+L_{\mathrm{output\ buffer}}+L_{\mathrm{DAC}},
+$$
+
+plus any operating-system safety offsets, resampling, aggregate-device buffering, plugin
+host compensation, and wireless transport. A dereverberator can control only part of this
+sum.
+
+For an STFT processor, a causal window of $N$ samples must be filled before its complete
+spectrum is available. A centered STFT adds future look-ahead and is unsuitable for strict
+live monitoring unless that delay is accepted. Overlap-add emits updates every hop $H$,
+while driver callbacks arrive in blocks of $B$ samples. If $B$ is not compatible with $H$,
+the implementation needs an internal adapter or must reject the configuration. `verbx`
+currently chooses fail-fast validation for the live dereverb path: the block size must be
+divisible by the resolved hop size.
+
+At 48 kHz, a 12 ms window is approximately 576 samples and a 4 ms hop is approximately
+192 samples. A 384-sample callback block contains two complete hops. This does **not** imply
+that total acoustic round-trip latency is exactly 12 ms or 8 ms. Driver input/output
+buffers and converter safety offsets remain device dependent, and the analysis/resynthesis
+implementation can add a window-related delay. The trustworthy measurement is a physical
+loopback: feed a pulse through the complete input, processor, host, and output chain; record
+both the reference and return; find their sample offset; repeat under realistic load; and
+report median plus worst case.
+
+WPE introduces a second time scale: statistical adaptation. A causal WPE output may have a
+small signal-path delay while its covariance and source variance need many frames to become
+reliable. After a source moves or speech begins, quality ramps toward steady state. That
+adaptation lag is not always counted as algorithmic latency, but it affects perceived
+responsiveness and should be reported. Neural methods similarly separate look-ahead from
+state warm-up and accelerator scheduling.
+
+Low latency and deep suppression conflict. Short windows react quickly but have broad
+frequency bins, making low-frequency decay harder to distinguish. Short predictors adapt
+quickly but model less of the tail. Small smoothers preserve attacks but allow estimate
+variance to modulate the output. A live preset should be judged under deadline pressure and
+dropout monitoring, not only by processing a file faster than its duration.
+
+#### Evaluating Dereverberation Scientifically
+
+No one metric establishes success. Evaluation should combine acoustic quantities,
+signal-reconstruction metrics, downstream task performance, artifact measures, and
+controlled listening. Each answers a different question.
+
+**Paired intrusive evaluation** is possible when a dry or early target is known and aligned.
+Synthetic tests convolve a clean source with measured or simulated room responses, then
+compare the estimate with the original target. Scale-invariant signal-to-distortion ratio
+(SI-SDR) measures reconstruction after removing a scalar gain ambiguity, but it can punish
+benign spatial or equalization differences and reward solutions that do not sound natural.
+Short-time objective intelligibility (STOI) and perceptual evaluation of speech quality
+(PESQ) are speech oriented; neither should be treated as a music-quality score.
+
+**Non-intrusive evaluation** is needed for ordinary recordings with no dry reference. The
+speech-to-reverberation modulation energy ratio (SRMR) uses modulation spectra to estimate
+reverberation-related smearing. Blind $T_{60}$, DRR, or early-to-late estimators can compare
+before and after, but processing may violate the statistical model used by the estimator.
+An algorithm can “game” a proxy by reshaping modulation or spectral energy without restoring
+the source. Non-intrusive values are evidence, not ground truth.
+
+**Room-acoustic evaluation** is strongest when an impulse response is available. Backward
+Schroeder integration yields an energy-decay curve from which EDT, $T_{20}$, and $T_{30}$
+can be fitted. Clarity indices compare early and late energy:
+
+$$
+C_{t_e}=10\log_{10}
+\frac{\int_0^{t_e}h^2(t)\,dt}
+{\int_{t_e}^{\infty}h^2(t)\,dt},
+$$
+
+with $t_e=50$ ms commonly used for speech and $t_e=80$ ms for music. A dereverberator aimed
+at late suppression should normally increase early-to-late clarity, though its output is
+not itself a pristine room impulse response if the method is nonlinear or signal dependent.
+
+**Task evaluation** asks whether the processing helps the intended system. For distant
+speech recognition, report word error rate across rooms, distances, speakers, and noise
+conditions. The REVERB Challenge established paired simulated and real-room test conditions
+and made clear that enhancement scores and recognition outcomes need not rank systems in
+the same order. For dialogue editing, test transcription and listener effort. For source
+separation, test leakage and source fidelity. For music, use trained listeners and include
+transient, sustained, sparse, dense, mono, stereo, and immersive material.
+
+**Listening evaluation** should be randomized, loudness matched, and preferably hidden.
+A MUSHRA-style panel can include reverberant input, one or more estimates, the known early
+target when available, and an intentionally poor anchor. Ask separate questions for
+reverberation reduction, speech clarity, timbral fidelity, spatial stability, transient
+quality, and overall preference. A single “quality” score hides the tradeoff the experiment
+is meant to expose.
+
+Every report should preserve the input hash, sample rate, channel layout, algorithm and
+version, complete parameters, random seed if any, processing mode, machine, wall-clock
+speed, algorithmic delay, measured loopback delay when relevant, and metric definitions.
+Without that provenance, small score differences are not reproducible science.
+
+#### A Reproducible verbx Workflow
+
+Start by preserving the original and measuring what can be measured honestly. For program
+audio, label blind room estimates as estimates rather than treating them like measured IR
+parameters:
+
+```bash
+verbx analyze location_dialogue.wav --input-kind program --edr --room \
+  --json-out reports/location_dialogue.before.json
+```
+
+Render a conservative Wiener pass to 32-bit floating-point WAV and preserve a structured
+processing report:
+
+```bash
+verbx dereverb location_dialogue.wav location_dialogue.dereverb.wav \
+  --mode wiener --strength 0.75 --floor 0.08 \
+  --window-ms 20 --hop-ms 5 --tail-ms 120 \
+  --pre-emphasis 0.15 --mix 0.9 --out-subtype float32 \
+  --json-out reports/location_dialogue.dereverb.json
+```
+
+Analyze the result separately so processing metadata and measured output evidence remain
+distinct records:
+
+```bash
+verbx analyze location_dialogue.dereverb.wav --input-kind program --edr --room \
+  --json-out reports/location_dialogue.after.json
+```
+
+Then make at least three loudness-matched auditions: bypass, conservative processing, and
+a deliberately stronger setting. The stronger setting identifies the artifact boundary;
+it is not automatically the deliverable. Listen to the residual as well as the output.
+For stereo material, compare linked and unlinked behavior while watching a phase-correlation
+or vectorscope display.
+
+For live monitoring, begin with a device list and use wired input/output paths:
+
+```bash
+verbx realtime --list-devices
+```
+
+```bash
+verbx realtime --live-mode dereverb \
+  --input-device "Built-in Microphone" --output-device "Headphones" \
+  --sample-rate 48000 --block-size 384 \
+  --dereverb-mode wiener --dereverb-strength 0.75 \
+  --dereverb-floor 0.08 --dereverb-window-ms 12 \
+  --dereverb-hop-ms 4 --dereverb-tail-ms 90 \
+  --dereverb-max-atten-db 15 --dereverb-stereo-link
+```
+
+Measure physical round-trip delay before performance use. Bluetooth devices can add far
+more latency than the DSP and should not be used to characterize the processor. If a DAW
+hosts the plugin path, measure that host and buffer configuration rather than transferring
+a standalone CLI number to it.
+
+The experiment matrix below is more informative than searching for one universal preset:
+
+| Dimension | Minimum useful conditions | What it reveals |
+|---|---|---|
+| Source | Speech, percussion, piano, sustained strings, dense mix | Source-prior and transient failures |
+| Room | Short dry room, medium room, long diffuse hall, modal small room | Model mismatch and decay tracking |
+| Distance | Near, medium, far | DRR dependence |
+| Noise | Quiet, stationary noise, changing noise | Tail/noise confusion |
+| Channels | Mono, stereo linked, stereo independent | Spatial stability |
+| Strength | Bypass, conservative, nominal, stress | Artifact frontier |
+| Mode | Wiener, spectral subtraction | Gain-law dependence |
+| Metric | Clarity, blind decay, residual, listening, task score | Agreement and disagreement between evidence |
+
+#### Limits, Safety, and Claims
+
+Dereverberation cannot separate every process that prolongs sound. Instrument resonance,
+sustain pedal, chorus, delay, compression release, distortion, audience noise, and the
+room may overlap. A single microphone provides no label saying which decay is artistic.
+Aggressive processing of a mastered recording can remove intentional production ambience
+and expose edits or noise that the ambience masked.
+
+The processor also cannot repair clipping, recover bandwidth removed before capture, or
+infer a unique dry waveform from a fully smeared mixture. It may improve intelligibility
+without making audio studio-dry, or make audio sound drier while decreasing fidelity. Those
+outcomes are not contradictions because “reverberation amount,” “clarity,” and
+“reconstruction accuracy” are different dimensions.
+
+For forensic or evidentiary use, retain the original, process only a copy, preserve hashes
+and parameters, and describe the method as enhancement rather than recovery of fact. For
+machine-learning datasets, keep dry/reverberant pairing and train/validation/test room
+separation intact; otherwise room leakage can make a model appear to generalize. For
+archival music, prefer reversible conservative passes and document the artistic decision.
+
+The current `verbx` implementation should therefore be described precisely as deterministic
+spectral late-tail suppression. Its controls are designed to expose the reduction/artifact
+tradeoff and produce machine-readable reports. WPE, multichannel convolutional beamforming,
+measured inverse filtering, and neural restoration are discussed here because they define
+the scientific field and roadmap, not because the CLI silently substitutes those methods.
+
+#### Selected Primary Literature
+
+The following works are ordered alphabetically by first author. Appendix C contains the
+guide's larger annotated bibliography and cross-references [PE3], [PE4], [PE9], [SR1], and
+related room-acoustic sources.
+
+Allen, J. B.; Berkley, D. A. “Image method for efficiently simulating small-room
+acoustics.” *The Journal of the Acoustical Society of America* 65(4): 943–950. DOI:
+[10.1121/1.382599](https://doi.org/10.1121/1.382599), 1979.
+
+Caroselli, J.; Shafran, I.; Narayanan, A.; Rose, R. “Adaptive multichannel
+dereverberation for automatic speech recognition.” *Proceedings of Interspeech 2017*:
+3877–3881. DOI:
+[10.21437/Interspeech.2017-1791](https://doi.org/10.21437/Interspeech.2017-1791), 2017.
+
+Drude, L.; Boeddeker, C.; Heymann, J.; Haeb-Umbach, R.; Kinoshita, K.; Delcroix, M.;
+Nakatani, T. “Integrating neural network based beamforming and weighted prediction error
+dereverberation.” *Proceedings of Interspeech 2018*: 3043–3047. DOI:
+[10.21437/Interspeech.2018-2196](https://doi.org/10.21437/Interspeech.2018-2196), 2018.
+
+Erkelens, J. S.; Heusdens, R. “A statistical room impulse response model with frequency
+dependent reverberation time for single-microphone late reverberation suppression.”
+*Proceedings of Interspeech 2011*: 2273–2276. DOI:
+[10.21437/Interspeech.2011-82](https://doi.org/10.21437/Interspeech.2011-82), 2011.
+
+Falk, T. H.; Zheng, C.; Chan, W.-Y. “A non-intrusive quality and intelligibility measure
+of reverberant and dereverberated speech.” *IEEE Transactions on Audio, Speech, and
+Language Processing* 18(7): 1766–1774. DOI:
+[10.1109/TASL.2010.2052247](https://doi.org/10.1109/TASL.2010.2052247), 2010.
+
+Habets, E. A. P. “Speech dereverberation using statistical reverberation models.” In
+Naylor, P. A.; Gaubitch, N. D., eds., *Speech Dereverberation*: 57–93. DOI:
+[10.1007/978-1-84996-056-4_3](https://doi.org/10.1007/978-1-84996-056-4_3), 2010.
+
+Habets, E. A. P.; Gannot, S.; Cohen, I. “Late reverberant spectral variance estimation
+based on a statistical model.” *IEEE Signal Processing Letters* 16(9): 770–773. DOI:
+[10.1109/LSP.2009.2024796](https://doi.org/10.1109/LSP.2009.2024796), 2009.
+
+Kinoshita, K.; Delcroix, M.; Gannot, S.; Habets, E. A. P.; Haeb-Umbach, R.; Kellermann,
+W.; Leutnant, V.; Maas, R.; Nakatani, T.; Raj, B.; Sehr, A.; Yoshioka, T. “A summary of
+the REVERB challenge: state-of-the-art and remaining challenges in reverberant speech
+processing research.” *EURASIP Journal on Advances in Signal Processing* 2016: 7. DOI:
+[10.1186/s13634-016-0306-6](https://doi.org/10.1186/s13634-016-0306-6), 2016.
+
+Miyoshi, M.; Kaneda, Y. “Inverse filtering of room acoustics.” *IEEE Transactions on
+Acoustics, Speech, and Signal Processing* 36(2): 145–152. DOI:
+[10.1109/29.1509](https://doi.org/10.1109/29.1509), 1988.
+
+Nakatani, T.; Kinoshita, K. “Simultaneous denoising and dereverberation for low-latency
+applications using frame-by-frame online unified convolutional beamformer.” *Proceedings
+of Interspeech 2019*: 111–115. DOI:
+[10.21437/Interspeech.2019-1286](https://doi.org/10.21437/Interspeech.2019-1286), 2019.
+
+Nakatani, T.; Yoshioka, T.; Kinoshita, K.; Miyoshi, M.; Juang, B.-H. “Speech
+dereverberation based on variance-normalized delayed linear prediction.” *IEEE
+Transactions on Audio, Speech, and Language Processing* 18(7): 1717–1731. DOI:
+[10.1109/TASL.2010.2052251](https://doi.org/10.1109/TASL.2010.2052251), 2010.
+
+Naylor, P. A.; Gaubitch, N. D., eds. *Speech Dereverberation*. London: Springer. DOI:
+[10.1007/978-1-84996-056-4](https://doi.org/10.1007/978-1-84996-056-4), 2010.
+
+Tsilfidis, A.; Mourjopoulos, J. “Blind single-channel suppression of late reverberation
+based on perceptual reverberation modeling.” *The Journal of the Acoustical Society of
+America* 129(3): 1439–1451. DOI:
+[10.1121/1.3533690](https://doi.org/10.1121/1.3533690), 2011.
+
+Yang, J.-Y.; Chang, J.-H. “Virtual acoustic channel expansion based on neural networks
+for weighted prediction error-based speech dereverberation.” *Proceedings of Interspeech
+2020*: 3930–3934. DOI:
+[10.21437/Interspeech.2020-1553](https://doi.org/10.21437/Interspeech.2020-1553), 2020.
+
+Yoshioka, T.; Nakatani, T. “Generalization of multi-channel linear prediction methods for
+blind MIMO impulse response shortening.” *IEEE Transactions on Audio, Speech, and Language
+Processing* 20(10): 2707–2720. DOI:
+[10.1109/TASL.2012.2210879](https://doi.org/10.1109/TASL.2012.2210879), 2012.
+
+### A Thirty-Minute Reverb Laboratory
+
+The following laboratory turns the chapter into an audible sequence. Use headphones
+and loudspeakers if possible; keep output level fixed; preserve every render and JSON
+sidecar.
+
+#### Minute 0–5: Identify the Three Regions
+
+Render the dry click through a one-second room at 100 percent wet. Mark direct onset,
+the first visible reflections, and the point where individual arrivals become a dense
+tail. Change only pre-delay and repeat. The late decay should remain similar while the
+relationship between source and room changes.
+
+#### Minute 5–10: Isolate Diffusion
+
+Render a rimshot or click with zero, two, four, and eight allpass stages. Keep RT60 and
+matrix fixed. Listen for loss of attack definition, flutter reduction, and buildup
+speed. Choose the lowest stage count that supplies the density the source needs.
+
+#### Minute 10–15: Compare Matrix Families
+
+Use a sparse major seventh chord and an eight-second tail. Compare Hadamard, circulant,
+random orthogonal, and time-varying unitary matrices. Write three adjectives for each
+without looking at the option name. Then inspect sonograms and ask whether visible
+modal ridges agree with what you heard.
+
+#### Minute 15–20: Design Frequency-Dependent Decay
+
+Set low, middle, and high RT60 values equal. Then shorten only the high band; next,
+lengthen only the low band. Listen through the complete final tail. The point is not to
+find a universal curve but to learn how decay spectrum changes perceived material and
+scale.
+
+#### Minute 20–25: Make the Return a Musical Voice
+
+Put verbx on a 100 percent wet auxiliary return. Send only the final note of every
+four-bar phrase. Then leave the send constant and automate the return instead. Compare
+the two gestures. One controls what the room remembers; the other controls when the
+memory is revealed.
+
+#### Minute 25–30: Enter Extreme Time Safely
+
+Render one stable chord into a 60-second time-varying FDN. Leave at least 90 seconds of
+silence after the source. Write floating-point audio and a JSON report. Inspect peak,
+integrated loudness, DC offset, and the final 20 seconds. Increase RT60 only after the
+tail is spectrally and numerically controlled.
+
+### Practical Listening Checklist
+
+- **Onset:** Does the room begin with the source, behind it, or as a separate echo?
+- **Density:** Can individual repetitions be heard after they should have fused?
+- **Color:** Which bands survive longest, and is that survival musically useful?
+- **Modes:** Do stable pitches emerge that were not structurally important in the source?
+- **Width:** Does the return enlarge the image without weakening the center or fold-down?
+- **Dynamics:** Does the tail mask attacks, words, or harmonic changes?
+- **Motion:** Does time variation feel architectural, chorused, or unstable?
+- **Ending:** Does the tail reach silence gracefully, gate abruptly, or expose noise and DC?
+- **Form:** Is reverb supporting a phrase, connecting sections, or functioning as its own layer?
+- **Evidence:** Can the render be reproduced from its command, preset, seed, and JSON report?
+
+### Summary: Reverb as Memory
+
+Reverb is the memory of an acoustic or synthetic system. Direct sound tells the listener
+what happened; early reflections tell where it happened; the late field tells how the
+space continues to respond. In music, that memory can reinforce articulation, connect
+harmony, enlarge orchestration, preserve a past section, or become a new sustained
+instrument.
+
+verbx sounds different because it does not reduce this behavior to one size control. It
+exposes the topology and timing that create density, the matrix that exchanges energy,
+the filters that shape decay, the projections that create spatial output, and the
+creative processes that reinterpret the field. At ordinary settings, those controls
+design rooms, chambers, halls, and plates. At extreme settings, they design musical
+time.
 
 ---
 
@@ -223,21 +3212,579 @@ where $f_s$ is in hertz, $T_{60}$ is RT60 in seconds, and $V$ is room volume in 
 
 **For beginners:** Algorithmic reverb synthesizes the space from scratch using delay networks and filters. It does not need an external file, responds instantly to parameter changes, and can produce decay times no physical room could sustain. Convolution reverb applies a pre-recorded impulse response — a measurement of what a specific room does to a click — to your audio. The result sounds like the space where the IR was recorded.
 
-**For experts:** The algorithmic engine in verbx uses a Schroeder allpass diffusion stage feeding a fully coupled N-line FDN with configurable feedback matrix. Convolution uses uniformly-partitioned overlap-save FFT with optional CUDA acceleration via CuPy. The two engines share the same pre-delay, shimmer, freeze, ducking, bloom, tilt, loudness, and spatial stages. Use `--engine auto` and verbx selects based on whether an IR is present.
+**For experts:** The algorithmic engine in verbx uses a Schroeder allpass diffusion stage feeding a fully coupled $N$-line FDN with configurable feedback matrix. Convolution uses uniformly-partitioned overlap-save FFT with optional CUDA acceleration via CuPy. The two engines share the same pre-delay, shimmer, freeze, ducking, bloom, tilt, loudness, and spatial stages. Use `--engine auto` and verbx selects based on whether an IR is present.
 
 Choose algorithmic when you want extreme lengths, animated or time-varying decay, spaces that do not exist, low storage overhead. Choose convolution when you want: the character of a specific real or designed space, exact linear reproduction of an IR, or multichannel matrix routing from a measured space.
 
 ### RT60
 
-**For beginners:** RT60 is roughly how long the reverb tail takes to fade away — specifically, how many seconds until the level drops by 60 dB (about a factor of 1000 in amplitude). A small bathroom is around 0.5 seconds. A bedroom is 0.3–0.8 seconds. A concert hall is 1.5–2.5 seconds. A cathedral reaches 5–12 seconds. verbx handles up to 3600 seconds. If the tail sounds too long and washes over everything, reduce RT60. If it sounds too dry and cut-off, increase it.
+**For beginners:** RT60 is the time required for reverberant sound energy to fall by
+60 dB after the source stops. That is a decrease to one millionth of the starting energy,
+or one thousandth of the starting pressure amplitude. A short RT60 makes events separate
+quickly and usually improves articulation. A long RT60 joins events into a continuous
+field and can enlarge, soften, or obscure musical detail. RT60 describes the slope of a
+decay; it does not by itself describe how loud the reverb is, how soon it begins, whether
+it is bright or dark, or how wide the return sounds.
 
-**For experts:** RT60 drives per-line gain calibration in the FDN:
+A small treated room may have an RT60 below 0.4 s. Many production rooms occupy roughly
+0.3–0.8 s, concert halls often lie near 1.5–2.5 s at mid frequencies, and very large stone
+spaces can sustain substantially longer decays. These are orientation ranges rather than
+presets or universal targets. Occupancy, frequency, source/receiver position, geometry,
+and measurement method all matter. The verbx analyzer can represent estimates from 0.01 s
+to 3600 s; the current render and IR-synthesis controls accept targets from 0.1 s to 3600 s.
+That span moves continuously from tight acoustic control to deliberately nonphysical musical
+sustain without pretending that every extreme is a plausible architectural room.
+
+#### Decibels, Energy, and the Meaning of “60”
+
+The decibel is logarithmic. For pressure or sample amplitude $p(t)$ relative to reference
+$p_0$, level is
+
+$$
+L_p(t)=20\log_{10}\!\left(\frac{|p(t)|}{|p_0|}\right)\ \mathrm{dB}.
+$$
+
+For energy $E(t)$ relative to $E_0$, level is
+
+$$
+L_E(t)=10\log_{10}\!\left(\frac{E(t)}{E_0}\right)\ \mathrm{dB}.
+$$
+
+An amplitude ratio of $10^{-3}$ and an energy ratio of $10^{-6}$ therefore both represent
+–60 dB. This is why RT60 is sometimes described as a thousandfold pressure reduction and
+sometimes as a millionfold energy reduction. The statements are equivalent, provided the
+reader knows which physical quantity is being discussed.
+
+An ideal exponential amplitude envelope can be written
+
+$$
+p_{\mathrm{env}}(t)=p_0e^{-t/\tau_A},
+$$
+
+where $\tau_A$ is an amplitude time constant. Requiring a –60 dB amplitude change at
+$t=T_{60}$ gives
+
+$$
+\tau_A=\frac{T_{60}}{3\ln 10}.
+$$
+
+The corresponding energy time constant is half as long:
+
+$$
+\tau_E=\frac{T_{60}}{6\ln 10}.
+$$
+
+On a decibel-versus-time graph, an ideal exponential is a straight line with slope
+
+$$
+s=-\frac{60}{T_{60}}\ \mathrm{dB/s}.
+$$
+
+Thus a 2 s decay falls at –30 dB/s, while an 8 s decay falls at –7.5 dB/s. Doubling RT60
+halves the magnitude of the decay slope; it does not merely append a fixed amount of audio
+to the tail.
+
+Figure 3-1 compares four ideal decay families on one time axis. It provides the visual
+reference for interpreting RT60 as a slope rather than as a cutoff point.
+
+#### From Room Physics to Reverberation Time
+
+In a statistical diffuse-field model, Sabine's relation estimates reverberation time from
+room volume and equivalent absorption area:
+
+$$
+T_{60}\approx 0.161\frac{V}{A},
+\qquad
+A=\sum_j\alpha_jS_j,
+$$
+
+where $V$ is volume in cubic meters, $S_j$ is surface area in square meters, and
+$\alpha_j$ is the dimensionless absorption coefficient of surface $j$. The constant
+0.161 has units that make the result seconds under ordinary SI assumptions. More volume
+stores more acoustic energy; more absorption removes a larger fraction at each encounter.
+
+Sabine's approximation is strongest when absorption is modest and distributed, the field
+is sufficiently diffuse, and source/receiver positions sample the room representatively.
+For larger average absorption, Eyring's form accounts for the finite fractional loss more
+directly:
+
+$$
+T_{60}\approx
+0.161\frac{V}{-S\ln(1-\overline{\alpha})},
+$$
+
+where $S$ is total surface area and $\overline{\alpha}$ is area-weighted mean absorption.
+Neither equation predicts every seat, low-frequency mode, coupled chamber, or strongly
+directional geometry. They are statistical models of ensemble energy, not substitutes for
+a measured impulse response or wave simulation.
+
+Absorption is frequency dependent. Carpet, curtains, occupied seating, air, porous panels,
+wood, and masonry do not remove all frequencies equally. A room consequently has an RT60
+curve $T_{60}(f)$ rather than one complete scalar. Published room values should identify
+octave or one-third-octave bands, occupancy, excitation, microphone arrangement, and the
+estimator used. A single broadband number is useful only when its compression of that
+curve is acknowledged.
+
+![RT60 decay families](docs/assets/userguide_figures/03_rt60_decay_families.png)
+
+**Figure: Ideal RT60 decay families showing relative decay level in decibels against time after excitation in seconds.**
+
+**How to read Figure 3-1.** Every curve begins at the same normalized level. The 1.2 s
+curve reaches –60 dB first and then remains at the displayed floor; the 8 s curve is still
+decaying at the right edge. A real response does not become exactly silent at $T_{60}$.
+The –60 dB crossing is a reference on an extrapolated or measured slope, while audibility
+depends on source level, spectrum, masking, and the playback noise floor.
+
+#### RT60 Inside a Feedback Delay Network
+
+For experts, RT60 drives per-line gain calibration in a unitary or approximately
+energy-preserving feedback delay network. If line $i$ has delay $d_i$ seconds and scalar
+feedback magnitude $g_i$, it circulates approximately $T_{60}/d_i$ times during one target
+decay. Requiring the accumulated amplitude to reach $10^{-3}$ gives
 
 $$
 g_i = 10^{-\frac{3d_i}{T_{60}}}
 $$
 
-where $d_i$ is delay-line $i$ duration in seconds and $T_{60}$ is the target decay time. Shorter delays require gains closer to $1.0$ for the same RT60 target. Multiband RT60 (`--fdn-rt60-low`, `--fdn-rt60-mid`, `--fdn-rt60-high`) applies this formula per band with crossovers at `--fdn-xover-low-hz` and `--fdn-xover-high-hz`. The `--fdn-rt60-tilt` parameter applies a Jot-style frequency-dependent decay skew around the broadband target without requiring explicit per-band values. For analysis, use `verbx analyze --edr` to compute frequency-dependent RT estimates via backward Schroeder integration of the output.
+or, for a line of $m_i$ samples at sample rate $F_s$,
+
+$$
+g_i=10^{-\frac{3m_i}{F_sT_{60}}}.
+$$
+
+Shorter delays traverse their loop more often and therefore require gains closer to one for
+the same total decay. Using one identical gain on unequal delays creates unequal modal
+decay rates. Calibrating each line by its duration is what turns a set of dissimilar delays
+into one approximate broadband RT60 target.
+
+This derivation assumes that the feedback matrix preserves energy. For an exactly unitary
+matrix $\boldsymbol{M}$, $\boldsymbol{M}^{\mathsf H}\boldsymbol{M}=\boldsymbol{I}$, so
+loss can be assigned primarily by diagonal gains or filters. A nonunitary matrix can contain
+growing or shrinking eigenmodes even when every individual $g_i$ looks reasonable. Stability
+depends on the complete loop operator: its spectral radius must remain below one for a
+strictly decaying linear system.
+
+At very long RT60 values, $g_i$ approaches one. Numerical precision, denormals, DC leakage,
+nonlinear stages, modulation interpolation, and tiny matrix-normalization errors become
+audible over time. A network that survives a five-second impulse test may drift during a
+ten-minute tail. Extreme values therefore require floating-point headroom, DC blocking,
+bounded modulation, long-duration stress renders, and analysis of the final segment rather
+than only the onset.
+
+#### Measuring RT60 from an Impulse Response
+
+An acoustician rarely waits for a recorded decay to become exactly 60 dB quieter and then
+reads a stopwatch. The bottom of a measured response may already be masked by ventilation,
+electrical noise, audience movement, quantization, or microphone self-noise. Instead, the
+usual procedure estimates the slope over a clean part of an energy decay curve and
+extrapolates that line to –60 dB. The reported RT60 is therefore often a model fitted to a
+smaller observed range, not a literal uninterrupted observation of all 60 dB.
+
+Let $h(t)$ be a measured room impulse response. Schroeder backward integration forms the
+remaining energy after time $t$:
+
+$$
+E(t)=\int_t^{\infty}h^2(\tau)\,d\tau.
+$$
+
+For sampled audio with final sample $N-1$, the corresponding cumulative sum is
+
+$$
+E[n]=\sum_{k=n}^{N-1}h^2[k].
+$$
+
+Normalizing by the value at the direct arrival and converting to decibels gives the energy
+decay curve, or EDC:
+
+$$
+L_E[n]=10\log_{10}\!\left(\frac{E[n]}{E[n_0]}\right)\ \mathrm{dB},
+$$
+
+where $n_0$ marks the chosen decay onset. Backward integration smooths individual peaks and
+turns a noisy-looking impulse response into a generally descending energy trajectory. It
+does not eliminate measurement noise; because the integral includes every later sample, a
+stationary noise floor eventually bends the curve away from its true room-decay slope.
+
+Three conventional estimators use different portions of the EDC:
+
+| Estimator | Fitted decay interval | Extrapolation to RT60 |
+|---|---:|---:|
+| EDT | 0 to –10 dB | fitted time multiplied by 6 |
+| T20 | –5 to –25 dB | fitted time multiplied by 3 |
+| T30 | –5 to –35 dB | fitted time multiplied by 2 |
+
+Early decay time, or EDT, emphasizes the first audible release after excitation and often
+tracks perceived reverberance more closely than a deep late-tail fit. T20 gives a robust
+estimate when only about 20 dB of clean decay is available. T30 uses more of the response
+and is preferable when the measurement has sufficient dynamic range. All three become RT60
+estimates by extending the fitted straight line, so a value called “T20” is not a 20-second
+quantity and does not mean that the room fell by 60 dB during the measured 20 dB interval.
+
+Figure 3-2 places the three regression windows on one idealized EDC. The shared axis makes
+clear that changing estimators changes the evidence used for the fit, not the definition of
+the final 60 dB decay target.
+
+A trustworthy implementation must make several decisions before fitting a line:
+
+1. **Locate the onset.** Leading silence must not become part of the decay. For an impulse
+   response, the strongest plausible direct event is a useful anchor; for program audio,
+   peak alignment is only a diagnostic approximation because later source energy may still
+   be arriving.
+2. **Estimate the noise floor.** The final portion of the capture provides a noise estimate,
+   but it can also contain a genuine long tail. Automatic methods must distinguish a stable
+   noise plateau from slowly decaying acoustic energy and report uncertainty when they
+   cannot.
+3. **Choose a usable range.** A regression boundary below the noise-intersection point makes
+   the EDC look artificially shallow. A boundary too near the onset may instead fit early
+   geometry rather than late statistical decay.
+4. **Assess linearity.** A high coefficient of determination, $R^2$, supports a single-slope
+   model. A low value may indicate poor signal-to-noise ratio, multiple slopes, flutter,
+   source contamination, or a genuinely nonexponential room.
+5. **Preserve alternatives.** EDT, T20, T30, fit range, $R^2$, and noise floor should be
+   retained together. Reporting only the selected RT60 hides the evidence needed to judge
+   whether that selection is acoustically meaningful.
+
+Uncertainty is not an optional footnote to this process. Small changes in onset, filter
+bandwidth, or noise compensation can move a fitted boundary and therefore change the
+extrapolated result by more than the visible difference in the measured interval. Repeated
+captures reveal this sensitivity better than extra decimal places. For a venue survey,
+report the estimator and spread across positions; for a synthesized IR, hold the random seed,
+sample rate, output length, and analysis settings constant. For either case, interpret a
+reported value such as 2.37 s as an estimate produced by a stated procedure, not proof that
+the underlying acoustic field has one perfectly uniform decay constant.
+
+verbx follows this evidence-preserving approach. `verbx analyze` aligns the strongest event,
+constructs the backward-integrated EDC, computes EDT, T20, and T30 where their fit windows
+are usable, and selects the deepest reliable fit as the broadband estimate. Its JSON report
+also carries fit quality, usable decay range, noise-floor information, input classification,
+and confidence. This is especially important for machine-learning datasets: a scalar label
+without its estimator, confidence, and measurement context can turn a physically ambiguous
+capture into falsely precise training data.
+
+![Energy decay curve fit windows](docs/assets/userguide_figures/04_edc_fit_windows.png)
+
+**Figure: Schroeder energy decay curve with the EDT, T20, and T30 regression windows marked against time after excitation in seconds.**
+
+**How to read Figure 3-2.** The horizontal axis is elapsed time after the direct event, and
+the vertical axis is normalized remaining energy in decibels. EDT begins at the top of the
+decay and is therefore sensitive to early reflections and the transition into the late
+field. T20 and T30 exclude the first 5 dB so the direct event and the earliest reflection
+pattern have less leverage. T30 reaches deepest and can be the most representative late
+estimate, but only if its –35 dB boundary remains safely above the noise-contaminated bend.
+
+#### Frequency-Dependent and Multiband Decay
+
+A room does not have one decay envelope shared perfectly by every frequency. Air absorption
+increases toward high frequencies; porous treatment may act mainly above a transition band;
+panel and membrane absorbers can shorten selected low-frequency resonances; and walls,
+seating, scenery, people, and openings all have frequency-dependent losses. For that reason,
+room-acoustic reports commonly estimate $T_{60}(f)$ in octave or one-third-octave bands.
+
+The same idea applies to artificial reverberation. If the desired decay at angular frequency
+$\omega$ is $T_{60}(\omega)$, then a delay line of duration $d_i$ needs an approximate loop
+filter magnitude
+
+$$
+\left|G_i\!\left(e^{j\omega}\right)\right|
+=10^{-\frac{3d_i}{T_{60}(\omega)}}.
+$$
+
+This relation converts a decay-time curve into a loss-per-circulation curve. The loop filter
+is not merely an equalizer placed after the reverb. A post-EQ changes the level of a band at
+every instant by the same proportion; a feedback-loop filter changes that band's slope over
+time. A bright onset followed by a progressively dark tail therefore requires frequency-
+dependent loop loss, not just a dark output filter.
+
+In practice, a small set of bands is easier to control and often more musically legible than
+an unrestricted curve. verbx exposes low-, mid-, and high-band decay targets with two
+crossovers. The broadband `--rt60` remains the central reference, while
+`--fdn-rt60-low`, `--fdn-rt60-mid`, and `--fdn-rt60-high` explicitly shape the bands.
+`--fdn-xover-low-hz` and `--fdn-xover-high-hz` locate their transitions. A compact
+`--fdn-rt60-tilt` control skews low and high decay around the middle when a three-number
+specification would interrupt a production workflow.
+
+Figure 3-3 compares three bandwise decays that share a direct event but diverge as loop loss
+accumulates. It is the visual distinction between warmth caused by persistent low-frequency
+energy and simple bass boost.
+
+Different spectral profiles imply different musical spaces. A low band that lasts modestly
+longer than the middle can suggest occupied halls, timber, or massive architecture. An
+excessively long low band can mask bass articulation and expose sparse FDN modes as pitched
+ringing. A short high band usually sounds natural because air and soft materials absorb high
+frequencies efficiently; an unusually long high band creates gloss, shimmer, or a synthetic
+metallic halo. The crossover locations matter because they decide whether a decay change
+affects fundamental weight, vocal presence, consonant detail, or only air.
+
+Multiband estimates require care. Bandpass filters have finite temporal support and can
+lengthen an apparent decay, especially in narrow low-frequency bands. Very low bands may
+contain only a few room modes, violating the diffuse-field assumption behind a straight EDC.
+A credible report should therefore list band centers, bandwidths, filter design, fit windows,
+and confidence rather than presenting a smooth colored curve as exact ground truth.
+
+![Multiband reverberation decay](docs/assets/userguide_figures/09_multiband_decay.png)
+
+**Figure: Low-, mid-, and high-frequency reverberation decay levels in decibels against time after excitation in seconds.**
+
+**How to read Figure 3-3.** At the left edge, all bands are normalized to the same level.
+The high band then falls fastest, the mid band defines the nominal body of the tail, and the
+low band persists longest. Their vertical separation grows with time because their slopes,
+not merely their initial gains, differ. If the high curve were shifted downward but remained
+parallel to the low curve, the result would be equalization rather than frequency-dependent
+RT60.
+
+#### Non-Diffuse Rooms, Modes, and Coupled Slopes
+
+The ideal RT60 line assumes a sufficiently mixed field with approximately exponential energy
+loss. Real spaces can depart from that model in instructive ways. Below a room's transition
+region, individual modes dominate. Each mode has its own frequency, spatial pattern, and
+damping rate, so moving a microphone by a fraction of a wavelength can change the apparent
+low-frequency decay. A broadband average can look acceptable while one note rings for much
+longer than neighboring notes.
+
+Flutter echo is another departure. Repeated reflections between nearly parallel surfaces
+create identifiable arrivals rather than a smooth statistical tail. The total energy may
+decline, but a line fitted through the average does not describe the audible periodicity.
+Strong focusing, galleries, under-balcony regions, directional sources, and highly localized
+absorption likewise make decay depend on position and direction.
+
+Coupled rooms can produce a double-slope EDC. Energy in the primary volume falls quickly at
+first; energy stored in a secondary chamber then leaks back and supports a slower late tail.
+In such a response, EDT may be short, T20 intermediate, and T30 long. That disagreement is
+not necessarily a software defect. It can be evidence that one exponential is an inadequate
+description of the space. The same behavior is musically useful in artificial reverb: a
+clear initial release followed by a quiet, persistent halo can preserve articulation while
+still enlarging phrase endings.
+
+For synthesis, modal density and decay time must be designed together. Raising RT60 does not
+create more modes; it only lets existing modes remain audible longer. A sparse network with
+a long target can expose its delay-line frequencies. Increasing line count, choosing
+incommensurate delays, using an energy-preserving mixing matrix, adding diffusion, and
+applying subtle modulation all help distribute energy. These operations should not be used
+to conceal instability. The late field must remain bounded before coloration or motion is
+judged artistically.
+
+#### RT60 Is Not Wetness, Distance, or Clarity
+
+Several controls can all make a reverb seem “more,” but they answer different questions:
+
+| Quantity | Question it answers | Principal audible consequence |
+|---|---|---|
+| RT60 | How steeply does late energy decay? | persistence and phrase overlap |
+| Wet level | How loud is the processed return? | effect prominence |
+| Pre-delay | How long before the late field begins? | source separation and apparent scale |
+| DRR | How strong is direct sound relative to reverb? | apparent distance |
+| $C_{50}$ or $C_{80}$ | How much energy arrives early versus late? | speech or musical clarity |
+| EDT | How quickly does the first part release? | perceived immediate reverberance |
+| Spectral RT60 | Which frequency bands persist? | warmth, brightness, and masking |
+
+A 6 s tail at –30 dB wet level can be subtler than a 1 s room mixed loudly. A long pre-delay
+can keep a vocal intelligible even when the late field is extensive. Conversely, a short
+RT60 with dense early reflections and low DRR can push a source far behind the loudspeakers.
+This is why preset names such as “large,” “distant,” or “lush” cannot be reduced to one
+decay-time value.
+
+Clarity metrics also depend on an impulse response's time origin. $C_{80}$ compares energy
+before and after 80 ms, while $C_{50}$ uses a 50 ms boundary more closely associated with
+speech. If the direct arrival is misidentified, both ratios become misleading. On complete
+music rather than an isolated impulse response, ongoing source energy crosses those windows,
+so verbx labels such results as program-audio estimates rather than room measurements.
+
+#### Extreme RT60, Freeze, and Infinite-Style Behavior
+
+Finite RT60 and freeze are related but not identical. A finite 3600 s target still specifies
+a negative slope of –0.0167 dB/s. In exact arithmetic it eventually decays. A freeze mode
+instead aims for a loop magnitude of one, or introduces recirculation that replaces lost
+energy, so the state can persist without the usual exponential release. The former is a very
+long decay; the latter changes the system's operating condition.
+
+As $T_{60}$ grows, the difference between stable and marginal becomes numerically tiny. For
+a 50 ms delay, the scalar gain is about 0.944 at $T_{60}=6$ s, but about 0.999904 at
+$T_{60}=3600$ s. A normalization error, nonlinear makeup gain, or interpolation overshoot
+on the order of that remaining margin can change a slow decay into growth. Extreme settings
+therefore deserve peak monitoring, output limiting, DC rejection, and long-horizon tests.
+
+Offline rendering introduces a second issue: the requested decay can be much longer than the
+source. Writing an hour-scale tail for a short test impulse is usually not what a user means,
+and constructing an equally long proxy impulse response can look like a hung process. Use
+`--dry-run` to inspect estimated work before an extreme render, choose output duration
+deliberately, and treat freeze as a performance mode or bounded sound-design operation rather
+than as permission to allocate an unbounded file.
+
+Figure 3-4 contrasts a normal stable decay, an extremely slow finite decay, an idealized
+freeze, and an unstable trajectory. The distinction is central to safe long-tail design.
+
+![Infinite-style reverberation behavior](docs/assets/userguide_figures/24_infinite_reverb.png)
+
+**Figure: Stable, near-infinite, frozen, and unstable reverberation-state levels against elapsed time in seconds.**
+
+**How to read Figure 3-4.** The ordinary stable curve slopes visibly downward. The
+near-infinite curve also descends, but so slowly that a short display can make it look flat.
+The freeze trajectory remains approximately constant after capture and is intentionally
+marginal. The unstable trajectory rises; even slow growth is unacceptable because repeated
+feedback eventually exhausts headroom. The plot should be read as a stability taxonomy, not
+as a claim that finite-precision freeze can remain mathematically constant forever.
+
+#### Musical Time and RT60
+
+Reverberation time is measured in seconds, but composers and producers hear its interaction
+with beats, gestures, rests, and harmonic rhythm. At tempo $B$ beats per minute, one beat
+lasts
+
+$$
+T_{\mathrm{beat}}=\frac{60}{B}\ \mathrm{s}.
+$$
+
+In 4/4 meter, a four-beat bar lasts
+
+$$
+T_{\mathrm{bar}}=\frac{240}{B}\ \mathrm{s}.
+$$
+
+These equations do not imply that RT60 must equal a note value. They provide a grid for
+asking where the tail should sit when the next attack, harmony, or rest arrives. At 120 BPM,
+a beat is 0.5 s and a bar is 2 s. An RT60 of 2 s reaches –60 dB at the next bar line under
+the ideal model, but it is already down –15 dB after one beat. Whether that feels connected
+depends on wet level, spectrum, source density, and masking.
+
+For an ideal decay, the level change after interval $t$ is
+
+$$
+\Delta L(t)=-60\frac{t}{T_{60}}\ \mathrm{dB}.
+$$
+
+Rearranging gives a useful compositional design equation. If the tail should be $D$ decibels
+below its onset when the next event arrives after $t$ seconds, choose
+
+$$
+T_{60}=\frac{60t}{D}.
+$$
+
+For example, placing the tail about –20 dB below onset at a 1.5 s phrase boundary suggests
+$T_{60}=4.5$ s. This is a starting point, not a loudness guarantee, because the source may
+continue feeding the reverb and frequency bands may decay at different rates.
+
+Short RT60 values can articulate rhythm by giving each transient a compact acoustic frame.
+Long values can bind separate attacks into a sustained harmonic field, making rests active
+rather than empty. A long low-frequency decay can retain harmonic roots across chord changes;
+a long high-frequency decay can carry attacks and noise into the next phrase. Pre-delay can
+preserve the edge of a note before that field arrives, while ducking can let the tail expand
+only after the source leaves space.
+
+The most reliable musical method is comparative listening at matched wet loudness. Render
+three adjacent RT60 values, normalize only for monitoring, and compare the release at exact
+phrase boundaries. Listen once for articulation, once for harmonic contamination, once for
+stereo or immersive envelopment, and once at low playback level. A tail that sounds
+spectacular in solo may occupy every rest in an arrangement; a tail that seems too quiet in
+solo may be correct in context.
+
+#### Practical verbx Workflows
+
+Begin with a single broadband target and preserve enough dry signal to hear how attacks
+separate from the room:
+
+```bash
+verbx render in.wav out.wav --engine algo --rt60 2.4 --wet 0.30 --dry 0.80
+```
+
+Then shape spectral persistence inside the feedback network rather than relying only on
+output equalization:
+
+```bash
+verbx render in.wav out_multiband.wav --engine algo --rt60 3.3 \
+  --fdn-rt60-low 5.5 --fdn-rt60-mid 3.3 --fdn-rt60-high 1.7 \
+  --fdn-xover-low-hz 250 --fdn-xover-high-hz 4000 \
+  --wet 0.36 --dry 0.78
+```
+
+Generate a deterministic impulse response when the decay itself is the research object.
+The output length is explicit, so repeated runs remain bounded and comparable:
+
+```bash
+verbx ir gen study_hall.wav --mode fdn --length 8 --rt60 2.4 --seed 42
+```
+
+Measure that response and retain both the human-readable summary and machine-readable
+evidence:
+
+```bash
+verbx analyze study_hall.wav --input-kind ir --edr --room \
+  --json-out reports/study_hall.analysis.json
+```
+
+For a complete music recording, identify it as program audio so clarity and decay results
+are not mistaken for standards-style room measurements:
+
+```bash
+verbx analyze wet_mix.wav --input-kind program --lufs \
+  --json-out reports/wet_mix.analysis.json
+```
+
+A useful validation sequence is to synthesize an 8 s IR with a 2.4 s target, analyze it,
+and compare EDT, T20, T30, and bandwise estimates. Do not require every value to equal 2.4 s
+to many decimal places. The early-reflection region, finite file length, frequency shaping,
+filter transients, stochastic variation, and regression windows all affect measured values.
+Instead, specify tolerances, hold the seed and sample rate constant, and investigate systematic
+bias separately from random variation.
+
+When analyzing a physical room, capture multiple source/receiver positions and repeat the
+measurement. Report the median and spread in each band. One beautifully smooth response can
+be less representative than several imperfect responses that reveal seat-to-seat variation.
+For production preset matching, preserve the original IR, its analysis JSON, the verbx
+version, and the exact command alongside the derived preset.
+
+#### Common Interpretation Failures
+
+**“The meter says 2 s, so the room is completely described.”** A scalar RT60 omits spectral
+shape, early reflections, direct-to-reverberant ratio, spatial distribution, modulation, and
+nonexponential behavior. Treat it as one coordinate in a larger acoustic description.
+
+**“T30 is always better than T20.”** T30 uses a deeper range only when that range is clean.
+If the noise floor intrudes before –35 dB, the apparently more comprehensive estimator can
+be less trustworthy than T20.
+
+**“A longer RT60 should sound louder.”** RT60 controls slope. Wet gain controls return level.
+Compare decays at matched loudness before attributing prominence to persistence.
+
+**“Post-EQ creates multiband decay.”** Post-EQ changes spectral balance; loop filtering
+changes spectral decay slope. Both can be useful, but they are not interchangeable.
+
+**“A straight fit proves a diffuse room.”** A limited window can be straight even when the
+full response contains modes, double slopes, or directional behavior. Inspect the EDC, the
+fit interval, bandwise results, and multiple positions.
+
+**“A one-hour RT60 is the same as infinite reverb.”** One has a very small negative slope;
+the other attempts persistent state. Their stability, rendering, automation, and safety
+requirements differ.
+
+#### Selected Primary Literature
+
+The following sources provide a compact path from physical reverberation theory through
+measurement and digital synthesis. Entries are alphabetical by first author.
+
+Eyring, C. F. “Reverberation Time in ‘Dead’ Rooms.” *The Journal of the Acoustical Society
+of America* 1(2A): 217–241. DOI:
+[10.1121/1.1915175](https://doi.org/10.1121/1.1915175), 1930.
+
+Jot, J.-M. “An Analysis/Synthesis Approach to Real-Time Artificial Reverberation.”
+*Proceedings of the IEEE International Conference on Acoustics, Speech, and Signal
+Processing*: II-221–II-224. DOI:
+[10.1109/ICASSP.1992.226080](https://doi.org/10.1109/ICASSP.1992.226080), 1992.
+
+Jot, J.-M.; Chaigne, A. “Maximally Diffusive Yet Efficient Feedback Delay Networks for
+Artificial Reverberation.” *IEEE Signal Processing Letters* 4(9): 260–263. DOI:
+[10.1109/97.623041](https://doi.org/10.1109/97.623041), 1997.
+
+Lundeby, A.; Vigran, T. E.; Bietz, H.; Vorländer, M. “Uncertainties of Measurements in Room
+Acoustics.” *Acustica* 81: 344–355, 1995.
+
+Schroeder, M. R. “New Method of Measuring Reverberation Time.” *The Journal of the
+Acoustical Society of America* 37(3): 409–412. DOI:
+[10.1121/1.1909343](https://doi.org/10.1121/1.1909343), 1965.
+
+Xiang, N. “Generalization of Sabine's Reverberation Theory.” *The Journal of the Acoustical
+Society of America* 148(2): R5–R6. DOI:
+[10.1121/10.0001806](https://doi.org/10.1121/10.0001806), 2020.
+
 
 ### Impulse Responses
 
@@ -265,10 +3812,10 @@ The algorithmic engine synthesizes reverb without an impulse response file. It i
 
 ```
 input
-  └─ pre-delay (z^-N_pre)
+  └─ pre-delay (z⁻ᴺᵖʳᵉ)
        └─ allpass diffusion (K stages)
             └─ FDN feedback loop
-                 ├─ delay bank (N lines, z^-N_i)
+                 ├─ delay bank (N lines, z⁻ᴺⁱ)
                  ├─ per-line conditioning D_i(z)  [damping + DC block]
                  ├─ RT60 gain G  [diagonal, per-line]
                  ├─ feedback matrix M  [orthonormal family]
@@ -279,17 +3826,27 @@ input
        └─ wet/dry mix → shimmer → bloom/tilt/EQ → loudness → output
 ```
 
-**FDN mechanics:** At each sample, the FDN reads from $N$ delay lines, applies per-line damping and DC blocking, multiplies by the gain diagonal $\mathbf{G}$, multiplies by the feedback matrix $\mathbf{M}$, adds the injected excitation from the diffusion stage, and writes back to the delays. The matrix $\mathbf{M}$ must be orthonormal (or nearly so) to preserve energy over long tails; verbx orthonormalizes all matrix families before use. The state update is:
+Delay notation: $z^{-N}$ means an integer-sample delay of $N$ samples.
+
+**FDN mechanics:** At each sample, the FDN reads from $N$ delay lines, applies per-line damping and DC blocking, multiplies by the gain diagonal $\boldsymbol{G}$, multiplies by the feedback matrix $\boldsymbol{M}$, adds the injected excitation from the diffusion stage, and writes back to the delays. The matrix $\boldsymbol{M}$ must be orthonormal (or nearly so) to preserve energy over long tails; verbx orthonormalizes all matrix families before use. The state update is:
 
 $$
-\mathbf{y}[n] = \mathbf{D}\!\left(\mathbf{x}_{\mathrm{fb}}[n]\right)
+\boldsymbol{y}[n] = \boldsymbol{D}\!\left(\boldsymbol{x}_{\mathrm{fb}}[n]\right)
 $$
 
 $$
-\mathbf{x}_{\mathrm{fb}}[n+1] = \mathbf{G}\mathbf{M}\mathbf{y}[n] + \mathbf{u}[n]
+\boldsymbol{x}_{\mathrm{fb}}[n+1] = \boldsymbol{G}\boldsymbol{M}\boldsymbol{y}[n] + \boldsymbol{u}[n]
 $$
 
-where $\mathbf{u}[n]$ is the post-diffusion injection vector.
+where:
+
+- $n$ is the discrete-time sample index.
+- $\boldsymbol{x}_{\mathrm{fb}}[n]$ is the feedback-state vector before loop conditioning.
+- $\boldsymbol{y}[n]$ is the conditioned state after $\boldsymbol{D}(\cdot)$.
+- $\boldsymbol{D}(\cdot)$ is per-line loop conditioning (damping + DC blocking).
+- $\boldsymbol{G}$ is the diagonal RT60 gain matrix with entries $g_i$.
+- $\boldsymbol{M}$ is the orthonormal feedback mixing matrix.
+- $\boldsymbol{u}[n]$ is the post-diffusion excitation injected into the loop.
 
 **FDN gain calibration:** For delay line $i$ with period $d_i$ seconds and target decay $T_{60}$:
 
@@ -321,14 +3878,18 @@ Shorter delay lines require gains closer to 1.0. This is computed per line so di
 | `--fdn-matrix` | see above | Feedback mixing topology | Controls tail texture and energy diffusion pattern |
 | `--allpass-stages` | 0–16 | Early diffusion stages | 4–10 is typical; 0 disables diffusion entirely |
 | `--allpass-gain` | ±0.99 | Allpass coefficient | Per-stage or broadcast; must stay inside unit circle |
+| `--comb-cloud` | flag | Optional pre-FDN comb bank | Adds metallic/dense coloration before the late field |
+| `--comb-cloud-mix` | 0–1 | Comb-cloud blend amount | Start around `0.2` before increasing line count/feedback |
 | `--damping` | 0–1 | HF rolloff in feedback loop | Higher values darken the tail faster |
-| `--fdn-rt60-tilt` | -1 to 1 | Low/high decay skew | Positive = longer lows, shorter highs |
+| `--fdn-rt60-tilt` | –1 to 1 | Low/high decay skew | Positive = longer lows, shorter highs |
 | `--fdn-link-filter` | none/lowpass/highpass | In-loop spectral shaping | Shapes the spectral flow on feedback edges |
 | `--fdn-tv-rate-hz` | 0–5 | Time-varying matrix update rate | Active only with `tv_unitary`; slow rates reduce ringing |
 | `--mod-depth-ms` | 0–10 | Delay modulation depth | Small values suppress metallic resonances |
 | `--width` | 0–2 | Stereo spread | Increases decorrelation between channels |
 | `--fdn-sparse` | flag | Sparse pair-mixing topology | Higher apparent order at lower compute cost |
 | `--fdn-cascade` | flag | Nested FDN injection | Secondary network feeds early density into primary |
+| `--unsafe-self-oscillate` | flag | UNSAFE above-unity feedback mode | Algorithmic engine only; for intentional self-oscillation |
+| `--unsafe-loop-gain` | 0.01–1.25 | UNSAFE feedback gain scale | Use `>1.0` to drive oscillation |
 
 ---
 
@@ -344,7 +3905,16 @@ $$
 Y_k(\omega) = \sum_{p=0}^{P-1} X_{k-p}(\omega)\,H_p(\omega)
 $$
 
-where $X_{k-p}$ are stored input spectrum frames and $H_p$ are pre-transformed IR partitions. `--partition-size` controls the partition length: larger partitions reduce per-block FFT overhead but increase latency and peak memory. 16384–65536 samples is a practical range for offline rendering. With CuPy installed and `--device cuda`, the FFT multiply accumulation runs on GPU.
+where:
+
+- $k$ is the current processing frame index.
+- $\omega$ is frequency-bin index in the FFT domain.
+- $P$ is the number of IR partitions.
+- $X_{k-p}(\omega)$ is the stored input spectrum for frame $k-p$.
+- $H_p(\omega)$ is the precomputed spectrum of IR partition $p$.
+- $Y_k(\omega)$ is the accumulated output spectrum for frame $k$.
+
+`--partition-size` controls the partition length: larger partitions reduce per-block FFT overhead but increase latency and peak memory. 16384–65536 samples is a practical range for offline rendering. With CuPy installed and `--device cuda`, the FFT multiply accumulation runs on GPU.
 
 **Streaming vs. in-memory:** verbx automatically uses streaming convolution (low peak RAM) when the render is simple: engine conv, no repeat, no freeze, no normalization stages, no post-processing effects. All other combinations fall back to full-buffer processing. If RAM is a concern for very long IRs, keep the render chain minimal.
 
@@ -353,6 +3923,14 @@ where $X_{k-p}$ are stored input spectrum frames and $H_p$ are pre-transformed I
 $$
 y_o[n] = \sum_{i=0}^{M-1} \left(x_i * h_{i,o}\right)[n]
 $$
+
+where:
+
+- $M$ is input-channel count and $N$ is output-channel count.
+- $x_i[n]$ is input channel $i$.
+- $h_{i,o}[n]$ is the IR from input channel $i$ to output channel $o$.
+- $y_o[n]$ is output channel $o$.
+- $*$ denotes linear convolution.
 
 The IR file must contain $M \times N$ channels packed in output-major order (channel index $oM + i$) or input-major order ($iN + o$). Set `--ir-matrix-layout output-major` or `input-major` accordingly. Wrong packing order produces valid audio but semantically incorrect routing; verify with `verbx analyze` on the output.
 
@@ -375,6 +3953,11 @@ The IR file must contain $M \times N$ channels packed in output-major order (cha
 ## Impulse Response Synthesis
 
 verbx generates its own IRs in four synthesis modes. The complete parameter reference is in [docs/IR_SYNTHESIS.md](docs/IR_SYNTHESIS.md). The IR toolchain is accessible via `verbx ir gen`, or triggered inline during render with `--ir-gen`.
+
+A larger curated IR set is available in [`IRs/library/`](IRs/library/) with
+folder-sorted buckets by length (`tiny`, `short`, `medium`, `long`) and mode
+(`fdn`, `stochastic`, `modal`, `hybrid`), plus deterministic metadata in
+`IRs/library/manifest.json`.
 
 **Synthesis modes:**
 
@@ -411,14 +3994,36 @@ verbx ir morph space_A.wav space_B.wav blended.wav --mode equal-power --alpha 0.
 
 Shimmer pitch-shifts the reverb tail (typically up an octave) and blends it back into the wet signal. The result is a bright, harmonically rich coloration that works well on pads, sustained notes, and ambient textures. The `--shimmer-feedback` parameter is the one most people get wrong: above around 0.85, the feedback loop builds exponentially. This is not a bug — it is the intended mechanism for extreme infinite-rise textures — but it requires either a tail limit, loudness targeting, or deliberate management to avoid runaway gain.
 
+Safe mode clamps `--shimmer-feedback` to `0.98`. For intentional self-oscillation in the algorithmic path, enable `--unsafe-self-oscillate` and use `--unsafe-loop-gain > 1.0` (for example `1.03`).
+
 ```bash
 --shimmer --shimmer-semitones 12 --shimmer-mix 0.35 --shimmer-feedback 0.70
 --shimmer-lowcut 300 --shimmer-highcut 12000    # control frequency range of shimmer layer
 ```
 
+### Comb Cloud
+
+`--comb-cloud` inserts a separate bank of decorrelated feedback comb filters between the diffusion stage and the main FDN late field. It is an optional color mode for when you want extra density, metallic haze, or exaggerated spatial smear without redefining the core FDN topology. The point is texture, not neutrality.
+
+Use it when the base algorithmic tail feels too smooth or too well-behaved:
+
+- plates and metallic chambers
+- sci-fi interiors and synthetic spaces
+- frozen, haunted, or intentionally "wrong" ambience
+- pre-shimmer thickening before harmonic coloration
+
+Start conservatively. `--comb-cloud-mix 0.15–0.35` is usually enough. Higher `--comb-cloud-feedback` values push the sound toward ringing and resonant buildup.
+
+```bash
+--comb-cloud --comb-cloud-count 24 --comb-cloud-feedback 0.35 --comb-cloud-mix 0.25
+--comb-cloud-delays-ms 6,9,13,17,23,29,37,49   # optional custom cloud spacing
+```
+
+Practical tip: comb cloud and shimmer solve different problems. Comb cloud thickens and roughens the time structure; shimmer adds pitched harmonic content. If the reverb feels sterile, try comb cloud first. If it feels emotionally flat, try shimmer.
+
 ### Freeze / Repeat
 
-`--freeze` locks onto a segment of audio (defined by `--start` and `--end` in seconds) and loops it through the reverb engine with an equal-power crossfade at loop boundaries. This produces sustained, near-static textures. `--repeat N` runs the full render chain N times sequentially, each pass using the output of the previous as input — an iterative reprocessing that progressively imprints the room resonance on the source. Classic application: Alvin Lucier's "I Am Sitting in a Room" technique.
+`--freeze` locks onto a segment of audio (defined by `--start` and `--end` in seconds) and loops it through the reverb engine with an equal-power crossfade at loop boundaries. This produces sustained, near-static textures. `--repeat N` runs the full render chain N times sequentially, each pass using the output of the previous as input — an iterative reprocessing that progressively imprints the room resonance on the source. Classic application: Alvin Lucier's *I Am Sitting in a Room* technique.
 
 Use `--output-peak-norm input` with repeat chains to keep levels stable across passes.
 
@@ -427,24 +4032,30 @@ Use `--output-peak-norm input` with repeat chains to keep levels stable across p
 `--duck` is the reverb effect most mix engineers do not use until they hear it. It attenuates the reverb output while the source signal is active, then lets the tail bloom in the gaps. The effect keeps the dry signal clean and articulate while the reverb is still long and spacious. Especially effective on drums, vocals, and anything with rhythmic transients.
 
 ```bash
---duck --duck-attack 15 --duck-release 250
+--duck --duck-attack 15 --duck-release 250 --duck-strength 0.9 --duck-floor 0.18
 ```
 
-Attack controls how quickly the reverb ducks when signal appears; release controls how quickly it recovers. Shorter release times give a punchier, more gated feel.
+Attack controls how quickly the reverb ducks when signal appears; release controls how quickly it recovers. Shorter release times give a punchier, more gated feel. `--duck-strength` controls how deep the wet attenuation goes, while `--duck-floor` keeps some reverb present even at the deepest point of the pump.
 
 ### Bloom
 
 `--bloom N` emphasizes the slow build-up phase of the wet field, creating a cinematic swell effect where the reverb tail rises rather than immediately decaying. Values between 1.5 and 3.0 are perceptible as a rise before the decay plateau. Higher values push into dramatic orchestral-swell territory. It operates on the spectral envelope of the wet output and is distinct from simple gain automation.
 
+Use `--bloom-mix` when you want the bloom time constant from `--bloom` but a more restrained or more exaggerated blend than the automatic scaling would choose.
+
 ### Tilt EQ
 
 `--tilt N` applies a broadband spectral tilt to the wet field. Positive values (try 1.0–3.0) brighten the reverb tail; negative values darken it. This is a post-wet control, so it does not affect the dry signal or the decay mathematics — it only shapes the perceptual tone of the reverb output. Combine with `--lowcut` and `--highcut` for more specific frequency management.
+
+`--tilt-pivot-hz` moves the tonal fulcrum of that tilt, while `--lowcut-order` and `--highcut-order` let you choose gentler or steeper post-wet filter slopes.
 
 ---
 
 ## Spatial and Surround
 
 For most uses, stereo output is all you need. Multichannel processing becomes relevant when you are delivering to a surround format, working in Ambisonics, or routing reverb through a spatial bus.
+
+For a complete treatment of channel beds, height layers, Ambisonics, Dolby Atmos beds and objects, binaural monitoring, DAW handoff, deliverables, and immersive QC, read [Immersive Reverb, Surround Sound, and Dolby Atmos](docs/IMMERSIVE_AUDIO.md). The chapter includes signal-flow diagrams, routing recipes, and a precise account of what verbx can and cannot author today.
 
 **Channel layouts:**
 
@@ -455,14 +4066,23 @@ For most uses, stereo output is all you need. Multichannel processing becomes re
 | `LCR` | 3 | Left/Center/Right film format |
 | `5.1` | 6 | Standard surround |
 | `7.1` | 8 | Expanded surround |
-| `7.1.2` | 10 | Surround with overhead pair |
-| `7.1.4` | 12 | Full Atmos bed format |
+| `7.1.2` | 10 | Standard Atmos bed or fixed-channel immersive bus |
+| `7.1.4` | 12 | Common Atmos monitoring/render layout; not the default Atmos bed |
 | `7.2.4` | 13 | 7-bed + dual-LFE + 4-top layout |
 | `8.0` | 8 | 8-channel bed without dedicated LFE |
 | `16.0` | 16 | Large-format discrete bed |
 | `64.4` | 68 | High-density immersive bed + top layer |
 
 Use `--input-layout` and `--output-layout` to declare channel semantics explicitly. Without them, verbx uses channel count alone, which can produce ambiguous routing for formats above stereo.
+
+**Atmos boundary:** verbx writes channel-based WAVE files, Ambisonic material, matrix-routed convolution outputs, JSON analysis, and handoff manifests. It does not currently author Dolby object trajectories, per-object binaural metadata, or a native ADM BWF/DAMF master. Prepare bed and object stems in verbx, then perform object assignment, metadata authoring, endpoint rendering, and master export in an Atmos-capable DAW and the Dolby Atmos Renderer.
+
+The distinction between a bed and a monitoring layout matters. Dolby’s standard bed is 7.1.2, while 7.1.4 commonly describes a loudspeaker render with four independently fed height speakers. verbx currently labels channels 9–10 of its symbolic `7.1.2` layout `Ltf/Rtf`; a Dolby bed expects `Ltm/Rtm` in those positions. Verify and explicitly map those channels at handoff rather than relying on channel count.
+
+For large immersive outputs (`16.0`, `64.4`), set `--ir-route-map` explicitly when the IR is mono or channel-matched to the input. Recommended defaults:
+
+- `--ir-route-map broadcast` for mono/channel-matched IRs
+- `--ir-route-map full` for matrix-packed $M \times N$ IRs
 
 Other formats are also easy to support: the routing and DSP paths already operate on arbitrary channel counts, and new symbolic layout names are straightforward to add when you need explicit semantics.
 
@@ -474,7 +4094,7 @@ Other formats are also easy to support: the routing and DSP paths already operat
 
 ## Loudness and Metering
 
-Most audio delivered for broadcast, streaming, or film needs to hit a loudness target. EBU R128 / ITU-R BS.1770 defines integrated loudness in LUFS (Loudness Units relative to Full Scale). The practical difference between targeting -23 LUFS for broadcast and -14 LUFS for streaming can be over 9 dB of apparent level — enough to sound completely wrong in one context if mastered for the other.
+Most audio delivered for broadcast, streaming, or film needs to hit a loudness target. EBU R128 / ITU-R BS.1770 defines integrated loudness in LUFS (Loudness Units relative to Full Scale). The practical difference between targeting –23 LUFS for broadcast and –14 LUFS for streaming can be over 9 dB of apparent level — enough to sound completely wrong in one context if mastered for the other.
 
 verbx has a full loudness pipeline:
 
@@ -485,7 +4105,21 @@ verbx has a full loudness pipeline:
 
 The loudness and peak stages are intentionally separate because they serve different goals. Loudness targeting is about program-level normalization. Peak ceiling is about short-term safety. Do not conflate them.
 
-True-peak detection uses oversampled measurement (ITU-R BS.1770). The difference between a sample peak of -0.1 dBFS and a true peak of +0.4 dBFS is invisible in sample-domain inspection but will cause clipping in AAC, MP3, and most streaming codecs. Use `--true-peak --target-peak-dbfs -1` for any output that will be transcoded.
+True-peak detection uses oversampled measurement (ITU-R BS.1770). The difference between a sample peak of –0.1 dBFS and a true peak of +0.4 dBFS is invisible in sample-domain inspection but will cause clipping in AAC, MP3, and most streaming codecs. Use `--true-peak --target-peak-dbfs -1` for any output that will be transcoded.
+
+Week 3 delivery sanity checks now fail fast when an explicit limiter threshold is above the limiter ceiling, because that silently collapses the useful gain-reduction range. Explicit container choices also need matching extensions: use `.w64` with `--output-container w64`, `.rf64` with `--output-container rf64`, or leave `--output-container auto` on when you want verbx to infer the container.
+
+Ready-to-run delivery examples:
+
+```bash
+# Broadcast/streaming-safe limiter and peak-normalized output
+verbx render in.wav out_limited.wav --preset limiter-broadcast-safe \
+  --output-peak-norm target --output-peak-target-dbfs -1
+
+# Bounded long-tail delivery with an explicit W64 container
+verbx render in.wav out_long.w64 --preset delivery-long-tail-safe \
+  --output-container w64 --tail-limit 12
+```
 
 ---
 
@@ -561,6 +4195,10 @@ analysis = analyze_file("out.wav", include_loudness=True, json_out="analysis.jso
 
 ## CLI Reference
 
+Canonical help snapshots live in
+[`docs/CLI_REFERENCE.md`](docs/CLI_REFERENCE.md). This README section is a
+curated quick-reference for common switches.
+
 ### verbx render
 
 `verbx render INFILE OUTFILE [options]`
@@ -580,16 +4218,24 @@ analysis = analyze_file("out.wav", include_loudness=True, json_out="analysis.jso
 | `--width` | 0–2 | Stereo decorrelation | |
 | `--allpass-stages` | 0–16 | Diffusion stage count | |
 | `--allpass-gain` | ±0.99 | Per-stage allpass coefficient | Comma-separated per-stage list accepted |
+| `--comb-cloud` | flag | Enable optional pre-FDN comb-cloud coloration | Separate color stage; default off |
+| `--comb-cloud-count` | 1–128 | Generated comb-cloud line count | Higher = denser, more colored |
+| `--comb-cloud-feedback` | 0–0.95 | Comb-cloud feedback amount | Higher = more ringing / metallicity |
+| `--comb-cloud-mix` | 0–1 | Blend between diffusion output and comb-cloud output | 0.15–0.35 is a strong starting range |
+| `--comb-cloud-delays-ms` | comma list | Custom comb-cloud delay list in ms | Auto-enables comb cloud |
+| `--comb-cloud-seed` | int | Deterministic comb-cloud seed | Changes generated spacing/decorrelation |
 | `--fdn-lines` | 2–64 | Delay line count | |
 | `--fdn-matrix` | see table above | Feedback matrix family | |
 | `--fdn-tv-rate-hz` | 0–5 | TV-unitary update rate | `tv_unitary` only |
 | `--fdn-tv-depth` | 0–1 | TV-unitary blend depth | `tv_unitary` only |
+| `--fdn-matrix-morph-to` | matrix family | Target matrix for gradual morphing | Morphs from `--fdn-matrix` to target |
+| `--fdn-matrix-morph-seconds` | seconds | Matrix morph duration | Requires `--fdn-matrix-morph-to` |
 | `--fdn-dfm-delays-ms` | float | DFM micro-delay size | One value or one per line |
 | `--fdn-sparse` | flag | Sparse pair-mixing topology | Exclusive with `tv_unitary` and `graph` |
 | `--fdn-sparse-degree` | 1–8 | Pair-mixing stages | |
 | `--fdn-link-filter` | none/lowpass/highpass | In-loop spectral shaping | |
 | `--fdn-link-filter-hz` | Hz | Link filter cutoff | |
-| `--fdn-rt60-tilt` | -1 to 1 | Low/high RT skew | Positive = longer lows |
+| `--fdn-rt60-tilt` | –1 to 1 | Low/high RT skew | Positive = longer lows |
 | `--fdn-tonal-correction-strength` | 0–1 | Decay-color equalization | Track C control |
 | `--fdn-cascade` | flag | Nested FDN injection | |
 | `--fdn-graph-topology` | ring/path/star/random | Graph topology | `graph` matrix only |
@@ -646,14 +4292,25 @@ analysis = analyze_file("out.wav", include_loudness=True, json_out="analysis.jso
 | `--shimmer` | flag | Enable shimmer (pitch-shifted reverb coloration) |
 | `--shimmer-semitones` | semitones | Pitch shift amount |
 | `--shimmer-mix` | 0–1 | Shimmer blend |
-| `--shimmer-feedback` | 0–0.99 | Shimmer feedback (>0.85 = rising) |
+| `--shimmer-feedback` | 0–1.25 | Shimmer feedback (>0.85 = rising; >0.98 requires unsafe mode) |
+| `--unsafe-self-oscillate` | flag | UNSAFE: allow above-unity feedback in algorithmic mode |
+| `--unsafe-loop-gain` | 0.01–1.25 | UNSAFE algorithmic loop-gain scale (`>1.0` for self-oscillation) |
+| `--shimmer-spatial` | flag | Enable multichannel shimmer decorrelation | Useful for immersive beds |
+| `--shimmer-spread-cents` | cents | Per-channel shimmer detune spread | Used with `--shimmer-spatial` |
+| `--shimmer-decorrelation-ms` | ms | Per-channel shimmer delay spread | Used with `--shimmer-spatial` |
 | `--duck` | flag | Enable sidechain ducking |
 | `--duck-attack` | ms | Ducking attack time |
 | `--duck-release` | ms | Ducking release time |
+| `--duck-strength` | 0–1 | Ducking depth | Higher values carve more space for the dry signal |
+| `--duck-floor` | 0–1 | Minimum wet gain during ducking | Keeps ambience present while pumping |
 | `--bloom` | 0–5 | Wet field build-up emphasis |
+| `--bloom-mix` | 0–1 | Bloom blend override | Auto-derived from `--bloom` when omitted |
 | `--lowcut` | Hz | Post-wet high-pass filter |
+| `--lowcut-order` | 1–8 | High-pass slope order | Higher = steeper low-frequency cleanup |
 | `--highcut` | Hz | Post-wet low-pass filter |
+| `--highcut-order` | 1–8 | Low-pass slope order | Higher = steeper top-end damping |
 | `--tilt` | dB/oct | Post-wet spectral tilt |
+| `--tilt-pivot-hz` | Hz | Tilt pivot frequency | Moves the tonal hinge point of the tilt EQ |
 | `--freeze` | flag | Loop a segment through the engine |
 | `--start` | seconds | Freeze segment start |
 | `--end` | seconds | Freeze segment end |
@@ -669,7 +4326,16 @@ analysis = analyze_file("out.wav", include_loudness=True, json_out="analysis.jso
 | `--limiter` / `--no-limiter` | flag | Final safety limiter |
 | `--normalize-stage` | none/post/per-pass | When normalization applies |
 | `--output-peak-norm` | none/input/target/full-scale | Final peak fit |
-| `--out-subtype` | auto/float32/float64/pcm16/pcm24/pcm32 | Output file bit depth |
+| `--quality-preset` | sd/md/hd | Output-definition preset (`sd`=44.1 kHz PCM16, `md`=48 kHz PCM24, `hd`=192 kHz float32 default) |
+| `--out-subtype` | auto/float32/float64/pcm16/pcm24/pcm32 | Output file bit depth (overrides preset subtype) |
+| `--target-sr` | Hz | Render/output sample-rate conversion (overrides preset sample rate) |
+| `--output-container` | auto/wav/w64/rf64 | Output container selection | `auto` upgrades long WAV renders to W64 |
+| `--tail-stop-threshold-db` | dBFS | Tail detector threshold for write completion | Lower = longer retained tail |
+| `--tail-stop-hold-ms` | ms | Explicit final zero-hold duration | Click-safe fade-out plus hard-zero ending |
+| `--tail-stop-metric` | peak/rms | Tail detector metric | RMS is smoother, peak is stricter |
+
+When `--target-sr` differs from the input file rate, `verbx render` performs
+deterministic internal resampling and writes the output at the requested rate.
 
 #### Execution and Reporting
 
@@ -677,14 +4343,31 @@ analysis = analyze_file("out.wav", include_loudness=True, json_out="analysis.jso
 |---|---|---|
 | `--device` | auto/cpu/cuda/mps | Compute backend |
 | `--threads` | int | CPU thread count hint |
+| `--algo-stream` | flag | Algorithmic proxy-IR streaming mode | Memory-friendly for very long renders |
+| `--algo-proxy-ir-max-seconds` | seconds | Maximum proxy-IR duration | Used with `--algo-stream` |
+| `--algo-gpu-proxy` | flag | Route algo proxy through CUDA convolution | Requires `--algo-stream --device cuda` |
 | `--dry-run` | flag | Validate config without writing audio |
-| `--preset` | name | Apply named preset as baseline |
+| `--auto-fit` | none/speech/music/drums/ambient | Apply profile-derived starting values | Respects explicit CLI overrides |
+| `--preset` | name or `room:WxDxH/material` | Apply named preset or geometry-derived room baseline |
 | `--lucky N` | int | Generate N randomized variants |
 | `--frames-out` | path | Per-frame metrics CSV |
 | `--analysis-out` | path | JSON analysis report path |
 | `--repro-bundle` | flag | Write reproducibility bundle |
 | `--quiet` | flag | Suppress console summary |
 | `--silent` | flag | Suppress all output including analysis JSON |
+
+---
+
+### Early Reflection Geometry (Render)
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--er-geometry` | flag | Enable first-order image-source early reflections before main engine |
+| `--er-room-dims-m` | `L,W,H` | Room dimensions (meters) |
+| `--er-source-pos-m` | `x,y,z` | Source position (meters) |
+| `--er-listener-pos-m` | `x,y,z` | Listener position (meters) |
+| `--er-absorption` | 0.0–0.99 | Wall absorption coefficient |
+| `--er-material` | anechoic/dead/studio/hall/stone | Preset absorption profile |
 
 ---
 
@@ -697,6 +4380,8 @@ verbx ir process IN_IR.wav OUT_IR.wav     # shape existing IR (EQ, normalize, ti
 verbx ir morph IR_A.wav IR_B.wav OUT.wav  # blend two IRs
 verbx ir morph-sweep IR_A.wav IR_B.wav OUT_DIR  # alpha-timeline sweep with QA artifacts
 verbx ir fit INFILE.wav OUT_IR.wav        # fit an IR to match source audio
+verbx ir sofa-info FILE.sofa              # inspect SOFA conventions/dimensions
+verbx ir sofa-extract FILE.sofa OUT.wav   # extract FIR matrix for convolution renders
 ```
 
 **`ir gen` key flags:** `--mode [fdn|stochastic|modal|hybrid]`, `--length`, `--rt60`, `--damping`, `--seed`, `--sr`, `--channels`, `--er-count`, `--diffusion`, `--fdn-lines`, `--fdn-matrix`, `--resonator`, `--resonator-mix`, `--analyze-input`, `--harmonic-align-strength`, `--f0`
@@ -705,21 +4390,254 @@ verbx ir fit INFILE.wav OUT_IR.wav        # fit an IR to match source audio
 
 **`ir morph-sweep` key flags:** Same as morph plus `--alpha-start`, `--alpha-end`, `--alpha-steps`, `--workers`, `--retries`, `--checkpoint-file`, `--resume`, `--qa-json-out`, `--qa-csv-out`
 
+**`ir sofa-extract` key flags:** `--measurement-index`, `--emitter-index`, `--target-sr`, `--normalize [none|peak|rms]`, `--strict`
+
+---
+
+### verbx realtime
+
+`verbx realtime [options]`
+
+Realtime mode is currently a preview/audition path. `--engine conv` streams a
+real IR directly; `--engine algo` renders a static proxy IR once, then runs the
+live monitor through the streaming convolution engine. That means you get live
+device routing and stable tails today, without pretending the full offline
+automation surface is callback-safe yet. In other words: convolution settings
+act live, while algorithmic settings shape the startup proxy IR that the live
+convolver uses for the session. It now also supports a dedicated low-latency
+live dereverb path, either standalone or chained in front of the reverb engine.
+
+**Transport and device routing**
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--live-mode` | reverb/dereverb/dereverb-reverb | Choose reverb only, dereverb only, or dereverb feeding the live reverb path |
+| `--engine` | auto/conv/algo | Live engine mode. `auto` chooses convolution when `--ir` is present, else algorithmic proxy |
+| `--ir` | file path | IR source for realtime convolution |
+| `--input-device` | index or substring | Select live input device |
+| `--output-device` | index or substring | Select live output device |
+| `--list-devices` | flag | Print available realtime devices and exit |
+| `--sample-rate` | Hz | Live stream sample rate |
+| `--block-size` | samples | Driver callback block size |
+| `--partition-size` | samples | Convolution partition size used in the live processor |
+| `--input-channels` | int | Processor input width. Defaults to mono/stereo, or to the length of `--input-channel-map` |
+| `--input-channel-map` | comma-separated 1-based ints | Select and reorder hardware input channels, for example `1,3` or `1,3,5,7` |
+| `--output-channels` | int | Processor output width. Defaults to processor width, or to the length of `--output-channel-map` |
+| `--output-channel-map` | comma-separated 1-based ints | Select and reorder hardware output channels that receive processor outputs |
+| `--duration` | seconds | Stop automatically after N seconds; omit for Ctrl-C run |
+| `--quiet` | flag | Reduce console output |
+
+**Low-latency live dereverb**
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--dereverb-mode` | wiener/spectral_sub | Realtime dereverb kernel |
+| `--dereverb-strength` | 0–2 | How aggressively late energy is suppressed |
+| `--dereverb-floor` | 0–1 | Minimum residual gain floor |
+| `--dereverb-window-ms` / `--dereverb-hop-ms` | ms / ms | Short STFT analysis window and hop for the live dereverb path |
+| `--dereverb-tail-ms` | ms | Exponential late-tail tracking horizon |
+| `--dereverb-pre-emphasis` | 0–0.98 | Optional pre-emphasis before spectral processing |
+| `--dereverb-mix` | 0–1 | Blend between dereverbed and latency-aligned dry signal |
+| `--dereverb-max-atten-db` | dB | Clamp the maximum spectral attenuation |
+| `--dereverb-stereo-link` | flag | Link stereo gain decisions to reduce image wobble |
+| `--dereverb-input-gain-db` / `--dereverb-output-gain-db` | dB / dB | Trim into and out of the live dereverb processor |
+
+**Realtime mix and proxy-room controls**
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--wet` / `--dry` | 0–1 | Live wet/dry mix in the convolver |
+| `--rt60` | seconds | Algorithmic proxy decay time |
+| `--pre-delay-ms` | ms | Algorithmic proxy pre-delay |
+| `--damping` | 0–1 | Algorithmic proxy damping |
+| `--width` | 0–2 | Algorithmic proxy stereo width |
+| `--mod-depth-ms` / `--mod-rate-hz` | ms / Hz | Proxy delay modulation depth and rate |
+| `--freeze` | flag | Realtime algo only: approximate infinite sustain via a long self-sustaining proxy tail |
+| `--algo-proxy-ir-max-seconds` | seconds | Upper bound on startup proxy IR render length |
+| `--lowcut` / `--highcut` / `--tilt` | Hz / dB tilt | Shape the startup proxy IR spectrum before live convolution |
+
+**FDN topology and feedback options**
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--fdn-lines` | 1–64 | Proxy FDN line count |
+| `--fdn-matrix` | hadamard/householder/random_orthogonal/circulant/elliptic/tv_unitary/graph/sdn_hybrid | Proxy matrix family |
+| `--fdn-tv-rate-hz` / `--fdn-tv-depth` | Hz / amount | Time-varying matrix motion for supported FDNs |
+| `--fdn-dfm-delays-ms` | comma-separated ms | Delay-feedback modulation taps |
+| `--fdn-sparse` / `--fdn-sparse-degree` | flag / int | Sparse feedback wiring and degree |
+| `--fdn-cascade` and friends | flag / scalars | Enable cascaded/nested FDN behavior |
+| `--fdn-rt60-low` / `--mid` / `--high` | seconds | Multiband RT60 targets |
+| `--fdn-rt60-tilt` | –1 to 1 | Tilt the decay profile across bands |
+| `--fdn-link-filter*` | mode / Hz / mix | Filter energy in the feedback links |
+| `--fdn-graph-topology` / `--fdn-graph-degree` / `--fdn-graph-seed` | topology / int / int | Graph-based FDN layout controls |
+| `--fdn-matrix-morph-to` / `--fdn-matrix-morph-seconds` | matrix / seconds | Morph between matrix families during proxy synthesis |
+| `--fdn-spatial-coupling-mode` / `--strength` | mode / 0–1 | Immersive cross-cluster coupling |
+| `--fdn-nonlinearity*` | mode / amount / drive | Nonlinear feedback coloration |
+
+**Diffusion, shimmer, and perceptual macros**
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--allpass-stages` | 0–64 | Diffusion depth |
+| `--allpass-gain` | float or comma-separated list | Shared or per-stage diffusion coefficient(s) |
+| `--allpass-delays-ms` | comma-separated ms | Custom allpass delay times |
+| `--comb-delays-ms` | comma-separated ms | Custom FDN/comb delay times |
+| `--shimmer` and `--shimmer-*` | flag / scalars | Startup proxy shimmer block with pitch, mix, feedback, filters, spatial spread |
+| `--room-size-macro` / `--clarity-macro` / `--warmth-macro` / `--envelopment-macro` | –1 to 1 | Jot-inspired perceptual macro controls |
+| `--algo-decorrelation-front` / `--rear` / `--top` | 0–1 | Extra proxy decorrelation for immersive layouts |
+| `--unsafe-self-oscillate` / `--unsafe-loop-gain` | flag / scalar | Deliberately allow runaway feedback behavior when you really mean it |
+
+Notes:
+
+- `--live-mode dereverb` ignores reverb-engine startup options and runs only the low-latency dereverb processor.
+- `--live-mode dereverb-reverb` runs the same dereverb front-end first, then feeds the selected live reverb engine.
+- Live dereverb currently supports mono or stereo processor widths.
+- `--block-size` must be divisible by the resolved dereverb hop size. At 48 kHz with `--dereverb-hop-ms 4`, safe values include `192`, `384`, and `576`.
+- When `--engine conv` is used with `--ir`, algorithmic proxy flags are rejected instead of being silently ignored.
+- Realtime `--freeze` is not the offline segment-freeze processor. It is a live-preview approximation built on a long self-sustaining proxy IR.
+- Channel maps are 1-based hardware channel numbers. If you pass `--input-channel-map 1,3`, processor input 1 comes from hardware input 1 and processor input 2 comes from hardware input 3.
+- Channel-count switches must match the length of the corresponding channel map when both are provided.
+- The exhaustive help for every switch lives in [`docs/CLI_REFERENCE.md`](docs/CLI_REFERENCE.md).
+
+Examples:
+
+```bash
+verbx realtime --engine algo \
+  --input-device "Built-in Microphone" \
+  --output-device "Headphones" \
+  --sample-rate 48000 --block-size 256 \
+  --input-channel-map 1,3 --output-channel-map 1,2,5,6 \
+  --rt60 24 --freeze --shimmer \
+  --fdn-matrix tv-unitary --fdn-tv-rate-hz 0.35 --fdn-tv-depth 0.12 \
+  --fdn-graph-topology star --fdn-sparse --fdn-cascade \
+  --lowcut 120 --highcut 9000 --tilt 1.5
+```
+
+```bash
+verbx realtime --live-mode dereverb \
+  --input-device "Built-in Microphone" \
+  --output-device "Headphones" \
+  --sample-rate 48000 --block-size 384 \
+  --dereverb-mode wiener \
+  --dereverb-strength 0.85 --dereverb-floor 0.05 \
+  --dereverb-window-ms 12 --dereverb-hop-ms 4 --dereverb-tail-ms 90 \
+  --dereverb-pre-emphasis 0.2 --dereverb-mix 1.0 \
+  --dereverb-max-atten-db 18 --dereverb-stereo-link
+```
+
+```bash
+verbx realtime --live-mode dereverb-reverb --engine algo \
+  --input-device "Built-in Microphone" \
+  --output-device "Headphones" \
+  --sample-rate 48000 --block-size 384 \
+  --dereverb-mode spectral_sub --dereverb-strength 0.9 \
+  --dereverb-window-ms 12 --dereverb-hop-ms 4 \
+  --rt60 12 --wet 0.55 --dry 0.45 \
+  --fdn-matrix tv-unitary --fdn-tv-rate-hz 0.25 --fdn-tv-depth 0.08
+```
+
 ---
 
 ### verbx analyze
 
 `verbx analyze INFILE [options]`
 
-Outputs loudness, peak, spectral, and decay metrics. Key flags:
+Extracts reverb and general audio metrics directly from WAV, FLAC, AIFF, OGG,
+CAF, and other libsndfile-supported files. Reverb analysis is enabled by
+default. The analyzer aligns the strongest event, builds a backward-integrated
+Schroeder energy-decay curve, fits EDT/T20/T30 slopes, and selects the deepest
+reliable fit as its broadband RT60 estimate.
 
-| Switch | What it produces |
-|---|---|
-| `--lufs` | Integrated LUFS, true peak, LRA |
-| `--edr` | Frequency-dependent RT60 estimates via Schroeder backward integration |
-| `--frames-out path` | Per-frame CSV with time-varying descriptors |
-| `--json-out path` | Full metric payload in JSON |
-| `--ambi-order N` | Ambisonics spatial metrics for HOA assets |
+Analyze a captured impulse response and write a machine-readable report:
+
+```bash
+verbx analyze hall_ir.wav --input-kind ir --edr --room \
+  --json-out reports/hall_ir.analysis.json
+```
+
+Analyze a reverberant music or field recording while explicitly qualifying the
+result as a program-audio estimate:
+
+```bash
+verbx analyze wet_mix.wav --input-kind program --lufs \
+  --direct-window-ms 3.0 --json-out reports/wet_mix.analysis.json
+```
+
+The default reverb block reports selected RT60 plus EDT, T20, T30, decay-fit
+$R^2$, usable decay range, noise floor, $C_{50}$, $C_{80}$, $D_{50}$, center
+time, direct-to-reverberant ratio, early IACC, input classification, and a
+confidence score. `--input-kind auto` distinguishes IR-like signals from
+program audio; use `ir` or `program` when you know the source type. Clarity,
+definition, and DRR are conventional room-acoustic quantities for an impulse
+response. On program audio they are peak-aligned diagnostic estimates, not a
+standards-compliant room measurement.
+
+Key flags:
+
+- `--reverb` / `--no-reverb`: enable or suppress the default broadband reverb-metric block.
+- `--input-kind auto, ir, program`: select automatic classification, an impulse response, or program audio.
+- `--direct-window-ms N`: set the direct-sound window used for the DRR estimate; default `2.5` ms.
+- `--lufs`: add integrated LUFS, true peak, and LRA.
+- `--edr`: add frequency-dependent RT60 estimates via Schroeder backward integration.
+- `--room`: add estimated dimensions, volume, absorption, critical distance, class, and confidence.
+- `--frames-out path`: write per-frame CSV with time-varying descriptors.
+- `--json-out path`: atomically write an `analyze-report-v1` JSON report with source metadata, settings, and all metrics.
+- `--ambi-order N`: add Ambisonics spatial metrics for HOA assets.
+
+For a compact legacy feature-only run, use `verbx analyze in.wav --no-reverb`.
+
+---
+
+### verbx room-model
+
+```bash
+verbx room-model --dims-m 6,8,3
+verbx room-model --rt60 1.6 --material hall --json-out room.json
+```
+
+Use this when you want a physically grounded sanity check before rendering.
+`verbx room-model` either inspects an explicit rectangular room geometry or
+infers one from RT60 plus an absorption/material assumption. It reports volume,
+surface area, direct-path pre-delay, aspect ratios, Bolt-style proportion
+warnings, and writes JSON when requested.
+
+If you already know the dimensions and want to jump straight to a render, you
+can skip the inspection step and use the matching render shorthand:
+
+```bash
+verbx render in.wav out.wav --preset room:6x8x3/hall
+```
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--dims-m` | `width,depth,height` | Inspect an explicit rectangular room |
+| `--rt60` | seconds | Infer room dimensions from RT60 plus absorption |
+| `--absorption` | 0.01–0.99 | Override the mean absorption used for RT60 inversion |
+| `--material` | preset name | Use a wall material preset when `--absorption` is omitted |
+| `--source-pos-m` | `x,y,z` meters | Source position inside the room |
+| `--listener-pos-m` | `x,y,z` meters | Listener position inside the room |
+| `--json-out` | path | Write the full geometry payload as JSON |
+
+---
+
+### verbx dereverb
+
+`verbx dereverb INFILE OUTFILE [options]`
+
+Deterministic spectral late-tail suppression for existing recordings.
+
+| Switch | Values | What it does |
+|---|---|---|
+| `--mode` | wiener/spectral_sub | Suppression algorithm |
+| `--strength` | 0–2 | Reverberant suppression amount |
+| `--floor` | 0–1 | Residual floor to reduce musical-noise artifacts |
+| `--window-ms` | ms | STFT analysis window |
+| `--hop-ms` | ms | STFT hop size (must be smaller than window) |
+| `--tail-ms` | ms | Late-field smoothing horizon |
+| `--pre-emphasis` | 0–0.98 | Optional HF emphasis before suppression |
+| `--mix` | 0–1 | Blend of processed output |
+| `--out-subtype` | auto/float32/float64/pcm16/pcm24/pcm32 | Output encoding |
+| `--json-out` | path | Write structured dereverb report |
 
 ---
 
@@ -743,8 +4661,20 @@ verbx batch augment augment.json --jobs 8      # generate training dataset
 
 ```bash
 verbx suggest INFILE      # analysis-driven starter settings for your specific audio
+verbx realtime --list-devices   # list selectable live audio devices
+verbx realtime --engine algo --input-device 0 --output-device 3   # live preview
+verbx realtime --live-mode dereverb --input-device 0 --output-device 3   # live low-latency dereverb
+verbx render in.wav out.wav --preset room:6x8x3/hall   # geometry-derived room baseline
+verbx render in.wav out_warm.wav --preset warm-chamber   # one of 280 generated style/space presets
+verbx render in.wav out_shimmer.wav --preset shimmer-cathedral   # expansive shimmer preset
+verbx render in.wav out_limited.wav --preset limiter-broadcast-safe   # limiter-safe delivery preset
+verbx render in.wav out_long.w64 --preset delivery-long-tail-safe --output-container w64   # bounded long-tail W64 delivery
+verbx room-model --rt60 1.8 --material hall   # infer a plausible room geometry
+verbx dereverb in.wav out_dry.wav --mode wiener --strength 0.85 --json-out dereverb.json   # suppress late reverberation from an existing recording
 verbx presets             # list built-in presets
 verbx presets --show cathedral_extreme   # inspect preset parameters
+verbx presets --show warm-chamber   # inspect generated style/space presets
+verbx presets --show limiter-broadcast-safe   # inspect limiter/output delivery defaults
 verbx quickstart          # copy-paste workflows for first-run scenarios
 verbx quickstart --verify --strict       # startup readiness check (useful before demos)
 verbx doctor              # platform/acceleration diagnostics
@@ -787,7 +4717,7 @@ verbx render piano.wav piano_conv.wav --engine conv --ir hall_ir.wav --ir-normal
 verbx render snare.wav snare_delay.wav --engine algo --pre-delay 1/8D --bpm 128 --rt60 1.8 --wet 0.45
 ```
 
-**Loudness-safe delivery — hits -16 LUFS with -1 dBTP ceiling:**
+**Loudness-safe delivery — hits –16 LUFS with –1 dBTP ceiling:**
 ```bash
 verbx render master.wav delivered.wav --engine algo --rt60 2.0 --wet 0.2 \
   --target-lufs -16 --true-peak --target-peak-dbfs -1
@@ -1045,6 +4975,12 @@ verbx ir morph-sweep ir_a.wav ir_b.wav out/sweep \
 ./scripts/generate_ir_bank.py --out IRs/bank_25 --count 25 --sr 48000 --channels 2 --format flac
 ```
 
+**Generate a large folder-sorted IR library (varying lengths):**
+```bash
+uv run python scripts/generate_ir_library.py \
+  --out IRs/library --sr 12000 --channels 2 --format flac --seeds-per-shape 1
+```
+
 **Pre-render validation — catch config errors before a long job:**
 ```bash
 verbx render long_input.wav output.wav --engine algo --rt60 180 --fdn-lines 32 --dry-run
@@ -1077,7 +5013,8 @@ For contributors and people who want to understand the signal chain in code.
 
 | Path | Contents |
 |---|---|
-| `src/verbx/cli.py` | Command routing, CLI surface, option validation |
+| `src/verbx/commands/` | Public command modules and Typer registration surfaces |
+| `src/verbx/cli.py` | Shared CLI validation, config assembly, and helper/report logic |
 | `src/verbx/core/algo_reverb.py` | Algorithmic FDN engine |
 | `src/verbx/core/conv_reverb.py` | Partitioned FFT convolution engine |
 | `src/verbx/core/pipeline.py` | Render orchestration, stage ordering |
@@ -1095,16 +5032,17 @@ input audio
   │
   ├─ [dry path] ──────────────────────────────────────────┐
   │                                                        │
-  └─ pre-delay (z^-N)                                      │
+  └─ pre-delay (z⁻ᴺ)                                       │
        └─ allpass diffusion (stages 1..K)                  │
-            └─ FDN core                                     │
-                 ├─ delay bank (lines 1..N)                │
-                 ├─ loop conditioning D(z)                 │
-                 ├─ RT60 gain matrix G                     │
-                 ├─ feedback matrix M [orthonormal]        │
-                 ├─ [optional] DFM micro-delays            │
-                 ├─ [optional] link filter                 │
-                 └─ [optional] in-loop nonlinearity        │
+            └─ [optional] comb cloud                        │
+                 └─ FDN core                                │
+                      ├─ delay bank (lines 1..N)           │
+                      ├─ loop conditioning D(z)            │
+                      ├─ RT60 gain matrix G                │
+                      ├─ feedback matrix M [orthonormal]   │
+                      ├─ [optional] DFM micro-delays       │
+                      ├─ [optional] link filter            │
+                      └─ [optional] in-loop nonlinearity   │
             └─ wet projection                              │
                  └─ shimmer / bloom / duck / tilt / EQ ───┤
                                                            │
@@ -1115,7 +5053,10 @@ input audio
                       └─ analysis JSON + frames CSV
 ```
 
-**Precision:** All DSP — FDN state updates, FFT operations, allpass filters, automation curves, feature vectors, analysis metrics — runs in `float64` internally. Output is downcast at write time according to `--out-subtype`. The default output subtype is derived from the input file format.
+Notation: $z^{-N}$ denotes an integer-sample delay of $N$ samples, $K$ is
+allpass-stage count, and $N$ (in `lines 1..N`) is FDN delay-line count.
+
+**Precision:** All DSP — FDN state updates, FFT operations, allpass filters, automation curves, feature vectors, analysis metrics — runs in `float64` internally. Output is downcast at write time according to `--out-subtype`. `verbx render` defaults to HD output (`192000 Hz`, `float32`) unless overridden by `--quality-preset`, `--target-sr`, or `--out-subtype`.
 
 **Key design decisions:**
 - Per-line gain calibration (not global feedback gain) lets all delay lines, regardless of length, track the same RT60 target. This is essential for stable long tails.
@@ -1127,7 +5068,7 @@ input audio
 
 ## Contributors
 
-- Colby Leider (creator and maintainer)
+- Colby Leider, PhD (creator and maintainer)
 - Full contributors graph: [github.com/TheColby/verbx/graphs/contributors](https://github.com/TheColby/verbx/graphs/contributors)
 
 ---
@@ -1157,21 +5098,33 @@ Report security issues via [SECURITY.md](SECURITY.md). See [CODE_OF_CONDUCT.md](
 
 Full bibliography: [docs/REFERENCES.md](docs/REFERENCES.md)
 
+Key book:
+
+- **Pirkle (2019)** — *[Designing Audio Effect Plugins in C++: For AAX, AU, and VST3 with DSP Theory](https://www.routledge.com/Designing-Audio-Effect-Plugins-in-C-For-AAX-AU-and-VST3-with-DSP-Theory/Pirkle/p/book/9781138591899)*, 2nd ed., Routledge. Recommended companion reading for plug-in anatomy, API-independent DSP cores, host integration, parameter handling, GUI design, and the implementation of delay, reverb, and dynamics processors.
+
 Key papers:
 
-- **Schroeder (1962)** — "Natural sounding artificial reverberation." The foundational work on allpass and comb filter reverb structures that forms the basis for most algorithmic reverb design.
-- **Jot & Chaigne (1991)** — "Digital delay networks for designing artificial reverberators." Introduced the Feedback Delay Network in its modern form; directly informs the gain calibration formula used in verbx.
+
+- **Gardner (1998)** — "Reverberation algorithms." Practical implementation guide covering partitioned convolution, early reflections, and late field design.
 - **Jot (1992)** — "An analysis/synthesis approach to real-time artificial reverberation." Extends FDN theory to frequency-dependent decay, the basis for multiband RT60 control.
+- **Jot & Chaigne (1991)** — "Digital delay networks for designing artificial reverberators." Introduced the Feedback Delay Network in its modern form; directly informs the gain calibration formula used in verbx.
+- **Schroeder (1962)** — "Natural sounding artificial reverberation." The foundational work on allpass and comb filter reverb structures that forms the basis for most algorithmic reverb design.
 - **Smith (1985)** — "A new approach to digital reverberation using closed waveguide networks." Scattering Delay Networks — a physical wave propagation model distinct from the FDN approach; informs the `sdn_hybrid` matrix family.
 - **Valimaki et al. (2012)** — "Fifty years of artificial reverberation." Survey paper; an accessible overview of the full history of algorithmic reverb from Schroeder to modern approaches.
-- **Gardner (1998)** — "Reverberation algorithms." Practical implementation guide covering partitioned convolution, early reflections, and late field design.
+
 
 Additional guides in `docs/`:
+- [Consolidated user guide](docs/USERGUIDE.md) and `USERGUIDE.pdf` — README plus user-facing docs/tips in one manual
+- [CLI reference](docs/CLI_REFERENCE.md) — machine-generated `--help` snapshots for all command groups
 - [IR synthesis guide](docs/IR_SYNTHESIS.md) — complete parameter reference for all synthesis modes
 - [AI augmentation guide](docs/AI_AUGMENTATION.md) — dataset generation workflow documentation
+- [Schema reference](docs/SCHEMA_REFERENCE.md) — JSON/CSV formats for manifests and automation
+- [Dataset augmentation notebook](examples/dataset_augmentation.ipynb) — Python API workflow for ML pipelines
 - [IR morph QA guide](docs/IR_MORPH_QA.md) — morph-sweep QA artifacts and CI integration
 - [Benchmark baseline guide](docs/benchmarks/README.md) — CI/runtime comparison workflow
 - [Extreme cookbook](docs/EXTREME_COOKBOOK.md) — 100 additional workflow examples
+- [SOFA interoperability note](docs/SOFA_FEASIBILITY.md) — shipped `sofa-info` / `sofa-extract` workflow and current constraints
+- [Launch example parity checker](scripts/check_launch_examples.py) — verifies canonical launch commands stay mirrored across docs/man pages
 
 ---
 
@@ -1179,4 +5132,4 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.7.2 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.7.7 — current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
