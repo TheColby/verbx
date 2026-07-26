@@ -5,6 +5,9 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Changed
+- The native JUCE plug-in now exposes four host programs (`Default`, `Chamber`,
+  `Plate`, and `Infinite`) with deterministic recall, editable names, and
+  persisted program state.
 - Extracted deterministic FDN delay-layout resolution and fractional circular
   reads into `fdn_delays.py`, with direct tests for delay extension, seeded
   comb-cloud layouts, DFM validation, and interpolation.

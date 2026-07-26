@@ -80,6 +80,8 @@ mix routing, and tail character.
   Target 192 kHz / 32-bit-float processing contract
 - RT60 coarse/fine mapping from `0.01s` to `360s`
 - visible Freeze and Reverse mode parameters
+- four host-visible programs (`Default`, `Chamber`, `Plate`, and `Infinite`)
+  with deterministic parameter recall, editable host names, and state recall
 - realtime post-DSP spectrum overlay with a lock-free audio handoff, 8192-point
   Hann FFT, logarithmic frequency grid, smoothed response, and peak trace
 

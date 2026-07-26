@@ -41,7 +41,7 @@ Chosen `v0.8` shape: **hybrid wrapper phase before full replacement**.
 | Dereverb | Python DSP dereverb | Not implemented | Deferred | Roadmap only |
 | IR tools | Python IR synth/morph/library tools | Not implemented | Deferred | Roadmap only |
 | Batch/immersive workflows | Python workflow commands | Not implemented | Deferred | Roadmap only |
-| Presets | Built-in/generated Python preset bank | Not implemented | Deferred | Roadmap only |
+| Presets | Built-in/generated Python preset bank | Four host programs with persisted editable labels | Partial | `Default`, `Chamber`, `Plate`, and `Infinite` recall the realtime parameter set; Python preset-bank parity remains deferred. |
 
 ## Native Parity Contract
 

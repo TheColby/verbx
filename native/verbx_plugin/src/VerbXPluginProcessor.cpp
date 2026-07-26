@@ -20,6 +20,27 @@ juce::ParameterID versionedParameterId(const verbx_plugin_parameter& parameter) 
     return {parameter.key, 1};
 }
 
+struct BuiltInProgramValues {
+    float preDelayMs;
+    float roomSize;
+    float rt60Coarse;
+    float damping;
+    float width;
+    float diffusion;
+    float wet;
+    float dry;
+    float freeze;
+    float reverse;
+    float qualityMode;
+};
+
+constexpr BuiltInProgramValues builtInPrograms[] = {
+    {20.0f, 0.50f, 0.50f, 0.45f, 1.00f, 0.65f, 0.35f, 0.85f, 0.0f, 0.0f, 3.0f},
+    {12.0f, 0.35f, 0.38f, 0.58f, 0.85f, 0.58f, 0.28f, 0.90f, 0.0f, 0.0f, 2.0f},
+    {4.0f, 0.62f, 0.58f, 0.28f, 1.35f, 0.82f, 0.42f, 0.78f, 0.0f, 0.0f, 3.0f},
+    {0.0f, 0.88f, 0.72f, 0.18f, 1.55f, 0.92f, 0.70f, 0.55f, 1.0f, 0.0f, 3.0f},
+};
+
 } // namespace
 
 VerbXPluginProcessor::VerbXPluginProcessor()
@@ -376,19 +397,53 @@ bool VerbXPluginProcessor::acceptsMidi() const { return false; }
 bool VerbXPluginProcessor::producesMidi() const { return false; }
 bool VerbXPluginProcessor::isMidiEffect() const { return false; }
 double VerbXPluginProcessor::getTailLengthSeconds() const { return 360.0; }
-int VerbXPluginProcessor::getNumPrograms() { return 1; }
-int VerbXPluginProcessor::getCurrentProgram() { return 0; }
-void VerbXPluginProcessor::setCurrentProgram(int index) { juce::ignoreUnused(index); }
+int VerbXPluginProcessor::getNumPrograms() { return builtInProgramCount; }
+int VerbXPluginProcessor::getCurrentProgram() { return currentProgram_; }
+void VerbXPluginProcessor::setCurrentProgram(int index) {
+    currentProgram_ = juce::jlimit(0, builtInProgramCount - 1, index);
+    applyBuiltInProgram(currentProgram_);
+}
 const juce::String VerbXPluginProcessor::getProgramName(int index) {
-    juce::ignoreUnused(index);
-    return {};
+    if (index < 0 || index >= builtInProgramCount) {
+        return {};
+    }
+    return programNames_[static_cast<size_t>(index)];
 }
 void VerbXPluginProcessor::changeProgramName(int index, const juce::String& newName) {
-    juce::ignoreUnused(index, newName);
+    if (index >= 0 && index < builtInProgramCount && newName.trim().isNotEmpty()) {
+        programNames_[static_cast<size_t>(index)] = newName.trim();
+    }
+}
+
+void VerbXPluginProcessor::applyBuiltInProgram(int index) {
+    const auto& values = builtInPrograms[static_cast<size_t>(index)];
+    const auto apply = [this](verbx_plugin_parameter_id id, float value) {
+        if (auto* parameter = parameters_.getParameter(parameterId(id)); parameter != nullptr) {
+            parameter->setValueNotifyingHost(parameter->convertTo0to1(value));
+        }
+    };
+    apply(VERBX_PLUGIN_PARAM_PRE_DELAY_MS, values.preDelayMs);
+    apply(VERBX_PLUGIN_PARAM_ROOM_SIZE, values.roomSize);
+    apply(VERBX_PLUGIN_PARAM_RT60_COARSE, values.rt60Coarse);
+    apply(VERBX_PLUGIN_PARAM_DAMPING, values.damping);
+    apply(VERBX_PLUGIN_PARAM_WIDTH, values.width);
+    apply(VERBX_PLUGIN_PARAM_DIFFUSION, values.diffusion);
+    apply(VERBX_PLUGIN_PARAM_WET, values.wet);
+    apply(VERBX_PLUGIN_PARAM_DRY, values.dry);
+    apply(VERBX_PLUGIN_PARAM_FREEZE, values.freeze);
+    apply(VERBX_PLUGIN_PARAM_REVERSE, values.reverse);
+    apply(VERBX_PLUGIN_PARAM_QUALITY_MODE, values.qualityMode);
 }
 
 void VerbXPluginProcessor::getStateInformation(juce::MemoryBlock& destData) {
-    const auto stateXml = parameters_.copyState().createXml();
+    auto stateXml = parameters_.copyState().createXml();
+    stateXml->setAttribute("verbxCurrentProgram", currentProgram_);
+    for (int index = 0; index < builtInProgramCount; ++index) {
+        stateXml->setAttribute(
+            "verbxProgramName" + juce::String(index),
+            programNames_[static_cast<size_t>(index)]
+        );
+    }
     copyXmlToBinary(*stateXml, destData);
 }
 
@@ -398,6 +453,18 @@ void VerbXPluginProcessor::setStateInformation(const void* data, int sizeInBytes
         const auto restoredState = juce::ValueTree::fromXml(*stateXml);
         if (restoredState.isValid() && restoredState.hasType(parameters_.state.getType())) {
             parameters_.replaceState(restoredState);
+            currentProgram_ = juce::jlimit(
+                0,
+                builtInProgramCount - 1,
+                stateXml->getIntAttribute("verbxCurrentProgram", currentProgram_)
+            );
+            for (int index = 0; index < builtInProgramCount; ++index) {
+                const auto key = "verbxProgramName" + juce::String(index);
+                programNames_[static_cast<size_t>(index)] = stateXml->getStringAttribute(
+                    key,
+                    programNames_[static_cast<size_t>(index)]
+                );
+            }
         }
     }
 }

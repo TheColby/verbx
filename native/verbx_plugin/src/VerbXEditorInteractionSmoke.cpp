@@ -22,6 +22,27 @@ int main(int argc, char* argv[]) {
     if (processor.internalSampleRate() != 192000U || processor.oversamplingFactor() != 4U) {
         return fail("default Target quality did not prepare real 4x processing");
     }
+    if (processor.getNumPrograms() != 4 || processor.getProgramName(2) != "Plate") {
+        return fail("processor did not expose the built-in host program bank");
+    }
+    processor.setCurrentProgram(2);
+    auto* presetWetParameter = processor.state().getParameter("wet");
+    if (processor.getCurrentProgram() != 2 || presetWetParameter == nullptr
+        || std::abs(presetWetParameter->getValue() - 0.42f) > 0.001f) {
+        return fail("Plate program did not recall deterministic host parameters");
+    }
+    processor.changeProgramName(2, "Chrome Plate");
+    if (processor.getProgramName(2) != "Chrome Plate") {
+        return fail("host program names were not editable");
+    }
+    juce::MemoryBlock programState;
+    processor.getStateInformation(programState);
+    VerbXPluginProcessor restoredProcessor;
+    restoredProcessor.setStateInformation(programState.getData(), static_cast<int>(programState.getSize()));
+    if (restoredProcessor.getCurrentProgram() != 2
+        || restoredProcessor.getProgramName(2) != "Chrome Plate") {
+        return fail("host program state did not persist across processor restore");
+    }
 
     std::unique_ptr<juce::AudioProcessorEditor> editor(processor.createEditor());
     if (editor == nullptr) {

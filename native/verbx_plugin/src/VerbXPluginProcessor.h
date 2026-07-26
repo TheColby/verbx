@@ -86,10 +86,17 @@ private:
     void acquireRealtimeContextGuard() noexcept;
     void releaseRealtimeContextGuard() noexcept;
     void prepareRealtimeContext(double sampleRate, int samplesPerBlock, int qualityMode);
+    void applyBuiltInProgram(int index);
     verbx_plugin_realtime_params currentRealtimeParams() const;
     void pushAnalyzerSamples(const juce::AudioBuffer<float>& buffer) noexcept;
     void parameterChanged(const juce::String& parameterId, float newValue) override;
     void handleAsyncUpdate() override;
+
+    static constexpr int builtInProgramCount = 4;
+    int currentProgram_ = 0;
+    std::array<juce::String, builtInProgramCount> programNames_{
+        "Default", "Chamber", "Plate", "Infinite"
+    };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VerbXPluginProcessor)
 };
