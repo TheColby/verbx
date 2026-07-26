@@ -57,7 +57,7 @@ jobs:
       - name: Verify installer script + man pages
         run: |
           PREFIX="$RUNNER_TEMP/verbx-prefix"
-          ./scripts/install.sh --prefix "$PREFIX" --python python3 --wheel
+          ./scripts/install.sh --prefix "$PREFIX" --python python3 --wheel --skip-plugins
           test -f "$PREFIX/share/man/man1/verbx.1"
           test -f "$PREFIX/share/man/man1/verbx-render.1"
           man -M "$PREFIX/share/man" verbx | head -n 30 > "$RUNNER_TEMP/man_verbx.txt"

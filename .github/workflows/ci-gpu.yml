@@ -1,0 +1,113 @@
+name: GPU / Accelerated Paths
+
+on:
+  # Run automatically on pushes to main so hardware-path regressions are caught
+  # without needing a manual dispatch.  PR gates remain on the main ci.yml job.
+  push:
+    branches: [main]
+  schedule:
+    # Weekly on Monday 03:00 UTC to catch dependency-driven regressions
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      python_version:
+        description: "Python version"
+        required: false
+        default: "3.11"
+      cuda_version:
+        description: "CUDA version tag (e.g. 12.1.0)"
+        required: false
+        default: "12.1.0"
+
+# This workflow covers CUDA and Apple Silicon (MPS) acceleration paths.
+# CUDA tests run on ubuntu-latest (CPU fallback without a real GPU runner).
+# Apple Silicon tests run on macos-14, which provides M1 hardware.
+
+jobs:
+  test-cuda:
+    name: CUDA acceleration tests (Python ${{ inputs.python_version || '3.11' }})
+    runs-on: ubuntu-latest  # replace with a self-hosted GPU runner when available
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install verbx + dev deps
+        run: |
+          python -m pip install --upgrade pip hatch
+          hatch run pip install -e ".[dev]"
+
+      - name: Attempt to install CuPy (best-effort, skip on failure)
+        run: |
+          python -m pip install cupy-cuda12x || echo "CuPy not available — GPU tests will run in CPU-fallback mode"
+
+      - name: Run CUDA-path tests (all — skip markers handle hardware absence)
+        run: |
+          hatch run test -- tests/test_cuda_paths.py -v --tb=short
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cuda-test-results-py${{ matrix.python-version }}
+          path: .pytest_cache/
+
+  test-apple-silicon:
+    name: Apple Silicon / MPS paths (Python ${{ inputs.python_version || '3.11' }})
+    # macos-14 is guaranteed Apple Silicon (M1).  macos-latest may be Intel.
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install system dependencies
+        run: |
+          brew update
+          brew install libsndfile
+
+      - name: Install verbx + dev deps
+        run: |
+          python -m pip install --upgrade pip hatch
+          hatch run pip install -e ".[dev]"
+
+      - name: Probe MPS availability
+        run: |
+          python - <<'EOF'
+          try:
+              import torch
+              mps = torch.backends.mps.is_available()
+          except ImportError:
+              mps = False
+          print(f"MPS available: {mps}")
+          EOF
+
+      - name: Run full CUDA/MPS test file (skip markers handle hardware absence)
+        run: |
+          hatch run test -- tests/test_cuda_paths.py -v --tb=short
+
+      - name: Run core test suite on Apple Silicon
+        run: |
+          hatch run test -- \
+            --ignore=tests/test_cuda_paths.py \
+            --ignore=tests/test_hoa_validation.py \
+            -x -q --tb=short
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-silicon-test-results-py${{ matrix.python-version }}
+          path: .pytest_cache/
