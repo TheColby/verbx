@@ -1,4 +1,4 @@
-# verbx v0.9.2 and Next 4 Weeks
+# verbx v0.9.3 and Next 4 Weeks
 
 _Execution checklist derived from `README.md`, `CHANGELOG.md`, and
 `docs/ROADMAP.md`._
@@ -9,12 +9,12 @@ _Last updated: 2026-07-26._
 
 ## Goal
 
-Ship `v0.9.2` as a focused hardening release, then use its enforced quality
+Ship `v0.9.3` as a focused hardening release, then use its enforced quality
 gates as the baseline for the next native and physical-acoustics increments.
 New feature breadth remains secondary to compatibility, repeatability, and
 measured validation.
 
-## v0.9.2 Release Slice
+## v0.9.3 Release Slice
 
 ### Python Core
 
@@ -59,12 +59,12 @@ measured validation.
 
 ## Week 1: Release Closure
 
-- [ ] Run the full Python test, lint, and type-check suites.
+- [x] Run the full Python test, lint, and type-check suites.
 - [x] Run native C tests and the strict structural parity job locally.
 - [x] Confirm generated CLI reference and launch examples match the shipped
   interface.
 - [x] Review release notes for research-grade and experimental claims.
-- [ ] Tag and publish `v0.9.2` only after all required checks pass.
+- [ ] Tag and publish `v0.9.3` only after all required checks pass.
 
 ## Week 2: Architecture
 
@@ -92,7 +92,7 @@ measured validation.
 
 ## Exit Criteria
 
-- `v0.9.2` metadata and release notes agree.
+- `v0.9.3` metadata and release notes agree.
 - Python tests, lint, and type checking pass.
 - Performance and native structural parity are blocking CI checks.
 - Native render never shortens output below its deterministic source floor.

@@ -828,11 +828,11 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.9.2**.
+Current public alpha release: **v0.9.3**.
 
 Current stabilization status:
 
-- `v0.9.2` fixes partial-partition convolution streaming so its samples, tail
+- `v0.9.3` fixes partial-partition convolution streaming so its samples, tail
   timing, and exact-zero hold match the in-memory render path. It also moves a
   cohesive parser/choice-validation cluster out of the legacy CLI module.
 - Render-performance budgets and native structural parity are now blocking CI
@@ -7527,7 +7527,7 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.9.2 - current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.9.3 - current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 
 \newpage
@@ -33121,11 +33121,11 @@ explains the musical tradeoffs and reproducible workflow.
 
 <!-- docs/PUBLIC_ALPHA_NOTES.md -->
 
-# Public Alpha Notes (v0.9.2)
+# Public Alpha Notes (v0.9.3)
 
 _Updated: 2026-07-23_
 
-`verbx` v0.9.2 is a public alpha focused on robust offline rendering,
+`verbx` v0.9.3 is a public alpha focused on robust offline rendering,
 reproducibility, advanced DSP control, structural cleanup, and initial
 realtime duplex auditioning.
 

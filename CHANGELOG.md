@@ -54,6 +54,11 @@ All notable changes to this project are documented in this file.
   `native-render-report-v1` JSON.
 
 ### Changed
+- Lucky-mode randomization now preserves an explicit caller-provided tail
+  limit instead of replacing the safety/resource boundary with a random
+  2–40-second value or no bound.
+- Repository typography checks exclude the project-local uv dependency cache,
+  so documentation generation is independent of installed package contents.
 - Shimmer's block-local safety limiter no longer applies lookahead that can
   erase blocks shorter than the lookahead window; intentional unsafe
   self-oscillation also remains observable instead of being flattened by that
