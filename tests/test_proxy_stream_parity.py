@@ -16,9 +16,11 @@ from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
+import pytest
 import soundfile as sf
 
 from verbx.config import RenderConfig
+from verbx.core import pipeline
 from verbx.core.pipeline import run_render_pipeline
 
 
@@ -76,6 +78,65 @@ def _assert_proxy_close(
     for ch in range(ref.shape[1]):
         corr = float(np.corrcoef(ref[:, ch], test[:, ch])[0, 1])
         assert corr >= 0.99
+
+
+@pytest.mark.parametrize("tail_metric", ["peak", "rms"])
+def test_convolution_stream_matches_full_pipeline(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tail_metric: str,
+) -> None:
+    """Direct convolution streaming matches the forced in-memory pipeline."""
+
+    sr = 16_000
+    rng = np.random.default_rng(92)
+    input_audio = rng.standard_normal((2_731, 2)).astype(np.float64) * 0.04
+    impulse = np.zeros((901, 1), dtype=np.float64)
+    impulse[0, 0] = 1.0
+    impulse[157, 0] = 0.36
+    impulse[509, 0] = -0.14
+    impulse[800, 0] = 0.02
+
+    infile = tmp_path / "conv_input.wav"
+    irfile = tmp_path / "conv_ir.wav"
+    streamed_path = tmp_path / f"conv_streamed_{tail_metric}.wav"
+    reference_path = tmp_path / f"conv_reference_{tail_metric}.wav"
+    sf.write(str(infile), input_audio, sr, subtype="DOUBLE")
+    sf.write(str(irfile), impulse, sr, subtype="DOUBLE")
+
+    config = RenderConfig(
+        engine="conv",
+        ir=str(irfile),
+        ir_normalize="none",
+        wet=0.73,
+        dry=0.27,
+        partition_size=256,
+        tail_stop_threshold_db=-72.0,
+        tail_stop_hold_ms=7.5,
+        tail_stop_metric=tail_metric,  # type: ignore[arg-type]
+        output_subtype="float64",
+        device="cpu",
+        silent=True,
+        progress=False,
+    )
+
+    streamed_report = run_render_pipeline(infile, streamed_path, config)
+    assert streamed_report.effective["streaming_mode"] is True
+
+    monkeypatch.setattr(pipeline, "_can_stream_convolution", lambda *args, **kwargs: False)
+    reference_report = run_render_pipeline(infile, reference_path, config)
+    assert reference_report.effective["streaming_mode"] is False
+
+    streamed, streamed_sr = sf.read(str(streamed_path), always_2d=True, dtype="float64")
+    reference, reference_sr = sf.read(str(reference_path), always_2d=True, dtype="float64")
+
+    assert streamed_sr == reference_sr == sr
+    assert streamed.shape == reference.shape
+    assert streamed_report.output_samples == reference_report.output_samples == streamed.shape[0]
+    np.testing.assert_allclose(streamed, reference, rtol=1e-10, atol=1e-10)
+
+    hold_frames = round(sr * config.tail_stop_hold_ms / 1000.0)
+    assert np.count_nonzero(streamed[-hold_frames:, :]) == 0
 
 
 # ---------------------------------------------------------------------------

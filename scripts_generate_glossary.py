@@ -409,7 +409,7 @@ Quaternion rotation :: A numerically robust representation of three-dimensional 
 Quiet zone :: A region designed or controlled to have reduced sound level or improved isolation.
 Ray tracing :: Geometric simulation that follows many sound paths through reflections, transmission, scattering, and attenuation.
 Real-time factor :: Processing time divided by signal duration; values below one indicate faster-than-realtime offline performance.
-Realtime processing :: Processing that must produce each output before a fixed playback or interaction deadline.
+Real-time processing :: Processing that must produce each output before a fixed playback or interaction deadline.
 Receiver :: The microphone, listener, ear, probe, or modeled point at which an acoustic response is evaluated.
 Recursive filter :: A filter that uses previous outputs, giving an impulse response that may continue indefinitely.
 Reference level :: A defined electrical, digital, acoustic, or perceptual level used for calibration and comparison.

@@ -1697,7 +1697,7 @@ def test_reverb_primer_mermaid_assets_convert_for_pdf() -> None:
         assert (REPO_ROOT / path).is_file()
 
     pdf_ready = DOCS_PDF._convert_figure_captions(converted)
-    assert pdf_ready.count(r"\begin{minipage}{\linewidth}") == 49
+    assert pdf_ready.count(r"\begin{minipage}{\linewidth}") == 50
     assert pdf_ready.count(r"\end{minipage}") == 49
     assert pdf_ready.count(r"\includegraphics") == 49
     assert "![" not in pdf_ready

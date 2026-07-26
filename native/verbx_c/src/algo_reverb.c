@@ -7,10 +7,12 @@
 
 enum {
     VERBX_COMB_COUNT = 4,
-    VERBX_ALLPASS_COUNT = 2
+    VERBX_ALLPASS_COUNT = 2,
+    VERBX_FDN_LINE_COUNT = 8
 };
 
 static const double VERBX_PI = 3.14159265358979323846;
+static const double VERBX_INV_SQRT_8 = 0.35355339059327376220;
 
 typedef struct {
     double *buffer;
@@ -28,9 +30,21 @@ typedef struct {
 } verbx_allpass_state;
 
 typedef struct {
+    double *buffer;
+    size_t length;
+    size_t index;
+    double feedback;
+    double filter_state;
+    double dc_prev_input;
+    double dc_prev_output;
+} verbx_fdn_line_state;
+
+typedef struct {
     double *predelay;
     size_t predelay_length;
     size_t predelay_index;
+    int use_fdn;
+    verbx_fdn_line_state fdn_lines[VERBX_FDN_LINE_COUNT];
     verbx_comb_state combs[VERBX_COMB_COUNT];
     verbx_allpass_state allpasses[VERBX_ALLPASS_COUNT];
 } verbx_channel_state;
@@ -64,6 +78,9 @@ static int init_channel_state(
     static const double spring_allpass_delay_ms[VERBX_ALLPASS_COUNT] = {2.9, 4.7};
     static const double plate_comb_delay_ms[VERBX_COMB_COUNT] = {23.9, 31.1, 37.7, 47.9};
     static const double plate_allpass_delay_ms[VERBX_ALLPASS_COUNT] = {7.1, 11.3};
+    static const double fdn_delay_ms[VERBX_FDN_LINE_COUNT] = {
+        31.0, 37.0, 41.0, 43.0, 47.0, 53.0, 59.0, 67.0
+    };
     const double *selected_comb_delay_ms = comb_delay_ms;
     const double *selected_allpass_delay_ms = allpass_delay_ms;
     double allpass_gain_base = 0.7;
@@ -84,6 +101,28 @@ static int init_channel_state(
     state->predelay = (double *)calloc(state->predelay_length, sizeof(double));
     if (state->predelay == NULL) {
         return -1;
+    }
+
+    if (model == VERBX_ALGO_MODEL_FDN) {
+        state->use_fdn = 1;
+        for (i = 0U; i < VERBX_FDN_LINE_COUNT; ++i) {
+            double delay_seconds;
+            state->fdn_lines[i].length =
+                delay_from_ms(sample_rate, fdn_delay_ms[i] * stereo_scale, 1.0);
+            state->fdn_lines[i].buffer =
+                (double *)calloc(state->fdn_lines[i].length, sizeof(double));
+            if (state->fdn_lines[i].buffer == NULL) {
+                return -1;
+            }
+            delay_seconds =
+                (double)state->fdn_lines[i].length / (double)sample_rate;
+            state->fdn_lines[i].feedback =
+                pow(10.0, (-3.0 * delay_seconds) / rt60);
+            if (state->fdn_lines[i].feedback > 0.995) {
+                state->fdn_lines[i].feedback = 0.995;
+            }
+        }
+        return 0;
     }
 
     for (i = 0U; i < VERBX_COMB_COUNT; ++i) {
@@ -118,6 +157,10 @@ static void free_channel_state(verbx_channel_state *state) {
     size_t i;
     free(state->predelay);
     state->predelay = NULL;
+    for (i = 0U; i < VERBX_FDN_LINE_COUNT; ++i) {
+        free(state->fdn_lines[i].buffer);
+        state->fdn_lines[i].buffer = NULL;
+    }
     for (i = 0U; i < VERBX_COMB_COUNT; ++i) {
         free(state->combs[i].buffer);
         state->combs[i].buffer = NULL;
@@ -144,6 +187,56 @@ static double process_allpass(verbx_allpass_state *state, double input) {
     return output;
 }
 
+static int hadamard_sign(size_t row, size_t column) {
+    size_t bits = row & column;
+    int parity = 0;
+    while (bits != 0U) {
+        parity ^= (int)(bits & 1U);
+        bits >>= 1U;
+    }
+    return parity == 0 ? 1 : -1;
+}
+
+static double process_fdn(verbx_channel_state *state, double input, double damping) {
+    double filtered[VERBX_FDN_LINE_COUNT];
+    double mixed[VERBX_FDN_LINE_COUNT];
+    double wet = 0.0;
+    size_t row;
+    size_t column;
+
+    for (row = 0U; row < VERBX_FDN_LINE_COUNT; ++row) {
+        verbx_fdn_line_state *line = &state->fdn_lines[row];
+        double delayed = line->buffer[line->index];
+        double lowpassed;
+        double dc_blocked;
+        line->filter_state =
+            (delayed * (1.0 - damping)) + (line->filter_state * damping);
+        lowpassed = line->filter_state;
+        dc_blocked =
+            lowpassed - line->dc_prev_input + (0.995 * line->dc_prev_output);
+        line->dc_prev_input = lowpassed;
+        line->dc_prev_output = dc_blocked;
+        filtered[row] = dc_blocked;
+        wet += ((row & 1U) == 0U ? 1.0 : -1.0) * delayed;
+    }
+
+    for (row = 0U; row < VERBX_FDN_LINE_COUNT; ++row) {
+        double sum = 0.0;
+        for (column = 0U; column < VERBX_FDN_LINE_COUNT; ++column) {
+            sum += (double)hadamard_sign(row, column) * filtered[column];
+        }
+        mixed[row] = sum * VERBX_INV_SQRT_8;
+    }
+
+    for (row = 0U; row < VERBX_FDN_LINE_COUNT; ++row) {
+        verbx_fdn_line_state *line = &state->fdn_lines[row];
+        double injection = input * (((row & 1U) == 0U) ? 0.25 : -0.25);
+        line->buffer[line->index] = injection + (mixed[row] * line->feedback);
+        line->index = (line->index + 1U) % line->length;
+    }
+    return wet * VERBX_INV_SQRT_8;
+}
+
 static double process_channel(verbx_channel_state *state, double input, double damping) {
     size_t i;
     double delayed = state->predelay[state->predelay_index];
@@ -152,6 +245,10 @@ static double process_channel(verbx_channel_state *state, double input, double d
 
     state->predelay[state->predelay_index] = input;
     state->predelay_index = (state->predelay_index + 1U) % state->predelay_length;
+
+    if (state->use_fdn) {
+        return process_fdn(state, delayed, damping);
+    }
 
     for (i = 0U; i < VERBX_COMB_COUNT; ++i) {
         comb_sum += process_comb(&state->combs[i], delayed, damping);

@@ -170,7 +170,7 @@ DXF/CAD support should be treated as an offline/precompute pipeline:
 - Validate geometry.
 - Generate a compact spatial profile, early-reflection model, or IR asset.
 - Store deterministic hashes and metadata for recall.
-- Load only validated, bounded assets into realtime processing.
+- Load only validated, bounded assets into real-time processing.
 
 This preserves the distinctive spatial identity while keeping the plug-in stable in DAWs.
 

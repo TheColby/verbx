@@ -103,8 +103,10 @@ Example:
   --json-out native-report.json
 ```
 
-The current DSP is a foundational Schroeder/Moorer-style offline reverb core,
-not yet the full Python FDN engine.
+The native `fdn` model now uses a bounded eight-line feedback delay network
+with normalized Hadamard mixing, per-line RT60 gains, damping, and DC blocking.
+The spring and plate models retain their foundational proxy topologies. This is
+not yet the full Python FDN feature surface.
 
 ## Immediate goals
 

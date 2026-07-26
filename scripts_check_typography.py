@@ -33,6 +33,7 @@ EXCLUDED_PARTS = {
     ".pytest_cache",
     ".ruff_cache",
     ".superpowers",
+    ".uv-cache",
     ".venv",
     "build",
     "dist",

@@ -4,6 +4,11 @@ This document tracks the `verbx-c` native executable during the `v0.8` hybrid
 transition. Python `verbx` remains the default public-alpha CLI until native
 parity is proven by tests and fixtures.
 
+The bounded higher-order port is specified in
+[`NATIVE_FDN_CONTRACT.md`](NATIVE_FDN_CONTRACT.md), including its fixed state,
+coefficient equations, allocation rules, acceptance gates, and pre-port metric
+baseline.
+
 ## Release Shape
 
 Chosen `v0.8` shape: **hybrid wrapper phase before full replacement**.
@@ -19,7 +24,7 @@ Chosen `v0.8` shape: **hybrid wrapper phase before full replacement**.
 | Area | Python `verbx` | Native `verbx-c` | Status | Verification |
 | --- | --- | --- | --- | --- |
 | CLI entrypoint | Full public CLI | `help`, `version`, `doctor`, `render` | Partial native slice | `uv run pytest tests/test_native_scaffold.py` |
-| Offline algorithmic render | Full FDN feature surface | Foundational Schroeder/Moorer-style core | Not equivalent | `scripts/compare_native_render_parity.py` |
+| Offline algorithmic render | Full FDN feature surface | Bounded eight-line Hadamard FDN for `fdn`; foundational proxy topologies for `spring`/`plate` | Structural parity only | `scripts/compare_native_render_parity.py` |
 | Physical room render | `ism-fdn` rectangular image-source early field plus FDN late field | Not implemented | Python-reference only | `tests/test_room_geometry.py`, `tests/test_cli.py` |
 | Modal electro-mechanical render | Bounded spring/plate `modal-fe` structural solvers | Not implemented; proxy model choices only | Python-reference only | `tests/test_electromechanical.py` |
 | WAV input | libsndfile-backed broad format support | Mono/stereo WAV PCM16/24/32 and float32/float64 | Narrow parity | `tests/test_native_scaffold.py` |

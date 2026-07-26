@@ -325,7 +325,7 @@ session into a 192 kHz delivered master by itself. Likewise, an analyzer display
 inside the editor is immediate feedback, not a substitute for a retained CLI
 analysis report when formal evidence is required.
 
-Realtime processing also imposes constraints that offline rendering does not.
+Real-time processing also imposes constraints that offline rendering does not.
 The audio callback cannot wait for a long analysis, allocate unpredictably, open
 files casually, or calculate an unbounded future tail. A plug-in must honor host
 buffer deadlines and report latency correctly. The CLI can spend more than one
@@ -429,7 +429,7 @@ The first native plug-in foundation is implemented under
 [`native/verbx_plugin`](native/verbx_plugin/README.md):
 
 - C++17/JUCE host shell for AU, AUv3, VST3, and standalone targets
-- shared C11 parameter manifest and realtime processing boundary
+- shared C11 parameter manifest and real-time processing boundary
 - logarithmic RT60 mapping from `0.01s` to `360s` with coarse and fine controls
 - explicit Freeze and Reverse parameters
 - real allocation-free wet-path oversampling for Host, 2x, 4x, and Target
@@ -828,12 +828,13 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.9.1**.
+Current public alpha release: **v0.9.2**.
 
 Current stabilization status:
 
-- `v0.9.1` adds immutable typed render-configuration sections while preserving
-  the flat CLI, preset, and report compatibility surface.
+- `v0.9.2` fixes partial-partition convolution streaming so its samples, tail
+  timing, and exact-zero hold match the in-memory render path. It also moves a
+  cohesive parser/choice-validation cluster out of the legacy CLI module.
 - Render-performance budgets and native structural parity are now blocking CI
   gates. Native source-duration floors and analytic ISM timing references have
   focused regression coverage.
@@ -2151,7 +2152,7 @@ Each regular resonance corresponds to one of the equally spaced modal angles abo
 
 ![Magnitude response for a representative feedback comb filter.](assets/reverb_primer/44_feedback_comb_magnitude.png)
 
-**Figure: Normalized magnitude response of the representative feedback comb, with frequency in cycles per sample and magnitude in decibels.**
+**Figure: Peak-normalized magnitude response of the representative feedback comb, with frequency in cycles per sample and magnitude on a vertical decibel scale.**
 
 #### Schroeder Allpass Filters: Density Without Magnitude Coloration
 
@@ -2228,27 +2229,26 @@ been implemented incorrectly.
 
 ![Magnitude response for a representative Schroeder allpass filter.](assets/reverb_primer/45_schroeder_allpass_magnitude.png)
 
-**Figure: Normalized magnitude response of the representative Schroeder allpass, with frequency in cycles per sample and magnitude in decibels.**
+**Figure: Peak-normalized magnitude response of the representative Schroeder allpass, with frequency in cycles per sample and magnitude on a vertical decibel scale.**
 
 Magnitude alone cannot explain why an allpass diffuser is audible. The unwrapped phase
-response below rotates rapidly near delay-related frequencies, while the group-delay
-inset shows how long each frequency neighborhood is held relative to nearby frequencies.
-A group-delay peak does not add energy: it redistributes the arrival time of that energy.
-For a click, this creates a denser, less obviously periodic cloud of arrivals; for speech
-or percussion, it can soften the transition from attack to tail without an ideal spectral
-EQ curve.
+response below rotates rapidly near delay-related frequencies. Its changing slope
+indicates that nearby frequency neighborhoods accumulate different amounts of phase
+rotation. For a click, this creates a denser, less obviously periodic cloud of arrivals;
+for speech or percussion, it can soften the transition from attack to tail without an
+ideal spectral EQ curve.
 
-![Phase and group-delay response for a representative Schroeder allpass filter.](assets/reverb_primer/50_schroeder_allpass_phase.png)
+![Phase response for a representative Schroeder allpass filter.](assets/reverb_primer/50_schroeder_allpass_phase.png)
 
-**Figure: Unwrapped phase in radians and group delay in samples for the representative Schroeder allpass, plotted against normalized frequency in cycles per sample.**
+**Figure: Unwrapped phase in radians for the representative Schroeder allpass, plotted against normalized frequency in cycles per sample.**
 
 Read the teal phase trace as accumulated rotation rather than an amplitude measurement.
 Its slope is the important audible quantity: a steeper slope means larger group delay.
-The rust trace makes that relationship explicit. Increasing feedback raises and sharpens
-the group-delay peaks, lengthening the echo pattern and increasing diffusion, but it can
-also reveal metallic ringing when delay lengths or stages are too regular. In a serial
-diffuser, choose mutually incommensurate delays and moderate gains so the individual
-delay peaks overlap into texture rather than announcing a single repeat rate.
+Increasing feedback steepens localized phase transitions, lengthening the echo pattern
+and increasing diffusion, but it can also reveal metallic ringing when delay lengths or
+stages are too regular. In a serial diffuser, choose mutually incommensurate delays and
+moderate gains so the individual delay patterns overlap into texture rather than
+announcing a single repeat rate.
 
 #### Allpass Networks: From Echoes to a Diffuse Excitation
 
@@ -2358,7 +2358,7 @@ many nearby resonances even before the allpass stages redistribute the transient
 
 ![Magnitude response for the reduced-order parameterized Schroeder reverberator.](assets/reverb_primer/46_parameterized_schroeder_magnitude.png)
 
-**Figure: Normalized magnitude response for the reduced-order parameterized Schroeder example, with frequency in cycles per sample and magnitude in decibels.**
+**Figure: Peak-normalized magnitude response for the reduced-order parameterized Schroeder example, with frequency in cycles per sample and magnitude on a vertical decibel scale.**
 
 #### Feedback Delay Networks: Coupled Modal Systems
 
@@ -2451,7 +2451,7 @@ or output projection changes which modes are emphasized or cancelled.
 
 ![Magnitude response for the reduced-order expanded FDN modal projection.](assets/reverb_primer/47_expanded_fdn_magnitude.png)
 
-**Figure: Normalized magnitude response for the illustrative expanded FDN projection, with frequency in cycles per sample and magnitude in decibels.**
+**Figure: Peak-normalized magnitude response for the illustrative expanded FDN projection, with frequency in cycles per sample and magnitude on a vertical decibel scale.**
 
 #### The Five Independent Design Coordinates of an FDN
 
@@ -2647,7 +2647,7 @@ and delay set that uses these three decay targets.
 
 ![Magnitude response for a representative multiband FDN loop filter.](assets/reverb_primer/48_multiband_loop_filter_magnitude.png)
 
-**Figure: Normalized magnitude response of the representative multiband FDN loop filter, with frequency in cycles per sample and magnitude in decibels.**
+**Figure: Peak-normalized magnitude response of the representative multiband FDN loop filter, with frequency in cycles per sample and magnitude on a vertical decibel scale.**
 
 ```bash
 verbx render music.wav /tmp/multiband_hall.wav \
@@ -4034,7 +4034,7 @@ locations and depths of transmission cancellations.
 
 ![Magnitude response for one stereo output projection from a shared FDN.](assets/reverb_primer/49_stereo_projection_magnitude.png)
 
-**Figure: Normalized magnitude response of one stereo FDN output projection, with frequency in cycles per sample and magnitude in decibels.**
+**Figure: Peak-normalized magnitude response of one stereo FDN output projection, with frequency in cycles per sample and magnitude on a vertical decibel scale.**
 
 ### The Science and DSP of Dereverberation
 
@@ -7145,7 +7145,7 @@ of wall time. This ratio is meaningful only when the test states engine, sample 
 channel count, output duration, precision, IR length, device, and enabled stages. A short
 mono file at 48 kHz and a twelve-channel file at 192 kHz are not comparable workloads.
 
-Realtime processing requires a stricter measure. For block size $B$ samples and sample
+Real-time processing requires a stricter measure. For block size $B$ samples and sample
 rate $F_s$, the nominal callback interval is
 
 $$
@@ -7212,7 +7212,7 @@ optimization.
 
 Offline rendering can batch work, reorder jobs, use large buffers, wait for JIT
 compilation, and allow temporary load spikes as long as the final artifact is correct.
-Realtime processing cannot. Its callback must avoid filesystem access, unbounded
+Real-time processing cannot. Its callback must avoid filesystem access, unbounded
 allocation, locks, device synchronization, compilation, and any operation whose duration
 depends unpredictably on external state. Preparation belongs before playback; bounded DSP
 belongs inside the callback.
@@ -7527,7 +7527,7 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.9.1 - current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.9.2 - current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 
 \newpage
@@ -9529,7 +9529,7 @@ Do not edit manually.
  Run realtime duplex monitoring with selectable input/output devices.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --live-mode                              <reverb|dereverb  Realtime          │
+│ --live-mode                              <reverb|dereverb  Real-time         │
 │                                          |dereverb-reverb  processing mode:  │
 │                                          >                 reverb only,      │
 │                                                            dereverb only, or │
@@ -33121,11 +33121,11 @@ explains the musical tradeoffs and reproducible workflow.
 
 <!-- docs/PUBLIC_ALPHA_NOTES.md -->
 
-# Public Alpha Notes (v0.9.1)
+# Public Alpha Notes (v0.9.2)
 
 _Updated: 2026-07-23_
 
-`verbx` v0.9.1 is a public alpha focused on robust offline rendering,
+`verbx` v0.9.2 is a public alpha focused on robust offline rendering,
 reproducibility, advanced DSP control, structural cleanup, and initial
 realtime duplex auditioning.
 
@@ -34266,7 +34266,7 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Real-time factor.** Processing time divided by signal duration; values below one indicate faster-than-realtime offline performance.
 
-**Realtime processing.** Processing that must produce each output before a fixed playback or interaction deadline.
+**Real-time processing.** Processing that must produce each output before a fixed playback or interaction deadline.
 
 **Receiver.** The microphone, listener, ear, probe, or modeled point at which an acoustic response is evaluated.
 

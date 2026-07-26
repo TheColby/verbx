@@ -330,6 +330,7 @@ class ConvolutionReverbEngine(ReverbEngine):
             input_peak_linear = 0.0
             tail_remaining = max(0, int(ir.shape[0] - 1))
             total_output_frames = int(src.frames) + tail_remaining
+            pending_wet = np.zeros((0, out_channels), dtype=np.float64)
 
             with sf.SoundFile(
                 outfile,
@@ -356,9 +357,24 @@ class ConvolutionReverbEngine(ReverbEngine):
                     # Note: if the IR has more output channels than the source file,
                     # in_block can be narrower than states expects; _stream_accumulate_wet
                     # handles the mismatch but the dry mix below needs the same out_channels.
-                    wet_block = self._stream_accumulate_wet(states, in_block, out_channels)
-                    wet_block = self._apply_route_trajectory(
-                        wet=wet_block,
+                    # Partitioned state advances in whole partitions. For the
+                    # final short source block, process a padded partition and
+                    # retain the unwritten wet frames as the start of the tail.
+                    if samples < partition_size:
+                        process_block = np.zeros(
+                            (partition_size, input_channels),
+                            dtype=np.float64,
+                        )
+                        process_block[:samples, :] = in_block
+                    else:
+                        process_block = in_block
+                    wet_partition = self._stream_accumulate_wet(
+                        states,
+                        process_block,
+                        out_channels,
+                    )
+                    wet_partition = self._apply_route_trajectory(
+                        wet=wet_partition,
                         out_layout=self._config.output_layout,
                         route_start=self._config.route_start,
                         route_end=self._config.route_end,
@@ -366,9 +382,11 @@ class ConvolutionReverbEngine(ReverbEngine):
                         frame_offset=output_samples,
                         total_frames=total_output_frames,
                     )
+                    wet_block = wet_partition[:samples, :]
+                    pending_wet = wet_partition[samples:, :]
                     dry_block = self._build_dry_for_output(
-                        in_block, 
-                        out_channels, 
+                        in_block,
+                        out_channels,
                         out_len=samples,
                         in_layout=self._config.input_layout,
                         out_layout=self._config.output_layout,
@@ -380,12 +398,27 @@ class ConvolutionReverbEngine(ReverbEngine):
                     output_samples += samples
 
                 # Flush remaining IR tail by feeding silent input blocks.
+                if tail_remaining > 0 and pending_wet.shape[0] > 0:
+                    pending_samples = min(int(pending_wet.shape[0]), tail_remaining)
+                    out_pending = np.nan_to_num(
+                        np.asarray(
+                            self._config.wet * pending_wet[:pending_samples, :],
+                            dtype=np.float64,
+                        ),
+                        nan=0.0,
+                        posinf=0.0,
+                        neginf=0.0,
+                    )
+                    dst.write(out_pending)
+                    output_samples += pending_samples
+                    tail_remaining -= pending_samples
+
                 while tail_remaining > 0:
                     tail_block_samples = min(partition_size, tail_remaining)
-                    zeros_block = np.zeros((tail_block_samples, input_channels), dtype=np.float64)
-                    wet_tail = self._stream_accumulate_wet(states, zeros_block, out_channels)
-                    wet_tail = self._apply_route_trajectory(
-                        wet=wet_tail,
+                    zeros_block = np.zeros((partition_size, input_channels), dtype=np.float64)
+                    wet_partition = self._stream_accumulate_wet(states, zeros_block, out_channels)
+                    wet_partition = self._apply_route_trajectory(
+                        wet=wet_partition,
                         out_layout=self._config.output_layout,
                         route_start=self._config.route_start,
                         route_end=self._config.route_end,
@@ -393,6 +426,7 @@ class ConvolutionReverbEngine(ReverbEngine):
                         frame_offset=output_samples,
                         total_frames=total_output_frames,
                     )
+                    wet_tail = wet_partition[:tail_block_samples, :]
                     out_tail = np.nan_to_num(
                         np.asarray(self._config.wet * wet_tail, dtype=np.float64),
                         nan=0.0,

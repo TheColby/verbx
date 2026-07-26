@@ -4,7 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-07-26
+
 ### Added
+- FDN feedback nonlinearity and multichannel spatial coupling now live in
+  dedicated typed helper modules with direct contract tests.
+- The native `fdn` model now uses a bounded eight-line feedback delay network
+  with normalized Hadamard mixing, per-line RT60 gains, damping, and DC state;
+  spring and plate retain their established native proxy topologies.
+- Dedicated automation contract tests now cover target normalization,
+  interpolation validation, clamp validation, deterministic signatures, and
+  sample-aligned curve rendering.
+- `v0.9.3` adds end-to-end convolution streaming/in-memory parity coverage for
+  peak- and RMS-based tail completion, including exact-zero hold verification.
+- Shared delay-list, gain-list, 3D-vector, and choice-suggestion parsing now
+  lives in `src/verbx/commands/validators.py`, shrinking the legacy CLI helper
+  layer while retaining its compatibility aliases.
 - `v0.9.1` exposes immutable typed render-configuration sections for engine,
   execution, tail, and output settings while preserving the flat CLI, preset,
   and report compatibility surface.
@@ -39,6 +54,14 @@ All notable changes to this project are documented in this file.
   `native-render-report-v1` JSON.
 
 ### Changed
+- Shimmer's block-local safety limiter no longer applies lookahead that can
+  erase blocks shorter than the lookahead window; intentional unsafe
+  self-oscillation also remains observable instead of being flattened by that
+  internal safety stage.
+- Convolution file streaming now preserves the unwritten portion of a padded
+  final source partition before flushing the IR tail. Non-partition-aligned
+  inputs therefore retain the same tail timing and samples as in-memory
+  convolution instead of dropping up to one partial partition.
 - The synthetic IR cache namespace is now `verbx-ir-v0.5`; the first request
   for an existing configuration regenerates its cache entry so Scala-aware
   configuration identity cannot reuse older metadata accidentally.

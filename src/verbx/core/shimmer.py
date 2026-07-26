@@ -81,11 +81,20 @@ class ShimmerProcessor:
         self._feedback_state = shimmer_wet.astype(np.float64)
 
         out = ((1.0 - mix) * x) + (mix * shimmer_wet)
+        if self._cfg.unsafe_self_oscillate:
+            return np.asarray(
+                np.nan_to_num(out, nan=0.0, posinf=1e12, neginf=-1e12),
+                dtype=np.float64,
+            )
         out = soft_limiter(
             np.asarray(out, dtype=np.float64),
             sr=sr,
             threshold_dbfs=-1.0,
             knee_db=5.0,
+            # Shimmer is block-compatible and carries its own feedback state.
+            # A per-block lookahead delay can erase blocks shorter than the
+            # lookahead window and break feedback continuity.
+            lookahead_ms=0.0,
         )
         return np.asarray(out, dtype=np.float64)
 

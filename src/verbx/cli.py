@@ -21,7 +21,6 @@ from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from datetime import UTC, datetime
-from difflib import get_close_matches
 from pathlib import Path
 from threading import Lock
 from typing import Any, Literal, TypedDict, cast
@@ -141,7 +140,11 @@ from verbx.commands.system import collect_runtime_diagnostics
 from verbx.commands.system import doctor as doctor_command
 from verbx.commands.system import quickstart as quickstart_command
 from verbx.commands.system import version as version_command
+from verbx.commands.validators import choice_error as _choice_error
 from verbx.commands.validators import ensure_distinct_paths as _ensure_distinct_paths
+from verbx.commands.validators import parse_delay_list_ms as _parse_delay_list_ms
+from verbx.commands.validators import parse_gain_list as _parse_gain_list
+from verbx.commands.validators import parse_vec3 as _parse_vec3
 from verbx.commands.validators import validate_output_audio_path as _validate_output_audio_path
 from verbx.config import (
     AlgoModel,
@@ -5571,7 +5574,14 @@ def _build_lucky_config(
         cfg.conv_route_start = None
         cfg.conv_route_end = None
 
-    cfg.tail_limit = float(rng.uniform(2.0, 40.0)) if rng.random() < 0.4 else None
+    # An explicit tail limit is a caller-owned resource/safety boundary and
+    # must survive lucky-mode randomization. Only invent a random bound when
+    # the caller did not provide one.
+    cfg.tail_limit = (
+        float(base.tail_limit)
+        if base.tail_limit is not None
+        else (float(rng.uniform(2.0, 40.0)) if rng.random() < 0.4 else None)
+    )
     return cfg
 
 
@@ -5787,100 +5797,6 @@ def _resolve_ir_output_path(out_ir: Path, out_format: IRFileFormat) -> Path:
 
     suffix = ".aiff" if out_format == "aiff" else f".{out_format}"
     return out_ir.with_suffix(suffix)
-
-
-def _parse_delay_list_ms(raw: str | None, *, option_name: str) -> tuple[float, ...]:
-    """Parse a comma-separated millisecond delay list for CLI options."""
-    if raw is None:
-        return ()
-    cleaned = raw.strip()
-    if cleaned == "":
-        return ()
-    values: list[float] = []
-    for token in cleaned.split(","):
-        part = token.strip()
-        if part == "":
-            continue
-        try:
-            delay = float(part)
-        except ValueError as exc:
-            msg = f"{option_name} expects a comma-separated float list in milliseconds."
-            raise typer.BadParameter(msg) from exc
-        if delay <= 0.0:
-            msg = f"{option_name} values must be > 0 ms."
-            raise typer.BadParameter(msg)
-        values.append(delay)
-    if len(values) == 0:
-        msg = f"{option_name} must include at least one numeric value."
-        raise typer.BadParameter(msg)
-    return tuple(values)
-
-
-def _parse_gain_list(
-    raw: str,
-    *,
-    option_name: str,
-    min_value: float,
-    max_value: float,
-) -> tuple[float, ...]:
-    """Parse one or more comma-separated gain values for CLI options."""
-    cleaned = raw.strip()
-    if cleaned == "":
-        msg = f"{option_name} requires at least one numeric value."
-        raise typer.BadParameter(msg)
-
-    values: list[float] = []
-    for token in cleaned.split(","):
-        part = token.strip()
-        if part == "":
-            continue
-        try:
-            gain = float(part)
-        except ValueError as exc:
-            msg = f"{option_name} expects float values, optionally comma-separated."
-            raise typer.BadParameter(msg) from exc
-        if gain < min_value or gain > max_value:
-            msg = f"{option_name} values must be in [{min_value}, {max_value}]."
-            raise typer.BadParameter(msg)
-        values.append(gain)
-
-    if len(values) == 0:
-        msg = f"{option_name} requires at least one numeric value."
-        raise typer.BadParameter(msg)
-    return tuple(values)
-
-
-def _parse_vec3(raw: str, *, option_name: str) -> tuple[float, float, float]:
-    """Parse a 3D vector from comma-separated CLI text."""
-    cleaned = str(raw).strip()
-    parts = [part.strip() for part in cleaned.split(",") if part.strip() != ""]
-    if len(parts) != 3:
-        msg = f"{option_name} expects exactly 3 comma-separated values: x,y,z"
-        raise typer.BadParameter(msg)
-    try:
-        values = tuple(float(part) for part in parts)
-    except ValueError as exc:
-        msg = f"{option_name} expects float values: x,y,z"
-        raise typer.BadParameter(msg) from exc
-    return cast(tuple[float, float, float], values)
-
-
-def _did_you_mean(value: str, choices: set[str]) -> str | None:
-    token = str(value).strip().lower()
-    if token == "":
-        return None
-    matches = get_close_matches(token, sorted(choices), n=1, cutoff=0.5)
-    if len(matches) == 0:
-        return None
-    return str(matches[0])
-
-
-def _choice_error(option_name: str, choices: set[str], actual: str) -> str:
-    options = ", ".join(sorted(choices))
-    suggestion = _did_you_mean(actual, choices)
-    if suggestion is not None:
-        return f"{option_name} must be one of: {options}. Did you mean '{suggestion}'?"
-    return f"{option_name} must be one of: {options}."
 
 
 def _param_is_default(ctx: typer.Context, param_name: str) -> bool:

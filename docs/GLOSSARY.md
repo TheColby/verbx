@@ -1038,7 +1038,7 @@ A term may have narrower meanings in a particular standard or discipline. Read u
 
 **Real-time factor.** Processing time divided by signal duration; values below one indicate faster-than-realtime offline performance.
 
-**Realtime processing.** Processing that must produce each output before a fixed playback or interaction deadline.
+**Real-time processing.** Processing that must produce each output before a fixed playback or interaction deadline.
 
 **Receiver.** The microphone, listener, ear, probe, or modeled point at which an acoustic response is evaluated.
 

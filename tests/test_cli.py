@@ -852,7 +852,7 @@ def test_render_prints_output_feature_table_by_default(tmp_path: Path) -> None:
     audio[10:30, 0] = 0.4
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 8_000)
 
     result = runner.invoke(
         app,
@@ -862,6 +862,8 @@ def test_render_prints_output_feature_table_by_default(tmp_path: Path) -> None:
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--repeat",
             "1",
             "--no-progress",
@@ -877,7 +879,7 @@ def test_render_writes_repro_bundle(tmp_path: Path) -> None:
     audio[10:30, 0] = 0.4
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 8_000)
 
     result = runner.invoke(
         app,
@@ -887,6 +889,8 @@ def test_render_writes_repro_bundle(tmp_path: Path) -> None:
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--repeat",
             "1",
             "--repro-bundle",
@@ -910,7 +914,7 @@ def test_render_quiet_or_low_verbosity_suppresses_output_feature_table(tmp_path:
     infile = tmp_path / "in.wav"
     out_quiet = tmp_path / "out_quiet.wav"
     out_low = tmp_path / "out_low.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 8_000)
 
     quiet_result = runner.invoke(
         app,
@@ -920,6 +924,8 @@ def test_render_quiet_or_low_verbosity_suppresses_output_feature_table(tmp_path:
             str(out_quiet),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--quiet",
             "--no-progress",
         ],
@@ -935,6 +941,8 @@ def test_render_quiet_or_low_verbosity_suppresses_output_feature_table(tmp_path:
             str(out_low),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--verbosity",
             "0",
             "--no-progress",
@@ -956,7 +964,7 @@ def test_render_algo_auto_reports_engine_specific_device(
     audio[80:120, 0] = 0.5
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 8_000)
 
     result = runner.invoke(
         app,
@@ -966,6 +974,8 @@ def test_render_algo_auto_reports_engine_specific_device(
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--device",
             "auto",
             "--no-progress",
@@ -1026,7 +1036,7 @@ def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path) -> None:
     audio[200:280, :] = 0.3
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 8_000)
 
     result = runner.invoke(
         app,
@@ -1036,6 +1046,8 @@ def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path) -> None:
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--allpass-stages",
             "8",
             "--allpass-gain",
@@ -1066,7 +1078,7 @@ def test_render_tvu_and_dfm_switches_are_applied(tmp_path: Path) -> None:
     audio[120:220, 0] = 0.4
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 8_000)
 
     result = runner.invoke(
         app,
@@ -1076,6 +1088,8 @@ def test_render_tvu_and_dfm_switches_are_applied(tmp_path: Path) -> None:
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--fdn-lines",
             "4",
             "--fdn-matrix",
@@ -1170,7 +1184,7 @@ def test_render_sparse_high_order_switches_are_applied(tmp_path: Path) -> None:
     audio[20:120, 0] = 0.35
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 8_000)
 
     result = runner.invoke(
         app,
@@ -1181,7 +1195,7 @@ def test_render_sparse_high_order_switches_are_applied(tmp_path: Path) -> None:
             "--engine",
             "algo",
             "--rt60",
-            "2.0",
+            "0.4",
             "--fdn-lines",
             "24",
             "--fdn-sparse",
@@ -1212,6 +1226,8 @@ def test_render_rejects_sparse_with_tv_unitary(tmp_path: Path) -> None:
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--fdn-matrix",
             "tv_unitary",
             "--fdn-tv-rate-hz",
@@ -1233,7 +1249,7 @@ def test_render_graph_fdn_switches_are_applied(tmp_path: Path) -> None:
     audio[80:180, 0] = 0.3
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 8_000)
 
     result = runner.invoke(
         app,
@@ -1243,6 +1259,8 @@ def test_render_graph_fdn_switches_are_applied(tmp_path: Path) -> None:
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--fdn-matrix",
             "graph",
             "--fdn-graph-topology",
@@ -1317,7 +1335,7 @@ def test_render_rejects_sparse_with_graph_matrix(tmp_path: Path) -> None:
 def test_render_sdn_spatial_and_nonlinear_switches_are_applied(tmp_path: Path) -> None:
     infile = tmp_path / "in_sdn.wav"
     outfile = tmp_path / "out_sdn.wav"
-    sr = 24_000
+    sr = 8_000
     x = np.zeros((sr, 1), dtype=np.float64)
     x[200:800, 0] = 0.6
     sf.write(str(infile), x, sr)
@@ -1330,6 +1348,8 @@ def test_render_sdn_spatial_and_nonlinear_switches_are_applied(tmp_path: Path) -
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--fdn-lines",
             "8",
             "--fdn-matrix",
@@ -1366,7 +1386,7 @@ def test_render_cascaded_fdn_switches_are_applied(tmp_path: Path) -> None:
     audio[40:170, 0] = 0.3
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 8_000)
 
     result = runner.invoke(
         app,
@@ -1376,6 +1396,8 @@ def test_render_cascaded_fdn_switches_are_applied(tmp_path: Path) -> None:
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--fdn-lines",
             "8",
             "--fdn-cascade",
@@ -1485,7 +1507,7 @@ def test_render_multiband_fdn_switches_are_applied(tmp_path: Path) -> None:
     audio[40:170, 0] = 0.3
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 8_000)
 
     result = runner.invoke(
         app,
@@ -1496,13 +1518,13 @@ def test_render_multiband_fdn_switches_are_applied(tmp_path: Path) -> None:
             "--engine",
             "algo",
             "--rt60",
-            "2.0",
+            "0.4",
             "--fdn-rt60-low",
-            "22",
+            "0.6",
             "--fdn-rt60-mid",
-            "14",
+            "0.4",
             "--fdn-rt60-high",
-            "7",
+            "0.2",
             "--fdn-tonal-correction-strength",
             "0.7",
             "--fdn-xover-low-hz",
@@ -1516,9 +1538,9 @@ def test_render_multiband_fdn_switches_are_applied(tmp_path: Path) -> None:
 
     payload = json.loads(Path(f"{outfile}.analysis.json").read_text(encoding="utf-8"))
     config = payload["config"]
-    assert abs(float(config["fdn_rt60_low"]) - 22.0) < 1e-6
-    assert abs(float(config["fdn_rt60_mid"]) - 14.0) < 1e-6
-    assert abs(float(config["fdn_rt60_high"]) - 7.0) < 1e-6
+    assert abs(float(config["fdn_rt60_low"]) - 0.6) < 1e-6
+    assert abs(float(config["fdn_rt60_mid"]) - 0.4) < 1e-6
+    assert abs(float(config["fdn_rt60_high"]) - 0.2) < 1e-6
     assert abs(float(config["fdn_tonal_correction_strength"]) - 0.7) < 1e-6
     assert abs(float(config["fdn_xover_low_hz"]) - 240.0) < 1e-6
     assert abs(float(config["fdn_xover_high_hz"]) - 3600.0) < 1e-6
@@ -1555,7 +1577,7 @@ def test_render_filter_feedback_switches_are_applied(tmp_path: Path) -> None:
     audio[60:180, 0] = 0.32
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 8_000)
 
     result = runner.invoke(
         app,
@@ -1566,7 +1588,7 @@ def test_render_filter_feedback_switches_are_applied(tmp_path: Path) -> None:
             "--engine",
             "algo",
             "--rt60",
-            "2.0",
+            "0.4",
             "--fdn-link-filter",
             "highpass",
             "--fdn-link-filter-hz",
@@ -1599,6 +1621,8 @@ def test_render_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--fdn-link-filter",
             "bandpass",
             "--no-progress",
@@ -1613,7 +1637,7 @@ def test_render_accepts_hyphenated_filter_feedback_alias(tmp_path: Path) -> None
     audio[60:180, 0] = 0.32
     infile = tmp_path / "alias_filter_in.wav"
     outfile = tmp_path / "alias_filter_out.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 8_000)
 
     result = runner.invoke(
         app,
@@ -1623,6 +1647,8 @@ def test_render_accepts_hyphenated_filter_feedback_alias(tmp_path: Path) -> None
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--fdn-link-filter",
             "low-pass",
             "--no-progress",
@@ -1639,7 +1665,7 @@ def test_render_track_c_perceptual_fdn_controls_are_applied(tmp_path: Path) -> N
     audio[45:180, 0] = 0.28
     infile = tmp_path / "track_c_in.wav"
     outfile = tmp_path / "track_c_out.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 8_000)
 
     result = runner.invoke(
         app,
@@ -1649,6 +1675,8 @@ def test_render_track_c_perceptual_fdn_controls_are_applied(tmp_path: Path) -> N
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--fdn-rt60-tilt",
             "0.45",
             "--room-size-macro",
@@ -1683,7 +1711,7 @@ def test_render_post_shaping_controls_are_applied(tmp_path: Path) -> None:
     audio[80:220, 0] = 0.3
     infile = tmp_path / "post_shape_in.wav"
     outfile = tmp_path / "post_shape_out.wav"
-    sf.write(str(infile), audio, 48_000)
+    sf.write(str(infile), audio, 16_000)
 
     result = runner.invoke(
         app,
@@ -1693,6 +1721,8 @@ def test_render_post_shaping_controls_are_applied(tmp_path: Path) -> None:
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--duck",
             "--duck-strength",
             "0.9",
@@ -2934,7 +2964,7 @@ def test_render_beast_mode_scales_algo_tail(tmp_path: Path) -> None:
             "--engine",
             "algo",
             "--rt60",
-            "2.0",
+            "0.2",
             "--repeat",
             "1",
             "--no-progress",
@@ -2951,11 +2981,11 @@ def test_render_beast_mode_scales_algo_tail(tmp_path: Path) -> None:
             "--engine",
             "algo",
             "--rt60",
-            "2.0",
+            "0.2",
             "--repeat",
             "1",
             "--beast-mode",
-            "5",
+            "2",
             "--no-progress",
         ],
     )
@@ -2966,12 +2996,12 @@ def test_render_beast_mode_scales_algo_tail(tmp_path: Path) -> None:
     assert beast_audio.shape[0] > base_audio.shape[0]
 
     payload = json.loads(Path(f"{beast_out}.analysis.json").read_text(encoding="utf-8"))
-    assert int(payload["effective"]["beast_mode"]) == 5
-    assert float(payload["config"]["rt60"]) > 2.0
+    assert int(payload["effective"]["beast_mode"]) == 2
+    assert float(payload["config"]["rt60"]) > 0.2
 
 
 def test_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
-    sr = 24_000
+    sr = 4_000
     audio = np.zeros((2048, 1), dtype=np.float64)
     audio[100:220, 0] = 0.5
 
@@ -2986,12 +3016,16 @@ def test_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
             "render",
             str(infile),
             str(outfile),
+            "--rt60",
+            "0.4",
+            "--tail-limit",
+            "0.1",
             "--lucky",
             "3",
             "--lucky-out-dir",
             str(out_dir),
             "--lucky-seed",
-            "1234",
+            "382",
             "--no-progress",
         ],
     )
@@ -3002,6 +3036,8 @@ def test_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
     for path in outputs:
         analysis_path = Path(f"{path}.analysis.json")
         assert analysis_path.exists()
+        payload = json.loads(analysis_path.read_text(encoding="utf-8"))
+        assert 0.1 <= float(payload["config"]["tail_limit"]) <= 0.3000001
 
 
 def test_ir_gen_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
@@ -3615,7 +3651,7 @@ def test_batch_augment_without_copy_dry_still_writes_outputs(tmp_path: Path) -> 
 
 
 def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
-    sr = 16_000
+    sr = 4_000
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
     out_dir = tmp_path / "batch_lucky"
@@ -3632,7 +3668,8 @@ def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> Non
                 "outfile": str(outfile),
                 "options": {
                     "engine": "algo",
-                    "rt60": 1.5,
+                    "rt60": 0.3,
+                    "tail_limit": 0.1,
                     "repeat": 1,
                     "progress": False,
                 },
@@ -3654,11 +3691,15 @@ def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> Non
             "--lucky-out-dir",
             str(out_dir),
             "--lucky-seed",
-            "101",
+            "539",
         ],
     )
     assert result.exit_code == 0, result.stdout
-    assert len(sorted(out_dir.glob("out.lucky_*.wav"))) == 2
+    outputs = sorted(out_dir.glob("out.lucky_*.wav"))
+    assert len(outputs) == 2
+    for path in outputs:
+        payload = json.loads(Path(f"{path}.analysis.json").read_text(encoding="utf-8"))
+        assert 0.1 <= float(payload["config"]["tail_limit"]) <= 0.2
 
 
 def test_batch_render_checkpoint_resume_skips_completed(tmp_path: Path) -> None:
@@ -4352,6 +4393,8 @@ def test_render_automation_points_drive_perceptual_macro_targets(tmp_path: Path)
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--normalize-stage",
             "none",
             "--automation-point",
@@ -4395,6 +4438,8 @@ def test_render_automation_points_drive_track_c_targets(tmp_path: Path) -> None:
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--normalize-stage",
             "none",
             "--automation-point",
@@ -5275,6 +5320,8 @@ def test_render_track_c_calibration_diagnostics_are_emitted(tmp_path: Path) -> N
             str(outfile),
             "--engine",
             "algo",
+            "--rt60",
+            "0.4",
             "--room-size-macro",
             "0.50",
             "--clarity-macro",

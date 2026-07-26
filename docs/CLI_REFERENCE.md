@@ -1098,7 +1098,7 @@ Do not edit manually.
  Run realtime duplex monitoring with selectable input/output devices.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --live-mode                              <reverb|dereverb  Realtime          │
+│ --live-mode                              <reverb|dereverb  Real-time         │
 │                                          |dereverb-reverb  processing mode:  │
 │                                          >                 reverb only,      │
 │                                                            dereverb only, or │

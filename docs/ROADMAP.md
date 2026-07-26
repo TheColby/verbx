@@ -1,12 +1,12 @@
 # verbx Roadmap
 
-_Last updated: 2026-07-23. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
+_Last updated: 2026-07-26. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
 
 ---
 
 ## 1. Release Posture
 
-**Current release:** `v0.9.1`
+**Current release:** `v0.9.3`
 **Status:** public alpha (research-grade)
 **Versioning policy:** semantic prerelease (`0.x` during public alpha)
 
@@ -17,7 +17,18 @@ CLI-selectable realtime duplex auditioning.
 
 ---
 
-## 2. v0.9.1 Stabilization and Validation Slice
+## 2. v0.9.3 Streaming Parity and CLI Decomposition Slice
+
+- [x] Enforce full-pipeline convolution streaming/in-memory parity for peak
+  and RMS tail completion.
+- [x] Fix partial-partition streaming tail loss for non-aligned source lengths.
+- [x] Move generic numeric and choice parsers into the shared command validator
+  module while retaining CLI compatibility aliases.
+
+`v0.9.3` remains a focused hardening release. It closes a sample-level
+streaming correctness gap before further native or physical-acoustics breadth.
+
+## 2a. v0.9.1 Stabilization and Validation Slice
 
 - [x] Expose composed, typed views over the monolithic render configuration
   while retaining CLI and report compatibility.
@@ -94,13 +105,17 @@ Patch line opened 2026-03-30. Items below are the active focus.
 - [x] Add initial realtime duplex monitoring with CLI-selectable input/output devices and algorithmic-proxy or convolution live engines.
 - [x] Update README, CLI reference, and release/support docs for the refactor and realtime command surface.
 - [x] Move all CLI command entrypoints into per-command submodules under `src/verbx/commands/`.
-- [ ] Continue shrinking `cli.py` by migrating the remaining shared implementation/helper layer out of the legacy entrypoint module.
+- [x] Continue shrinking `cli.py` by migrating a cohesive parser and
+  choice-validation helper cluster out of the legacy entrypoint module.
 - [ ] Decompose `RenderConfig` (162 fields) into composed sub-configs (`FDNConfig`, `AutomationConfig`, `SpatialConfig`, `StreamingConfig`).
 - [x] Decompose `run_render_pipeline` (~640 lines) into explicit pipeline stages.
-- [ ] Add dedicated unit tests for `automation.py`, `convolution_reverb.py`, `feature_vector.py`, `immersive.py`.
-- [ ] Wire benchmark scripts into CI as blocking quality-regression gates.
-- [ ] Enforce streaming/in-memory parity at the test level (extend `test_proxy_stream_parity.py` to cover convolution path).
-- [ ] Decompose `algo_reverb.py` remaining methods into sub-modules (delay kernel, nonlinearity, spatial coupling).
+- [x] Add dedicated unit tests for `automation.py`, `convolution_reverb.py`, `feature_vector.py`, `immersive.py`.
+- [x] Wire benchmark scripts into CI as blocking quality-regression gates.
+- [x] Enforce streaming/in-memory parity at the test level (extend
+  `test_proxy_stream_parity.py` to cover convolution peak/RMS tail paths).
+- [x] Extract FDN nonlinearity and spatial-coupling helpers into dedicated,
+  directly tested modules.
+- [ ] Extract the remaining algorithmic delay kernel from `algo_reverb.py`.
 
 ## 4a. v0.7.6 Patch Line (Completed)
 
@@ -148,7 +163,10 @@ released/public-alpha tool during the transition.
 ### 4.3 DSP Port
 
 - [x] Port a first native offline late-field core (pre-delay, combs, allpass diffusion, tail finalization).
-- [ ] Replace the foundational Schroeder/Moorer core with the higher-order FDN loop used by `v0.7.x`.
+- [x] Replace the foundational `fdn` comb bank with a bounded eight-line
+  Hadamard FDN slice.
+- [ ] Extend the bounded native FDN to the Python reference's modulation,
+  multiband, automation, and advanced topology surface.
 - [ ] Port damping, width, pre-delay, freeze, repeat, and normalization in controlled phases.
 - [x] Add native peak-safe output with deterministic peak/gain reporting.
 - [x] Define the first narrow parity contract in `tests/fixtures/native_render_parity_contract.json`.
@@ -215,16 +233,19 @@ section tracks the work needed to add first-class physics-driven simulation.
 
 ### 6.2 Image Source Method (ISM) – Full Response
 
-The current `apply_image_source_early_reflections` only generates early
-reflections up to a fixed order.  The full ISM response includes the
-diffuse tail derived from image-source density.
+The shipped `ism-fdn` engine generates deterministic image-source paths at
+orders 0–6 and hands the material-aware early field to the established FDN
+late field. A pure full-response ISM engine and an echo-density-derived
+Schroeder handoff remain research work.
 
-- [ ] Extend ISM engine to configurable reflection order (1–6) with
-  frequency-dependent wall absorption per material.
-- [ ] Compute diffuse energy onset time from echo density; hand off to FDN
-  at the Schroeder frequency transition.
-- [ ] Expose as `--engine ism` and as a two-stage `ism+fdn` hybrid that uses
-  ISM for the early field and FDN for the late diffuse field.
+- [x] Extend ISM early-field generation to configurable reflection order
+  (0–6) with material-dependent wall absorption.
+- [ ] Compute diffuse energy onset time from echo density and derive the FDN
+  handoff at the Schroeder transition instead of using the current hybrid
+  boundary.
+- [x] Expose the two-stage early-ISM/late-FDN path as `--engine ism-fdn`.
+- [ ] Add a pure `--engine ism` full-response mode only after its computational
+  bounds and validation contract are defined.
 - [ ] Add parity corpus against measured anechoic + convolution references.
 
 ### 6.3 Scattering Delay Networks (SDN)
@@ -290,6 +311,9 @@ architectural-acoustics accuracy in the first slice.
 - [x] Output an IR WAV usable by `verbx render --engine conv --ir OUT_IR.wav`.
 - [x] Keep first implementation experimental and scoped to demoable room-like
   DXF files; robust arbitrary CAD cleanup remains a later 2+ month milestone.
+- [x] Retain DXF tracing as experimental after the `v0.9.2` evidence review;
+  measured-reference validation and per-layer materials are still required
+  before graduation.
 
 Estimated effort:
 

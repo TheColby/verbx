@@ -898,22 +898,29 @@ def magnitude_response_plot(
     for pole in poles:
         magnitude -= np.log(np.maximum(np.abs(unit_circle - pole), 1e-12))
     decibels = 20.0 / np.log(10.0) * magnitude
-    decibels -= np.median(decibels)
-    decibels = np.clip(decibels, -48.0, 24.0)
-    peak_decibels = min(max(float(np.max(np.abs(decibels))) * 1.2, 0.5), 48.0)
+    decibels -= float(np.max(decibels))
+    dynamic_range = min(48.0, max(1.0, abs(float(np.min(decibels))) * 1.08))
+    tick_steps = (0.2, 0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0)
+    tick_step = next(
+        (candidate for candidate in tick_steps if candidate >= dynamic_range / 6.0),
+        8.0,
+    )
+    db_floor = -6.0 * tick_step
+    decibels = np.clip(decibels, db_floor, 0.0)
 
     def map_x(value: float) -> float:
         return left + value / 0.5 * (right - left)
 
     def map_y(value: float) -> float:
-        return bottom - (value + peak_decibels) / (2.0 * peak_decibels) * (bottom - top)
+        return bottom - (value - db_floor) / -db_floor * (bottom - top)
 
-    for value in np.linspace(-peak_decibels, peak_decibels, 7):
+    for value in np.linspace(db_floor, 0.0, 7):
         y = map_y(float(value))
         draw.line((left, y, right, y), fill=GRID, width=2)
+        tick_label = f"{value:.1f} dB" if tick_step < 1.0 else f"{value:.0f} dB"
         draw.text(
             (left - 18, y),
-            f"{value:+.2g} dB",
+            tick_label,
             fill=MUTED,
             font=F_SMALL,
             anchor="rm",
@@ -959,11 +966,11 @@ def magnitude_response_plot(
 
 
 def schroeder_allpass_phase_plot(name: str) -> None:
-    """Plot unwrapped phase and group delay for a reduced Schroeder allpass."""
+    """Plot unwrapped phase for a reduced Schroeder allpass."""
 
     image, draw = canvas(
-        "Schroeder Allpass Phase and Group Delay",
-        "Flat magnitude still permits frequency-dependent delay and transient dispersion.",
+        "Schroeder Allpass Phase Response",
+        "Flat magnitude still permits substantial phase rotation and transient dispersion.",
     )
     left, top, right, bottom = 125, 190, 1480, 690
     draw.rectangle((left, top, right, bottom), fill="#fbfaf6", outline=GRID, width=3)
@@ -972,12 +979,10 @@ def schroeder_allpass_phase_plot(name: str) -> None:
     delayed = np.exp(-2j * np.pi * frequencies * order)
     response = (-feedback + delayed) / (1.0 - feedback * delayed)
     phase = np.unwrap(np.angle(response))
-    group_delay = -np.gradient(phase, 2.0 * np.pi * (frequencies[1] - frequencies[0]))
     phase_min, phase_max = float(phase.min()), float(phase.max())
     padding = max((phase_max - phase_min) * 0.08, 0.5)
     phase_min -= padding
     phase_max += padding
-    group_max = max(float(np.percentile(group_delay, 99.5)), 1.0)
 
     def map_x(value: float) -> float:
         return left + value / 0.5 * (right - left)
@@ -999,21 +1004,9 @@ def schroeder_allpass_phase_plot(name: str) -> None:
         width=5,
         joint="curve",
     )
-    inset_top, inset_bottom = 270, 435
-    draw.rectangle((left + 35, inset_top, right - 35, inset_bottom), fill="#fffdf8", outline=GRID, width=2)
-    draw.line(
-        [
-            (map_x(float(frequency)), inset_bottom - min(max(float(value), 0.0), group_max) / group_max * (inset_bottom - inset_top))
-            for frequency, value in zip(frequencies, group_delay, strict=True)
-        ],
-        fill=RUST,
-        width=4,
-        joint="curve",
-    )
-    draw.text((left + 55, inset_top + 12), "group delay (samples, normalized inset)", fill=RUST, font=F_SMALL)
     draw.text(((left + right) / 2, bottom + 65), "Normalized frequency (cycles/sample)", fill=MUTED, font=F_SMALL, anchor="ma")
     draw.text((left - 62, top + 8), "phase", fill=MUTED, font=F_SMALL, anchor="ma")
-    _flow_note(draw, "Teal: unwrapped phase. Rust: group delay, showing frequency-dependent arrival time.")
+    _flow_note(draw, "Teal: unwrapped phase, showing frequency-dependent phase rotation.")
     save(image, name)
 
 
@@ -1039,7 +1032,7 @@ def generate_pole_zero_plots() -> None:
         comb_poles,
         [],
         (
-            "Magnitude is normalized around its median to make the modal spacing visible.",
+            "Magnitude is peak-normalized to 0 dB on a vertical decibel scale.",
             "A practical comb has more closely spaced peaks as delay order increases.",
         ),
     )

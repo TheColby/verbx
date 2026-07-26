@@ -44,6 +44,15 @@ from verbx.core.fdn_capabilities import (
     normalize_fdn_link_filter_name,
     normalize_fdn_matrix_name,
 )
+from verbx.core.fdn_nonlinearity import (
+    apply_feedback_nonlinearity,
+    normalize_nonlinearity_mode,
+)
+from verbx.core.fdn_spatial import (
+    apply_spatial_coupling,
+    layout_channel_groups,
+    normalize_spatial_coupling_mode,
+)
 from verbx.core.shimmer import ShimmerConfig, ShimmerProcessor
 from verbx.io.audio import ensure_mono_or_stereo
 
@@ -747,57 +756,12 @@ class AlgoReverbEngine(ReverbEngine):
 
     def _apply_spatial_coupling(self, wet: AudioArray) -> AudioArray:
         """Apply optional directional coupling for immersive wet-channel interaction."""
-        channels = int(wet.shape[1])
-        if channels <= 2:
-            return wet
-        strength = float(np.clip(self._spatial_coupling_strength, 0.0, 1.0))
-        mode = self._spatial_coupling_mode
-        if strength <= 0.0 or mode == "none":
-            return wet
-
-        out = np.asarray(wet, dtype=np.float64)
-        coupled = np.asarray(out.copy(), dtype=np.float64)
-        layout = self._config.output_layout.strip().lower()
-        if layout == "auto":
-            layout = {
-                3: "lcr",
-                6: "5.1",
-                8: "7.1",
-                10: "7.1.2",
-                12: "7.1.4",
-                13: "7.2.4",
-                16: "16.0",
-                68: "64.4",
-            }.get(channels, "auto")
-        front_idx, rear_idx, top_idx = self._layout_channel_groups(layout=layout, channels=channels)
-
-        if mode == "adjacent":
-            coupled[:, :] = 0.5 * (np.roll(out, 1, axis=1) + np.roll(out, -1, axis=1))
-        elif mode == "all_to_all":
-            total = np.sum(out, axis=1, keepdims=True)
-            coupled[:, :] = (total - out) / float(max(1, channels - 1))
-        elif mode == "front_rear":
-            if len(front_idx) == 0 or len(rear_idx) == 0:
-                return out
-            front_mean = np.mean(out[:, front_idx], axis=1, keepdims=True)
-            rear_mean = np.mean(out[:, rear_idx], axis=1, keepdims=True)
-            for idx in front_idx:
-                coupled[:, idx] = rear_mean[:, 0]
-            for idx in rear_idx:
-                coupled[:, idx] = front_mean[:, 0]
-        elif mode == "bed_top":
-            bed_idx = sorted({*front_idx, *rear_idx})
-            if len(bed_idx) == 0 or len(top_idx) == 0:
-                return out
-            bed_mean = np.mean(out[:, bed_idx], axis=1, keepdims=True)
-            top_mean = np.mean(out[:, top_idx], axis=1, keepdims=True)
-            for idx in bed_idx:
-                coupled[:, idx] = top_mean[:, 0]
-            for idx in top_idx:
-                coupled[:, idx] = bed_mean[:, 0]
-
-        mixed = ((1.0 - strength) * out) + (strength * coupled)
-        return np.asarray(np.nan_to_num(mixed, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
+        return apply_spatial_coupling(
+            wet,
+            layout=self._config.output_layout,
+            mode=self._spatial_coupling_mode,
+            strength=self._spatial_coupling_strength,
+        )
 
     @staticmethod
     def _layout_channel_groups(
@@ -805,28 +769,7 @@ class AlgoReverbEngine(ReverbEngine):
         channels: int,
     ) -> tuple[list[int], list[int], list[int]]:
         """Return front/rear/top channel groups for common bus layouts."""
-        if layout == "lcr":
-            return [0, 1, 2], [], []
-        if layout == "5.1":
-            return [0, 1, 2, 3], [4, 5], []
-        if layout == "7.1":
-            return [0, 1, 2, 3], [4, 5, 6, 7], []
-        if layout == "7.1.2":
-            return [0, 1, 2, 3], [4, 5, 6, 7], [8, 9]
-        if layout == "7.1.4":
-            return [0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]
-        if layout == "7.2.4":
-            return [0, 1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]
-        if layout == "8.0":
-            return [0, 1, 2], [3, 4, 5, 6, 7], []
-        if layout == "16.0":
-            return list(range(0, min(8, channels))), list(range(8, channels)), []
-        if layout == "64.4":
-            if channels >= 68:
-                return list(range(0, 32)), list(range(32, 64)), list(range(64, 68))
-            return list(range(channels)), [], []
-        # Fallback: all channels treated as front group.
-        return list(range(channels)), [], []
+        return layout_channel_groups(layout, channels)
 
     def backend_name(self) -> str:
         """Return current algorithmic backend."""
@@ -968,20 +911,12 @@ class AlgoReverbEngine(ReverbEngine):
     @classmethod
     def _resolve_spatial_coupling_mode(cls, mode: str) -> str:
         """Normalize and validate spatial-coupling mode identifier."""
-        normalized = str(mode).strip().lower().replace("-", "_")
-        if normalized in cls._SPATIAL_COUPLING_MODES:
-            return normalized
-        msg = f"Unsupported FDN spatial coupling mode: {mode}"
-        raise ValueError(msg)
+        return normalize_spatial_coupling_mode(mode)
 
     @classmethod
     def _resolve_nonlinearity_mode(cls, mode: str) -> str:
         """Normalize and validate in-loop nonlinearity mode identifier."""
-        normalized = str(mode).strip().lower().replace("-", "_")
-        if normalized in cls._NONLINEARITY_MODES:
-            return normalized
-        msg = f"Unsupported FDN nonlinearity mode: {mode}"
-        raise ValueError(msg)
+        return normalize_nonlinearity_mode(mode)
 
     def _apply_feedback_nonlinearity(
         self,
@@ -990,16 +925,12 @@ class AlgoReverbEngine(ReverbEngine):
         """Apply bounded nonlinear feedback shaping for density/color experiments."""
         if not self._nonlinearity_enabled:
             return np.asarray(values, dtype=np.float64)
-        drive = float(max(1e-6, self._nonlinearity_drive))
-        amount = float(np.clip(self._nonlinearity_amount, 0.0, 1.0))
-        driven = np.asarray(values * drive, dtype=np.float64)
-        if self._nonlinearity_mode == "tanh":
-            shaped = np.tanh(driven)
-        else:
-            shaped = driven / (1.0 + np.abs(driven))
-        normalized = np.asarray(shaped / drive, dtype=np.float64)
-        blended = ((1.0 - amount) * values) + (amount * normalized)
-        return np.asarray(np.clip(blended, -32.0, 32.0), dtype=np.float64)
+        return apply_feedback_nonlinearity(
+            values,
+            mode=self._nonlinearity_mode,
+            amount=self._nonlinearity_amount,
+            drive=self._nonlinearity_drive,
+        )
 
     @staticmethod
     def _normalize_graph_topology(topology: str) -> str:
