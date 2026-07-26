@@ -1,11 +1,11 @@
-.TH VERBX 1 "March 2026" "verbx 0.7.0" "User Commands"
+.TH VERBX 1 "March 2026" "verbx 0.7.5" "User Commands"
 .SH NAME
 verbx \- extreme reverb command-line processor
 .SH SYNOPSIS
 .B verbx
 [\fIOPTIONS\fR] \fICOMMAND\fR [\fIARGS\fR] ...
 .SH DESCRIPTION
-\fBverbx\fR is a production-grade Python CLI for extreme algorithmic and
+\fBverbx\fR is a research-grade Python CLI for extreme algorithmic and
 convolution reverb workflows.
 It supports long-tail processing, freeze/repeat chains, synthetic IR generation,
 loudness/peak targeting, multichannel routing, multi-source parameter
@@ -18,7 +18,12 @@ Use \fBverbx --help\fR for full command discovery.
 Render audio with algorithmic or convolution reverb.
 .TP
 .B analyze INFILE [OPTIONS]
-Compute analysis metrics, including optional loudness and EDR summaries.
+Extract peak-aligned reverb metrics by default, including RT60, EDT, T20, T30,
+decay fit quality, C50, C80, D50, center time, DRR, early IACC, and confidence;
+optional loudness, EDR, room, framewise, Ambisonics, and JSON outputs remain available.
+.TP
+.B dereverb INFILE OUTFILE [OPTIONS]
+Suppress late reverberation from existing recordings.
 .TP
 .B suggest INFILE
 Suggest practical render defaults inferred from analysis.
@@ -51,14 +56,23 @@ Convolution render using external IR.
 .B verbx render in.wav out/lucky.wav --lucky 12 --lucky-out-dir out/lucky_set
 Generate 12 randomized "wild" variants in one output folder.
 .TP
+.B verbx render in.wav out_192k_f32.wav --engine conv --ir hall.wav --target-sr 192000 --out-subtype float32
+Direct high-resolution float render with integrated sample-rate conversion.
+.TP
 .B verbx render in.wav out_mod.wav --mod-target mix --mod-source lfo:sine:0.08*0.7 --mod-source env:20:350*0.4
 Layer multiple modulation sources to animate reverb depth over time.
 .TP
 .B verbx render in.wav out_dual_mod.wav --mod-route wet:0.1:0.95:avg:20:lfo:sine:0.12 --mod-route gain-db:-9:3:sum:15:lfo:triangle:0.04
 Assign different LFOs to different modulation targets.
 .TP
-.B verbx analyze in.wav --lufs --edr --json-out report.json
-Analyze loudness and EDR metrics to JSON.
+.B verbx analyze hall_ir.wav --input-kind ir --edr --room --json-out report.json
+Extract broadband and frequency-dependent reverb metrics from an impulse response.
+.TP
+.B verbx analyze wet_mix.wav --input-kind program --lufs --direct-window-ms 3
+Analyze a reverberant mix with explicitly qualified program-audio estimates.
+.TP
+.B verbx dereverb wet.wav clearer.wav --mode wiener --strength 0.9 --tail-ms 180
+Run deterministic spectral dereverberation on an existing file.
 .TP
 .B verbx version
 Print installed version.
@@ -81,6 +95,7 @@ Academic references curated for reverb DSP.
 .SH SEE ALSO
 .BR verbx-render (1),
 .BR verbx-analyze (1),
+.BR verbx-dereverb (1),
 .BR verbx-ir (1),
 .BR verbx-batch (1)
 .SH AUTHORS

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from rich.console import Console
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -11,6 +12,8 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
+
+_PROGRESS_CONSOLE = Console(force_terminal=True, color_system="truecolor")
 
 
 class RenderProgress:
@@ -33,11 +36,17 @@ class RenderProgress:
     def __init__(self, enabled: bool) -> None:
         self.enabled = enabled
         self._progress = Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(bar_width=26),
+            SpinnerColumn(style="bold cyan"),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(
+                bar_width=26,
+                complete_style="bright_green",
+                finished_style="green",
+                pulse_style="bright_blue",
+            ),
             MofNCompleteColumn(),
             TimeElapsedColumn(),
+            console=_PROGRESS_CONSOLE,
             disable=not self.enabled,
         )
         self._started = False

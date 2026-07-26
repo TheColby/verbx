@@ -22,6 +22,7 @@ def apply_ducking(
     attack_ms: float,
     release_ms: float,
     strength: float = 0.75,
+    floor: float = 0.0,
 ) -> AudioArray:
     """Apply envelope-based ducking to wet signal.
 
@@ -55,12 +56,17 @@ def apply_ducking(
 
     normalized = env / (np.percentile(env, 95.0) + 1e-9)
     reduction = np.clip(normalized, 0.0, 1.0) * float(np.clip(strength, 0.0, 1.0))
-    gain = 1.0 - reduction
+    gain = np.maximum(1.0 - reduction, float(np.clip(floor, 0.0, 1.0)))
 
     return np.asarray(x * gain[:, np.newaxis], dtype=np.float64)
 
 
-def apply_bloom(audio: AudioArray, sr: int, bloom_seconds: float) -> AudioArray:
+def apply_bloom(
+    audio: AudioArray,
+    sr: int,
+    bloom_seconds: float,
+    bloom_mix: float | None = None,
+) -> AudioArray:
     """Add soft trailing bloom via exponential convolution tail.
 
     This stage intentionally behaves like a gentle diffuse smear layer.
@@ -77,7 +83,8 @@ def apply_bloom(audio: AudioArray, sr: int, bloom_seconds: float) -> AudioArray:
     kernel = np.exp(-t / tau)
     kernel = kernel / max(np.sum(kernel), 1e-12)
 
-    mix = float(np.clip(bloom_seconds / 8.0, 0.0, 0.65))
+    auto_mix = float(np.clip(bloom_seconds / 8.0, 0.0, 0.65))
+    mix = auto_mix if bloom_mix is None else float(np.clip(bloom_mix, 0.0, 1.0))
     out = x.copy()
     for ch in range(x.shape[1]):
         tail = fftconvolve(x[:, ch], kernel, mode="full")[: x.shape[0]]
@@ -92,6 +99,10 @@ def apply_tilt_eq(
     tilt_db: float,
     lowcut: float | None,
     highcut: float | None,
+    *,
+    lowcut_order: int = 2,
+    highcut_order: int = 2,
+    pivot_hz: float = 1_000.0,
 ) -> AudioArray:
     """Apply tilt EQ around 1kHz plus optional low/high cuts.
 
@@ -103,7 +114,8 @@ def apply_tilt_eq(
     out = x.copy()
 
     if lowcut is not None and 10.0 < lowcut < (sr * 0.49):
-        sos = butter(2, lowcut / (0.5 * sr), btype="highpass", output="sos")
+        order = max(1, int(lowcut_order))
+        sos = butter(order, lowcut / (0.5 * sr), btype="highpass", output="sos")
         for ch in range(out.shape[1]):
             filtered = sosfilt(sos, out[:, ch])
             if isinstance(filtered, tuple):
@@ -111,7 +123,8 @@ def apply_tilt_eq(
             out[:, ch] = np.asarray(filtered, dtype=np.float64)
 
     if highcut is not None and 10.0 < highcut < (sr * 0.49):
-        sos = butter(2, highcut / (0.5 * sr), btype="lowpass", output="sos")
+        order = max(1, int(highcut_order))
+        sos = butter(order, highcut / (0.5 * sr), btype="lowpass", output="sos")
         for ch in range(out.shape[1]):
             filtered = sosfilt(sos, out[:, ch])
             if isinstance(filtered, tuple):
@@ -127,7 +140,8 @@ def apply_tilt_eq(
 
     freqs = np.fft.rfftfreq(n, d=1.0 / sr)
     safe_freqs = np.maximum(freqs, 20.0)
-    tilt_curve_db = tilt_db * np.log2(safe_freqs / 1000.0)
+    pivot = float(np.clip(pivot_hz, 20.0, sr * 0.45))
+    tilt_curve_db = tilt_db * np.log2(safe_freqs / pivot)
     tilt_curve_db = np.clip(tilt_curve_db, -18.0, 18.0)
     gain = np.power(10.0, tilt_curve_db / 20.0).astype(np.float64)
 
@@ -146,10 +160,16 @@ def apply_ambient_processing(
     duck: bool,
     duck_attack: float,
     duck_release: float,
+    duck_strength: float,
+    duck_floor: float,
     bloom: float,
+    bloom_mix: float | None,
     lowcut: float | None,
+    lowcut_order: int,
     highcut: float | None,
+    highcut_order: int,
     tilt: float,
+    tilt_pivot_hz: float,
 ) -> AudioArray:
     """Apply ambient enhancement chain to wet signal.
 
@@ -157,9 +177,26 @@ def apply_ambient_processing(
     """
     out = ensure_mono_or_stereo(wet)
     if duck:
-        out = apply_ducking(out, dry_reference, sr, attack_ms=duck_attack, release_ms=duck_release)
+        out = apply_ducking(
+            out,
+            dry_reference,
+            sr,
+            attack_ms=duck_attack,
+            release_ms=duck_release,
+            strength=duck_strength,
+            floor=duck_floor,
+        )
     if bloom > 0.0:
-        out = apply_bloom(out, sr, bloom_seconds=bloom)
+        out = apply_bloom(out, sr, bloom_seconds=bloom, bloom_mix=bloom_mix)
     if lowcut is not None or highcut is not None or abs(tilt) > 1e-4:
-        out = apply_tilt_eq(out, sr, tilt_db=tilt, lowcut=lowcut, highcut=highcut)
+        out = apply_tilt_eq(
+            out,
+            sr,
+            tilt_db=tilt,
+            lowcut=lowcut,
+            highcut=highcut,
+            lowcut_order=lowcut_order,
+            highcut_order=highcut_order,
+            pivot_hz=tilt_pivot_hz,
+        )
     return np.asarray(out, dtype=np.float64)

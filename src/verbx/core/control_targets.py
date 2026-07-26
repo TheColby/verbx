@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 ControlTargetDomain = Literal["post", "engine", "conv"]
+RT60_DEFAULT_SECONDS = 60.0
 RT60_MIN_SECONDS = 0.1
 RT60_MAX_SECONDS = 3_600.0
 
@@ -78,6 +79,41 @@ _CONTROL_TARGET_SPECS: tuple[ControlTargetSpec, ...] = (
         -1.0,
         1.0,
         aliases=("rt60-tilt", "fdn-tilt"),
+    ),
+    ControlTargetSpec(
+        "fdn-rt60-low",
+        "engine",
+        RT60_MIN_SECONDS,
+        RT60_MAX_SECONDS,
+        aliases=("rt60-low",),
+    ),
+    ControlTargetSpec(
+        "fdn-rt60-mid",
+        "engine",
+        RT60_MIN_SECONDS,
+        RT60_MAX_SECONDS,
+        aliases=("rt60-mid",),
+    ),
+    ControlTargetSpec(
+        "fdn-rt60-high",
+        "engine",
+        RT60_MIN_SECONDS,
+        RT60_MAX_SECONDS,
+        aliases=("rt60-high",),
+    ),
+    ControlTargetSpec(
+        "fdn-xover-low-hz",
+        "engine",
+        20.0,
+        20_000.0,
+        aliases=("xover-low-hz",),
+    ),
+    ControlTargetSpec(
+        "fdn-xover-high-hz",
+        "engine",
+        20.0,
+        20_000.0,
+        aliases=("xover-high-hz",),
     ),
     ControlTargetSpec(
         "fdn-tonal-correction-strength",
