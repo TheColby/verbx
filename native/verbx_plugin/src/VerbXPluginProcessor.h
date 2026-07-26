@@ -62,6 +62,7 @@ private:
         std::atomic<float>* freeze = nullptr;
         std::atomic<float>* reverse = nullptr;
         std::atomic<float>* qualityMode = nullptr;
+        std::atomic<float>* reverbModel = nullptr;
     };
 
     juce::AudioProcessorValueTreeState parameters_;

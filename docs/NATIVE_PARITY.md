@@ -42,6 +42,7 @@ Chosen `v0.8` shape: **hybrid wrapper phase before full replacement**.
 | IR tools | Python IR synth/morph/library tools | Not implemented | Deferred | Roadmap only |
 | Batch/immersive workflows | Python workflow commands | Not implemented | Deferred | Roadmap only |
 | Presets | Built-in/generated Python preset bank | 260 host programs with persisted editable labels | Partial | Four immediate references plus 256 deterministic room, hall, plate, spring, chamber, drone, shimmer, and tight variations recall the realtime parameter set; Python preset-bank parity remains deferred. |
+| Spring reverb | Offline Python spring proxy and modal FE solver | Realtime spring-tank topology | Partial | Host-automatable `Reverb Model` chooses Algorithmic or Spring. The plug-in spring path is a bounded serial dispersive tank, not the offline modal-FE solver. |
 
 ## Native Parity Contract
 

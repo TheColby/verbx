@@ -130,10 +130,13 @@ private:
     juce::ToggleButton reverseButton_{"REVERSE"};
     juce::ComboBox qualityBox_;
     juce::Label qualityLabel_;
+    juce::ComboBox modelBox_;
+    juce::Label modelLabel_;
     juce::Label rt60Readout_;
     std::unique_ptr<ButtonAttachment> freezeAttachment_;
     std::unique_ptr<ButtonAttachment> reverseAttachment_;
     std::unique_ptr<ComboBoxAttachment> qualityAttachment_;
+    std::unique_ptr<ComboBoxAttachment> modelAttachment_;
 
     void timerCallback() override;
     void configureControls();

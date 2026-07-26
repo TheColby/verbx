@@ -5,6 +5,9 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Changed
+- The native JUCE plug-in now includes a host-automatable `Reverb Model`
+  selector and a dedicated realtime spring-tank topology. The Spring preset
+  family selects the spring engine automatically.
 - The native JUCE plug-in now exposes 260 host programs: four immediate
   references plus 256 deterministic room, hall, plate, spring, chamber, drone,
   shimmer, and tight-space variations. Names remain host-editable and persist

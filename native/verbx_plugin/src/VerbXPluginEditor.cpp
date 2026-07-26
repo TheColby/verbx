@@ -575,11 +575,27 @@ void VerbXPluginEditor::configureControls() {
     addAndMakeVisible(qualityBox_);
     qualityAttachment_ = std::make_unique<ComboBoxAttachment>(state, "quality_mode", qualityBox_);
 
+    modelBox_.addItemList({"Algorithmic", "Spring"}, 1);
+    modelBox_.setLookAndFeel(&lookAndFeel_);
+    modelBox_.setComponentID("reverb_model");
+    modelBox_.setTooltip("Select the realtime reverb topology.");
+    modelBox_.setColour(juce::ComboBox::backgroundColourId, analyzerInk.brighter(0.12f));
+    modelBox_.setColour(juce::ComboBox::textColourId, juce::Colour::fromRGB(228, 240, 236));
+    modelBox_.setColour(juce::ComboBox::outlineColourId, analyzerGold.withAlpha(0.45f));
+    addAndMakeVisible(modelBox_);
+    modelAttachment_ = std::make_unique<ComboBoxAttachment>(state, "reverb_model", modelBox_);
+
     qualityLabel_.setText("QUALITY", juce::dontSendNotification);
     qualityLabel_.setJustificationType(juce::Justification::centredLeft);
     qualityLabel_.setFont(dataFont(9.5f, juce::Font::bold));
     qualityLabel_.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
     addAndMakeVisible(qualityLabel_);
+
+    modelLabel_.setText("MODEL", juce::dontSendNotification);
+    modelLabel_.setJustificationType(juce::Justification::centredLeft);
+    modelLabel_.setFont(dataFont(9.5f, juce::Font::bold));
+    modelLabel_.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
+    addAndMakeVisible(modelLabel_);
 
     rt60Readout_.setJustificationType(juce::Justification::centredRight);
     rt60Readout_.setFont(dataFont(14.0f, juce::Font::bold));
@@ -801,6 +817,8 @@ void VerbXPluginEditor::updatePageVisibility() {
     reverseButton_.setVisible(performVisible);
     qualityBox_.setVisible(performVisible);
     qualityLabel_.setVisible(performVisible);
+    modelBox_.setVisible(performVisible);
+    modelLabel_.setVisible(performVisible);
     for (auto& button : expertSelectButtons_) {
         button.setVisible(!performVisible);
     }
@@ -1257,6 +1275,8 @@ void VerbXPluginEditor::resized() {
         knobLabels_[static_cast<size_t>(index)].setBounds(mapBounds({x, 478.0f, 84.0f, 16.0f}));
         knobs_[static_cast<size_t>(index)].setBounds(mapBounds({x - 4.0f, 491.0f, 92.0f, 110.0f}));
     }
+    modelLabel_.setBounds(mapBounds({1598.0f, 530.0f, 62.0f, 18.0f}));
+    modelBox_.setBounds(mapBounds({1660.0f, 523.0f, 196.0f, 32.0f}));
     qualityLabel_.setBounds(mapBounds({1598.0f, 565.0f, 62.0f, 18.0f}));
     qualityBox_.setBounds(mapBounds({1660.0f, 558.0f, 196.0f, 32.0f}));
     freezeButton_.setBounds(mapBounds({1598.0f, 592.0f, 122.0f, 24.0f}));

@@ -28,6 +28,7 @@ typedef struct {
     double dry;
     int freeze;
     int reverse;
+    verbx_plugin_reverb_model reverb_model;
 } verbx_plugin_realtime_params;
 
 typedef struct {
@@ -39,6 +40,7 @@ typedef struct {
     verbx_plugin_quality_mode quality_mode;
     int freeze_enabled;
     int reverse_enabled;
+    verbx_plugin_reverb_model reverb_model;
 } verbx_plugin_realtime_status;
 
 typedef struct {

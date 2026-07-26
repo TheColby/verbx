@@ -32,6 +32,11 @@ int main(int argc, char* argv[]) {
         || std::abs(presetWetParameter->getValue() - 0.42f) > 0.001f) {
         return fail("Plate program did not recall deterministic host parameters");
     }
+    auto* modelParameter = processor.state().getParameter("reverb_model");
+    processor.setCurrentProgram(100);
+    if (modelParameter == nullptr || modelParameter->getValue() < 0.99f) {
+        return fail("Spring preset family did not select the spring model");
+    }
     processor.setCurrentProgram(259);
     if (processor.getCurrentProgram() != 259 || processor.getProgramName(259) != "Tight Infinite") {
         return fail("last generated host program was not available");
@@ -54,6 +59,16 @@ int main(int argc, char* argv[]) {
     if (editor == nullptr) {
         return fail("processor did not create an editor");
     }
+
+    auto* modelBox = dynamic_cast<juce::ComboBox*>(editor->findChildWithID("reverb_model"));
+    if (modelBox == nullptr || modelParameter == nullptr) {
+        return fail("editor did not expose the Reverb Model selector");
+    }
+    modelBox->setSelectedId(2, juce::sendNotificationSync);
+    if (modelParameter->getValue() < 0.99f) {
+        return fail("Spring model selector did not update host state");
+    }
+    modelBox->setSelectedId(1, juce::sendNotificationSync);
 
     auto* wetSlider = dynamic_cast<juce::Slider*>(editor->findChildWithID("wet"));
     auto* wetParameter = processor.state().getParameter("wet");
