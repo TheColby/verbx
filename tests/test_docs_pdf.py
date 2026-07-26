@@ -1698,8 +1698,8 @@ def test_reverb_primer_mermaid_assets_convert_for_pdf() -> None:
 
     pdf_ready = DOCS_PDF._convert_figure_captions(converted)
     assert pdf_ready.count(r"\begin{minipage}{\linewidth}") == 50
-    assert pdf_ready.count(r"\end{minipage}") == 49
-    assert pdf_ready.count(r"\includegraphics") == 49
+    assert pdf_ready.count(r"\end{minipage}") == 50
+    assert pdf_ready.count(r"\includegraphics") == 50
     assert "![" not in pdf_ready
     first_group = pdf_ready.index(r"\begin{minipage}{\linewidth}")
     first_lead = pdf_ready.index(r"\verbxFigureLead")
@@ -1710,8 +1710,8 @@ def test_reverb_primer_mermaid_assets_convert_for_pdf() -> None:
 
     consolidated = converted.replace("(docs/assets/reverb_primer/", "(assets/reverb_primer/")
     consolidated_ready = DOCS_PDF._convert_figure_captions(consolidated)
-    assert consolidated_ready.count(r"\begin{minipage}{\linewidth}") == 49
-    assert consolidated_ready.count(r"\includegraphics") == 49
+    assert consolidated_ready.count(r"\begin{minipage}{\linewidth}") == 50
+    assert consolidated_ready.count(r"\includegraphics") == 50
 
 
 def test_pdf_figure_assets_trim_trailing_background(tmp_path: Path) -> None:
