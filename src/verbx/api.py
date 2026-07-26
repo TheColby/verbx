@@ -1,107 +1,312 @@
-"""Stable Python API surface for file render, IR generation, and analysis."""
+"""verbx public Python API.
+
+Provides a stable, importable surface for using verbx as a library rather than
+a CLI tool. Suitable for notebooks, pipelines, and DAW integrations.
+
+Basic usage::
+
+    from verbx.api import render_file, generate_ir, analyze_file
+    from verbx.config import RenderConfig
+    from verbx.ir import IRGenConfig
+
+    # Render with algorithmic reverb
+    report = render_file(
+        infile="dry.wav",
+        outfile="wet.wav",
+        config=RenderConfig(engine="algo", rt60=2.5, wet=0.7),
+    )
+
+    # Generate an IR and save it
+    audio, sr, meta = generate_ir(IRGenConfig(mode="fdn", duration=4.0, sr=48000))
+
+    # Analyze an audio file
+    metrics = analyze_file("wet.wav", include_loudness=True)
+"""
 
 from __future__ import annotations
 
+from dataclasses import fields
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
-from verbx.analysis.analyzer import AudioAnalyzer
+import numpy as np
+import numpy.typing as npt
+
+from verbx.core.render_report import RenderReport
 from verbx.config import RenderConfig
-from verbx.core.pipeline import run_render_pipeline
-from verbx.io.audio import read_audio, validate_audio_path
-from verbx.ir.generator import IRGenConfig, generate_or_load_cached_ir, write_ir_artifacts
+from verbx.ir.generator import IRGenConfig
+
+__all__ = [
+    "analyze_file",
+    "generate_ir",
+    "read_audio",
+    "render_file",
+    "write_audio",
+]
+
+# ---------------------------------------------------------------------------
+# Type alias (matches internal AudioArray = npt.NDArray[np.float64])
+# ---------------------------------------------------------------------------
+AudioArray = npt.NDArray[np.float64]
+ConfigT = TypeVar("ConfigT")
+
+_RENDER_CONFIG_FIELD_NAMES = {field.name for field in fields(RenderConfig)}
+_IR_CONFIG_FIELD_NAMES = {field.name for field in fields(IRGenConfig)}
+
+
+def _build_config(
+    config: ConfigT | None,
+    options: dict[str, Any],
+    config_type: type[ConfigT],
+    allowed_names: set[str],
+) -> ConfigT:
+    if config is not None and options:
+        raise ValueError("Pass either 'config' or keyword options, not both.")
+    if config is not None:
+        return config
+    unknown = sorted(set(options) - allowed_names)
+    if unknown:
+        raise ValueError(f"Unsupported {config_type.__name__} option(s): {', '.join(unknown)}")
+    return config_type(**options)
 
 
 def render_file(
     infile: str | Path,
     outfile: str | Path,
-    *,
     config: RenderConfig | None = None,
-    **render_options: Any,
-) -> dict[str, Any]:
-    """Render one input file and write an output file.
+    **options: Any,
+) -> RenderReport:
+    """Apply reverb processing to an audio file.
 
     Parameters
     ----------
     infile:
-        Input audio path.
+        Path to the dry input audio file. Supports WAV, FLAC, AIFF, and any
+        format supported by ``soundfile``.
     outfile:
-        Rendered output audio path.
+        Path for the processed output file. Parent directory must exist.
     config:
-        Optional ``RenderConfig`` instance. If omitted, one is built from
-        ``render_options``.
-    render_options:
-        ``RenderConfig`` keyword fields used only when ``config`` is omitted.
+        A :class:`~verbx.config.RenderConfig` instance describing the reverb
+        engine, parameters, and I/O settings.
+
+    Returns
+    -------
+    RenderReport
+        Structured report containing engine name, sample counts, resolved
+        runtime settings, and optional per-channel analysis metrics. Keys
+        include ``"engine"``, ``"sr"``, ``"input_samples"``,
+        ``"output_samples"``, ``"channels"``, ``"config"``, and
+        ``"effective"``.
+
+    Raises
+    ------
+    FileNotFoundError
+        If ``infile`` does not exist.
+    ValueError
+        If ``config`` contains invalid parameter combinations.
+
+    Examples
+    --------
+    >>> from verbx.api import render_file
+    >>> from verbx.config import RenderConfig
+    >>> report = render_file(
+    ...     "dry.wav",
+    ...     "wet.wav",
+    ...     RenderConfig(engine="algo", rt60=4.0, wet=0.8, shimmer=True),
+    ... )
+    >>> report["engine"]
+    'algo'
     """
-    in_path = Path(infile)
-    out_path = Path(outfile)
+    from verbx.core.pipeline import run_render_pipeline
 
-    if config is not None and len(render_options) > 0:
-        msg = "Provide either config or render_options, not both."
-        raise ValueError(msg)
+    return run_render_pipeline(
+        Path(infile),
+        Path(outfile),
+        _build_config(config, options, RenderConfig, _RENDER_CONFIG_FIELD_NAMES),
+    )
 
-    render_config = config if config is not None else RenderConfig(**render_options)
-    return run_render_pipeline(in_path, out_path, render_config)
+
+def generate_ir(
+    config: IRGenConfig | None = None,
+    *,
+    cache_dir: str | Path | None = None,
+    **options: Any,
+) -> tuple[AudioArray, int, dict[str, Any]]:
+    """Synthesize an impulse response.
+
+    Parameters
+    ----------
+    config:
+        A :class:`~verbx.ir.IRGenConfig` instance describing the IR synthesis
+        parameters (mode, duration, sample rate, FDN topology, etc.).
+    cache_dir:
+        Optional directory for caching generated IRs. When provided, verbx
+        will check for a matching cached IR before synthesizing a new one.
+        Cache hits are identified by a hash of the config fields.
+
+    Returns
+    -------
+    audio : ndarray, shape (samples, channels)
+        The synthesized impulse response as a float64 array.
+    sr : int
+        Sample rate of the returned audio.
+    meta : dict
+        Metadata dictionary including mode, duration, RT60, channel layout,
+        and generation parameters.
+
+    Examples
+    --------
+    >>> from verbx.api import generate_ir
+    >>> from verbx.ir import IRGenConfig
+    >>> audio, sr, meta = generate_ir(IRGenConfig(mode="fdn", duration=3.0))
+    >>> audio.shape
+    (144000, 2)
+    """
+    resolved_config = _build_config(config, options, IRGenConfig, _IR_CONFIG_FIELD_NAMES)
+    if cache_dir is not None:
+        from verbx.ir.generator import generate_or_load_cached_ir
+
+        audio, sr, meta, _path, _hit = generate_or_load_cached_ir(
+            resolved_config, Path(cache_dir)
+        )
+        return audio, sr, meta
+
+    from verbx.ir.generator import generate_ir as _generate_ir
+
+    return _generate_ir(resolved_config)
 
 
 def analyze_file(
-    infile: str | Path,
+    path: str | Path,
     *,
+    include_reverb: bool = True,
+    reverb_input_kind: str = "auto",
+    reverb_direct_window_ms: float = 2.5,
     include_loudness: bool = False,
     include_edr: bool = False,
     ambi_order: int | None = None,
     ambi_normalization: str = "auto",
     ambi_channel_order: str = "auto",
-) -> dict[str, float]:
-    """Analyze one file and return canonical scalar metrics."""
-    path = Path(infile)
-    validate_audio_path(str(path))
+) -> dict[str, float | str]:
+    """Compute analysis metrics for an audio file.
+
+    Parameters
+    ----------
+    path:
+        Path to the audio file to analyze.
+    include_reverb:
+        Enable broadband RT60, decay-fit, clarity, definition, DRR, and
+        early-spatial metrics. Enabled by default for the public file API.
+    reverb_input_kind:
+        Source model for reverb analysis: ``"auto"``, ``"ir"``, or
+        ``"program"``.
+    reverb_direct_window_ms:
+        Direct-sound integration window used for the DRR estimate.
+    include_loudness:
+        Enable EBU R128 metrics: integrated LUFS, true-peak dBTP, and
+        loudness range (LRA). Adds ~20-40 % runtime overhead.
+    include_edr:
+        Enable frequency-dependent Energy Decay Relief (EDR) summary metrics.
+    ambi_order:
+        When set, compute spherical energy and directionality metrics for
+        Ambisonics signals of this order. ``None`` disables spatial metrics.
+    ambi_normalization:
+        Normalization convention for Ambisonics (``"sn3d"``, ``"fuma"``, or
+        ``"auto"``).
+    ambi_channel_order:
+        Channel ordering convention (``"acn"``, ``"fuma"``, or ``"auto"``).
+
+    Returns
+    -------
+    dict
+        Flat dictionary of numeric metrics and optional string metadata. Always
+        includes: duration, samples, channels, rms, rms_dbfs, peak, peak_dbfs,
+        sample_peak_dbfs, crest_factor, dc_offset, dynamic_range, energy,
+        spectral_centroid, spectral_bandwidth, spectral_rolloff,
+        zero_crossing_rate, and more.
+
+    Examples
+    --------
+    >>> from verbx.api import analyze_file
+    >>> m = analyze_file("wet.wav", include_loudness=True)
+    >>> m["rms_dbfs"]
+    -18.4
+    """
+    from verbx.analysis.analyzer import AudioAnalyzer
+    from verbx.io.audio import read_audio
+
     audio, sr = read_audio(str(path))
-    analyzer = AudioAnalyzer()
-    return analyzer.analyze(
+    return AudioAnalyzer().analyze(
         audio,
-        sr=sr,
+        sr,
         include_loudness=include_loudness,
         include_edr=include_edr,
+        include_reverb=include_reverb,
+        reverb_input_kind=reverb_input_kind,
+        reverb_direct_window_ms=reverb_direct_window_ms,
         ambi_order=ambi_order,
         ambi_normalization=ambi_normalization,
         ambi_channel_order=ambi_channel_order,
     )
 
 
-def generate_ir(
-    outfile: str | Path,
-    *,
-    config: IRGenConfig | None = None,
-    cache_dir: str | Path = ".verbx_cache/irs",
-    write_meta: bool = True,
-    **ir_options: Any,
-) -> dict[str, Any]:
-    """Generate an IR, write it to disk, and return metadata.
+def read_audio(path: str | Path) -> tuple[AudioArray, int]:
+    """Read an audio file into a float64 numpy array.
 
-    Returns a payload containing output path, sample-rate, metadata, and
-    cache provenance.
+    Parameters
+    ----------
+    path:
+        Path to the audio file. Supports WAV, FLAC, AIFF, OGG, and any
+        format supported by ``soundfile``.
+
+    Returns
+    -------
+    audio : ndarray, shape (samples, channels)
+        Audio data normalized to the range ``[-1.0, 1.0]`` in float64.
+    sr : int
+        Sample rate in Hz.
+
+    Examples
+    --------
+    >>> from verbx.api import read_audio
+    >>> audio, sr = read_audio("in.wav")
+    >>> audio.shape
+    (220500, 2)
     """
-    out_path = Path(outfile)
-    cache_path = Path(cache_dir)
+    from verbx.io.audio import read_audio as _read_audio
 
-    if config is not None and len(ir_options) > 0:
-        msg = "Provide either config or ir_options, not both."
-        raise ValueError(msg)
+    return _read_audio(str(path))
 
-    ir_config = config if config is not None else IRGenConfig(**ir_options)
-    audio, sr, meta, cached_path, cache_hit = generate_or_load_cached_ir(ir_config, cache_path)
-    write_ir_artifacts(out_path, audio, sr, meta, silent=not write_meta)
 
-    return {
-        "outfile": str(out_path),
-        "sample_rate": int(sr),
-        "meta": meta,
-        "cache_hit": bool(cache_hit),
-        "cache_path": str(cached_path),
-        "meta_path": (
-            str(out_path.with_suffix(f"{out_path.suffix}.ir.meta.json"))
-            if write_meta
-            else None
-        ),
-    }
+def write_audio(
+    path: str | Path,
+    audio: AudioArray,
+    sr: int,
+    *,
+    subtype: str | None = None,
+) -> None:
+    """Write a float64 audio array to a file.
+
+    Parameters
+    ----------
+    path:
+        Output file path. Format is inferred from the extension
+        (``.wav``, ``.flac``, ``.aiff``, etc.).
+    audio:
+        Audio data with shape ``(samples, channels)`` in float64.
+    sr:
+        Sample rate in Hz.
+    subtype:
+        Optional ``soundfile`` subtype override (e.g. ``"PCM_24"``,
+        ``"PCM_32"``, ``"FLOAT"``). When ``None``, verbx chooses a sensible
+        default (``PCM_24`` for WAV, ``VORBIS`` for OGG, etc.).
+
+    Examples
+    --------
+    >>> from verbx.api import read_audio, write_audio
+    >>> audio, sr = read_audio("in.wav")
+    >>> write_audio("out.flac", audio * 0.5, sr, subtype="PCM_24")
+    """
+    from verbx.io.audio import write_audio as _write_audio
+
+    _write_audio(str(path), audio, sr, subtype)

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 from pathlib import Path
 
 import numpy as np
+import pytest
 import soundfile as sf
 from click.testing import Result as ClickResult
 from typer.testing import CliRunner
@@ -14,6 +16,9 @@ from verbx.core.convolution_reverb import ConvolutionReverbConfig, ConvolutionRe
 from verbx.core.tempo import parse_note_duration_seconds, parse_pre_delay_ms
 from verbx.ir.fitting import IRFitTarget, build_ir_fit_candidates
 from verbx.ir.generator import IRGenConfig, generate_or_load_cached_ir
+from verbx.ir.materials import get_material_profile, material_names
+from verbx.ir.sofa import extract_sofa_ir_matrix_from_array
+from verbx.ir.trace import generate_trace_ir, parse_dxf_room_outline, parse_trace_vector
 
 runner = CliRunner()
 _ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
@@ -64,6 +69,171 @@ def test_ir_gen_writes_wav_and_meta(tmp_path: Path) -> None:
     assert meta_path.exists()
     payload = json.loads(meta_path.read_text(encoding="utf-8"))
     assert payload["mode"] == "hybrid"
+
+
+def _write_simple_room_dxf(path: Path) -> None:
+    path.write_text(
+        "\n".join(
+            [
+                "0",
+                "SECTION",
+                "2",
+                "HEADER",
+                "9",
+                "$INSUNITS",
+                "70",
+                "6",
+                "0",
+                "ENDSEC",
+                "0",
+                "SECTION",
+                "2",
+                "ENTITIES",
+                "0",
+                "LWPOLYLINE",
+                "90",
+                "4",
+                "70",
+                "1",
+                "10",
+                "0",
+                "20",
+                "0",
+                "10",
+                "6",
+                "20",
+                "0",
+                "10",
+                "6",
+                "20",
+                "4",
+                "10",
+                "0",
+                "20",
+                "4",
+                "0",
+                "ENDSEC",
+                "0",
+                "EOF",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_trace_dxf_parser_and_ir_generation(tmp_path: Path) -> None:
+    dxf = tmp_path / "room.dxf"
+    _write_simple_room_dxf(dxf)
+
+    geometry = parse_dxf_room_outline(dxf, height_m=3.0)
+    source = parse_trace_vector("1,1,1.5", label="--source")
+    listener = parse_trace_vector("5,3,1.5", label="--listener")
+    audio, report = generate_trace_ir(
+        geometry=geometry,
+        source_pos_m=source,
+        listener_pos_m=listener,
+        material="studio",
+        rays=2_000,
+        length_s=0.5,
+        sr=8_000,
+        seed=12,
+    )
+
+    assert geometry.room_dims_m == (6.0, 4.0, 3.0)
+    assert audio.shape == (4_000, 2)
+    assert np.max(np.abs(audio)) > 0.0
+    assert report["schema"] == "trace-report-v1"
+    assert report["trace"]["reflection_count"] >= 7
+    assert report["geometry"]["room"]["room_dims_m"] == [6.0, 4.0, 3.0]
+    assert report["material"]["profile"]["octave_bands_hz"] == [
+        125,
+        250,
+        500,
+        1000,
+        2000,
+        4000,
+    ]
+    assert report["material"]["surface_profiles"]["left"]["name"] == "studio"
+
+
+def test_material_profiles_cover_common_trace_materials() -> None:
+    names = set(material_names())
+    assert len(names) >= 20
+    assert {"concrete", "drywall", "glass", "studio", "acoustic-panel"} <= names
+
+    drywall = get_material_profile("drywall")
+    assert drywall.broadband_absorption() > 0.0
+    assert drywall.to_report()["octave_bands_hz"] == [125, 250, 500, 1000, 2000, 4000]
+
+
+def test_ir_trace_command_writes_wav_and_report(tmp_path: Path) -> None:
+    dxf = tmp_path / "room.dxf"
+    out_ir = tmp_path / "room_ir.wav"
+    report_path = tmp_path / "trace.json"
+    _write_simple_room_dxf(dxf)
+
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "trace",
+            str(dxf),
+            str(out_ir),
+            "--source",
+            "1,1,1.5",
+            "--listener",
+            "5,3,1.5",
+            "--height",
+            "3",
+            "--material",
+            "studio",
+            "--rays",
+            "2000",
+            "--length",
+            "0.5",
+            "--target-sr",
+            "8000",
+            "--json-out",
+            str(report_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert out_ir.exists()
+    audio, sr = sf.read(str(out_ir), always_2d=True, dtype="float64")
+    assert sr == 8000
+    assert audio.shape == (4_000, 2)
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert payload["schema"] == "trace-report-v1"
+    assert payload["experimental"] is True
+    assert payload["trace"]["rays"] == 2000
+    assert payload["trace"]["target_sr"] == 8000
+    assert payload["material"]["profile"]["name"] == "studio"
+
+
+def test_ir_trace_command_rejects_unknown_material(tmp_path: Path) -> None:
+    dxf = tmp_path / "room.dxf"
+    out_ir = tmp_path / "room_ir.wav"
+    _write_simple_room_dxf(dxf)
+
+    result = runner.invoke(
+        app,
+        [
+            "ir",
+            "trace",
+            str(dxf),
+            str(out_ir),
+            "--source",
+            "1,1,1.5",
+            "--listener",
+            "5,3,1.5",
+            "--material",
+            "mystery-wall",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Unknown material" in _combined_cli_output(result)
 
 
 def test_ir_gen_format_switch_overrides_extension(tmp_path: Path) -> None:
@@ -518,6 +688,57 @@ def test_ir_gen_supports_filter_feedback_controls(tmp_path: Path) -> None:
     assert params["fdn_link_filter"] == "lowpass"
     assert abs(float(params["fdn_link_filter_hz"]) - 1800.0) < 1e-6
     assert abs(float(params["fdn_link_filter_mix"]) - 0.8) < 1e-6
+
+
+def test_sofa_extract_matrix_from_rank3_common_layout() -> None:
+    # Shape convention for strict rank-3 extraction: [M, R, N].
+    data_ir = np.zeros((2, 3, 8), dtype=np.float64)
+    data_ir[1, 0, 0] = 1.0
+    data_ir[1, 2, 4] = 0.5
+
+    out = extract_sofa_ir_matrix_from_array(data_ir, measurement_index=1, strict=True)
+
+    assert out.shape == (8, 3)
+    assert np.isclose(out[0, 0], 1.0)
+    assert np.isclose(out[4, 2], 0.5)
+
+
+def test_sofa_extract_matrix_from_rank4_with_emitter_index() -> None:
+    # Shape convention for strict rank-4 extraction: [M, R, E, N].
+    data_ir = np.zeros((1, 2, 3, 6), dtype=np.float64)
+    data_ir[0, 1, 2, 3] = 0.75
+
+    out = extract_sofa_ir_matrix_from_array(
+        data_ir,
+        measurement_index=0,
+        emitter_index=2,
+        strict=True,
+    )
+
+    assert out.shape == (6, 2)
+    assert np.isclose(out[3, 1], 0.75)
+
+
+def test_sofa_extract_strict_rejects_unsupported_rank() -> None:
+    data_ir = np.zeros((4, 6, 8, 10, 12), dtype=np.float64)
+    with pytest.raises(ValueError, match="Supported strict ranks"):
+        _ = extract_sofa_ir_matrix_from_array(data_ir, strict=True)
+
+
+def test_ir_sofa_info_reports_optional_dependency_when_h5py_missing(tmp_path: Path) -> None:
+    if importlib.util.find_spec("h5py") is not None:
+        pytest.skip(
+            "h5py is installed in this environment; "
+            "missing-dependency path not applicable."
+        )
+
+    sofa_path = tmp_path / "dummy.sofa"
+    sofa_path.write_bytes(b"not-a-valid-hdf5")
+
+    result = runner.invoke(app, ["ir", "sofa-info", str(sofa_path)])
+    assert result.exit_code != 0
+    text = _combined_cli_output(result).lower()
+    assert "sofa support requires optional dependency 'h5py'" in text
 
 
 def test_ir_gen_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:

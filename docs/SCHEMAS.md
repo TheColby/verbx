@@ -1,89 +1,173 @@
-# Structured JSON Schemas
+# JSON Schemas: Manifests and Automation
 
-This document provides JSON Schema (Draft 2020-12) references for the two primary structured payloads used in `0.7.x`: batch render manifests and automation files.
+This document defines the structured JSON contracts used by `verbx batch` and render automation.
 
-## 1) Batch Render Manifest Schema
+- Batch render manifest schema id: `verbx-batch-manifest-v0.5`
+- Batch augmentation manifest schema id: `verbx-augment-manifest-v0.7`
+- Automation file schema id: `verbx-automation-v0.7`
+
+> These are documentation schemas (stable contract docs). They are designed to mirror current parser behavior.
+
+---
+
+## 1) Batch Render Manifest (`verbx-batch-manifest-v0.5`)
+
+Use with:
+
+```bash
+verbx batch render manifest.json --jobs 8
+```
+
+Minimal valid shape:
 
 ```json
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://verbx.dev/schema/batch-render-manifest-v1.json",
-  "title": "verbx batch render manifest",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["jobs"],
-  "properties": {
-    "jobs": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["infile", "outfile"],
-        "properties": {
-          "infile": { "type": "string", "minLength": 1 },
-          "outfile": { "type": "string", "minLength": 1 },
-          "options": {
-            "type": "object",
-            "description": "RenderConfig-like key/value options accepted by verbx batch render"
-          }
-        }
+  "version": "0.5",
+  "jobs": [
+    {
+      "infile": "input.wav",
+      "outfile": "output.wav",
+      "options": {
+        "engine": "auto",
+        "rt60": 60.0,
+        "wet": 0.8,
+        "dry": 0.2,
+        "repeat": 1
       }
     }
-  }
+  ]
 }
 ```
 
-## 2) Automation File Schema
+### Required fields
+
+- `jobs` (array): list of batch jobs.
+- For each `jobs[]` item:
+  - `infile` (string path)
+  - `outfile` (string path)
+  - `options` (object; any `RenderConfig` key/value)
+
+### Notes
+
+- `version` is recommended for compatibility tracking.
+- `options` is validated against `RenderConfig` semantics at runtime.
+
+---
+
+## 2) Batch Augmentation Manifest (`verbx-augment-manifest-v0.7`)
+
+Use with:
+
+```bash
+verbx batch augment augment.json --jobs 8
+```
+
+Template shape:
 
 ```json
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://verbx.dev/schema/automation-lanes-v1.json",
-  "title": "verbx automation lanes",
-  "type": "object",
-  "required": ["lanes"],
-  "additionalProperties": true,
-  "properties": {
-    "mode": { "type": "string", "enum": ["sample", "block"] },
-    "block_ms": { "type": "number", "exclusiveMinimum": 0 },
-    "lanes": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "required": ["target", "type"],
-        "properties": {
-          "target": { "type": "string", "minLength": 1 },
-          "type": {
-            "type": "string",
-            "enum": ["breakpoints", "lfo", "envelope", "value", "feature"]
-          },
-          "interp": {
-            "type": "string",
-            "enum": ["linear", "hold", "step", "smooth", "smoothstep", "exp", "exponential"]
-          },
-          "points": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": ["time", "value"],
-              "properties": {
-                "time": { "type": "number", "minimum": 0 },
-                "value": { "type": "number" }
-              },
-              "additionalProperties": true
-            }
-          }
-        },
-        "additionalProperties": true
-      }
+  "version": "0.7",
+  "dataset_name": "verbx_augmented_set",
+  "profile": "asr-reverb-v1",
+  "seed": 20260314,
+  "variants_per_input": 4,
+  "output_root": "augmented_out",
+  "write_analysis": false,
+  "default_options": {
+    "engine": "algo",
+    "repeat": 1,
+    "output_subtype": "float32",
+    "normalize_stage": "none",
+    "output_peak_norm": "input"
+  },
+  "jobs": [
+    {
+      "id": "utt_0001",
+      "infile": "data/clean/utt_0001.wav",
+      "split": "train",
+      "label": "speaker_a",
+      "tags": ["speech", "clean"],
+      "variants": 6,
+      "options": {"rt60": 1.1},
+      "metadata": {"speaker_id": "spk_a", "language": "en"}
     }
-  }
+  ]
 }
 ```
 
-## Notes
+### Required fields
 
-- `jobs[].options` is intentionally open-ended to track `RenderConfig` growth without forcing schema churn.
-- Lane payloads accept additional fields to support advanced lane types (for example, feature-vector controls).
+- `jobs` (non-empty array)
+- For each `jobs[]` item:
+  - `infile` (string path)
+
+### Common optional fields
+
+Top-level:
+- `version` (string)
+- `dataset_name` (string)
+- `profile` (string; one of built-in profiles)
+- `seed` (positive integer)
+- `variants_per_input` (positive integer, max 500)
+- `output_root` (string path)
+- `write_analysis` (boolean)
+- `default_options` (object; merged into each variant)
+
+Per-job:
+- `id`, `source_id` (string)
+- `split` (string; defaults to `train`)
+- `label` (string)
+- `tags` (array of strings)
+- `variants` (positive integer, max 500)
+- `options` (object)
+- `metadata` (object)
+
+---
+
+## 3) Render Automation File (`verbx-automation-v0.7`)
+
+Use with:
+
+```bash
+verbx render in.wav out.wav --automation-file automation.json
+```
+
+Minimal shape:
+
+```json
+{
+  "mode": "block",
+  "block_ms": 20.0,
+  "lanes": [
+    {
+      "target": "wet",
+      "points": [[0.0, 0.2], [2.0, 0.8], [5.0, 0.4]],
+      "curve": "linear"
+    }
+  ]
+}
+```
+
+### Top-level fields
+
+- `mode` (string): `block` or `sample`
+- `block_ms` (number): block size in milliseconds when block mode is active
+- `lanes` (array): one or more automation lanes
+
+### Lane fields (baseline)
+
+- `target` (string): automation target name (`wet`, `dry`, `rt60`, etc.)
+- `points` (array): control points as `[time_seconds, value]`
+- `curve` (string, optional): interpolation mode (for example `linear`)
+
+### Lane fields (feature-vector lanes)
+
+Feature-vector lanes are also allowed and are normalized by feature-lane parsing logic.
+A lane still requires `target`, and includes a source descriptor such as feature source, optional weighting, and bounds/clamp information.
+
+---
+
+## 4) Contract Stability
+
+- These schema ids are maintained for the current public-alpha patch line (`0.7.x`).
+- If a breaking manifest/automation format change is introduced, increment the schema id and document migration notes in this file and `CHANGELOG.md`.
