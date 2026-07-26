@@ -29,6 +29,8 @@ typedef struct {
     int freeze;
     int reverse;
     verbx_plugin_reverb_model reverb_model;
+    double spring_tension;
+    double plate_brightness;
 } verbx_plugin_realtime_params;
 
 typedef struct {

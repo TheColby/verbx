@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.9.5] - 2026-07-26
+
+### Added
+- Native plug-in Spring Tension and Plate Brightness controls are now
+  host-automatable, editor-visible, smoothed in the realtime core, and recalled
+  by the physical-model preset families.
+
 ## [0.9.4] - 2026-07-26
 
 ### Changed

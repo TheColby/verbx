@@ -46,6 +46,8 @@ typedef struct {
     double width;
     double wet_mix;
     double dry_mix;
+    double spring_tension;
+    double plate_brightness;
     float previous_input[VERBX_PLUGIN_MAX_CHANNELS];
     int smoothing_initialized;
 } verbx_plugin_dsp_state;
@@ -284,6 +286,7 @@ static float process_spring_channel(
     double rt60,
     double pre_delay_ms,
     double damping,
+    double tension,
     int freeze
 ) {
     float delayed;
@@ -298,7 +301,8 @@ static float process_spring_channel(
     delayed = process_predelay(channel, freeze ? 0.0f : input, predelay_length);
     stage = delayed;
     for (index = 0U; index < VERBX_PLUGIN_COMB_COUNT; ++index) {
-        const double spring_scale = (0.42 + (0.13 * (double)index)) * room_scale;
+        const double spring_scale = (0.42 + (0.13 * (double)index)) * room_scale
+            * (0.72 + (0.56 * tension));
         size_t length = frames_for_ms(
             sample_rate,
             VERBX_PLUGIN_COMB_MS[index],
@@ -317,7 +321,7 @@ static float process_spring_channel(
             stage,
             length,
             feedback,
-            0.18 + (0.62 * damping)
+            0.30 + (0.48 * damping) - (0.16 * tension)
         );
     }
     return process_allpass(
@@ -338,6 +342,7 @@ static float process_plate_channel(
     double pre_delay_ms,
     double damping,
     double diffusion,
+    double brightness,
     int freeze
 ) {
     float delayed;
@@ -368,7 +373,8 @@ static float process_plate_channel(
             feedback = 0.9985;
         }
         wet += process_comb(
-            &channel->combs[index], delayed, length, feedback, 0.05 + (0.48 * damping)
+            &channel->combs[index], delayed, length, feedback,
+            (0.05 + (0.48 * damping)) * (1.0 - (0.55 * brightness))
         );
     }
     wet /= (float)VERBX_PLUGIN_COMB_COUNT;
@@ -382,7 +388,8 @@ static float process_plate_channel(
             length = channel->allpasses[index].capacity - 1U;
         }
         wet = process_allpass(
-            &channel->allpasses[index], wet, length, 0.48 + (0.36 * diffusion)
+            &channel->allpasses[index], wet, length,
+            0.40 + (0.30 * diffusion) + (0.16 * brightness)
         );
     }
     return wet;
@@ -481,6 +488,8 @@ int verbx_plugin_realtime_process(
     double wet_mix;
     double dry_mix;
     double pre_delay_ms;
+    double spring_tension;
+    double plate_brightness;
     double smoothing;
     size_t oversampling_factor;
     verbx_plugin_reverb_model reverb_model;
@@ -515,6 +524,8 @@ int verbx_plugin_realtime_process(
     wet_mix = verbx_plugin_clamp(params->wet, 0.0, 1.0);
     dry_mix = verbx_plugin_clamp(params->dry, 0.0, 1.0);
     pre_delay_ms = verbx_plugin_clamp(params->pre_delay_ms, 0.0, 1000.0);
+    spring_tension = verbx_plugin_clamp(params->spring_tension, 0.0, 1.0);
+    plate_brightness = verbx_plugin_clamp(params->plate_brightness, 0.0, 1.0);
     reverb_model = params->reverb_model;
     if ((reverb_model != VERBX_PLUGIN_REVERB_MODEL_ALGORITHMIC)
         && (reverb_model != VERBX_PLUGIN_REVERB_MODEL_SPRING)
@@ -550,6 +561,8 @@ int verbx_plugin_realtime_process(
                 dsp_state->width = width;
                 dsp_state->wet_mix = wet_mix;
                 dsp_state->dry_mix = dry_mix;
+                dsp_state->spring_tension = spring_tension;
+                dsp_state->plate_brightness = plate_brightness;
                 dsp_state->smoothing_initialized = 1;
             } else {
                 dsp_state->pre_delay_ms += smoothing * (pre_delay_ms - dsp_state->pre_delay_ms);
@@ -560,6 +573,8 @@ int verbx_plugin_realtime_process(
                 dsp_state->width += smoothing * (width - dsp_state->width);
                 dsp_state->wet_mix += smoothing * (wet_mix - dsp_state->wet_mix);
                 dsp_state->dry_mix += smoothing * (dry_mix - dsp_state->dry_mix);
+                dsp_state->spring_tension += smoothing * (spring_tension - dsp_state->spring_tension);
+                dsp_state->plate_brightness += smoothing * (plate_brightness - dsp_state->plate_brightness);
             }
 
             for (channel = 0U; channel < channels; ++channel) {
@@ -577,6 +592,7 @@ int verbx_plugin_realtime_process(
                         &dsp_state->channels[channel], oversampled_input[channel],
                         context->internal_sample_rate, stereo_scale, dsp_state->room_scale,
                         dsp_state->rt60, dsp_state->pre_delay_ms, dsp_state->damping,
+                        dsp_state->spring_tension,
                         params->freeze ? 1 : 0
                     )
                     : reverb_model == VERBX_PLUGIN_REVERB_MODEL_PLATE
@@ -584,7 +600,7 @@ int verbx_plugin_realtime_process(
                         &dsp_state->channels[channel], oversampled_input[channel],
                         context->internal_sample_rate, stereo_scale, dsp_state->room_scale,
                         dsp_state->rt60, dsp_state->pre_delay_ms, dsp_state->damping,
-                        dsp_state->diffusion, params->freeze ? 1 : 0
+                        dsp_state->diffusion, dsp_state->plate_brightness, params->freeze ? 1 : 0
                     )
                     : process_wet_channel(
                         &dsp_state->channels[channel], oversampled_input[channel],

@@ -744,13 +744,13 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.9.4**.
+Current public alpha release: **v0.9.5**.
 
 Current stabilization status:
 
-- `v0.9.4` adds realtime Algorithmic, Spring, and Plate models to the native
-  plug-in. The model selector is host-automatable and the matching preset
-  families choose their respective topology automatically.
+- `v0.9.5` adds host-automatable Spring Tension and Plate Brightness controls
+  to the native plug-in. Both controls are smoothed in the realtime physical
+  model paths and recalled by the matching preset families.
 - Render-performance budgets and native structural parity are now blocking CI
   gates. Native source-duration floors and analytic ISM timing references have
   focused regression coverage.

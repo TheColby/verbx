@@ -79,6 +79,21 @@ int main(int argc, char* argv[]) {
     }
     modelBox->setSelectedId(1, juce::sendNotificationSync);
 
+    auto* tensionSlider = dynamic_cast<juce::Slider*>(editor->findChildWithID("spring_tension"));
+    auto* brightnessSlider = dynamic_cast<juce::Slider*>(editor->findChildWithID("plate_brightness"));
+    auto* tensionParameter = processor.state().getParameter("spring_tension");
+    auto* brightnessParameter = processor.state().getParameter("plate_brightness");
+    if (tensionSlider == nullptr || brightnessSlider == nullptr
+        || tensionParameter == nullptr || brightnessParameter == nullptr) {
+        return fail("editor did not expose physical-model character controls");
+    }
+    tensionSlider->setValue(0.78, juce::sendNotificationSync);
+    brightnessSlider->setValue(0.31, juce::sendNotificationSync);
+    if (std::abs(tensionParameter->convertFrom0to1(tensionParameter->getValue()) - 0.78f) > 0.001f
+        || std::abs(brightnessParameter->convertFrom0to1(brightnessParameter->getValue()) - 0.31f) > 0.001f) {
+        return fail("physical-model character controls did not update host state");
+    }
+
     auto* wetSlider = dynamic_cast<juce::Slider*>(editor->findChildWithID("wet"));
     auto* wetParameter = processor.state().getParameter("wet");
     if (wetSlider == nullptr || wetParameter == nullptr) {

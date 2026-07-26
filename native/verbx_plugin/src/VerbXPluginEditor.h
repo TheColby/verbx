@@ -132,11 +132,17 @@ private:
     juce::Label qualityLabel_;
     juce::ComboBox modelBox_;
     juce::Label modelLabel_;
+    juce::Slider springTensionSlider_;
+    juce::Slider plateBrightnessSlider_;
+    juce::Label springTensionLabel_;
+    juce::Label plateBrightnessLabel_;
     juce::Label rt60Readout_;
     std::unique_ptr<ButtonAttachment> freezeAttachment_;
     std::unique_ptr<ButtonAttachment> reverseAttachment_;
     std::unique_ptr<ComboBoxAttachment> qualityAttachment_;
     std::unique_ptr<ComboBoxAttachment> modelAttachment_;
+    std::unique_ptr<SliderAttachment> springTensionAttachment_;
+    std::unique_ptr<SliderAttachment> plateBrightnessAttachment_;
 
     void timerCallback() override;
     void configureControls();

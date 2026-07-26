@@ -63,6 +63,8 @@ private:
         std::atomic<float>* reverse = nullptr;
         std::atomic<float>* qualityMode = nullptr;
         std::atomic<float>* reverbModel = nullptr;
+        std::atomic<float>* springTension = nullptr;
+        std::atomic<float>* plateBrightness = nullptr;
     };
 
     juce::AudioProcessorValueTreeState parameters_;

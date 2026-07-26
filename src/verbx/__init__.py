@@ -18,4 +18,4 @@ __all__ = [
     "write_audio",
 ]
 
-__version__ = "0.9.4"
+__version__ = "0.9.5"

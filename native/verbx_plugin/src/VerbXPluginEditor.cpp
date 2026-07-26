@@ -585,6 +585,34 @@ void VerbXPluginEditor::configureControls() {
     addAndMakeVisible(modelBox_);
     modelAttachment_ = std::make_unique<ComboBoxAttachment>(state, "reverb_model", modelBox_);
 
+    const auto configurePhysicalControl = [this](juce::Slider& slider, juce::Label& label,
+                                                  const char* parameterId, const char* text) {
+        slider.setSliderStyle(juce::Slider::LinearHorizontal);
+        slider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 54, 20);
+        slider.textFromValueFunction = [](double value) {
+            return juce::String(value * 100.0, 0) + "%";
+        };
+        slider.valueFromTextFunction = [](const juce::String& value) {
+            return value.getDoubleValue() / 100.0;
+        };
+        slider.setColour(juce::Slider::trackColourId, analyzerMint.withAlpha(0.68f));
+        slider.setColour(juce::Slider::thumbColourId, analyzerGold);
+        slider.setColour(juce::Slider::textBoxTextColourId, consoleText);
+        slider.setColour(juce::Slider::textBoxBackgroundColourId, analyzerInk.withAlpha(0.72f));
+        slider.setComponentID(parameterId);
+        slider.setTooltip("Host-automatable physical-model character control.");
+        addAndMakeVisible(slider);
+        label.setText(text, juce::dontSendNotification);
+        label.setJustificationType(juce::Justification::centredLeft);
+        label.setFont(dataFont(9.5f, juce::Font::bold));
+        label.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
+        addAndMakeVisible(label);
+    };
+    configurePhysicalControl(springTensionSlider_, springTensionLabel_, "spring_tension", "SPRING TENSION");
+    configurePhysicalControl(plateBrightnessSlider_, plateBrightnessLabel_, "plate_brightness", "PLATE BRIGHTNESS");
+    springTensionAttachment_ = std::make_unique<SliderAttachment>(state, "spring_tension", springTensionSlider_);
+    plateBrightnessAttachment_ = std::make_unique<SliderAttachment>(state, "plate_brightness", plateBrightnessSlider_);
+
     qualityLabel_.setText("QUALITY", juce::dontSendNotification);
     qualityLabel_.setJustificationType(juce::Justification::centredLeft);
     qualityLabel_.setFont(dataFont(9.5f, juce::Font::bold));
@@ -819,6 +847,10 @@ void VerbXPluginEditor::updatePageVisibility() {
     qualityLabel_.setVisible(performVisible);
     modelBox_.setVisible(performVisible);
     modelLabel_.setVisible(performVisible);
+    springTensionSlider_.setVisible(performVisible);
+    plateBrightnessSlider_.setVisible(performVisible);
+    springTensionLabel_.setVisible(performVisible);
+    plateBrightnessLabel_.setVisible(performVisible);
     for (auto& button : expertSelectButtons_) {
         button.setVisible(!performVisible);
     }
@@ -1275,6 +1307,10 @@ void VerbXPluginEditor::resized() {
         knobLabels_[static_cast<size_t>(index)].setBounds(mapBounds({x, 478.0f, 84.0f, 16.0f}));
         knobs_[static_cast<size_t>(index)].setBounds(mapBounds({x - 4.0f, 491.0f, 92.0f, 110.0f}));
     }
+    springTensionLabel_.setBounds(mapBounds({1598.0f, 458.0f, 112.0f, 18.0f}));
+    springTensionSlider_.setBounds(mapBounds({1710.0f, 452.0f, 146.0f, 26.0f}));
+    plateBrightnessLabel_.setBounds(mapBounds({1598.0f, 486.0f, 112.0f, 18.0f}));
+    plateBrightnessSlider_.setBounds(mapBounds({1710.0f, 480.0f, 146.0f, 26.0f}));
     modelLabel_.setBounds(mapBounds({1598.0f, 530.0f, 62.0f, 18.0f}));
     modelBox_.setBounds(mapBounds({1660.0f, 523.0f, 196.0f, 32.0f}));
     qualityLabel_.setBounds(mapBounds({1598.0f, 565.0f, 62.0f, 18.0f}));

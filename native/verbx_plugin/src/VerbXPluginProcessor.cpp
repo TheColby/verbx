@@ -198,6 +198,12 @@ void VerbXPluginProcessor::cacheParameterPointers() {
     parameterPointers_.reverbModel = parameters_.getRawParameterValue(
         parameterId(VERBX_PLUGIN_PARAM_REVERB_MODEL)
     );
+    parameterPointers_.springTension = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_SPRING_TENSION)
+    );
+    parameterPointers_.plateBrightness = parameters_.getRawParameterValue(
+        parameterId(VERBX_PLUGIN_PARAM_PLATE_BRIGHTNESS)
+    );
 }
 
 void VerbXPluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
@@ -296,6 +302,8 @@ verbx_plugin_realtime_params VerbXPluginProcessor::currentRealtimeParams() const
         static_cast<int>(VERBX_PLUGIN_REVERB_MODEL_PLATE),
         juce::roundToInt(parameterValue(parameterPointers_.reverbModel))
     ));
+    params.spring_tension = parameterValue(parameterPointers_.springTension);
+    params.plate_brightness = parameterValue(parameterPointers_.plateBrightness);
     return params;
 }
 
@@ -501,6 +509,10 @@ void VerbXPluginProcessor::applyBuiltInProgram(int index) {
               : currentProgram_ >= 100 && currentProgram_ < 132
               ? static_cast<float>(VERBX_PLUGIN_REVERB_MODEL_SPRING)
               : static_cast<float>(VERBX_PLUGIN_REVERB_MODEL_ALGORITHMIC));
+    apply(VERBX_PLUGIN_PARAM_SPRING_TENSION,
+          currentProgram_ >= 100 && currentProgram_ < 132 ? 0.68f : 0.50f);
+    apply(VERBX_PLUGIN_PARAM_PLATE_BRIGHTNESS,
+          currentProgram_ == 2 || (currentProgram_ >= 68 && currentProgram_ < 100) ? 0.82f : 0.65f);
 }
 
 juce::String VerbXPluginProcessor::defaultProgramName(int index) {

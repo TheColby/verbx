@@ -6,7 +6,7 @@ _Last updated: 2026-07-26. Maintained with `README.md`, `CHANGELOG.md`, and the 
 
 ## 1. Release Posture
 
-**Current release:** `v0.9.4`
+**Current release:** `v0.9.5`
 **Status:** public alpha (research-grade)
 **Versioning policy:** semantic prerelease (`0.x` during public alpha)
 
@@ -17,7 +17,17 @@ CLI-selectable realtime duplex auditioning.
 
 ---
 
-## 2. v0.9.4 Native Physical-Model Plug-in Slice
+## 2. v0.9.5 Physical-Model Character Controls
+
+- [x] Add host-automatable Spring Tension and Plate Brightness parameters.
+- [x] Apply character controls inside bounded realtime Spring and Plate DSP
+  paths with callback-safe smoothing.
+- [x] Surface both controls in the plug-in editor and test their host state.
+
+`v0.9.5` deepens physical-model control without changing the plug-in's
+allocation-free realtime contract.
+
+## 2a. v0.9.4 Native Physical-Model Plug-in Slice
 
 - [x] Expose host-automatable Algorithmic, Spring, and Plate realtime models.
 - [x] Add bounded serial spring-tank and parallel dispersive plate topologies
