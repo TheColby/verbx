@@ -22,8 +22,9 @@ int main(int argc, char* argv[]) {
     if (processor.internalSampleRate() != 192000U || processor.oversamplingFactor() != 4U) {
         return fail("default Target quality did not prepare real 4x processing");
     }
-    if (processor.getNumPrograms() != 4 || processor.getProgramName(2) != "Plate") {
-        return fail("processor did not expose the built-in host program bank");
+    if (processor.getNumPrograms() != 260 || processor.getProgramName(2) != "Plate"
+        || processor.getProgramName(132) != "Chamber Dawn") {
+        return fail("processor did not expose the generated host program library");
     }
     processor.setCurrentProgram(2);
     auto* presetWetParameter = processor.state().getParameter("wet");
@@ -31,6 +32,11 @@ int main(int argc, char* argv[]) {
         || std::abs(presetWetParameter->getValue() - 0.42f) > 0.001f) {
         return fail("Plate program did not recall deterministic host parameters");
     }
+    processor.setCurrentProgram(259);
+    if (processor.getCurrentProgram() != 259 || processor.getProgramName(259) != "Tight Infinite") {
+        return fail("last generated host program was not available");
+    }
+    processor.setCurrentProgram(2);
     processor.changeProgramName(2, "Chrome Plate");
     if (processor.getProgramName(2) != "Chrome Plate") {
         return fail("host program names were not editable");

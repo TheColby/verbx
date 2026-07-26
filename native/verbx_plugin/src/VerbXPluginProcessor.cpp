@@ -34,12 +34,63 @@ struct BuiltInProgramValues {
     float qualityMode;
 };
 
-constexpr BuiltInProgramValues builtInPrograms[] = {
-    {20.0f, 0.50f, 0.50f, 0.45f, 1.00f, 0.65f, 0.35f, 0.85f, 0.0f, 0.0f, 3.0f},
-    {12.0f, 0.35f, 0.38f, 0.58f, 0.85f, 0.58f, 0.28f, 0.90f, 0.0f, 0.0f, 2.0f},
-    {4.0f, 0.62f, 0.58f, 0.28f, 1.35f, 0.82f, 0.42f, 0.78f, 0.0f, 0.0f, 3.0f},
-    {0.0f, 0.88f, 0.72f, 0.18f, 1.55f, 0.92f, 0.70f, 0.55f, 1.0f, 0.0f, 3.0f},
-};
+BuiltInProgramValues builtInProgramValues(int index) {
+    if (index == 0) {
+        return {20.0f, 0.50f, 0.50f, 0.45f, 1.00f, 0.65f, 0.35f, 0.85f, 0.0f, 0.0f, 3.0f};
+    }
+    if (index == 1) {
+        return {12.0f, 0.35f, 0.38f, 0.58f, 0.85f, 0.58f, 0.28f, 0.90f, 0.0f, 0.0f, 2.0f};
+    }
+    if (index == 2) {
+        return {4.0f, 0.62f, 0.58f, 0.28f, 1.35f, 0.82f, 0.42f, 0.78f, 0.0f, 0.0f, 3.0f};
+    }
+    if (index == 3) {
+        return {0.0f, 0.88f, 0.72f, 0.18f, 1.55f, 0.92f, 0.70f, 0.55f, 1.0f, 0.0f, 3.0f};
+    }
+
+    const auto variant = index - 4;
+    const auto family = variant / 32;
+    const auto flavor = variant % 32;
+    const auto position = static_cast<float>(flavor) / 31.0f;
+    const auto drift = static_cast<float>((flavor * 13) % 32) / 31.0f;
+    switch (family) {
+        case 0: // rooms
+            return {3.0f + 26.0f * position, 0.18f + 0.32f * drift, 0.22f + 0.28f * position,
+                    0.45f + 0.30f * drift, 0.75f + 0.25f * position, 0.42f + 0.28f * drift,
+                    0.20f + 0.16f * position, 0.92f - 0.14f * position, 0.0f, 0.0f, 2.0f};
+        case 1: // halls
+            return {18.0f + 62.0f * position, 0.52f + 0.35f * drift, 0.48f + 0.28f * position,
+                    0.22f + 0.32f * drift, 1.00f + 0.48f * position, 0.62f + 0.26f * drift,
+                    0.30f + 0.25f * position, 0.84f - 0.16f * position, 0.0f, 0.0f, 3.0f};
+        case 2: // plates
+            return {0.0f + 12.0f * position, 0.42f + 0.28f * drift, 0.42f + 0.26f * position,
+                    0.10f + 0.22f * drift, 1.15f + 0.55f * position, 0.70f + 0.24f * drift,
+                    0.34f + 0.30f * position, 0.82f - 0.18f * position, 0.0f, 0.0f, 3.0f};
+        case 3: // springs
+            return {8.0f + 38.0f * position, 0.20f + 0.36f * drift, 0.20f + 0.24f * position,
+                    0.40f + 0.36f * drift, 0.68f + 0.38f * position, 0.35f + 0.36f * drift,
+                    0.24f + 0.28f * position, 0.88f - 0.18f * position, 0.0f, 0.0f, 2.0f};
+        case 4: // chambers
+            return {6.0f + 34.0f * position, 0.28f + 0.34f * drift, 0.34f + 0.26f * position,
+                    0.32f + 0.30f * drift, 0.82f + 0.32f * position, 0.50f + 0.30f * drift,
+                    0.24f + 0.24f * position, 0.90f - 0.16f * position, 0.0f, 0.0f, 2.0f};
+        case 5: // drones
+            return {0.0f, 0.70f + 0.26f * drift, 0.62f + 0.30f * position,
+                    0.08f + 0.22f * drift, 1.20f + 0.60f * position, 0.72f + 0.22f * drift,
+                    0.48f + 0.35f * position, 0.70f - 0.24f * position,
+                    flavor > 20 ? 1.0f : 0.0f, 0.0f, 3.0f};
+        case 6: // shimmer-style bright spaces
+            return {15.0f + 45.0f * position, 0.52f + 0.32f * drift, 0.50f + 0.30f * position,
+                    0.05f + 0.20f * drift, 1.10f + 0.55f * position, 0.76f + 0.18f * drift,
+                    0.34f + 0.34f * position, 0.82f - 0.18f * position, 0.0f,
+                    flavor % 8 == 0 ? 1.0f : 0.0f, 3.0f};
+        default: // tight and reverse-friendly spaces
+            return {0.0f + 18.0f * position, 0.12f + 0.34f * drift, 0.12f + 0.28f * position,
+                    0.44f + 0.36f * drift, 0.45f + 0.50f * position, 0.28f + 0.42f * drift,
+                    0.18f + 0.30f * position, 0.94f - 0.20f * position, 0.0f,
+                    flavor % 4 == 0 ? 1.0f : 0.0f, 2.0f};
+    }
+}
 
 } // namespace
 
@@ -407,16 +458,17 @@ const juce::String VerbXPluginProcessor::getProgramName(int index) {
     if (index < 0 || index >= builtInProgramCount) {
         return {};
     }
-    return programNames_[static_cast<size_t>(index)];
+    const auto& customName = customProgramNames_[static_cast<size_t>(index)];
+    return customName.isNotEmpty() ? customName : defaultProgramName(index);
 }
 void VerbXPluginProcessor::changeProgramName(int index, const juce::String& newName) {
     if (index >= 0 && index < builtInProgramCount && newName.trim().isNotEmpty()) {
-        programNames_[static_cast<size_t>(index)] = newName.trim();
+        customProgramNames_[static_cast<size_t>(index)] = newName.trim();
     }
 }
 
 void VerbXPluginProcessor::applyBuiltInProgram(int index) {
-    const auto& values = builtInPrograms[static_cast<size_t>(index)];
+    const auto values = builtInProgramValues(index);
     const auto apply = [this](verbx_plugin_parameter_id id, float value) {
         if (auto* parameter = parameters_.getParameter(parameterId(id)); parameter != nullptr) {
             parameter->setValueNotifyingHost(parameter->convertTo0to1(value));
@@ -435,14 +487,40 @@ void VerbXPluginProcessor::applyBuiltInProgram(int index) {
     apply(VERBX_PLUGIN_PARAM_QUALITY_MODE, values.qualityMode);
 }
 
+juce::String VerbXPluginProcessor::defaultProgramName(int index) {
+    static constexpr const char* families[] = {
+        "Room", "Hall", "Plate", "Spring", "Chamber", "Drone", "Shimmer", "Tight"
+    };
+    static constexpr const char* flavors[] = {
+        "Dawn", "Dusk", "Velvet", "Glass", "Stone", "Silver", "Amber", "Mist",
+        "Bloom", "Shadow", "Orbit", "Ember", "Ice", "Satin", "North", "South",
+        "East", "West", "Quiet", "Wide", "Deep", "Bright", "Soft", "Dense",
+        "Open", "Near", "Far", "Slow", "Fast", "Dark", "Clear", "Infinite"
+    };
+    if (index == 0) {
+        return "Default";
+    }
+    if (index == 1) {
+        return "Chamber";
+    }
+    if (index == 2) {
+        return "Plate";
+    }
+    if (index == 3) {
+        return "Infinite";
+    }
+    const auto variant = index - 4;
+    return juce::String(families[variant / 32]) + " " + flavors[variant % 32];
+}
+
 void VerbXPluginProcessor::getStateInformation(juce::MemoryBlock& destData) {
     auto stateXml = parameters_.copyState().createXml();
     stateXml->setAttribute("verbxCurrentProgram", currentProgram_);
     for (int index = 0; index < builtInProgramCount; ++index) {
-        stateXml->setAttribute(
-            "verbxProgramName" + juce::String(index),
-            programNames_[static_cast<size_t>(index)]
-        );
+        const auto& customName = customProgramNames_[static_cast<size_t>(index)];
+        if (customName.isNotEmpty()) {
+            stateXml->setAttribute("verbxProgramName" + juce::String(index), customName);
+        }
     }
     copyXmlToBinary(*stateXml, destData);
 }
@@ -460,10 +538,8 @@ void VerbXPluginProcessor::setStateInformation(const void* data, int sizeInBytes
             );
             for (int index = 0; index < builtInProgramCount; ++index) {
                 const auto key = "verbxProgramName" + juce::String(index);
-                programNames_[static_cast<size_t>(index)] = stateXml->getStringAttribute(
-                    key,
-                    programNames_[static_cast<size_t>(index)]
-                );
+                customProgramNames_[static_cast<size_t>(index)] =
+                    stateXml->getStringAttribute(key, {});
             }
         }
     }
