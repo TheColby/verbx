@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Extracted deterministic FDN delay-layout resolution and fractional circular
+  reads into `fdn_delays.py`, with direct tests for delay extension, seeded
+  comb-cloud layouts, DFM validation, and interpolation.
+
 ## [0.9.3] - 2026-07-26
 
 ### Added

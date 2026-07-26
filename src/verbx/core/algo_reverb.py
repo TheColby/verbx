@@ -44,6 +44,13 @@ from verbx.core.fdn_capabilities import (
     normalize_fdn_link_filter_name,
     normalize_fdn_matrix_name,
 )
+from verbx.core.fdn_delays import (
+    read_fractional_delay,
+    resolve_comb_cloud_delays_ms,
+    resolve_dfm_delays_ms,
+    resolve_diffusion_delays_ms,
+    resolve_fdn_delays_ms,
+)
 from verbx.core.fdn_nonlinearity import (
     apply_feedback_nonlinearity,
     normalize_nonlinearity_mode,
@@ -1190,42 +1197,21 @@ class AlgoReverbEngine(ReverbEngine):
     @classmethod
     def _resolve_fdn_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float64]:
         """Resolve user-configured comb-like FDN delay lengths in milliseconds."""
-        if len(config.comb_delays_ms) > 0:
-            delays = [max(0.1, float(value)) for value in config.comb_delays_ms]
-            return np.asarray(delays, dtype=np.float64)
-
-        requested = max(1, int(config.fdn_lines))
-        defaults = cls._DEFAULT_BASE_DELAY_MS.astype(np.float64).tolist()
-        while len(defaults) < requested:
-            next_delay = (defaults[-1] * 1.11) + 1.25
-            if next_delay <= defaults[-1]:
-                next_delay = defaults[-1] + 0.25
-            defaults.append(next_delay)
-        return np.asarray(defaults[:requested], dtype=np.float64)
+        return resolve_fdn_delays_ms(
+            config.comb_delays_ms,
+            line_count=config.fdn_lines,
+            defaults_ms=cls._DEFAULT_BASE_DELAY_MS,
+        )
 
     @classmethod
     def _resolve_comb_cloud_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float64]:
         """Resolve optional comb-cloud delay lengths for the pre-FDN color stage."""
-        enabled = bool(config.comb_cloud or len(config.comb_cloud_delays_ms) > 0)
-        if not enabled:
-            return np.zeros((0,), dtype=np.float64)
-
-        if len(config.comb_cloud_delays_ms) > 0:
-            delays = [max(0.1, float(value)) for value in config.comb_cloud_delays_ms]
-            return np.asarray(delays, dtype=np.float64)
-
-        requested = max(1, int(config.comb_cloud_count))
-        rng = np.random.default_rng(int(config.comb_cloud_seed))
-        base = np.linspace(7.5, 89.0, requested, dtype=np.float64)
-        spread = rng.uniform(0.94, 1.06, size=requested).astype(np.float64)
-        jitter = rng.uniform(-1.5, 1.5, size=requested).astype(np.float64)
-        delays = np.clip((base * spread) + jitter, 3.0, 120.0)
-        delays.sort()
-        for index in range(1, requested):
-            minimum = delays[index - 1] + 0.35
-            if delays[index] < minimum:
-                delays[index] = minimum
-        return np.asarray(np.clip(delays, 3.0, 120.0), dtype=np.float64)
+        return resolve_comb_cloud_delays_ms(
+            config.comb_cloud_delays_ms,
+            enabled=bool(config.comb_cloud or config.comb_cloud_delays_ms),
+            count=config.comb_cloud_count,
+            seed=config.comb_cloud_seed,
+        )
 
     @staticmethod
     def _resolve_dfm_delay_ms(
@@ -1233,21 +1219,7 @@ class AlgoReverbEngine(ReverbEngine):
         line_count: int,
     ) -> npt.NDArray[np.float64]:
         """Resolve delay-feedback-matrix (DFM) delays for each FDN line."""
-        if len(config.fdn_dfm_delays_ms) == 0:
-            return np.zeros((0,), dtype=np.float64)
-
-        delays = [max(0.05, float(value)) for value in config.fdn_dfm_delays_ms]
-        if len(delays) == 1 and line_count > 1:
-            delays = delays * line_count
-
-        if len(delays) != line_count:
-            msg = (
-                "fdn_dfm_delays_ms length must be 1 or match FDN line count "
-                f"({line_count}), got {len(delays)}"
-            )
-            raise ValueError(msg)
-
-        return np.asarray(delays, dtype=np.float64)
+        return resolve_dfm_delays_ms(config.fdn_dfm_delays_ms, line_count=line_count)
 
     @staticmethod
     def _resolve_multiband_rt60(
@@ -1381,21 +1353,11 @@ class AlgoReverbEngine(ReverbEngine):
     @classmethod
     def _resolve_diffusion_delay_ms(cls, config: AlgoReverbConfig) -> npt.NDArray[np.float64]:
         """Resolve user-configured allpass diffusion delay lengths in milliseconds."""
-        requested = max(0, int(config.allpass_stages))
-        if requested == 0:
-            return np.zeros((0,), dtype=np.float64)
-
-        if len(config.allpass_delays_ms) > 0:
-            delays = [max(0.1, float(value)) for value in config.allpass_delays_ms]
-        else:
-            delays = cls._DEFAULT_DIFFUSION_DELAY_MS.astype(np.float64).tolist()
-
-        while len(delays) < requested:
-            next_delay = (delays[-1] * 1.28) + 0.75
-            if next_delay <= delays[-1]:
-                next_delay = delays[-1] + 0.2
-            delays.append(next_delay)
-        return np.asarray(delays[:requested], dtype=np.float64)
+        return resolve_diffusion_delays_ms(
+            config.allpass_delays_ms,
+            stage_count=config.allpass_stages,
+            defaults_ms=cls._DEFAULT_DIFFUSION_DELAY_MS,
+        )
 
     @staticmethod
     def _resolve_allpass_gains(
@@ -2237,13 +2199,7 @@ class AlgoReverbEngine(ReverbEngine):
         buffer: AudioArray, write_index: int, delay_samples: float
     ) -> np.float64:
         """Read from a circular delay line with linear interpolation."""
-        size = buffer.shape[0]
-        read_pos = (float(write_index) - delay_samples) % size
-        idx0 = int(np.floor(read_pos))
-        idx1 = (idx0 + 1) % size
-        frac = np.float64(read_pos - idx0)
-        sample = (np.float64(1.0) - frac) * buffer[idx0] + frac * buffer[idx1]
-        return np.float64(sample)
+        return read_fractional_delay(buffer, write_index, delay_samples)
 
 
 @_maybe_njit

@@ -115,7 +115,8 @@ Patch line opened 2026-03-30. Items below are the active focus.
   `test_proxy_stream_parity.py` to cover convolution peak/RMS tail paths).
 - [x] Extract FDN nonlinearity and spatial-coupling helpers into dedicated,
   directly tested modules.
-- [ ] Extract the remaining algorithmic delay kernel from `algo_reverb.py`.
+- [x] Extract pure FDN delay-layout and fractional-read helpers into
+  `fdn_delays.py`, retaining engine compatibility wrappers and direct contracts.
 
 ## 4a. v0.7.6 Patch Line (Completed)
 
