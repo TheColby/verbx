@@ -744,13 +744,13 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.9.3**.
+Current public alpha release: **v0.9.4**.
 
 Current stabilization status:
 
-- `v0.9.3` fixes partial-partition convolution streaming so its samples, tail
-  timing, and exact-zero hold match the in-memory render path. It also moves a
-  cohesive parser/choice-validation cluster out of the legacy CLI module.
+- `v0.9.4` adds realtime Algorithmic, Spring, and Plate models to the native
+  plug-in. The model selector is host-automatable and the matching preset
+  families choose their respective topology automatically.
 - Render-performance budgets and native structural parity are now blocking CI
   gates. Native source-duration floors and analytic ISM timing references have
   focused regression coverage.

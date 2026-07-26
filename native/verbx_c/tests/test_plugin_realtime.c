@@ -65,6 +65,7 @@ int main(void) {
     size_t frame;
     double wet_energy = 0.0;
     double spring_energy = 0.0;
+    double plate_energy = 0.0;
 
     memset(&context, 0, sizeof(context));
     memset(&config, 0, sizeof(config));
@@ -192,6 +193,35 @@ int main(void) {
         return 1;
     }
     if (require_true(fabs(spring_energy - wet_energy) > 0.001, "spring topology should differ from algorithmic") != 0) {
+        return 1;
+    }
+    params.reverb_model = VERBX_PLUGIN_REVERB_MODEL_ALGORITHMIC;
+
+    verbx_plugin_realtime_reset(&context);
+    params.reverb_model = VERBX_PLUGIN_REVERB_MODEL_PLATE;
+    for (frame = 0U; frame < 4096U; frame += 4U) {
+        size_t local;
+        in_l[0] = frame == 0U ? 1.0f : 0.0f;
+        in_r[0] = frame == 0U ? 1.0f : 0.0f;
+        in_l[1] = in_l[2] = in_l[3] = 0.0f;
+        in_r[1] = in_r[2] = in_r[3] = 0.0f;
+        if (require_true(
+                verbx_plugin_realtime_process(&context, inputs, outputs, 4U, 2U, &params, &status) == 0,
+                "plate impulse processing should succeed"
+            ) != 0) {
+            return 1;
+        }
+        for (local = 0U; local < 4U; ++local) {
+            plate_energy += fabs((double)out_l[local]) + fabs((double)out_r[local]);
+        }
+    }
+    if (require_true(plate_energy > 0.01, "plate impulse should produce a reverb tail") != 0) {
+        return 1;
+    }
+    if (require_true(status.reverb_model == VERBX_PLUGIN_REVERB_MODEL_PLATE, "plate status mismatch") != 0) {
+        return 1;
+    }
+    if (require_true(fabs(plate_energy - wet_energy) > 0.001, "plate topology should differ from algorithmic") != 0) {
         return 1;
     }
     params.reverb_model = VERBX_PLUGIN_REVERB_MODEL_ALGORITHMIC;

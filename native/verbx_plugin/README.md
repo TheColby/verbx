@@ -80,8 +80,8 @@ mix routing, and tail character.
   Target 192 kHz / 32-bit-float processing contract
 - RT60 coarse/fine mapping from `0.01s` to `360s`
 - visible Freeze and Reverse mode parameters
-- host-visible `Reverb Model` selector with dedicated realtime Algorithmic and
-  Spring topologies; Spring programs in the preset library select it directly
+- host-visible `Reverb Model` selector with dedicated realtime Algorithmic,
+  Spring, and Plate topologies; matching preset families select them directly
 - 260 host-visible programs: four immediate-reference programs plus 256
   deterministic room, hall, plate, spring, chamber, drone, shimmer, and tight
   variations. All support editable host names and state recall.

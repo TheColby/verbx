@@ -39,7 +39,8 @@ typedef enum {
 
 typedef enum {
     VERBX_PLUGIN_REVERB_MODEL_ALGORITHMIC = 0,
-    VERBX_PLUGIN_REVERB_MODEL_SPRING = 1
+    VERBX_PLUGIN_REVERB_MODEL_SPRING = 1,
+    VERBX_PLUGIN_REVERB_MODEL_PLATE = 2
 } verbx_plugin_reverb_model;
 
 typedef struct {

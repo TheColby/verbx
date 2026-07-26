@@ -34,8 +34,13 @@ int main(int argc, char* argv[]) {
     }
     auto* modelParameter = processor.state().getParameter("reverb_model");
     processor.setCurrentProgram(100);
-    if (modelParameter == nullptr || modelParameter->getValue() < 0.99f) {
+    if (modelParameter == nullptr
+        || std::abs(modelParameter->convertFrom0to1(modelParameter->getValue()) - 1.0f) > 0.001f) {
         return fail("Spring preset family did not select the spring model");
+    }
+    processor.setCurrentProgram(68);
+    if (std::abs(modelParameter->convertFrom0to1(modelParameter->getValue()) - 2.0f) > 0.001f) {
+        return fail("Plate preset family did not select the plate model");
     }
     processor.setCurrentProgram(259);
     if (processor.getCurrentProgram() != 259 || processor.getProgramName(259) != "Tight Infinite") {
@@ -65,8 +70,12 @@ int main(int argc, char* argv[]) {
         return fail("editor did not expose the Reverb Model selector");
     }
     modelBox->setSelectedId(2, juce::sendNotificationSync);
-    if (modelParameter->getValue() < 0.99f) {
+    if (std::abs(modelParameter->convertFrom0to1(modelParameter->getValue()) - 1.0f) > 0.001f) {
         return fail("Spring model selector did not update host state");
+    }
+    modelBox->setSelectedId(3, juce::sendNotificationSync);
+    if (std::abs(modelParameter->convertFrom0to1(modelParameter->getValue()) - 2.0f) > 0.001f) {
+        return fail("Plate model selector did not update host state");
     }
     modelBox->setSelectedId(1, juce::sendNotificationSync);
 

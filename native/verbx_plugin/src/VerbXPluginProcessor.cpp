@@ -134,7 +134,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout VerbXPluginProcessor::create
             ));
         } else if (parameter->kind == VERBX_PLUGIN_PARAMETER_CHOICE) {
             const auto choices = parameter->id == VERBX_PLUGIN_PARAM_REVERB_MODEL
-                ? juce::StringArray{"Algorithmic", "Spring"}
+                ? juce::StringArray{"Algorithmic", "Spring", "Plate"}
                 : juce::StringArray{"Host", "2x", "4x", "Target 192 kHz"};
             layout.push_back(std::make_unique<juce::AudioParameterChoice>(
                 id,
@@ -293,7 +293,7 @@ verbx_plugin_realtime_params VerbXPluginProcessor::currentRealtimeParams() const
     params.reverse = parameterValue(parameterPointers_.reverse) >= 0.5f ? 1 : 0;
     params.reverb_model = static_cast<verbx_plugin_reverb_model>(juce::jlimit(
         static_cast<int>(VERBX_PLUGIN_REVERB_MODEL_ALGORITHMIC),
-        static_cast<int>(VERBX_PLUGIN_REVERB_MODEL_SPRING),
+        static_cast<int>(VERBX_PLUGIN_REVERB_MODEL_PLATE),
         juce::roundToInt(parameterValue(parameterPointers_.reverbModel))
     ));
     return params;
@@ -496,7 +496,9 @@ void VerbXPluginProcessor::applyBuiltInProgram(int index) {
     apply(VERBX_PLUGIN_PARAM_REVERSE, values.reverse);
     apply(VERBX_PLUGIN_PARAM_QUALITY_MODE, values.qualityMode);
     apply(VERBX_PLUGIN_PARAM_REVERB_MODEL,
-          currentProgram_ >= 100 && currentProgram_ < 132
+          currentProgram_ == 2 || (currentProgram_ >= 68 && currentProgram_ < 100)
+              ? static_cast<float>(VERBX_PLUGIN_REVERB_MODEL_PLATE)
+              : currentProgram_ >= 100 && currentProgram_ < 132
               ? static_cast<float>(VERBX_PLUGIN_REVERB_MODEL_SPRING)
               : static_cast<float>(VERBX_PLUGIN_REVERB_MODEL_ALGORITHMIC));
 }

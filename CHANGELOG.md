@@ -4,7 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-07-26
+
 ### Changed
+- The native JUCE plug-in now provides a realtime Plate model alongside its
+  Algorithmic and Spring models. Plate programs select it automatically.
 - The native JUCE plug-in now includes a host-automatable `Reverb Model`
   selector and a dedicated realtime spring-tank topology. The Spring preset
   family selects the spring engine automatically.

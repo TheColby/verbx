@@ -6,7 +6,7 @@ _Last updated: 2026-07-26. Maintained with `README.md`, `CHANGELOG.md`, and the 
 
 ## 1. Release Posture
 
-**Current release:** `v0.9.3`
+**Current release:** `v0.9.4`
 **Status:** public alpha (research-grade)
 **Versioning policy:** semantic prerelease (`0.x` during public alpha)
 
@@ -17,7 +17,19 @@ CLI-selectable realtime duplex auditioning.
 
 ---
 
-## 2. v0.9.3 Streaming Parity and CLI Decomposition Slice
+## 2. v0.9.4 Native Physical-Model Plug-in Slice
+
+- [x] Expose host-automatable Algorithmic, Spring, and Plate realtime models.
+- [x] Add bounded serial spring-tank and parallel dispersive plate topologies
+  to the shared native realtime core.
+- [x] Wire Spring and Plate preset families to their matching models and cover
+  host-state, C realtime, and JUCE editor interactions.
+
+`v0.9.4` is a focused native plug-in expansion. The realtime physical models
+remain intentionally bounded approximations; offline modal FE remains the
+high-detail sound-design path.
+
+## 2a. v0.9.3 Streaming Parity and CLI Decomposition Slice
 
 - [x] Enforce full-pipeline convolution streaming/in-memory parity for peak
   and RMS tail completion.

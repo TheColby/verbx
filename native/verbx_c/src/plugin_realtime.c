@@ -328,6 +328,66 @@ static float process_spring_channel(
     );
 }
 
+static float process_plate_channel(
+    verbx_plugin_channel *channel,
+    float input,
+    unsigned int sample_rate,
+    double stereo_scale,
+    double room_scale,
+    double rt60,
+    double pre_delay_ms,
+    double damping,
+    double diffusion,
+    int freeze
+) {
+    float delayed;
+    float wet = 0.0f;
+    size_t index;
+    size_t predelay_length = pre_delay_ms <= 0.0
+        ? 0U
+        : frames_for_ms(sample_rate, pre_delay_ms, 0.18);
+    if (predelay_length >= channel->predelay_capacity) {
+        predelay_length = channel->predelay_capacity - 1U;
+    }
+    delayed = process_predelay(channel, freeze ? 0.0f : input, predelay_length);
+    for (index = 0U; index < VERBX_PLUGIN_COMB_COUNT; ++index) {
+        const double plate_scale = (0.68 + (0.09 * (double)index)) * room_scale;
+        size_t length = frames_for_ms(
+            sample_rate,
+            VERBX_PLUGIN_COMB_MS[index],
+            stereo_scale * plate_scale
+        );
+        double delay_seconds;
+        double feedback;
+        if (length >= channel->combs[index].capacity) {
+            length = channel->combs[index].capacity - 1U;
+        }
+        delay_seconds = (double)length / (double)sample_rate;
+        feedback = freeze ? 0.9995 : pow(10.0, (-3.0 * delay_seconds) / rt60);
+        if (feedback > 0.9985) {
+            feedback = 0.9985;
+        }
+        wet += process_comb(
+            &channel->combs[index], delayed, length, feedback, 0.05 + (0.48 * damping)
+        );
+    }
+    wet /= (float)VERBX_PLUGIN_COMB_COUNT;
+    for (index = 0U; index < VERBX_PLUGIN_ALLPASS_COUNT; ++index) {
+        size_t length = frames_for_ms(
+            sample_rate,
+            VERBX_PLUGIN_ALLPASS_MS[index],
+            stereo_scale * (0.82 + (0.18 * room_scale))
+        );
+        if (length >= channel->allpasses[index].capacity) {
+            length = channel->allpasses[index].capacity - 1U;
+        }
+        wet = process_allpass(
+            &channel->allpasses[index], wet, length, 0.48 + (0.36 * diffusion)
+        );
+    }
+    return wet;
+}
+
 int verbx_plugin_realtime_prepare(
     verbx_plugin_realtime_context *context,
     const verbx_plugin_realtime_config *config,
@@ -457,7 +517,8 @@ int verbx_plugin_realtime_process(
     pre_delay_ms = verbx_plugin_clamp(params->pre_delay_ms, 0.0, 1000.0);
     reverb_model = params->reverb_model;
     if ((reverb_model != VERBX_PLUGIN_REVERB_MODEL_ALGORITHMIC)
-        && (reverb_model != VERBX_PLUGIN_REVERB_MODEL_SPRING)) {
+        && (reverb_model != VERBX_PLUGIN_REVERB_MODEL_SPRING)
+        && (reverb_model != VERBX_PLUGIN_REVERB_MODEL_PLATE)) {
         return -1;
     }
     oversampling_factor = context->oversampling_factor;
@@ -517,6 +578,13 @@ int verbx_plugin_realtime_process(
                         context->internal_sample_rate, stereo_scale, dsp_state->room_scale,
                         dsp_state->rt60, dsp_state->pre_delay_ms, dsp_state->damping,
                         params->freeze ? 1 : 0
+                    )
+                    : reverb_model == VERBX_PLUGIN_REVERB_MODEL_PLATE
+                    ? process_plate_channel(
+                        &dsp_state->channels[channel], oversampled_input[channel],
+                        context->internal_sample_rate, stereo_scale, dsp_state->room_scale,
+                        dsp_state->rt60, dsp_state->pre_delay_ms, dsp_state->damping,
+                        dsp_state->diffusion, params->freeze ? 1 : 0
                     )
                     : process_wet_channel(
                         &dsp_state->channels[channel], oversampled_input[channel],

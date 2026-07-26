@@ -575,7 +575,7 @@ void VerbXPluginEditor::configureControls() {
     addAndMakeVisible(qualityBox_);
     qualityAttachment_ = std::make_unique<ComboBoxAttachment>(state, "quality_mode", qualityBox_);
 
-    modelBox_.addItemList({"Algorithmic", "Spring"}, 1);
+    modelBox_.addItemList({"Algorithmic", "Spring", "Plate"}, 1);
     modelBox_.setLookAndFeel(&lookAndFeel_);
     modelBox_.setComponentID("reverb_model");
     modelBox_.setTooltip("Select the realtime reverb topology.");
