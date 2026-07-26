@@ -33,6 +33,7 @@ jobs:
         run: |
           python scripts/check_release_health.py \
             --tag "${{ github.ref_name }}" \
+            --skip-homebrew \
             --skip-twine
 
       - name: Build sdist and wheel
@@ -46,6 +47,7 @@ jobs:
         run: |
           python scripts/check_release_health.py \
             --tag "${{ github.ref_name }}" \
+            --skip-homebrew \
             --dist-dir dist/
 
       - name: Upload build artifacts
@@ -193,15 +195,15 @@ jobs:
           FORMULA_SOURCE="packaging/homebrew/verbx.rb"
           FORMULA_TARGET="Formula/verbx.rb"
 
-          if ! grep -q "refs/tags/${TAG}.tar.gz" "${FORMULA_SOURCE}"; then
-            echo "Formula ${FORMULA_SOURCE} is not pinned to tag ${TAG}." >&2
-            echo "Please refresh formula before tagging release." >&2
-            exit 2
-          fi
+          SOURCE_URL="https://github.com/TheColby/verbx/archive/refs/tags/${TAG}.tar.gz"
+          curl -fsSL "${SOURCE_URL}" -o source.tar.gz
+          SOURCE_SHA256="$(sha256sum source.tar.gz | awk '{print $1}')"
 
           git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${TAP_REPO}.git" tap
           mkdir -p "tap/Formula"
           cp "${FORMULA_SOURCE}" "tap/${FORMULA_TARGET}"
+          sed -i "s|^  url \".*\"$|  url \"${SOURCE_URL}\"|" "tap/${FORMULA_TARGET}"
+          sed -i "s|^  sha256 \".*\"$|  sha256 \"${SOURCE_SHA256}\"|" "tap/${FORMULA_TARGET}"
 
           cd tap
           if git diff --quiet -- "${FORMULA_TARGET}"; then

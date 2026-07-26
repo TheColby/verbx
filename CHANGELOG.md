@@ -59,6 +59,10 @@ All notable changes to this project are documented in this file.
   2–40-second value or no bound.
 - Repository typography checks exclude the project-local uv dependency cache,
   so documentation generation is independent of installed package contents.
+- Tagged release automation now computes the GitHub source-archive checksum
+  after the tag exists and rewrites the separate tap formula during sync,
+  removing the circular requirement for a release tag to contain its own
+  archive checksum.
 - Shimmer's block-local safety limiter no longer applies lookahead that can
   erase blocks shorter than the lookahead window; intentional unsafe
   self-oscillation also remains observable instead of being flattened by that
