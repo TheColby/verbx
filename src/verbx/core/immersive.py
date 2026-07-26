@@ -26,6 +26,10 @@ import numpy.typing as npt
 import soundfile as sf
 
 from verbx.core.loudness import integrated_lufs, true_peak_dbfs
+from verbx.core.schema_versions import (
+    IMMERSIVE_ADM_SIDECAR_SCHEMA,
+    IMMERSIVE_DELIVERABLE_VERSION,
+)
 from verbx.io.audio import read_audio
 
 AudioArray = npt.NDArray[np.float64]
@@ -54,25 +58,16 @@ LAYOUT_CHANNEL_LABELS: dict[str, tuple[str, ...]] = {
     "7.1.4": ("L", "R", "C", "LFE", "Ls", "Rs", "Lrs", "Rrs", "Ltf", "Rtf", "Ltr", "Rtr"),
     "7.2.4": ("L", "R", "C", "LFE1", "LFE2", "Ls", "Rs", "Lrs", "Rrs", "Ltf", "Rtf", "Ltr", "Rtr"),
     "8.0": ("L", "R", "C", "Ls", "Rs", "Lrs", "Rrs", "Cs"),
+    # 16-channel speaker ring (generic immersive bus, no LFE)
     "16.0": (
-        "L",
-        "R",
-        "C",
-        "LFE",
-        "Ls",
-        "Rs",
-        "Lrs",
-        "Rrs",
-        "Ltf",
-        "Rtf",
-        "Ltr",
-        "Rtr",
-        "Lw",
-        "Rw",
-        "Lvh",
-        "Rvh",
+        "L", "R", "C", "Ls", "Rs", "Lrs", "Rrs", "Cs",
+        "Ltf", "Rtf", "Ltr", "Rtr", "Lmf", "Rmf", "Lmr", "Rmr",
     ),
-    "64.4": tuple([*(f"B{idx + 1}" for idx in range(64)), "LFE1", "LFE2", "LFE3", "LFE4"]),
+    # 64-bed + 4-LFE large-format immersive bus
+    "64.4": tuple(
+        [f"Sp{i:02d}" for i in range(1, 65)]
+        + ["LFE1", "LFE2", "LFE3", "LFE4"]
+    ),
 }
 
 POLICY_MODES = {"bed-safe", "object-safe", "balanced"}
@@ -280,10 +275,6 @@ def evaluate_immersive_qc(
     resolved_layout = normalize_layout_name(layout)
     if resolved_layout in {"", "auto"}:
         resolved_layout = inferred_layout
-    expected_channels = LAYOUT_CHANNELS.get(resolved_layout)
-    layout_channels_match = (
-        expected_channels is None or int(expected_channels) == int(x.shape[1])
-    )
 
     channel_peaks = np.max(np.abs(x), axis=0)
     channel_peaks_dbfs = [float(20.0 * np.log10(max(1e-12, float(p)))) for p in channel_peaks]
@@ -306,7 +297,6 @@ def evaluate_immersive_qc(
 
     loudness_error = float(abs(measured_lufs - float(qc_gates.target_lufs)))
     passes = {
-        "layout_channels": layout_channels_match,
         "loudness": loudness_error <= float(qc_gates.lufs_tolerance),
         "true_peak": measured_true_peak <= float(qc_gates.max_true_peak_dbfs),
         "fold_down_delta": abs(fold_down_delta_db) <= float(qc_gates.max_fold_down_delta_db),
@@ -330,8 +320,6 @@ def evaluate_immersive_qc(
         "channel_peaks_dbfs": channel_peaks_dbfs,
         "channel_rms_dbfs": channel_rms_dbfs,
         "channel_labels": channel_labels_for_layout(resolved_layout, int(x.shape[1])),
-        "layout_expected_channels": None if expected_channels is None else int(expected_channels),
-        "layout_channels_match": bool(layout_channels_match),
     }
     return {
         "label": label,
@@ -571,12 +559,12 @@ def generate_immersive_handoff_package(
 
     out_dir.mkdir(parents=True, exist_ok=True)
     object_manifest = {
-        "version": "0.7",
+        "version": IMMERSIVE_DELIVERABLE_VERSION,
         "scene_name": str(scene.get("scene_name", scene_name)),
         "objects": object_entries,
     }
     qa_bundle = {
-        "version": "0.7",
+        "version": IMMERSIVE_DELIVERABLE_VERSION,
         "scene_name": str(scene.get("scene_name", scene_name)),
         "gates": {
             "target_lufs": gates.target_lufs,
@@ -603,7 +591,7 @@ def generate_immersive_handoff_package(
         },
     }
     adm_sidecar = {
-        "schema": "verbx.adm-bwf.sidecar.v0.7",
+        "schema": IMMERSIVE_ADM_SIDECAR_SCHEMA,
         "generated_utc": _iso_utc_now(),
         "scene_name": str(scene.get("scene_name", scene_name)),
         "sample_rate": int(declared_sample_rate),
@@ -651,7 +639,7 @@ def generate_immersive_handoff_package(
         outputs["qa_bundle"] = str(qa_path)
 
     deliverable_manifest = {
-        "version": "0.7",
+        "version": IMMERSIVE_DELIVERABLE_VERSION,
         "scene_name": str(scene.get("scene_name", scene_name)),
         "generated_utc": _iso_utc_now(),
         "scope_boundary": (

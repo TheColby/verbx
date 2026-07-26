@@ -17,6 +17,7 @@ def test_readme_includes_key_batch_corpus_generate_flags() -> None:
     for flag in ["--retries", "--num-shards", "--shard-index", "--checkpoint-file", "--resume"]:
         assert flag in help_text
         assert flag in readme
+    assert "--execution-profile" in readme
 
 
 def test_readme_includes_key_quickstart_flags() -> None:
@@ -39,4 +40,10 @@ def test_readme_includes_large_bus_layout_examples_and_guides() -> None:
         "docs/notebooks/README.md",
         "docs/SOFA_FEASIBILITY.md",
     ]:
+        assert token in readme
+
+
+def test_readme_includes_sofa_commands() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    for token in ["verbx ir sofa-inspect", "verbx ir sofa-convert"]:
         assert token in readme

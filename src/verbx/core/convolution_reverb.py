@@ -53,6 +53,31 @@ class _StreamConvolverState:
 
 
 @dataclass(slots=True)
+class LiveConvolutionProcessor:
+    """Stateful block processor used by real-time duplex monitoring."""
+
+    engine: ConvolutionReverbEngine
+    states: list[list[_StreamConvolverState | None]]
+    input_channels: int
+    output_channels: int
+    frame_cursor: int = 0
+
+    def process_block(self, block: AudioArray) -> AudioArray:
+        """Process one live input block while preserving convolution state."""
+        x = ensure_mono_or_stereo(block)
+        samples = int(x.shape[0])
+        if samples <= 0:
+            return np.zeros((0, self.output_channels), dtype=np.float64)
+
+        wet = self.engine.live_accumulate_wet(self.states, x, self.output_channels)
+        dry = self.engine.live_build_dry(x, self.output_channels, out_len=samples)
+        output = (self.engine.live_dry_mix * dry) + (self.engine.live_wet_mix * wet)
+        output = np.nan_to_num(output, nan=0.0, posinf=0.0, neginf=0.0)
+        self.frame_cursor += samples
+        return np.asarray(output, dtype=np.float64)
+
+
+@dataclass(slots=True)
 class ConvolutionReverbConfig:
     """Configuration for the convolution engine."""
 
@@ -167,11 +192,83 @@ class ConvolutionReverbEngine(ReverbEngine):
         """Return selected convolution backend."""
         return self._backend
 
+    @property
+    def live_wet_mix(self) -> float:
+        """Expose configured wet gain for realtime processors."""
+        return float(self._config.wet)
+
+    @property
+    def live_dry_mix(self) -> float:
+        """Expose configured dry gain for realtime processors."""
+        return float(self._config.dry)
+
+    def live_accumulate_wet(
+        self,
+        states: list[list[_StreamConvolverState | None]],
+        block: AudioArray,
+        out_channels: int,
+    ) -> AudioArray:
+        """Public realtime wrapper around the internal streaming accumulator."""
+        return self._stream_accumulate_wet(states, block, out_channels)
+
+    def live_build_dry(self, block: AudioArray, out_channels: int, *, out_len: int) -> AudioArray:
+        """Build dry path aligned to the realtime output channel layout."""
+        return self._build_dry_for_output(
+            block,
+            out_channels,
+            out_len=out_len,
+            in_layout=self._config.input_layout,
+            out_layout=self._config.output_layout,
+        )
+
+    def create_live_processor(self, *, input_channels: int, sr: int) -> LiveConvolutionProcessor:
+        """Build a stateful streaming processor for real-time duplex use."""
+        if self._config.ir_path is None:
+            msg = "Convolution engine requires --ir PATH"
+            raise ValueError(msg)
+        if self._config.route_start is not None or self._config.route_end is not None:
+            msg = "Realtime mode does not yet support convolution route trajectories."
+            raise ValueError(msg)
+
+        ir = self._load_ir(self._config.ir_path, sr)
+        ir = self._prepare_ambisonic_ir(ir)
+        if self._config.tail_limit is not None:
+            max_tail = max(0, int(self._config.tail_limit * sr))
+            ir = ir[: max_tail + 1, :]
+        ir = self._normalize_ir(ir, self._config.ir_normalize)
+        ir_matrix, out_channels = self._build_ir_matrix(
+            ir=ir,
+            input_channels=input_channels,
+            layout=self._config.ir_matrix_layout,
+            route_map=self._config.ir_route_map,
+            expected_in_layout=self._config.input_layout,
+            expected_out_layout=self._config.output_layout,
+        )
+
+        partition_size = max(256, int(self._config.partition_size))
+        states: list[list[_StreamConvolverState | None]] = []
+        for in_idx in range(input_channels):
+            row: list[_StreamConvolverState | None] = []
+            for out_idx in range(out_channels):
+                ir_vec = ir_matrix[in_idx, out_idx, :]
+                if np.any(np.abs(ir_vec) > 0.0):
+                    row.append(self._build_stream_state(ir=ir_vec, partition_size=partition_size))
+                else:
+                    row.append(None)
+            states.append(row)
+        return LiveConvolutionProcessor(
+            engine=self,
+            states=states,
+            input_channels=input_channels,
+            output_channels=out_channels,
+        )
+
     def process_streaming_file(
         self,
         infile: str,
         outfile: str,
         output_subtype: str | None = None,
+        output_format: str | None = None,
     ) -> dict[str, int | float]:
         """Process file via block streaming.
 
@@ -186,7 +283,7 @@ class ConvolutionReverbEngine(ReverbEngine):
             # is CPU-only for now.
             audio, sr = sf.read(infile, always_2d=True, dtype="float64")
             rendered = self.process(np.asarray(audio, dtype=np.float64), int(sr))
-            sf.write(outfile, rendered, int(sr), subtype=output_subtype)
+            sf.write(outfile, rendered, int(sr), subtype=output_subtype, format=output_format)
             peak = float(np.max(np.abs(audio))) if audio.size > 0 else 0.0
             return {
                 "sample_rate": int(sr),
@@ -240,6 +337,7 @@ class ConvolutionReverbEngine(ReverbEngine):
                 samplerate=sr,
                 channels=out_channels,
                 subtype=output_subtype,
+                format=output_format,
             ) as dst:
                 for block in src.blocks(
                     blocksize=partition_size,
@@ -526,6 +624,12 @@ class ConvolutionReverbEngine(ReverbEngine):
             raise ValueError(msg)
 
         in_l = expected_in_layout.lower()
+        if in_l not in {"auto", *LAYOUT_CHANNELS.keys()}:
+            msg = (
+                f"Unsupported input layout '{expected_in_layout}'. "
+                f"Supported: auto, {', '.join(sorted(LAYOUT_CHANNELS))}."
+            )
+            raise ValueError(msg)
         if in_l != "auto" and in_l in LAYOUT_CHANNELS:
             if input_channels != LAYOUT_CHANNELS[in_l]:
                 msg = (
@@ -534,7 +638,31 @@ class ConvolutionReverbEngine(ReverbEngine):
                 )
                 raise ValueError(msg)
 
+        out_l = expected_out_layout.lower()
+        if out_l not in {"auto", *LAYOUT_CHANNELS.keys()}:
+            msg = (
+                f"Unsupported output layout '{expected_out_layout}'. "
+                f"Supported: auto, {', '.join(sorted(LAYOUT_CHANNELS))}."
+            )
+            raise ValueError(msg)
+
         expected_out_ch = self._resolve_layout_channels(expected_out_layout)
+
+        if (
+            route == "auto"
+            and expected_out_ch is not None
+            and expected_out_ch >= 16
+            and ir_channels in {1, input_channels}
+        ):
+            msg = (
+                "Auto route-map is ambiguous for large output layouts when IR channels are "
+                "mono or equal to input channels. "
+                "Output layout="
+                f"{out_l}, input_channels={input_channels}, ir_channels={ir_channels}. "
+                "Set --ir-route-map explicitly (recommended: broadcast for mono/matched IR, "
+                "full for matrix-packed IR)."
+            )
+            raise ValueError(msg)
 
         if ir_channels == 1:
             out_channels = expected_out_ch if expected_out_ch is not None else input_channels
@@ -589,7 +717,6 @@ class ConvolutionReverbEngine(ReverbEngine):
             )
             raise ValueError(msg)
 
-        out_l = expected_out_layout.lower()
         if out_l != "auto" and out_l in LAYOUT_CHANNELS:
             expected_out_ch = LAYOUT_CHANNELS[out_l]
             if (
@@ -638,6 +765,12 @@ class ConvolutionReverbEngine(ReverbEngine):
         """Resolve usable layout name from user input or channel count."""
         normalized = layout.strip().lower()
         if normalized != "auto":
+            if normalized not in LAYOUT_CHANNELS:
+                msg = (
+                    f"Unsupported layout '{layout}'. "
+                    f"Supported: auto, {', '.join(sorted(LAYOUT_CHANNELS))}."
+                )
+                raise ValueError(msg)
             return normalized
         by_channels = {
             1: "mono",
@@ -764,19 +897,46 @@ class ConvolutionReverbEngine(ReverbEngine):
                 "left": 0,
                 "right": 1,
                 "center": 2,
-                "rear-left": 8,
-                "rear-right": 9,
+                "side-left": 3,
+                "side-right": 4,
+                "rear-left": 5,
+                "rear-right": 6,
+                "rear-center": 7,
+                "front-left": 0,
+                "front-right": 1,
+                "front-center": 2,
+                "top-front-left": 8,
+                "top-front-right": 9,
+                "top-rear-left": 10,
+                "top-rear-right": 11,
+                "top-left": 8,
+                "top-right": 9,
+                "mid-front-left": 12,
+                "mid-front-right": 13,
+                "mid-rear-left": 14,
+                "mid-rear-right": 15,
             }
         elif layout == "64.4":
             aliases = {
                 "left": 0,
                 "right": 1,
                 "center": 2,
+                "rear-left": 8,
+                "rear-right": 9,
+                "lfe": 64,
+                "lfe1": 64,
+                "lfe2": 65,
+                "lfe3": 66,
+                "lfe4": 67,
+                # Backward-compatible aliases retained for existing trajectories.
                 "top-front-left": 64,
                 "top-front-right": 65,
                 "top-rear-left": 66,
                 "top-rear-right": 67,
             }
+            for idx in range(64):
+                aliases[f"sp{idx + 1}"] = idx
+                aliases[f"bed{idx + 1}"] = idx
 
         if cleaned in aliases:
             return aliases[cleaned]
