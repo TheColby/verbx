@@ -6,7 +6,7 @@ _Last updated: 2026-07-26. Maintained with `README.md`, `CHANGELOG.md`, and the 
 
 ## 1. Release Posture
 
-**Current release:** `v0.9.5`
+**Current release:** `v0.9.6`
 **Status:** public alpha (research-grade)
 **Versioning policy:** semantic prerelease (`0.x` during public alpha)
 
@@ -17,7 +17,18 @@ CLI-selectable realtime duplex auditioning.
 
 ---
 
-## 2. v0.9.5 Physical-Model Character Controls
+## 2. v0.9.6 Model-Aware Plug-in Controls
+
+- [x] Make physical character controls contextual to the active model.
+- [x] Keep model switching host-automatable while keeping irrelevant controls
+  out of the active Perform surface.
+- [x] Cover Spring, Plate, and Algorithmic visibility behavior in the JUCE
+  interaction smoke test.
+
+`v0.9.6` refines the physical-model workflow so the editor presents one clear
+character control at a time without narrowing the host automation surface.
+
+## 2a. v0.9.5 Physical-Model Character Controls
 
 - [x] Add host-automatable Spring Tension and Plate Brightness parameters.
 - [x] Apply character controls inside bounded realtime Spring and Plate DSP

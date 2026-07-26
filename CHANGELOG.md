@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.9.6] - 2026-07-26
+
+### Changed
+- The native plug-in now presents model-specific physical controls
+  contextually: Spring exposes Tension, Plate exposes Brightness, and the
+  Algorithmic model hides both without affecting host automation.
+
 ## [0.9.5] - 2026-07-26
 
 ### Added

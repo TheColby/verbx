@@ -612,6 +612,10 @@ void VerbXPluginEditor::configureControls() {
     configurePhysicalControl(plateBrightnessSlider_, plateBrightnessLabel_, "plate_brightness", "PLATE BRIGHTNESS");
     springTensionAttachment_ = std::make_unique<SliderAttachment>(state, "spring_tension", springTensionSlider_);
     plateBrightnessAttachment_ = std::make_unique<SliderAttachment>(state, "plate_brightness", plateBrightnessSlider_);
+    physicalStatusLabel_.setJustificationType(juce::Justification::centredLeft);
+    physicalStatusLabel_.setFont(dataFont(9.0f, juce::Font::bold));
+    physicalStatusLabel_.setColour(juce::Label::textColourId, consoleMuted);
+    addAndMakeVisible(physicalStatusLabel_);
 
     qualityLabel_.setText("QUALITY", juce::dontSendNotification);
     qualityLabel_.setJustificationType(juce::Justification::centredLeft);
@@ -851,6 +855,8 @@ void VerbXPluginEditor::updatePageVisibility() {
     plateBrightnessSlider_.setVisible(performVisible);
     springTensionLabel_.setVisible(performVisible);
     plateBrightnessLabel_.setVisible(performVisible);
+    physicalStatusLabel_.setVisible(performVisible);
+    updatePhysicalControlState();
     for (auto& button : expertSelectButtons_) {
         button.setVisible(!performVisible);
     }
@@ -864,7 +870,23 @@ void VerbXPluginEditor::timerCallback() {
         juce::dontSendNotification
     );
     syncExpertMacroSelections();
+    updatePhysicalControlState();
     repaint();
+}
+
+void VerbXPluginEditor::updatePhysicalControlState() {
+    const auto performVisible = activePage_ == Page::perform;
+    const auto model = juce::roundToInt(plainParameter("reverb_model"));
+    const auto springActive = performVisible && model == 1;
+    const auto plateActive = performVisible && model == 2;
+    springTensionSlider_.setVisible(springActive);
+    springTensionLabel_.setVisible(springActive);
+    plateBrightnessSlider_.setVisible(plateActive);
+    plateBrightnessLabel_.setVisible(plateActive);
+    physicalStatusLabel_.setText(
+        model == 1 ? "SPRING TANK: TENSION" : model == 2 ? "PLATE: BRIGHTNESS" : "ALGORITHMIC: NO PHYSICAL CHARACTER",
+        juce::dontSendNotification
+    );
 }
 
 void VerbXPluginEditor::paintExpertPage(juce::Graphics& graphics) {
@@ -1311,6 +1333,7 @@ void VerbXPluginEditor::resized() {
     springTensionSlider_.setBounds(mapBounds({1710.0f, 452.0f, 146.0f, 26.0f}));
     plateBrightnessLabel_.setBounds(mapBounds({1598.0f, 486.0f, 112.0f, 18.0f}));
     plateBrightnessSlider_.setBounds(mapBounds({1710.0f, 480.0f, 146.0f, 26.0f}));
+    physicalStatusLabel_.setBounds(mapBounds({1598.0f, 508.0f, 258.0f, 16.0f}));
     modelLabel_.setBounds(mapBounds({1598.0f, 530.0f, 62.0f, 18.0f}));
     modelBox_.setBounds(mapBounds({1660.0f, 523.0f, 196.0f, 32.0f}));
     qualityLabel_.setBounds(mapBounds({1598.0f, 565.0f, 62.0f, 18.0f}));

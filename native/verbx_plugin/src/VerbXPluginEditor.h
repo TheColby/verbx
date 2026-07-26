@@ -136,6 +136,7 @@ private:
     juce::Slider plateBrightnessSlider_;
     juce::Label springTensionLabel_;
     juce::Label plateBrightnessLabel_;
+    juce::Label physicalStatusLabel_;
     juce::Label rt60Readout_;
     std::unique_ptr<ButtonAttachment> freezeAttachment_;
     std::unique_ptr<ButtonAttachment> reverseAttachment_;
@@ -148,6 +149,7 @@ private:
     void configureControls();
     void configureExpertControls();
     void updatePageVisibility();
+    void updatePhysicalControlState();
     void paintExpertPage(juce::Graphics& graphics);
     void setPlainParameter(const char* parameterId, float value);
     float plainParameter(const char* parameterId) const;

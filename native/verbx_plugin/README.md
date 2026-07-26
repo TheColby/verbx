@@ -83,7 +83,8 @@ mix routing, and tail character.
 - host-visible `Reverb Model` selector with dedicated realtime Algorithmic,
   Spring, and Plate topologies; matching preset families select them directly
 - host-visible Spring Tension and Plate Brightness controls with 20 ms realtime
-  smoothing and per-family preset defaults
+  smoothing and per-family preset defaults; the editor shows the control that
+  matches the selected physical model
 - 260 host-visible programs: four immediate-reference programs plus 256
   deterministic room, hall, plate, spring, chamber, drone, shimmer, and tight
   variations. All support editable host names and state recall.

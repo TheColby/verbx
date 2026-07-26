@@ -77,8 +77,6 @@ int main(int argc, char* argv[]) {
     if (std::abs(modelParameter->convertFrom0to1(modelParameter->getValue()) - 2.0f) > 0.001f) {
         return fail("Plate model selector did not update host state");
     }
-    modelBox->setSelectedId(1, juce::sendNotificationSync);
-
     auto* tensionSlider = dynamic_cast<juce::Slider*>(editor->findChildWithID("spring_tension"));
     auto* brightnessSlider = dynamic_cast<juce::Slider*>(editor->findChildWithID("plate_brightness"));
     auto* tensionParameter = processor.state().getParameter("spring_tension");
@@ -87,11 +85,26 @@ int main(int argc, char* argv[]) {
         || tensionParameter == nullptr || brightnessParameter == nullptr) {
         return fail("editor did not expose physical-model character controls");
     }
+    modelBox->setSelectedId(2, juce::sendNotificationSync);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil(100);
+    if (!tensionSlider->isVisible() || brightnessSlider->isVisible()) {
+        return fail("Spring model did not expose only the tension control");
+    }
     tensionSlider->setValue(0.78, juce::sendNotificationSync);
+    modelBox->setSelectedId(3, juce::sendNotificationSync);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil(100);
+    if (tensionSlider->isVisible() || !brightnessSlider->isVisible()) {
+        return fail("Plate model did not expose only the brightness control");
+    }
     brightnessSlider->setValue(0.31, juce::sendNotificationSync);
     if (std::abs(tensionParameter->convertFrom0to1(tensionParameter->getValue()) - 0.78f) > 0.001f
         || std::abs(brightnessParameter->convertFrom0to1(brightnessParameter->getValue()) - 0.31f) > 0.001f) {
         return fail("physical-model character controls did not update host state");
+    }
+    modelBox->setSelectedId(1, juce::sendNotificationSync);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil(100);
+    if (tensionSlider->isVisible() || brightnessSlider->isVisible()) {
+        return fail("Algorithmic model did not hide physical character controls");
     }
 
     auto* wetSlider = dynamic_cast<juce::Slider*>(editor->findChildWithID("wet"));
