@@ -35,8 +35,15 @@ from verbx.analysis.features_time import (
     transient_density,
     zero_crossing_rate,
 )
+from verbx.analysis.reverb_metrics import extract_reverb_metrics
+from verbx.analysis.room_size import estimate_room_size
 from verbx.analysis.spatial_metrics import compute_ambisonic_metrics
-from verbx.core.loudness import integrated_lufs, loudness_range_lu, sample_peak_dbfs, true_peak_dbfs
+from verbx.core.loudness import (
+    integrated_lufs,
+    loudness_range_lu,
+    sample_peak_dbfs,
+    true_peak_dbfs,
+)
 
 AudioArray = npt.NDArray[np.float64]
 
@@ -55,10 +62,14 @@ class AudioAnalyzer:
         sr: int,
         include_loudness: bool = False,
         include_edr: bool = False,
+        include_room: bool = False,
+        include_reverb: bool = False,
+        reverb_input_kind: str = "auto",
+        reverb_direct_window_ms: float = 2.5,
         ambi_order: int | None = None,
         ambi_normalization: str = "auto",
         ambi_channel_order: str = "auto",
-    ) -> dict[str, float]:
+    ) -> dict[str, float | str]:
         """Return analysis metrics for CLI consumption.
 
         Parameters
@@ -71,12 +82,27 @@ class AudioAnalyzer:
             Enables slower EBU-R128 style metrics (LUFS, true-peak, LRA).
         include_edr:
             Enables frequency-dependent EDR summary metrics.
+        include_room:
+            Enables room size and acoustic property estimation from the
+            reverberant decay characteristics of the signal.  Produces a set
+            of ``room_*`` prefixed keys including volume, dimensions,
+            absorption, critical distance, room class, and confidence rating.
+            Implicitly runs EDR analysis internally (fast; does not enable the
+            full ``include_edr`` key set unless that flag is also set).
+        include_reverb:
+            Enables peak-aligned Schroeder decay, clarity, definition, center
+            time, direct-to-reverberant ratio, and early IACC metrics.
+        reverb_input_kind:
+            ``"auto"``, ``"ir"``, or ``"program"``. Auto detection lowers
+            confidence when the signal does not resemble an impulse response.
+        reverb_direct_window_ms:
+            Direct-sound integration window used for the DRR estimate.
         ambi_order:
             Optional Ambisonics order for spherical-energy/directionality metrics.
         """
         channel_rms = np.sqrt(np.mean(np.square(audio), axis=0, dtype=np.float64))
 
-        result: dict[str, float] = {
+        result: dict[str, float | str] = {
             "duration": duration_seconds(audio, sr),
             "samples": float(audio.shape[0]),
             "channels": float(audio.shape[1]),
@@ -113,6 +139,21 @@ class AudioAnalyzer:
 
         if include_edr:
             result.update(edr_summary(audio, sr))
+
+        if include_room:
+            room = estimate_room_size(audio, sr)
+            for k, v in room.items():
+                result[k] = float(v) if isinstance(v, (int, float)) else str(v)
+
+        if include_reverb:
+            result.update(
+                extract_reverb_metrics(
+                    audio,
+                    sr,
+                    input_kind=reverb_input_kind,
+                    direct_window_ms=reverb_direct_window_ms,
+                )
+            )
 
         if ambi_order is not None and int(ambi_order) > 0:
             result.update(

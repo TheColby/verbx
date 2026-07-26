@@ -3,10 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pytest
 import soundfile as sf
 
 from verbx.core.algo_reverb import AlgoReverbConfig, AlgoReverbEngine
 from verbx.core.convolution_reverb import ConvolutionReverbConfig, ConvolutionReverbEngine
+from verbx.core.shimmer import ShimmerConfig, ShimmerProcessor
 
 
 def test_algo_engine_stable_and_typed() -> None:
@@ -37,6 +39,53 @@ def test_algo_engine_stable_and_typed() -> None:
     assert output.shape == audio.shape
     assert output.dtype == np.float64
     assert np.all(np.isfinite(output))
+
+
+def test_algo_engine_unsafe_self_oscillation_mode_is_exposed() -> None:
+    engine = AlgoReverbEngine(
+        AlgoReverbConfig(
+            rt60=8.0,
+            fdn_lines=8,
+            unsafe_self_oscillate=True,
+            unsafe_loop_gain=1.04,
+            block_size=256,
+        )
+    )
+    audio = np.zeros((2048, 1), dtype=np.float64)
+    audio[0, 0] = 0.6
+    output = engine.process(audio, sr=48_000)
+    assert output.shape == audio.shape
+    assert output.dtype == np.float64
+    assert np.all(np.isfinite(output))
+    assert "unsafeosc" in engine.backend_name()
+
+
+def test_shimmer_feedback_cap_differs_for_safe_vs_unsafe_mode() -> None:
+    impulse = np.zeros((64, 1), dtype=np.float64)
+    impulse[0, 0] = 1.0
+    silence = np.zeros_like(impulse)
+
+    safe = ShimmerProcessor(
+        ShimmerConfig(enabled=True, semitones=0.0, mix=1.0, feedback=1.2)
+    )
+    safe.process(impulse, sr=48_000)
+    safe_tail = safe.process(silence, sr=48_000)
+
+    unsafe = ShimmerProcessor(
+        ShimmerConfig(
+            enabled=True,
+            semitones=0.0,
+            mix=1.0,
+            feedback=1.2,
+            unsafe_self_oscillate=True,
+        )
+    )
+    unsafe.process(impulse, sr=48_000)
+    unsafe_tail = unsafe.process(silence, sr=48_000)
+
+    safe_peak = float(np.max(np.abs(safe_tail)))
+    unsafe_peak = float(np.max(np.abs(unsafe_tail)))
+    assert unsafe_peak > safe_peak
 
 
 def test_algo_engine_custom_allpass_and_comb_delay_controls() -> None:
@@ -172,6 +221,7 @@ def test_convolution_engine_supports_extended_symbolic_layouts(tmp_path: Path) -
                 ir_normalize="none",
                 input_layout="mono",
                 output_layout=layout_name,
+                ir_route_map="broadcast",
                 partition_size=128,
                 threads=1,
                 device="cpu",
@@ -205,6 +255,7 @@ def test_convolution_route_aliases_for_extended_layouts(tmp_path: Path) -> None:
                 ir_normalize="none",
                 input_layout="mono",
                 output_layout=layout_name,
+                ir_route_map="broadcast",
                 route_start=start_token,
                 route_end=end_token,
                 route_curve="equal-power",
@@ -216,6 +267,35 @@ def test_convolution_route_aliases_for_extended_layouts(tmp_path: Path) -> None:
         out = engine.process(audio, sr=sr)
         assert out.shape[1] == expected_channels
         assert np.all(np.isfinite(out))
+
+
+def test_convolution_engine_requires_explicit_route_map_for_large_output_layouts(
+    tmp_path: Path,
+) -> None:
+    sr = 48_000
+    audio = np.zeros((256, 1), dtype=np.float64)
+    audio[0, 0] = 1.0
+    ir = np.zeros((64, 1), dtype=np.float64)
+    ir[0, 0] = 1.0
+    ir_path = tmp_path / "mono_large_layout_ir.wav"
+    sf.write(str(ir_path), ir, sr)
+
+    engine = ConvolutionReverbEngine(
+        ConvolutionReverbConfig(
+            wet=1.0,
+            dry=0.0,
+            ir_path=str(ir_path),
+            ir_normalize="none",
+            input_layout="mono",
+            output_layout="16.0",
+            ir_route_map="auto",
+            partition_size=128,
+            threads=1,
+            device="cpu",
+        )
+    )
+    with pytest.raises(ValueError, match="Auto route-map is ambiguous for large output layouts"):
+        _ = engine.process(audio, sr=sr)
 
 
 def test_algo_engine_matrix_families() -> None:

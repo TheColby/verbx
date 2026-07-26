@@ -16,6 +16,7 @@ import numpy as np
 import numpy.typing as npt
 import soundfile as sf
 
+from verbx.core.schema_versions import IR_GENERATOR_METADATA_VERSION
 from verbx.ir.early_reflections import generate_early_reflections
 from verbx.ir.metrics import analyze_ir
 from verbx.ir.modes_fdn import generate_fdn_ir
@@ -352,7 +353,7 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
     )
 
     meta: dict[str, Any] = {
-        "version": "0.6.0",
+        "version": IR_GENERATOR_METADATA_VERSION,
         "mode": config.mode,
         "seed": config.seed,
         "params": asdict(config),
