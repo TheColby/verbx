@@ -88,6 +88,8 @@ mix routing, and tail character.
 - 260 host-visible programs: four immediate-reference programs plus 256
   deterministic room, hall, plate, spring, chamber, drone, shimmer, and tight
   variations. All support editable host names and state recall.
+- the editor preset browser exposes the complete program bank and remains in
+  step with the host program API
 - realtime post-DSP spectrum overlay with a lock-free audio handoff, 8192-point
   Hann FFT, logarithmic frequency grid, smoothed response, and peak trace
 

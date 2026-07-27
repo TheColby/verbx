@@ -6,7 +6,7 @@ _Last updated: 2026-07-26. Maintained with `README.md`, `CHANGELOG.md`, and the 
 
 ## 1. Release Posture
 
-**Current release:** `v0.9.6`
+**Current release:** `v0.9.7`
 **Status:** public alpha (research-grade)
 **Versioning policy:** semantic prerelease (`0.x` during public alpha)
 
@@ -17,7 +17,16 @@ CLI-selectable realtime duplex auditioning.
 
 ---
 
-## 2. v0.9.6 Model-Aware Plug-in Controls
+## 2. v0.9.7 In-Editor Preset Browser
+
+- [x] Add an editor preset browser backed by the host-visible program bank.
+- [x] Keep the browser synchronized with processor program changes.
+- [x] Verify program/model recall through the JUCE interaction smoke test.
+
+`v0.9.7` makes the 260-program library directly usable from the plug-in
+surface, while retaining normal AU/VST3 host program behavior.
+
+## 2a. v0.9.6 Model-Aware Plug-in Controls
 
 - [x] Make physical character controls contextual to the active model.
 - [x] Keep model switching host-automatable while keeping irrelevant controls

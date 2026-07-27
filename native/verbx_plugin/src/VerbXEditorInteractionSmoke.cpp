@@ -65,6 +65,15 @@ int main(int argc, char* argv[]) {
         return fail("processor did not create an editor");
     }
 
+    auto* presetBox = dynamic_cast<juce::ComboBox*>(editor->findChildWithID("preset_browser"));
+    if (presetBox == nullptr || presetBox->getNumItems() != processor.getNumPrograms()) {
+        return fail("editor did not expose the complete preset browser");
+    }
+    presetBox->setSelectedId(101, juce::sendNotificationSync);
+    if (processor.getCurrentProgram() != 100 || processor.getProgramName(100) != "Spring Dawn") {
+        return fail("preset browser did not select the requested host program");
+    }
+
     auto* modelBox = dynamic_cast<juce::ComboBox*>(editor->findChildWithID("reverb_model"));
     if (modelBox == nullptr || modelParameter == nullptr) {
         return fail("editor did not expose the Reverb Model selector");

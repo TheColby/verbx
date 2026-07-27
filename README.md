@@ -744,13 +744,12 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.9.6**.
+Current public alpha release: **v0.9.7**.
 
 Current stabilization status:
 
-- `v0.9.6` makes native plug-in physical controls model-aware: Spring exposes
-  Tension, Plate exposes Brightness, and Algorithmic hides both while host
-  automation remains available.
+- `v0.9.7` adds an in-editor browser for all 260 native plug-in programs. It
+  stays synchronized with host programs and recalls the matching reverb model.
 - Render-performance budgets and native structural parity are now blocking CI
   gates. Native source-duration floors and analytic ISM timing references have
   focused regression coverage.

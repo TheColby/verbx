@@ -41,7 +41,7 @@ Chosen `v0.8` shape: **hybrid wrapper phase before full replacement**.
 | Dereverb | Python DSP dereverb | Not implemented | Deferred | Roadmap only |
 | IR tools | Python IR synth/morph/library tools | Not implemented | Deferred | Roadmap only |
 | Batch/immersive workflows | Python workflow commands | Not implemented | Deferred | Roadmap only |
-| Presets | Built-in/generated Python preset bank | 260 host programs with persisted editable labels | Partial | Four immediate references plus 256 deterministic room, hall, plate, spring, chamber, drone, shimmer, and tight variations recall the realtime parameter set; Python preset-bank parity remains deferred. |
+| Presets | Built-in/generated Python preset bank | 260 host programs with persisted editable labels and editor browser | Partial | Four immediate references plus 256 deterministic room, hall, plate, spring, chamber, drone, shimmer, and tight variations recall the realtime parameter set; the plug-in browser stays synchronized with host programs. Python preset-bank parity remains deferred. |
 | Spring / plate reverb | Offline Python proxies and modal FE solvers | Realtime spring-tank and plate topologies | Partial | Host-automatable `Reverb Model` chooses Algorithmic, Spring, or Plate. The plug-in paths are bounded realtime approximations, not the offline modal-FE solvers. |
 | Physical-model character | Detailed spring/plate configuration and modal FE controls | Contextual Spring Tension / Plate Brightness | Partial | Both controls remain host-automatable; the editor exposes the one relevant to the selected physical model, with callback-safe smoothing. |
 

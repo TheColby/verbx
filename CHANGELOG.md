@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.9.7] - 2026-07-26
+
+### Added
+- The native plug-in editor now includes a host-program browser for
+  all 260 presets, synchronized with the processor program API and model recall.
+
 ## [0.9.6] - 2026-07-26
 
 ### Changed

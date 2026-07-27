@@ -116,6 +116,8 @@ private:
     Page activePage_ = Page::perform;
     juce::TextButton performPageButton_{"PERFORM"};
     juce::TextButton expertPageButton_{"EXPERT"};
+    juce::ComboBox presetBox_;
+    juce::Label presetLabel_;
     std::array<VerbXKnobSlider, knobCount> knobs_{};
     std::array<juce::Label, knobCount> knobLabels_{};
     std::array<std::unique_ptr<SliderAttachment>, knobCount> knobAttachments_{};

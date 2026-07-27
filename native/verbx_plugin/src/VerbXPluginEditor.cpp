@@ -514,6 +514,29 @@ void VerbXPluginEditor::configureControls() {
         repaint();
     };
 
+    presetBox_.setLookAndFeel(&lookAndFeel_);
+    presetBox_.setComponentID("preset_browser");
+    presetBox_.setTooltip("Select a host-visible VERBX program.");
+    presetBox_.setColour(juce::ComboBox::backgroundColourId, analyzerInk.brighter(0.12f));
+    presetBox_.setColour(juce::ComboBox::textColourId, juce::Colour::fromRGB(228, 240, 236));
+    presetBox_.setColour(juce::ComboBox::outlineColourId, analyzerGold.withAlpha(0.45f));
+    for (int index = 0; index < processor_.getNumPrograms(); ++index) {
+        presetBox_.addItem(processor_.getProgramName(index), index + 1);
+    }
+    presetBox_.setSelectedId(processor_.getCurrentProgram() + 1, juce::dontSendNotification);
+    presetBox_.onChange = [this] {
+        const auto selected = presetBox_.getSelectedId();
+        if (selected > 0) {
+            processor_.setCurrentProgram(selected - 1);
+        }
+    };
+    addAndMakeVisible(presetBox_);
+    presetLabel_.setText("PRESET", juce::dontSendNotification);
+    presetLabel_.setJustificationType(juce::Justification::centredLeft);
+    presetLabel_.setFont(dataFont(9.5f, juce::Font::bold));
+    presetLabel_.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
+    addAndMakeVisible(presetLabel_);
+
     for (int index = 0; index < knobCount; ++index) {
         const auto& definition = knobDefinitions[static_cast<size_t>(index)];
         auto& knob = knobs_[static_cast<size_t>(index)];
@@ -856,6 +879,8 @@ void VerbXPluginEditor::updatePageVisibility() {
     springTensionLabel_.setVisible(performVisible);
     plateBrightnessLabel_.setVisible(performVisible);
     physicalStatusLabel_.setVisible(performVisible);
+    presetBox_.setVisible(performVisible);
+    presetLabel_.setVisible(performVisible);
     updatePhysicalControlState();
     for (auto& button : expertSelectButtons_) {
         button.setVisible(!performVisible);
@@ -870,6 +895,10 @@ void VerbXPluginEditor::timerCallback() {
         juce::dontSendNotification
     );
     syncExpertMacroSelections();
+    const auto selectedProgram = processor_.getCurrentProgram() + 1;
+    if (presetBox_.getSelectedId() != selectedProgram) {
+        presetBox_.setSelectedId(selectedProgram, juce::dontSendNotification);
+    }
     updatePhysicalControlState();
     repaint();
 }
@@ -1283,6 +1312,8 @@ void VerbXPluginEditor::resized() {
 
     performPageButton_.setBounds(mapBounds({1538.0f, 37.0f, 100.0f, 38.0f}));
     expertPageButton_.setBounds(mapBounds({1646.0f, 37.0f, 100.0f, 38.0f}));
+    presetLabel_.setBounds(mapBounds({1032.0f, 37.0f, 58.0f, 18.0f}));
+    presetBox_.setBounds(mapBounds({1090.0f, 30.0f, 410.0f, 32.0f}));
     rt60Readout_.setBounds(mapBounds({900.0f, 176.0f, 306.0f, 28.0f}));
 
     if (activePage_ == Page::expert) {
