@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.9.9] - 2026-07-26
+
+### Added
+- Native plug-in A/B controls now capture and recall full host parameter
+  snapshots for direct reverb comparison from the editor.
+
 ## [0.9.8] - 2026-07-26
 
 ### Added

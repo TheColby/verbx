@@ -116,6 +116,8 @@ private:
     Page activePage_ = Page::perform;
     juce::TextButton performPageButton_{"PERFORM"};
     juce::TextButton expertPageButton_{"EXPERT"};
+    juce::TextButton abAButton_{"A"};
+    juce::TextButton abBButton_{"B"};
     juce::ComboBox presetBox_;
     juce::Label presetLabel_;
     juce::TextEditor presetFilter_;

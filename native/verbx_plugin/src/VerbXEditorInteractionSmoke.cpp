@@ -136,6 +136,23 @@ int main(int argc, char* argv[]) {
         return fail("editor did not expose the Wet dial and parameter");
     }
 
+    auto* abAButton = dynamic_cast<juce::Button*>(editor->findChildWithID("ab_a"));
+    auto* abBButton = dynamic_cast<juce::Button*>(editor->findChildWithID("ab_b"));
+    if (abAButton == nullptr || abBButton == nullptr) {
+        return fail("editor did not expose A/B comparison controls");
+    }
+    wetParameter->setValueNotifyingHost(wetParameter->convertTo0to1(0.22f));
+    abBButton->onClick();
+    wetParameter->setValueNotifyingHost(wetParameter->convertTo0to1(0.78f));
+    abAButton->onClick();
+    if (std::abs(wetParameter->convertFrom0to1(wetParameter->getValue()) - 0.22f) > 0.001f) {
+        return fail("A/B recall did not restore the captured A state");
+    }
+    abBButton->onClick();
+    if (std::abs(wetParameter->convertFrom0to1(wetParameter->getValue()) - 0.78f) > 0.001f) {
+        return fail("A/B recall did not restore the captured B state");
+    }
+
     wetParameter->setValueNotifyingHost(1.0f);
     const auto sliderBounds = wetSlider->getLookAndFeel()
                                   .getSliderLayout(*wetSlider)

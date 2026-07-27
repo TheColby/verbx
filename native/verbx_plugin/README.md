@@ -90,6 +90,8 @@ mix routing, and tail character.
   variations. All support editable host names and state recall.
 - the editor preset browser exposes the complete program bank and remains in
   step with the host program API; live filtering narrows programs by name
+- A/B controls capture and recall complete host parameter states for rapid
+  comparison between two reverb directions
 - realtime post-DSP spectrum overlay with a lock-free audio handoff, 8192-point
   Hann FFT, logarithmic frequency grid, smoothed response, and peak trace
 

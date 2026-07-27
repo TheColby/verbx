@@ -6,7 +6,7 @@ _Last updated: 2026-07-26. Maintained with `README.md`, `CHANGELOG.md`, and the 
 
 ## 1. Release Posture
 
-**Current release:** `v0.9.8`
+**Current release:** `v0.9.9`
 **Status:** public alpha (research-grade)
 **Versioning policy:** semantic prerelease (`0.x` during public alpha)
 
@@ -17,7 +17,16 @@ CLI-selectable realtime duplex auditioning.
 
 ---
 
-## 2. v0.9.8 Preset Browser Filtering
+## 2. v0.9.9 Plug-in A/B Comparison
+
+- [x] Add full parameter-state A/B snapshots to the plug-in processor.
+- [x] Surface A/B recall controls in the editor.
+- [x] Verify bidirectional A/B recall in the JUCE interaction smoke test.
+
+`v0.9.9` adds a direct reverb-comparison workflow without adding audio-thread
+allocations or changing the host automation contract.
+
+## 2a. v0.9.8 Preset Browser Filtering
 
 - [x] Add live name filtering to the in-editor preset browser.
 - [x] Preserve program IDs when the visible list is filtered.

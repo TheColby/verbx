@@ -104,6 +104,8 @@ VerbXPluginProcessor::VerbXPluginProcessor()
         std::memory_order_relaxed
     );
     parameters_.addParameterListener(parameterId(VERBX_PLUGIN_PARAM_QUALITY_MODE), this);
+    abStates_[0] = parameters_.copyState();
+    abStates_[1] = parameters_.copyState();
 }
 
 VerbXPluginProcessor::~VerbXPluginProcessor() {
@@ -415,6 +417,22 @@ int VerbXPluginProcessor::preparedBlockSize() const noexcept {
     return preparedBlockSize_.load(std::memory_order_acquire);
 }
 
+void VerbXPluginProcessor::captureABSlot(int slot) {
+    if (slot >= 0 && slot < static_cast<int>(abStates_.size())) {
+        abStates_[static_cast<size_t>(slot)] = parameters_.copyState();
+    }
+}
+
+void VerbXPluginProcessor::recallABSlot(int slot) {
+    if (slot < 0 || slot >= static_cast<int>(abStates_.size()) || !abStates_[static_cast<size_t>(slot)].isValid()) {
+        return;
+    }
+    parameters_.replaceState(abStates_[static_cast<size_t>(slot)].createCopy());
+    activeABSlot_ = slot;
+}
+
+int VerbXPluginProcessor::activeABSlot() const noexcept { return activeABSlot_; }
+
 void VerbXPluginProcessor::acquireRealtimeContextGuard() noexcept {
     while (realtimeContextGuard_.test_and_set(std::memory_order_acquire)) {
         std::this_thread::yield();
@@ -569,6 +587,9 @@ void VerbXPluginProcessor::setStateInformation(const void* data, int sizeInBytes
                 customProgramNames_[static_cast<size_t>(index)] =
                     stateXml->getStringAttribute(key, {});
             }
+            abStates_[0] = parameters_.copyState();
+            abStates_[1] = parameters_.copyState();
+            activeABSlot_ = 0;
         }
     }
 }

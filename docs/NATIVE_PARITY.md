@@ -44,6 +44,7 @@ Chosen `v0.8` shape: **hybrid wrapper phase before full replacement**.
 | Presets | Built-in/generated Python preset bank | 260 host programs with persisted editable labels, browser, and live filter | Partial | Four immediate references plus 256 deterministic room, hall, plate, spring, chamber, drone, shimmer, and tight variations recall the realtime parameter set; the browser stays synchronized with host programs and filters by name. Python preset-bank parity remains deferred. |
 | Spring / plate reverb | Offline Python proxies and modal FE solvers | Realtime spring-tank and plate topologies | Partial | Host-automatable `Reverb Model` chooses Algorithmic, Spring, or Plate. The plug-in paths are bounded realtime approximations, not the offline modal-FE solvers. |
 | Physical-model character | Detailed spring/plate configuration and modal FE controls | Contextual Spring Tension / Plate Brightness | Partial | Both controls remain host-automatable; the editor exposes the one relevant to the selected physical model, with callback-safe smoothing. |
+| A/B comparison | Host/project automation and offline parameter variants | Two full parameter-state snapshots | Partial | Editor A/B controls capture the departing state and recall the selected state without changing the host automation surface. |
 
 ## Native Parity Contract
 

@@ -513,6 +513,24 @@ void VerbXPluginEditor::configureControls() {
         resized();
         repaint();
     };
+    for (auto* button : {&abAButton_, &abBButton_}) {
+        button->setClickingTogglesState(false);
+        button->setColour(juce::TextButton::buttonColourId, consolePanel);
+        button->setColour(juce::TextButton::buttonOnColourId, analyzerGold);
+        button->setColour(juce::TextButton::textColourOffId, consoleMuted);
+        button->setColour(juce::TextButton::textColourOnId, analyzerInk);
+        addAndMakeVisible(*button);
+    }
+    abAButton_.setComponentID("ab_a");
+    abBButton_.setComponentID("ab_b");
+    abAButton_.setTooltip("Capture the current state to B, then recall A.");
+    abBButton_.setTooltip("Capture the current state to A, then recall B.");
+    const auto selectABSlot = [this](int targetSlot) {
+        processor_.captureABSlot(processor_.activeABSlot());
+        processor_.recallABSlot(targetSlot);
+    };
+    abAButton_.onClick = [selectABSlot] { selectABSlot(0); };
+    abBButton_.onClick = [selectABSlot] { selectABSlot(1); };
 
     presetBox_.setLookAndFeel(&lookAndFeel_);
     presetBox_.setComponentID("preset_browser");
@@ -895,6 +913,8 @@ void VerbXPluginEditor::updatePageVisibility() {
     presetLabel_.setVisible(performVisible);
     presetFilter_.setVisible(performVisible);
     presetFilterLabel_.setVisible(performVisible);
+    abAButton_.setVisible(performVisible);
+    abBButton_.setVisible(performVisible);
     updatePhysicalControlState();
     for (auto& button : expertSelectButtons_) {
         button.setVisible(!performVisible);
@@ -913,6 +933,8 @@ void VerbXPluginEditor::timerCallback() {
     if (presetBox_.getSelectedId() != selectedProgram && presetFilter_.isEmpty()) {
         presetBox_.setSelectedId(selectedProgram, juce::dontSendNotification);
     }
+    abAButton_.setToggleState(processor_.activeABSlot() == 0, juce::dontSendNotification);
+    abBButton_.setToggleState(processor_.activeABSlot() == 1, juce::dontSendNotification);
     updatePhysicalControlState();
     repaint();
 }
@@ -1345,6 +1367,8 @@ void VerbXPluginEditor::resized() {
     presetFilter_.setBounds(mapBounds({702.0f, 30.0f, 250.0f, 32.0f}));
     presetLabel_.setBounds(mapBounds({962.0f, 37.0f, 58.0f, 18.0f}));
     presetBox_.setBounds(mapBounds({1020.0f, 30.0f, 480.0f, 32.0f}));
+    abAButton_.setBounds(mapBounds({1756.0f, 37.0f, 42.0f, 38.0f}));
+    abBButton_.setBounds(mapBounds({1806.0f, 37.0f, 42.0f, 38.0f}));
     rt60Readout_.setBounds(mapBounds({900.0f, 176.0f, 306.0f, 28.0f}));
 
     if (activePage_ == Page::expert) {

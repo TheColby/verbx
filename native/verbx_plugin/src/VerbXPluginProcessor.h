@@ -47,6 +47,9 @@ public:
     unsigned int internalSampleRate() const noexcept;
     size_t oversamplingFactor() const noexcept;
     int preparedBlockSize() const noexcept;
+    void captureABSlot(int slot);
+    void recallABSlot(int slot);
+    int activeABSlot() const noexcept;
 
 private:
     struct RealtimeParameterPointers {
@@ -99,6 +102,8 @@ private:
     static constexpr int builtInProgramCount = 260;
     int currentProgram_ = 0;
     std::array<juce::String, builtInProgramCount> customProgramNames_{};
+    std::array<juce::ValueTree, 2> abStates_{};
+    int activeABSlot_ = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VerbXPluginProcessor)
 };
