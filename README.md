@@ -744,12 +744,12 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.9.7**.
+Current public alpha release: **v0.9.8**.
 
 Current stabilization status:
 
-- `v0.9.7` adds an in-editor browser for all 260 native plug-in programs. It
-  stays synchronized with host programs and recalls the matching reverb model.
+- `v0.9.8` adds live filtering to the in-editor browser for all 260 native
+  plug-in programs while preserving host-program and model recall.
 - Render-performance budgets and native structural parity are now blocking CI
   gates. Native source-duration floors and analytic ISM timing references have
   focused regression coverage.

@@ -6,7 +6,7 @@ _Last updated: 2026-07-26. Maintained with `README.md`, `CHANGELOG.md`, and the 
 
 ## 1. Release Posture
 
-**Current release:** `v0.9.7`
+**Current release:** `v0.9.8`
 **Status:** public alpha (research-grade)
 **Versioning policy:** semantic prerelease (`0.x` during public alpha)
 
@@ -17,7 +17,17 @@ CLI-selectable realtime duplex auditioning.
 
 ---
 
-## 2. v0.9.7 In-Editor Preset Browser
+## 2. v0.9.8 Preset Browser Filtering
+
+- [x] Add live name filtering to the in-editor preset browser.
+- [x] Preserve program IDs when the visible list is filtered.
+- [x] Cover filter, selection, and reset behavior in the JUCE interaction
+  smoke test.
+
+`v0.9.8` makes the large native program library practical to scan during a
+session without changing host program semantics.
+
+## 2a. v0.9.7 In-Editor Preset Browser
 
 - [x] Add an editor preset browser backed by the host-visible program bank.
 - [x] Keep the browser synchronized with processor program changes.

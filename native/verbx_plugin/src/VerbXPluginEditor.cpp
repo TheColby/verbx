@@ -520,10 +520,6 @@ void VerbXPluginEditor::configureControls() {
     presetBox_.setColour(juce::ComboBox::backgroundColourId, analyzerInk.brighter(0.12f));
     presetBox_.setColour(juce::ComboBox::textColourId, juce::Colour::fromRGB(228, 240, 236));
     presetBox_.setColour(juce::ComboBox::outlineColourId, analyzerGold.withAlpha(0.45f));
-    for (int index = 0; index < processor_.getNumPrograms(); ++index) {
-        presetBox_.addItem(processor_.getProgramName(index), index + 1);
-    }
-    presetBox_.setSelectedId(processor_.getCurrentProgram() + 1, juce::dontSendNotification);
     presetBox_.onChange = [this] {
         const auto selected = presetBox_.getSelectedId();
         if (selected > 0) {
@@ -531,11 +527,27 @@ void VerbXPluginEditor::configureControls() {
         }
     };
     addAndMakeVisible(presetBox_);
+
+    presetFilter_.setComponentID("preset_filter");
+    presetFilter_.setTextToShowWhenEmpty("Filter programs", consoleMuted.withAlpha(0.72f));
+    presetFilter_.setColour(juce::TextEditor::backgroundColourId, analyzerInk.brighter(0.08f));
+    presetFilter_.setColour(juce::TextEditor::textColourId, consoleText);
+    presetFilter_.setColour(juce::TextEditor::outlineColourId, consoleLine.withAlpha(0.55f));
+    presetFilter_.setColour(juce::TextEditor::focusedOutlineColourId, analyzerMint.withAlpha(0.6f));
+    presetFilter_.setTooltip("Filter the plug-in program library by name.");
+    presetFilter_.onTextChange = [this] { rebuildPresetBrowser(); };
+    addAndMakeVisible(presetFilter_);
     presetLabel_.setText("PRESET", juce::dontSendNotification);
     presetLabel_.setJustificationType(juce::Justification::centredLeft);
     presetLabel_.setFont(dataFont(9.5f, juce::Font::bold));
     presetLabel_.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
     addAndMakeVisible(presetLabel_);
+    presetFilterLabel_.setText("FILTER", juce::dontSendNotification);
+    presetFilterLabel_.setJustificationType(juce::Justification::centredLeft);
+    presetFilterLabel_.setFont(dataFont(9.5f, juce::Font::bold));
+    presetFilterLabel_.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
+    addAndMakeVisible(presetFilterLabel_);
+    rebuildPresetBrowser();
 
     for (int index = 0; index < knobCount; ++index) {
         const auto& definition = knobDefinitions[static_cast<size_t>(index)];
@@ -881,6 +893,8 @@ void VerbXPluginEditor::updatePageVisibility() {
     physicalStatusLabel_.setVisible(performVisible);
     presetBox_.setVisible(performVisible);
     presetLabel_.setVisible(performVisible);
+    presetFilter_.setVisible(performVisible);
+    presetFilterLabel_.setVisible(performVisible);
     updatePhysicalControlState();
     for (auto& button : expertSelectButtons_) {
         button.setVisible(!performVisible);
@@ -896,7 +910,7 @@ void VerbXPluginEditor::timerCallback() {
     );
     syncExpertMacroSelections();
     const auto selectedProgram = processor_.getCurrentProgram() + 1;
-    if (presetBox_.getSelectedId() != selectedProgram) {
+    if (presetBox_.getSelectedId() != selectedProgram && presetFilter_.isEmpty()) {
         presetBox_.setSelectedId(selectedProgram, juce::dontSendNotification);
     }
     updatePhysicalControlState();
@@ -916,6 +930,21 @@ void VerbXPluginEditor::updatePhysicalControlState() {
         model == 1 ? "SPRING TANK: TENSION" : model == 2 ? "PLATE: BRIGHTNESS" : "ALGORITHMIC: NO PHYSICAL CHARACTER",
         juce::dontSendNotification
     );
+}
+
+void VerbXPluginEditor::rebuildPresetBrowser() {
+    const auto filter = presetFilter_.getText().trim().toLowerCase();
+    const auto selectedProgram = processor_.getCurrentProgram() + 1;
+    presetBox_.clear(juce::dontSendNotification);
+    for (int index = 0; index < processor_.getNumPrograms(); ++index) {
+        const auto name = processor_.getProgramName(index);
+        if (filter.isEmpty() || name.toLowerCase().contains(filter)) {
+            presetBox_.addItem(name, index + 1);
+        }
+    }
+    if (presetBox_.getNumItems() > 0) {
+        presetBox_.setSelectedId(selectedProgram, juce::dontSendNotification);
+    }
 }
 
 void VerbXPluginEditor::paintExpertPage(juce::Graphics& graphics) {
@@ -1312,8 +1341,10 @@ void VerbXPluginEditor::resized() {
 
     performPageButton_.setBounds(mapBounds({1538.0f, 37.0f, 100.0f, 38.0f}));
     expertPageButton_.setBounds(mapBounds({1646.0f, 37.0f, 100.0f, 38.0f}));
-    presetLabel_.setBounds(mapBounds({1032.0f, 37.0f, 58.0f, 18.0f}));
-    presetBox_.setBounds(mapBounds({1090.0f, 30.0f, 410.0f, 32.0f}));
+    presetFilterLabel_.setBounds(mapBounds({650.0f, 37.0f, 52.0f, 18.0f}));
+    presetFilter_.setBounds(mapBounds({702.0f, 30.0f, 250.0f, 32.0f}));
+    presetLabel_.setBounds(mapBounds({962.0f, 37.0f, 58.0f, 18.0f}));
+    presetBox_.setBounds(mapBounds({1020.0f, 30.0f, 480.0f, 32.0f}));
     rt60Readout_.setBounds(mapBounds({900.0f, 176.0f, 306.0f, 28.0f}));
 
     if (activePage_ == Page::expert) {

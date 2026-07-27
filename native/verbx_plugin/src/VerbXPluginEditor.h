@@ -118,6 +118,8 @@ private:
     juce::TextButton expertPageButton_{"EXPERT"};
     juce::ComboBox presetBox_;
     juce::Label presetLabel_;
+    juce::TextEditor presetFilter_;
+    juce::Label presetFilterLabel_;
     std::array<VerbXKnobSlider, knobCount> knobs_{};
     std::array<juce::Label, knobCount> knobLabels_{};
     std::array<std::unique_ptr<SliderAttachment>, knobCount> knobAttachments_{};
@@ -152,6 +154,7 @@ private:
     void configureExpertControls();
     void updatePageVisibility();
     void updatePhysicalControlState();
+    void rebuildPresetBrowser();
     void paintExpertPage(juce::Graphics& graphics);
     void setPlainParameter(const char* parameterId, float value);
     float plainParameter(const char* parameterId) const;

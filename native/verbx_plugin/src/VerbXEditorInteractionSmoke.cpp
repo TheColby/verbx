@@ -69,9 +69,23 @@ int main(int argc, char* argv[]) {
     if (presetBox == nullptr || presetBox->getNumItems() != processor.getNumPrograms()) {
         return fail("editor did not expose the complete preset browser");
     }
+    auto* presetFilter = dynamic_cast<juce::TextEditor*>(editor->findChildWithID("preset_filter"));
+    if (presetFilter == nullptr) {
+        return fail("editor did not expose the preset filter");
+    }
+    presetFilter->setText("Spring Dawn", juce::sendNotificationSync);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil(50);
+    if (presetBox->getNumItems() != 1 || presetBox->getItemText(0) != "Spring Dawn") {
+        return fail("preset filter did not narrow the program browser");
+    }
     presetBox->setSelectedId(101, juce::sendNotificationSync);
     if (processor.getCurrentProgram() != 100 || processor.getProgramName(100) != "Spring Dawn") {
         return fail("preset browser did not select the requested host program");
+    }
+    presetFilter->setText({}, juce::sendNotificationSync);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil(50);
+    if (presetBox->getNumItems() != processor.getNumPrograms()) {
+        return fail("clearing the preset filter did not restore the full program browser");
     }
 
     auto* modelBox = dynamic_cast<juce::ComboBox*>(editor->findChildWithID("reverb_model"));
