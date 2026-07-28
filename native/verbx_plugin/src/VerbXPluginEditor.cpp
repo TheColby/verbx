@@ -44,23 +44,19 @@ void drawPanel(
     const juce::String& title,
     const juce::String& detail = {}
 ) {
-    graphics.setColour(consolePanel.withAlpha(0.92f));
-    graphics.fillRoundedRectangle(bounds, 16.0f);
+    graphics.setColour(consolePanel.withAlpha(0.88f));
+    graphics.fillRect(bounds);
     graphics.setColour(consoleLine.withAlpha(0.42f));
-    graphics.drawRoundedRectangle(bounds.reduced(0.5f), 16.0f, 1.0f);
-    graphics.drawHorizontalLine(
-        juce::roundToInt(bounds.getY() + 42.0f),
-        bounds.getX(),
-        bounds.getRight()
-    );
+    graphics.drawRect(bounds.reduced(0.5f), 1.0f);
+    graphics.drawHorizontalLine(juce::roundToInt(bounds.getY() + 34.0f), bounds.getX(), bounds.getRight());
 
     graphics.setFont(dataFont(11.0f, juce::Font::bold));
     graphics.setColour(consoleText.withAlpha(0.92f));
-    graphics.drawText(title, bounds.getX() + 16.0f, bounds.getY() + 10.0f,
+    graphics.drawText(title, bounds.getX() + 14.0f, bounds.getY() + 7.0f,
                       bounds.getWidth() - 32.0f, 22.0f, juce::Justification::centredLeft);
     if (detail.isNotEmpty()) {
         graphics.setColour(consoleMuted);
-        graphics.drawText(detail, bounds.getX() + 16.0f, bounds.getY() + 10.0f,
+        graphics.drawText(detail, bounds.getX() + 14.0f, bounds.getY() + 7.0f,
                           bounds.getWidth() - 32.0f, 22.0f, juce::Justification::centredRight);
     }
 }
@@ -971,93 +967,69 @@ void VerbXPluginEditor::rebuildPresetBrowser() {
 
 void VerbXPluginEditor::paintExpertPage(juce::Graphics& graphics) {
     graphics.setColour(consoleText);
-    graphics.setFont(consoleFont(24.0f, juce::Font::bold));
-    graphics.drawText("EXPERT CONTROL MATRIX", 54, 112, 420, 34, juce::Justification::centredLeft);
+    graphics.setFont(consoleFont(23.0f, juce::Font::bold));
+    graphics.drawText("Parameters", 54, 110, 260, 34, juce::Justification::centredLeft);
     graphics.setColour(consoleMuted);
     graphics.setFont(consoleFont(12.0f));
     graphics.drawText(
-        "Nine automatable dials, nine linked precision faders, and twenty performance selectors",
-        470,
+        "Quick controls and precise values for the active reverb program",
+        320,
         117,
         900,
         24,
         juce::Justification::centredLeft
     );
+    graphics.setColour(consoleLine.withAlpha(0.6f));
+    graphics.drawHorizontalLine(151, 48.0f, 1872.0f);
     for (int index = 0; index < knobCount; ++index) {
         const auto x = 48.0f + static_cast<float>(index) * 204.0f;
-        const auto card = juce::Rectangle<float>(x, 154.0f, 190.0f, 176.0f);
-        graphics.setColour(juce::Colour::fromRGB(15, 22, 26));
-        graphics.fillRoundedRectangle(card, 14.0f);
-        graphics.setColour((index % 3 == 0 ? analyzerGold : analyzerMint).withAlpha(0.22f));
-        graphics.drawRoundedRectangle(card.reduced(0.5f), 14.0f, 1.0f);
-        graphics.setColour(consoleMuted.withAlpha(0.55f));
-        graphics.setFont(dataFont(7.5f, juce::Font::bold));
-        graphics.drawText(
-            "P" + juce::String(index + 1).paddedLeft('0', 2),
-            juce::roundToInt(x + 12.0f),
-            302,
-            36,
-            14,
-            juce::Justification::centredLeft
-        );
+        if (index > 0) {
+            graphics.setColour(consoleLine.withAlpha(0.34f));
+            graphics.drawVerticalLine(juce::roundToInt(x - 7.0f), 168.0f, 310.0f);
+        }
     }
 
-    const auto analyzerPanel = juce::Rectangle<float>(48.0f, 344.0f, 1824.0f, 126.0f);
-    drawPanel(graphics, analyzerPanel, "REALTIME SPECTRUM / TAIL ENERGY", "20 HZ - 20 KHZ");
+    const auto analyzerPanel = juce::Rectangle<float>(48.0f, 334.0f, 1824.0f, 128.0f);
+    drawPanel(graphics, analyzerPanel, "TAIL SPECTRUM", "POST-REVERB  /  20 HZ - 20 KHZ");
 
     for (int index = 0; index < knobCount; ++index) {
         const auto column = index % 3;
         const auto row = index / 3;
         const auto x = 48.0f + static_cast<float>(column) * 608.0f;
-        const auto y = 490.0f + static_cast<float>(row) * 104.0f;
-        const auto card = juce::Rectangle<float>(x, y, 592.0f, 88.0f);
-        graphics.setColour(juce::Colour::fromRGB(14, 21, 25));
-        graphics.fillRoundedRectangle(card, 12.0f);
-        graphics.setColour(consoleLine.withAlpha(0.28f));
-        graphics.drawRoundedRectangle(card.reduced(0.5f), 12.0f, 1.0f);
-        graphics.setColour(analyzerMint.withAlpha(0.13f));
-        graphics.fillRoundedRectangle(x + 14.0f, y + 57.0f, 554.0f, 4.0f, 2.0f);
+        const auto y = 488.0f + static_cast<float>(row) * 100.0f;
+        graphics.setColour(consoleLine.withAlpha(0.44f));
+        graphics.drawHorizontalLine(juce::roundToInt(y + 76.0f), x, x + 592.0f);
     }
 
+    graphics.setColour(consoleText);
+    graphics.setFont(consoleFont(17.0f, juce::Font::bold));
+    graphics.drawText("Performance macros", 54, 804, 260, 24, juce::Justification::centredLeft);
+    graphics.setColour(consoleLine.withAlpha(0.58f));
+    graphics.drawHorizontalLine(834, 48.0f, 1872.0f);
     for (int group = 0; group < expertSelectGroupCount; ++group) {
         const auto x = 48.0f + static_cast<float>(group) * 366.0f;
-        const auto bank = juce::Rectangle<float>(x, 826.0f, 350.0f, 148.0f);
-        graphics.setColour(juce::Colour::fromRGB(17, 24, 28));
-        graphics.fillRoundedRectangle(bank, 14.0f);
-        graphics.setColour(analyzerGold.withAlpha(0.24f));
-        graphics.drawRoundedRectangle(bank.reduced(0.5f), 14.0f, 1.0f);
         graphics.setColour(consoleMuted);
         graphics.setFont(dataFont(9.0f, juce::Font::bold));
         graphics.drawText(
             expertSelectGroupLabels[static_cast<size_t>(group)],
             juce::roundToInt(x + 14.0f),
-            842,
+            844,
             322,
             20,
             juce::Justification::centredLeft
         );
-        graphics.setColour(consoleMuted.withAlpha(0.72f));
-        graphics.setFont(consoleFont(10.0f));
-        graphics.drawText(
-            group == 0 ? "Internal render policy"
-                       : group == 1 ? "Stereo field target"
-                                    : group == 2 ? "Logarithmic RT60 macro"
-                                                 : group == 3 ? "Dry / wet gain topology"
-                                                              : "Damping + diffusion pair",
-            juce::roundToInt(x + 14.0f),
-            942,
-            322,
-            18,
-            juce::Justification::centredLeft
-        );
+        if (group > 0) {
+            graphics.setColour(consoleLine.withAlpha(0.34f));
+            graphics.drawVerticalLine(juce::roundToInt(x - 8.0f), 844.0f, 930.0f);
+        }
     }
 
     graphics.setColour(consoleMuted);
     graphics.setFont(dataFont(9.0f));
     graphics.drawText(
-        "TIP  CLICK A DIAL ARC, DRAG VERTICALLY, SCROLL, OR TYPE A VALUE. DOUBLE-CLICK RESETS.",
+        "Double-click a control to reset it. Values may also be entered directly.",
         54,
-        998,
+        962,
         1200,
         24,
         juce::Justification::centredLeft
@@ -1069,7 +1041,7 @@ void VerbXPluginEditor::paintExpertPage(juce::Graphics& graphics) {
             + "  /  " + juce::String(processor_.oversamplingFactor()) + "X"
             + "  /  " + juce::String(processor_.getLatencySamples()) + " SAMPLES LATENCY",
         1150,
-        998,
+        962,
         700,
         24,
         juce::Justification::centredRight
@@ -1087,50 +1059,18 @@ void VerbXPluginEditor::paint(juce::Graphics& graphics) {
     juce::Graphics::ScopedSaveState state(graphics);
     graphics.addTransform(juce::AffineTransform(scale, 0.0f, offsetX, 0.0f, scale, offsetY));
 
-    graphics.setColour(juce::Colour::fromRGB(8, 14, 18));
+    graphics.setColour(juce::Colour::fromRGB(14, 17, 19));
     graphics.fillRect(0.0f, 0.0f, designWidth, designHeight);
-    graphics.setColour(analyzerMint.withAlpha(0.025f));
-    for (int x = 0; x < static_cast<int>(designWidth); x += 64) {
-        graphics.drawVerticalLine(x, 0.0f, designHeight);
-    }
-    for (int y = 0; y < static_cast<int>(designHeight); y += 64) {
-        graphics.drawHorizontalLine(y, 0.0f, designWidth);
-    }
-    graphics.setColour(analyzerMint.withAlpha(0.035f));
-    graphics.fillEllipse(500.0f, -420.0f, 1100.0f, 840.0f);
-
-    const auto topBar = juce::Rectangle<float>(40.0f, 20.0f, 1840.0f, 72.0f);
-    graphics.setColour(juce::Colour::fromRGB(22, 29, 34).withAlpha(0.94f));
-    graphics.fillRoundedRectangle(topBar, 18.0f);
-    graphics.setColour(consoleLine.withAlpha(0.42f));
-    graphics.drawRoundedRectangle(topBar.reduced(0.5f), 18.0f, 1.0f);
+    graphics.setColour(juce::Colour::fromRGB(18, 22, 24));
+    graphics.fillRect(0.0f, 0.0f, designWidth, 92.0f);
+    graphics.setColour(consoleLine.withAlpha(0.62f));
+    graphics.drawHorizontalLine(91, 0.0f, designWidth);
     graphics.setColour(consoleText);
-    graphics.setFont(consoleFont(29.0f, juce::Font::bold));
-    graphics.drawText("V E R B X", 60, 30, 150, 38, juce::Justification::centredLeft);
+    graphics.setFont(consoleFont(28.0f, juce::Font::bold));
+    graphics.drawText("VERBX", 54, 28, 128, 38, juce::Justification::centredLeft);
     graphics.setColour(analyzerMint);
     graphics.setFont(dataFont(9.0f, juce::Font::bold));
-    graphics.drawText("SPATIAL\nENGINE", 188, 38, 80, 34, juce::Justification::centredLeft);
-
-    const auto preset = juce::Rectangle<float>(284.0f, 35.0f, 1220.0f, 42.0f);
-    graphics.setColour(juce::Colours::black.withAlpha(0.18f));
-    graphics.fillRoundedRectangle(preset, 20.0f);
-    graphics.setColour(consoleLine.withAlpha(0.34f));
-    graphics.drawRoundedRectangle(preset, 20.0f, 1.0f);
-    graphics.setColour(consoleMuted);
-    graphics.setFont(consoleFont(13.0f));
-    graphics.drawText("Preset", 304, 44, 52, 22, juce::Justification::centredLeft);
-    graphics.setColour(consoleText);
-    graphics.setFont(consoleFont(14.0f, juce::Font::bold));
-    graphics.drawText("DXF Hall  ·  Slow Bloom  ·  7.2.4", 360, 44, 470, 22, juce::Justification::centredLeft);
-    graphics.setColour(consoleMuted);
-    graphics.drawText("Browse", 1410, 44, 70, 22, juce::Justification::centredRight);
-
-    graphics.setColour(consolePanel);
-    graphics.fillRoundedRectangle(1762.0f, 37.0f, 90.0f, 38.0f, 18.0f);
-    graphics.setColour(analyzerMint);
-    graphics.fillEllipse(1774.0f, 52.0f, 8.0f, 8.0f);
-    graphics.setFont(dataFont(10.0f, juce::Font::bold));
-    graphics.drawText("LIVE", 1786, 44, 54, 22, juce::Justification::centredLeft);
+    graphics.drawText("SPATIAL REVERB", 184, 40, 130, 22, juce::Justification::centredLeft);
 
     if (activePage_ == Page::expert) {
         paintExpertPage(graphics);
