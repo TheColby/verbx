@@ -22,16 +22,135 @@ int main(int argc, char* argv[]) {
     if (processor.internalSampleRate() != 192000U || processor.oversamplingFactor() != 4U) {
         return fail("default Target quality did not prepare real 4x processing");
     }
+    if (processor.getNumPrograms() != 260 || processor.getProgramName(2) != "Plate"
+        || processor.getProgramName(132) != "Chamber Dawn") {
+        return fail("processor did not expose the generated host program library");
+    }
+    processor.setCurrentProgram(2);
+    auto* presetWetParameter = processor.state().getParameter("wet");
+    if (processor.getCurrentProgram() != 2 || presetWetParameter == nullptr
+        || std::abs(presetWetParameter->getValue() - 0.42f) > 0.001f) {
+        return fail("Plate program did not recall deterministic host parameters");
+    }
+    auto* modelParameter = processor.state().getParameter("reverb_model");
+    processor.setCurrentProgram(100);
+    if (modelParameter == nullptr
+        || std::abs(modelParameter->convertFrom0to1(modelParameter->getValue()) - 1.0f) > 0.001f) {
+        return fail("Spring preset family did not select the spring model");
+    }
+    processor.setCurrentProgram(68);
+    if (std::abs(modelParameter->convertFrom0to1(modelParameter->getValue()) - 2.0f) > 0.001f) {
+        return fail("Plate preset family did not select the plate model");
+    }
+    processor.setCurrentProgram(259);
+    if (processor.getCurrentProgram() != 259 || processor.getProgramName(259) != "Tight Infinite") {
+        return fail("last generated host program was not available");
+    }
+    processor.setCurrentProgram(2);
+    processor.changeProgramName(2, "Chrome Plate");
+    if (processor.getProgramName(2) != "Chrome Plate") {
+        return fail("host program names were not editable");
+    }
+    juce::MemoryBlock programState;
+    processor.getStateInformation(programState);
+    VerbXPluginProcessor restoredProcessor;
+    restoredProcessor.setStateInformation(programState.getData(), static_cast<int>(programState.getSize()));
+    if (restoredProcessor.getCurrentProgram() != 2
+        || restoredProcessor.getProgramName(2) != "Chrome Plate") {
+        return fail("host program state did not persist across processor restore");
+    }
 
     std::unique_ptr<juce::AudioProcessorEditor> editor(processor.createEditor());
     if (editor == nullptr) {
         return fail("processor did not create an editor");
     }
 
+    auto* presetBox = dynamic_cast<juce::ComboBox*>(editor->findChildWithID("preset_browser"));
+    if (presetBox == nullptr || presetBox->getNumItems() != processor.getNumPrograms()) {
+        return fail("editor did not expose the complete preset browser");
+    }
+    auto* presetFilter = dynamic_cast<juce::TextEditor*>(editor->findChildWithID("preset_filter"));
+    if (presetFilter == nullptr) {
+        return fail("editor did not expose the preset filter");
+    }
+    presetFilter->setText("Spring Dawn", juce::sendNotificationSync);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil(50);
+    if (presetBox->getNumItems() != 1 || presetBox->getItemText(0) != "Spring Dawn") {
+        return fail("preset filter did not narrow the program browser");
+    }
+    presetBox->setSelectedId(101, juce::sendNotificationSync);
+    if (processor.getCurrentProgram() != 100 || processor.getProgramName(100) != "Spring Dawn") {
+        return fail("preset browser did not select the requested host program");
+    }
+    presetFilter->setText({}, juce::sendNotificationSync);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil(50);
+    if (presetBox->getNumItems() != processor.getNumPrograms()) {
+        return fail("clearing the preset filter did not restore the full program browser");
+    }
+
+    auto* modelBox = dynamic_cast<juce::ComboBox*>(editor->findChildWithID("reverb_model"));
+    if (modelBox == nullptr || modelParameter == nullptr) {
+        return fail("editor did not expose the Reverb Model selector");
+    }
+    modelBox->setSelectedId(2, juce::sendNotificationSync);
+    if (std::abs(modelParameter->convertFrom0to1(modelParameter->getValue()) - 1.0f) > 0.001f) {
+        return fail("Spring model selector did not update host state");
+    }
+    modelBox->setSelectedId(3, juce::sendNotificationSync);
+    if (std::abs(modelParameter->convertFrom0to1(modelParameter->getValue()) - 2.0f) > 0.001f) {
+        return fail("Plate model selector did not update host state");
+    }
+    auto* tensionSlider = dynamic_cast<juce::Slider*>(editor->findChildWithID("spring_tension"));
+    auto* brightnessSlider = dynamic_cast<juce::Slider*>(editor->findChildWithID("plate_brightness"));
+    auto* tensionParameter = processor.state().getParameter("spring_tension");
+    auto* brightnessParameter = processor.state().getParameter("plate_brightness");
+    if (tensionSlider == nullptr || brightnessSlider == nullptr
+        || tensionParameter == nullptr || brightnessParameter == nullptr) {
+        return fail("editor did not expose physical-model character controls");
+    }
+    modelBox->setSelectedId(2, juce::sendNotificationSync);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil(100);
+    if (!tensionSlider->isVisible() || brightnessSlider->isVisible()) {
+        return fail("Spring model did not expose only the tension control");
+    }
+    tensionSlider->setValue(0.78, juce::sendNotificationSync);
+    modelBox->setSelectedId(3, juce::sendNotificationSync);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil(100);
+    if (tensionSlider->isVisible() || !brightnessSlider->isVisible()) {
+        return fail("Plate model did not expose only the brightness control");
+    }
+    brightnessSlider->setValue(0.31, juce::sendNotificationSync);
+    if (std::abs(tensionParameter->convertFrom0to1(tensionParameter->getValue()) - 0.78f) > 0.001f
+        || std::abs(brightnessParameter->convertFrom0to1(brightnessParameter->getValue()) - 0.31f) > 0.001f) {
+        return fail("physical-model character controls did not update host state");
+    }
+    modelBox->setSelectedId(1, juce::sendNotificationSync);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil(100);
+    if (tensionSlider->isVisible() || brightnessSlider->isVisible()) {
+        return fail("Algorithmic model did not hide physical character controls");
+    }
+
     auto* wetSlider = dynamic_cast<juce::Slider*>(editor->findChildWithID("wet"));
     auto* wetParameter = processor.state().getParameter("wet");
     if (wetSlider == nullptr || wetParameter == nullptr) {
         return fail("editor did not expose the Wet dial and parameter");
+    }
+
+    auto* abAButton = dynamic_cast<juce::Button*>(editor->findChildWithID("ab_a"));
+    auto* abBButton = dynamic_cast<juce::Button*>(editor->findChildWithID("ab_b"));
+    if (abAButton == nullptr || abBButton == nullptr) {
+        return fail("editor did not expose A/B comparison controls");
+    }
+    wetParameter->setValueNotifyingHost(wetParameter->convertTo0to1(0.22f));
+    abBButton->onClick();
+    wetParameter->setValueNotifyingHost(wetParameter->convertTo0to1(0.78f));
+    abAButton->onClick();
+    if (std::abs(wetParameter->convertFrom0to1(wetParameter->getValue()) - 0.22f) > 0.001f) {
+        return fail("A/B recall did not restore the captured A state");
+    }
+    abBButton->onClick();
+    if (std::abs(wetParameter->convertFrom0to1(wetParameter->getValue()) - 0.78f) > 0.001f) {
+        return fail("A/B recall did not restore the captured B state");
     }
 
     wetParameter->setValueNotifyingHost(1.0f);

@@ -47,6 +47,9 @@ public:
     unsigned int internalSampleRate() const noexcept;
     size_t oversamplingFactor() const noexcept;
     int preparedBlockSize() const noexcept;
+    void captureABSlot(int slot);
+    void recallABSlot(int slot);
+    int activeABSlot() const noexcept;
 
 private:
     struct RealtimeParameterPointers {
@@ -62,6 +65,9 @@ private:
         std::atomic<float>* freeze = nullptr;
         std::atomic<float>* reverse = nullptr;
         std::atomic<float>* qualityMode = nullptr;
+        std::atomic<float>* reverbModel = nullptr;
+        std::atomic<float>* springTension = nullptr;
+        std::atomic<float>* plateBrightness = nullptr;
     };
 
     juce::AudioProcessorValueTreeState parameters_;
@@ -86,10 +92,18 @@ private:
     void acquireRealtimeContextGuard() noexcept;
     void releaseRealtimeContextGuard() noexcept;
     void prepareRealtimeContext(double sampleRate, int samplesPerBlock, int qualityMode);
+    void applyBuiltInProgram(int index);
+    static juce::String defaultProgramName(int index);
     verbx_plugin_realtime_params currentRealtimeParams() const;
     void pushAnalyzerSamples(const juce::AudioBuffer<float>& buffer) noexcept;
     void parameterChanged(const juce::String& parameterId, float newValue) override;
     void handleAsyncUpdate() override;
+
+    static constexpr int builtInProgramCount = 260;
+    int currentProgram_ = 0;
+    std::array<juce::String, builtInProgramCount> customProgramNames_{};
+    std::array<juce::ValueTree, 2> abStates_{};
+    int activeABSlot_ = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VerbXPluginProcessor)
 };

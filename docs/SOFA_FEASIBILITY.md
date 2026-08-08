@@ -1,103 +1,68 @@
-# SOFA Import Feasibility (v0.7.x Evaluation)
+# SOFA Import and Extraction
 
-_Date: March 27, 2026_
+_Reviewed for verbx v0.9.9 on August 5, 2026._
 
-## Status
+The Spatially Oriented Format for Acoustics (SOFA) stores measured spatial-audio data in HDF5 containers governed by named conventions. A SOFA file is not merely a multichannel impulse response with a different extension. Its arrays may describe many source positions, receivers, listeners, and emitters, and the coordinate metadata determines what those samples mean. `verbx` therefore treats SOFA as an explicit import step rather than accepting it silently wherever a WAV impulse response is expected.
 
-`v0.7.7` ships a narrow MVP:
+## Supported Workflow
 
-- `verbx ir sofa-info FILE.sofa`
-- `verbx ir sofa-extract FILE.sofa OUT.wav`
+The current command-line surface is deliberately narrow. It lets an engineer inspect a container, select one FIR measurement, and export that selection as an ordinary WAV matrix for the existing convolution tools. The two commands are:
 
-This implements the recommended first step from this feasibility analysis:
-deterministic extraction of SOFA FIR data into explicit WAV matrices for the
-existing convolution engine.
+```bash
+verbx ir sofa-info measurements.sofa
+verbx ir sofa-extract measurements.sofa selected_ir.wav
+```
 
-## Summary
+`sofa-info` reports the convention and version, sample rate in hertz, `Data/IR` shape and dimension labels, and the available source, listener, receiver, and emitter position shapes. Inspect this report before extraction. A plausible channel count does not establish receiver order, coordinate units, or intended loudspeaker routing.
 
-SOFA import is technically feasible in `verbx`, but should land as a scoped
-interoperability feature in a future `0.7.x` patch (not as a broad, implicit
-"load any SOFA and hope" path).
+`sofa-extract` writes three related artifacts: the extracted WAV matrix, an IR metadata sidecar, and extraction metadata recording the selection and conversion choices. The WAV is then suitable for the same explicit matrix-routing workflow used by other verbx impulse responses.
 
-Recommended first scope:
+## Selecting a Measurement
 
-- Support **FIR-based SimpleFreeFieldHRIR / SingleRoomMIMO** style datasets.
-- Convert selected SOFA views into explicit `M x N` IR matrices compatible with
-  existing `--ir-matrix-layout` and `--ir-route-map` behavior.
-- Preserve deterministic render metadata (source file hash, selected listener
-  position, emitter index, and conversion options) in analysis JSON.
+SOFA datasets often contain several measurements of the same acoustic system at different positions. The default extracts measurement zero and, for a rank-four array, emitter zero. Select other entries by index:
 
-## Why It Fits `verbx`
+```bash
+verbx ir sofa-extract hall.sofa hall_m012_e01.wav \
+  --measurement-index 12 \
+  --emitter-index 1
+```
 
-- Convolution engine already supports general matrix routing and long IR tails.
-- Internal DSP is `float64`, which is appropriate for high-order FIR datasets.
-- Existing schema/provenance infrastructure can capture deterministic SOFA
-  conversion context.
+In strict mode, verbx accepts `Data/IR` rank three with dimensions `(M, R, N)` or rank four with dimensions `(M, R, E, N)`. Here, `M` is measurement index, `R` is receiver channel, `E` is emitter index, and `N` is sample index. Best-effort mode, which is the default, can accommodate less regular containers, but its output still requires listening and routing verification.
 
-## Constraints and Risks
+## Sample Rate and Normalization
 
-1. **Convention diversity:** SOFA is a container + convention family, not one
-   single structure. Different datasets expose different required fields.
-2. **Coordinate interpretation:** listener/source orientation and units can
-   drift across datasets; a silent mismatch gives valid but wrong routing.
-3. **Channel explosion:** HOA or dense directional sets can exceed practical
-   realtime/offline budgets if mapped naively.
-4. **Resampling policy:** sample-rate mismatch must be deterministic and
-   explicit (`strict` vs `coerce` style, mirroring IR blend policies).
-5. **Dependency footprint:** adding HDF5 stack must remain optional and
-   isolated from baseline install paths.
+An extracted IR retains the source sample rate unless `--target-sr` requests deterministic resampling. Normalization is explicit because changing IR gain changes the gain of every later convolution. The accepted modes are `none`, `peak`, and `rms`; the default is `peak`.
 
-## Proposed Integration Shape
+```bash
+verbx ir sofa-extract room.sofa room_48k.wav \
+  --target-sr 48000 \
+  --normalize peak \
+  --strict
+```
 
-### CLI Surface (future)
+Use `none` when calibrated level relationships must survive extraction. Use `peak` for a convenient bounded IR when absolute calibration is not part of the dataset contract. Use `rms` only when equalizing average IR energy is the intended comparison. Record the choice alongside a production master rather than relying on a filename to preserve it.
 
-- `verbx ir sofa-info FILE.sofa`
-  - Prints convention, sample rate, dimensions, emitter/listener counts,
-    available positions, and FIR length.
-- `verbx ir sofa-extract FILE.sofa OUT.wav [options]`
-  - Exports selected FIR set to an explicit WAV matrix for reuse with existing
-    convolution render flow.
-  - Options:
-    - `--listener-index`, `--emitter-index`, `--azimuth`, `--elevation`
-    - `--sample-rate` (optional deterministic resample)
-    - `--layout-map` (maps output channels to known layout tokens)
-    - `--strict` (fail on unsupported convention/metadata mismatch)
+## Routing the Exported Matrix
 
-### Data Model
+The receiver dimension becomes the channel dimension of the exported WAV. That operation preserves samples, but it does not invent a loudspeaker layout. Before rendering program material, make a short identification render or inspect isolated impulses so that every receiver channel is mapped intentionally through `--ir-matrix-layout` or `--ir-route-map`.
 
-- Keep SOFA parsing and extraction in `verbx.ir` domain.
-- Treat exported WAV matrix as canonical render input for `verbx render`.
-- Store extraction metadata sidecar JSON for reproducibility.
+A useful handoff record includes the source file hash, SOFA convention, measurement and emitter indices, sample-rate conversion, normalization mode, receiver order, and intended output layout. The extraction metadata records the computational choices; the engineer must still document the production meaning of the channels.
 
-## Dependency Strategy
+## Dependency and Failure Modes
 
-- Optional extra only (example): `pip install "verbx[sofa]"`.
-- Preferred lightweight read path:
-  - `h5py` for container access
-  - small in-repo convention validator for supported conventions
-- No hard dependency on SOFA stack for default install.
+SOFA support uses the optional `h5py` dependency so that the baseline verbx installation does not require an HDF5 stack. When the dependency is unavailable, the commands stop with an installation message rather than interpreting the file partially.
 
-## Validation Plan (future patch)
+The most important failures are semantic rather than syntactic. A container can open successfully while using a convention, coordinate system, orientation, or receiver order inappropriate for the intended render. Strict mode catches unsupported array rank, but it cannot decide whether a chosen viewpoint is musically or geometrically correct. Treat the info report, metadata sidecars, channel-identification render, and listening test as one validation sequence.
 
-1. Golden fixture tests using tiny SOFA samples:
-   - convention detection
-   - index/position selection
-   - deterministic WAV export hash
-2. Route parity tests:
-   - extracted matrix renders match expected channel counts/layouts
-3. Failure-path tests:
-   - unsupported convention
-   - missing required variables
-   - strict mismatch behavior
+## Current Boundary
 
-## Recommendation
+The shipped feature extracts indexed FIR data. It does not provide coordinate queries such as nearest azimuth and elevation, automatic Ambisonic decoding, arbitrary convention conversion, or direct object-audio authoring. Those operations require convention-specific decisions that should remain visible rather than being guessed during a render.
 
-Proceed with a narrow SOFA MVP focused on **deterministic extraction to explicit
-IR matrices**, then expand convention coverage incrementally. This matches
-`verbx` architecture and avoids destabilizing the current public-alpha surface.
+This boundary keeps SOFA interoperability reproducible: first select and document a view, then convert it to an explicit matrix, and finally route that matrix through the established convolution engine.
 
 ## References
 
+The formal and project references below describe the container family and its conventions. Consult the convention named by a dataset in addition to the general standard.
 
-- AES69 (SOFA standard family): <https://www.aes.org/publications/standards/search.cfm?docID=99>
-- SOFA project: <https://www.sofaconventions.org/>
+- AES69, *AES Standard for File Exchange: Spatial Acoustic Data File Format*: <https://www.aes.org/publications/standards/search.cfm?docID=99>
+- SOFA conventions project: <https://www.sofaconventions.org/>

@@ -131,6 +131,15 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip twine check (useful when artifacts are not yet built)",
     )
+    parser.add_argument(
+        "--skip-homebrew",
+        action="store_true",
+        help=(
+            "Skip the source-tree formula pin check. Tagged release automation "
+            "uses this because it computes the tag archive checksum before "
+            "publishing the formula to the separate tap."
+        ),
+    )
     args = parser.parse_args(argv)
 
     all_failures: list[str] = []
@@ -139,7 +148,7 @@ def main(argv: list[str] | None = None) -> int:
 
     version_failures = _check_version_matches_tag(args.tag)
     changelog_failures = _check_changelog_entry(args.tag)
-    formula_failures = _check_homebrew_formula_pinned(args.tag)
+    formula_failures = [] if args.skip_homebrew else _check_homebrew_formula_pinned(args.tag)
 
     all_failures.extend(version_failures)
     all_failures.extend(changelog_failures)
@@ -156,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {i}. {msg}", file=sys.stderr)
         return 1
 
-    checks_run = 3 + (0 if args.skip_twine else 1)
+    checks_run = 2 + (0 if args.skip_homebrew else 1) + (0 if args.skip_twine else 1)
     print(f"All {checks_run} release health checks PASSED.")
     return 0
 

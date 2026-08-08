@@ -20,6 +20,12 @@ from verbx.core.pipeline import run_render_pipeline
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONTRACT = ROOT / "tests/fixtures/native_render_parity_contract.json"
 DEFAULT_NATIVE_EXE = ROOT / "build/native/verbx_c/verbx-c"
+STRUCTURAL_CHECKS = (
+    "sample_rate_exact",
+    "channel_count_exact",
+    "finite_samples_only",
+    "tail_ends_in_exact_zeros",
+)
 
 
 @dataclass(slots=True)
@@ -157,6 +163,24 @@ def compare_contract(
     }
 
 
+def evaluate_required_checks(
+    report: dict[str, Any], required_checks: tuple[str, ...] = STRUCTURAL_CHECKS
+) -> bool:
+    """Return whether every scenario passes the requested contract checks."""
+    scenarios = report.get("scenarios")
+    if not isinstance(scenarios, list) or not scenarios:
+        return False
+    for scenario in scenarios:
+        if not isinstance(scenario, dict):
+            return False
+        checks = scenario.get("checks")
+        if not isinstance(checks, dict):
+            return False
+        if not all(checks.get(name) is True for name in required_checks):
+            return False
+    return True
+
+
 def ensure_native_exe(path: Path, *, build_native: bool, force_build: bool = False) -> Path:
     """Return a usable native executable, optionally building it first."""
     if path.exists() and not force_build:
@@ -286,6 +310,14 @@ def _parse_args() -> argparse.Namespace:
         help="Exit non-zero when any metric fails.",
     )
     parser.add_argument(
+        "--strict-structural",
+        action="store_true",
+        help=(
+            "Exit non-zero when sample-rate, channel-count, finite-sample, or "
+            "zero-tail parity fails. Full DSP metric results remain in the report."
+        ),
+    )
+    parser.add_argument(
         "--no-build-native",
         action="store_true",
         help="Do not build verbx-c when --native-exe is missing.",
@@ -312,13 +344,19 @@ def main() -> int:
 
     try:
         report = compare_contract(contract=contract, native_exe=native_exe, work_dir=work_dir)
+        report["structural_checks"] = list(STRUCTURAL_CHECKS)
+        report["structural_passed"] = evaluate_required_checks(report)
         report["work_dir"] = str(work_dir)
         payload = json.dumps(report, indent=2, sort_keys=True)
         if args.report is not None:
             args.report.parent.mkdir(parents=True, exist_ok=True)
             args.report.write_text(payload + "\n", encoding="utf-8")
         print(payload)
-        return 1 if args.strict and not bool(report["passed"]) else 0
+        if args.strict and not bool(report["passed"]):
+            return 1
+        if args.strict_structural and not bool(report["structural_passed"]):
+            return 1
+        return 0
     finally:
         if temp_ctx is not None and not args.keep_work_dir:
             temp_ctx.cleanup()

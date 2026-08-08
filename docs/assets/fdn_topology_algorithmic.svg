@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2100 1280" role="img" aria-labelledby="title desc">
-  <title id="title">Figure 6.2.1 — Algorithmic Render Topology (verbx)</title>
+  <title id="title">Figure 6.2.1 – Algorithmic Render Topology (verbx)</title>
   <desc id="desc">Readable orthogonal signal-flow graph for algorithmic render path: input, pre-delay, allpass diffusion, FDN core with optional DFM branch, wet path, dry path, and final mix/output.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
@@ -34,7 +34,7 @@
   <rect x="0" y="0" width="2100" height="1280" fill="url(#bg)"/>
   <rect class="panel" x="52" y="64" width="1996" height="1158" rx="20"/>
 
-  <text class="title" x="92" y="126">Figure 6.2.1 — Algorithmic Render Topology (Orthogonal, Readable)</text>
+  <text class="title" x="92" y="126">Figure 6.2.1 – Algorithmic Render Topology (Orthogonal, Readable)</text>
   <text class="subtitle" x="92" y="160">Implemented in <tspan class="mono">src/verbx/core/algo_reverb.py</tspan> and selected by <tspan class="mono">verbx render --engine algo</tspan></text>
 
   <!-- Front-end chain -->

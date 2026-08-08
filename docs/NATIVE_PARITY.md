@@ -4,6 +4,11 @@ This document tracks the `verbx-c` native executable during the `v0.8` hybrid
 transition. Python `verbx` remains the default public-alpha CLI until native
 parity is proven by tests and fixtures.
 
+The bounded higher-order port is specified in
+[`NATIVE_FDN_CONTRACT.md`](NATIVE_FDN_CONTRACT.md), including its fixed state,
+coefficient equations, allocation rules, acceptance gates, and pre-port metric
+baseline.
+
 ## Release Shape
 
 Chosen `v0.8` shape: **hybrid wrapper phase before full replacement**.
@@ -19,11 +24,13 @@ Chosen `v0.8` shape: **hybrid wrapper phase before full replacement**.
 | Area | Python `verbx` | Native `verbx-c` | Status | Verification |
 | --- | --- | --- | --- | --- |
 | CLI entrypoint | Full public CLI | `help`, `version`, `doctor`, `render` | Partial native slice | `uv run pytest tests/test_native_scaffold.py` |
-| Offline algorithmic render | Full FDN feature surface | Foundational Schroeder/Moorer-style core | Not equivalent | `scripts/compare_native_render_parity.py` |
+| Offline algorithmic render | Full FDN feature surface | Bounded eight-line Hadamard FDN for `fdn`; foundational proxy topologies for `spring`/`plate` | Structural parity only | `scripts/compare_native_render_parity.py` |
+| Physical room render | `ism-fdn` rectangular image-source early field plus FDN late field | Not implemented | Python-reference only | `tests/test_room_geometry.py`, `tests/test_cli.py` |
+| Modal electro-mechanical render | Bounded spring/plate `modal-fe` structural solvers | Not implemented; proxy model choices only | Python-reference only | `tests/test_electromechanical.py` |
 | WAV input | libsndfile-backed broad format support | Mono/stereo WAV PCM16/24/32 and float32/float64 | Narrow parity | `tests/test_native_scaffold.py` |
 | WAV output | Broad libsndfile output support | `pcm16`, `float32`, `float64` WAV | Narrow parity | `tests/test_native_scaffold.py` |
-| Render controls | Hundreds of CLI options | `rt60`, `wet`, `dry`, pre-delay, damping, tail controls, peak-safe output | Narrow parity | `tests/fixtures/native_render_parity_contract.json` |
-| Tail handling | Python tail-stop semantics plus long-render safeguards | Threshold/hold tail trim with exact-zero ending | In progress | Native scaffold tests and parity report |
+| Render controls | Hundreds of CLI options including `--algo-model` | `--model fdn|spring|plate`, `rt60`, `wet`, `dry`, pre-delay, damping, bounded tail padding, tail controls, peak-safe output | Narrow parity | `tests/test_native_scaffold.py` |
+| Tail handling | Python tail-stop semantics plus long-render safeguards | `--tail-limit` bounds model tail padding; threshold/hold trim ends in exact zeros | Partial parity | Native scaffold tests and parity report |
 | Peak-safe output | Limiter/normalization/output peak controls | `--peak-safe --peak-ceiling-db` render-level scaling | Implemented for native slice | `test_native_render_peak_safe_scales_float_output_to_ceiling` |
 | Machine-readable reports | Render, realtime, dereverb, doctor, compare reports | `native-render-report-v1`, `native-doctor-report-v1` | Implemented for native slice | Native scaffold tests |
 | Plug-in foundation | Not applicable | Parameter manifest, RT60 mapping, realtime context API, guarded JUCE scaffold | Foundation slice | `ctest --test-dir build/native/verbx_c-plan --output-on-failure` |
@@ -34,7 +41,10 @@ Chosen `v0.8` shape: **hybrid wrapper phase before full replacement**.
 | Dereverb | Python DSP dereverb | Not implemented | Deferred | Roadmap only |
 | IR tools | Python IR synth/morph/library tools | Not implemented | Deferred | Roadmap only |
 | Batch/immersive workflows | Python workflow commands | Not implemented | Deferred | Roadmap only |
-| Presets | Built-in/generated Python preset bank | Not implemented | Deferred | Roadmap only |
+| Presets | Built-in/generated Python preset bank | 260 host programs with persisted editable labels, browser, and live filter | Partial | Four immediate references plus 256 deterministic room, hall, plate, spring, chamber, drone, shimmer, and tight variations recall the realtime parameter set; the browser stays synchronized with host programs and filters by name. Python preset-bank parity remains deferred. |
+| Spring / plate reverb | Offline Python proxies and modal FE solvers | Realtime spring-tank and plate topologies | Partial | Host-automatable `Reverb Model` chooses Algorithmic, Spring, or Plate. The plug-in paths are bounded realtime approximations, not the offline modal-FE solvers. |
+| Physical-model character | Detailed spring/plate configuration and modal FE controls | Contextual Spring Tension / Plate Brightness | Partial | Both controls remain host-automatable; the editor exposes the one relevant to the selected physical model, with callback-safe smoothing. |
+| A/B comparison | Host/project automation and offline parameter variants | Two full parameter-state snapshots | Partial | Editor A/B controls capture the departing state and recall the selected state without changing the host automation surface. |
 
 ## Native Parity Contract
 
@@ -55,6 +65,20 @@ uv run python scripts/compare_native_render_parity.py \
 The report is allowed to fail metric tolerances while the native DSP remains a
 foundational core. The harness itself must continue to run and emit JSON so the
 gap is measurable.
+
+CI enforces the parity checks that the current native slice claims:
+
+```bash
+uv run python scripts/compare_native_render_parity.py \
+  --build-native \
+  --strict-structural \
+  --report native_parity_report.json
+```
+
+This blocking tier requires exact sample rate and channel count, finite samples,
+and an exact-zero tail for every fixture. Peak, RMS, and duration tolerances
+remain in the same report as the explicit full-DSP convergence target; use
+`--strict` locally to require every metric.
 
 ## Before Expanding Native Scope
 

@@ -17,7 +17,7 @@ from verbx.io.audio import iter_audio_blocks
 
 
 def test_iter_audio_blocks_exact_multiple(tmp_path: Path) -> None:
-    """Blocks divide evenly into file length — every block has full size."""
+    """Blocks divide evenly into file length – every block has full size."""
     sr = 48_000
     block_size = 512
     n_blocks = 4
@@ -57,7 +57,7 @@ def test_iter_audio_blocks_short_final_block(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 def _make_impulse_ir(length: int, channels: int = 1) -> np.ndarray:
-    """Unit impulse IR — convolving with it returns the input unchanged."""
+    """Unit impulse IR – convolving with it returns the input unchanged."""
     ir = np.zeros((length, channels), dtype=np.float64)
     ir[0, :] = 1.0
     return ir
@@ -84,7 +84,7 @@ def _make_engine(
 
 
 # ---------------------------------------------------------------------------
-# process_streaming_file — output shape / sample count
+# process_streaming_file: output shape / sample count
 # ---------------------------------------------------------------------------
 
 
@@ -292,7 +292,7 @@ def test_streaming_output_tail_decays_to_silence(tmp_path: Path) -> None:
     audio = np.zeros((input_len, 1), dtype=np.float64)
     audio[0, 0] = 1.0
 
-    # IR with a couple of taps — finite energy that decays.
+    # IR with a couple of taps and finite energy that decays.
     ir = np.zeros((512, 1), dtype=np.float64)
     ir[0, 0] = 1.0
     ir[100, 0] = 0.3
@@ -308,7 +308,7 @@ def test_streaming_output_tail_decays_to_silence(tmp_path: Path) -> None:
 
     out_audio, _ = sf.read(str(out_path), always_2d=True, dtype="float64")
 
-    # The last 100 samples should be silent — the IR's last tap is at index 100,
+    # The last 100 samples should be silent: the IR's last tap is at index 100,
     # input energy is only at sample 0, so the last IR-tail region is all zeros.
     tail = out_audio[-100:, :]
     assert np.max(np.abs(tail)) < 1e-12

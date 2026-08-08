@@ -51,14 +51,8 @@ def resolve_room_preset(value: str) -> tuple[str, dict[str, Any]]:
         mean_absorption=absorption,
     )
 
-    equivalent_absorption_area = max(geometry.surface_area_m2 * absorption, 1e-6)
-    rt60 = float(
-        np.clip(
-            (0.161 * geometry.volume_m3) / equivalent_absorption_area,
-            RT60_MIN_SECONDS,
-            RT60_MAX_SECONDS,
-        )
-    )
+    derived_fdn = geometry.derive_fdn_parameters(line_count=8)
+    rt60 = float(np.clip(derived_fdn.rt60_mid_s, RT60_MIN_SECONDS, RT60_MAX_SECONDS))
     room_size_macro = float(
         np.clip((np.log10(max(geometry.volume_m3, 1.0)) - np.log10(120.0)) / 1.1, -1.0, 1.0)
     )
@@ -82,6 +76,7 @@ def resolve_room_preset(value: str) -> tuple[str, dict[str, Any]]:
         fdn_lines = 24
     else:
         fdn_lines = 32
+    derived_fdn = geometry.derive_fdn_parameters(line_count=fdn_lines)
 
     canonical_name = (
         f"room:{dims[0]:g}x{dims[1]:g}x{dims[2]:g}/{material}"
@@ -95,6 +90,10 @@ def resolve_room_preset(value: str) -> tuple[str, dict[str, Any]]:
         "damping": damping,
         "width": width,
         "fdn_lines": fdn_lines,
+        "comb_delays_ms": derived_fdn.delay_ms,
+        "fdn_rt60_low": derived_fdn.rt60_low_s,
+        "fdn_rt60_mid": derived_fdn.rt60_mid_s,
+        "fdn_rt60_high": derived_fdn.rt60_high_s,
         "room_size_macro": room_size_macro,
         "clarity_macro": clarity_macro,
         "er_geometry": True,

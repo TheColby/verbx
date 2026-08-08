@@ -24,7 +24,7 @@ from verbx.ir.modes_modal import generate_modal_ir
 from verbx.ir.modes_stochastic import generate_stochastic_ir
 from verbx.ir.resonator import apply_modalys_resonator_layer
 from verbx.ir.shaping import apply_ir_shaping
-from verbx.ir.tuning import apply_harmonic_alignment
+from verbx.ir.tuning import apply_frequency_band_emphasis, apply_harmonic_alignment
 
 AudioArray = npt.NDArray[np.float64]
 IRMode = Literal["fdn", "stochastic", "modal", "hybrid"]
@@ -38,7 +38,7 @@ class IRGenConfig:
     The dataclass is used both for CLI config transport and cache-key hashing,
     so fields should remain JSON-serializable and deterministic.
 
-    # NOTE: JSON-serializability is load-bearing here — the cache key is built
+    # NOTE: JSON-serializability is load-bearing here – the cache key is built
     # by hashing json.dumps(asdict(config)), so anything that breaks that (e.g.
     # numpy scalars, non-serializable types) will silently produce a bad hash.
     """
@@ -73,6 +73,16 @@ class IRGenConfig:
     density: float = 1.0
 
     tuning: str = "A4=440"
+    scala_file_name: str | None = None
+    scala_description: str | None = None
+    scala_sha256: str | None = None
+    scala_root_hz: float | None = None
+    scala_root_degree: int = 0
+    scala_targets_hz: tuple[float, ...] = ()
+    scala_strength: float = 1.0
+    scala_bandwidth_cents: float = 25.0
+    scala_gain_db: float = 4.0
+    scala_max_targets: int = 128
     modal_count: int = 48
     modal_q_min: float = 5.0
     modal_q_max: float = 60.0
@@ -232,7 +242,7 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
         )
 
         # +11, +17, +23 are just arbitrary offsets so each mode gets a distinct RNG
-        # stream — nothing magic about those numbers, they just can't be 0 or equal.
+        # stream; nothing magic about those numbers, they just cannot be 0 or equal.
         stoch = generate_stochastic_ir(
             length_samples=length_samples,
             sr=config.sr,
@@ -320,6 +330,15 @@ def generate_ir(config: IRGenConfig) -> tuple[AudioArray, int, dict[str, Any]]:
         f0_hz=config.f0_hz,
         harmonic_targets_hz=config.harmonic_targets_hz,
         strength=config.harmonic_align_strength,
+    )
+
+    ir = apply_frequency_band_emphasis(
+        ir=ir,
+        sr=config.sr,
+        targets_hz=config.scala_targets_hz,
+        strength=config.scala_strength,
+        bandwidth_cents=config.scala_bandwidth_cents,
+        gain_db=config.scala_gain_db,
     )
 
     ir = apply_modalys_resonator_layer(
@@ -417,6 +436,6 @@ def _resolve_rt60_band(config: IRGenConfig) -> tuple[float, float]:
 def _cache_key(config: IRGenConfig) -> str:
     """Return short deterministic cache key for one IR generation config."""
     payload = asdict(config)
-    payload["_schema"] = "verbx-ir-v0.4"
+    payload["_schema"] = "verbx-ir-v0.5"
     text = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]

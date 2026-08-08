@@ -27,7 +27,7 @@ Realistic example set:
 - `realistic_examples.meta.json` (generation parameters and render snapshots)
 - `example_pack.meta.json` (full-pack file list, subtype/sample-rate info, SHA256s)
 
-Extreme example set — showcasing verbx's signature sound design range:
+Extreme example set – showcasing verbx's signature sound design range:
 
 - `extreme_cathedral_drums.wav`: drums through 8s Hadamard FDN cathedral reverb (16-line, 45ms pre-delay)
 - `extreme_shimmer_music.wav`: music through 6s algorithmic reverb with octave shimmer and 0.65 feedback
@@ -61,7 +61,7 @@ verbx render examples/audio/realistic_music_dry.wav examples/audio/extreme_froze
   --fdn-lines 32 --pre-delay-ms 60 --fdn-matrix hadamard
 ```
 
-Week 3 stabilization examples — copy-paste workflows for room modelling,
+Week 3 stabilization examples – copy-paste workflows for room modelling,
 dereverb cleanup, limiter-safe delivery, and bounded long-tail output:
 
 ```bash
@@ -78,7 +78,7 @@ verbx render examples/audio/realistic_music_dry.wav out_long.w64 \
   --preset delivery-long-tail-safe --output-container w64 --tail-limit 12
 ```
 
-Experimental music tradition example set — eight demos from the avant-garde/experimental canon:
+Experimental music tradition example set – eight demos from the avant-garde/experimental canon:
 
 - `lucier_sitting_room.wav`: speech → 7-pass room resonance accumulation (Alvin Lucier)
 - `eno_discreet_music.wav`: music → 12s ambient tail, low damping (Brian Eno)

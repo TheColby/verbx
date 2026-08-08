@@ -127,6 +127,9 @@ int main(void) {
         {VERBX_PLUGIN_PARAM_FREEZE, "freeze", "Freeze", "", VERBX_PLUGIN_PARAMETER_BOOL, 0.0, 1.0, 0.0},
         {VERBX_PLUGIN_PARAM_REVERSE, "reverse", "Reverse", "", VERBX_PLUGIN_PARAMETER_BOOL, 0.0, 1.0, 0.0},
         {VERBX_PLUGIN_PARAM_QUALITY_MODE, "quality_mode", "Quality", "", VERBX_PLUGIN_PARAMETER_CHOICE, 0.0, 3.0, (double)VERBX_PLUGIN_QUALITY_TARGET_192K},
+        {VERBX_PLUGIN_PARAM_REVERB_MODEL, "reverb_model", "Reverb Model", "", VERBX_PLUGIN_PARAMETER_CHOICE, 0.0, 2.0, (double)VERBX_PLUGIN_REVERB_MODEL_ALGORITHMIC},
+        {VERBX_PLUGIN_PARAM_SPRING_TENSION, "spring_tension", "Spring Tension", "%", VERBX_PLUGIN_PARAMETER_FLOAT, 0.0, 1.0, 0.50},
+        {VERBX_PLUGIN_PARAM_PLATE_BRIGHTNESS, "plate_brightness", "Plate Brightness", "%", VERBX_PLUGIN_PARAMETER_FLOAT, 0.0, 1.0, 0.65},
     };
     const verbx_plugin_parameter *parameter;
     double midpoint;
@@ -137,7 +140,7 @@ int main(void) {
     if (require_true(verbx_plugin_parameter_count() == VERBX_PLUGIN_PARAMETER_COUNT, "parameter count mismatch") != 0) {
         return 1;
     }
-    if (require_true(VERBX_PLUGIN_PARAMETER_COUNT == 12U, "parameter enum count changed") != 0) {
+    if (require_true(VERBX_PLUGIN_PARAMETER_COUNT == 15U, "parameter enum count changed") != 0) {
         return 1;
     }
 

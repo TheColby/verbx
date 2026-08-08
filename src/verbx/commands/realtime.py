@@ -139,7 +139,7 @@ def realtime(
         "reverb",
         "--live-mode",
         help=(
-            "Realtime processing mode: reverb only, dereverb only, or "
+            "Real-time processing mode: reverb only, dereverb only, or "
             "dereverb feeding the live reverb path."
         ),
     ),

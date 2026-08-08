@@ -112,6 +112,18 @@ def _build_algo_engine(config: RenderConfig) -> AlgoReverbEngine:
     return AlgoReverbEngine(
         AlgoReverbConfig(
             rt60=config.rt60,
+            algo_model=config.algo_model,
+            spring_count=config.spring_count,
+            spring_specs=config.spring_specs,
+            plate_width_m=config.plate_width_m,
+            plate_height_m=config.plate_height_m,
+            plate_thickness_mm=config.plate_thickness_mm,
+            plate_density_kg_m3=config.plate_density_kg_m3,
+            plate_youngs_gpa=config.plate_youngs_gpa,
+            plate_poisson_ratio=config.plate_poisson_ratio,
+            plate_tension_n=config.plate_tension_n,
+            plate_pickup_x=config.plate_pickup_x,
+            plate_pickup_y=config.plate_pickup_y,
             pre_delay_ms=config.pre_delay_ms,
             damping=config.damping,
             width=config.width,

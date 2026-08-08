@@ -1,10 +1,10 @@
 # verbx Schema Reference
 
-JSON and CSV format specifications for batch manifests and automation files.
+This reference defines the JSON and CSV contracts used by batch manifests, automation files, generated-IR metadata, and analysis reports. Read the prose before each table: a field's scope and provenance are as important as its serialized type.
 
-_Current as of v0.7.7._
+_Current as of v0.9.9._
 
-Notes for `v0.7.7`:
+The current boundary is:
 
 - Batch manifests map to the offline `verbx render` surface.
 - Realtime device selection (`verbx realtime`, `--input-device`, `--output-device`)
@@ -16,9 +16,11 @@ Notes for `v0.7.7`:
 
 ## Batch Manifest (`batch.json` / `batch.jsonl`)
 
-Used with `verbx batch render --manifest <file>`.
+Batch manifests describe offline render jobs for `verbx batch render --manifest <file>`. A JSON document groups jobs under one versioned object, while JSONL stores one independent job per line for streaming and append-oriented workflows.
 
 ### JSON format
+
+Use the object form when a complete batch is authored and reviewed as one document. Relative paths are interpreted in the command's execution context, so production manifests should be run from a documented working directory or use resolved paths.
 
 ```json
 {
@@ -44,7 +46,7 @@ Used with `verbx batch render --manifest <file>`.
 
 ### JSONL format (newline-delimited)
 
-One job object per line (no wrapping object, no `"jobs"` key):
+Use JSONL when tooling needs to process or generate records incrementally. Each line contains one job object with no wrapping object and no `"jobs"` key:
 
 ```jsonl
 {"infile": "dry/kick.wav", "outfile": "wet/kick.wav", "options": {"engine": "algo", "rt60": 0.4}}
@@ -53,26 +55,34 @@ One job object per line (no wrapping object, no `"jobs"` key):
 
 ### Job object fields
 
+Every job names an input and output. The optional `options` object overrides render defaults for that job and uses `RenderConfig` field names rather than shell spellings.
+
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `infile` | string | yes | Path to the dry input audio file |
 | `outfile` | string | yes | Path for the processed output file |
 | `options` | object | no | Any `verbx render` option as a key/value pair |
 
-`options` keys map directly to `RenderConfig` fields. All keys are optional — unset fields use defaults. Boolean flags use JSON booleans (`true`/`false`).
+`options` keys map directly to `RenderConfig` fields. All keys are optional – unset fields use defaults. Boolean flags use JSON booleans (`true`/`false`).
 
-**Common options:**
+The following table covers common options rather than every experimental control:
 
 | Option | Type | Default | Range |
 |---|---|---|---|
-| `engine` | string | `"auto"` | `"algo"`, `"conv"`, `"auto"` |
+| `engine` | string | `"auto"` | `"algo"`, `"conv"`, `"ism-fdn"`, `"auto"` |
+| `algo_model` | string | `"fdn"` | `"fdn"`, `"spring"`, `"plate"` |
+| `electromechanical_solver` | string | `"proxy"` | `"proxy"` or offline structural `"modal-fe"` |
+| `spring_fe_nodes` / `spring_fe_modes` | integer | `24` / `24` | Nodes `4..128`; modes `1..128` |
+| `spring_fe_coupling` / `spring_fe_loss` | number | `0.08` / `0.30` | `0..1` coupling; `0..2` high-mode loss |
+| `plate_fe_nx` / `plate_fe_ny` / `plate_fe_modes` | integer | `12` / `8` / `32` | Grid dimensions `4..32`; modes `1..128` |
+| `plate_fe_loss` | number | `0.24` | Frequency-dependent modal loss `0..2` |
 | `rt60` | number | `60.0` | `0.1` – `3600.0` |
 | `wet` | number | `0.8` | `0.0` – `1.0` |
 | `dry` | number | `0.2` | `0.0` – `1.0` |
 | `pre_delay_ms` | number | `20.0` | `0` – `500` |
 | `fdn_lines` | integer | `8` | `1` – `64` |
 | `fdn_matrix` | string | `"hadamard"` | `"hadamard"`, `"householder"`, `"random_orthogonal"`, `"circulant"`, `"elliptic"`, `"tv_unitary"`, `"graph"`, `"sdn_hybrid"` |
-| `shimmer` | boolean | `false` | — |
+| `shimmer` | boolean | `false` | – |
 | `shimmer_semitones` | number | `12` | `–24` – `24` |
 | `shimmer_mix` | number | `0.25` | `0.0` – `1.0` |
 | `shimmer_feedback` | number | `0.35` | `0.0` – `0.98` (safe), up to `1.25` with `unsafe_self_oscillate=true` |
@@ -109,9 +119,11 @@ Generate a template with: `verbx batch template`
 
 ## Automation File (`.json` or `.csv`)
 
-Used with `verbx render --automation-file <file>`.
+Automation files describe time-varying controls for `verbx render --automation-file <file>`. JSON supports several lane types and combination rules; CSV provides a compact breakpoint format for tools that naturally emit rows.
 
 ### JSON format
+
+The JSON object selects a timing mode and contains one or more lanes. This example combines a wet-mix envelope with a slow RT60 oscillator:
 
 ```json
 {
@@ -142,6 +154,8 @@ Used with `verbx render --automation-file <file>`.
 
 ### Top-level fields
 
+Top-level fields establish the evaluation rate and collect the lanes. A lane may operate at control-block or sample rate according to the selected mode and target implementation.
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `mode` | string | `"block"` | `"block"` (control-rate) or `"sample"` (sample-rate) |
@@ -150,7 +164,11 @@ Used with `verbx render --automation-file <file>`.
 
 ### Lane types
 
-#### `breakpoints` — interpolated envelope
+Lane type determines how values are generated between or within the times supplied by the author. Several lanes may address one target when their combination rules are intentional.
+
+#### `breakpoints` – interpolated envelope
+
+A breakpoint lane is the clearest choice for authored cues and gradual transitions. Points are expressed in seconds and evaluated using the selected interpolation rule.
 
 ```json
 {
@@ -173,11 +191,13 @@ Used with `verbx render --automation-file <file>`.
 | `combine` | string | `"replace"` | How to merge with prior lanes for same target |
 | `points` | array | required | Array of `{"time": seconds, "value": float}` |
 
-**Interpolation modes:** `linear`, `hold`, `step`, `smooth`, `smoothstep`, `exp` / `exponential`
+Available interpolation modes are `linear`, `hold`, `step`, `smooth`, `smoothstep`, `exp`, and `exponential`.
 
-**Combine modes:** `replace`, `add`, `multiply`
+Available combination modes are `replace`, `add`, and `multiply`.
 
-#### `lfo` — low-frequency oscillator
+#### `lfo` – low-frequency oscillator
+
+An LFO lane generates periodic or seeded low-rate variation around a center value. Its `depth` uses the target's native unit, so the same numeric depth has different meaning for damping and RT60.
 
 ```json
 {
@@ -201,7 +221,9 @@ Used with `verbx render --automation-file <file>`.
 | `center` | number | `0.5` | Center value |
 | `phase_deg` | number | `0.0` | Starting phase in degrees |
 
-#### `segments` — piecewise constant/linear segments
+#### `segments` – piecewise constant/linear segments
+
+A segment lane gives each interval an explicit start, end, value, and interpolation policy. It is useful when a control timeline comes from an edit decision list or cue system rather than isolated points.
 
 ```json
 {
@@ -217,6 +239,8 @@ Used with `verbx render --automation-file <file>`.
 
 ### CSV format
 
+CSV automation represents breakpoint rows only. It is convenient for spreadsheets and measurement software, but it cannot express every JSON lane property.
+
 ```csv
 target,time_s,value,interp
 wet,0.0,0.2,linear
@@ -226,9 +250,11 @@ rt60,0.0,1.0,smooth
 rt60,8.0,4.0,smooth
 ```
 
-Required columns: `target`, `time_s`, `value`. Optional: `interp`.
+The required columns are `target`, `time_s`, and `value`; `interp` is optional.
 
 ### Automation targets
+
+Targets are grouped by the stage at which the value acts. Ranges below are serialization limits, not promises that every extreme will be musically useful for every source.
 
 | Target | Domain | Range | Description |
 |---|---|---|---|
@@ -251,7 +277,37 @@ Required columns: `target`, `time_s`, `value`. Optional: `interp`.
 | `fdn-tonal-correction-strength` | engine | 0.0 – 1.0 | Tonal correction amount |
 | `ir-blend-alpha` | conv | 0.0 – 1.0 | IR morph blend (convolution engine) |
 
-**Aliases:** Most targets accept common shorthand — e.g. `t60` → `rt60`, `gain` → `gain-db`, `room` → `room-size`, `blend-alpha` → `ir-blend-alpha`.
+**Aliases:** Most targets accept common shorthand – e.g. `t60` → `rt60`, `gain` → `gain-db`, `room` → `room-size`, `blend-alpha` → `ir-blend-alpha`.
+
+---
+
+## Generated IR Metadata (`*.ir.meta.json`)
+
+`verbx ir gen OUT.wav` writes `OUT.wav.ir.meta.json` unless `--silent` is
+used. The top-level `version`, `mode`, and `seed` identify the generator; the
+`params` object contains the complete resolved `IRGenConfig`; and `metrics`
+contains measurements of the rendered IR. Every parameter contributes to the
+deterministic cache key.
+
+Scala-tuned IRs add the following fields inside `params`:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `scala_file_name` | string or null | Source `.scl` basename |
+| `scala_description` | string or null | First non-comment Scala line |
+| `scala_sha256` | string or null | SHA-256 of the exact source bytes |
+| `scala_root_hz` | number or null | Frequency assigned to the root degree |
+| `scala_root_degree` | integer | Zero-based selected degree |
+| `scala_targets_hz` | array of numbers | Resolved in-range frequency targets |
+| `scala_strength` | number | Tuning and emphasis blend from 0 to 1 |
+| `scala_bandwidth_cents` | number | Constant-Q band width in cents |
+| `scala_gain_db` | number | Pre-normalization emphasis gain in dB |
+| `scala_max_targets` | integer | Deterministic DSP target budget |
+
+The hash, resolved target list, and root mapping are the reproducibility
+contract. A consumer does not need the original Scala file to audit which
+frequencies shaped an existing IR. The synthetic IR cache namespace is
+`verbx-ir-v0.5`; older entries miss once and regenerate under this schema.
 
 ---
 
@@ -300,6 +356,8 @@ for classification, fit-method, interpretation, and confidence fields.
 
 ### Default reverb fields
 
+Default reverb analysis fields combine decay estimates, energy ratios, source classification, and confidence. Units are part of the key contract and should be retained when values are moved into a table or plotting system.
+
 | Key | Unit/values | Description |
 |---|---|---|
 | `reverb_rt60_seconds` | s | Selected broadband RT60 estimate; T30 preferred, then T20, then EDT |
@@ -337,6 +395,8 @@ keys (all prefixed `room_`):
 
 ### Numeric fields (float)
 
+Numeric room fields describe the fitted acoustic model and its uncertainty. They are estimates inferred from the analyzed response, not surveyed architectural dimensions.
+
 | Key | Unit | Description |
 |---|---|---|
 | `room_rt60_s` | s | Best RT60 estimate used as sizing input (mid-band preferred) |
@@ -352,11 +412,13 @@ keys (all prefixed `room_`):
 | `room_dim_depth_m` | m | Estimated room depth (1.25 × width) |
 | `room_dim_height_m` | m | Estimated room height (0.62 × width) |
 | `room_surface_area_m2` | m² | Total surface area of the estimated rectangular box |
-| `room_mean_absorption` | — | Estimated mean absorption coefficient [0, 1] |
+| `room_mean_absorption` | – | Estimated mean absorption coefficient [0, 1] |
 | `room_critical_distance_m` | m | Schroeder critical distance (direct = reverberant field) |
-| `room_confidence_score` | — | Numeric confidence rating [0, 1] |
+| `room_confidence_score` | – | Numeric confidence rating [0, 1] |
 
 ### String fields
+
+String fields summarize the selected estimation method and qualitative classifications. Preserve the underlying numeric fields when using these labels in reports.
 
 | Key | Values | Description |
 |---|---|---|
@@ -365,6 +427,8 @@ keys (all prefixed `room_`):
 | `room_confidence` | `"high"` `"medium"` `"low"` | Qualitative confidence rating |
 
 ### Room class thresholds
+
+Room classes are coarse interpretive bins derived from approximate volume and decay. They help organize results but do not replace the volume interval or confidence score.
 
 | Class | Approx. volume | Approx. RT60 |
 |---|---|---|
@@ -445,7 +509,7 @@ verbx render in.wav out.wav \
 
 Format: `target:time_s:value[:interp]`
 
-- `target` — automation target name
-- `time_s` — time in seconds (float)
-- `value` — parameter value (float)
-- `interp` — interpolation mode (optional, default `linear`)
+- `target` – automation target name
+- `time_s` – time in seconds (float)
+- `value` – parameter value (float)
+- `interp` – interpolation mode (optional, default `linear`)

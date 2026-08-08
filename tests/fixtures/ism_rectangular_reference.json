@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "description": "Analytic direct and first-order image-source paths for a rectangular room.",
+  "speed_of_sound_m_s": 343.0,
+  "sample_rate": 48000,
+  "room_dims_m": [6.0, 8.0, 3.0],
+  "source_pos_m": [1.0, 2.0, 1.5],
+  "listener_pos_m": [4.0, 5.0, 1.5],
+  "absorption": 0.3,
+  "reflection_order": 1,
+  "paths": [
+    {"walls": [], "distance_m": 4.2426406871},
+    {"walls": ["left"], "distance_m": 5.8309518948},
+    {"walls": ["right"], "distance_m": 7.6157731059},
+    {"walls": ["front"], "distance_m": 7.6157731059},
+    {"walls": ["rear"], "distance_m": 9.4868329805},
+    {"walls": ["floor"], "distance_m": 5.1961524227},
+    {"walls": ["ceiling"], "distance_m": 5.1961524227}
+  ]
+}

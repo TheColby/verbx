@@ -9,6 +9,7 @@ import numpy as np
 
 from verbx.analysis.room_size import estimate_volume, project_dimensions
 from verbx.core.early_reflections import material_absorption
+from verbx.ir.materials import OCTAVE_BANDS_HZ, get_material_profile
 
 _SPEED_OF_SOUND_M_S = 343.0
 _BOLT_RATIO_BOUNDS = {
@@ -23,6 +24,36 @@ _DEFAULT_WALL_MATERIALS = {
     "ceiling": "studio",
     "floor": "studio",
 }
+
+
+@dataclass(frozen=True, slots=True)
+class FDNRoomParameters:
+    """Physically grounded starting controls for the algorithmic FDN.
+
+    These values are deliberately *suggestions*, rather than a second room
+    simulator. Delay lengths use rectangular-room propagation paths with a
+    small deterministic prime-ratio perturbation to avoid coincident FDN
+    modes; the three RT60 values are Sabine estimates at 125, 1 kHz, and
+    4 kHz.
+    """
+
+    delay_ms: tuple[float, ...]
+    rt60_low_s: float
+    rt60_mid_s: float
+    rt60_high_s: float
+    pre_delay_ms: float
+    mean_free_path_m: float
+
+    def to_report(self) -> dict[str, Any]:
+        """Return a JSON-serializable representation."""
+        return {
+            "delay_ms": list(self.delay_ms),
+            "rt60_low_s": self.rt60_low_s,
+            "rt60_mid_s": self.rt60_mid_s,
+            "rt60_high_s": self.rt60_high_s,
+            "pre_delay_ms": self.pre_delay_ms,
+            "mean_free_path_m": self.mean_free_path_m,
+        }
 
 
 @dataclass(slots=True)
@@ -108,6 +139,92 @@ class RoomGeometry:
         return float((self.direct_distance_m / _SPEED_OF_SOUND_M_S) * 1000.0)
 
     @property
+    def wall_areas_m2(self) -> dict[str, float]:
+        """Return rectangular surface areas keyed by the material face names."""
+        return {
+            "left": self.depth_m * self.height_m,
+            "right": self.depth_m * self.height_m,
+            "front": self.width_m * self.height_m,
+            "rear": self.width_m * self.height_m,
+            "floor": self.width_m * self.depth_m,
+            "ceiling": self.width_m * self.depth_m,
+        }
+
+    @property
+    def mean_free_path_m(self) -> float:
+        """Diffuse-field mean free path, ``4V/S``, for the room."""
+        return float((4.0 * self.volume_m3) / max(self.surface_area_m2, 1e-9))
+
+    def sabine_rt60_by_band(self) -> dict[int, float]:
+        """Estimate octave-band RT60 using per-face material absorption.
+
+        Sabine remains a stable parameter derivation rule here, not a claim
+        that a small, highly absorptive room is perfectly diffuse. A
+        conservative bound keeps derived controls safe for the real-time FDN.
+        """
+        areas = self.wall_areas_m2
+        estimates: dict[int, float] = {}
+        for band_index, band_hz in enumerate(OCTAVE_BANDS_HZ):
+            absorption_area = 0.0
+            for wall, area in areas.items():
+                material = self.wall_materials[wall]
+                try:
+                    coefficient = get_material_profile(material).absorption[band_index]
+                except ValueError:
+                    # RoomGeometry accepts legacy/custom material labels. Keep
+                    # them usable by treating the existing broadband fallback
+                    # as a flat absorption profile.
+                    coefficient = material_absorption(material, 0.35)
+                absorption_area += area * coefficient
+            estimates[int(band_hz)] = float(
+                np.clip((0.161 * self.volume_m3) / max(absorption_area, 1e-6), 0.05, 60.0)
+            )
+        return estimates
+
+    def derive_fdn_parameters(self, *, line_count: int = 8) -> FDNRoomParameters:
+        """Derive decorrelated FDN delays and band RT60 targets from geometry.
+
+        The path pool covers axial, planar-diagonal, and body-diagonal room
+        dimensions. Repeating it for larger FDNs with prime-ratio scaling
+        gives deterministic, non-coincident delays without depending on a
+        sample rate or rounding sample counts prematurely.
+        """
+        requested = max(1, int(line_count))
+        width, depth, height = self.room_dims_m
+        path_lengths = np.asarray(
+            (
+                height,
+                self.mean_free_path_m,
+                width,
+                depth,
+                float(np.hypot(width, height)),
+                float(np.hypot(depth, height)),
+                float(np.hypot(width, depth)),
+                float(np.linalg.norm((width, depth, height))),
+            ),
+            dtype=np.float64,
+        )
+        primes = np.asarray((2, 3, 5, 7, 11, 13, 17, 19), dtype=np.float64)
+        values: list[float] = []
+        for index in range(requested):
+            cycle, slot = divmod(index, len(path_lengths))
+            scale = (1.0 + (0.007 * primes[slot])) * (1.0 + (0.11 * cycle))
+            values.append(float((path_lengths[slot] * scale / _SPEED_OF_SOUND_M_S) * 1000.0))
+        delays = np.sort(np.clip(np.asarray(values, dtype=np.float64), 3.0, 120.0))
+        for index in range(1, len(delays)):
+            delays[index] = max(delays[index], delays[index - 1] + 0.11)
+
+        rt60 = self.sabine_rt60_by_band()
+        return FDNRoomParameters(
+            delay_ms=tuple(float(value) for value in delays),
+            rt60_low_s=rt60[125],
+            rt60_mid_s=rt60[1000],
+            rt60_high_s=rt60[4000],
+            pre_delay_ms=self.direct_path_pre_delay_ms,
+            mean_free_path_m=self.mean_free_path_m,
+        )
+
+    @property
     def aspect_ratios(self) -> dict[str, float]:
         return {
             "depth_over_width": float(self.depth_m / self.width_m),
@@ -179,6 +296,7 @@ class RoomGeometry:
             "surface_area_m2": self.surface_area_m2,
             "direct_distance_m": self.direct_distance_m,
             "direct_path_pre_delay_ms": self.direct_path_pre_delay_ms,
+            "mean_free_path_m": self.mean_free_path_m,
             "aspect_ratios": ratios,
             "bolt_score": self.bolt_score(),
             "warnings": self.warnings(),

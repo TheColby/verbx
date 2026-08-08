@@ -44,6 +44,25 @@ assert FIGURE_SPEC is not None and FIGURE_SPEC.loader is not None
 USERGUIDE_FIGURES = importlib.util.module_from_spec(FIGURE_SPEC)
 FIGURE_SPEC.loader.exec_module(USERGUIDE_FIGURES)
 
+COMPOSITION_YEAR_SPEC = importlib.util.spec_from_file_location(
+    "scripts_normalize_composition_years",
+    REPO_ROOT / "scripts_normalize_composition_years.py",
+)
+assert (
+    COMPOSITION_YEAR_SPEC is not None
+    and COMPOSITION_YEAR_SPEC.loader is not None
+)
+COMPOSITION_YEARS = importlib.util.module_from_spec(COMPOSITION_YEAR_SPEC)
+COMPOSITION_YEAR_SPEC.loader.exec_module(COMPOSITION_YEARS)
+
+TYPOGRAPHY_SPEC = importlib.util.spec_from_file_location(
+    "scripts_check_typography",
+    REPO_ROOT / "scripts_check_typography.py",
+)
+assert TYPOGRAPHY_SPEC is not None and TYPOGRAPHY_SPEC.loader is not None
+TYPOGRAPHY = importlib.util.module_from_spec(TYPOGRAPHY_SPEC)
+TYPOGRAPHY_SPEC.loader.exec_module(TYPOGRAPHY)
+
 COMPOSITION_PROJECT_TITLES = (
     "Compose with Infinite Sustain",
     "Reverse-Reverb Phrase Study",
@@ -89,10 +108,11 @@ def test_rt60_section_3_2_is_a_substantial_textbook_treatment() -> None:
     assert image_paths == [
         "docs/assets/userguide_figures/03_rt60_decay_families.png",
         "docs/assets/userguide_figures/04_edc_fit_windows.png",
+        "docs/assets/userguide_figures/25_energy_decay_relief.png",
         "docs/assets/userguide_figures/09_multiband_decay.png",
         "docs/assets/userguide_figures/24_infinite_reverb.png",
     ]
-    assert len(captioned_images) == 4
+    assert len(captioned_images) == 5
     for number, image_path in enumerate(image_paths, start=1):
         assert section.index(f"Figure 3-{number}") < section.index(f"]({image_path})")
         assert (REPO_ROOT / image_path).is_file()
@@ -102,6 +122,7 @@ def test_rt60_section_3_2_is_a_substantial_textbook_treatment() -> None:
         "From Room Physics to Reverberation Time",
         "RT60 Inside a Feedback Delay Network",
         "Measuring RT60 from an Impulse Response",
+        "Energy Decay Relief",
         "Frequency-Dependent and Multiband Decay",
         "Non-Diffuse Rooms, Modes, and Coupled Slopes",
         "RT60 Is Not Wetness, Distance, or Clarity",
@@ -115,11 +136,13 @@ def test_rt60_section_3_2_is_a_substantial_textbook_treatment() -> None:
 
     for technical_detail in (
         r"E(t)=\int_t^{\infty}h^2(\tau)\,d\tau",
+        r"\operatorname{EDR}(t_n,f_k)",
         r"g_i=10^{-\frac{3m_i}{F_sT_{60}}}",
         "0.161\\frac{V}{-S\\ln(1-\\overline{\\alpha})},\n$$",
         r"T_{\mathrm{beat}}=\frac{60}{B}",
         "verbx render in.wav out_multiband.wav",
         "verbx analyze study_hall.wav --input-kind ir --edr --room",
+        "https://ccrma.stanford.edu/~jos/pasp/Energy_Decay_Relief.html",
         "10.1121/1.1909343",
         "10.1109/97.623041",
     ):
@@ -138,6 +161,209 @@ def test_parenthesized_doi_reference_is_matched_atomically() -> None:
 
     assert match is not None
     assert match.group("doi") == "10.1016/s0003-682x(96)00028-x"
+
+
+def test_figure_index_uses_concise_subjects_and_preserves_musical_italics() -> None:
+    caption = (
+        r"\verbxFigureCaption{Opening measures of Paul Dukas's "
+        r"\emph{Fanfare pour précéder La Péri} (1912), arranged as a compact "
+        r"brass-attack and sustain test}"
+    )
+
+    indexed = DOCS_PDF._add_pdf_index(caption)
+
+    assert indexed.count(caption) == 1
+    assert r"\emph{Fanfare pour précéder La Péri}" in indexed
+    assert r"\textbackslash{}emph" not in indexed
+    assert (
+        r"\index{Dukas, Paul. Fanfare pour précéder La Péri (1912)@Dukas, Paul. "
+        r"\textit{Fanfare pour précéder La Péri} (1912)}"
+    ) in indexed
+
+    technical = DOCS_PDF._add_pdf_index(
+        r"\verbxFigureCaption{Feedback comb filter with delay length $M$ and loop gain $g$}"
+    )
+    assert r"\index{Feedback comb filter}" in technical
+    assert "delay length" not in technical.split(r"\index{", 1)[1]
+
+
+def test_pdf_font_configuration_enables_prose_ligatures_only() -> None:
+    command = DOCS_PDF._pandoc_base_command(
+        REPO_ROOT / "docs" / "USERGUIDE.md",
+        "Colby Leider, PhD",
+    )
+
+    assert "mainfontoptions:Ligatures=Common" in command
+    assert "monofontoptions:Ligatures=NoCommon" in command
+    assert "--from=gfm+tex_math_dollars+raw_attribute+smart" in command
+    assert "--list-of-tables" in command
+    assert str(REPO_ROOT / "docs/assets/caption_tables.lua") in command
+    assert str(REPO_ROOT / "docs/assets/directional_quotes.lua") in command
+
+    quote_filter = (REPO_ROOT / "docs/assets/directional_quotes.lua").read_text(
+        encoding="utf-8"
+    )
+    assert r'left = "\\textquotedblleft{}"' in quote_filter
+    assert r'right = "\\textquotedblright{}"' in quote_filter
+    assert r'left = "\\textquoteleft{}"' in quote_filter
+    assert r'right = "\\textquoteright{}"' in quote_filter
+    assert '["“"] = "\\\\textquotedblleft{}"' in quote_filter
+    assert '["”"] = "\\\\textquotedblright{}"' in quote_filter
+    assert '["‘"] = "\\\\textquoteleft{}"' in quote_filter
+    assert '["’"] = "\\\\textquoteright{}"' in quote_filter
+
+
+def test_book_sources_do_not_contain_reversed_curly_quotes() -> None:
+    suspicious_patterns = {
+        "closing double quote in opening position": re.compile(
+            r"(^|[\s(\[])”", re.MULTILINE
+        ),
+        "opening double quote in closing position": re.compile(
+            r"“(?=$|[\s.,;:!?)}\]])", re.MULTILINE
+        ),
+        "closing single quote in opening position": re.compile(
+            r"(^|[\s(\[])’(?=[A-Za-z])", re.MULTILINE
+        ),
+        "opening single quote used as an apostrophe": re.compile(
+            r"(?<=[A-Za-z])‘(?=[A-Za-z])"
+        ),
+    }
+
+    for source in DOCS_PDF.USERGUIDE_INCLUDED_SOURCES:
+        manuscript = source.read_text(encoding="utf-8")
+        for description, pattern in suspicious_patterns.items():
+            assert pattern.search(manuscript) is None, f"{source}: {description}"
+
+
+def test_traditional_book_apparatus_is_complete_and_ordered() -> None:
+    preamble = (REPO_ROOT / "docs/assets/pandoc_pdf_preamble.tex").read_text(
+        encoding="utf-8"
+    )
+    front_matter = (
+        r"\verbxFrontispiece",
+        r"\verbxPreface",
+        r"\verbxAcknowledgments",
+        r"\verbxSymbols",
+        r"\verbxAbbreviations",
+        r"\verbxChronology",
+        r"\verbxBibliographicalNote",
+    )
+    definitions_end = preamble.index(r"\renewcommand{\maketitle}")
+    maketitle = preamble[definitions_end : preamble.index(r"\newcommand{\verbxAfterword}")]
+    offsets = [maketitle.index(command) for command in front_matter]
+
+    assert offsets == sorted(offsets)
+    assert maketitle.index(r"\begin{titlepage}") < maketitle.index(
+        r"\verbxFrontispiece"
+    )
+    assert r"\verbxHalfTitle" not in maketitle
+    assert r"\let\cleardoublepage\clearpage" in preamble
+    assert r"\chapter*{Preface}" in preamble
+    assert r"{\large\itshape [forthcoming]}" in preamble
+    assert r"\chapter*{List of Symbols and Notation}" in preamble
+    assert r"\chapter*{List of Abbreviations}" in preamble
+    assert r"\chapter*{Chronology of Reverberation}" in preamble
+    assert r"\chapter*{Bibliographical Note}" in preamble
+    assert "``" not in preamble
+    assert "''" not in preamble
+    assert r"\chapter*{Afterword}" in preamble
+    assert r"\chapter*{About the Author}" in preamble
+    assert r"\chapter*{Errata and Corrigenda}" in preamble
+    assert "https://github.com/TheColby/verbx/issues" in preamble
+    assert r"\newcommand{\verbxWorkIndex}" in preamble
+    assert r"\newcommand{\verbxPrintMusicalWorksIndex}" in preamble
+    assert r"\newcommand{\listofplates}" in preamble
+    assert r"\newcommand{\verbxRepositoryQR}" in preamble
+    assert r"\thispagestyle{empty}" in preamble
+    assert "docs/assets/verbx_github_qr.png" in preamble
+    assert (REPO_ROOT / "docs/assets/verbx_github_qr.png").is_file()
+
+    symbols = preamble.split(r"\newcommand{\verbxSymbols}", 1)[1].split(
+        r"\newcommand{\verbxAbbreviations}", 1
+    )[0]
+    assert symbols.count(r"\verbxSymbolRow{") >= 90
+    assert symbols.count(r"\verbxSymbolGroup{") >= 6
+    assert r"\tabularnewline\noalign{\vskip 5pt}" in preamble
+
+    abbreviations = preamble.split(r"\newcommand{\verbxAbbreviations}", 1)[1].split(
+        r"\newcommand{\verbxChronRow}", 1
+    )[0]
+    assert abbreviations.count(r"\verbxAbbrevRow{") == 32
+    assert r"\newcommand{\verbxAbbrevRow}" in preamble
+    assert r"\renewcommand{\thetable}{\thechapter-\arabic{table}}" in preamble
+
+    chronology = preamble.split(r"\newcommand{\verbxChronology}", 1)[1].split(
+        r"\newcommand{\verbxBibliographicalNote}", 1
+    )[0]
+    assert chronology.count(r"\verbxChronRow{") >= 50
+    assert len(re.findall(r"\b[A-Za-z][A-Za-z'-]*\b", chronology)) >= 3_000
+    assert r"\tabularnewline\noalign{\vskip 7pt}" in preamble
+
+    rendered = DOCS_PDF._add_pdf_index("# Chapter\n\nText.")
+    assert rendered.index(r"\backmatter") < rendered.index(r"\verbxAfterword")
+    assert rendered.index(r"\verbxAfterword") < rendered.index(r"\verbxAboutAuthor")
+    assert rendered.index(r"\verbxAboutAuthor") < rendered.index(r"\verbxErrata")
+    assert rendered.index(r"\verbxErrata") < rendered.index(
+        r"\verbxPrintMusicalWorksIndex"
+    )
+    assert rendered.index(r"\verbxPrintMusicalWorksIndex") < rendered.index(
+        r"\printindex"
+    )
+    assert rendered.index(r"\printindex") < rendered.index(r"\verbxColophon")
+    assert rendered.index(r"\verbxColophon") < rendered.index(
+        r"\verbxRepositoryQR"
+    )
+
+
+def test_primary_source_reference_is_matched_atomically() -> None:
+    reference = (
+        "**[F11]** Dahl, Luke; Jot, Jean-Marc (2000). A Reverberator Based on "
+        "Absorbent All-Pass Filters. *Proceedings of DAFx-00*. Source: "
+        "[DAFx paper](https://example.org/dahl-jot.pdf)"
+    )
+
+    match = DOCS_PDF.RESEARCH_REFERENCE_PATTERN.fullmatch(reference)
+
+    assert match is not None
+    assert match.group("source_label") == "DAFx paper"
+    assert match.group("source_url") == "https://example.org/dahl-jot.pdf"
+
+
+def test_quoted_troubleshooting_headings_are_not_indexed() -> None:
+    headings = (
+        "Channels 9 and 10 sound too far forward.",
+        "The 7.1.4 file imported, so the Atmos master is finished.",
+        "The ADM BWF does not reflect my last monitor-chain EQ.",
+        "The height disappears in stereo.",
+        "The room sounds huge over speakers but phasey on headphones.",
+        "The subwoofer is full of reverb although LFE is empty.",
+        "The top-front and top-rear channels are silent in my bed.",
+    )
+    source = "\n\n".join(f"### “{heading}”\n\nGuidance." for heading in headings)
+
+    indexed = DOCS_PDF._index_markdown_headings(source)
+
+    for heading in headings:
+        assert f"\\index{{{heading.rstrip('.')}}}" not in indexed
+        assert f"### “{heading}”" in indexed
+
+
+def test_gated_reverse_reverb_guidance_is_implementation_honest() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    plugin_generator = (REPO_ROOT / "scripts_generate_plugin_guide.py").read_text(
+        encoding="utf-8"
+    )
+    glossary_generator = (REPO_ROOT / "scripts_generate_glossary.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Gated Reverse Reverb: A Room That Arrives, Then Vanishes" in readme
+    assert "zero-lookahead, transient-triggered reverse-style swell" in readme
+    assert "A gate before the reverb controls which dry events" in readme
+    assert r"T_{\mathrm{lead}}=\frac{60N}{B}" in readme
+    assert "### Gated Reverse Reverb" in plugin_generator
+    assert "current Reverse parameter is a zero-lookahead musical approximation" in plugin_generator
+    assert "Gated reverse reverb ::" in glossary_generator
 
 
 def test_pdf_markdown_has_no_parenthesized_doi_fence_artifacts() -> None:
@@ -172,18 +398,65 @@ def test_musical_work_titles_remain_italic_in_pdf_index() -> None:
         "Karlheinz Stockhausen, *Kontakte* (1958–1960)"
     )
 
-    assert term.startswith("Karlheinz Stockhausen, Kontakte (1958–1960)@")
-    assert r"Karlheinz Stockhausen, \textit{Kontakte} (1958–1960)" in term
+    assert term.startswith("Stockhausen, Karlheinz. Kontakte (1958–1960)@")
+    assert r"Stockhausen, Karlheinz. \textit{Kontakte} (1958–1960)" in term
+
+
+def test_musical_works_receive_general_and_dedicated_index_entries() -> None:
+    source = (
+        "# Important Musical Pieces\n\n"
+        "**Heinrich Schütz, *Saul, Saul, was verfolgst du mich?* (1650).** Study note."
+    )
+    rendered = DOCS_PDF._add_pdf_index(source)
+    term = DOCS_PDF._musical_index_term(
+        "Heinrich Schütz, *Saul, Saul, was verfolgst du mich?* (1650)"
+    )
+
+    assert f"\\index{{{term}}}" in rendered
+    assert f"\\verbxWorkIndex{{{term}}}" in rendered
+    assert r"\verbxPrintMusicalWorksIndex" in rendered
+
+    generator = (REPO_ROOT / "scripts_generate_docs_pdf.py").read_text(encoding="utf-8")
+    assert '"userguide.mwi"' in generator
+    assert '"userguide.mwx"' in generator
+
+
+def test_musical_index_uses_surname_first_creator_names() -> None:
+    schutz = DOCS_PDF._musical_index_term(
+        "Heinrich Schütz, *Saul, Saul, was verfolgst du mich?* (1650)"
+    )
+    assert schutz.startswith("Schütz, Heinrich. Saul, Saul, was verfolgst du mich? (1650)@")
+    assert r"Schütz, Heinrich. \textit{Saul, Saul, was verfolgst du mich?} (1650)" in schutz
+
+    assert DOCS_PDF._musical_creator_index_name("Hildegard von Bingen") == (
+        "von Bingen, Hildegard"
+    )
+    assert DOCS_PDF._musical_creator_index_name("Michel van der Aa") == (
+        "van der Aa, Michel"
+    )
+    assert DOCS_PDF._musical_creator_index_name("Ralph Vaughan Williams") == (
+        "Vaughan Williams, Ralph"
+    )
+
+
+def test_musical_index_preserves_ensembles_and_normalizes_joint_credits() -> None:
+    assert DOCS_PDF._musical_creator_index_name("Pink Floyd") == "Pink Floyd"
+    assert DOCS_PDF._musical_creator_index_name("Prince and the Revolution") == (
+        "Prince and the Revolution"
+    )
+    assert DOCS_PDF._musical_creator_index_name(
+        "Pauline Oliveros, Stuart Dempster, and Panaiotis"
+    ) == "Oliveros, Pauline; Dempster, Stuart; Panaiotis"
 
 
 def test_musical_workflow_titles_are_italicized_in_sources() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     cookbook = (REPO_ROOT / "docs/EXTREME_COOKBOOK.md").read_text(encoding="utf-8")
 
-    assert "Alvin Lucier's *I Am Sitting in a Room* technique" in readme
-    assert "Alvin Lucier / *I Am Sitting in a Room*" in cookbook
-    assert "Brian Eno / *Discreet Music*" in cookbook
-    assert "Pauline Oliveros / *Deep Listening*" in cookbook
+    assert "Alvin Lucier's *I Am Sitting in a Room* (1969) technique" in readme
+    assert "Alvin Lucier / *I Am Sitting in a Room* (1969)" in cookbook
+    assert "Brian Eno / *Discreet Music* (1975)" in cookbook
+    assert "Pauline Oliveros / *Deep Listening* (1989)" in cookbook
 
 
 def test_appendix_a_expansion_is_substantial_and_study_oriented() -> None:
@@ -192,11 +465,25 @@ def test_appendix_a_expansion_is_substantial_and_study_oriented() -> None:
         encoding="utf-8"
     )
 
-    assert len(entries) == 96
+    assert len(entries) == 192
     assert len({category for category, *_rest in entries}) == 16
-    assert "The following ninety-six additions" in expansion
-    assert expansion.count("[YouTube catalog search]") == 96
-    assert expansion.count("**Study prompt.**") == 96
+    assert "The following 192 additions" in expansion
+    assert expansion.count("[YouTube catalog search]") == 192
+    assert expansion.count("**Study prompt.**") == 192
+    assert expansion.count("> **Study prompt.**") == 192
+    category_counts: dict[str, int] = {}
+    for category, *_rest in entries:
+        category_counts[category] = category_counts.get(category, 0) + 1
+    assert set(category_counts.values()) == {12}
+    assert "organ " "work" not in expansion
+    assert (
+        "**J. S. Bach, *Passacaglia and Fugue in C minor, BWV 582* (c. 1710).** "
+        "Track the repeated bass"
+    ) in expansion
+    assert (
+        "**Olivier Messiaen, *Apparition de l'église éternelle* (1932).** "
+        "The slow crescendo"
+    ) in expansion
     for _category, creator, title, _year, _album, _note in entries:
         assert f"**{creator}, *{title}* (" in expansion
 
@@ -251,20 +538,96 @@ def test_faq_is_a_substantive_appendix_after_references() -> None:
     faq = faq_path.read_text(encoding="utf-8")
     questions = re.findall(r"^\*\*Q(\d+)\. .+\?\*\*$", faq, flags=re.MULTILINE)
 
-    assert DOCS_PDF.USERGUIDE_SOURCES[-2:] == (
+    assert DOCS_PDF.USERGUIDE_SOURCES[-4:-2] == (
         REPO_ROOT / "docs/REFERENCES.md",
         faq_path,
     )
     assert faq.startswith("# Frequently Asked Questions\n")
-    assert [int(number) for number in questions] == list(range(1, 49))
+    assert [int(number) for number in questions] == list(range(1, 104))
+
+
+def test_scala_tuning_is_documented_across_user_surfaces() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    ir_guide = (REPO_ROOT / "docs/IR_SYNTHESIS.md").read_text(encoding="utf-8")
+    schema = (REPO_ROOT / "docs/SCHEMA_REFERENCE.md").read_text(encoding="utf-8")
+    faq = (REPO_ROOT / "docs/FAQ.md").read_text(encoding="utf-8")
+    example = (REPO_ROOT / "examples/scales/README.md").read_text(encoding="utf-8")
+
+    for source in (readme, ir_guide, faq, example):
+        assert "--scala-file" in source
+        assert "--scala-root-hz" in source
+    assert "scala_sha256" in schema
+    assert "scala_targets_hz" in schema
+    assert "verbx-ir-v0.5" in ir_guide
+    assert "verbx-ir-v0.5" in schema
     assert re.search(r"^### .*\?$", faq, flags=re.MULTILINE) is None
     assert "Sked auestions" not in faq
+    assert "run `command -v verbx`" in faq
+    assert 'export PATH="$HOME/.local/bin:$PATH"' in faq
+    assert "installation directory is\non `PATH`" not in faq
+
+
+def test_ir_guide_has_multiple_runnable_microtonal_examples() -> None:
+    guide = (REPO_ROOT / "docs/IR_SYNTHESIS.md").read_text(encoding="utf-8")
+    section = guide.split("### Microtonal Hybrid from a Scala Scale", 1)[1].split(
+        "### Resonator-Colored Hybrid", 1
+    )[0]
+
+    assert section.count("#### Example ") == 6
+    assert "examples/scales/19edo.scl" in section
+    assert "examples/scales/5_limit_major.scl" in section
+    assert "examples/scales/bohlen_pierce_13edo.scl" in section
+    assert "matched-seed pair" in section
+    assert "verbx realtime" in section
+
+
+def test_fem_and_microtonal_chapters_are_book_sources() -> None:
+    fem = REPO_ROOT / "docs" / "FINITE_ELEMENT_MODELING.md"
+    microtonal = REPO_ROOT / "docs" / "MICROTONAL_SCALA_WORKFLOWS.md"
+
+    assert fem in DOCS_PDF.USERGUIDE_SOURCES
+    assert microtonal in DOCS_PDF.USERGUIDE_SOURCES
+    assert DOCS_PDF.USERGUIDE_SOURCES.index(fem) < DOCS_PDF.USERGUIDE_SOURCES.index(
+        microtonal
+    )
+
+    fem_text = fem.read_text(encoding="utf-8")
+    assert "\\mathbf{M}\\ddot{\\mathbf{p}}" in fem_text
+    assert "Mesh Resolution and Numerical Dispersion" in fem_text
+    assert "general CAD-to-room acoustic FE\nsolver" in fem_text
+
+    microtonal_text = microtonal.read_text(encoding="utf-8")
+    assert "What a Scala File Describes" in microtonal_text
+    assert "Musical Implications of a Tuned Decay Field" in microtonal_text
+    assert "--scala-root-degree" in microtonal_text
+    assert "not pitch correction" in microtonal_text
+    assert len(microtonal_text.split()) >= 7_000
+    for section in (
+        "Tuning Mathematics for Reverb Designers",
+        "A Signal Model for Scale-Conditioned Decay",
+        "Psychoacoustics of Tuned Reverberation",
+        "Source-Aware Orchestration",
+        "Worked Harmonic-Time Scenarios",
+        "Stereo, Surround, and Immersive Deployment",
+        "Measurement and Analytical Listening",
+        "Scale-Tuned Reverb for Audio AI and Data Augmentation",
+        "Extended Laboratory and Composition Studies",
+    ):
+        assert f"## {section}" in microtonal_text
 
     preamble = (REPO_ROOT / "docs/assets/pandoc_pdf_preamble.tex").read_text(
         encoding="utf-8"
     )
-    assert r"\textbf{Appendix C} & Research papers and references\\" in preamble
-    assert r"\textbf{Appendix D} & Frequently asked questions\\" in preamble
+    expected_appendices = (
+        r"\textbf{Appendix C} & Finite-element modeling for reverb and resonant systems\\",
+        r"\textbf{Appendix D} & Microtonal workflows, Scala import, and scale-tuned reverberation\\",
+        r"\textbf{Appendix E} & Research papers and references\\",
+        r"\textbf{Appendix F} & Frequently asked questions\\",
+        r"\textbf{Appendix G} & Public alpha notes\\",
+        r"\textbf{Appendix H} & Glossary\\",
+    )
+    for appendix in expected_appendices:
+        assert appendix in preamble
 
 
 def test_homebrew_chapter_is_folded_into_chapter_one() -> None:
@@ -285,9 +648,481 @@ def test_homebrew_chapter_is_folded_into_chapter_one() -> None:
     assert chapter_one.index("## Full Installation Instructions") < chapter_one.index(
         "## Homebrew Distribution and Release Maintenance"
     )
-    assert markdown.index("# Render Performance Baseline") > markdown.index(
-        "# Illustrated Guide"
+    assert re.search(r"^# Render Performance Baseline$", markdown, re.MULTILINE) is None
+    assert markdown.index("### Render Performance Baseline") < markdown.index(
+        "## DSP Architecture"
     )
+
+
+def test_chapter_one_explains_cli_and_plugin_production_paths() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    section_heading = "## Two Production Paths: Command Line and DAW Plug-ins"
+    plugin_heading = "## AUv3 / VST3 Plug-in Track"
+    section = readme[
+        readme.index(section_heading) : readme.index(plugin_heading)
+    ]
+
+    assert len(re.findall(r"\b[\w’-]+\b", section)) >= 1_500
+    assert readme.index(section_heading) < readme.index(plugin_heading)
+    assert "primarily intended for command-line use" in section
+    assert "AU, AUv3, and VST3 plug-in versions are also provided" in section
+    assert "specify, inspect, render, verify" in section
+    assert "insert, route, automate, audition, commit" in section
+    assert "Do not assume one-to-one parameter or preset parity" in section
+    assert "Use the **CLI**" in section
+    assert "Use the **plug-in**" in section
+
+    book = DOCS_PDF._build_markdown("Colby Leider, PhD")
+    chapter_two_marker = "<!-- docs/IMMERSIVE_AUDIO.md -->"
+    chapter_one = book[: book.index(chapter_two_marker)]
+    assert section_heading in chapter_one
+    assert chapter_one.index(section_heading) < chapter_one.index(plugin_heading)
+
+
+def test_every_cataloged_composition_mention_includes_its_year() -> None:
+    catalog = COMPOSITION_YEARS.composition_catalog()
+    sources = COMPOSITION_YEARS.documentation_sources()
+
+    assert len(catalog) >= 157
+    assert catalog["Spem in alium"] == "c. 1570"
+    assert catalog["Répons"] == "1981–1984"
+    assert catalog["Fanfare for the Common Man"] == "1942"
+    assert catalog["ADNOS"] == "1973–1974"
+    assert catalog["Ave verum"] == "traditional; date unknown"
+    assert DOCS_PDF.COMPOSITION_YEAR_NORMALIZER == (
+        REPO_ROOT / "scripts_normalize_composition_years.py"
+    )
+
+    for source in sources:
+        markdown = source.read_text(encoding="utf-8")
+        assert not COMPOSITION_YEARS.missing_composition_years(markdown, catalog), source
+        normalized, replacements = COMPOSITION_YEARS.normalize_composition_years(
+            markdown, catalog
+        )
+        assert replacements == 0, source
+        assert normalized == markdown, source
+
+    book = DOCS_PDF._build_markdown("Colby Leider, PhD")
+    assert "*Spem in alium* (c. 1570)" in book
+    assert "*Kontakte* (1958–1960)" in book
+    assert "*Fanfare for the Common Man* (1942)" in book
+    assert "*Ave verum* (traditional; date unknown)" in book
+
+
+def test_repository_text_never_uses_spaced_em_dashes() -> None:
+    assert DOCS_PDF.TYPOGRAPHY_CHECKER == REPO_ROOT / "scripts_check_typography.py"
+    assert TYPOGRAPHY.FORBIDDEN_SPACED_EM_DASH == " \N{EM DASH} "
+    assert not TYPOGRAPHY.spaced_em_dash_violations()
+
+
+def test_open_source_image_portfolio_is_complete_credited_and_rights_safe() -> None:
+    chapter_path = REPO_ROOT / "docs" / "OPEN_SOURCE_IMAGE_PORTFOLIO.md"
+    asset_root = REPO_ROOT / "docs" / "assets" / "open_source_portfolio"
+    chapter = chapter_path.read_text(encoding="utf-8")
+    images = re.findall(r"^!\[[^]]+\]\(([^)]+)\)$", chapter, flags=re.MULTILINE)
+    captions = re.findall(r"^\*\*Figure: .+\.\*\*$", chapter, flags=re.MULTILINE)
+    credits = re.findall(r"^\*Source and license:\* .+$", chapter, flags=re.MULTILINE)
+
+    assert chapter_path not in DOCS_PDF.USERGUIDE_SOURCES
+    assert chapter_path in DOCS_PDF.CHAPTER_TWO_SUPPLEMENTS
+    assert chapter_path in DOCS_PDF.USERGUIDE_INCLUDED_SOURCES
+    assert DOCS_PDF.BENCHMARK_SOURCE not in DOCS_PDF.USERGUIDE_SOURCES
+    assert DOCS_PDF.BENCHMARK_SOURCE in DOCS_PDF.REFERENCE_CHAPTER_SUPPLEMENTS
+    assert len(images) == len(captions) == len(credits) == 25
+    assert images[0].endswith("01_spem_in_alium_tutti-22.png")
+    assert "Copland's *Fanfare for the Common Man* (1942)" in chapter
+    assert "Messiaen's *Apparition de l'église éternelle* (1932)" in chapter
+    assert "are not reproduced here" in chapter
+
+    for image_path in images:
+        image_offset = chapter.index(f"]({image_path})")
+        assert "figure" in chapter[max(0, image_offset - 1_500) : image_offset].casefold()
+        local_path = REPO_ROOT / "docs" / image_path
+        assert local_path.is_file()
+        with Image.open(local_path) as image:
+            assert image.width >= 750
+            assert image.height >= 450
+
+    attribution = (asset_root / "ATTRIBUTIONS.md").read_text(encoding="utf-8")
+    for image_path in images:
+        assert Path(image_path).name in attribution
+    assert len(re.findall(r"^\d+\. `", attribution, flags=re.MULTILINE)) == 25
+
+
+def test_open_source_portfolio_pdf_layout_keeps_credits_with_figures() -> None:
+    chapter = (REPO_ROOT / "docs" / "OPEN_SOURCE_IMAGE_PORTFOLIO.md").read_text(
+        encoding="utf-8"
+    )
+    converted = DOCS_PDF._convert_figure_captions(chapter)
+
+    assert converted.count(r"\verbxFigureLead{") == 25
+    assert converted.count(r"\verbxPlateCaption{") == 25
+    assert converted.count(r"\verbxFigureCaption{") == 0
+    assert converted.count(r"\begin{samepage}") == 25
+    assert converted.count(r"\end{samepage}") == 25
+    assert converted.count("*Source and license:*") == 25
+    assert converted.count(r"\clearpage") == 2
+    assert r"height=0.72\textheight" in converted
+    assert r"height=0.57\textheight" in converted
+    assert r"\emph{Spem in alium}" in converted
+    assert "01_spem_in_alium_tutti-22.png" in converted
+
+
+def test_latex_caption_text_preserves_emphasized_work_titles() -> None:
+    rendered = DOCS_PDF._latex_text_with_inline_math(
+        r"Tallis's *Spem in alium* and decay $T_{60}$"
+    )
+
+    assert rendered == r"Tallis's \emph{Spem in alium} and decay $T_{60}$"
+
+
+def test_latex_text_escapes_makeindex_pipe_in_musical_work_titles() -> None:
+    assert DOCS_PDF._latex_text("d|p 1.1") == r"d\textbar{}p 1.1"
+
+
+def test_musical_appendix_includes_peres_and_ensemble_organum() -> None:
+    appendix = (REPO_ROOT / "docs" / "MUSICAL_PIECES_APPENDIX.md").read_text(
+        encoding="utf-8"
+    )
+    assert "Marcel Pérès and Ensemble Organum" in appendix
+    assert "Mass for the Nativity of the Virgin* (1995)" in appendix
+    assert "Messe de Notre-Dame* (1996)" in appendix
+    assert "Chant Corse: Manuscrits franciscains" in appendix
+
+
+def test_colossal_glossary_is_complete_alphabetized_and_book_integrated() -> None:
+    glossary_path = REPO_ROOT / "docs" / "GLOSSARY.md"
+    glossary = glossary_path.read_text(encoding="utf-8")
+    assert "Alphabetical guide:" not in glossary
+    entries = re.findall(
+        r"^\*\*(?P<term>[^*\n]+)\.\*\*\s+(?P<definition>.+)$",
+        glossary,
+        flags=re.MULTILINE,
+    )
+    terms = [term for term, _definition in entries]
+
+    assert DOCS_PDF.USERGUIDE_SOURCES[-3].name == "FAQ.md"
+    assert DOCS_PDF.USERGUIDE_SOURCES[-2].name == "PUBLIC_ALPHA_NOTES.md"
+    assert DOCS_PDF.USERGUIDE_SOURCES[-1] == glossary_path
+    assert len(entries) == 709
+    assert len({term.casefold() for term in terms}) == len(terms)
+    assert terms == sorted(terms, key=str.casefold)
+    assert re.findall(r"^## ([A-Z])$", glossary, flags=re.MULTILINE) == list(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    )
+    assert all(len(definition.split()) >= 6 for _term, definition in entries)
+
+    expected_terms = {
+        "Algorithmic reverb",
+        "Ambisonics",
+        "Artificial reverberation",
+        "Archaeoacoustics",
+        "Chirped echo",
+        "Dolby Atmos",
+        "Energy decay relief",
+        "Feedback delay network",
+        "Lossless prototype reverberator",
+        "Neural dereverberation",
+        "Scattering delay network",
+        "Plugin delay compensation",
+        "RT60",
+        "Spring reverb",
+        "True peak",
+        "Weighted prediction error",
+    }
+    assert expected_terms.issubset(terms)
+    assert "colossal A-Z glossary" not in (REPO_ROOT / "README.md").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_glossary_terms_feed_the_flat_pdf_index() -> None:
+    glossary = (REPO_ROOT / "docs" / "GLOSSARY.md").read_text(encoding="utf-8")
+    indexed = DOCS_PDF._index_glossary_terms(glossary)
+
+    assert indexed.count(r"\index{") == 709
+    assert r"\index{Archaeoacoustics}" in indexed
+    assert r"\index{Ambisonics}" in indexed
+    assert r"\index{Feedback delay network}" in indexed
+    assert r"\index{Weighted prediction error}" in indexed
+
+
+def test_glossary_letter_divisions_are_unnumbered_and_absent_from_toc() -> None:
+    glossary_path = REPO_ROOT / "docs" / "GLOSSARY.md"
+    rendered = DOCS_PDF._markdown_for_userguide(glossary_path)
+
+    assert re.findall(r"^\\section\*\{([A-Z])\}$", rendered, flags=re.MULTILINE) == list(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    )
+    assert rendered.count("```{=latex}") == 26
+    assert r"\hypertarget{a}{}" in rendered
+    assert r"\hypertarget{z}{}" in rendered
+    assert r"\addcontentsline{toc}{section}" not in rendered
+    assert not re.search(r"^## [A-Z]$", rendered, flags=re.MULTILINE)
+    assert "{.unnumbered}" not in rendered
+
+
+def test_epigraph_literary_titles_are_italicized() -> None:
+    rendered = DOCS_PDF._add_chapter_epigraphs("# One\n\n# Two\n\n# Three\n\n# Four")
+
+    assert r"Joseph Addison, \emph{Ode for St. Cecilia's Day}" in rendered
+    assert r"Henry Wadsworth Longfellow, \emph{Evangeline}}{1847}" in rendered
+    assert r"John Milton, \emph{Comus}}{1637}" in rendered
+
+
+def test_epigraph_immediately_precedes_its_chapter_after_exercise_insertion() -> None:
+    source = "# verbx\n\nBody.\n\n# What Is Reverb? (and why verbx sounds different)\n\nBody."
+    rendered = DOCS_PDF._add_chapter_epigraphs(
+        DOCS_PDF._add_chapter_exercises(source)
+    )
+
+    chapter_start = rendered.index("# What Is Reverb? (and why verbx sounds different)")
+    prior_content = rendered[:chapter_start].rstrip()
+    assert prior_content.endswith("```")
+    assert r"\verbxChapterEpigraph" in prior_content[-500:]
+    assert "Suggested Exercises" not in prior_content[-500:]
+
+
+def test_every_full_page_epigraph_has_an_explicit_date() -> None:
+    assert DOCS_PDF.CHAPTER_EPIGRAPHS
+    for quote, attribution, date in DOCS_PDF.CHAPTER_EPIGRAPHS:
+        assert quote
+        assert attribution
+        assert re.fullmatch(r"(?:January )?\d{4}|Date unknown", date)
+
+    chapters = "\n\n".join(
+        f"# Chapter {index}" for index in range(1, len(DOCS_PDF.CHAPTER_EPIGRAPHS) + 1)
+    )
+    rendered = DOCS_PDF._add_chapter_epigraphs(chapters)
+    for _, _, date in DOCS_PDF.CHAPTER_EPIGRAPHS:
+        assert rf"{{{date}}}" in rendered
+
+
+def test_frank_speller_quote_opens_the_workflow_cookbook() -> None:
+    chapters = "\n\n".join(f"# Chapter {index}" for index in range(1, 8))
+
+    rendered = DOCS_PDF._add_chapter_epigraphs(chapters)
+
+    quote = (
+        r"\verbxChapterEpigraph{The reverb was so long that a trainwreck would sound "
+        r"good in there.}{Frank Speller (1938–2017), American organist and composer, "
+        r"on his recital in Westminster Abbey}{1992}"
+    )
+    seventh_chapter = rendered.index("# Chapter 7")
+    assert quote in rendered[:seventh_chapter]
+    assert rendered.index(quote) > rendered.index("# Chapter 6")
+
+
+def test_all_epigraph_attributions_render_with_an_em_dash() -> None:
+    preamble = (
+        REPO_ROOT / "docs" / "assets" / "pandoc_pdf_preamble.tex"
+    ).read_text(encoding="utf-8")
+    macro = preamble.split(r"\newcommand{\verbxChapterEpigraph}", 1)[1].split(
+        r"\makeatother", 1
+    )[0]
+
+    assert r"\textemdash\ #2" in macro
+
+
+def test_references_start_on_next_page_without_forcing_a_blank_verso() -> None:
+    rendered = DOCS_PDF._markdown_with_pdf_targets(
+        DOCS_PDF._build_markdown("Colby Leider, PhD")
+    )
+    references_boundary = rendered.split("# Research Papers and References", 1)[0]
+
+    assert references_boundary.rstrip().endswith("```{=latex}\n\\clearpage\n```")
+    assert r"\cleardoublepage" not in references_boundary[-500:]
+
+
+def test_chapter_three_and_section_three_one_have_substantial_introductions() -> None:
+    chapter_path = REPO_ROOT / "docs" / "IMMERSIVE_AUDIO.md"
+    chapter = chapter_path.read_text(encoding="utf-8")
+    section_marker = "## 1. Three Ways to Describe Space"
+    subsection_marker = "### 1.1 Channel-based audio"
+    chapter_intro = chapter[: chapter.index(section_marker)]
+    section_intro = chapter[
+        chapter.index(section_marker) : chapter.index(subsection_marker)
+    ]
+
+    assert DOCS_PDF.USERGUIDE_SOURCES[1] == chapter_path
+    assert len(re.findall(r"\b[\w’-]+\b", chapter_intro)) >= 2_300
+    assert len(re.findall(r"\b[\w’-]+\b", section_intro)) >= 1_100
+    assert "**Four nested fields.**" in chapter_intro
+    assert "**The perceptual foundation.**" in chapter_intro
+    assert "**Authoring and rendering are different acts.**" in chapter_intro
+    assert "**Representation is not transport.**" in section_intro
+    assert "**Representation is not perception.**" in section_intro
+    assert "**Representation is not musical function.**" in section_intro
+
+
+def test_principal_book_chapters_end_with_ten_tailored_exercises() -> None:
+    book = DOCS_PDF._markdown_with_pdf_targets(
+        DOCS_PDF._build_markdown("Colby Leider, PhD")
+    )
+    assert book.count("## Suggested Exercises") == len(DOCS_PDF.CHAPTER_EXERCISES)
+
+    for heading, exercises in DOCS_PDF.CHAPTER_EXERCISES.items():
+        assert len(exercises) == 10
+        assert f"# {heading}\n" in book
+        for index, exercise in enumerate(exercises, start=1):
+            assert book.count(f"{index}. {exercise}") == 1
+
+
+def test_section_three_four_has_a_substantial_immersive_reverb_introduction() -> None:
+    chapter_path = REPO_ROOT / "docs" / "IMMERSIVE_AUDIO.md"
+    chapter = chapter_path.read_text(encoding="utf-8")
+    section_heading = "## 4. Reverb as an Immersive Layer"
+    existing_detail = "Reverb contributes several perceptually distinct cues:"
+    introduction = chapter[
+        chapter.index(section_heading) : chapter.index(existing_detail)
+    ]
+
+    assert len(re.findall(r"\b[\w’-]+\b", introduction)) >= 1_300
+    assert "immersive reverb is spatial\norchestration, not speaker filling" in introduction
+    assert "source-bound return" in introduction
+    assert "environment-bound return" in introduction
+    assert "gesture-bound return" in introduction
+    assert "when to use a bed and when to use an object" in introduction
+    assert "Early and late energy deserve separate attention" in introduction
+    assert "Interchannel relationship is as important as level" in introduction
+    assert "Endpoint translation must be considered during design" in introduction
+    assert "Measurement supports this work but does not replace listening" in introduction
+
+    book = DOCS_PDF._build_markdown("Colby Leider, PhD")
+    assert book.index(section_heading) < book.index(existing_detail)
+    assert introduction.strip() in book
+
+
+def test_artificial_reverberation_history_is_long_illustrated_and_embedded_as_section_two_three() -> None:
+    history_path = REPO_ROOT / "docs" / "HISTORY_OF_ARTIFICIAL_REVERBERATION.md"
+    attribution_path = REPO_ROOT / "docs" / "assets" / "reverb_history" / "ATTRIBUTIONS.md"
+    history = history_path.read_text(encoding="utf-8")
+    images = re.findall(r"^!\[[^]]+\]\(([^)]+)\)$", history, flags=re.MULTILINE)
+    captions = re.findall(
+        r"^\*\*Figure: .+?\.\*\*(?: .+)?$", history, flags=re.MULTILINE
+    )
+    credits = re.findall(r"^\*Source and license:\* .+$", history, flags=re.MULTILINE)
+    words = re.findall(r"\b[\w’“-]+\b", history)
+
+    assert DOCS_PDF.CHAPTER_TWO_SUPPLEMENTS[0] == history_path
+    assert DOCS_PDF.OPEN_SOURCE_PORTFOLIO_SOURCE in DOCS_PDF.CHAPTER_TWO_SUPPLEMENTS
+    assert history_path in DOCS_PDF.USERGUIDE_INCLUDED_SOURCES
+    assert history.startswith("### A History of Artificial Reverberation:")
+    assert 9_000 <= len(words) <= 12_000
+    assert len(images) == len(captions) == len(credits) == 21
+
+    for number, image_path in enumerate(images, start=33):
+        image_offset = history.index(f"]({image_path})")
+        caption_offset = history.index(captions[number - 33], image_offset)
+        credit_offset = history.index(credits[number - 33], caption_offset)
+        assert image_offset < caption_offset < credit_offset
+        local_path = REPO_ROOT / "docs" / image_path
+        assert local_path.is_file()
+        with Image.open(local_path) as image:
+            assert image.width >= 600
+            assert image.height >= 450
+
+    assert re.search(r"Figure 2-\d+", history) is None
+
+    attribution = attribution_path.read_text(encoding="utf-8")
+    assert len(re.findall(r"^\d+\. `", attribution, flags=re.MULTILINE)) == 21
+    for image_path in images:
+        assert Path(image_path).name in attribution
+
+    expected_topics = {
+        "echo chamber",
+        "EMT 140",
+        "spring reverberation",
+        "Schroeder",
+        "EMT 250",
+        "Lexicon 224",
+        "AMS RMX16",
+        "convolution",
+        "feedback delay networks",
+        "Machine learning",
+    }
+    assert all(topic.casefold() in history.casefold() for topic in expected_topics)
+    assert "Abbey Road's Studio Two echo chamber" in history
+    assert (
+        "assets/reverb_history/11_abbey_road_studio_two_echo_chamber_reconstruction.png"
+        in images
+    )
+    assert "interpretive rather than an archival photograph" in history
+
+    book = DOCS_PDF._build_markdown("Colby Leider, PhD")
+    assert book.index("### DSP Overview") < book.index(
+        "### A History of Artificial Reverberation:"
+    ) < book.index("### Why verbx Sounds Different")
+
+
+def test_artificial_reverberation_history_figures_convert_for_pdf() -> None:
+    history = (
+        REPO_ROOT / "docs" / "HISTORY_OF_ARTIFICIAL_REVERBERATION.md"
+    ).read_text(encoding="utf-8")
+    converted = DOCS_PDF._convert_figure_captions(history)
+
+    assert converted.count(r"\verbxFigureLead{") == 21
+    assert converted.count(r"\verbxFigureCaption{") == 11
+    assert converted.count(r"\verbxPlateCaption{") == 10
+    assert converted.count("*Source and license:*") == 21
+
+
+def test_readme_book_promotion_is_permanently_excluded_from_pdf_source() -> None:
+    readme = DOCS_PDF._markdown_for_userguide(REPO_ROOT / "README.md")
+    promo = (
+        "Start with the book:** [Read the complete illustrated verbx User Guide "
+        "(PDF)](USERGUIDE.pdf)"
+    )
+
+    assert promo in readme
+    assert readme.count("<!-- verbx-pdf-exclude-start -->") == 2
+    assert readme.count("<!-- verbx-pdf-exclude-end -->") == 2
+
+    pdf_source = DOCS_PDF._remove_pdf_exclusions(readme)
+
+    assert promo not in pdf_source
+    assert "for CLI workflows, plug-in operation, DSP explanations" not in pdf_source
+    assert "educational projects, figures, and the research bibliography" not in pdf_source
+    assert "The guide's new [open-source acoustic image portfolio]" not in pdf_source
+    assert "Colossal 64-bit spatial audio reverberator" not in pdf_source
+    assert "Finite-Element Spring Tanks and Plates" not in pdf_source
+    assert pdf_source.index("## Two Production Paths") < pdf_source.index("## AUv3 / VST3 Plug-in Track")
+    assert "verbx-pdf-exclude" not in pdf_source
+
+
+def test_chapter_one_is_workflow_oriented_and_contains_no_mathematical_exposition() -> None:
+    book = DOCS_PDF._markdown_with_pdf_targets(
+        DOCS_PDF._build_markdown("Colby Leider, PhD")
+    )
+    chapter_one_start = book.index("# verbx\n")
+    chapter_two_start = book.index("# What Is Reverb? (and why verbx sounds different)\n")
+    chapter_one = book[chapter_one_start:chapter_two_start]
+
+    assert "## Two Production Paths: Command Line and DAW Plug-ins" in chapter_one
+    assert "Finite-Element Spring Tanks and Plates" not in chapter_one
+    assert "Discrete convolution shown as shift, multiply, and sum" not in chapter_one
+    assert "$$" not in chapter_one
+    assert r"\\begin{aligned}" not in chapter_one
+
+
+def test_chapter_two_portfolio_timeline_has_a_chronological_heading_hierarchy() -> None:
+    book = DOCS_PDF._markdown_with_pdf_targets(
+        DOCS_PDF._build_markdown("Colby Leider, PhD")
+    )
+    chapter_two_start = book.index("# What Is Reverb? (and why verbx sounds different)\n")
+    chapter_two_end = book.index("# verbx Reference\n", chapter_two_start)
+    chapter_two = book[chapter_two_start:chapter_two_end]
+
+    assert "## Open-Source Acoustic Image Portfolio" in chapter_two
+    assert "### Historical timeline and extended viewing guide" in chapter_two
+    assert "##### Historical timeline and extended viewing guide" not in chapter_two
+
+
+def test_pdf_exclusion_markers_must_be_balanced() -> None:
+    with pytest.raises(ValueError, match="PDF-exclusion markers are unbalanced"):
+        DOCS_PDF._remove_pdf_exclusions(
+            "<!-- verbx-pdf-exclude-start -->\ntext without an end marker\n"
+        )
 
 
 def test_every_extreme_cookbook_recipe_has_a_title() -> None:
@@ -315,7 +1150,7 @@ def test_reader_facing_numeric_ranges_use_en_dashes() -> None:
     assert "(0–1)" in figure_generator
 
 
-def test_interaction_card_dials_use_true_physical_circles() -> None:
+def test_interaction_cards_use_semantic_visual_families() -> None:
     illustrations = (
         REPO_ROOT / "docs/assets/verbx_card_illustrations.tex"
     ).read_text(encoding="utf-8")
@@ -323,9 +1158,28 @@ def test_interaction_card_dials_use_true_physical_circles() -> None:
         r"\newcommand{\verbxInteractionVisual}", maxsplit=1
     )[1].split(r"\newcommand{\verbxMonitoringVisual}", maxsplit=1)[0]
 
-    assert interaction.count("circle,minimum size=1.7cm") == 2
-    assert interaction.count("0.65cm") == 2
-    assert "circle (0.85)" not in interaction
+    assert "\\ifcase#3" in interaction
+    assert "Timing: two controls reshape" in interaction
+    assert "Spectral: controls trade" in interaction
+    assert "Spatial: map a source" in interaction
+    assert "Level: show gain staging" in interaction
+    assert "State / quality: a mode decision" in interaction
+
+    assert DOCS_PDF._card_visual_command(
+        "Interaction card 1: Pre-Delay with RT60 Coarse"
+    ) == r"\verbxInteractionVisual{Pre-Delay}{RT60 Coarse}{0}"
+    assert DOCS_PDF._card_visual_command(
+        "Interaction card 2: Damping with Width"
+    ) == r"\verbxInteractionVisual{Damping}{Width}{1}"
+    assert DOCS_PDF._card_visual_command(
+        "Interaction card 3: Room Size with Width"
+    ) == r"\verbxInteractionVisual{Room Size}{Width}{2}"
+    assert DOCS_PDF._card_visual_command(
+        "Interaction card 4: Wet with Dry"
+    ) == r"\verbxInteractionVisual{Wet}{Dry}{3}"
+    assert DOCS_PDF._card_visual_command(
+        "Interaction card 5: Freeze with Reverse"
+    ) == r"\verbxInteractionVisual{Freeze}{Reverse}{4}"
 
 
 def test_code_example_leads_reserve_space_and_forbid_boundary_breaks() -> None:
@@ -350,7 +1204,7 @@ def test_code_example_leads_reserve_space_and_forbid_boundary_breaks() -> None:
 def test_reverb_primer_is_promoted_to_a_standalone_pdf_chapter() -> None:
     source = (
         "# verbx\n\n"
-        "## What Is Reverb? (and Why Does verbx Sound Different)\n\n"
+        "## What Is Reverb? (and why verbx sounds different)\n\n"
         "Primer.\n\n"
         "### Musical Examples\n\n"
         "#### Listening Test\n\n"
@@ -360,7 +1214,7 @@ def test_reverb_primer_is_promoted_to_a_standalone_pdf_chapter() -> None:
 
     rendered = DOCS_PDF._promote_reverb_primer_to_chapter(source)
 
-    assert "# What Is Reverb? (and Why Does verbx Sound Different)" in rendered
+    assert "# What Is Reverb? (and why verbx sounds different)" in rendered
     assert "## Musical Examples" in rendered
     assert "### Listening Test" in rendered
     assert "# verbx Reference\n\n## Core Concepts" in rendered
@@ -393,11 +1247,88 @@ def test_main_bibliography_preserves_all_reference_ids() -> None:
     reference_ids = re.findall(r"^\*\*\[([^]]+)\]\*\*", references, flags=re.MULTILINE)
     xref_ids = [reference_id for reference_id in reference_ids if reference_id.startswith("XREF")]
 
-    assert len(reference_ids) == 1002
-    assert len(set(reference_ids)) == 1002
+    foundational_ids = [
+        reference_id for reference_id in reference_ids if re.fullmatch(r"F\d+", reference_id)
+    ]
+
+    assert len(reference_ids) == 1066
+    assert len(set(reference_ids)) == 1066
     assert len(xref_ids) == 900
-    assert "102 curated annotated entries + 900 extended Crossref entries" in references
-    assert "bringing the guide bibliography to 1,002 total entries" in references
+    assert len(foundational_ids) == 68
+    assert not any(reference_id.startswith("JOT") for reference_id in reference_ids)
+    assert "Jean-Marc Jot Selected Publications" not in references
+    assert "166 curated and primary-source entries + 900 extended Crossref entries" in references
+    assert "bringing the guide bibliography to 1,066 total entries" in references
+    assert "**[BOOK3]** Smith, J. O. (2010). Artificial Reverberation." in references
+    assert "**[AA1]** Declercq, Nico F.;" in references
+    assert "**[AA2]** Garza, Clara;" in references
+    assert "**[CV6]** Farina, Angelo (2000)." in references
+    assert references.count("Jot, Jean-Marc") >= 60
+    assert "Blind Estimation of the Reverberation Fingerprint" in references
+    assert "Reverberation Loudness Model for Mixed-Reality Audio" in references
+    assert "Reverberation fingerprint estimation" in references
+    assert "Spatial Sound Rendering for Audio Augmented Reality" in references
+    assert "Toward Improved Consistency Between Databases" not in references
+    assert "Adaptive Dynamics Enhancement" not in references
+    assert "**[BOOK1]** Burns, Kristine H., ed. (2002)." in references
+    assert '<a id="ref-burns-women-music-2002"></a>' in references
+    assert "Section 9A: Music History and Reference Works" not in references
+
+
+def test_bibliography_index_uses_authors_and_key_phrases_not_full_titles() -> None:
+    title = (
+        "Time-varying feedback matrices in feedback delay networks and their "
+        "application in artificial reverberation"
+    )
+    source = (
+        "# Research Papers and References\n\n"
+        "**[TEST1]** Jot, J.-M.; Smith, Jane (2026). "
+        f"{title}. *Journal of Reverb*. 1(2): 3-12.\n"
+    )
+
+    indexed = DOCS_PDF._index_bibliography(source)
+
+    assert r"\index{Jot, Jean-Marc@Jot, Jean-Marc}" in indexed
+    assert r"\index{Smith, Jane@Smith, Jane}" in indexed
+    assert r"\index{Feedback delay network}" in indexed
+    assert r"\index{Artificial reverberation}" in indexed
+    assert rf"\index{{{title}}}" not in indexed
+
+
+def test_bibliography_index_canonicalizes_author_variants_and_sorts_by_surname() -> None:
+    variants = (
+        "Vorländer, M.",
+        "Vorlander, M",
+        "Vorla\N{COMBINING DIAERESIS}nder, Michael",
+        "Michael Vorländer",
+    )
+
+    assert {
+        DOCS_PDF._bibliography_author_index_term(author) for author in variants
+    } == {"Vorlander, Michael@Vorländer, Michael"}
+
+    source = (
+        "# Research Papers and References\n\n"
+        "**[A]** Vorländer, M. (2020). Room response. *Acoustics*. 1-2.\n"
+        "**[B]** Vorlander, M (2021). Room decay. *Acoustics*. 3-4.\n"
+        "**[C]** Michael Vorländer (2022). Room simulation. *Acoustics*. 5-6.\n"
+    )
+    indexed = DOCS_PDF._index_bibliography(source)
+
+    assert indexed.count(r"\index{Vorlander, Michael@Vorländer, Michael}") == 3
+
+
+def test_bibliography_index_uses_a_broad_fallback_without_copying_title() -> None:
+    title = "Perceptual correlates in a large reverberant enclosure"
+    source = (
+        "# Research Papers and References\n\n"
+        f"**[TEST2]** Doe, Alex (2025). {title}. *Acoustics Letters*. 4(1): 1-8.\n"
+    )
+
+    indexed = DOCS_PDF._index_bibliography(source)
+
+    assert r"\index{Reverberation}" in indexed
+    assert rf"\index{{{title}}}" not in indexed
 
 
 def test_reference_reading_note_is_not_a_setext_heading() -> None:
@@ -412,10 +1343,17 @@ def test_reference_reading_note_is_not_a_setext_heading() -> None:
 
 def test_title_page_uses_white_background() -> None:
     preamble = (REPO_ROOT / "docs/assets/pandoc_pdf_preamble.tex").read_text(encoding="utf-8")
-    title_page = preamble.split(r"\begin{titlepage}", 1)[1].split(r"\end{titlepage}", 1)[0]
+    title_pages = re.findall(
+        r"\\begin\{titlepage\}(.*?)\\end\{titlepage\}",
+        preamble,
+        flags=re.DOTALL,
+    )
+    title_page = next(page for page in title_pages if "analysis and automation" in page)
 
     assert r"\pagecolor{white}\color{verbxCover}" in title_page
     assert r"\pagecolor{verbxCover}" not in title_page
+    assert "analysis and automation" in title_page
+    assert "analysis, automation, and plug-in design" not in title_page
 
 
 def test_pdf_author_credit_includes_academic_credential() -> None:
@@ -435,6 +1373,49 @@ def test_pdf_edition_notice_includes_publication_location() -> None:
 
     assert "Digital book edition: \\@date.\\\\\n    Miami, Florida USA" in preamble
     assert preamble.count("Copyright \\textcopyright\\ 2026 Colby Leider.") == 2
+
+
+def test_front_matter_contains_standalone_dedication_page() -> None:
+    preamble = (REPO_ROOT / "docs/assets/pandoc_pdf_preamble.tex").read_text(
+        encoding="utf-8"
+    )
+    copyright_position = preamble.index("Typeset and generated from the repository source.")
+    dedication_position = preamble.index(r"{\Large\itshape For Patricia}")
+    edition_position = preamble.index(r"\chapter*{About This Edition}")
+    dedication = preamble[copyright_position:edition_position]
+
+    assert copyright_position < dedication_position < edition_position
+    assert dedication.count(r"\thispagestyle{empty}") == 1
+    assert dedication.count(r"\clearpage") == 2
+    assert r"\addcontentsline" not in dedication
+
+
+def test_frontispiece_composition_is_vertically_centered() -> None:
+    preamble = (REPO_ROOT / "docs/assets/pandoc_pdf_preamble.tex").read_text(
+        encoding="utf-8"
+    )
+    frontispiece = preamble.split(r"\newcommand{\verbxFrontispiece}", 1)[1].split(
+        r"\newcommand{\verbxPreface}", 1
+    )[0]
+
+    assert frontispiece.count(r"\vspace*{\fill}") == 2
+    assert r"\vspace*{0.25in}" not in frontispiece
+    assert r"\begin{titlepage}" not in frontispiece
+    assert frontispiece.rstrip().endswith("}")
+    assert r"\clearpage" in frontispiece
+
+
+def test_captions_have_consistent_post_caption_whitespace() -> None:
+    preamble = (REPO_ROOT / "docs/assets/pandoc_pdf_preamble.tex").read_text(
+        encoding="utf-8"
+    )
+    figure_caption = preamble.split(r"\newcommand{\verbxFigureCaption}", 1)[1].split(
+        r"\makeatletter", 1
+    )[0]
+
+    assert r"\setlength{\verbxCaptionAfterSkip}{0.12in}" in preamble
+    assert r"\setlength{\belowcaptionskip}{\verbxCaptionAfterSkip}" in preamble
+    assert r"\par\vspace{\verbxCaptionAfterSkip}" in figure_caption
 
 
 def test_title_page_describes_musical_production_and_audio_ai() -> None:
@@ -461,9 +1442,9 @@ def test_chapter_eleven_is_a_substantial_audio_ai_textbook_chapter() -> None:
         flags=re.MULTILINE,
     )
 
-    assert DOCS_PDF.USERGUIDE_SOURCES[8] == chapter_path
-    assert DOCS_PDF.USERGUIDE_SOURCES[7].name == "IR_SYNTHESIS.md"
-    assert DOCS_PDF.USERGUIDE_SOURCES[9].name == "SCHEMA_REFERENCE.md"
+    assert DOCS_PDF.USERGUIDE_SOURCES[7] == chapter_path
+    assert DOCS_PDF.USERGUIDE_SOURCES[6].name == "IR_SYNTHESIS.md"
+    assert DOCS_PDF.USERGUIDE_SOURCES[8].name == "SCHEMA_REFERENCE.md"
     assert len(words) >= 6500
     assert len(image_paths) == 12
     assert len(captioned_images) == 12
@@ -520,6 +1501,74 @@ def test_pdf_preamble_prevents_widows_orphans_and_stranded_headings() -> None:
         assert rule in preamble
 
 
+def test_pdf_bullets_have_subtle_vertical_separation() -> None:
+    preamble = (REPO_ROOT / "docs/assets/pandoc_pdf_preamble.tex").read_text(
+        encoding="utf-8"
+    )
+
+    assert r"\renewcommand{\tightlist}" in preamble
+    assert r"\setlength{\itemsep}{0.20\baselineskip}" in preamble
+    assert r"\setlength{\parskip}{0pt}" in preamble
+
+
+def test_pdf_table_width_rewrite_handles_mixed_markdown_alignments(tmp_path: Path) -> None:
+    latex_path = tmp_path / "table.tex"
+    latex_path.write_text(
+        "\n".join(
+            (
+                r"\begin{longtable}[]{@{}lrr@{}}",
+                "three columns",
+                r"\end{longtable}",
+                r"\begin{longtable}[]{@{}crlc@{}}",
+                "four columns",
+                r"\end{longtable}",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    DOCS_PDF._rewrite_longtable_specs(latex_path)
+
+    rewritten = latex_path.read_text(encoding="utf-8")
+    assert r"@{}lrr@{}" not in rewritten
+    assert r"@{}crlc@{}" not in rewritten
+    assert rewritten.count(r"\begin{longtable}[]{@{}>{\RaggedRight") == 2
+    assert r"p{0.34\linewidth}" in rewritten
+    assert r"p{0.30\linewidth}" in rewritten
+
+
+def test_channel_layout_table_prioritizes_use_case_width(tmp_path: Path) -> None:
+    latex_path = tmp_path / "layout-table.tex"
+    latex_path.write_text(
+        "\n".join(
+            (
+                r"\begin{longtable}[]{@{}lll@{}}",
+                r"\textbf{Layout} & \textbf{Channels} & \textbf{Use case} \\",
+                r"\texttt{7.1.4} & 12 & Common Atmos monitoring/render layout \\",
+                r"\end{longtable}",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    DOCS_PDF._rewrite_longtable_specs(latex_path)
+
+    rewritten = latex_path.read_text(encoding="utf-8")
+    assert r"p{0.16\linewidth}" in rewritten
+    assert r"p{0.14\linewidth}" in rewritten
+    assert r"p{0.60\linewidth}" in rewritten
+    assert r"p{0.34\linewidth}" not in rewritten
+
+
+def test_decay_estimator_table_uses_positioned_subscripts() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert "Extrapolation to $T_{60}$" in readme
+    assert "| $T_{20}$ | $-5$ to $-25$ dB |" in readme
+    assert "| $T_{30}$ | $-5$ to $-35$ dB |" in readme
+    assert "Extrapolation to RT60" not in readme
+
+
 def test_table_of_figures_starts_on_a_new_page(tmp_path: Path) -> None:
     latex_path = tmp_path / "guide.tex"
     latex_path.write_text(
@@ -527,15 +1576,21 @@ def test_table_of_figures_starts_on_a_new_page(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
+    latex_path.write_text(
+        "\\tableofcontents\n}\n\\listoffigures\n\\listoftables\n\\mainmatter\n",
+        encoding="utf-8",
+    )
+
     DOCS_PDF._force_table_of_figures_page_break(latex_path)
 
     latex = latex_path.read_text(encoding="utf-8")
     assert "\\tableofcontents\n}\n\\clearpage\n\\listoffigures" in latex
+    assert "\\clearpage\n\\listoftables\n\\clearpage\n\\listofplates" in latex
 
 
 def test_reverb_primer_has_textbook_depth_and_complete_figure_set() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    start = readme.index("## What Is Reverb? (and Why Does verbx Sound Different)")
+    start = readme.index("## What Is Reverb? (and why verbx sounds different)")
     end = readme.index("\n---", start)
     primer = readme[start:end]
 
@@ -545,11 +1600,14 @@ def test_reverb_primer_has_textbook_depth_and_complete_figure_set() -> None:
     assert "### DSP Overview" in primer
     assert "### The Science and DSP of Dereverberation" in primer
     assert primer.count("```mermaid") == 19
-    assert len(re.findall(r"^!\[", primer, flags=re.MULTILINE)) == 18
-    assert len(re.findall(r"^\*\*Figure:", primer, flags=re.MULTILINE)) == 37
+    assert len(re.findall(r"^!\[", primer, flags=re.MULTILINE)) == 31
+    assert len(re.findall(r"^\*\*Figure:", primer, flags=re.MULTILINE)) == 50
     assert "Schroeder_Reverberators.html" in primer
+    assert "Reverb begins when a sound should be over but the room keeps it alive." in primer
+    assert "This chapter treats reverb as three things at once" not in primer
 
     for topic in (
+        "A Staircase That Answers Like a Bird: Chichén Itzá and Archaeoacoustics",
         "Feedback Comb Filters",
         "Schroeder Allpass Filters",
         "Allpass Networks",
@@ -568,6 +1626,48 @@ def test_reverb_primer_has_textbook_depth_and_complete_figure_set() -> None:
         "Evaluating Dereverberation Scientifically",
     ):
         assert topic in primer
+
+    assert "*Pharomachrus mocinno*" in primer
+    assert "la cola del quetzal" in primer
+    assert "not proof that the monument\nwas designed" in primer
+    assert "10.1121/1.1764833" in primer
+    for pole_zero, magnitude in (
+        ("38_feedback_comb_pz.png", "44_feedback_comb_magnitude.png"),
+        ("39_schroeder_allpass_pz.png", "45_schroeder_allpass_magnitude.png"),
+        ("40_parameterized_schroeder_pz.png", "46_parameterized_schroeder_magnitude.png"),
+        ("41_expanded_fdn_pz.png", "47_expanded_fdn_magnitude.png"),
+        ("42_multiband_loop_filter_pz.png", "48_multiband_loop_filter_magnitude.png"),
+        ("43_stereo_projection_pz.png", "49_stereo_projection_magnitude.png"),
+    ):
+        assert primer.index(pole_zero) < primer.index(magnitude)
+
+
+def test_performance_section_has_a_substantial_engineering_introduction() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    start = readme.index("## Performance and Acceleration")
+    end = readme.index("\n---\n\n## DSP Architecture", start)
+    section = readme[start:end]
+    words = re.findall(r"\b[\w'-]+\b", section)
+
+    assert len(words) >= 1800
+    for topic in (
+        "Four budgets govern most verbx workloads",
+        "A Cost Model for Algorithmic Reverb",
+        "A Cost Model for Convolution",
+        "Realtime Deadlines and Offline Throughput",
+        "Memory Traffic, Locality, and Precision",
+        "Acceleration Is a Hierarchy",
+        "Benchmarking as Reproducible Evidence",
+        "Musical Quality and Engineering Tradeoffs",
+        "Current Acceleration Paths",
+    ):
+        assert topic in section
+
+    for equation in (
+        r"R_{\mathrm{tf}}=\frac{t_{\mathrm{process}}}{t_{\mathrm{audio}}}",
+        r"T_{\mathrm{block}}=\frac{B}{F_s}",
+    ):
+        assert equation in section
 
 
 def test_dereverberation_science_section_is_extensive_and_reproducible() -> None:
@@ -614,7 +1714,7 @@ def test_dereverberation_science_section_is_extensive_and_reproducible() -> None
 
 def test_reverb_primer_mermaid_assets_convert_for_pdf() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    start = readme.index("## What Is Reverb? (and Why Does verbx Sound Different)")
+    start = readme.index("## What Is Reverb? (and why verbx sounds different)")
     end = readme.index("\n---", start)
     primer = readme[start:end]
 
@@ -625,18 +1725,18 @@ def test_reverb_primer_mermaid_assets_convert_for_pdf() -> None:
 
     converted = DOCS_PDF._replace_mermaid_with_static_assets(primer)
     assert "```mermaid" not in converted
-    assert converted.count("docs/assets/reverb_primer/") == 37
-    assert converted.count("**Figure:") == 37
+    assert converted.count("docs/assets/reverb_primer/") == 50
+    assert converted.count("**Figure:") == 50
 
     generated_paths = re.findall(r"\]\((docs/assets/reverb_primer/[^)]+)\)", converted)
-    assert len(generated_paths) == 37
+    assert len(generated_paths) == 50
     for path in generated_paths:
         assert (REPO_ROOT / path).is_file()
 
     pdf_ready = DOCS_PDF._convert_figure_captions(converted)
-    assert pdf_ready.count(r"\begin{minipage}{\linewidth}") == 37
-    assert pdf_ready.count(r"\end{minipage}") == 37
-    assert pdf_ready.count(r"\includegraphics") == 37
+    assert pdf_ready.count(r"\begin{minipage}{\linewidth}") == 50
+    assert pdf_ready.count(r"\end{minipage}") == 50
+    assert pdf_ready.count(r"\includegraphics") == 50
     assert "![" not in pdf_ready
     first_group = pdf_ready.index(r"\begin{minipage}{\linewidth}")
     first_lead = pdf_ready.index(r"\verbxFigureLead")
@@ -647,8 +1747,126 @@ def test_reverb_primer_mermaid_assets_convert_for_pdf() -> None:
 
     consolidated = converted.replace("(docs/assets/reverb_primer/", "(assets/reverb_primer/")
     consolidated_ready = DOCS_PDF._convert_figure_captions(consolidated)
-    assert consolidated_ready.count(r"\begin{minipage}{\linewidth}") == 37
-    assert consolidated_ready.count(r"\includegraphics") == 37
+    assert consolidated_ready.count(r"\begin{minipage}{\linewidth}") == 50
+    assert consolidated_ready.count(r"\includegraphics") == 50
+
+
+def test_reverb_primer_magnitude_responses_match_their_transfer_functions() -> None:
+    frequencies = np.linspace(0.0, 0.5, 2_049)
+
+    order = 12
+    pole_radius = 0.86
+    loop_gain = pole_radius**order
+    comb_poles = PRIMER_ASSETS._roots_on_radius(order, pole_radius)
+    root_decibels = PRIMER_ASSETS._root_response_db(
+        frequencies,
+        comb_poles,
+        [],
+    )
+    delayed = np.exp(-2j * np.pi * frequencies * order)
+    direct_decibels = 20.0 * np.log10(np.abs(1.0 / (1.0 - loop_gain * delayed)))
+    direct_decibels -= direct_decibels.max()
+    np.testing.assert_allclose(root_decibels, direct_decibels, atol=1e-10)
+    np.testing.assert_allclose(root_decibels[[0, -1]], 0.0, atol=2e-14)
+
+    allpass_order = 8
+    allpass_radius = 0.82
+    allpass_decibels = PRIMER_ASSETS._root_response_db(
+        frequencies,
+        PRIMER_ASSETS._roots_on_radius(allpass_order, allpass_radius),
+        PRIMER_ASSETS._roots_on_radius(allpass_order, 1.0 / allpass_radius),
+    )
+    assert np.ptp(allpass_decibels) < 1e-10
+
+    schroeder = PRIMER_ASSETS._parameterized_schroeder_response(
+        frequencies,
+        ((7, 0.79), (9, 0.84), (11, 0.88), (13, 0.91)),
+        ((6, 0.82),),
+    )
+    assert np.all(np.isfinite(schroeder))
+    assert np.max(np.abs(schroeder)) > np.min(np.abs(schroeder))
+
+    multiband = PRIMER_ASSETS._multiband_loop_filter_response(frequencies)
+    np.testing.assert_allclose(multiband[0], 0.97 + 0j, atol=1e-12)
+    assert np.max(np.abs(multiband)) < 1.0
+    assert np.abs(multiband[-1]) < np.abs(multiband[0])
+
+    for cutoff in (0.06, 0.22):
+        at_cutoff = PRIMER_ASSETS._one_pole_lowpass_response(
+            np.array([cutoff]),
+            cutoff,
+        )
+        np.testing.assert_allclose(np.abs(at_cutoff), 1.0 / np.sqrt(2.0), atol=1e-12)
+
+
+def test_conceptual_allpass_diagram_does_not_disguise_the_feedback_sum() -> None:
+    source = (REPO_ROOT / "scripts" / "generate_reverb_primer_assets.py").read_text()
+    block = source.split('"04_schroeder_allpass.png"', 1)[1].split(
+        '"05_allpass_diffusion_network.png"', 1
+    )[0]
+
+    assert '"input_sum": ("+"' in block
+    assert '("input_sum", "split", "$w[n]$")' in block
+    assert '("delay", "input_sum", "$g$ feedback")' in block
+    assert '("delay", "sum", "+1")' not in block
+
+
+def test_schroeder_allpass_phase_curve_has_exact_endpoints_and_positive_delay() -> None:
+    frequencies, phase, feedback = PRIMER_ASSETS.schroeder_allpass_phase_curve()
+
+    np.testing.assert_allclose(frequencies[[0, -1]], [0.0, 0.5], atol=1e-15)
+    np.testing.assert_allclose(phase[[0, -1]], [0.0, -8.0 * np.pi], atol=1e-12)
+    np.testing.assert_allclose(feedback, 0.82**8, atol=1e-15)
+    assert np.all(np.diff(phase) < 0.0)
+
+    omega = 2.0 * np.pi * frequencies
+    group_delay_samples = -np.gradient(phase, omega)
+    assert np.all(group_delay_samples > 0.0)
+
+
+def test_illustrative_fdn_projection_matches_its_stable_real_root_model() -> None:
+    poles, zeros = PRIMER_ASSETS._expanded_fdn_modal_roots()
+    frequencies = np.linspace(0.0, 0.5, 2_049)
+    plotted = PRIMER_ASSETS._root_response_db(frequencies, poles, zeros)
+
+    assert len(poles) == 38
+    assert len(zeros) == 6
+    assert max(abs(pole) for pole in poles) < 1.0
+    np.testing.assert_allclose(np.poly(poles).imag, 0.0, atol=5e-15)
+    np.testing.assert_allclose(np.poly(zeros).imag, 0.0, atol=1e-15)
+
+    unit_circle = np.exp(2j * np.pi * frequencies)
+    direct = 20.0 * np.log10(
+        np.abs(
+            np.polyval(np.poly(zeros), unit_circle)
+            / np.polyval(np.poly(poles), unit_circle)
+        )
+    )
+    direct -= np.max(direct)
+    np.testing.assert_allclose(plotted, direct, atol=4e-13)
+    assert np.min(plotted) > -24.0
+
+
+def test_atlas_comb_and_allpass_response_curves_are_analytic() -> None:
+    frequencies, curves = USERGUIDE_FIGURES.comb_filter_magnitude_curves()
+    assert len(curves) == 3
+    np.testing.assert_allclose([curve[0] for curve in curves], 0.0, atol=1e-12)
+
+    one_ms_curve = curves[1]
+    notch_index = int(np.argmin(np.abs(frequencies - 500.0)))
+    expected_notch = 20.0 * np.log10((1.0 - 0.85) / (1.0 + 0.85))
+    np.testing.assert_allclose(one_ms_curve[notch_index], expected_notch, atol=1e-10)
+
+    frequencies, group_delay = USERGUIDE_FIGURES.allpass_group_delay_curve()
+    sample_rate = 48_000.0
+    order = 24
+    feedback = 0.65
+    omega = 2.0 * np.pi * frequencies / sample_rate
+    delayed = np.exp(-1j * omega * order)
+    response = (-feedback + delayed) / (1.0 - feedback * delayed)
+    np.testing.assert_allclose(np.abs(response), 1.0, atol=1e-12)
+    numerical_delay_ms = -np.gradient(np.unwrap(np.angle(response)), omega) * 1_000.0 / sample_rate
+    np.testing.assert_allclose(group_delay[2:-2], numerical_delay_ms[2:-2], rtol=4e-3, atol=2e-4)
 
 
 def test_pdf_figure_assets_trim_trailing_background(tmp_path: Path) -> None:
@@ -737,6 +1955,21 @@ def test_reverb_primer_math_labels_use_positioned_scripts() -> None:
     assert all("^" not in text and "_" not in text for text, *_ in exponent_runs + matrix_runs)
 
 
+def test_reverb_primer_connector_labels_use_opaque_plates() -> None:
+    generator = (REPO_ROOT / "scripts/generate_reverb_primer_assets.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "def _draw_line_with_plate" in generator
+    assert generator.count("_draw_line_with_plate(") >= 3
+
+
+def test_compact_single_row_signal_path_avoids_excess_vertical_whitespace() -> None:
+    asset = REPO_ROOT / "docs/assets/reverb_primer/09_verbx_hybrid_path.png"
+    with Image.open(asset) as image:
+        assert image.height <= 430
+
+
 def test_illustrated_guide_math_segments_use_true_italic_fonts() -> None:
     segments = USERGUIDE_FIGURES._rich_segments(
         "Ambisonics order $N$; absorption $\\alpha$",
@@ -802,7 +2035,6 @@ def test_book_sources_mark_mathematical_variables_as_inline_math() -> None:
     ).read_text(encoding="utf-8")
 
     for expected in (
-        "full $M$-input-to-$N$-output matrix routing",
         "delay length $M$ and loop gain $g$",
         "an explicit internal state, $M$-sample delay",
         "fully coupled $N$-line FDN",
@@ -976,3 +2208,35 @@ def test_immersive_audio_chapter_distinguishes_beds_objects_and_monitoring() -> 
         assert (REPO_ROOT / "docs/assets/immersive_audio" / filename).is_file()
 
     assert chapter.count("**Figure:") == len(figures)
+
+
+def test_modal_plate_figure_and_prose_use_typeset_mathematics() -> None:
+    generator = (REPO_ROOT / "scripts/generate_modal_fe_figures.py").read_text(
+        encoding="utf-8"
+    )
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert '("T", "superscript", True)' in generator
+    assert '("d", "subscript", True)' in generator
+    assert '("p", "subscript", True)' in generator
+    assert '("ρ h Δx Δy", "baseline", True)' in generator
+    assert '"D L^T L"' not in generator
+    assert '"drive e(xd, yd)"' not in generator
+    assert '"mass rho h dx dy' not in generator
+    assert r"K &= D L^{\mathsf{T}}L + T L" in readme
+    assert r"M_{ii} &= \rho h\,\Delta x\,\Delta y" in readme
+    assert r"D &= \frac{E h^3}{12\left(1-\nu^2\right)}" in readme
+
+    section = readme.split("## Finite-Element Spring Tanks and Plates", 1)[1].split(
+        "## Two Production Paths", 1
+    )[0]
+    assert "```text" not in section
+    assert r"\mathbf{M}\ddot{\boldsymbol{x}}(t)" in section
+    assert r"\mathbf{K}\boldsymbol{q}_r" in section
+    assert r"\lambda_r\mathbf{M}\boldsymbol{q}_r" in section
+    assert r"\omega_r &= \sqrt{\lambda_r}" in section
+    assert r"\mathbf{K} = D\mathbf{L}^{\mathsf{T}}\mathbf{L} + T\mathbf{L}" in section
+    assert "$T_{60}$-calibrated decay" in section
+    assert "docs/assets/modal_fe_convolution_process.png" in section
+    assert r"y[n] = (x * h)[n] = \sum_{k=-\infty}^{\infty} x[k]h[n-k]" in section
+    assert "**How to read this figure.**" in section

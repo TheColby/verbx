@@ -82,11 +82,14 @@ The current native binary is intentionally narrow, but it is no longer a stub.
   exact zeros
 - peak-safe output: optional render-level scaling with `--peak-safe` and
   `--peak-ceiling-db`
+- model selection: `--model fdn|spring|plate`; spring and plate use separate
+  deterministic delay/diffusion tunings within the native offline core
 
 Example:
 
 ```bash
 ./build/native/verbx_c/verbx-c render in.wav out.wav \
+  --model plate \
   --rt60 4.0 \
   --wet 0.85 \
   --dry 0.15 \
@@ -100,8 +103,10 @@ Example:
   --json-out native-report.json
 ```
 
-The current DSP is a foundational Schroeder/Moorer-style offline reverb core,
-not yet the full Python FDN engine.
+The native `fdn` model now uses a bounded eight-line feedback delay network
+with normalized Hadamard mixing, per-line RT60 gains, damping, and DC blocking.
+The spring and plate models retain their foundational proxy topologies. This is
+not yet the full Python FDN feature surface.
 
 ## Immediate goals
 

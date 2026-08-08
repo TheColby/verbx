@@ -90,7 +90,7 @@ def test_feedback_resets_on_shape_change() -> None:
     assert proc._feedback_state is not None  # pyright: ignore[reportPrivateUsage]
     assert proc._feedback_state.shape == (512, 1)  # pyright: ignore[reportPrivateUsage]
 
-    # Switch to stereo — feedback state must be reset.
+    # Switch to stereo; feedback state must be reset.
     stereo = _sine(512, channels=2)
     proc.process(stereo, sr=44100)
     assert proc._feedback_state.shape == (512, 2)  # pyright: ignore[reportPrivateUsage]
@@ -128,7 +128,7 @@ def test_output_within_limiter_bounds() -> None:
         out = proc.process(audio, sr=44100)
     # soft_limiter uses a knee, so values can slightly exceed 1.0 but should be bounded
     assert np.all(np.abs(out) <= 2.0)
-    # Verify limiter is actually attenuating — output should be quieter than raw sum
+    # Verify limiter is actually attenuating; output should be quieter than raw sum.
     assert np.max(np.abs(out)) < np.max(np.abs(audio)) * 2.0
 
 

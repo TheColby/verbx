@@ -4,7 +4,7 @@ Estimates room dimensions, volume, absorption, and acoustic class from an
 audio recording (reverberant program audio or impulse response) using
 Sabine/Eyring reverberation formulas and EDR-derived RT60 measurements.
 
-The estimator is designed for creative and diagnostic use — it provides
+The estimator is designed for creative and diagnostic use – it provides
 *practical* estimates with explicit confidence ratings, not laboratory-grade
 measurements.  For best results, analyse a reverberant recording or a rendered
 IR rather than a dry/anechoic source.
@@ -36,12 +36,12 @@ Pipeline stages
 The estimation process is split into independently callable stages so that
 each can be tested, replaced, or called in isolation:
 
-1. ``extract_edr_rt60(audio, sr)``     — derive RT60 values from audio via EDR
-2. ``infer_absorption(...)``           — estimate mean absorption from spectral RT60 shape
-3. ``estimate_volume(rt60, alpha)``    — Sabine + Eyring + blended volume
-4. ``project_dimensions(volume_m3)``  — W / D / H / SA from aspect ratios
-5. ``score_confidence(...)``           — composite quality score for the estimate
-6. ``classify_room(volume_m3, rt60)`` — qualitative size label
+1. ``extract_edr_rt60(audio, sr)``     – derive RT60 values from audio via EDR
+2. ``infer_absorption(...)``           – estimate mean absorption from spectral RT60 shape
+3. ``estimate_volume(rt60, alpha)``    – Sabine + Eyring + blended volume
+4. ``project_dimensions(volume_m3)``  – W / D / H / SA from aspect ratios
+5. ``score_confidence(...)``           – composite quality score for the estimate
+6. ``classify_room(volume_m3, rt60)`` – qualitative size label
 
 ``estimate_room_size`` is the high-level orchestrator that calls all stages.
 """
@@ -80,7 +80,7 @@ _ASPECT_SA_COEF = 2.0 * (
 
 
 # ---------------------------------------------------------------------------
-# Public pipeline stage 1 — EDR extraction
+# Public pipeline stage 1: EDR extraction
 # ---------------------------------------------------------------------------
 
 
@@ -169,7 +169,7 @@ def _fallback_rt60_from_envelope(audio: AudioArray, sr: int) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Public pipeline stage 2 — absorption inference
+# Public pipeline stage 2: absorption inference
 # ---------------------------------------------------------------------------
 
 
@@ -183,7 +183,7 @@ def infer_absorption(
     """Estimate mean absorption coefficient from spectral RT60 shape.
 
     Hard surfaces (concrete, stone, tile) have strongly frequency-dependent
-    absorption — RT60 falls steeply from low to high frequencies.
+    absorption – RT60 falls steeply from low to high frequencies.
     Acoustic treatment flattens the decay curve.
 
     Parameters
@@ -222,7 +222,7 @@ def infer_absorption(
 
 
 # ---------------------------------------------------------------------------
-# Public pipeline stage 3 — volume estimation
+# Public pipeline stage 3: volume estimation
 # ---------------------------------------------------------------------------
 
 
@@ -279,7 +279,7 @@ def estimate_volume(rt60: float, alpha: float) -> dict[str, float]:
 
 
 # ---------------------------------------------------------------------------
-# Public pipeline stage 4 — dimension projection
+# Public pipeline stage 4: dimension projection
 # ---------------------------------------------------------------------------
 
 
@@ -316,7 +316,7 @@ def project_dimensions(volume_m3: float) -> dict[str, float]:
 
 
 # ---------------------------------------------------------------------------
-# Public pipeline stage 5 — confidence scoring
+# Public pipeline stage 5: confidence scoring
 # ---------------------------------------------------------------------------
 
 
@@ -372,7 +372,7 @@ def score_confidence(
 
 
 # ---------------------------------------------------------------------------
-# Public pipeline stage 6 — classification
+# Public pipeline stage 6: classification
 # ---------------------------------------------------------------------------
 
 
@@ -437,18 +437,18 @@ def estimate_room_size(
         Flat dictionary with ``room_*`` prefixed keys (all JSON-serializable).
         Key classes:
 
-        - ``room_rt60_s`` — best RT60 estimate used as sizing input (s)
-        - ``room_volume_m3`` — blended (Sabine/Eyring) volume estimate (m³)
-        - ``room_volume_m3_sabine`` / ``_eyring`` — individual estimates (m³)
-        - ``room_volume_m3_low`` / ``_high`` — ±30 % confidence interval (m³)
-        - ``room_dim_width_m``, ``_depth_m``, ``_height_m`` — box dimensions (m)
-        - ``room_surface_area_m2`` — total surface area (m²)
-        - ``room_mean_absorption`` — estimated mean absorption coefficient
-        - ``room_critical_distance_m`` — Schroeder critical distance (m)
-        - ``room_class`` — qualitative size label (string)
-        - ``room_estimation_method`` — ``"sabine"`` or ``"eyring"`` (string)
-        - ``room_confidence`` — ``"high"``, ``"medium"``, or ``"low"`` (string)
-        - ``room_confidence_score`` — numeric confidence in [0, 1]
+        - ``room_rt60_s`` – best RT60 estimate used as sizing input (s)
+        - ``room_volume_m3`` – blended (Sabine/Eyring) volume estimate (m³)
+        - ``room_volume_m3_sabine`` / ``_eyring`` – individual estimates (m³)
+        - ``room_volume_m3_low`` / ``_high`` – ±30 % confidence interval (m³)
+        - ``room_dim_width_m``, ``_depth_m``, ``_height_m`` – box dimensions (m)
+        - ``room_surface_area_m2`` – total surface area (m²)
+        - ``room_mean_absorption`` – estimated mean absorption coefficient
+        - ``room_critical_distance_m`` – Schroeder critical distance (m)
+        - ``room_class`` – qualitative size label (string)
+        - ``room_estimation_method`` – ``"sabine"`` or ``"eyring"`` (string)
+        - ``room_confidence`` – ``"high"``, ``"medium"``, or ``"low"`` (string)
+        - ``room_confidence_score`` – numeric confidence in [0, 1]
     """
     # --- Stage 1: EDR RT60 extraction --------------------------------------
     edr_result = extract_edr_rt60(audio, sr)

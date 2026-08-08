@@ -44,23 +44,19 @@ void drawPanel(
     const juce::String& title,
     const juce::String& detail = {}
 ) {
-    graphics.setColour(consolePanel.withAlpha(0.92f));
-    graphics.fillRoundedRectangle(bounds, 16.0f);
+    graphics.setColour(consolePanel.withAlpha(0.88f));
+    graphics.fillRect(bounds);
     graphics.setColour(consoleLine.withAlpha(0.42f));
-    graphics.drawRoundedRectangle(bounds.reduced(0.5f), 16.0f, 1.0f);
-    graphics.drawHorizontalLine(
-        juce::roundToInt(bounds.getY() + 42.0f),
-        bounds.getX(),
-        bounds.getRight()
-    );
+    graphics.drawRect(bounds.reduced(0.5f), 1.0f);
+    graphics.drawHorizontalLine(juce::roundToInt(bounds.getY() + 34.0f), bounds.getX(), bounds.getRight());
 
     graphics.setFont(dataFont(11.0f, juce::Font::bold));
     graphics.setColour(consoleText.withAlpha(0.92f));
-    graphics.drawText(title, bounds.getX() + 16.0f, bounds.getY() + 10.0f,
+    graphics.drawText(title, bounds.getX() + 14.0f, bounds.getY() + 7.0f,
                       bounds.getWidth() - 32.0f, 22.0f, juce::Justification::centredLeft);
     if (detail.isNotEmpty()) {
         graphics.setColour(consoleMuted);
-        graphics.drawText(detail, bounds.getX() + 16.0f, bounds.getY() + 10.0f,
+        graphics.drawText(detail, bounds.getX() + 14.0f, bounds.getY() + 7.0f,
                           bounds.getWidth() - 32.0f, 22.0f, juce::Justification::centredRight);
     }
 }
@@ -513,6 +509,59 @@ void VerbXPluginEditor::configureControls() {
         resized();
         repaint();
     };
+    for (auto* button : {&abAButton_, &abBButton_}) {
+        button->setClickingTogglesState(false);
+        button->setColour(juce::TextButton::buttonColourId, consolePanel);
+        button->setColour(juce::TextButton::buttonOnColourId, analyzerGold);
+        button->setColour(juce::TextButton::textColourOffId, consoleMuted);
+        button->setColour(juce::TextButton::textColourOnId, analyzerInk);
+        addAndMakeVisible(*button);
+    }
+    abAButton_.setComponentID("ab_a");
+    abBButton_.setComponentID("ab_b");
+    abAButton_.setTooltip("Capture the current state to B, then recall A.");
+    abBButton_.setTooltip("Capture the current state to A, then recall B.");
+    const auto selectABSlot = [this](int targetSlot) {
+        processor_.captureABSlot(processor_.activeABSlot());
+        processor_.recallABSlot(targetSlot);
+    };
+    abAButton_.onClick = [selectABSlot] { selectABSlot(0); };
+    abBButton_.onClick = [selectABSlot] { selectABSlot(1); };
+
+    presetBox_.setLookAndFeel(&lookAndFeel_);
+    presetBox_.setComponentID("preset_browser");
+    presetBox_.setTooltip("Select a host-visible VERBX program.");
+    presetBox_.setColour(juce::ComboBox::backgroundColourId, analyzerInk.brighter(0.12f));
+    presetBox_.setColour(juce::ComboBox::textColourId, juce::Colour::fromRGB(228, 240, 236));
+    presetBox_.setColour(juce::ComboBox::outlineColourId, analyzerGold.withAlpha(0.45f));
+    presetBox_.onChange = [this] {
+        const auto selected = presetBox_.getSelectedId();
+        if (selected > 0) {
+            processor_.setCurrentProgram(selected - 1);
+        }
+    };
+    addAndMakeVisible(presetBox_);
+
+    presetFilter_.setComponentID("preset_filter");
+    presetFilter_.setTextToShowWhenEmpty("Filter programs", consoleMuted.withAlpha(0.72f));
+    presetFilter_.setColour(juce::TextEditor::backgroundColourId, analyzerInk.brighter(0.08f));
+    presetFilter_.setColour(juce::TextEditor::textColourId, consoleText);
+    presetFilter_.setColour(juce::TextEditor::outlineColourId, consoleLine.withAlpha(0.55f));
+    presetFilter_.setColour(juce::TextEditor::focusedOutlineColourId, analyzerMint.withAlpha(0.6f));
+    presetFilter_.setTooltip("Filter the plug-in program library by name.");
+    presetFilter_.onTextChange = [this] { rebuildPresetBrowser(); };
+    addAndMakeVisible(presetFilter_);
+    presetLabel_.setText("PRESET", juce::dontSendNotification);
+    presetLabel_.setJustificationType(juce::Justification::centredLeft);
+    presetLabel_.setFont(dataFont(9.5f, juce::Font::bold));
+    presetLabel_.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
+    addAndMakeVisible(presetLabel_);
+    presetFilterLabel_.setText("FILTER", juce::dontSendNotification);
+    presetFilterLabel_.setJustificationType(juce::Justification::centredLeft);
+    presetFilterLabel_.setFont(dataFont(9.5f, juce::Font::bold));
+    presetFilterLabel_.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
+    addAndMakeVisible(presetFilterLabel_);
+    rebuildPresetBrowser();
 
     for (int index = 0; index < knobCount; ++index) {
         const auto& definition = knobDefinitions[static_cast<size_t>(index)];
@@ -575,11 +624,59 @@ void VerbXPluginEditor::configureControls() {
     addAndMakeVisible(qualityBox_);
     qualityAttachment_ = std::make_unique<ComboBoxAttachment>(state, "quality_mode", qualityBox_);
 
+    modelBox_.addItemList({"Algorithmic", "Spring", "Plate"}, 1);
+    modelBox_.setLookAndFeel(&lookAndFeel_);
+    modelBox_.setComponentID("reverb_model");
+    modelBox_.setTooltip("Select the realtime reverb topology.");
+    modelBox_.setColour(juce::ComboBox::backgroundColourId, analyzerInk.brighter(0.12f));
+    modelBox_.setColour(juce::ComboBox::textColourId, juce::Colour::fromRGB(228, 240, 236));
+    modelBox_.setColour(juce::ComboBox::outlineColourId, analyzerGold.withAlpha(0.45f));
+    addAndMakeVisible(modelBox_);
+    modelAttachment_ = std::make_unique<ComboBoxAttachment>(state, "reverb_model", modelBox_);
+
+    const auto configurePhysicalControl = [this](juce::Slider& slider, juce::Label& label,
+                                                  const char* parameterId, const char* text) {
+        slider.setSliderStyle(juce::Slider::LinearHorizontal);
+        slider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 54, 20);
+        slider.textFromValueFunction = [](double value) {
+            return juce::String(value * 100.0, 0) + "%";
+        };
+        slider.valueFromTextFunction = [](const juce::String& value) {
+            return value.getDoubleValue() / 100.0;
+        };
+        slider.setColour(juce::Slider::trackColourId, analyzerMint.withAlpha(0.68f));
+        slider.setColour(juce::Slider::thumbColourId, analyzerGold);
+        slider.setColour(juce::Slider::textBoxTextColourId, consoleText);
+        slider.setColour(juce::Slider::textBoxBackgroundColourId, analyzerInk.withAlpha(0.72f));
+        slider.setComponentID(parameterId);
+        slider.setTooltip("Host-automatable physical-model character control.");
+        addAndMakeVisible(slider);
+        label.setText(text, juce::dontSendNotification);
+        label.setJustificationType(juce::Justification::centredLeft);
+        label.setFont(dataFont(9.5f, juce::Font::bold));
+        label.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
+        addAndMakeVisible(label);
+    };
+    configurePhysicalControl(springTensionSlider_, springTensionLabel_, "spring_tension", "SPRING TENSION");
+    configurePhysicalControl(plateBrightnessSlider_, plateBrightnessLabel_, "plate_brightness", "PLATE BRIGHTNESS");
+    springTensionAttachment_ = std::make_unique<SliderAttachment>(state, "spring_tension", springTensionSlider_);
+    plateBrightnessAttachment_ = std::make_unique<SliderAttachment>(state, "plate_brightness", plateBrightnessSlider_);
+    physicalStatusLabel_.setJustificationType(juce::Justification::centredLeft);
+    physicalStatusLabel_.setFont(dataFont(9.0f, juce::Font::bold));
+    physicalStatusLabel_.setColour(juce::Label::textColourId, consoleMuted);
+    addAndMakeVisible(physicalStatusLabel_);
+
     qualityLabel_.setText("QUALITY", juce::dontSendNotification);
     qualityLabel_.setJustificationType(juce::Justification::centredLeft);
     qualityLabel_.setFont(dataFont(9.5f, juce::Font::bold));
     qualityLabel_.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
     addAndMakeVisible(qualityLabel_);
+
+    modelLabel_.setText("MODEL", juce::dontSendNotification);
+    modelLabel_.setJustificationType(juce::Justification::centredLeft);
+    modelLabel_.setFont(dataFont(9.5f, juce::Font::bold));
+    modelLabel_.setColour(juce::Label::textColourId, juce::Colour::fromRGB(180, 197, 200));
+    addAndMakeVisible(modelLabel_);
 
     rt60Readout_.setJustificationType(juce::Justification::centredRight);
     rt60Readout_.setFont(dataFont(14.0f, juce::Font::bold));
@@ -801,6 +898,20 @@ void VerbXPluginEditor::updatePageVisibility() {
     reverseButton_.setVisible(performVisible);
     qualityBox_.setVisible(performVisible);
     qualityLabel_.setVisible(performVisible);
+    modelBox_.setVisible(performVisible);
+    modelLabel_.setVisible(performVisible);
+    springTensionSlider_.setVisible(performVisible);
+    plateBrightnessSlider_.setVisible(performVisible);
+    springTensionLabel_.setVisible(performVisible);
+    plateBrightnessLabel_.setVisible(performVisible);
+    physicalStatusLabel_.setVisible(performVisible);
+    presetBox_.setVisible(performVisible);
+    presetLabel_.setVisible(performVisible);
+    presetFilter_.setVisible(performVisible);
+    presetFilterLabel_.setVisible(performVisible);
+    abAButton_.setVisible(performVisible);
+    abBButton_.setVisible(performVisible);
+    updatePhysicalControlState();
     for (auto& button : expertSelectButtons_) {
         button.setVisible(!performVisible);
     }
@@ -814,98 +925,111 @@ void VerbXPluginEditor::timerCallback() {
         juce::dontSendNotification
     );
     syncExpertMacroSelections();
+    const auto selectedProgram = processor_.getCurrentProgram() + 1;
+    if (presetBox_.getSelectedId() != selectedProgram && presetFilter_.isEmpty()) {
+        presetBox_.setSelectedId(selectedProgram, juce::dontSendNotification);
+    }
+    abAButton_.setToggleState(processor_.activeABSlot() == 0, juce::dontSendNotification);
+    abBButton_.setToggleState(processor_.activeABSlot() == 1, juce::dontSendNotification);
+    updatePhysicalControlState();
     repaint();
+}
+
+void VerbXPluginEditor::updatePhysicalControlState() {
+    const auto performVisible = activePage_ == Page::perform;
+    const auto model = juce::roundToInt(plainParameter("reverb_model"));
+    const auto springActive = performVisible && model == 1;
+    const auto plateActive = performVisible && model == 2;
+    springTensionSlider_.setVisible(springActive);
+    springTensionLabel_.setVisible(springActive);
+    plateBrightnessSlider_.setVisible(plateActive);
+    plateBrightnessLabel_.setVisible(plateActive);
+    physicalStatusLabel_.setText(
+        model == 1 ? "SPRING TANK: TENSION" : model == 2 ? "PLATE: BRIGHTNESS" : "ALGORITHMIC: NO PHYSICAL CHARACTER",
+        juce::dontSendNotification
+    );
+}
+
+void VerbXPluginEditor::rebuildPresetBrowser() {
+    const auto filter = presetFilter_.getText().trim().toLowerCase();
+    const auto selectedProgram = processor_.getCurrentProgram() + 1;
+    presetBox_.clear(juce::dontSendNotification);
+    for (int index = 0; index < processor_.getNumPrograms(); ++index) {
+        const auto name = processor_.getProgramName(index);
+        if (filter.isEmpty() || name.toLowerCase().contains(filter)) {
+            presetBox_.addItem(name, index + 1);
+        }
+    }
+    if (presetBox_.getNumItems() > 0) {
+        presetBox_.setSelectedId(selectedProgram, juce::dontSendNotification);
+    }
 }
 
 void VerbXPluginEditor::paintExpertPage(juce::Graphics& graphics) {
     graphics.setColour(consoleText);
-    graphics.setFont(consoleFont(24.0f, juce::Font::bold));
-    graphics.drawText("EXPERT CONTROL MATRIX", 54, 112, 420, 34, juce::Justification::centredLeft);
+    graphics.setFont(consoleFont(23.0f, juce::Font::bold));
+    graphics.drawText("Parameters", 54, 110, 260, 34, juce::Justification::centredLeft);
     graphics.setColour(consoleMuted);
     graphics.setFont(consoleFont(12.0f));
     graphics.drawText(
-        "Nine automatable dials, nine linked precision faders, and twenty performance selectors",
-        470,
+        "Quick controls and precise values for the active reverb program",
+        320,
         117,
         900,
         24,
         juce::Justification::centredLeft
     );
+    graphics.setColour(consoleLine.withAlpha(0.6f));
+    graphics.drawHorizontalLine(151, 48.0f, 1872.0f);
     for (int index = 0; index < knobCount; ++index) {
         const auto x = 48.0f + static_cast<float>(index) * 204.0f;
-        const auto card = juce::Rectangle<float>(x, 154.0f, 190.0f, 176.0f);
-        graphics.setColour(juce::Colour::fromRGB(15, 22, 26));
-        graphics.fillRoundedRectangle(card, 14.0f);
-        graphics.setColour((index % 3 == 0 ? analyzerGold : analyzerMint).withAlpha(0.22f));
-        graphics.drawRoundedRectangle(card.reduced(0.5f), 14.0f, 1.0f);
-        graphics.setColour(consoleMuted.withAlpha(0.55f));
-        graphics.setFont(dataFont(7.5f, juce::Font::bold));
-        graphics.drawText(
-            "P" + juce::String(index + 1).paddedLeft('0', 2),
-            juce::roundToInt(x + 12.0f),
-            302,
-            36,
-            14,
-            juce::Justification::centredLeft
-        );
+        if (index > 0) {
+            graphics.setColour(consoleLine.withAlpha(0.34f));
+            graphics.drawVerticalLine(juce::roundToInt(x - 7.0f), 168.0f, 310.0f);
+        }
     }
 
-    const auto analyzerPanel = juce::Rectangle<float>(48.0f, 344.0f, 1824.0f, 126.0f);
-    drawPanel(graphics, analyzerPanel, "REALTIME SPECTRUM / TAIL ENERGY", "20 HZ - 20 KHZ");
+    const auto analyzerPanel = juce::Rectangle<float>(48.0f, 334.0f, 1824.0f, 128.0f);
+    drawPanel(graphics, analyzerPanel, "TAIL SPECTRUM", "POST-REVERB  /  20 HZ - 20 KHZ");
 
     for (int index = 0; index < knobCount; ++index) {
         const auto column = index % 3;
         const auto row = index / 3;
         const auto x = 48.0f + static_cast<float>(column) * 608.0f;
-        const auto y = 490.0f + static_cast<float>(row) * 104.0f;
-        const auto card = juce::Rectangle<float>(x, y, 592.0f, 88.0f);
-        graphics.setColour(juce::Colour::fromRGB(14, 21, 25));
-        graphics.fillRoundedRectangle(card, 12.0f);
-        graphics.setColour(consoleLine.withAlpha(0.28f));
-        graphics.drawRoundedRectangle(card.reduced(0.5f), 12.0f, 1.0f);
-        graphics.setColour(analyzerMint.withAlpha(0.13f));
-        graphics.fillRoundedRectangle(x + 14.0f, y + 57.0f, 554.0f, 4.0f, 2.0f);
+        const auto y = 488.0f + static_cast<float>(row) * 100.0f;
+        graphics.setColour(consoleLine.withAlpha(0.44f));
+        graphics.drawHorizontalLine(juce::roundToInt(y + 76.0f), x, x + 592.0f);
     }
 
+    graphics.setColour(consoleText);
+    graphics.setFont(consoleFont(17.0f, juce::Font::bold));
+    graphics.drawText("Performance macros", 54, 804, 260, 24, juce::Justification::centredLeft);
+    graphics.setColour(consoleLine.withAlpha(0.58f));
+    graphics.drawHorizontalLine(834, 48.0f, 1872.0f);
     for (int group = 0; group < expertSelectGroupCount; ++group) {
         const auto x = 48.0f + static_cast<float>(group) * 366.0f;
-        const auto bank = juce::Rectangle<float>(x, 826.0f, 350.0f, 148.0f);
-        graphics.setColour(juce::Colour::fromRGB(17, 24, 28));
-        graphics.fillRoundedRectangle(bank, 14.0f);
-        graphics.setColour(analyzerGold.withAlpha(0.24f));
-        graphics.drawRoundedRectangle(bank.reduced(0.5f), 14.0f, 1.0f);
         graphics.setColour(consoleMuted);
         graphics.setFont(dataFont(9.0f, juce::Font::bold));
         graphics.drawText(
             expertSelectGroupLabels[static_cast<size_t>(group)],
             juce::roundToInt(x + 14.0f),
-            842,
+            844,
             322,
             20,
             juce::Justification::centredLeft
         );
-        graphics.setColour(consoleMuted.withAlpha(0.72f));
-        graphics.setFont(consoleFont(10.0f));
-        graphics.drawText(
-            group == 0 ? "Internal render policy"
-                       : group == 1 ? "Stereo field target"
-                                    : group == 2 ? "Logarithmic RT60 macro"
-                                                 : group == 3 ? "Dry / wet gain topology"
-                                                              : "Damping + diffusion pair",
-            juce::roundToInt(x + 14.0f),
-            942,
-            322,
-            18,
-            juce::Justification::centredLeft
-        );
+        if (group > 0) {
+            graphics.setColour(consoleLine.withAlpha(0.34f));
+            graphics.drawVerticalLine(juce::roundToInt(x - 8.0f), 844.0f, 930.0f);
+        }
     }
 
     graphics.setColour(consoleMuted);
     graphics.setFont(dataFont(9.0f));
     graphics.drawText(
-        "TIP  CLICK A DIAL ARC, DRAG VERTICALLY, SCROLL, OR TYPE A VALUE. DOUBLE-CLICK RESETS.",
+        "Double-click a control to reset it. Values may also be entered directly.",
         54,
-        998,
+        962,
         1200,
         24,
         juce::Justification::centredLeft
@@ -917,7 +1041,7 @@ void VerbXPluginEditor::paintExpertPage(juce::Graphics& graphics) {
             + "  /  " + juce::String(processor_.oversamplingFactor()) + "X"
             + "  /  " + juce::String(processor_.getLatencySamples()) + " SAMPLES LATENCY",
         1150,
-        998,
+        962,
         700,
         24,
         juce::Justification::centredRight
@@ -935,50 +1059,18 @@ void VerbXPluginEditor::paint(juce::Graphics& graphics) {
     juce::Graphics::ScopedSaveState state(graphics);
     graphics.addTransform(juce::AffineTransform(scale, 0.0f, offsetX, 0.0f, scale, offsetY));
 
-    graphics.setColour(juce::Colour::fromRGB(8, 14, 18));
+    graphics.setColour(juce::Colour::fromRGB(14, 17, 19));
     graphics.fillRect(0.0f, 0.0f, designWidth, designHeight);
-    graphics.setColour(analyzerMint.withAlpha(0.025f));
-    for (int x = 0; x < static_cast<int>(designWidth); x += 64) {
-        graphics.drawVerticalLine(x, 0.0f, designHeight);
-    }
-    for (int y = 0; y < static_cast<int>(designHeight); y += 64) {
-        graphics.drawHorizontalLine(y, 0.0f, designWidth);
-    }
-    graphics.setColour(analyzerMint.withAlpha(0.035f));
-    graphics.fillEllipse(500.0f, -420.0f, 1100.0f, 840.0f);
-
-    const auto topBar = juce::Rectangle<float>(40.0f, 20.0f, 1840.0f, 72.0f);
-    graphics.setColour(juce::Colour::fromRGB(22, 29, 34).withAlpha(0.94f));
-    graphics.fillRoundedRectangle(topBar, 18.0f);
-    graphics.setColour(consoleLine.withAlpha(0.42f));
-    graphics.drawRoundedRectangle(topBar.reduced(0.5f), 18.0f, 1.0f);
+    graphics.setColour(juce::Colour::fromRGB(18, 22, 24));
+    graphics.fillRect(0.0f, 0.0f, designWidth, 92.0f);
+    graphics.setColour(consoleLine.withAlpha(0.62f));
+    graphics.drawHorizontalLine(91, 0.0f, designWidth);
     graphics.setColour(consoleText);
-    graphics.setFont(consoleFont(29.0f, juce::Font::bold));
-    graphics.drawText("V E R B X", 60, 30, 150, 38, juce::Justification::centredLeft);
+    graphics.setFont(consoleFont(28.0f, juce::Font::bold));
+    graphics.drawText("VERBX", 54, 28, 128, 38, juce::Justification::centredLeft);
     graphics.setColour(analyzerMint);
     graphics.setFont(dataFont(9.0f, juce::Font::bold));
-    graphics.drawText("SPATIAL\nENGINE", 188, 38, 80, 34, juce::Justification::centredLeft);
-
-    const auto preset = juce::Rectangle<float>(284.0f, 35.0f, 1220.0f, 42.0f);
-    graphics.setColour(juce::Colours::black.withAlpha(0.18f));
-    graphics.fillRoundedRectangle(preset, 20.0f);
-    graphics.setColour(consoleLine.withAlpha(0.34f));
-    graphics.drawRoundedRectangle(preset, 20.0f, 1.0f);
-    graphics.setColour(consoleMuted);
-    graphics.setFont(consoleFont(13.0f));
-    graphics.drawText("Preset", 304, 44, 52, 22, juce::Justification::centredLeft);
-    graphics.setColour(consoleText);
-    graphics.setFont(consoleFont(14.0f, juce::Font::bold));
-    graphics.drawText("DXF Hall  ·  Slow Bloom  ·  7.2.4", 360, 44, 470, 22, juce::Justification::centredLeft);
-    graphics.setColour(consoleMuted);
-    graphics.drawText("Browse", 1410, 44, 70, 22, juce::Justification::centredRight);
-
-    graphics.setColour(consolePanel);
-    graphics.fillRoundedRectangle(1762.0f, 37.0f, 90.0f, 38.0f, 18.0f);
-    graphics.setColour(analyzerMint);
-    graphics.fillEllipse(1774.0f, 52.0f, 8.0f, 8.0f);
-    graphics.setFont(dataFont(10.0f, juce::Font::bold));
-    graphics.drawText("LIVE", 1786, 44, 54, 22, juce::Justification::centredLeft);
+    graphics.drawText("SPATIAL REVERB", 184, 40, 130, 22, juce::Justification::centredLeft);
 
     if (activePage_ == Page::expert) {
         paintExpertPage(graphics);
@@ -1211,6 +1303,12 @@ void VerbXPluginEditor::resized() {
 
     performPageButton_.setBounds(mapBounds({1538.0f, 37.0f, 100.0f, 38.0f}));
     expertPageButton_.setBounds(mapBounds({1646.0f, 37.0f, 100.0f, 38.0f}));
+    presetFilterLabel_.setBounds(mapBounds({650.0f, 37.0f, 52.0f, 18.0f}));
+    presetFilter_.setBounds(mapBounds({702.0f, 30.0f, 250.0f, 32.0f}));
+    presetLabel_.setBounds(mapBounds({962.0f, 37.0f, 58.0f, 18.0f}));
+    presetBox_.setBounds(mapBounds({1020.0f, 30.0f, 480.0f, 32.0f}));
+    abAButton_.setBounds(mapBounds({1756.0f, 37.0f, 42.0f, 38.0f}));
+    abBButton_.setBounds(mapBounds({1806.0f, 37.0f, 42.0f, 38.0f}));
     rt60Readout_.setBounds(mapBounds({900.0f, 176.0f, 306.0f, 28.0f}));
 
     if (activePage_ == Page::expert) {
@@ -1257,6 +1355,13 @@ void VerbXPluginEditor::resized() {
         knobLabels_[static_cast<size_t>(index)].setBounds(mapBounds({x, 478.0f, 84.0f, 16.0f}));
         knobs_[static_cast<size_t>(index)].setBounds(mapBounds({x - 4.0f, 491.0f, 92.0f, 110.0f}));
     }
+    springTensionLabel_.setBounds(mapBounds({1598.0f, 458.0f, 112.0f, 18.0f}));
+    springTensionSlider_.setBounds(mapBounds({1710.0f, 452.0f, 146.0f, 26.0f}));
+    plateBrightnessLabel_.setBounds(mapBounds({1598.0f, 486.0f, 112.0f, 18.0f}));
+    plateBrightnessSlider_.setBounds(mapBounds({1710.0f, 480.0f, 146.0f, 26.0f}));
+    physicalStatusLabel_.setBounds(mapBounds({1598.0f, 508.0f, 258.0f, 16.0f}));
+    modelLabel_.setBounds(mapBounds({1598.0f, 530.0f, 62.0f, 18.0f}));
+    modelBox_.setBounds(mapBounds({1660.0f, 523.0f, 196.0f, 32.0f}));
     qualityLabel_.setBounds(mapBounds({1598.0f, 565.0f, 62.0f, 18.0f}));
     qualityBox_.setBounds(mapBounds({1660.0f, 558.0f, 196.0f, 32.0f}));
     freezeButton_.setBounds(mapBounds({1598.0f, 592.0f, 122.0f, 24.0f}));

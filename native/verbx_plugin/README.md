@@ -80,6 +80,18 @@ mix routing, and tail character.
   Target 192 kHz / 32-bit-float processing contract
 - RT60 coarse/fine mapping from `0.01s` to `360s`
 - visible Freeze and Reverse mode parameters
+- host-visible `Reverb Model` selector with dedicated realtime Algorithmic,
+  Spring, and Plate topologies; matching preset families select them directly
+- host-visible Spring Tension and Plate Brightness controls with 20 ms realtime
+  smoothing and per-family preset defaults; the editor shows the control that
+  matches the selected physical model
+- 260 host-visible programs: four immediate-reference programs plus 256
+  deterministic room, hall, plate, spring, chamber, drone, shimmer, and tight
+  variations. All support editable host names and state recall.
+- the editor preset browser exposes the complete program bank and remains in
+  step with the host program API; live filtering narrows programs by name
+- A/B controls capture and recall complete host parameter states for rapid
+  comparison between two reverb directions
 - realtime post-DSP spectrum overlay with a lock-free audio handoff, 8192-point
   Hann FFT, logarithmic frequency grid, smoothed response, and peak trace
 

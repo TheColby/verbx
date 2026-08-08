@@ -17,8 +17,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCES = ROOT / "docs" / "REFERENCES.md"
 SECTION_MARKER = "## Section 10: Extended Crossref Literature Index"
-DEFAULT_TARGET_TOTAL = 1002
-DEFAULT_CURATED_TOTAL = 102
+DEFAULT_TARGET_TOTAL = 1026
+DEFAULT_CURATED_TOTAL = 126
 GENERATED_ON = "May 22, 2026"
 USER_AGENT = "verbx-reference-expander/1.0 (https://github.com/TheColby/verbx)"
 TITLE_SMALL_WORDS = {

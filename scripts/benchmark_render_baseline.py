@@ -227,6 +227,7 @@ def _evaluate(
 
     scenario_payload: list[dict[str, Any]] = []
     has_regression = False
+    missing_baseline_count = 0
     for item in results:
         baseline_entry = baseline_scenarios.get(item.name, {})
         reference = None
@@ -241,9 +242,11 @@ def _evaluate(
 
         ratio_to_reference = None if reference is None else item.elapsed_seconds / reference
         over_budget = None if budget is None else item.elapsed_seconds > budget
+        baseline_missing = reference is None and budget is None
         regression = (
             ratio_to_reference is not None and ratio_to_reference > float(compare_threshold)
-        ) or (over_budget is True)
+        ) or (over_budget is True) or baseline_missing
+        missing_baseline_count += int(baseline_missing)
         has_regression = has_regression or bool(regression)
 
         scenario_payload.append(
@@ -254,6 +257,7 @@ def _evaluate(
                 "ratio_to_reference": ratio_to_reference,
                 "compare_threshold": float(compare_threshold),
                 "over_budget": bool(over_budget) if over_budget is not None else None,
+                "baseline_missing": baseline_missing,
                 "regression": bool(regression),
             }
         )
@@ -261,6 +265,7 @@ def _evaluate(
     summary = {
         "scenario_count": len(results),
         "regression_count": int(sum(1 for row in scenario_payload if row["regression"])),
+        "missing_baseline_count": missing_baseline_count,
         "has_regression": bool(has_regression),
     }
     return {"scenarios": scenario_payload, "summary": summary}, bool(has_regression)

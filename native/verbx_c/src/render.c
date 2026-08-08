@@ -37,6 +37,18 @@ const char *verbx_tail_metric_name(verbx_tail_metric metric) {
     return "unknown";
 }
 
+const char *verbx_algo_model_name(verbx_algo_model model) {
+    switch (model) {
+        case VERBX_ALGO_MODEL_FDN:
+            return "fdn";
+        case VERBX_ALGO_MODEL_SPRING:
+            return "spring";
+        case VERBX_ALGO_MODEL_PLATE:
+            return "plate";
+    }
+    return "unknown";
+}
+
 static double buffer_peak_abs(const verbx_audio_buffer *buffer) {
     double peak = 0.0;
     size_t sample_count;

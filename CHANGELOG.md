@@ -4,7 +4,124 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.9.9] - 2026-07-26
+
+### Added
+- Native plug-in A/B controls now capture and recall full host parameter
+  snapshots for direct reverb comparison from the editor.
+
+## [0.9.8] - 2026-07-26
+
+### Added
+- The native plug-in preset browser now supports live name filtering while
+  preserving host-program selection and physical-model recall.
+
+## [0.9.7] - 2026-07-26
+
+### Added
+- The native plug-in editor now includes a host-program browser for
+  all 260 presets, synchronized with the processor program API and model recall.
+
+## [0.9.6] - 2026-07-26
+
 ### Changed
+- The native plug-in now presents model-specific physical controls
+  contextually: Spring exposes Tension, Plate exposes Brightness, and the
+  Algorithmic model hides both without affecting host automation.
+
+## [0.9.5] - 2026-07-26
+
+### Added
+- Native plug-in Spring Tension and Plate Brightness controls are now
+  host-automatable, editor-visible, smoothed in the realtime core, and recalled
+  by the physical-model preset families.
+
+## [0.9.4] - 2026-07-26
+
+### Changed
+- The native JUCE plug-in now provides a realtime Plate model alongside its
+  Algorithmic and Spring models. Plate programs select it automatically.
+- The native JUCE plug-in now includes a host-automatable `Reverb Model`
+  selector and a dedicated realtime spring-tank topology. The Spring preset
+  family selects the spring engine automatically.
+- The native JUCE plug-in now exposes 260 host programs: four immediate
+  references plus 256 deterministic room, hall, plate, spring, chamber, drone,
+  shimmer, and tight-space variations. Names remain host-editable and persist
+  with plug-in state.
+- Extracted deterministic FDN delay-layout resolution and fractional circular
+  reads into `fdn_delays.py`, with direct tests for delay extension, seeded
+  comb-cloud layouts, DFM validation, and interpolation.
+
+## [0.9.3] - 2026-07-26
+
+### Added
+- FDN feedback nonlinearity and multichannel spatial coupling now live in
+  dedicated typed helper modules with direct contract tests.
+- The native `fdn` model now uses a bounded eight-line feedback delay network
+  with normalized Hadamard mixing, per-line RT60 gains, damping, and DC state;
+  spring and plate retain their established native proxy topologies.
+- Dedicated automation contract tests now cover target normalization,
+  interpolation validation, clamp validation, deterministic signatures, and
+  sample-aligned curve rendering.
+- `v0.9.3` adds end-to-end convolution streaming/in-memory parity coverage for
+  peak- and RMS-based tail completion, including exact-zero hold verification.
+- Shared delay-list, gain-list, 3D-vector, and choice-suggestion parsing now
+  lives in `src/verbx/commands/validators.py`, shrinking the legacy CLI helper
+  layer while retaining its compatibility aliases.
+- `v0.9.1` exposes immutable typed render-configuration sections for engine,
+  execution, tail, and output settings while preserving the flat CLI, preset,
+  and report compatibility surface.
+- Added an analytic rectangular-room ISM reference corpus and a public
+  pre-convolution path enumerator, with regression coverage for direct and
+  first-order distances, sample delays, and material-dependent gain.
+- Added blocking CI jobs for render-performance budgets and native structural
+  parity; missing benchmark baselines now fail closed and failure reports are
+  still uploaded as artifacts.
+- Native tail completion now preserves a deterministic source-duration floor
+  for active, dry-only, and silent input instead of permitting truncation below
+  the source extent.
+- Scala `.scl` tuning for `verbx ir gen`, including cents and ratio parsing,
+  arbitrary repeat intervals, root-degree mapping, bounded cross-register target
+  expansion, constant-Q band emphasis, deterministic cache identity, and full
+  scale provenance in IR metadata. Generated microtonal IRs remain ordinary
+  audio assets and can therefore feed convolution render, realtime, plug-in,
+  and Audio AI workflows without file parsing on the audio thread.
+- Experimental `--electromechanical-solver modal-fe` provides deterministic
+  offline lumped-mass spring-tank and structured plate finite-element modal
+  solvers, with bounded mesh, retained-mode, coupling, and loss controls.
+- `v0.9.0` adds `--engine ism-fdn`: a deterministic rectangular-room
+  image-source early field with configurable `--ism-order 0..6`, material-aware
+  wall reflectivity, and the existing FDN late field. Render reports now retain
+  the resolved room geometry, material assignment, and ISM order.
+- `v0.7.8` adds deterministic algorithmic `spring` and `plate` models to the
+  Python render path through `--algo-model spring|plate`, with `classic_spring`
+  and `bright_plate` presets. Both models retain the ordinary algorithmic
+  control, automation, report, and proxy-render workflow.
+- `verbx-c render --model fdn|spring|plate` now selects equivalent bounded
+  native topology families and records the choice in stdout and
+  `native-render-report-v1` JSON.
+
+### Changed
+- Lucky-mode randomization now preserves an explicit caller-provided tail
+  limit instead of replacing the safety/resource boundary with a random
+  2–40-second value or no bound.
+- Repository typography checks exclude the project-local uv dependency cache,
+  so documentation generation is independent of installed package contents.
+- Tagged release automation now computes the GitHub source-archive checksum
+  after the tag exists and rewrites the separate tap formula during sync,
+  removing the circular requirement for a release tag to contain its own
+  archive checksum.
+- Shimmer's block-local safety limiter no longer applies lookahead that can
+  erase blocks shorter than the lookahead window; intentional unsafe
+  self-oscillation also remains observable instead of being flattened by that
+  internal safety stage.
+- Convolution file streaming now preserves the unwritten portion of a padded
+  final source partition before flushing the IR tail. Non-partition-aligned
+  inputs therefore retain the same tail timing and samples as in-memory
+  convolution instead of dropping up to one partial partition.
+- The synthetic IR cache namespace is now `verbx-ir-v0.5`; the first request
+  for an existing configuration regenerates its cache entry so Scala-aware
+  configuration identity cannot reuse older metadata accidentally.
 - Quality modes now perform real allocation-free wet-path oversampling instead
   of reporting an aspirational internal rate. Host, 2x, and 4x use their exact
   integer factors; Target 192 kHz chooses the smallest integer factor that
@@ -163,7 +280,7 @@ All notable changes to this project are documented in this file.
 ### Changed
 - **`room_size.py` decomposed into six public pipeline stages**: `extract_edr_rt60`,
   `infer_absorption`, `estimate_volume`, `project_dimensions`, `score_confidence`,
-  `classify_room` — each independently callable, testable, and replaceable.
+  `classify_room` – each independently callable, testable, and replaceable.
   `estimate_room_size` is now a thin orchestrator that calls them in sequence.
 - **FDN matrix operations extracted to `src/verbx/core/fdn_matrix.py`**: all
   `build_*` matrix builders (`hadamard`, `random_orthogonal`, `circulant`,
@@ -180,7 +297,7 @@ All notable changes to this project are documented in this file.
 - **Roadmap sections 6–8**: physically modelled room acoustics track (ISM full
   response, SDN engine, geometry-to-FDN parameter derivation, material library),
   AI/neural architecture track (DDSP FDN, grey-box neural FDN, neural
-  dereverberation, perceptual evaluation infrastructure — informed by Steinmetz
+  dereverberation, perceptual evaluation infrastructure – informed by Steinmetz
   et al. MERL TR2025-116 JAES 2025), and Valhalla-inspired algorithm research
   track (diffusion density, per-line crossover filters, room mode resonances).
 
@@ -190,11 +307,11 @@ All notable changes to this project are documented in this file.
   reverberant recording or rendered IR.  Uses Sabine/Eyring reverberation
   formulas with EDR-derived RT60 measurements and automatic absorption inference
   from the spectral decay shape.  Exposed via:
-  - `AudioAnalyzer.analyze(include_room=True)` — adds `room_*` prefixed keys
+  - `AudioAnalyzer.analyze(include_room=True)` – adds `room_*` prefixed keys
     to the flat metrics dict
-  - `verbx analyze --room` — prints room metrics in the analysis table and
+  - `verbx analyze --room` – prints room metrics in the analysis table and
     includes them in `--json-out` output
-  - `verbx compare --room` — shows room metrics side-by-side with string-valued
+  - `verbx compare --room` – shows room metrics side-by-side with string-valued
     fields (class, method, confidence) displayed as labels and numeric fields
     shown with delta
 

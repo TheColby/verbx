@@ -6,6 +6,14 @@ These projects form a progressive laboratory course in reverberation, spatial au
 
 Evaluate every submission on prediction, method, evidence, listening judgment, reproducibility, and clarity. Unless a project states otherwise, students should retain source audio, exact commands, parameter or preset state, analysis JSON, plots, and a short reflection distinguishing observation from interpretation.
 
+## Laboratory Protocol
+
+The technical projects share one experimental protocol so that their individual pages can concentrate on the question at hand. Begin with a dry baseline and one conservative reference render. Create at least five documented variants across the useful range, including one deliberately poor case when it can be produced without risking equipment or hearing. Change one principal variable at a time, loudness-match comparisons, retain deterministic seeds, and record effective settings rather than relying on shell history alone.
+
+Unless a project specifies a different submission, provide the source and rendered excerpts, runnable commands, presets or automation, analysis JSON, a compact comparison table, and one labeled figure. Record listening conditions, sample rate, channel layout, block or partition size, software revision, and warnings. Another student should be able to reproduce the central result, and conclusions should cite both measurement and level-matched listening rather than screenshots alone.
+
+Every technical report should answer the same five questions: Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting lie relative to a failure boundary? Which confound deserves a follow-up experiment? Finish by repeating the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and state which conclusions generalize.
+
 \newpage
 
 ## Project 1: Calibrate a Natural Room
@@ -14,15 +22,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Create three believable rooms for speech, percussion, and strings from one dry recording. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -39,15 +39,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Annotate arrival times and energy regions in an impulse response and in a rendered waveform. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -64,15 +56,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Measure how coarse and fine controls distribute useful adjustment over 0.01 to 360 seconds. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -89,15 +73,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Design warm, neutral, and bright tails with equal broadband RT60 but different band decay. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -114,15 +90,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Hold loudness constant while testing whether pre-delay changes foreground placement. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -139,15 +107,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Compare compact, wide, and tall reflection patterns using the same late field. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -164,15 +124,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Find the transition from discrete echoes to a smooth field for three source types. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -189,15 +141,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Blind-compare matrix families under matched delay lengths, RT60, and output level. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -214,15 +158,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Construct prime, randomized, and clustered delay sets and relate spectra to listening notes. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -347,15 +283,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Protect an extreme wet mix while minimizing transient flattening and pumping. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -372,15 +300,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Select partition sizes for live monitoring, music production, and offline archival rendering. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -397,15 +317,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Plan and document a repeatable room capture with calibration and failure checks. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -422,15 +334,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Prepare an IR library while preserving source identity and reversible processing metadata. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -474,15 +378,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Build a strength sweep and select an operating point from measured and blind-listening evidence. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -499,15 +395,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Compare natural reverb, dereverberation, and re-reverberation for spoken material. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -524,15 +412,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Measure round-trip latency and reconcile it with the predicted buffer stack. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -549,15 +429,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Stress block size and quality modes while recording dropout thresholds and recovery behavior. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -628,15 +500,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Compare six reverb designs only after integrated loudness and peak constraints are matched. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -653,15 +517,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Increase envelopment while maintaining a documented mono fold-down target. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -678,15 +534,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Use labeled impulses to prove every input-to-output route in a surround configuration. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -730,15 +578,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Infer plausible dimensions and absorption from RT60, then explain non-unique solutions. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -755,15 +595,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Specify a DXF-to-reflection prototype with assumptions, error bounds, and listening tests. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -780,15 +612,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Design a report consumed by a regression script without parsing human progress text. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill
@@ -805,15 +629,7 @@ Evaluate every submission on prediction, method, evidence, listening judgment, r
 
 **Design brief.** Port one narrow feature and prove parity against the Python reference. Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls.
 
-**Procedure.** Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone.
-
-**Evidence package.** Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx.
-
-**Questions for the report.** Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it.
-
-**Completion standard.** Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence.
-
-**Extension.** Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize.
+**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.
 
 ```{=latex}
 \vfill

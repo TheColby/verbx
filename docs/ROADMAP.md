@@ -1,14 +1,14 @@
 # verbx Roadmap
 
-_Last updated: 2026-06-04. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
+_Last updated: 2026-07-26. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
 
 ---
 
 ## 1. Release Posture
 
-**Current release:** `v0.7.7`
+**Current release:** `v0.9.9`
 **Status:** public alpha (research-grade)
-**Versioning policy:** semantic (`0.7.x` patch line during alpha)
+**Versioning policy:** semantic prerelease (`0.x` during public alpha)
 
 verbx currently ships dual-engine reverb, deterministic automation/feature
 control, immersive QC/handoff, reproducibility tooling, f64 internal DSP,
@@ -17,7 +17,139 @@ CLI-selectable realtime duplex auditioning.
 
 ---
 
-## 2. v0.7.7 Current Patch Line — Structural Refactor
+## 2. v0.9.9 Plug-in A/B Comparison
+
+- [x] Add full parameter-state A/B snapshots to the plug-in processor.
+- [x] Surface A/B recall controls in the editor.
+- [x] Verify bidirectional A/B recall in the JUCE interaction smoke test.
+
+`v0.9.9` adds a direct reverb-comparison workflow without adding audio-thread
+allocations or changing the host automation contract.
+
+## 2a. v0.9.8 Preset Browser Filtering
+
+- [x] Add live name filtering to the in-editor preset browser.
+- [x] Preserve program IDs when the visible list is filtered.
+- [x] Cover filter, selection, and reset behavior in the JUCE interaction
+  smoke test.
+
+`v0.9.8` makes the large native program library practical to scan during a
+session without changing host program semantics.
+
+## 2a. v0.9.7 In-Editor Preset Browser
+
+- [x] Add an editor preset browser backed by the host-visible program bank.
+- [x] Keep the browser synchronized with processor program changes.
+- [x] Verify program/model recall through the JUCE interaction smoke test.
+
+`v0.9.7` makes the 260-program library directly usable from the plug-in
+surface, while retaining normal AU/VST3 host program behavior.
+
+## 2a. v0.9.6 Model-Aware Plug-in Controls
+
+- [x] Make physical character controls contextual to the active model.
+- [x] Keep model switching host-automatable while keeping irrelevant controls
+  out of the active Perform surface.
+- [x] Cover Spring, Plate, and Algorithmic visibility behavior in the JUCE
+  interaction smoke test.
+
+`v0.9.6` refines the physical-model workflow so the editor presents one clear
+character control at a time without narrowing the host automation surface.
+
+## 2a. v0.9.5 Physical-Model Character Controls
+
+- [x] Add host-automatable Spring Tension and Plate Brightness parameters.
+- [x] Apply character controls inside bounded realtime Spring and Plate DSP
+  paths with callback-safe smoothing.
+- [x] Surface both controls in the plug-in editor and test their host state.
+
+`v0.9.5` deepens physical-model control without changing the plug-in's
+allocation-free realtime contract.
+
+## 2a. v0.9.4 Native Physical-Model Plug-in Slice
+
+- [x] Expose host-automatable Algorithmic, Spring, and Plate realtime models.
+- [x] Add bounded serial spring-tank and parallel dispersive plate topologies
+  to the shared native realtime core.
+- [x] Wire Spring and Plate preset families to their matching models and cover
+  host-state, C realtime, and JUCE editor interactions.
+
+`v0.9.4` is a focused native plug-in expansion. The realtime physical models
+remain intentionally bounded approximations; offline modal FE remains the
+high-detail sound-design path.
+
+## 2a. v0.9.3 Streaming Parity and CLI Decomposition Slice
+
+- [x] Enforce full-pipeline convolution streaming/in-memory parity for peak
+  and RMS tail completion.
+- [x] Fix partial-partition streaming tail loss for non-aligned source lengths.
+- [x] Move generic numeric and choice parsers into the shared command validator
+  module while retaining CLI compatibility aliases.
+
+`v0.9.3` remains a focused hardening release. It closes a sample-level
+streaming correctness gap before further native or physical-acoustics breadth.
+
+## 2a. v0.9.1 Stabilization and Validation Slice
+
+- [x] Expose composed, typed views over the monolithic render configuration
+  while retaining CLI and report compatibility.
+- [x] Promote render-performance regression detection to a blocking CI gate.
+- [x] Tighten the deterministic native-render behavior covered by the parity
+  contract.
+- [x] Add an analytic rectangular-room ISM reference corpus covering direct
+  and first-order path distance, sample timing, and material-dependent gain.
+
+`v0.9.1` is intentionally a hardening release. Broader SDN, neural, and
+arbitrary-CAD expansion remains gated on repeatable evaluation evidence.
+
+---
+
+## 3. v0.9 Physical Room Slice (Completed)
+
+- [x] Ship `--engine ism-fdn` for a rectangular image-source early field fed
+  into the established FDN late field.
+- [x] Extend ISM to reflection orders `0..6` with deterministic, material-aware
+  per-surface reflectivity.
+- [x] Preserve resolved room dimensions, source/listener positions, wall
+  materials, warnings, and ISM order in render-report provenance.
+- [x] Add direct acoustic and end-to-end CLI regression coverage.
+
+The native `verbx-c` executable does not claim ISM/FDN parity in `v0.9`; the
+physical room path remains Python-reference functionality until the native FDN
+port and parity contract can support the same scene model.
+
+## 3a. Experimental Electro-Mechanical Modal FE (Completed)
+
+- [x] Add `--electromechanical-solver modal-fe` alongside the fast default
+  proxy voice for `--algo-model spring|plate`.
+- [x] Solve bounded lumped-mass spring chains, optional inter-spring coupling,
+  and structured mass-lumped clamped plate grids as deterministic modal IRs.
+- [x] Expose mesh, retained-mode, coupling, loss, material, and pickup controls
+  and document the governing generalized eigenproblem.
+
+This is an offline research/sound-design solver, not a calibrated commercial
+hardware emulation. Native `verbx-c` remains proxy-only for this feature.
+
+---
+
+## 3. v0.7.8 Model and Stability Slice (Completed)
+
+- [x] Add explicit algorithmic model selection: `fdn`, `spring`, and `plate`.
+- [x] Add deterministic spring/plate topology defaults while preserving RT60,
+  damping, width, modulation, automation, proxy rendering, and report output.
+- [x] Add `classic_spring` and `bright_plate` reference presets.
+- [x] Extend `verbx-c render` with `--model fdn|spring|plate` and report the
+  selected native model in `native-render-report-v1`.
+- [x] Add Python and native regression coverage proving finite, distinct model
+  tails and native JSON reporting.
+
+The remaining `0.7.x` stabilization work is intentionally narrow: complete
+the `cli.py` helper extraction, compose `RenderConfig`, and promote benchmark
+and streaming-parity checks to CI gates before another major DSP expansion.
+
+---
+
+## 4. v0.7.7 Current Patch Line – Structural Refactor
 
 Patch line opened 2026-03-30. Items below are the active focus.
 
@@ -34,22 +166,27 @@ Patch line opened 2026-03-30. Items below are the active focus.
 - [x] Add initial realtime duplex monitoring with CLI-selectable input/output devices and algorithmic-proxy or convolution live engines.
 - [x] Update README, CLI reference, and release/support docs for the refactor and realtime command surface.
 - [x] Move all CLI command entrypoints into per-command submodules under `src/verbx/commands/`.
-- [ ] Continue shrinking `cli.py` by migrating the remaining shared implementation/helper layer out of the legacy entrypoint module.
-- [ ] Decompose `RenderConfig` (162 fields) into composed sub-configs (`FDNConfig`, `AutomationConfig`, `SpatialConfig`, `StreamingConfig`).
+- [x] Continue shrinking `cli.py` by migrating a cohesive parser and
+  choice-validation helper cluster out of the legacy entrypoint module.
+- [x] Decompose `RenderConfig` (162 fields) into composed sub-config snapshots (`FDNConfig`, `AutomationConfig`, `SpatialConfig`, `StreamingConfig`) while preserving the flat constructor and serialized preset compatibility.
 - [x] Decompose `run_render_pipeline` (~640 lines) into explicit pipeline stages.
-- [ ] Add dedicated unit tests for `automation.py`, `convolution_reverb.py`, `feature_vector.py`, `immersive.py`.
-- [ ] Wire benchmark scripts into CI as blocking quality-regression gates.
-- [ ] Enforce streaming/in-memory parity at the test level (extend `test_proxy_stream_parity.py` to cover convolution path).
-- [ ] Decompose `algo_reverb.py` remaining methods into sub-modules (delay kernel, nonlinearity, spatial coupling).
+- [x] Add dedicated unit tests for `automation.py`, `convolution_reverb.py`, `feature_vector.py`, `immersive.py`.
+- [x] Wire benchmark scripts into CI as blocking quality-regression gates.
+- [x] Enforce streaming/in-memory parity at the test level (extend
+  `test_proxy_stream_parity.py` to cover convolution peak/RMS tail paths).
+- [x] Extract FDN nonlinearity and spatial-coupling helpers into dedicated,
+  directly tested modules.
+- [x] Extract pure FDN delay-layout and fractional-read helpers into
+  `fdn_delays.py`, retaining engine compatibility wrappers and direct contracts.
 
-## 2a. v0.7.6 Patch Line (Completed)
+## 4a. v0.7.6 Patch Line (Completed)
 
 - [x] Runtime/package metadata aligned to `v0.7.6`.
 - [x] Tail completion, proxy streaming, dereverb QA, release-health tooling, and IR library work shipped in `v0.7.6`.
 - [x] Land the next focused `0.7.x` patch feature set and promote it from `Unreleased` into `CHANGELOG.md`.
 - [x] Room size estimator integrated into analysis engine (`verbx analyze --room`, `verbx compare --room`, `AudioAnalyzer.analyze(include_room=True)`).
 
-## 3. v0.7.5 Feature Pack (Completed)
+## 5. v0.7.5 Feature Pack (Completed)
 
 Requested feature set 1-10 is implemented and tested:
 
@@ -66,7 +203,7 @@ Requested feature set 1-10 is implemented and tested:
 
 ---
 
-## 4. v0.8 Native Executable Program
+## 6. v0.8 Native Executable Program
 
 `v0.8` is the native C executable line. The Python implementation remains the
 released/public-alpha tool during the transition.
@@ -84,11 +221,15 @@ released/public-alpha tool during the transition.
 - [x] Implement native WAV write for `pcm16`, `float32`, and `float64`.
 - [x] Port analysis-free offline render lifecycle: read -> process -> tail finalize -> write.
 - [ ] Mirror current Python tail-stop semantics and sample-rate policy deterministically.
+- [x] Add explicit native `--tail-limit` control and report it in `native-render-report-v1`; model-derived DSP padding is now bounded consistently with Python's configured tail limit.
 
 ### 4.3 DSP Port
 
 - [x] Port a first native offline late-field core (pre-delay, combs, allpass diffusion, tail finalization).
-- [ ] Replace the foundational Schroeder/Moorer core with the higher-order FDN loop used by `v0.7.x`.
+- [x] Replace the foundational `fdn` comb bank with a bounded eight-line
+  Hadamard FDN slice.
+- [ ] Extend the bounded native FDN to the Python reference's modulation,
+  multiband, automation, and advanced topology surface.
 - [ ] Port damping, width, pre-delay, freeze, repeat, and normalization in controlled phases.
 - [x] Add native peak-safe output with deterministic peak/gain reporting.
 - [x] Define the first narrow parity contract in `tests/fixtures/native_render_parity_contract.json`.
@@ -126,7 +267,7 @@ Chosen `v0.8` release shape:
 
 ---
 
-## 5. Remaining 0.7.x Priorities
+## 7. Remaining 0.7.x Priorities
 
 - [x] Expand `verbx dereverb` objective quality validation (PESQ/STOI/ASR WER-style benchmark harness).
 - [x] Broaden algorithmic proxy-stream eligibility while preserving deterministic parity checks.
@@ -135,7 +276,7 @@ Chosen `v0.8` release shape:
 
 ---
 
-## 6. Physically Modelled Room Acoustics
+## 8. Physically Modelled Room Acoustics
 
 _Priority track opened 2026-03-31. Informs both the Python alpha line and the v0.8 native engine._
 
@@ -143,7 +284,7 @@ Current verbx reverb is parametric (FDN) and convolution-based.  Neither
 engine derives its character from an explicit physical room model.  This
 section tracks the work needed to add first-class physics-driven simulation.
 
-### 6.1 Foundation — Room Geometry Model
+### 6.1 Foundation – Room Geometry Model
 
 - [x] Define `RoomGeometry` dataclass: dimensions (L × W × H), wall materials
   per face, source and listener positions (mirrors existing `--er-geometry`
@@ -153,18 +294,21 @@ section tracks the work needed to add first-class physics-driven simulation.
 - [x] Add `verbx room-model` sub-command for geometry inspection and
   dimension-from-RT60 inversion (wraps existing `room_size.py` stages).
 
-### 6.2 Image Source Method (ISM) — Full Response
+### 6.2 Image Source Method (ISM) – Full Response
 
-The current `apply_image_source_early_reflections` only generates early
-reflections up to a fixed order.  The full ISM response includes the
-diffuse tail derived from image-source density.
+The shipped `ism-fdn` engine generates deterministic image-source paths at
+orders 0–6 and hands the material-aware early field to the established FDN
+late field. A pure full-response ISM engine and an echo-density-derived
+Schroeder handoff remain research work.
 
-- [ ] Extend ISM engine to configurable reflection order (1–6) with
-  frequency-dependent wall absorption per material.
-- [ ] Compute diffuse energy onset time from echo density; hand off to FDN
-  at the Schroeder frequency transition.
-- [ ] Expose as `--engine ism` and as a two-stage `ism+fdn` hybrid that uses
-  ISM for the early field and FDN for the late diffuse field.
+- [x] Extend ISM early-field generation to configurable reflection order
+  (0–6) with material-dependent wall absorption.
+- [ ] Compute diffuse energy onset time from echo density and derive the FDN
+  handoff at the Schroeder transition instead of using the current hybrid
+  boundary.
+- [x] Expose the two-stage early-ISM/late-FDN path as `--engine ism-fdn`.
+- [ ] Add a pure `--engine ism` full-response mode only after its computational
+  bounds and validation contract are defined.
 - [ ] Add parity corpus against measured anechoic + convolution references.
 
 ### 6.3 Scattering Delay Networks (SDN)
@@ -186,11 +330,11 @@ a true SDN room topology.  SDN explicitly models wall scattering nodes.
 For users who prefer the existing FDN engine but want physically grounded
 parameter choices:
 
-- [ ] Auto-derive FDN delay-line lengths from room dimensions (modal spacing
+- [x] Auto-derive FDN delay-line lengths from room dimensions (modal spacing
   from room geometry; prime-ratio delays from volume and aspect ratio).
-- [ ] Auto-derive per-band RT60 targets from Sabine/Eyring with
+- [x] Auto-derive per-band RT60 targets from Sabine/Eyring with
   frequency-dependent absorption from material library.
-- [ ] Auto-derive pre-delay from direct-path travel time (source → listener
+- [x] Auto-derive pre-delay from direct-path travel time (source → listener
   distance at speed of sound).
 - [x] Expose as `--preset room:<L>x<W>x<H>/<material>` shorthand.
 
@@ -230,6 +374,9 @@ architectural-acoustics accuracy in the first slice.
 - [x] Output an IR WAV usable by `verbx render --engine conv --ir OUT_IR.wav`.
 - [x] Keep first implementation experimental and scoped to demoable room-like
   DXF files; robust arbitrary CAD cleanup remains a later 2+ month milestone.
+- [x] Retain DXF tracing as experimental after the `v0.9.2` evidence review;
+  measured-reference validation and per-layer materials are still required
+  before graduation.
 
 Estimated effort:
 
@@ -252,7 +399,7 @@ v0.7.7.
 
 ---
 
-## 6. Next 30 Days Priorities (Snapshot)
+## Next 30 Days Priorities (Snapshot)
 
 - Lock a first-pass `verbx.api` module and document stability guarantees.
 - Publish at least two notebook examples (`render`, `ir`, `analyze`).
@@ -261,7 +408,7 @@ v0.7.7.
 
 ---
 
-## 7. AI / Neural Architecture Track
+## 9. AI / Neural Architecture Track
 
 _Informed by: Steinmetz et al., "Audio Signal Processing in the Artificial
 Intelligence Era: Challenges and Directions," JAES Vol. 73, 2025
@@ -358,7 +505,7 @@ problems.
 
 ---
 
-## 8. Valhalla-Inspired Algorithm Research
+## 10. Valhalla-Inspired Algorithm Research
 
 _Study track: document specific algorithmic techniques from the Valhalla
 DSP reverb family and assess which are missing or under-developed in verbx._
@@ -372,7 +519,7 @@ DSP reverb family and assess which are missing or under-developed in verbx._
   implementation (`mod_depth_ms`, `mod_rate_hz`) and identify interpolation
   order gaps.
 - [ ] **Per-line crossover filters**: Valhalla splits each FDN delay line
-  into frequency bands with independent gains — beyond verbx's current
+  into frequency bands with independent gains – beyond verbx's current
   three-band crossover.  Add per-line EQ post-filter capability.
 - [ ] **Pre-echo / smear controls**: Valhalla exposes "Size", "Diffusion", and
   "Pre-delay" as independent perceptual controls rather than direct DSP
@@ -388,7 +535,7 @@ DSP reverb family and assess which are missing or under-developed in verbx._
 
 ---
 
-## 9. Known Constraints (Alpha)
+## 11. Known Constraints (Alpha)
 
 - The Python `0.7.x` line remains offline/realtime-CLI focused. The `v0.8`
   native track now includes a usable mono/stereo AUv2/AUv3/VST3/standalone
@@ -405,7 +552,7 @@ DSP reverb family and assess which are missing or under-developed in verbx._
 
 ---
 
-## 10. Maintenance Rule
+## 12. Maintenance Rule
 
 When a roadmap item is completed:
 

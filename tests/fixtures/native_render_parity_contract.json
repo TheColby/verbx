@@ -22,6 +22,7 @@
       "wet",
       "dry",
       "pre_delay_ms",
+      "tail_limit",
       "damping",
       "tail_threshold_db",
       "tail_hold_ms",

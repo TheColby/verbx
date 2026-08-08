@@ -636,7 +636,7 @@ def _apply_de_emphasis(signal: npt.NDArray[np.float64], coef: float) -> npt.NDAr
 
 
 # ---------------------------------------------------------------------------
-# Objective quality metrics (numpy/scipy only — no external deps)
+# Objective quality metrics (numpy/scipy only; no external deps)
 # ---------------------------------------------------------------------------
 
 def _hz_to_bark(freq_hz: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
@@ -650,7 +650,7 @@ def _bark_weighted_snr_db(
     processed: npt.NDArray[np.float64],
     sample_rate: int,
 ) -> float:
-    """Bark-scale frequency-weighted SNR — PESQ-inspired proxy metric.
+    """Bark-scale frequency-weighted SNR – PESQ-inspired proxy metric.
 
     Partitions the spectrum into 24 Bark critical bands, computes signal and
     error power in each band via short-time spectral averaging, then returns a
@@ -785,7 +785,7 @@ def _mcd_db(
     processed: npt.NDArray[np.float64],
     sample_rate: int,
 ) -> float:
-    """Mel-cepstral distortion (MCD) — ASR WER proxy metric.
+    """Mel-cepstral distortion (MCD) – ASR WER proxy metric.
 
     Measures the mean Euclidean distance between MFCC vectors (excluding C0)
     of the clean and processed signals.  Lower MCD indicates better spectral

@@ -20,7 +20,10 @@ typedef enum {
     VERBX_PLUGIN_PARAM_FREEZE = 9,
     VERBX_PLUGIN_PARAM_REVERSE = 10,
     VERBX_PLUGIN_PARAM_QUALITY_MODE = 11,
-    VERBX_PLUGIN_PARAMETER_COUNT = 12
+    VERBX_PLUGIN_PARAM_REVERB_MODEL = 12,
+    VERBX_PLUGIN_PARAM_SPRING_TENSION = 13,
+    VERBX_PLUGIN_PARAM_PLATE_BRIGHTNESS = 14,
+    VERBX_PLUGIN_PARAMETER_COUNT = 15
 } verbx_plugin_parameter_id;
 
 typedef enum {
@@ -35,6 +38,12 @@ typedef enum {
     VERBX_PLUGIN_QUALITY_4X = 2,
     VERBX_PLUGIN_QUALITY_TARGET_192K = 3
 } verbx_plugin_quality_mode;
+
+typedef enum {
+    VERBX_PLUGIN_REVERB_MODEL_ALGORITHMIC = 0,
+    VERBX_PLUGIN_REVERB_MODEL_SPRING = 1,
+    VERBX_PLUGIN_REVERB_MODEL_PLATE = 2
+} verbx_plugin_reverb_model;
 
 typedef struct {
     verbx_plugin_parameter_id id;

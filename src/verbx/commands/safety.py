@@ -25,7 +25,7 @@ def algorithmic_render_selected(config: RenderConfig) -> bool:
         or bool(config.self_convolve)
         or len(config.ir_blend) > 0
     )
-    return engine == "algo" or (engine == "auto" and not has_conv_source)
+    return engine in {"algo", "ism-fdn"} or (engine == "auto" and not has_conv_source)
 
 
 def estimate_algorithmic_tail_seconds(config: RenderConfig) -> float:
