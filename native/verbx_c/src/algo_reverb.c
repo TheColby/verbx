@@ -400,6 +400,7 @@ int verbx_algo_render(
     double dry;
     double rt60;
     double pre_delay_ms;
+    double tail_limit_seconds;
 
     if ((input == NULL) || (input->samples == NULL) || (options == NULL) || (output == NULL)) {
         set_error(error_message, error_message_size, "invalid render arguments");
@@ -421,6 +422,7 @@ int verbx_algo_render(
     dry = options->dry;
     rt60 = options->rt60;
     pre_delay_ms = options->pre_delay_ms;
+    tail_limit_seconds = options->tail_limit_seconds;
 
     if (rt60 < 0.01) {
         rt60 = 0.01;
@@ -444,6 +446,14 @@ int verbx_algo_render(
         (double)input->sample_rate *
         ((rt60 * 2.0) < 1.0 ? 1.0 : ((rt60 * 2.0) > 60.0 ? 60.0 : (rt60 * 2.0)))
     );
+    if (tail_limit_seconds >= 0.0) {
+        size_t tail_limit_frames = (size_t)llround(
+            (double)input->sample_rate * tail_limit_seconds
+        );
+        if (tail_limit_frames < max_tail_frames) {
+            max_tail_frames = tail_limit_frames;
+        }
+    }
     total_frames = input->frames + max_tail_frames;
 
     rendered.samples = (double *)calloc(total_frames * input->channels, sizeof(double));

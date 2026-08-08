@@ -2267,6 +2267,9 @@ def test_suggest_command_pins_json(tmp_path: Path) -> None:
     assert payload["engine"] in {"algo", "conv"}
     assert "rt60" in payload
     assert "wet" in payload
+    assert payload["suggestion"]["schema"] == "suggestion-rationale-v1"
+    assert 0.0 <= payload["suggestion"]["confidence"] <= 0.95
+    assert payload["suggestion"]["method"] == "deterministic-feature-heuristic"
 
 
 def test_dereverb_command_writes_output_and_json(tmp_path: Path) -> None:

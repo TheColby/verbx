@@ -168,7 +168,7 @@ Patch line opened 2026-03-30. Items below are the active focus.
 - [x] Move all CLI command entrypoints into per-command submodules under `src/verbx/commands/`.
 - [x] Continue shrinking `cli.py` by migrating a cohesive parser and
   choice-validation helper cluster out of the legacy entrypoint module.
-- [ ] Decompose `RenderConfig` (162 fields) into composed sub-configs (`FDNConfig`, `AutomationConfig`, `SpatialConfig`, `StreamingConfig`).
+- [x] Decompose `RenderConfig` (162 fields) into composed sub-config snapshots (`FDNConfig`, `AutomationConfig`, `SpatialConfig`, `StreamingConfig`) while preserving the flat constructor and serialized preset compatibility.
 - [x] Decompose `run_render_pipeline` (~640 lines) into explicit pipeline stages.
 - [x] Add dedicated unit tests for `automation.py`, `convolution_reverb.py`, `feature_vector.py`, `immersive.py`.
 - [x] Wire benchmark scripts into CI as blocking quality-regression gates.
@@ -221,6 +221,7 @@ released/public-alpha tool during the transition.
 - [x] Implement native WAV write for `pcm16`, `float32`, and `float64`.
 - [x] Port analysis-free offline render lifecycle: read -> process -> tail finalize -> write.
 - [ ] Mirror current Python tail-stop semantics and sample-rate policy deterministically.
+- [x] Add explicit native `--tail-limit` control and report it in `native-render-report-v1`; model-derived DSP padding is now bounded consistently with Python's configured tail limit.
 
 ### 4.3 DSP Port
 
@@ -329,11 +330,11 @@ a true SDN room topology.  SDN explicitly models wall scattering nodes.
 For users who prefer the existing FDN engine but want physically grounded
 parameter choices:
 
-- [ ] Auto-derive FDN delay-line lengths from room dimensions (modal spacing
+- [x] Auto-derive FDN delay-line lengths from room dimensions (modal spacing
   from room geometry; prime-ratio delays from volume and aspect ratio).
-- [ ] Auto-derive per-band RT60 targets from Sabine/Eyring with
+- [x] Auto-derive per-band RT60 targets from Sabine/Eyring with
   frequency-dependent absorption from material library.
-- [ ] Auto-derive pre-delay from direct-path travel time (source → listener
+- [x] Auto-derive pre-delay from direct-path travel time (source → listener
   distance at speed of sound).
 - [x] Expose as `--preset room:<L>x<W>x<H>/<material>` shorthand.
 

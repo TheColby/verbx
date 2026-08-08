@@ -4,6 +4,7 @@
 #include "verbx_c/wav_io.h"
 
 #include <errno.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,7 +25,7 @@ static void print_usage(FILE *stream) {
     );
     fprintf(
         stream,
-        "           [--pre-delay-ms MS] [--damping X] [--tail-threshold-db DB]\n"
+        "           [--pre-delay-ms MS] [--damping X] [--tail-limit SEC] [--tail-threshold-db DB]\n"
     );
     fprintf(
         stream,
@@ -281,6 +282,11 @@ static int write_render_json_report(
     fprintf(stream, "  \"dry\": %.17g,\n", options->dry);
     fprintf(stream, "  \"damping\": %.17g,\n", options->damping);
     fprintf(stream, "  \"pre_delay_ms\": %.17g,\n", options->pre_delay_ms);
+    if (options->tail_limit_seconds >= 0.0) {
+        fprintf(stream, "  \"tail_limit_seconds\": %.17g,\n", options->tail_limit_seconds);
+    } else {
+        fputs("  \"tail_limit_seconds\": null,\n", stream);
+    }
     fprintf(stream, "  \"tail_threshold_db\": %.17g,\n", options->tail_threshold_db);
     fprintf(stream, "  \"tail_hold_ms\": %.17g,\n", options->tail_hold_ms);
     fprintf(stream, "  \"peak_safe\": %s,\n", report->peak_safe_applied ? "true" : "false");
@@ -307,6 +313,7 @@ static int handle_render(int argc, char **argv) {
         .dry = 0.2,
         .damping = 0.45,
         .pre_delay_ms = 20.0,
+        .tail_limit_seconds = -1.0,
         .tail_threshold_db = -120.0,
         .tail_hold_ms = 10.0,
         .peak_safe = 0,
@@ -348,6 +355,14 @@ static int handle_render(int argc, char **argv) {
             }
         } else if ((strcmp(arg, "--pre-delay-ms") == 0) && (index + 1 < argc)) {
             if (parse_double_option("--pre-delay-ms", argv[++index], &options.pre_delay_ms) != 0) {
+                return 2;
+            }
+        } else if ((strcmp(arg, "--tail-limit") == 0) && (index + 1 < argc)) {
+            if (parse_double_option("--tail-limit", argv[++index], &options.tail_limit_seconds) != 0) {
+                return 2;
+            }
+            if (!isfinite(options.tail_limit_seconds) || options.tail_limit_seconds < 0.0) {
+                fprintf(stderr, "%s: --tail-limit must be a finite non-negative value\n", VERBX_C_PROJECT_NAME);
                 return 2;
             }
         } else if ((strcmp(arg, "--tail-threshold-db") == 0) && (index + 1 < argc)) {

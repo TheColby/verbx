@@ -30,6 +30,8 @@ typedef struct {
     double dry;
     double damping;
     double pre_delay_ms;
+    /* Negative means use the model-derived tail padding. */
+    double tail_limit_seconds;
     double tail_threshold_db;
     double tail_hold_ms;
     int peak_safe;

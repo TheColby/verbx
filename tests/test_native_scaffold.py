@@ -187,6 +187,70 @@ def test_native_tail_completion_preserves_source_duration(tmp_path: Path) -> Non
     assert np.max(np.abs(rendered[-80:, :])) == 0.0
 
 
+def test_native_tail_limit_bounds_model_tail_padding_and_is_reported(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    exe = _build_native_executable(tmp_path)
+    sr = 16_000
+    input_frames = 256
+    tail_limit_seconds = 0.02
+    audio = np.zeros((input_frames, 1), dtype=np.float64)
+    audio[0, 0] = 0.75
+    infile = tmp_path / "tail_limit_in.wav"
+    outfile = tmp_path / "tail_limit_out.wav"
+    report_path = tmp_path / "tail_limit.json"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    subprocess.run(
+        [
+            str(exe),
+            "render",
+            str(infile),
+            str(outfile),
+            "--rt60",
+            "4.0",
+            "--wet",
+            "1.0",
+            "--dry",
+            "0.0",
+            "--tail-limit",
+            str(tail_limit_seconds),
+            "--tail-threshold-db",
+            "-240",
+            "--tail-hold-ms",
+            "1",
+            "--out-format",
+            "float64",
+            "--json-out",
+            str(report_path),
+        ],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    rendered, out_sr = sf.read(str(outfile), always_2d=True, dtype="float64")
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert out_sr == sr
+    assert payload["tail_limit_seconds"] == tail_limit_seconds
+    # The final exact-zero hold may add one millisecond after the bounded DSP tail.
+    assert rendered.shape[0] <= input_frames + round(sr * (tail_limit_seconds + 0.001))
+    assert np.max(np.abs(rendered[-8:, :])) == 0.0
+
+
+def test_native_tail_limit_rejects_negative_values(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    exe = _build_native_executable(tmp_path)
+    result = subprocess.run(
+        [str(exe), "render", "in.wav", "out.wav", "--tail-limit", "-0.1"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 2
+    assert "--tail-limit must be a finite non-negative value" in result.stderr
+
+
 def test_native_silent_stereo_render_preserves_source_duration(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     exe = _build_native_executable(tmp_path)

@@ -168,6 +168,140 @@ class OutputSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class FDNConfig:
+    """Feedback-delay-network controls extracted from :class:`RenderConfig`.
+
+    The flat fields remain the public constructor and serialization format.  This
+    immutable view gives DSP code a cohesive configuration boundary while the
+    migration happens incrementally.
+    """
+
+    lines: int
+    matrix: str
+    tv_rate_hz: float
+    tv_depth: float
+    tv_seed: int
+    dfm_delays_ms: tuple[float, ...]
+    sparse: bool
+    sparse_degree: int
+    cascade: bool
+    cascade_mix: float
+    cascade_delay_scale: float
+    cascade_rt60_ratio: float
+    rt60_low: float | None
+    rt60_mid: float | None
+    rt60_high: float | None
+    rt60_tilt: float
+    tonal_correction_strength: float
+    xover_low_hz: float
+    xover_high_hz: float
+    link_filter: str
+    link_filter_hz: float
+    link_filter_mix: float
+    graph_topology: str
+    graph_degree: int
+    graph_seed: int
+    matrix_morph_to: str | None
+    matrix_morph_seconds: float
+    spatial_coupling_mode: FDNSpatialCouplingMode
+    spatial_coupling_strength: float
+    nonlinearity: FDNNonlinearityMode
+    nonlinearity_amount: float
+    nonlinearity_drive: float
+
+    def __post_init__(self) -> None:
+        if self.lines < 1:
+            raise ValueError(f"fdn_lines must be >= 1, got {self.lines}")
+        if self.sparse_degree < 1:
+            raise ValueError(f"fdn_sparse_degree must be >= 1, got {self.sparse_degree}")
+        if self.matrix_morph_seconds < 0.0:
+            raise ValueError(
+                "fdn_matrix_morph_seconds must be >= 0, "
+                f"got {self.matrix_morph_seconds}"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class AutomationConfig:
+    """Modulation, automation, and feature-guide controls."""
+
+    mod_depth_ms: float
+    mod_rate_hz: float
+    mod_target: ModTarget
+    mod_sources: tuple[str, ...]
+    mod_routes: tuple[str, ...]
+    mod_min: float
+    mod_max: float
+    mod_combine: ModCombine
+    mod_smooth_ms: float
+    file: str | None
+    mode: AutomationMode
+    block_ms: float
+    smoothing_ms: float
+    slew_limit_per_s: float | None
+    deadband: float
+    clamp: tuple[str, ...]
+    points: tuple[str, ...]
+    trace_out: str | None
+    feature_vector_lanes: tuple[str, ...]
+    feature_vector_frame_ms: float
+    feature_vector_hop_ms: float
+    feature_guide: str | None
+    feature_guide_policy: FeatureGuidePolicy
+    feature_vector_trace_out: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class SpatialConfig:
+    """Channel-layout, ambisonic, and geometric early-reflection controls."""
+
+    input_layout: ChannelLayout
+    output_layout: ChannelLayout
+    ambi_order: int
+    ambi_normalization: AmbiNormalization
+    channel_order: AmbiChannelOrder
+    ambi_encode_from: AmbiEncodeFrom
+    ambi_decode_to: AmbiDecodeTo
+    ambi_rotate_yaw_deg: float
+    er_geometry: bool
+    ism_order: int
+    er_room_dims_m: tuple[float, float, float]
+    er_source_pos_m: tuple[float, float, float]
+    er_listener_pos_m: tuple[float, float, float]
+    er_absorption: float
+    er_material: str
+
+    def __post_init__(self) -> None:
+        if self.ambi_order < 0:
+            raise ValueError(f"ambi_order must be >= 0, got {self.ambi_order}")
+        if not 0 <= self.ism_order <= 6:
+            raise ValueError(f"ism_order must be 0..6, got {self.ism_order}")
+        if not 0.0 <= self.er_absorption <= 0.99:
+            raise ValueError(f"er_absorption must be 0..0.99, got {self.er_absorption}")
+        if any(dim <= 0.0 for dim in self.er_room_dims_m):
+            raise ValueError(
+                "er_room_dims_m must be > 0 in all dimensions, "
+                f"got {self.er_room_dims_m}"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class StreamingConfig:
+    """Streaming, buffer, range, and compute-backend controls."""
+
+    start: float | None
+    end: float | None
+    block_size: int
+    partition_size: int
+    target_sr: int | None
+    threads: int | None
+    device: DeviceName
+    algo_stream: bool
+    algo_proxy_ir_max_seconds: float
+    algo_gpu_proxy: bool
+
+
+@dataclass(frozen=True, slots=True)
 class RenderConfigSections:
     """Coherent snapshots of the most commonly consumed render settings."""
 
@@ -175,6 +309,10 @@ class RenderConfigSections:
     execution: ExecutionSettings
     tail: TailSettings
     output: OutputSettings
+    fdn: FDNConfig
+    automation: AutomationConfig
+    spatial: SpatialConfig
+    streaming: StreamingConfig
 
 
 @dataclass(slots=True)
@@ -561,6 +699,111 @@ class RenderConfig:
         )
 
     @property
+    def fdn_settings(self) -> FDNConfig:
+        """Return an immutable snapshot of FDN-specific controls."""
+        return FDNConfig(
+            lines=self.fdn_lines,
+            matrix=self.fdn_matrix,
+            tv_rate_hz=self.fdn_tv_rate_hz,
+            tv_depth=self.fdn_tv_depth,
+            tv_seed=self.fdn_tv_seed,
+            dfm_delays_ms=self.fdn_dfm_delays_ms,
+            sparse=self.fdn_sparse,
+            sparse_degree=self.fdn_sparse_degree,
+            cascade=self.fdn_cascade,
+            cascade_mix=self.fdn_cascade_mix,
+            cascade_delay_scale=self.fdn_cascade_delay_scale,
+            cascade_rt60_ratio=self.fdn_cascade_rt60_ratio,
+            rt60_low=self.fdn_rt60_low,
+            rt60_mid=self.fdn_rt60_mid,
+            rt60_high=self.fdn_rt60_high,
+            rt60_tilt=self.fdn_rt60_tilt,
+            tonal_correction_strength=self.fdn_tonal_correction_strength,
+            xover_low_hz=self.fdn_xover_low_hz,
+            xover_high_hz=self.fdn_xover_high_hz,
+            link_filter=self.fdn_link_filter,
+            link_filter_hz=self.fdn_link_filter_hz,
+            link_filter_mix=self.fdn_link_filter_mix,
+            graph_topology=self.fdn_graph_topology,
+            graph_degree=self.fdn_graph_degree,
+            graph_seed=self.fdn_graph_seed,
+            matrix_morph_to=self.fdn_matrix_morph_to,
+            matrix_morph_seconds=self.fdn_matrix_morph_seconds,
+            spatial_coupling_mode=self.fdn_spatial_coupling_mode,
+            spatial_coupling_strength=self.fdn_spatial_coupling_strength,
+            nonlinearity=self.fdn_nonlinearity,
+            nonlinearity_amount=self.fdn_nonlinearity_amount,
+            nonlinearity_drive=self.fdn_nonlinearity_drive,
+        )
+
+    @property
+    def automation_settings(self) -> AutomationConfig:
+        """Return an immutable snapshot of automation and modulation controls."""
+        return AutomationConfig(
+            mod_depth_ms=self.mod_depth_ms,
+            mod_rate_hz=self.mod_rate_hz,
+            mod_target=self.mod_target,
+            mod_sources=self.mod_sources,
+            mod_routes=self.mod_routes,
+            mod_min=self.mod_min,
+            mod_max=self.mod_max,
+            mod_combine=self.mod_combine,
+            mod_smooth_ms=self.mod_smooth_ms,
+            file=self.automation_file,
+            mode=self.automation_mode,
+            block_ms=self.automation_block_ms,
+            smoothing_ms=self.automation_smoothing_ms,
+            slew_limit_per_s=self.automation_slew_limit_per_s,
+            deadband=self.automation_deadband,
+            clamp=self.automation_clamp,
+            points=self.automation_points,
+            trace_out=self.automation_trace_out,
+            feature_vector_lanes=self.feature_vector_lanes,
+            feature_vector_frame_ms=self.feature_vector_frame_ms,
+            feature_vector_hop_ms=self.feature_vector_hop_ms,
+            feature_guide=self.feature_guide,
+            feature_guide_policy=self.feature_guide_policy,
+            feature_vector_trace_out=self.feature_vector_trace_out,
+        )
+
+    @property
+    def spatial_settings(self) -> SpatialConfig:
+        """Return an immutable snapshot of spatial and geometry controls."""
+        return SpatialConfig(
+            input_layout=self.input_layout,
+            output_layout=self.output_layout,
+            ambi_order=self.ambi_order,
+            ambi_normalization=self.ambi_normalization,
+            channel_order=self.channel_order,
+            ambi_encode_from=self.ambi_encode_from,
+            ambi_decode_to=self.ambi_decode_to,
+            ambi_rotate_yaw_deg=self.ambi_rotate_yaw_deg,
+            er_geometry=self.er_geometry,
+            ism_order=self.ism_order,
+            er_room_dims_m=self.er_room_dims_m,
+            er_source_pos_m=self.er_source_pos_m,
+            er_listener_pos_m=self.er_listener_pos_m,
+            er_absorption=self.er_absorption,
+            er_material=self.er_material,
+        )
+
+    @property
+    def streaming_settings(self) -> StreamingConfig:
+        """Return an immutable snapshot of streaming and execution controls."""
+        return StreamingConfig(
+            start=self.start,
+            end=self.end,
+            block_size=self.block_size,
+            partition_size=self.partition_size,
+            target_sr=self.target_sr,
+            threads=self.threads,
+            device=self.device,
+            algo_stream=self.algo_stream,
+            algo_proxy_ir_max_seconds=self.algo_proxy_ir_max_seconds,
+            algo_gpu_proxy=self.algo_gpu_proxy,
+        )
+
+    @property
     def sections(self) -> RenderConfigSections:
         """Return typed snapshots without changing the flat serialization contract."""
         return RenderConfigSections(
@@ -568,4 +811,8 @@ class RenderConfig:
             execution=self.execution_settings,
             tail=self.tail_settings,
             output=self.output_settings,
+            fdn=self.fdn_settings,
+            automation=self.automation_settings,
+            spatial=self.spatial_settings,
+            streaming=self.streaming_settings,
         )

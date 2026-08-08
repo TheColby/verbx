@@ -3,10 +3,14 @@ from dataclasses import FrozenInstanceError, asdict
 import pytest
 
 from verbx.config import (
+    AutomationConfig,
     EngineSettings,
     ExecutionSettings,
+    FDNConfig,
     OutputSettings,
     RenderConfig,
+    SpatialConfig,
+    StreamingConfig,
     TailSettings,
 )
 
@@ -36,6 +40,55 @@ def test_render_config_exposes_typed_section_snapshots() -> None:
     assert isinstance(sections.output, OutputSettings)
     assert sections.output.subtype == "pcm24"
     assert sections.output.limiter_mix == 0.75
+
+
+def test_render_config_exposes_domain_config_snapshots() -> None:
+    config = RenderConfig(
+        fdn_lines=16,
+        fdn_matrix="householder",
+        automation_file="ride.json",
+        automation_block_ms=10.0,
+        input_layout="stereo",
+        output_layout="7.1.4",
+        er_geometry=True,
+        ism_order=2,
+        start=1.5,
+        end=4.0,
+        algo_stream=True,
+    )
+
+    sections = config.sections
+
+    assert isinstance(sections.fdn, FDNConfig)
+    assert sections.fdn.lines == 16
+    assert sections.fdn.matrix == "householder"
+    assert isinstance(sections.automation, AutomationConfig)
+    assert sections.automation.file == "ride.json"
+    assert sections.automation.block_ms == 10.0
+    assert isinstance(sections.spatial, SpatialConfig)
+    assert sections.spatial.output_layout == "7.1.4"
+    assert sections.spatial.ism_order == 2
+    assert isinstance(sections.streaming, StreamingConfig)
+    assert sections.streaming.start == 1.5
+    assert sections.streaming.end == 4.0
+    assert sections.streaming.algo_stream
+
+
+def test_domain_config_snapshots_are_immutable_and_fresh() -> None:
+    config = RenderConfig(fdn_lines=8, automation_block_ms=20.0)
+    first_fdn = config.fdn_settings
+    first_automation = config.automation_settings
+
+    with pytest.raises(FrozenInstanceError):
+        first_fdn.lines = 16  # type: ignore[misc]
+
+    config.fdn_lines = 16
+    config.automation_block_ms = 12.0
+
+    assert first_fdn.lines == 8
+    assert first_automation.block_ms == 20.0
+    assert config.fdn_settings.lines == 16
+    assert config.automation_settings.block_ms == 12.0
 
 
 def test_section_snapshots_are_immutable_and_do_not_go_stale() -> None:
