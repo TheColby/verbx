@@ -5601,6 +5601,36 @@ Source syntax: `lfo:<shape>:<rate_hz>[:depth[:phase_deg]][*weight]` | `env[:atta
 
 ---
 
+## Python API (stable surface)
+
+For notebook/research pipelines, use `verbx.api` instead of shelling out to the
+CLI. The stable API surface includes:
+
+- `render_file(infile, outfile, config=RenderConfig(...), **overrides)`
+- `generate_ir(out_ir, config=IRGenConfig(...), write_metadata=True)`
+- `analyze_file(infile, include_loudness=False, include_edr=False, ...)`
+
+```python
+from verbx.api import analyze_file, generate_ir, render_file
+from verbx.config import RenderConfig
+from verbx.ir.generator import IRGenConfig
+
+render_report = render_file(
+    "in.wav",
+    "out.wav",
+    config=RenderConfig(engine="algo", rt60=2.5, progress=False, silent=True),
+)
+
+ir_report = generate_ir(
+    "ir.wav",
+    config=IRGenConfig(mode="stochastic", length=0.5, sr=48_000, channels=2),
+)
+
+analysis = analyze_file("out.wav", include_loudness=True, json_out="analysis.json")
+```
+
+---
+
 ## CLI Reference
 
 Canonical help snapshots live in
@@ -6411,6 +6441,31 @@ uv run python scripts/generate_ir_library.py \
 ```bash
 verbx render long_input.wav output.wav --engine algo --rt60 180 --fdn-lines 32 --dry-run
 # prints resolved config, estimated output duration, device selection – no audio written
+```
+
+### Python API (`verbx.api`)
+
+`verbx` now exposes a stable Python surface for file-level workflows:
+
+- `verbx.api.render_file(infile, outfile, **render_options)`
+- `verbx.api.generate_ir(outfile, **ir_options)`
+- `verbx.api.analyze_file(infile, **analysis_options)`
+
+Minimal notebook examples:
+
+- `docs/notebooks/research_workflow.ipynb`
+- `docs/notebooks/dataset_workflow.ipynb`
+
+Structured schema docs for machine-generated payloads:
+
+- `docs/SCHEMAS.md` (batch manifest + automation schema references)
+
+```python
+from verbx.api import analyze_file, generate_ir, render_file
+
+ir = generate_ir("research_ir.wav", mode="hybrid", length=1.5, sr=48000, channels=1)
+metrics = analyze_file("dry.wav")
+report = render_file("dry.wav", "wet.wav", engine="conv", ir=ir["outfile"], wet=0.7, dry=0.3)
 ```
 
 ---

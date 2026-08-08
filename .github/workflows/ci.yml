@@ -8,6 +8,23 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+  docs-consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install Hatch
+        run: python -m pip install --upgrade pip hatch
+
+      - name: Run docs-sync checks
+        run: hatch run test -- tests/test_docs_sync.py -q
+
   lint:
     runs-on: ubuntu-latest
     steps:

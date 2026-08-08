@@ -25,13 +25,16 @@ Basic usage::
 
 from __future__ import annotations
 
+from dataclasses import fields
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import numpy as np
 import numpy.typing as npt
 
 from verbx.core.render_report import RenderReport
+from verbx.config import RenderConfig
+from verbx.ir.generator import IRGenConfig
 
 __all__ = [
     "analyze_file",
@@ -45,12 +48,33 @@ __all__ = [
 # Type alias (matches internal AudioArray = npt.NDArray[np.float64])
 # ---------------------------------------------------------------------------
 AudioArray = npt.NDArray[np.float64]
+ConfigT = TypeVar("ConfigT")
+
+_RENDER_CONFIG_FIELD_NAMES = {field.name for field in fields(RenderConfig)}
+_IR_CONFIG_FIELD_NAMES = {field.name for field in fields(IRGenConfig)}
+
+
+def _build_config(
+    config: ConfigT | None,
+    options: dict[str, Any],
+    config_type: type[ConfigT],
+    allowed_names: set[str],
+) -> ConfigT:
+    if config is not None and options:
+        raise ValueError("Pass either 'config' or keyword options, not both.")
+    if config is not None:
+        return config
+    unknown = sorted(set(options) - allowed_names)
+    if unknown:
+        raise ValueError(f"Unsupported {config_type.__name__} option(s): {', '.join(unknown)}")
+    return config_type(**options)
 
 
 def render_file(
     infile: str | Path,
     outfile: str | Path,
-    config: Any,
+    config: RenderConfig | None = None,
+    **options: Any,
 ) -> RenderReport:
     """Apply reverb processing to an audio file.
 
@@ -95,13 +119,18 @@ def render_file(
     """
     from verbx.core.pipeline import run_render_pipeline
 
-    return run_render_pipeline(Path(infile), Path(outfile), config)
+    return run_render_pipeline(
+        Path(infile),
+        Path(outfile),
+        _build_config(config, options, RenderConfig, _RENDER_CONFIG_FIELD_NAMES),
+    )
 
 
 def generate_ir(
-    config: Any,
+    config: IRGenConfig | None = None,
     *,
     cache_dir: str | Path | None = None,
+    **options: Any,
 ) -> tuple[AudioArray, int, dict[str, Any]]:
     """Synthesize an impulse response.
 
@@ -133,17 +162,18 @@ def generate_ir(
     >>> audio.shape
     (144000, 2)
     """
+    resolved_config = _build_config(config, options, IRGenConfig, _IR_CONFIG_FIELD_NAMES)
     if cache_dir is not None:
         from verbx.ir.generator import generate_or_load_cached_ir
 
         audio, sr, meta, _path, _hit = generate_or_load_cached_ir(
-            config, Path(cache_dir)
+            resolved_config, Path(cache_dir)
         )
         return audio, sr, meta
 
     from verbx.ir.generator import generate_ir as _generate_ir
 
-    return _generate_ir(config)
+    return _generate_ir(resolved_config)
 
 
 def analyze_file(

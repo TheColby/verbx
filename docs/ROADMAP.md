@@ -399,6 +399,15 @@ v0.7.7.
 
 ---
 
+## Next 30 Days Priorities (Snapshot)
+
+- Lock a first-pass `verbx.api` module and document stability guarantees.
+- Publish at least two notebook examples (`render`, `ir`, `analyze`).
+- Add immersive routing docs for `7.2.4` and `16.0` as baseline layouts.
+- Complete one end-to-end schema example for automation + manifest JSON.
+
+---
+
 ## 9. AI / Neural Architecture Track
 
 _Informed by: Steinmetz et al., "Audio Signal Processing in the Artificial
