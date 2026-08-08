@@ -287,6 +287,49 @@ def test_native_tail_limit_rejects_negative_values(tmp_path: Path) -> None:
     assert "--tail-limit must be a finite non-negative value" in result.stderr
 
 
+def test_native_rejects_unbounded_extreme_tail_before_allocation(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    exe = _build_native_executable(tmp_path)
+    infile = tmp_path / "extreme_tail_in.wav"
+    outfile = tmp_path / "extreme_tail_out.wav"
+    sf.write(str(infile), np.zeros((16, 1), dtype=np.float64), 16_000, subtype="DOUBLE")
+
+    result = subprocess.run(
+        [str(exe), "render", str(infile), str(outfile), "--rt60", "301"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "algorithmic tail exceeds 300 seconds" in result.stderr
+    assert not outfile.exists()
+
+
+def test_native_extreme_rt60_accepts_small_explicit_tail_limit(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    exe = _build_native_executable(tmp_path)
+    infile = tmp_path / "bounded_extreme_tail_in.wav"
+    outfile = tmp_path / "bounded_extreme_tail_out.wav"
+    audio = np.zeros((16, 1), dtype=np.float64)
+    audio[0, 0] = 0.5
+    sf.write(str(infile), audio, 16_000, subtype="DOUBLE")
+
+    subprocess.run(
+        [
+            str(exe), "render", str(infile), str(outfile), "--rt60", "1e300",
+            "--tail-limit", "0.001", "--tail-hold-ms", "1",
+        ],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    rendered, _ = sf.read(str(outfile), always_2d=True, dtype="float64")
+    assert rendered.shape[0] <= audio.shape[0] + 16
+
+
 def test_native_silent_stereo_render_preserves_source_duration(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     exe = _build_native_executable(tmp_path)

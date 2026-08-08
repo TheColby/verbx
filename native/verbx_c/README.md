@@ -79,7 +79,8 @@ The current native binary is intentionally narrow, but it is no longer a stub.
 - plug-in foundation parameters: RT60 coarse/fine mapping supports `0.01s` to
   `360s`, with Freeze and Reverse represented as explicit mode parameters
 - tail handling: threshold/hold based trim with a short click-safe fade into
-  exact zeros
+  exact zeros; implicit algorithmic tails over 300 seconds are rejected unless
+  an explicit `--tail-limit` bounds the render
 - peak-safe output: optional render-level scaling with `--peak-safe` and
   `--peak-ceiling-db`
 - model selection: `--model fdn|spring|plate`; spring and plate use separate

@@ -123,3 +123,19 @@ def test_echo_density_sparse_fallback_and_audio_delay_preserve_source() -> None:
     assert delayed.shape == (72, 1)
     assert np.allclose(delayed[:70], 0.0)
     assert np.allclose(delayed[70:], source)
+
+
+def test_echo_density_ignores_dense_inaudible_paths() -> None:
+    paths = (
+        *(ImageSourcePath(("left",), 12.0, 30 + index, 0.001) for index in range(10)),
+        ImageSourcePath((), 1.0, 120, 1.0),
+    )
+    handoff = estimate_echo_density_handoff(
+        paths,
+        sr=1_000,
+        bin_ms=10.0,
+        threshold_arrivals_per_second=500.0,
+    )
+    assert handoff.threshold_reached is False
+    assert handoff.handoff_sample == 120
+    assert handoff.peak_arrivals_per_second < 500.0

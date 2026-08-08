@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -85,7 +86,7 @@ def parse_dxf_room_outline(path: Path, *, height_m: float = 3.0) -> DXFTraceGeom
     pairs = list(zip(lines[0::2], lines[1::2], strict=False))
     units = _resolve_units(pairs)
     scale = _unit_scale_to_meters(units)
-    entities: list[tuple[list[tuple[float, float]], str]] = []
+    entities: list[tuple[list[tuple[float, float]], str, bool]] = []
     warnings: list[str] = []
 
     index = 0
@@ -94,15 +95,17 @@ def parse_dxf_room_outline(path: Path, *, height_m: float = 3.0) -> DXFTraceGeom
         entity = value.upper()
         if code == "0" and entity == "LINE":
             parsed, layer, index = _parse_line_entity(pairs, index + 1, scale)
-            entities.append((parsed, layer))
+            entities.append((parsed, layer, False))
             continue
         if code == "0" and entity == "LWPOLYLINE":
-            parsed, layer, index = _parse_lwpolyline_entity(pairs, index + 1, scale)
-            entities.append((parsed, layer))
+            parsed, layer, is_closed, index = _parse_lwpolyline_entity(
+                pairs, index + 1, scale
+            )
+            entities.append((parsed, layer, is_closed))
             continue
         index += 1
 
-    points = [point for entity_points, _ in entities for point in entity_points]
+    points = [point for entity_points, _, _ in entities for point in entity_points]
 
     if len(points) < 2:
         raise ValueError(
@@ -310,10 +313,11 @@ def _parse_line_entity(
 
 def _parse_lwpolyline_entity(
     pairs: list[tuple[str, str]], index: int, scale: float
-) -> tuple[list[tuple[float, float]], str, int]:
+) -> tuple[list[tuple[float, float]], str, bool, int]:
     points: list[tuple[float, float]] = []
     pending_x: float | None = None
     layer = "0"
+    is_closed = False
     while index < len(pairs):
         code, value = pairs[index]
         if code == "0":
@@ -325,8 +329,10 @@ def _parse_lwpolyline_entity(
             pending_x = None
         elif code == "8":
             layer = value or "0"
+        elif code == "70":
+            is_closed = bool(int(value) & 1)
         index += 1
-    return points, layer, index
+    return points, layer, is_closed, index
 
 
 def parse_layer_material_overrides(values: list[str] | None) -> dict[str, str]:
@@ -348,42 +354,38 @@ def parse_layer_material_overrides(values: list[str] | None) -> dict[str, str]:
 
 
 def _surface_layers_from_entities(
-    entities: list[tuple[list[tuple[float, float]], str]],
+    entities: list[tuple[list[tuple[float, float]], str, bool]],
     *,
     min_x: float,
     max_x: float,
     min_y: float,
     max_y: float,
 ) -> dict[str, tuple[str, ...]]:
-    """Map axis-aligned 2D boundary entities to rectangular room faces."""
+    """Map axis-aligned boundary *segments* to rectangular room faces.
+
+    A polyline may turn at a room corner.  Its layer belongs only to the faces
+    traversed by its individual segments, rather than to every bounding-box
+    face incident to one of its vertices.
+    """
     result: dict[str, set[str]] = {surface: set() for surface in _SURFACE_NAMES}
     tolerance = 1e-6
-    for points, layer in entities:
+    for points, layer, is_closed in entities:
         if len(points) < 2:
             continue
-        xs = [point[0] for point in points]
-        ys = [point[1] for point in points]
-        if max(xs) - min(xs) <= tolerance:
-            if abs(xs[0] - min_x) <= tolerance:
-                result["left"].add(layer)
-            if abs(xs[0] - max_x) <= tolerance:
-                result["right"].add(layer)
-        if max(ys) - min(ys) <= tolerance:
-            if abs(ys[0] - min_y) <= tolerance:
-                result["front"].add(layer)
-            if abs(ys[0] - max_y) <= tolerance:
-                result["rear"].add(layer)
-        # A polyline boundary can legitimately cover several faces. Associate
-        # its layer with every bounding-box face it touches.
-        if len(points) > 2:
-            if any(abs(x - min_x) <= tolerance for x in xs):
-                result["left"].add(layer)
-            if any(abs(x - max_x) <= tolerance for x in xs):
-                result["right"].add(layer)
-            if any(abs(y - min_y) <= tolerance for y in ys):
-                result["front"].add(layer)
-            if any(abs(y - max_y) <= tolerance for y in ys):
-                result["rear"].add(layer)
+        segments = list(pairwise(points))
+        if is_closed:
+            segments.append((points[-1], points[0]))
+        for (x1, y1), (x2, y2) in segments:
+            if abs(x1 - x2) <= tolerance:
+                if abs(x1 - min_x) <= tolerance:
+                    result["left"].add(layer)
+                if abs(x1 - max_x) <= tolerance:
+                    result["right"].add(layer)
+            if abs(y1 - y2) <= tolerance:
+                if abs(y1 - min_y) <= tolerance:
+                    result["front"].add(layer)
+                if abs(y1 - max_y) <= tolerance:
+                    result["rear"].add(layer)
     return {surface: tuple(sorted(layers)) for surface, layers in result.items()}
 
 

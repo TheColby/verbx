@@ -156,11 +156,15 @@ def estimate_echo_density_handoff(
     bin_ms: float = 10.0,
     threshold_arrivals_per_second: float = 1_000.0,
 ) -> EchoDensityHandoff:
-    """Estimate a bounded ISM-to-FDN handoff from local path-arrival density.
+    """Estimate a bounded ISM-to-FDN handoff from local audible-path density.
 
     A 10 ms bin is short enough to retain a useful early/late boundary while
-    avoiding sample-level coincidences.  Empty or sparse enumerations fall
-    back to their final path instead of inventing diffuse energy.
+    avoiding sample-level coincidences.  Each arrival is weighted by its
+    squared gain relative to the strongest enumerated path.  Consequently a
+    cluster of inaudible high-order paths cannot by itself advance the late
+    field; the threshold describes equivalent full-strength arrivals/second.
+    Empty or sparse enumerations fall back to their final path instead of
+    inventing diffuse energy.
     """
     if sr <= 0:
         raise ValueError("sr must be strictly positive.")
@@ -182,8 +186,18 @@ def estimate_echo_density_handoff(
     bin_samples = max(1, round(float(sr) * float(bin_ms) / 1_000.0))
     delays = np.asarray([max(0, path.delay_samples) for path in paths], dtype=np.int64)
     bins = delays // bin_samples
-    unique_bins, counts = np.unique(bins, return_counts=True)
-    densities = counts.astype(np.float64) * (float(sr) / float(bin_samples))
+    unique_bins = np.unique(bins)
+    gains = np.asarray([abs(float(path.gain)) for path in paths], dtype=np.float64)
+    peak_gain = float(np.max(gains))
+    if peak_gain <= 1e-12:
+        weights = np.zeros_like(gains)
+    else:
+        weights = np.square(gains / peak_gain)
+    weighted_counts = np.asarray(
+        [np.sum(weights[bins == bin_index]) for bin_index in unique_bins],
+        dtype=np.float64,
+    )
+    densities = weighted_counts * (float(sr) / float(bin_samples))
     reached = np.flatnonzero(densities >= float(threshold_arrivals_per_second))
     threshold_reached = len(reached) > 0
     if threshold_reached:

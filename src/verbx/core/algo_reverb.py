@@ -620,7 +620,7 @@ class AlgoReverbEngine(ReverbEngine):
     def process(self, audio: AudioArray, sr: int) -> AudioArray:
         """Process audio with pre-diffusion + late FDN and wet/dry mix."""
         x = ensure_mono_or_stereo(audio)
-        n_samples, n_channels = x.shape
+        n_samples = x.shape[0]
         if n_samples == 0:
             return x.copy()
 
@@ -629,6 +629,72 @@ class AlgoReverbEngine(ReverbEngine):
             "plate",
         }:
             return self._process_modal_fe(x, sr)
+
+        wet = self.process_wet(x, sr)
+        output = (self._config.dry * x) + (self._config.wet * wet)
+        output = np.nan_to_num(output, nan=0.0, posinf=0.0, neginf=0.0)
+
+        peak = float(np.max(np.abs(output)))
+        if peak > 8.0:
+            output *= 8.0 / peak
+
+        return np.asarray(output, dtype=np.float64)
+
+    def process_wet(self, audio: AudioArray, sr: int) -> AudioArray:
+        """Process only the late field, without adding the dry signal.
+
+        The pipeline uses this for ISM/FDN handoffs: early reflections and
+        direct sound remain time-aligned while only the FDN excitation is
+        delayed to the inferred diffuse-field boundary.
+        """
+        x = ensure_mono_or_stereo(audio)
+        n_samples, n_channels = x.shape
+        if n_samples == 0:
+            return x.copy()
+
+        if self._config.electromechanical_solver == "modal-fe" and self._config.algo_model in {
+            "spring",
+            "plate",
+        }:
+            defaults = {
+                "length_m": 0.45,
+                "mass_g": 30.0,
+                "diameter_mm": 1.2,
+                "compliance_mm_n": 0.70,
+                "tension_n": 4.0,
+                "damping": 0.65,
+            }
+            specs = tuple(self._parse_spring_spec(raw, defaults) for raw in self._config.spring_specs)
+            if self._config.algo_model == "spring":
+                count = max(int(self._config.spring_count), len(specs))
+                specs = specs + tuple(dict(defaults) for _ in range(count - len(specs)))
+            response = render_modal_response(
+                model=self._config.algo_model,
+                sr=sr,
+                samples=x.shape[0],
+                rt60=self._config.rt60,
+                damping=self._config.damping,
+                spring_specs=specs,
+                spring_nodes=self._config.spring_fe_nodes,
+                spring_modes=self._config.spring_fe_modes,
+                spring_coupling=self._config.spring_fe_coupling,
+                spring_loss=self._config.spring_fe_loss,
+                plate_width_m=self._config.plate_width_m,
+                plate_height_m=self._config.plate_height_m,
+                plate_thickness_mm=self._config.plate_thickness_mm,
+                plate_density_kg_m3=self._config.plate_density_kg_m3,
+                plate_youngs_gpa=self._config.plate_youngs_gpa,
+                plate_poisson_ratio=self._config.plate_poisson_ratio,
+                plate_tension_n=self._config.plate_tension_n,
+                plate_pickup_x=self._config.plate_pickup_x,
+                plate_pickup_y=self._config.plate_pickup_y,
+                plate_nx=self._config.plate_fe_nx,
+                plate_ny=self._config.plate_fe_ny,
+                plate_modes=self._config.plate_fe_modes,
+                plate_loss=self._config.plate_fe_loss,
+            )
+            self._modal_fe_report = response.report
+            return np.asarray(apply_modal_response(x, response), dtype=np.float64)
 
         param_automation = self._resolve_parameter_automation(n_samples)
         wet = np.zeros_like(x, dtype=np.float64)
@@ -648,15 +714,7 @@ class AlgoReverbEngine(ReverbEngine):
 
         if self._config.shimmer:
             wet = self._shimmer.process(wet, sr)
-
-        output = (self._config.dry * x) + (self._config.wet * wet)
-        output = np.nan_to_num(output, nan=0.0, posinf=0.0, neginf=0.0)
-
-        peak = float(np.max(np.abs(output)))
-        if peak > 8.0:
-            output *= 8.0 / peak
-
-        return np.asarray(output, dtype=np.float64)
+        return np.asarray(np.nan_to_num(wet, nan=0.0, posinf=0.0, neginf=0.0), dtype=np.float64)
 
     def _process_modal_fe(self, x: AudioArray, sr: int) -> AudioArray:
         """Render the explicit offline structural solver and apply ordinary wet/dry controls."""

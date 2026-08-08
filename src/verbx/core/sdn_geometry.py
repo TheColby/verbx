@@ -26,9 +26,9 @@ class SDNGeometry:
 
     ``inter_node_delay_ms`` and ``inter_node_coupling`` use ``FACE_ORDER`` on
     both axes.  Diagonal delay/coupling entries are zero: a node never sends a
-    propagation path to itself.  Off-diagonal coupling rows are normalized, so
-    an implementation may apply its own loss and scattering filters without
-    inheriting accidental gain from this topology helper.
+    propagation path to itself.  The off-diagonal distribution is normalized
+    before applying each sender's absorption-derived feedback gain, so a row's
+    total energy is never increased by the topology helper.
     """
 
     face_order: tuple[str, ...]
@@ -38,6 +38,7 @@ class SDNGeometry:
     inter_node_delay_ms: tuple[tuple[float, ...], ...]
     absorption_by_face: tuple[tuple[float, ...], ...]
     scattering_by_face: tuple[float, ...]
+    feedback_gain_by_face: tuple[float, ...]
     inter_node_coupling: tuple[tuple[float, ...], ...]
 
     def to_report(self) -> dict[str, Any]:
@@ -51,6 +52,7 @@ class SDNGeometry:
             "octave_bands_hz": list(OCTAVE_BANDS_HZ),
             "absorption_by_face": [list(row) for row in self.absorption_by_face],
             "scattering_by_face": list(self.scattering_by_face),
+            "feedback_gain_by_face": list(self.feedback_gain_by_face),
             "inter_node_coupling": [list(row) for row in self.inter_node_coupling],
         }
 
@@ -76,13 +78,17 @@ def derive_sdn_geometry(room: RoomGeometry) -> SDNGeometry:
 
     absorption, scattering = _material_parameters(room)
     # Each sender distributes to the other five receivers. The receiver's
-    # scattering enters the weight, providing geometry/material-derived
-    # coupling while row normalization guarantees no topology gain.
+    # scattering controls distribution; the sender's broadband absorption
+    # controls its feedback-energy loss.  Use an amplitude gain so its square
+    # corresponds to retained energy at the boundary.
     receiver_weight = np.clip(np.asarray(scattering, dtype=np.float64), 0.0, 1.0)
     receiver_weight += 0.05  # retain a connected graph for perfectly smooth walls
     coupling = np.broadcast_to(receiver_weight, (len(FACE_ORDER), len(FACE_ORDER))).copy()
     np.fill_diagonal(coupling, 0.0)
     coupling /= np.sum(coupling, axis=1, keepdims=True)
+    mean_absorption = np.mean(np.asarray(absorption, dtype=np.float64), axis=1)
+    feedback_gain = np.sqrt(np.clip(1.0 - mean_absorption, 0.0, 1.0))
+    coupling *= feedback_gain[:, np.newaxis]
 
     return SDNGeometry(
         face_order=FACE_ORDER,
@@ -92,6 +98,7 @@ def derive_sdn_geometry(room: RoomGeometry) -> SDNGeometry:
         inter_node_delay_ms=tuple(tuple(float(value) for value in row) for row in inter_node_delays),
         absorption_by_face=absorption,
         scattering_by_face=scattering,
+        feedback_gain_by_face=tuple(float(value) for value in feedback_gain),
         inter_node_coupling=tuple(tuple(float(value) for value in row) for row in coupling),
     )
 

@@ -342,6 +342,10 @@ static int handle_render(int argc, char **argv) {
             if (parse_double_option("--rt60", argv[++index], &options.rt60) != 0) {
                 return 2;
             }
+            if (!isfinite(options.rt60)) {
+                fprintf(stderr, "%s: --rt60 must be finite\n", VERBX_C_PROJECT_NAME);
+                return 2;
+            }
         } else if ((strcmp(arg, "--wet") == 0) && (index + 1 < argc)) {
             if (parse_double_option("--wet", argv[++index], &options.wet) != 0) {
                 return 2;

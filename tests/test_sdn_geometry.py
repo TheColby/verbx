@@ -25,7 +25,7 @@ def test_sdn_geometry_has_six_face_nodes_and_analytic_delays() -> None:
     assert delays[0, 1] == 6.0 / 343.0 * 1000.0
 
 
-def test_sdn_geometry_maps_face_materials_and_normalizes_coupling() -> None:
+def test_sdn_geometry_maps_face_materials_and_applies_absorption_loss() -> None:
     topology = derive_sdn_geometry(
         RoomGeometry(
             room_dims_m=(6.0, 8.0, 3.0),
@@ -39,7 +39,9 @@ def test_sdn_geometry_maps_face_materials_and_normalizes_coupling() -> None:
     assert np.allclose(absorption[2], 0.35)  # legacy unknown-material fallback
     assert topology.scattering_by_face[1] > topology.scattering_by_face[0]
     assert np.allclose(np.diag(coupling), 0.0)
-    assert np.allclose(np.sum(coupling, axis=1), 1.0)
+    row_gains = np.sum(coupling, axis=1)
+    assert np.allclose(row_gains, topology.feedback_gain_by_face)
+    assert row_gains[2] < row_gains[0]  # custom fallback is more absorptive than stone
     assert coupling[0, 1] > coupling[0, 0]
 
 
@@ -49,3 +51,4 @@ def test_sdn_geometry_report_is_json_safe_and_keeps_contract_shape() -> None:
     assert len(report["source_to_node_delay_ms"]) == 6
     assert len(report["inter_node_delay_ms"]) == 6
     assert all(len(row) == 6 for row in report["inter_node_coupling"])
+    assert len(report["feedback_gain_by_face"]) == 6

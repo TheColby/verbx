@@ -445,6 +445,7 @@ def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
     progress.mark_read()
     progress.set_passes(max(1, context.config.repeat))
 
+    fdn_handoff_samples = 0
     if runtime_config.er_geometry:
         absorption = material_absorption(
             runtime_config.er_material,
@@ -485,7 +486,7 @@ def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
                 },
             )
             handoff = estimate_echo_density_handoff(paths, sr=sr)
-            audio = delay_audio_for_fdn_handoff(audio, handoff.handoff_sample)
+            fdn_handoff_samples = handoff.handoff_sample
 
     input_for_engine = _prepare_spatial_input(audio, runtime_config)
     if runtime_config.freeze:
@@ -508,6 +509,12 @@ def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
             tail_seconds=tail_padding_seconds,
         )
 
+    # Keep the direct/ISM signal at its physical arrival time.  Only the
+    # algorithmic late-field excitation is offset to the inferred boundary.
+    engine_input = input_for_engine
+    if fdn_handoff_samples > 0:
+        engine_input = delay_audio_for_fdn_handoff(input_for_engine, fdn_handoff_samples)
+
     has_automation_source = (
         runtime_config.automation_file is not None
         or len(runtime_config.automation_points) > 0
@@ -523,22 +530,42 @@ def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
         preloaded_automation_bundle = _load_runtime_automation_bundle(
             config=runtime_config,
             sr=sr,
-            num_samples=int(input_for_engine.shape[0]),
+            num_samples=int(engine_input.shape[0]),
             clamp_overrides=clamp_overrides,
-            feature_audio=input_for_engine,
+            feature_audio=engine_input,
         )
         if isinstance(context.engine, AlgoReverbEngine):
             context.engine.set_parameter_automation(preloaded_automation_bundle.curves)
 
     repeat_post_processor = _build_per_pass_processor(runtime_config, sr)
-    rendered = repeat_process(
-        engine=context.engine,
-        audio=input_for_engine,
-        sr=sr,
-        n=runtime_config.repeat,
-        post_pass_processor=repeat_post_processor,
-        progress_callback=lambda idx, total: progress.mark_process_pass(idx),
-    )
+    if fdn_handoff_samples > 0:
+        if not isinstance(context.engine, AlgoReverbEngine):
+            raise RuntimeError("ISM/FDN handoff requires the algorithmic reverb engine.")
+        wet = np.asarray(engine_input, dtype=np.float64)
+        for idx in range(max(1, int(runtime_config.repeat))):
+            wet = context.engine.process_wet(wet, sr)
+            if repeat_post_processor is not None:
+                wet = repeat_post_processor(wet, idx + 1, max(1, int(runtime_config.repeat)))
+            progress.mark_process_pass(idx + 1)
+        dry = np.pad(
+            input_for_engine,
+            ((0, max(0, wet.shape[0] - input_for_engine.shape[0])), (0, 0)),
+            mode="constant",
+        )[: wet.shape[0]]
+        rendered = (float(runtime_config.dry) * dry) + (float(runtime_config.wet) * wet)
+        rendered = np.nan_to_num(rendered, nan=0.0, posinf=0.0, neginf=0.0)
+        peak = float(np.max(np.abs(rendered))) if rendered.size else 0.0
+        if peak > 8.0:
+            rendered *= 8.0 / peak
+    else:
+        rendered = repeat_process(
+            engine=context.engine,
+            audio=engine_input,
+            sr=sr,
+            n=runtime_config.repeat,
+            post_pass_processor=repeat_post_processor,
+            progress_callback=lambda idx, total: progress.mark_process_pass(idx),
+        )
 
     conv_target_summary: dict[str, Any] | None = None
     if has_automation_source:

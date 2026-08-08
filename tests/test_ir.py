@@ -183,6 +183,37 @@ def test_trace_dxf_parser_and_ir_generation(tmp_path: Path) -> None:
     assert report["material"]["surface_profiles"]["left"]["name"] == "studio"
 
 
+def test_trace_dxf_polyline_layer_maps_only_its_boundary_segments(tmp_path: Path) -> None:
+    """A polyline turning at a corner must not leak its layer to other faces."""
+    dxf = tmp_path / "corner_polyline.dxf"
+    dxf.write_text(
+        "\n".join(
+            [
+                "0", "SECTION", "2", "HEADER", "9", "$INSUNITS", "70", "6",
+                "0", "ENDSEC", "0", "SECTION", "2", "ENTITIES",
+                "0", "LWPOLYLINE", "8", "corner-layer", "90", "3", "70", "0",
+                "10", "0", "20", "0", "10", "0", "20", "4", "10", "6", "20", "4",
+                # Remaining segments establish the bounding box on their own layers.
+                "0", "LINE", "8", "east", "10", "6", "20", "0", "11", "6", "21", "4",
+                "0", "LINE", "8", "south", "10", "0", "20", "0", "11", "6", "21", "0",
+                "0", "ENDSEC", "0", "EOF",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    geometry = parse_dxf_room_outline(dxf)
+
+    assert geometry.surface_layers == {
+        "floor": (),
+        "ceiling": (),
+        "left": ("corner-layer",),
+        "right": ("east",),
+        "front": ("south",),
+        "rear": ("corner-layer",),
+    }
+
+
 def test_material_profiles_cover_common_trace_materials() -> None:
     names = set(material_names())
     assert len(names) >= 20

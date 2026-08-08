@@ -662,6 +662,45 @@ def test_render_ism_fdn_reports_resolved_room_scene(tmp_path: Path) -> None:
     assert handoff["handoff_seconds"] >= 0.0
 
 
+def test_render_ism_fdn_handoff_preserves_dry_early_onset(tmp_path: Path) -> None:
+    sr = 16_000
+    audio = np.zeros((2048, 1), dtype=np.float64)
+    audio[0, 0] = 0.5
+    infile = tmp_path / "in.wav"
+    outfile = tmp_path / "out.wav"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    result = runner.invoke(
+        app,
+        [
+            "render",
+            str(infile),
+            str(outfile),
+            "--engine",
+            "ism-fdn",
+            "--ism-order",
+            "3",
+            "--er-room-dims-m",
+            "6,8,3",
+            "--er-source-pos-m",
+            "1,2,1.5",
+            "--er-listener-pos-m",
+            "4,5,1.5",
+            "--rt60",
+            "0.35",
+            "--wet",
+            "0",
+            "--dry",
+            "1",
+            "--no-progress",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    rendered, _ = sf.read(str(outfile), always_2d=True)
+    # ISM staging preserves 65% of the original direct impulse at time zero.
+    assert rendered[0, 0] > 0.3
+
+
 def test_render_matrix_morph_and_er_geometry_complete(tmp_path: Path) -> None:
     sr = 16_000
     audio = np.zeros((4096, 1), dtype=np.float64)

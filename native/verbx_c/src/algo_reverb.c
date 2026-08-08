@@ -1,6 +1,7 @@
 #include "verbx_c/algo_reverb.h"
 
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,6 +11,9 @@ enum {
     VERBX_ALLPASS_COUNT = 2,
     VERBX_FDN_LINE_COUNT = 8
 };
+
+/* Keep the native CLI's implicit-tail policy aligned with the Python renderer. */
+static const double VERBX_MAX_UNBOUNDED_TAIL_SECONDS = 300.0;
 
 static const double VERBX_PI = 3.14159265358979323846;
 static const double VERBX_INV_SQRT_8 = 0.35355339059327376220;
@@ -430,6 +434,8 @@ int verbx_algo_render(
     double dry;
     double rt60;
     double pre_delay_ms;
+    double tail_padding_seconds;
+    size_t sample_count;
 
     if ((input == NULL) || (input->samples == NULL) || (options == NULL) || (output == NULL)) {
         set_error(error_message, error_message_size, "invalid render arguments");
@@ -452,6 +458,10 @@ int verbx_algo_render(
     rt60 = options->rt60;
     pre_delay_ms = options->pre_delay_ms;
 
+    if (!isfinite(rt60)) {
+        set_error(error_message, error_message_size, "rt60 must be finite");
+        return -1;
+    }
     if (rt60 < 0.01) {
         rt60 = 0.01;
     }
@@ -467,15 +477,46 @@ int verbx_algo_render(
     if (damping > 0.98) {
         damping = 0.98;
     }
+    if (!isfinite(pre_delay_ms)) {
+        set_error(error_message, error_message_size, "pre-delay must be finite");
+        return -1;
+    }
     if (pre_delay_ms < 0.0) {
         pre_delay_ms = 0.0;
     }
-    max_tail_frames = (size_t)ceil(
-        (double)input->sample_rate * verbx_algo_resolved_tail_padding_seconds(options)
-    );
-    total_frames = input->frames + max_tail_frames;
 
-    rendered.samples = (double *)calloc(total_frames * input->channels, sizeof(double));
+    tail_padding_seconds = verbx_algo_resolved_tail_padding_seconds(options);
+    if (!isfinite(tail_padding_seconds) || tail_padding_seconds < 0.0) {
+        set_error(error_message, error_message_size, "resolved tail padding must be finite and non-negative");
+        return -1;
+    }
+    if (options->tail_limit_seconds < 0.0
+        && tail_padding_seconds > VERBX_MAX_UNBOUNDED_TAIL_SECONDS) {
+        set_error(
+            error_message,
+            error_message_size,
+            "algorithmic tail exceeds 300 seconds; use --tail-limit to bound the render"
+        );
+        return -1;
+    }
+    if (tail_padding_seconds > ((double)(SIZE_MAX - input->frames) / (double)input->sample_rate)) {
+        set_error(error_message, error_message_size, "tail padding is too large for this input");
+        return -1;
+    }
+    max_tail_frames = (size_t)ceil((double)input->sample_rate * tail_padding_seconds);
+    if (max_tail_frames > SIZE_MAX - input->frames) {
+        set_error(error_message, error_message_size, "render frame count exceeds platform limits");
+        return -1;
+    }
+    total_frames = input->frames + max_tail_frames;
+    if (total_frames > (SIZE_MAX / (size_t)input->channels)
+        || (total_frames * (size_t)input->channels) > (SIZE_MAX / sizeof(double))) {
+        set_error(error_message, error_message_size, "render sample count exceeds platform limits");
+        return -1;
+    }
+    sample_count = total_frames * (size_t)input->channels;
+
+    rendered.samples = (double *)calloc(sample_count, sizeof(double));
     if (rendered.samples == NULL) {
         set_error(error_message, error_message_size, "failed to allocate render buffer");
         return -1;
