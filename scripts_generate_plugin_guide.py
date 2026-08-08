@@ -248,7 +248,7 @@ The visual theater should show provenance. Labels such as `Parametric Room`,
 `Imported DXF Profile`, `Measured IR`, or `Illustrative View` prevent the user
 from confusing a decorative image with a physical simulation. Geometry edits
 can be staged in the editor and committed through a background preparation job;
-the audio thread receives the finished immutable result through a safe swap.
+the audio thread receives the finished immutable result only after the preparation job completes.
 
 ![Material absorption map](assets/userguide_figures/55_material_absorption_map.png)
 
@@ -644,15 +644,25 @@ def page_break(lines: list[str]) -> None:
 
 def card(lines: list[str], title: str, metadata: list[str], paragraphs: list[str]) -> None:
     lines.extend([f"**{title}**", ""])
-    lines.extend(f"- {item}" for item in metadata)
-    lines.append("")
     for paragraph in paragraphs:
         lines.extend([paragraph, ""])
+    lines.extend(["Record these card-specific values:", ""])
+    lines.extend(f"- {item}" for item in metadata)
+    lines.append("")
     page_break(lines)
 
 
 def production_cards(lines: list[str]) -> None:
-    lines.extend(["## 19. Production Starting-Point Cards", ""])
+    lines.extend(
+        [
+            "## 19. Production Starting-Point Cards",
+            "",
+            "These cards are coordinates for listening, not finished presets. Calibrate the dry source first, raise the return at matched loudness, and distinguish the direct onset, early reflections, and late field before changing several controls together. Read effective RT60 from the status display rather than estimating it from the coarse knob.",
+            "",
+            "For every candidate, compare stereo and mono, reopen the session, and record host rate, quality mode, block size, layout, latency, peak reduction, and any asset hash. Save a preset only after its parameters, modes, and external assets recall identically.",
+            "",
+        ]
+    )
     for source_index, source in enumerate(SOURCES):
         source_name, purpose, predelay, watch = source
         lines.extend([f"### 19.{source_index + 1} {source_name}", ""])
@@ -669,15 +679,22 @@ def production_cards(lines: list[str]) -> None:
                 f"Modes: Reverse {'on' if reverse else 'off'}; Freeze {'prepared/on' if freeze else 'off'}.",
             ]
             paragraphs = [
-                f"Begin with the dry {source_name.lower()} at a calibrated monitoring level. Establish the direct image first, then raise the wet return until {character} is audible without replacing the source. The initial macro values are coordinates, not a preset guarantee. Adjust RT60 coarse by ear, use RT60 fine for the last proportional correction, and read the effective seconds display rather than inferring time from knob angle.",
-                f"For this source, {watch}. Compare the processed signal in stereo and mono, then bypass at matched loudness. If the room becomes impressive only when it is louder, correct gain before evaluating tone. Check the first reflection region separately from the late field: pre-delay and early geometry govern separation, while damping, diffusion, and RT60 govern how the tail occupies the arrangement.",
-                "Record host rate, quality mode, block size, layout, effective RT60, reported latency, and peak reduction. If an imported geometry profile is involved, record its content hash. Save a user preset only after reopening the session and confirming that parameters, mode buttons, and assets recall identically.",
+                f"For {source_name.lower()} in {space_name.lower()}, aim to {purpose}; {watch}. The intended room contribution is {character}.",
             ]
             card(lines, title, metadata, paragraphs)
 
 
 def automation_cards(lines: list[str]) -> None:
-    lines.extend(["## 20. Automation Study Cards", ""])
+    lines.extend(
+        [
+            "## 20. Automation Study Cards",
+            "",
+            "Write each move in the host and audition it with the editor closed before checking whether the control display follows correctly. Repeat the pass after reopening the project. An automation result belongs to the processor, not to the visible editor state.",
+            "",
+            "Use an impulse, a sustained tone, and representative music. Inspect the transition for clicks, non-finite samples, gain jumps, channel asymmetry, and undeclared latency changes. Record whether the implementation smooths, crossfades, switches discretely, or waits for a preparation boundary.",
+            "",
+        ]
+    )
     for shape_index, shape in enumerate(SHAPES, start=1):
         shape_name, motion, risk = shape
         lines.extend(
@@ -699,15 +716,22 @@ def automation_cards(lines: list[str]) -> None:
                 f"Transition requirement: {transition}.",
             ]
             paragraphs = [
-                f"Write the {shape_name.lower()} move in the host, close the editor, and play it twice. The second pass must match the first because automation belongs to the processor, not the visible UI. Reopen the editor and verify that the visual control follows without feeding values back into the host. Repeat after saving and reopening the project.",
-                f"Listen at the beginning, during the transition, and after the value settles. This movement {risk}. Use an impulse, sustained tone, and representative music because each exposes a different failure mode. Inspect output for clicks, NaN/Inf, unexpected gain, channel asymmetry, and a latency change that was not reported.",
-                "Document whether the control is continuously smooth, crossfaded, or intentionally discrete. If a safe implementation requires reprepare, the host-visible value may update immediately while audio waits for a declared boundary; the status strip must make that pending state clear. Automation compatibility is not complete until touch, latch, read, trim, undo, and session recall have all been exercised.",
+                f"This {shape_name.lower()} study asks how {label.lower()} changes {meaning}; the principal risk is that it {risk}. Expected handling: {transition}.",
             ]
             card(lines, title, metadata, paragraphs)
 
 
 def quality_cards(lines: list[str]) -> None:
-    lines.extend(["## 21. Quality And Latency Cards", ""])
+    lines.extend(
+        [
+            "## 21. Quality And Latency Cards",
+            "",
+            "Prepare each configuration at the declared rate and maximum block size, then process zero, one, nominal, maximum, and irregular final blocks. Verify the internal-rate accessor, measure CPU with the editor open and closed, and distinguish resampling cost from DSP and drawing cost.",
+            "",
+            "Measure algorithmic latency with an impulse and compare it with the value reported to the host. Device and safety-buffer latency belongs in a separate end-to-end estimate. Retain architecture, operating system, host version, build commit, and warning state with every result.",
+            "",
+        ]
+    )
     scenarios = list(product(SAMPLE_RATES, QUALITY_MODES, BLOCK_SIZES))
     for index, (rate, quality, block) in enumerate(scenarios, start=1):
         quality_name, quality_meaning = quality
@@ -726,15 +750,22 @@ def quality_cards(lines: list[str]) -> None:
             f"Host block duration: {block_ms:.3f} ms before device and plug-in latency.",
         ]
         paragraphs = [
-            "Prepare the processor at this exact rate and maximum block size. Confirm that the internal-rate accessor matches the policy and that no multiplication overflow or invalid mode is accepted. Process zero, one, nominal, and maximum-length blocks. Then vary the actual callback length below the declared maximum to model hosts that use nonuniform final blocks.",
-            "Measure CPU with the editor closed and open. Separate the active resampling cost from FDN topology, modulation, telemetry, and drawing. A high quality mode may be intentionally expensive, but it must not silently fall back. Confirm the live internal-rate and factor status after each change. If the system cannot sustain the target, show a warning and let the user choose a lower mode.",
-            "Measure algorithmic plug-in latency with an impulse and compare it with the reported frame count. Do not add device input/output latency to the value reported to the DAW. For live monitoring, separately estimate end-to-end latency from device buffers, host safety buffers, block duration, and plug-in processing. Save all measurements with architecture, operating system, host version, and build commit.",
+            f"This case combines a {block_ms:.3f} ms host block with a {target_rate} Hz internal-rate contract. Confirm that the displayed policy and measured behavior agree.",
         ]
         card(lines, title, metadata, paragraphs)
 
 
 def validation_cards(lines: list[str]) -> None:
-    lines.extend(["## 22. Host Validation Cards", ""])
+    lines.extend(
+        [
+            "## 22. Host Validation Cards",
+            "",
+            "Begin from a clean release build and a new host project. Record the binary path, architecture, signature state, format, host version, and commit; test first at 48 kHz, then at the lowest-latency and highest-quality supported settings.",
+            "",
+            "Use deterministic audio, save and reopen the project in a fresh process, and compare state, buses, latency, and assets. Mark the result pass, fail, or blocked. A pass names the dated environment; a failure includes the smallest reproduction and observed fallback; a blocked result names the missing tool or entitlement.",
+            "",
+        ]
+    )
     for area_index, area in enumerate(VALIDATION_AREAS):
         area_name, goal = area
         lines.extend([f"### 22.{area_index + 1} {area_name}", ""])
@@ -748,15 +779,22 @@ def validation_cards(lines: list[str]) -> None:
                 "Status: protocol only until a dated result is recorded.",
             ]
             paragraphs = [
-                f"Start from a clean build and a new host project. Record the exact binary path, architecture, signature state, plug-in format, host version, and VERBX commit. Perform the {area_name.lower()} procedure first at 48 kHz with a moderate block, then repeat at the lowest-latency and highest-quality settings intended for support.",
-                "Use deterministic test audio and save the host project before changing anything else. Reopen it in a fresh host process. Compare parameter values, effective RT60, quality mode, Freeze/Reverse state, reported latency, bus layout, and asset identity. Capture the host scan or validation log when behavior differs from standalone.",
-                "Mark the result pass, fail, or blocked. A pass names the tested environment and does not imply universal compatibility. A fail includes the smallest reproduction and whether the processor degraded to safe pass-through, bypass, silence, or an error. A blocked result states the missing tool, entitlement, SDK, device, or host access without converting absence of evidence into a compatibility claim.",
+                f"In {context_name}, test {area_name.lower()} with particular attention to {emphasis}. The criterion is {goal}.",
             ]
             card(lines, title, metadata, paragraphs)
 
 
 def troubleshooting_cards(lines: list[str]) -> None:
-    lines.extend(["## 23. Troubleshooting Cards", ""])
+    lines.extend(
+        [
+            "## 23. Troubleshooting Cards",
+            "",
+            "Preserve evidence before changing the system: build, format, host, rate, block size, layout, quality, effective RT60, asset hashes, logs, and the triggering action. Reduce one condition at a time, beginning with static mono or stereo, Host quality, short decay, conservative gain, and no imported assets.",
+            "",
+            "After correction, add the smallest native regression available and retain the host project as a format smoke test. Improve the visible diagnostic when the same failure would otherwise require a debugger.",
+            "",
+        ]
+    )
     for index, issue in enumerate(TROUBLESHOOTING, start=1):
         symptom, likely, recovery = issue
         title = f"Troubleshooting card {index}: {symptom}"
@@ -766,15 +804,22 @@ def troubleshooting_cards(lines: list[str]) -> None:
             f"First recovery: {recovery}.",
         ]
         paragraphs = [
-            "Preserve evidence before changing the system. Record the build commit, plug-in format, host/version, sample rate, block size, bus layout, quality mode, effective RT60, asset hashes, and the exact action that triggered the problem. Save scanner output, host logs, and a minimal project when available; do not include private project audio unless it is necessary and authorized.",
-            "Reduce the case methodically. Disable imported assets, use matched mono or stereo, return automation to static values, select Host quality, and test a short RT60 with conservative wet/dry gain. Change one condition at a time. If pass-through succeeds but reverb fails, the shell and bus path are probably intact; if scanning fails, DSP parameter changes are unlikely to matter.",
-            "After the root cause is fixed, add a regression below the DAW whenever possible. Parameter mapping, prepare validation, block bounds, state serialization, and deterministic DSP belong in automated tests. Keep the host reproduction as a format-specific smoke test. Update the visible status message so the next failure is diagnosable without a debugger.",
+            f"Begin with this recovery: {recovery}. The evidence should distinguish {likely} before broader DSP changes are attempted.",
         ]
         card(lines, title, metadata, paragraphs)
 
 
 def preset_cards(lines: list[str]) -> None:
-    lines.extend(["## 24. Preset Design Cards", ""])
+    lines.extend(
+        [
+            "## 24. Preset Design Cards",
+            "",
+            "Design every preset against speech, drums, harmonic music, and an impulse at matched loudness. Set family scale with coarse RT60 and place the decay with fine RT60. Decide explicitly whether quality mode, Freeze, Reverse, geometry, and IR identity belong to the preset.",
+            "",
+            "Reload in standalone and each supported format, verify stable parameter IDs, and document schema, build, author, purpose, tags, layout, CPU implications, assets, and fallback behavior. Publish only claims supported by that metadata and the listening tests.",
+            "",
+        ]
+    )
     for family_index, family in enumerate(PRESET_FAMILIES):
         family_name, identity, size, damping, diffusion = family
         lines.extend([f"### 24.{family_index + 1} {family_name}", ""])
@@ -788,15 +833,22 @@ def preset_cards(lines: list[str]) -> None:
                 "Required metadata: schema, build, author, description, tags, quality policy, layout, and asset identity.",
             ]
             paragraphs = [
-                "Design the preset at a calibrated level with at least speech, drums, harmonic music, and an impulse. Set coarse RT60 for the family scale, then use fine RT60 to place the decay precisely. Match output loudness before comparing variants. A useful preset should communicate its intent without depending on a hidden gain advantage.",
-                "Decide whether quality mode belongs to the preset or remains a user/global preference. If it is stored, explain the CPU implication. Freeze and Reverse must be deliberately authored, never inherited accidentally from the previous preset. Geometry and IR assets need content hashes and a clear fallback behavior when unavailable.",
-                "Save, reload, and compare the preset in standalone plus each supported plug-in format. Confirm that host automation remains mapped to the same parameter IDs after preset changes. Add search tags that describe source, scale, material, brightness, motion, and special modes. Do not publish a compatibility or physical-accuracy claim that the preset metadata cannot support.",
+                f"The {variant_name.lower()} member should preserve the {family_name.lower()} identity, {identity}, while moving the sound toward {direction}.",
             ]
             card(lines, title, metadata, paragraphs)
 
 
 def interaction_cards(lines: list[str]) -> None:
-    lines.extend(["## 25. Parameter Interaction Cards", ""])
+    lines.extend(
+        [
+            "## 25. Parameter Interaction Cards",
+            "",
+            "For each pair, hold one control at default while sweeping the other, reverse the roles, then test parallel and opposing moves. Use an impulse, sustained noise, speech, and music at matched loudness; observe correlation, peak, limiter reduction, effective RT60, latency, CPU, and any structural preparation.",
+            "",
+            "Save the four corners and center as host states. Reopen them in a fresh process, verify stable parameter identity, and make discrete or pending behavior explicit in value text and status rather than implying smooth intermediate states that do not exist.",
+            "",
+        ]
+    )
     for index, (left, right) in enumerate(combinations(PARAMETERS, 2), start=1):
         left_label, left_key, left_meaning, left_transition = left
         right_label, right_key, right_meaning, right_transition = right
@@ -808,15 +860,22 @@ def interaction_cards(lines: list[str]) -> None:
             f"Transition rules: {left_transition}; {right_transition}.",
         ]
         paragraphs = [
-            f"Hold {right_label} at its default and sweep {left_label} through a conservative, musical range. Return to default, then reverse the roles. Finally test a diagonal move in which both values rise and an opposing move in which one rises while the other falls. This separates each control's independent contribution from the interaction that users will actually hear in automation and preset changes.",
-            "Use an impulse to reveal timing and topology, sustained noise to reveal spectral balance, speech to reveal intelligibility, and music to reveal masking. Match output loudness between states. Watch correlation, peak level, limiter reduction, effective RT60, latency, and CPU. If the pair changes a structural property, verify that the adapter stages or crossfades the new state instead of mutating unbounded DSP storage in the callback.",
-            "Save all four corners plus the center as host states and reopen them in a fresh process. Parameter identity must remain stable regardless of registration order. If one control is discrete, host automation should not imply a smooth intermediate sound that the DSP cannot provide. Document clamping and pending-reprepare behavior in both the parameter text and status strip.",
+            f"This pair combines {left_label.lower()}, which {left_meaning}, with {right_label.lower()}, which {right_meaning}. Expected transitions are {left_transition} and {right_transition}.",
         ]
         card(lines, title, metadata, paragraphs)
 
 
 def monitoring_cards(lines: list[str]) -> None:
-    lines.extend(["## 26. Monitoring And Audition Cards", ""])
+    lines.extend(
+        [
+            "## 26. Monitoring And Audition Cards",
+            "",
+            "Choose a loop with sparse and dense moments, calibrate the dry path, and compare at unity host gain with enough time for the tail to complete. Judge onset, early reflections, modal buildup, late decay, and noise floor separately, and repeat with the editor closed.",
+            "",
+            "Record the monitor chain, playback level, correction, host rate, block size, quality, layout, and effective RT60. No single context proves translation: pair headphones with speakers, stereo with mono, and channel checks with the intended immersive renderer.",
+            "",
+        ]
+    )
     for source_index, source in enumerate(SOURCES):
         source_name, purpose, predelay, watch = source
         lines.extend([f"### 26.{source_index + 1} {source_name}", ""])
@@ -829,15 +888,22 @@ def monitoring_cards(lines: list[str]) -> None:
                 f"Useful pre-delay range: {predelay}.",
             ]
             paragraphs = [
-                f"Choose a short phrase that contains both sparse and dense moments. Calibrate the dry path, add the plug-in at unity host gain, and set a moderate room before comparing. The artistic objective is to {purpose}. Toggle matched-loudness bypass and keep the transport loop long enough to hear the tail complete rather than restarting it at every bar.",
-                f"In this monitoring context, {context_goal}. For {source_name.lower()}, {watch}. Check the direct onset, early-reflection zone, modal buildup, late decay, and final noise floor as separate listening events. Repeat with the editor closed to ensure visual telemetry does not alter processing or CPU enough to change the result.",
-                "Record monitor chain, playback level, room correction, host rate, block size, quality mode, bus layout, and effective RT60. A headphone finding does not automatically predict speaker translation, and a mono pass does not prove immersive routing. Promote a preset only after it survives at least two complementary monitoring contexts and a reopened-session check.",
+                f"Use {context_name.lower()} to {context_goal}. For {source_name.lower()}, the artistic aim is to {purpose}; {watch}.",
             ]
             card(lines, title, metadata, paragraphs)
 
 
 def asset_cards(lines: list[str]) -> None:
-    lines.extend(["## 27. Asset Lifecycle Cards", ""])
+    lines.extend(
+        [
+            "## 27. Asset Lifecycle Cards",
+            "",
+            "Perform parsing, validation, preparation, caching, and retirement outside the realtime callback. Bound size, count, channels, duration, and memory before allocation; retain provenance while normalizing paths and units; and report the precise invalid field.",
+            "",
+            "Hash canonical content with a schema identifier and every output-affecting input. Test missing, moved, corrupt, oversized, unsupported, and version-mismatched assets. Host state must remain loadable and must disclose any embedded fallback or substituted default.",
+            "",
+        ]
+    )
     for asset_index, asset in enumerate(ASSET_TYPES):
         asset_name, asset_fields = asset
         lines.extend([f"### 27.{asset_index + 1} {asset_name}", ""])
@@ -850,15 +916,22 @@ def asset_cards(lines: list[str]) -> None:
                 f"Identity fields: {asset_fields}.",
             ]
             paragraphs = [
-                "Perform this stage on a worker or management thread, never from the realtime callback. Bound file size, element count, channel count, duration, and memory before allocating the prepared representation. Normalize paths and units without losing the original provenance. Error messages should identify the invalid field and preserve enough context for a support bundle.",
-                "Compute a deterministic content hash after canonicalization and include a schema/version identifier. Cache keys must include every input that changes realtime output. Two assets with the same display name are not interchangeable. When preparation succeeds, publish an immutable handle through a bounded swap; retire the previous handle only after the audio thread can no longer reference it.",
-                "Test missing, moved, corrupted, oversized, unsupported, and version-mismatched cases. Host state should remain loadable even when the external asset does not. The processor may use a compact embedded fallback or safe default, but it must show that substitution. Never conceal an asset failure behind an unrelated room preset or silently regenerate nondeterministic content.",
+                f"For the {asset_name.lower()} {stage_name.lower()} stage, the objective is to {stage_goal}. Identity depends on {asset_fields}.",
             ]
             card(lines, title, metadata, paragraphs)
 
 
 def release_cards(lines: list[str]) -> None:
-    lines.extend(["## 28. Release Readiness Cards", ""])
+    lines.extend(
+        [
+            "## 28. Release Readiness Cards",
+            "",
+            "Run every gate from a clean release candidate. Confirm architecture, optimization, symbols, identity, version, parameter schema, a new host project, and a reopened representative project. Evidence may be a scanner log, render comparison, state round trip, latency measurement, performance trace, accessibility result, installer receipt, or documentation review.",
+            "",
+            "A warning counts only when explicitly accepted and documented. After a fix, repeat the focused reproduction and neighboring gates, archive the dated matrix with the release tag, and publish only the environments actually tested.",
+            "",
+        ]
+    )
     for area_index, area in enumerate(RELEASE_AREAS):
         area_name, area_scope = area
         lines.extend([f"### 28.{area_index + 1} {area_name}", ""])
@@ -871,15 +944,22 @@ def release_cards(lines: list[str]) -> None:
                 "Evidence required: dated environment, build commit, result, and retained logs/artifacts.",
             ]
             paragraphs = [
-                "Run this gate from a clean release candidate rather than a developer build directory. Confirm architecture, optimization, symbols policy, bundle identity, version, and parameter schema. Use a new host project plus a reopened representative project. Record both success and the exact unsupported configurations so release notes can be precise.",
-                "A pass requires observable evidence: scanner output, deterministic render comparison, state round-trip, measured latency, performance trace, accessibility result, installer receipt, or documentation review as appropriate. A warning is not a pass unless it is explicitly accepted and documented. A failure must block the compatibility claim even if another format succeeds on the same machine.",
-                "After fixing a failure, rerun the focused reproduction and the neighboring gates most likely to regress. Keep host-specific checks above a larger automated native test base so common DSP and state failures are found before format testing. Archive the final matrix with the release tag and publish only the subset of environments actually validated.",
+                f"For {target_name}, apply the {area_name.lower()} gate to {target_scope}; the evidence must cover {area_scope}.",
             ]
             card(lines, title, metadata, paragraphs)
 
 
 def bus_cards(lines: list[str]) -> None:
-    lines.extend(["## 29. Spatial Bus Validation Cards", ""])
+    lines.extend(
+        [
+            "## 29. Spatial Bus Validation Cards",
+            "",
+            "Negotiate the exact layout before processing, then probe each input with a labeled impulse and inspect every output, meter, channel label, gain, and latency. Test wet/dry, bypass, Freeze, Reverse, limiting, and telemetry against a declared routing policy rather than inherited stereo assumptions.",
+            "",
+            "Save and reopen the project, change to another supported layout, and return. Channel-dependent preparation occurs outside the callback. Fold-downs are translation checks, not substitutes for correct native routing; LFE, height decorrelation, and Ambisonic normalization each require an explicit contract.",
+            "",
+        ]
+    )
     for layout_index, layout in enumerate(BUS_LAYOUTS):
         layout_name, layout_contract = layout
         lines.extend([f"### 29.{layout_index + 1} {layout_name}", ""])
@@ -892,15 +972,22 @@ def bus_cards(lines: list[str]) -> None:
                 "Required probes: per-channel impulses, correlated program, decorrelated program, silence, and full-scale safety input.",
             ]
             paragraphs = [
-                "Ask the host for the exact layout and verify the channel order exposed to the processor. Reject unsupported or mismatched buses before processing. Run a labeled impulse through each input separately and inspect every output, reported channel label, meter, and serialized layout field. Hidden stereo assumptions are especially dangerous when expanding to center, surround, height, or ambisonic channels.",
-                "Measure gain and latency per channel. Confirm that wet/dry, bypass, Freeze, Reverse, limiter, and telemetry follow the declared routing policy. Fold down through an agreed reference path where relevant, but do not use a fold-down to conceal incorrect native output routing. LFE injection, height decorrelation, and ambisonic normalization require explicit policies rather than inherited defaults.",
-                "Save and reopen the host project, then change to another supported layout and back. Reprepare must release or resize channel-dependent state outside the callback. If the requested layout cannot be restored, show a clear status and select a safe behavior. Do not claim a spatial format from a visually correct meter alone; channel-accurate audio and metadata are the authority.",
+                f"This card checks {layout_name} under {mode_name.lower()} processing: {layout_contract}; {mode_contract}.",
             ]
             card(lines, title, metadata, paragraphs)
 
 
 def test_vector_cards(lines: list[str]) -> None:
-    lines.extend(["## 30. Parameter Signal-Test Cards", ""])
+    lines.extend(
+        [
+            "## 30. Parameter Signal-Test Cards",
+            "",
+            "Prepare matched mono and stereo contexts at 48 kHz, then repeat failures at 44.1, 96, and 192 kHz. Capture default, endpoints, midpoint or discrete choices, a slow move, and an abrupt host change together with output, state, latency, peak, and channel count.",
+            "",
+            "The same input and state must reproduce within the declared tolerance. A click, non-finite sample, unexplained latency jump, channel mismatch, or value-dependent allocation is a defect. Stabilize the native result before comparing formats; keep small golden fixtures or metrics and hashes for long renders.",
+            "",
+        ]
+    )
     for parameter_index, parameter in enumerate(PARAMETERS):
         label, key, meaning, transition = parameter
         lines.extend([f"### 30.{parameter_index + 1} {label}", ""])
@@ -913,15 +1000,22 @@ def test_vector_cards(lines: list[str]) -> None:
                 f"Required transition behavior: {transition}.",
             ]
             paragraphs = [
-                f"Prepare matched mono and stereo contexts at 48 kHz, then repeat the focused failure case at 44.1, 96, and 192 kHz. Process the {signal_name.lower()} first with {label} at default, then at minimum, midpoint, and maximum or each discrete choice. Capture output, status, effective RT60, latency, peak, and channel count. The same input and state must produce the same output within the declared numerical tolerance.",
-                f"Automate one slow transition and one abrupt host change while the signal is active. The test is intended to {signal_goal}. Listen and inspect samples around the transition. A click, non-finite value, unexplained latency jump, channel mismatch, or value-dependent memory allocation is a defect even when musical program material masks it.",
-                "Run with the editor closed and open, then save and reopen the host project before repeating the endpoint cases. Compare standalone, AU/AUv3, and VST3 only after the native result is stable. Store small deterministic outputs as golden fixtures where practical; store metrics and hashes for long outputs. Add the smallest failing case to automated coverage and keep the host project as a format smoke test.",
+                f"With {signal_name.lower()}, vary {label} to {signal_goal}. The required transition behavior is {transition}.",
             ]
             card(lines, title, metadata, paragraphs)
 
 
 def triage_cards(lines: list[str]) -> None:
-    lines.extend(["## 31. Parameter Regression-Triage Cards", ""])
+    lines.extend(
+        [
+            "## 31. Parameter Regression-Triage Cards",
+            "",
+            "Freeze the failing build and preserve the smallest audio fixture, state blob, automation lane, or screenshot that reproduces the outcome. Record format, host, architecture, rate, block size, layout, quality, parameter values, transport, latency, and editor state.",
+            "",
+            "Classify severity by user consequence, find the first contract boundary that diverges, and fix the lowest shared owner. Add a native regression, then repeat format smoke tests and the original recovery. Close triage only when the project is recovered or a tested migration path is documented.",
+            "",
+        ]
+    )
     for parameter_index, parameter in enumerate(PARAMETERS):
         label, key, meaning, transition = parameter
         lines.extend([f"### 31.{parameter_index + 1} {label}", ""])
@@ -934,9 +1028,7 @@ def triage_cards(lines: list[str]) -> None:
                 f"Expected transition: {transition}.",
             ]
             paragraphs = [
-                "Freeze the failing build and capture a minimal deterministic reproduction before changing code. Record format, host, architecture, sample rate, block size, layout, quality mode, previous and current parameter values, transport state, reported latency, and whether the editor was open. Preserve the smallest audio fixture, state blob, automation lane, or screenshot needed to demonstrate the regression.",
-                f"Classify severity by outcome rather than by code size. For {triage_name.lower()}, determine whether the failure can damage audio, corrupt a project, break recall, defeat automation, or merely reduce clarity. Compare the C manifest, realtime context, JUCE parameter object, serialized state, and displayed value to find the first boundary where `{key}` diverges from its contract.",
-                "Fix the lowest shared layer that owns the invariant, then add a native regression before repeating format-specific smoke tests. Verify minimum, default, maximum, out-of-range, automated, saved, and reopened cases. Update status text or documentation when the behavior is intentionally constrained. Close triage only when the original project is recovered or a migration path is documented and tested.",
+                f"For {label}, classify {triage_name.lower()} against {triage_scope}. The expected transition is {transition}; trace `{key}` from manifest through state, processor, and displayed value.",
             ]
             card(lines, title, metadata, paragraphs)
 

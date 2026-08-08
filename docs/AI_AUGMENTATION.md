@@ -105,6 +105,8 @@ in more than one split.
 
 ### Choose the leakage unit for the task
 
+The correct grouping boundary depends on the scientific claim. This table separates a minimum defensible grouping unit from a stronger held-out unit and names the hidden identity most likely to cross a naive file-level split.
+
 | Task | Minimum grouping unit | Stronger held-out unit | Typical hidden leakage |
 |---|---|---|---|
 | ASR or keyword spotting | utterance family | speaker and recording session | adjacent cuts from one take |
@@ -342,6 +344,8 @@ manifest instead of assuming that two controls determine the room.
 
 ### Manifest field responsibilities
 
+Not every field belongs at the same level of the evidence chain. The table below distinguishes values inherited from a source, choices made for one transformation, and results observed after rendering.
+
 | Field | Scope | Research use |
 |---|---|---|
 | `dataset_name` | corpus | stable human-readable dataset identity |
@@ -480,6 +484,8 @@ exclusion should be recorded rather than silently deleting a file.
 
 ### Gate 1: plan integrity
 
+Plan integrity confirms that the requested experiment is internally consistent before expensive rendering begins. Check identity, split assignment, and parameter bounds at this stage.
+
 - Every input exists and resolves to the intended file.
 - Every source ID is stable, unique at the chosen grouping level, and isolated by split.
 - No output path equals an input path.
@@ -488,12 +494,16 @@ exclusion should be recorded rather than silently deleting a file.
 
 ### Gate 2: render integrity
 
+Render integrity checks that execution produced the jobs the plan promised. It treats retries and exclusions as recorded events rather than silently accepting a smaller corpus.
+
 - Planned count equals successful count unless a documented exclusion policy applies.
 - Failed rows include an actionable error and are not fed to training.
 - Retries are reported; repeated transient failures may indicate storage or resource pressure.
 - Output duration is compatible with the model loader and tail policy.
 
 ### Gate 3: audio integrity
+
+Audio integrity examines the resulting containers and samples before any model consumes them. These checks catch corruption, invalid values, and duration or channel surprises that a successful process exit cannot rule out.
 
 - Samples are finite and channel counts are expected.
 - Files are not silent, truncated, unexpectedly clipped, or encoded in a surprise subtype.
@@ -535,6 +545,8 @@ that lost most baritone examples. Review every split independently, then review 
 such as label by archetype or source type by severity.
 
 ## Application protocols
+
+Reverberation changes the observation differently for speech recognition, music analysis, spatial models, and generative systems. The protocols below adapt the shared evidence contract to each task instead of assuming one room distribution or metric is universal.
 
 ### ASR, keyword spotting, and speech embeddings
 
@@ -662,6 +674,8 @@ bucket rule in experiment configuration, not only in plotting code.
 
 ### Task metrics
 
+Every task needs a primary outcome and at least one companion analysis that explains where the outcome changed. The examples below are starting points for a preregistered evaluation plan, not interchangeable scores.
+
 | Task | Primary metric examples | Required companion analysis |
 |---|---|---|
 | ASR | word or character error rate | error by speaker, room, duration, and severity |
@@ -759,6 +773,8 @@ speaker, session, musical stem family, room capture, or generated IR family desi
 a leakage group may cross that boundary.
 
 ### A split-safe materialized workflow
+
+Materializing audio before training makes the transformation set inspectable and repeatable, but only if split identity is fixed first. The following order prevents augmentation from turning one source family into nominally independent examples across partitions.
 
 1. Assign immutable `source_id`, `group_id`, and `split` fields to the clean corpus.
 2. Freeze the split ledger in version control or content-addressed object storage.
@@ -912,7 +928,11 @@ and test.
 
 ## Scaling and operational behavior
 
+Large augmentation studies are systems experiments as well as signal-processing experiments. Throughput, storage, worker failures, cache identity, and deterministic sharding all affect which examples a model actually sees.
+
 ### Parallel workers
+
+Parallelism should be chosen from measured end-to-end throughput rather than core count alone. More workers can reduce performance when IR state, memory bandwidth, or output storage becomes the limiting resource.
 
 `--jobs 0` selects an automatic worker count. Explicit worker counts are better for controlled
 benchmarks. Rendering can become limited by CPU, memory bandwidth, storage throughput, or file
@@ -1020,6 +1040,8 @@ The following protocol turns Chapter 11 into an experiment that can be reviewed 
 15. **Publish evidence.** Include code commit, environment, manifest, hashes, and limitations.
 
 ## Chapter 11 checklist
+
+Use this checklist after the chapter's design, rendering, and evaluation decisions have been written down. An unchecked item should remain visible in the dataset card or release notes rather than disappearing behind a successful training run.
 
 - [ ] Source rights cover transformation, training, and intended distribution.
 - [ ] The split unit matches the scientific claim.

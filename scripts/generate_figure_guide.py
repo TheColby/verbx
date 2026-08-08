@@ -38,13 +38,41 @@ CORE = {
 }
 
 SECTIONS = (
-    ("System Flow", (1, 2, 18, 22)),
-    ("Reverb Physics and Analysis", (3, 4, 9, 16, 17)),
-    ("Algorithms and Processing", (5, 11, 12, 15, 24)),
-    ("Controls and Tradeoffs", (6, 7, 8, 10, 21, 23)),
-    ("Spatial and Library Views", (13, 14, 20, 19)),
-    ("Additional Diagnostics and Design Graphs", tuple(range(25, 49))),
-    ("Extended Figure Atlas", tuple(range(49, 101))),
+    (
+        "System Flow",
+        "These diagrams follow audio, control, and evidence through the system. Read arrows as dependencies or signal direction; box size is not a measure of cost or importance.",
+        (1, 2, 18, 22),
+    ),
+    (
+        "Reverb Physics and Analysis",
+        "The plots in this group connect audible decay to quantities that can be measured. Compare units before comparing slopes: seconds, decibels, linear amplitude, and inferred volume answer different questions.",
+        (3, 4, 9, 16, 17),
+    ),
+    (
+        "Algorithms and Processing",
+        "This group moves from network topology to implementation. Structural diagrams explain order and feedback; plotted responses explain what those structures do over time or frequency.",
+        (5, 11, 12, 15, 24),
+    ),
+    (
+        "Controls and Tradeoffs",
+        "The control plots are decision aids rather than performance benchmarks. They show where a parameter becomes sensitive, where two objectives conflict, and where additional adjustment produces little change.",
+        (6, 7, 8, 10, 21, 23),
+    ),
+    (
+        "Spatial and Library Views",
+        "Spatial figures use plan, elevation, category, and grid views. Their labels identify channels and data organization; geometric distance is meaningful only when an axis or angle is printed.",
+        (13, 14, 20, 19),
+    ),
+    (
+        "Additional Diagnostics and Design Graphs",
+        "These figures extend the core set with diagnostic responses and design comparisons. Each introduction names the independent quantity, the response, and the unit before the graphic appears.",
+        tuple(range(25, 49)),
+    ),
+    (
+        "Extended Figure Atlas",
+        "The final atlas gathers specialized transfer functions, automation traces, spatial views, and engineering diagrams. Use it as a lookup section, then return to the surrounding chapter for assumptions and listening context.",
+        tuple(range(49, 101)),
+    ),
 )
 
 VISUAL_LANGUAGE = {
@@ -88,6 +116,30 @@ def metadata() -> dict[int, tuple[str, str, str, str, str, str, str]]:
 
 def describe(item: tuple[str, str, str, str, str, str, str]) -> tuple[str, str]:
     title, summary, kind, xlab, ylab, scale, _ = item
+    if title == "Comb Filter Notches":
+        return (
+            "The figure below introduces **Comb Filter Notches** by comparing three "
+            "feedforward comb filters at a 48 kHz "
+            "sample rate. The horizontal axis is **Frequency (kHz)** and the vertical "
+            "axis is **Magnitude response (dB)**, peak-normalized to 0 dB.",
+            "Read the figure as a direct evaluation of $H(z)=1+0.85z^{-M}$. Its notches occur at "
+            "$f=(2k+1)F_s/(2M)$, where $k$ is an integer, $F_s$ is the sample rate, "
+            "and $M$ is the delay in samples. Increasing $M$ decreases the spacing "
+            "between notches. The finite delayed gain keeps each minimum finite rather "
+            "than drawing an unbounded negative-decibel singularity.",
+        )
+    if title == "Allpass Diffuser Group Delay":
+        return (
+            "The figure below introduces **Allpass Diffuser Group Delay** by plotting "
+            "the exact group delay of a Schroeder allpass "
+            "section. The horizontal axis is **Frequency (kHz)** and the vertical "
+            "axis is **Group delay (ms)**.",
+            "Read the figure as an evaluation of $H(z)=(-g+z^{-M})/(1-gz^{-M})$ with $g=0.65$, "
+            "$M=24$ samples, and $F_s=48$ kHz. Its ideal magnitude is unity at every "
+            "frequency, while the phase slope produces the plotted delay variation. "
+            "Here $g$ is the feedback coefficient, $M$ is the delay order, and $F_s$ "
+            "is the sample rate.",
+        )
     axis_sentence = ""
     if xlab and ylab:
         axis_sentence = f" The horizontal axis is **{xlab}** and the vertical axis is **{ylab}**."
@@ -96,10 +148,6 @@ def describe(item: tuple[str, str, str, str, str, str, str]) -> tuple[str, str]:
     if not xlab and not ylab and not scale:
         axis_sentence = " It has no numeric axes because it is a structural diagram rather than a measurement plot."
 
-    caveat = (
-        "Unless the figure explicitly prints measured values, the geometry is an explanatory model rather than a benchmark from a specific audio file. "
-        "Use `verbx analyze` and its JSON report when exact values are needed for a render, device, room, or regression test."
-    )
     lead = (
         f"The figure below introduces **{title}**. {summary} "
         f"{VISUAL_LANGUAGE[kind]}{axis_sentence}"
@@ -116,12 +164,7 @@ def describe(item: tuple[str, str, str, str, str, str, str]) -> tuple[str, str]:
             "placements; use the applicable monitoring standard and room-calibration "
             "procedure for installation."
         )
-    follow = (
-        "Read the figure from the labeled input or independent dimension toward the reported response, then compare color, slope, area, or stage order as appropriate. "
-        "Its practical purpose is to make the relevant verbx control or engineering tradeoff easier to predict before listening: abrupt changes suggest sensitive settings, broad regions suggest forgiving settings, and converging traces suggest conditions that should sound or measure similarly. "
-        f"{caveat}"
-    )
-    return lead, follow
+    return lead, ""
 
 
 def main() -> int:
@@ -131,19 +174,25 @@ def main() -> int:
         "",
         "This chapter collects the visual reference material used throughout the guide: signal-flow diagrams, graphs of key DSP tradeoffs, analysis dashboards, and topology sketches. Every quantitative axis is labeled with a unit; conceptual scales are explicitly marked as normalized or categorical. The figures are generated with `python3 scripts/generate_userguide_figures.py`, and this chapter is generated with `python3 scripts/generate_figure_guide.py`, so the PDF can be rebuilt reproducibly.",
         "",
+        "## How to Read This Chapter",
+        "",
+        "Read quantitative plots from the labeled independent axis toward the reported response, and compare traces only when they share a scale. Boxes and arrows describe topology, not physical size. Layout drawings identify nominal positions rather than installation tolerances. Unless a figure says that it contains measured data, treat it as an explanatory model; use `verbx analyze` and its JSON report for claims about a particular render, device, or room.",
+        "",
     ]
-    for heading, numbers in SECTIONS:
-        lines.extend((f"## {heading}", ""))
+    for heading, introduction, numbers in SECTIONS:
+        lines.extend((f"## {heading}", "", introduction, ""))
         for number in numbers:
             item = items[number]
             title, *_, filename = item
             lead, follow = describe(item)
-            lines.extend((
+            entry = [
                 lead, "",
                 f"![Figure {number}: {title}.](assets/userguide_figures/{filename})", "",
                 f"**Figure {number}: {title}.**", "",
-                follow, "",
-            ))
+            ]
+            if follow:
+                entry.extend((follow, ""))
+            lines.extend(entry)
     OUTPUT.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
     print(f"Wrote {OUTPUT} with {len(items)} extended figure descriptions")
     return 0

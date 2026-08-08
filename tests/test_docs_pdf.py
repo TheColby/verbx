@@ -240,7 +240,6 @@ def test_traditional_book_apparatus_is_complete_and_ordered() -> None:
         encoding="utf-8"
     )
     front_matter = (
-        r"\verbxHalfTitle",
         r"\verbxFrontispiece",
         r"\verbxPreface",
         r"\verbxAcknowledgments",
@@ -254,6 +253,11 @@ def test_traditional_book_apparatus_is_complete_and_ordered() -> None:
     offsets = [maketitle.index(command) for command in front_matter]
 
     assert offsets == sorted(offsets)
+    assert maketitle.index(r"\begin{titlepage}") < maketitle.index(
+        r"\verbxFrontispiece"
+    )
+    assert r"\verbxHalfTitle" not in maketitle
+    assert r"\let\cleardoublepage\clearpage" in preamble
     assert r"\chapter*{Preface}" in preamble
     assert r"{\large\itshape [forthcoming]}" in preamble
     assert r"\chapter*{List of Symbols and Notation}" in preamble
@@ -1005,13 +1009,12 @@ def test_artificial_reverberation_history_is_long_illustrated_and_embedded_as_se
     assert history_path in DOCS_PDF.USERGUIDE_INCLUDED_SOURCES
     assert history.startswith("### A History of Artificial Reverberation:")
     assert 9_000 <= len(words) <= 12_000
-    assert len(images) == len(captions) == len(credits) == 20
+    assert len(images) == len(captions) == len(credits) == 21
 
     for number, image_path in enumerate(images, start=33):
         image_offset = history.index(f"]({image_path})")
         caption_offset = history.index(captions[number - 33], image_offset)
         credit_offset = history.index(credits[number - 33], caption_offset)
-        assert history.index(f"Figure 2-{number}") < image_offset
         assert image_offset < caption_offset < credit_offset
         local_path = REPO_ROOT / "docs" / image_path
         assert local_path.is_file()
@@ -1019,8 +1022,10 @@ def test_artificial_reverberation_history_is_long_illustrated_and_embedded_as_se
             assert image.width >= 600
             assert image.height >= 450
 
+    assert re.search(r"Figure 2-\d+", history) is None
+
     attribution = attribution_path.read_text(encoding="utf-8")
-    assert len(re.findall(r"^\d+\. `", attribution, flags=re.MULTILINE)) == 20
+    assert len(re.findall(r"^\d+\. `", attribution, flags=re.MULTILINE)) == 21
     for image_path in images:
         assert Path(image_path).name in attribution
 
@@ -1037,6 +1042,12 @@ def test_artificial_reverberation_history_is_long_illustrated_and_embedded_as_se
         "Machine learning",
     }
     assert all(topic.casefold() in history.casefold() for topic in expected_topics)
+    assert "Abbey Road's Studio Two echo chamber" in history
+    assert (
+        "assets/reverb_history/11_abbey_road_studio_two_echo_chamber_reconstruction.png"
+        in images
+    )
+    assert "interpretive rather than an archival photograph" in history
 
     book = DOCS_PDF._build_markdown("Colby Leider, PhD")
     assert book.index("### DSP Overview") < book.index(
@@ -1050,10 +1061,10 @@ def test_artificial_reverberation_history_figures_convert_for_pdf() -> None:
     ).read_text(encoding="utf-8")
     converted = DOCS_PDF._convert_figure_captions(history)
 
-    assert converted.count(r"\verbxFigureLead{") == 20
-    assert converted.count(r"\verbxFigureCaption{") == 10
+    assert converted.count(r"\verbxFigureLead{") == 21
+    assert converted.count(r"\verbxFigureCaption{") == 11
     assert converted.count(r"\verbxPlateCaption{") == 10
-    assert converted.count("*Source and license:*") == 20
+    assert converted.count("*Source and license:*") == 21
 
 
 def test_readme_book_promotion_is_permanently_excluded_from_pdf_source() -> None:
@@ -1277,11 +1288,34 @@ def test_bibliography_index_uses_authors_and_key_phrases_not_full_titles() -> No
 
     indexed = DOCS_PDF._index_bibliography(source)
 
-    assert r"\index{Jot, Jean-Marc}" in indexed
-    assert r"\index{Smith, Jane}" in indexed
+    assert r"\index{Jot, Jean-Marc@Jot, Jean-Marc}" in indexed
+    assert r"\index{Smith, Jane@Smith, Jane}" in indexed
     assert r"\index{Feedback delay network}" in indexed
     assert r"\index{Artificial reverberation}" in indexed
     assert rf"\index{{{title}}}" not in indexed
+
+
+def test_bibliography_index_canonicalizes_author_variants_and_sorts_by_surname() -> None:
+    variants = (
+        "Vorländer, M.",
+        "Vorlander, M",
+        "Vorla\N{COMBINING DIAERESIS}nder, Michael",
+        "Michael Vorländer",
+    )
+
+    assert {
+        DOCS_PDF._bibliography_author_index_term(author) for author in variants
+    } == {"Vorlander, Michael@Vorländer, Michael"}
+
+    source = (
+        "# Research Papers and References\n\n"
+        "**[A]** Vorländer, M. (2020). Room response. *Acoustics*. 1-2.\n"
+        "**[B]** Vorlander, M (2021). Room decay. *Acoustics*. 3-4.\n"
+        "**[C]** Michael Vorländer (2022). Room simulation. *Acoustics*. 5-6.\n"
+    )
+    indexed = DOCS_PDF._index_bibliography(source)
+
+    assert indexed.count(r"\index{Vorlander, Michael@Vorländer, Michael}") == 3
 
 
 def test_bibliography_index_uses_a_broad_fallback_without_copying_title() -> None:
@@ -1366,6 +1400,9 @@ def test_frontispiece_composition_is_vertically_centered() -> None:
 
     assert frontispiece.count(r"\vspace*{\fill}") == 2
     assert r"\vspace*{0.25in}" not in frontispiece
+    assert r"\begin{titlepage}" not in frontispiece
+    assert frontispiece.rstrip().endswith("}")
+    assert r"\clearpage" in frontispiece
 
 
 def test_captions_have_consistent_post_caption_whitespace() -> None:
@@ -1712,6 +1749,124 @@ def test_reverb_primer_mermaid_assets_convert_for_pdf() -> None:
     consolidated_ready = DOCS_PDF._convert_figure_captions(consolidated)
     assert consolidated_ready.count(r"\begin{minipage}{\linewidth}") == 50
     assert consolidated_ready.count(r"\includegraphics") == 50
+
+
+def test_reverb_primer_magnitude_responses_match_their_transfer_functions() -> None:
+    frequencies = np.linspace(0.0, 0.5, 2_049)
+
+    order = 12
+    pole_radius = 0.86
+    loop_gain = pole_radius**order
+    comb_poles = PRIMER_ASSETS._roots_on_radius(order, pole_radius)
+    root_decibels = PRIMER_ASSETS._root_response_db(
+        frequencies,
+        comb_poles,
+        [],
+    )
+    delayed = np.exp(-2j * np.pi * frequencies * order)
+    direct_decibels = 20.0 * np.log10(np.abs(1.0 / (1.0 - loop_gain * delayed)))
+    direct_decibels -= direct_decibels.max()
+    np.testing.assert_allclose(root_decibels, direct_decibels, atol=1e-10)
+    np.testing.assert_allclose(root_decibels[[0, -1]], 0.0, atol=2e-14)
+
+    allpass_order = 8
+    allpass_radius = 0.82
+    allpass_decibels = PRIMER_ASSETS._root_response_db(
+        frequencies,
+        PRIMER_ASSETS._roots_on_radius(allpass_order, allpass_radius),
+        PRIMER_ASSETS._roots_on_radius(allpass_order, 1.0 / allpass_radius),
+    )
+    assert np.ptp(allpass_decibels) < 1e-10
+
+    schroeder = PRIMER_ASSETS._parameterized_schroeder_response(
+        frequencies,
+        ((7, 0.79), (9, 0.84), (11, 0.88), (13, 0.91)),
+        ((6, 0.82),),
+    )
+    assert np.all(np.isfinite(schroeder))
+    assert np.max(np.abs(schroeder)) > np.min(np.abs(schroeder))
+
+    multiband = PRIMER_ASSETS._multiband_loop_filter_response(frequencies)
+    np.testing.assert_allclose(multiband[0], 0.97 + 0j, atol=1e-12)
+    assert np.max(np.abs(multiband)) < 1.0
+    assert np.abs(multiband[-1]) < np.abs(multiband[0])
+
+    for cutoff in (0.06, 0.22):
+        at_cutoff = PRIMER_ASSETS._one_pole_lowpass_response(
+            np.array([cutoff]),
+            cutoff,
+        )
+        np.testing.assert_allclose(np.abs(at_cutoff), 1.0 / np.sqrt(2.0), atol=1e-12)
+
+
+def test_conceptual_allpass_diagram_does_not_disguise_the_feedback_sum() -> None:
+    source = (REPO_ROOT / "scripts" / "generate_reverb_primer_assets.py").read_text()
+    block = source.split('"04_schroeder_allpass.png"', 1)[1].split(
+        '"05_allpass_diffusion_network.png"', 1
+    )[0]
+
+    assert '"input_sum": ("+"' in block
+    assert '("input_sum", "split", "$w[n]$")' in block
+    assert '("delay", "input_sum", "$g$ feedback")' in block
+    assert '("delay", "sum", "+1")' not in block
+
+
+def test_schroeder_allpass_phase_curve_has_exact_endpoints_and_positive_delay() -> None:
+    frequencies, phase, feedback = PRIMER_ASSETS.schroeder_allpass_phase_curve()
+
+    np.testing.assert_allclose(frequencies[[0, -1]], [0.0, 0.5], atol=1e-15)
+    np.testing.assert_allclose(phase[[0, -1]], [0.0, -8.0 * np.pi], atol=1e-12)
+    np.testing.assert_allclose(feedback, 0.82**8, atol=1e-15)
+    assert np.all(np.diff(phase) < 0.0)
+
+    omega = 2.0 * np.pi * frequencies
+    group_delay_samples = -np.gradient(phase, omega)
+    assert np.all(group_delay_samples > 0.0)
+
+
+def test_illustrative_fdn_projection_matches_its_stable_real_root_model() -> None:
+    poles, zeros = PRIMER_ASSETS._expanded_fdn_modal_roots()
+    frequencies = np.linspace(0.0, 0.5, 2_049)
+    plotted = PRIMER_ASSETS._root_response_db(frequencies, poles, zeros)
+
+    assert len(poles) == 38
+    assert len(zeros) == 6
+    assert max(abs(pole) for pole in poles) < 1.0
+    np.testing.assert_allclose(np.poly(poles).imag, 0.0, atol=5e-15)
+    np.testing.assert_allclose(np.poly(zeros).imag, 0.0, atol=1e-15)
+
+    unit_circle = np.exp(2j * np.pi * frequencies)
+    direct = 20.0 * np.log10(
+        np.abs(
+            np.polyval(np.poly(zeros), unit_circle)
+            / np.polyval(np.poly(poles), unit_circle)
+        )
+    )
+    direct -= np.max(direct)
+    np.testing.assert_allclose(plotted, direct, atol=4e-13)
+    assert np.min(plotted) > -24.0
+
+
+def test_atlas_comb_and_allpass_response_curves_are_analytic() -> None:
+    frequencies, curves = USERGUIDE_FIGURES.comb_filter_magnitude_curves()
+    assert len(curves) == 3
+    np.testing.assert_allclose([curve[0] for curve in curves], 0.0, atol=1e-12)
+
+    one_ms_curve = curves[1]
+    notch_index = int(np.argmin(np.abs(frequencies - 500.0)))
+    expected_notch = 20.0 * np.log10((1.0 - 0.85) / (1.0 + 0.85))
+    np.testing.assert_allclose(one_ms_curve[notch_index], expected_notch, atol=1e-10)
+
+    frequencies, group_delay = USERGUIDE_FIGURES.allpass_group_delay_curve()
+    sample_rate = 48_000.0
+    order = 24
+    feedback = 0.65
+    omega = 2.0 * np.pi * frequencies / sample_rate
+    delayed = np.exp(-1j * omega * order)
+    response = (-feedback + delayed) / (1.0 - feedback * delayed)
+    np.testing.assert_allclose(np.abs(response), 1.0, atol=1e-12)
+    numerical_delay_ms = -np.gradient(np.unwrap(np.angle(response)), omega) * 1_000.0 / sample_rate
+    np.testing.assert_allclose(group_delay[2:-2], numerical_delay_ms[2:-2], rtol=4e-3, atol=2e-4)
 
 
 def test_pdf_figure_assets_trim_trailing_background(tmp_path: Path) -> None:

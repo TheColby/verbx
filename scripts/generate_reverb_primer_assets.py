@@ -772,6 +772,101 @@ def _roots_on_radius(count: int, radius: float, phase: float = 0.0) -> list[comp
     ]
 
 
+def _conjugate_pairs(radius: float, angles: tuple[float, ...]) -> list[complex]:
+    """Return roots in conjugate pairs so the polynomial has real coefficients."""
+
+    return [
+        radius * np.exp(1j * signed_angle)
+        for angle in angles
+        for signed_angle in (angle, -angle)
+    ]
+
+
+def _expanded_fdn_modal_roots() -> tuple[list[complex], list[complex]]:
+    """Return the stable real root set used by the schematic FDN projection."""
+
+    poles: list[complex] = []
+    for count, radius in ((8, 0.72), (9, 0.80), (10, 0.87), (11, 0.93)):
+        poles.extend(_roots_on_radius(count, radius))
+    zeros = _conjugate_pairs(0.36, (0.3, 1.2, 2.1))
+    return poles, zeros
+
+
+def _root_response_db(
+    frequencies: np.ndarray,
+    poles: list[complex],
+    zeros: list[complex],
+    *,
+    peak_normalize: bool = True,
+) -> np.ndarray:
+    """Evaluate a pole-zero response on the unit circle in amplitude decibels."""
+
+    unit_circle = np.exp(2j * np.pi * frequencies)
+    log_magnitude = np.zeros_like(frequencies, dtype=float)
+    for zero in zeros:
+        log_magnitude += np.log(np.maximum(np.abs(unit_circle - zero), 1e-12))
+    for pole in poles:
+        log_magnitude -= np.log(np.maximum(np.abs(unit_circle - pole), 1e-12))
+    decibels = 20.0 / np.log(10.0) * log_magnitude
+    if peak_normalize:
+        decibels -= float(np.max(decibels))
+    return decibels
+
+
+def _parameterized_schroeder_response(
+    frequencies: np.ndarray,
+    comb_specs: tuple[tuple[int, float], ...],
+    allpass_specs: tuple[tuple[int, float], ...],
+) -> np.ndarray:
+    """Evaluate parallel feedback combs followed by serial Schroeder allpasses."""
+
+    parallel = np.zeros_like(frequencies, dtype=complex)
+    for order, pole_radius in comb_specs:
+        loop_gain = pole_radius**order
+        delayed = np.exp(-2j * np.pi * frequencies * order)
+        parallel += 1.0 / (1.0 - loop_gain * delayed)
+    parallel /= len(comb_specs)
+
+    serial = np.ones_like(frequencies, dtype=complex)
+    for order, pole_radius in allpass_specs:
+        feedback = pole_radius**order
+        delayed = np.exp(-2j * np.pi * frequencies * order)
+        serial *= (-feedback + delayed) / (1.0 - feedback * delayed)
+    return parallel * serial
+
+
+def _multiband_loop_filter_response(
+    frequencies: np.ndarray,
+    *,
+    low_crossover: float = 0.06,
+    high_crossover: float = 0.22,
+    low_gain: float = 0.97,
+    mid_gain: float = 0.90,
+    high_gain: float = 0.78,
+) -> np.ndarray:
+    """Evaluate a complementary three-band one-pole damping filter."""
+
+    lowpass_low = _one_pole_lowpass_response(frequencies, low_crossover)
+    lowpass_high = _one_pole_lowpass_response(frequencies, high_crossover)
+    low_band = lowpass_low
+    mid_band = lowpass_high - lowpass_low
+    high_band = 1.0 - lowpass_high
+    return low_gain * low_band + mid_gain * mid_band + high_gain * high_band
+
+
+def _one_pole_lowpass_response(
+    frequencies: np.ndarray,
+    cutoff: float,
+) -> np.ndarray:
+    """Return a unity-DC one-pole lowpass with an exact -3 dB cutoff."""
+
+    cosine = math.cos(2.0 * math.pi * cutoff)
+    term = 2.0 - cosine
+    pole = term - math.sqrt(term * term - 1.0)
+    unit_delay = np.exp(-2j * np.pi * frequencies)
+    return (1.0 - pole) / (1.0 - pole * unit_delay)
+
+
 def _wrap_text(
     draw: ImageDraw.ImageDraw,
     value: str,
@@ -884,6 +979,9 @@ def magnitude_response_plot(
     poles: list[complex],
     zeros: list[complex],
     notes: tuple[str, ...],
+    *,
+    response: np.ndarray | None = None,
+    peak_normalize: bool = True,
 ) -> None:
     """Plot the normalized response implied by one representative root set."""
 
@@ -891,14 +989,19 @@ def magnitude_response_plot(
     left, top, right, bottom = 125, 190, 1480, 720
     draw.rectangle((left, top, right, bottom), fill="#fbfaf6", outline=GRID, width=3)
     frequencies = np.linspace(0.0, 0.5, 2_049)
-    unit_circle = np.exp(2j * np.pi * frequencies)
-    magnitude = np.zeros_like(frequencies)
-    for zero in zeros:
-        magnitude += np.log(np.maximum(np.abs(unit_circle - zero), 1e-12))
-    for pole in poles:
-        magnitude -= np.log(np.maximum(np.abs(unit_circle - pole), 1e-12))
-    decibels = 20.0 / np.log(10.0) * magnitude
-    decibels -= float(np.max(decibels))
+    if response is None:
+        decibels = _root_response_db(
+            frequencies,
+            poles,
+            zeros,
+            peak_normalize=peak_normalize,
+        )
+    else:
+        if response.shape != frequencies.shape:
+            raise ValueError("Magnitude response must match the plot frequency grid")
+        decibels = 20.0 * np.log10(np.maximum(np.abs(response), 1e-12))
+        if peak_normalize:
+            decibels -= float(np.max(decibels))
     dynamic_range = min(48.0, max(1.0, abs(float(np.min(decibels))) * 1.08))
     tick_steps = (0.2, 0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0)
     tick_step = next(
@@ -965,6 +1068,20 @@ def magnitude_response_plot(
     save(image, name)
 
 
+def schroeder_allpass_phase_curve(
+    *,
+    order: int = 8,
+    pole_radius: float = 0.82,
+) -> tuple[np.ndarray, np.ndarray, float]:
+    """Return frequency, unwrapped phase, and loop gain for a reduced allpass."""
+
+    frequencies = np.linspace(0.0, 0.5, 2_049)
+    feedback = pole_radius**order
+    delayed = np.exp(-2j * np.pi * frequencies * order)
+    response = (-feedback + delayed) / (1.0 - feedback * delayed)
+    return frequencies, np.unwrap(np.angle(response)), feedback
+
+
 def schroeder_allpass_phase_plot(name: str) -> None:
     """Plot unwrapped phase for a reduced Schroeder allpass."""
 
@@ -974,15 +1091,12 @@ def schroeder_allpass_phase_plot(name: str) -> None:
     )
     left, top, right, bottom = 125, 190, 1480, 690
     draw.rectangle((left, top, right, bottom), fill="#fbfaf6", outline=GRID, width=3)
-    frequencies = np.linspace(0.0, 0.5, 2_049)
-    order, feedback = 8, 0.82**8
-    delayed = np.exp(-2j * np.pi * frequencies * order)
-    response = (-feedback + delayed) / (1.0 - feedback * delayed)
-    phase = np.unwrap(np.angle(response))
-    phase_min, phase_max = float(phase.min()), float(phase.max())
-    padding = max((phase_max - phase_min) * 0.08, 0.5)
-    phase_min -= padding
-    phase_max += padding
+    order, pole_radius = 8, 0.82
+    frequencies, phase, feedback = schroeder_allpass_phase_curve(
+        order=order,
+        pole_radius=pole_radius,
+    )
+    phase_min, phase_max = -order * math.pi, 0.0
 
     def map_x(value: float) -> float:
         return left + value / 0.5 * (right - left)
@@ -994,10 +1108,12 @@ def schroeder_allpass_phase_plot(name: str) -> None:
         x = map_x(value)
         draw.line((x, top, x, bottom), fill=GRID, width=2)
         draw.text((x, bottom + 18), f"{value:g}", fill=MUTED, font=F_SMALL, anchor="ma")
-    for value in np.linspace(phase_min, phase_max, 5):
+    for multiple in (0, -2, -4, -6, -8):
+        value = multiple * math.pi
         y = map_y(float(value))
         draw.line((left, y, right, y), fill=GRID, width=2)
-        draw.text((left - 18, y), f"{value / math.pi:.1f}pi", fill=MUTED, font=F_SMALL, anchor="rm")
+        label = "0" if multiple == 0 else f"{multiple}π"
+        draw.text((left - 18, y), label, fill=MUTED, font=F_SMALL, anchor="rm")
     draw.line(
         [(map_x(float(frequency)), map_y(float(value))) for frequency, value in zip(frequencies, phase, strict=True)],
         fill=TEAL,
@@ -1005,13 +1121,45 @@ def schroeder_allpass_phase_plot(name: str) -> None:
         joint="curve",
     )
     draw.text(((left + right) / 2, bottom + 65), "Normalized frequency (cycles/sample)", fill=MUTED, font=F_SMALL, anchor="ma")
-    draw.text((left - 62, top + 8), "phase", fill=MUTED, font=F_SMALL, anchor="ma")
-    _flow_note(draw, "Teal: unwrapped phase, showing frequency-dependent phase rotation.")
+    vertical = "Unwrapped phase (radians)"
+    vertical_box = draw.textbbox((0, 0), vertical, font=F_SMALL)
+    vertical_image = Image.new(
+        "RGBA",
+        (vertical_box[2] - vertical_box[0] + 12, vertical_box[3] - vertical_box[1] + 12),
+        (255, 255, 255, 0),
+    )
+    vertical_draw = ImageDraw.Draw(vertical_image)
+    vertical_draw.text((6, 6), vertical, fill=MUTED, font=F_SMALL)
+    vertical_image = vertical_image.rotate(90, expand=True)
+    image.paste(
+        vertical_image,
+        (30, round((top + bottom - vertical_image.height) / 2)),
+        vertical_image,
+    )
+    draw.ellipse((125, 808, 134, 817), fill=GOLD)
+    _draw_line(
+        draw,
+        (150, 800),
+        f"Model: $M={order}$, pole radius $r={pole_radius:.2f}$, and loop gain $g=r^M={feedback:.3f}$.",
+        fill=INK,
+        selected_font=F_SMALL,
+    )
+    draw.ellipse((125, 845, 134, 854), fill=GOLD)
+    draw.text(
+        (150, 837),
+        "Phase is unwrapped from 0 radians; negative slope corresponds to positive group delay.",
+        fill=INK,
+        font=F_SMALL,
+    )
     save(image, name)
 
 
 def generate_pole_zero_plots() -> None:
-    comb_poles = _roots_on_radius(12, 0.86, math.pi / 12)
+    frequencies = np.linspace(0.0, 0.5, 2_049)
+
+    # Positive feedback solves z^M = g, so one pole lies on the positive real
+    # axis. A phase offset of pi/M would instead describe negative feedback.
+    comb_poles = _roots_on_radius(12, 0.86)
     pole_zero_plot(
         "38_feedback_comb_pz.png",
         "Feedback Comb Pole-Zero Map",
@@ -1037,8 +1185,8 @@ def generate_pole_zero_plots() -> None:
         ),
     )
 
-    allpass_poles = _roots_on_radius(8, 0.82, math.pi / 8)
-    allpass_zeros = _roots_on_radius(8, 1.0 / 0.82, math.pi / 8)
+    allpass_poles = _roots_on_radius(8, 0.82)
+    allpass_zeros = _roots_on_radius(8, 1.0 / 0.82)
     pole_zero_plot(
         "39_schroeder_allpass_pz.png",
         "Schroeder Allpass Pole-Zero Map",
@@ -1064,10 +1212,14 @@ def generate_pole_zero_plots() -> None:
     )
     schroeder_allpass_phase_plot("50_schroeder_allpass_phase.png")
 
-    schroeder_poles: list[complex] = []
-    for count, radius, phase in ((7, 0.79, 0.0), (9, 0.84, 0.10), (11, 0.88, 0.04), (13, 0.91, 0.08)):
-        schroeder_poles.extend(_roots_on_radius(count, radius, phase))
-    schroeder_zeros = _roots_on_radius(6, 1.08, math.pi / 6)
+    comb_specs = ((7, 0.79), (9, 0.84), (11, 0.88), (13, 0.91))
+    allpass_specs = ((6, 0.82),)
+    schroeder_poles = [
+        pole
+        for count, radius in (*comb_specs, *allpass_specs)
+        for pole in _roots_on_radius(count, radius)
+    ]
+    schroeder_zeros = _roots_on_radius(6, 1.0 / 0.82)
     pole_zero_plot(
         "40_parameterized_schroeder_pz.png",
         "Parameterized Schroeder Modal Map",
@@ -1090,12 +1242,14 @@ def generate_pole_zero_plots() -> None:
             "This reduced-order response illustrates modal crowding, not a verbx preset.",
             "Serial allpass stages mainly alter temporal density rather than ideal magnitude.",
         ),
+        response=_parameterized_schroeder_response(
+            frequencies,
+            comb_specs,
+            allpass_specs,
+        ),
     )
 
-    fdn_poles: list[complex] = []
-    for count, radius, phase in ((8, 0.72, 0.02), (9, 0.80, 0.11), (10, 0.87, 0.06), (11, 0.93, 0.13)):
-        fdn_poles.extend(_roots_on_radius(count, radius, phase))
-    fdn_zeros = [0.36 * np.exp(1j * angle) for angle in (0.3, 1.2, 2.1, 3.4, 4.8, 5.5)]
+    fdn_poles, fdn_zeros = _expanded_fdn_modal_roots()
     pole_zero_plot(
         "41_expanded_fdn_pz.png",
         "Expanded FDN Modal Projection",
@@ -1110,22 +1264,22 @@ def generate_pole_zero_plots() -> None:
     )
     magnitude_response_plot(
         "47_expanded_fdn_magnitude.png",
-        "Expanded FDN Magnitude Response",
-        "Coupled modal poles and projection zeros create a nonuniform observed spectrum.",
+        "Illustrative FDN Modal Projection",
+        "A stable real pole-zero model shows how modal and projection roots shape an observed spectrum.",
         fdn_poles,
         fdn_zeros,
         (
-            "Input and output projections change the observed response without moving every pole.",
-            "Actual FDN responses depend on all delays, filters, and matrix coefficients.",
+            "The curve is the exact response of the schematic root set in the preceding map.",
+            "It is not a measured verbx preset or the response of one specified FDN matrix.",
         ),
     )
 
     multiband_poles = (
-        _roots_on_radius(9, 0.95, 0.0)
-        + _roots_on_radius(10, 0.86, 0.08)
-        + _roots_on_radius(11, 0.72, 0.04)
+        _roots_on_radius(9, 0.95)
+        + _roots_on_radius(10, 0.86)
+        + _roots_on_radius(11, 0.72)
     )
-    multiband_zeros = _roots_on_radius(8, 0.48, math.pi / 8)
+    multiband_zeros = _roots_on_radius(8, 0.48)
     pole_zero_plot(
         "42_multiband_loop_filter_pz.png",
         "Multiband Decay Pole-Zero Map",
@@ -1141,17 +1295,19 @@ def generate_pole_zero_plots() -> None:
     magnitude_response_plot(
         "48_multiband_loop_filter_magnitude.png",
         "Multiband FDN Loop-Filter Magnitude Response",
-        "Different pole radii yield broad spectral regions with unequal persistence.",
+        "Complementary low-, middle-, and high-band paths apply unequal loop gains.",
         multiband_poles,
         multiband_zeros,
         (
-            "The representative curve makes the low-, mid-, and high-band loss contrast visible.",
-            "A complete stability check must still evaluate the full feedback loop.",
+            "One-pole complementary splits use crossovers at 0.06 and 0.22 cycles/sample.",
+            "Loop gains are 0.97 low, 0.90 middle, and 0.78 high; all remain below unity.",
         ),
+        response=_multiband_loop_filter_response(frequencies),
+        peak_normalize=False,
     )
 
-    stereo_poles = _roots_on_radius(18, 0.89, 0.04)
-    stereo_zeros = [0.62 * np.exp(1j * angle) for angle in (0.2, 0.9, 1.8, 2.8, 3.7, 4.5, 5.6)]
+    stereo_poles = _roots_on_radius(18, 0.89)
+    stereo_zeros = _conjugate_pairs(0.62, (0.2, 0.9, 1.8, 2.8))
     pole_zero_plot(
         "43_stereo_projection_pz.png",
         "Stereo Projection Pole-Zero Map",
@@ -1286,22 +1442,24 @@ def _generate_remaining_diagrams() -> None:
         "Schroeder Allpass Diffuser",
         "Feedforward and feedback paths preserve magnitude while rotating phase.",
         {
-            "input": ("$x[n]$", (80, 350, 260, 470), BLUE),
-            "split": ("Split", (350, 350, 530, 470), TEAL),
-            "delay": ("Delay\n$z^{-M}$", (690, 250, 930, 370), GOLD),
-            "direct": ("Direct gain\n$-g$", (690, 520, 930, 640), RUST),
+            "input": ("$x[n]$", (40, 350, 200, 470), BLUE),
+            "input_sum": ("+", (280, 350, 420, 470), TEAL),
+            "split": ("Split", (500, 350, 650, 470), TEAL),
+            "delay": ("Delay\n$z^{-M}$", (690, 520, 930, 640), GOLD),
+            "direct": ("Direct gain\n$-g$", (690, 250, 930, 370), RUST),
             "sum": ("+", (1090, 350, 1250, 470), TEAL),
             "output": ("$y[n]$", (1360, 350, 1530, 470), INK),
         },
         [
-            ("input", "split", ""),
+            ("input", "input_sum", ""),
+            ("input_sum", "split", "$w[n]$"),
             ("split", "delay", "delayed"),
             ("split", "direct", "direct"),
-            ("delay", "sum", "+1"),
-            ("direct", "sum", "$-g$"),
+            ("delay", "sum", ""),
+            ("direct", "sum", ""),
             ("sum", "output", ""),
         ],
-        [("delay", "split", "$g$ feedback")],
+        [("delay", "input_sum", "$g$ feedback")],
     )
     diagram(
         "05_allpass_diffusion_network.png",

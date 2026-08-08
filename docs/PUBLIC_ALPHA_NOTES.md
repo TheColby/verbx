@@ -1,12 +1,14 @@
-# Public Alpha Notes (v0.9.3)
+# Public Alpha Notes (v0.9.9)
 
-_Updated: 2026-07-23_
+_Updated: 2026-08-05_
 
-`verbx` v0.9.3 is a public alpha focused on robust offline rendering,
+`verbx` v0.9.9 is a public alpha focused on robust offline rendering,
 reproducibility, advanced DSP control, structural cleanup, and initial
 realtime duplex auditioning.
 
 ## Scope
+
+The supported alpha surface is summarized below. Each item describes shipped behavior, not a promise of parity across every command, host, or spatial format.
 
 - Dual-engine render path (`algo`, `conv`, `auto`) with deterministic control
   plane behavior.
@@ -16,6 +18,8 @@ realtime duplex auditioning.
   and output devices, using direct convolution or an algorithmic proxy IR.
 
 ## Known Limitations
+
+The limits below define where testing and support remain narrower than the complete design vocabulary described elsewhere in the book.
 
 - Realtime support is intentionally narrow: `verbx realtime` is for live
   auditioning, not for full offline feature parity or plugin-host workflows.
@@ -31,11 +35,15 @@ realtime duplex auditioning.
 
 ## Support Channels
 
+Use the channel that matches the report so release discussion, security information, and ordinary defects do not become mixed together.
+
 - Bugs/regressions: [GitHub Issues](https://github.com/TheColby/verbx/issues)
 - Security reports: [GitHub Security Advisory submission](https://github.com/TheColby/verbx/security/advisories/new)
 - Release artifacts and announcements: [GitHub Releases](https://github.com/TheColby/verbx/releases)
 
 ## What To Include In Bug Reports
+
+A useful report should let another person reproduce the failure without guessing at the environment or processing state. Include the following evidence when it is available and lawful to share.
 
 - Exact CLI command and full stderr/stdout text.
 - `verbx doctor --json-out doctor.json` output.

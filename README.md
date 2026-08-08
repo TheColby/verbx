@@ -365,6 +365,8 @@ parameters, visual feedback, and reliable session state.
 
 ## AUv3 / VST3 Plug-in Track
 
+The plug-in track brings the same reverb vocabulary into a host-managed realtime setting. The design image establishes the intended information hierarchy; the compiled captures that follow show which parts already exist in native code and which remain targets.
+
 ![VERBX full-screen AUv3 and VST3 plug-in design](docs/assets/verbx_plugin_fullscreen.png)
 
 The image above is the approved `1920x1080` visual direction for the full-screen
@@ -696,6 +698,8 @@ links below open each asset directly in the browser's native media player with o
 
 ### Utility and verification files
 
+Use these short files to confirm that playback, convolution, and dry/wet comparison work before judging a complex render.
+
 | File | Play | Description |
 |------|------|-------------|
 | [`dry_click.wav`](examples/audio/dry_click.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/dry_click.wav) | One-shot dry click reference for sanity checks |
@@ -703,6 +707,8 @@ links below open each asset directly in the browser's native media player with o
 | [`hybrid_ir_short.wav`](examples/audio/hybrid_ir_short.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/hybrid_ir_short.wav) | Short hybrid IR asset used in quick convolution demos |
 
 ### Realistic dry/wet example pairs
+
+These pairs keep the source and processed result adjacent so room character can be judged without searching for a matching dry file.
 
 | File | Play | Description |
 |------|------|-------------|
@@ -714,6 +720,8 @@ links below open each asset directly in the browser's native media player with o
 | [`realistic_drums_room.wav`](examples/audio/realistic_drums_room.wav) | [Play](https://cdn.jsdelivr.net/gh/TheColby/verbx@main/examples/audio/realistic_drums_room.wav) | Natural drum room render |
 
 ### Extreme range demos
+
+The extreme examples are stress tests for long decay, dense feedback, and pitch-shifted energy. Match playback level before comparing them with the natural examples.
 
 | File | Play | Description | Key settings |
 |------|------|-------------|--------------|
@@ -869,6 +877,8 @@ bands plus scattering metadata. See [`docs/DXF_TRACE_MVP.md`](docs/DXF_TRACE_MVP
 ---
 
 ## Announcement Channels
+
+Release notices are published through the project-owned channels below. Homebrew's general blog is included only for ecosystem context, not as the announcement channel for this tap.
 
 - Release announcements: [github.com/TheColby/verbx/releases](https://github.com/TheColby/verbx/releases)
 - Homebrew tap updates: [github.com/TheColby/homebrew-verbx](https://github.com/TheColby/homebrew-verbx)
@@ -1836,20 +1846,25 @@ the topology is not simply a comb with a dry mix.
 ```mermaid
 %% verbx-static: docs/assets/reverb_primer/04_schroeder_allpass.png
 flowchart LR
-    X["x[n]"] --> P["Split"]
+    X["x[n]"] --> A(("+"))
+    A --> P["Split"]
     P --> D["Delay z⁻ᴹ"]
     P --> N["Direct gain -g"]
     D --> S(("+"))
     N --> S
     D --> G["Feedback gain g"]
-    G --> P
+    G --> A
     S --> Y["y[n]"]
 ```
 
 **Figure: Schroeder allpass diffuser with matched feedforward and feedback coefficients.**
 
-**How to read this figure.** The delay and feedback create a decaying echo sequence;
-the direct coefficient corrects the magnitude response. “Flat magnitude” does not mean
+**How to read this figure.** The first sum forms
+$w[n]=x[n]+g\,w[n-M]$, and the split sends $w[n]$ to both output paths. The delayed
+path enters the output sum with unity gain, while the direct path contributes
+$-g\,w[n]$. Together they produce $y[n]=w[n-M]-g\,w[n]$. The delay and feedback
+create a decaying echo sequence; the direct coefficient corrects the magnitude response.
+“Flat magnitude” does not mean
 “inaudible.” Phase structure, transient spreading, delay length, and coefficient still
 change timbre and spatial impression. Very large $g$ values produce long diffusion
 patterns that may sound metallic; small values scatter less energy. The allpass chain
@@ -1903,6 +1918,10 @@ ideal spectral EQ curve.
 ![Phase response for a representative Schroeder allpass filter.](docs/assets/reverb_primer/50_schroeder_allpass_phase.png)
 
 **Figure: Unwrapped phase in radians for the representative Schroeder allpass, plotted against normalized frequency in cycles per sample.**
+
+This reduced example uses delay order $M=8$, pole radius $r=0.82$, and loop gain
+$g=r^M=0.82^8\approx0.204$. Its unwrapped phase therefore begins at $0$ radians and
+ends at $-8\pi$ radians at Nyquist.
 
 Read the teal phase trace as accumulated rotation rather than an amplitude measurement.
 Its slope is the important audible quantity: a steeper slope means larger group delay.
@@ -2107,9 +2126,12 @@ matrices reduce obvious regularity. Graph-derived matrices make connectivity a d
 parameter. Time-varying unitary matrices alter the modal basis slowly while retaining
 controlled loop energy.
 
-The matching magnitude response shows one projected observation of the same coupled
-modal system. Its fine structure is not a universal FDN fingerprint: changing the input
-or output projection changes which modes are emphasized or cancelled.
+The companion magnitude response is the exact response of this schematic pole-zero
+model. Peaks indicate roots that the chosen projection emphasizes; valleys indicate
+cancellation or weak observation. The regular rings are a reduced modal illustration,
+not the transfer function of a specified FDN matrix, delay set, or verbx preset. A real
+FDN response depends jointly on its delays, feedback matrix, loop filters, and input and
+output vectors.
 
 ![Magnitude response for the reduced-order expanded FDN modal projection.](docs/assets/reverb_primer/47_expanded_fdn_magnitude.png)
 
@@ -2307,9 +2329,24 @@ The separate magnitude plot gives that radial family a spectral interpretation. 
 representative loop-filter view, not the transfer function of every possible FDN matrix
 and delay set that uses these three decay targets.
 
+The plotted loop filter uses two complementary one-pole splits:
+
+$$
+H_{\mathrm{loop}}(z)
+  = g_L L(z) + g_M\bigl(U(z)-L(z)\bigr) + g_H\bigl(1-U(z)\bigr).
+$$
+
+where $L(z)$ is the low crossover response, $U(z)$ is the upper crossover lowpass,
+and $g_L$, $g_M$, and $g_H$ are the low-, middle-, and high-band loop gains. The
+figure uses normalized crossover frequencies of $0.06$ and $0.22$ cycles per sample
+and gains of $0.97$, $0.90$, and $0.78$. Because the three paths are complementary,
+their unweighted sum is unity; because every listed gain is below one, this isolated
+loop filter does not add energy at DC or Nyquist. The complete FDN still requires a
+separate stability check.
+
 ![Magnitude response for a representative multiband FDN loop filter.](docs/assets/reverb_primer/48_multiband_loop_filter_magnitude.png)
 
-**Figure: Peak-normalized magnitude response of the representative multiband FDN loop filter, with frequency in cycles per sample and magnitude on a vertical decibel scale.**
+**Figure: Magnitude response of the representative multiband FDN loop filter, with frequency in cycles per sample and magnitude on a vertical decibel scale.**
 
 ```bash
 verbx render music.wav /tmp/multiband_hall.wav \
@@ -4133,6 +4170,8 @@ tail is spectrally and numerically controlled.
 
 ### Practical Listening Checklist
 
+Use the checklist after level matching and before changing parameters again. It separates acoustic behavior, musical function, and reproducibility so a striking first impression does not become the only evaluation.
+
 - **Onset:** Does the room begin with the source, behind it, or as a separate echo?
 - **Density:** Can individual repetitions be heard after they should have fused?
 - **Color:** Which bands survive longest, and is that survival musically useful?
@@ -4162,6 +4201,8 @@ time.
 ---
 
 ## Core Concepts
+
+The concepts in this section form the minimum vocabulary for the engines and workflows that follow. Each topic begins with an operational explanation, then adds the implementation detail needed to predict edge cases.
 
 ### Algorithmic vs. Convolution
 
@@ -4837,6 +4878,8 @@ Society of America* 148(2): R5–R6. DOI:
 
 ## The Engines
 
+The two engines share routing and post-processing but create the reverberant field differently. Choose by the evidence and behavior required: algorithmic synthesis for controllable or impossible spaces, convolution for a particular measured or designed response.
+
 ### Algorithmic Engine (`--engine algo`)
 
 The algorithmic engine synthesizes reverb without an impulse response file. It is well suited for extreme tail lengths, evolving or modulated spaces, and creative applications where physical accuracy is not the goal.
@@ -5381,6 +5424,8 @@ verbx ir morph space_A.wav space_B.wav blended.wav --mode equal-power --alpha 0.
 
 ## Effects and Post-Processing
 
+These stages act on or around the wet field after its basic room response has been formed. Add one at a time, level-match the result, and preserve enough tail after the source to hear whether the effect remains bounded.
+
 ### Shimmer
 
 Shimmer pitch-shifts the reverb tail (typically up an octave) and blends it back into the wet signal. The result is a bright, harmonically rich coloration that works well on pads, sustained notes, and ambient textures. The `--shimmer-feedback` parameter is the one most people get wrong: above around 0.85, the feedback loop builds exponentially. This is not a bug – it is the intended mechanism for extreme infinite-rise textures – but it requires either a tail limit, loudness targeting, or deliberate management to avoid runaway gain.
@@ -5568,6 +5613,8 @@ curated quick-reference for common switches.
 
 #### Engine and Room Behavior
 
+These switches select the engine and establish the room's time, density, tone, and feedback topology.
+
 | Switch | Range | What it does | Expert note |
 |---|---|---|---|
 | `--engine` | algo/conv/auto | Reverb engine | `auto` picks `conv` if IR present, else `algo` |
@@ -5608,6 +5655,8 @@ curated quick-reference for common switches.
 
 #### RT60 and Multiband Decay
 
+Use the multiband controls when one broadband RT60 hides a musically important difference between low-, mid-, and high-frequency decay.
+
 | Switch | Range | What it does |
 |---|---|---|
 | `--fdn-rt60-low` | seconds | Low-band RT60 target |
@@ -5617,6 +5666,8 @@ curated quick-reference for common switches.
 | `--fdn-xover-high-hz` | Hz | Mid/high crossover |
 
 #### Convolution and IR Routing
+
+This group identifies the impulse response, its normalization, channel packing, partitioning, and optional synthesis or blending behavior.
 
 | Switch | Values | What it does |
 |---|---|---|
@@ -5637,6 +5688,8 @@ curated quick-reference for common switches.
 
 #### Spatial
 
+Spatial switches declare channel semantics and Ambisonic conventions. A matching channel count without the correct order and normalization is not a valid interchange.
+
 | Switch | Values | What it does |
 |---|---|---|
 | `--input-layout` | auto/mono/stereo/LCR/5.1/7.1/7.1.2/7.1.4/7.2.4/8.0/16.0/64.4 | Input channel semantics |
@@ -5649,6 +5702,8 @@ curated quick-reference for common switches.
 | `--ambi-rotate-yaw-deg` | degrees | Yaw rotation in Ambisonics domain |
 
 #### Effects
+
+The effect switches reshape the wet return through pitch, dynamics, filtering, repetition, or controlled feedback.
 
 | Switch | Values | What it does |
 |---|---|---|
@@ -5681,6 +5736,8 @@ curated quick-reference for common switches.
 
 #### Loudness and Output
 
+These controls define delivery level, peak handling, sample rate, bit depth, container, and tail completion independently of the reverb design.
+
 | Switch | Values | What it does |
 |---|---|---|
 | `--target-lufs` | LUFS | Integrated loudness target |
@@ -5702,6 +5759,8 @@ deterministic internal resampling and writes the output at the requested rate.
 
 #### Execution and Reporting
 
+Execution switches choose compute resources and determine what reproducibility or analysis evidence accompanies the render.
+
 | Switch | Values | What it does |
 |---|---|---|
 | `--device` | auto/cpu/cuda/mps | Compute backend |
@@ -5722,6 +5781,8 @@ deterministic internal resampling and writes the output at the requested rate.
 ---
 
 ### Early Reflection Geometry (Render)
+
+The geometry options place one source and listener inside a rectangular first-order image-source model before the main late-field engine.
 
 | Switch | Values | What it does |
 |---|---|---|
@@ -6050,6 +6111,8 @@ verbx cache clear         # clear IR cache
 ---
 
 ## Recipes
+
+The recipes are starting points organized by increasing control depth. Run one unchanged, listen through its complete tail, then alter a single parameter while retaining the original render for comparison.
 
 ### Beginner Recipes
 
@@ -6650,6 +6713,8 @@ allpass-stage count, and $N$ (in `lines 1..N`) is FDN delay-line count.
 
 ## Contributors
 
+The maintained contributor record lives in GitHub; the short list below identifies the creator and links to the complete graph.
+
 - Colby Leider, PhD (creator and maintainer)
 - Full contributors graph: [github.com/TheColby/verbx/graphs/contributors](https://github.com/TheColby/verbx/graphs/contributors)
 
@@ -6715,4 +6780,4 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.9.3 - current release (public alpha). See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.9.9 is the current public alpha. See [CHANGELOG.md](CHANGELOG.md) for version history.

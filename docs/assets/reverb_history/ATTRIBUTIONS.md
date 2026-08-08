@@ -1,6 +1,6 @@
 # Artificial Reverberation History Image Attributions
 
-This ledger records every photograph reused in `docs/HISTORY_OF_ARTIFICIAL_REVERBERATION.md`. Local copies are unaltered except for resizing or recompression. Creative Commons terms apply to each image as identified below.
+This ledger records every photograph and illustration used in `docs/HISTORY_OF_ARTIFICIAL_REVERBERATION.md`. Reused photographs are unaltered except for resizing or recompression. Terms for each image are identified below.
 
 1. `open_source_portfolio/10_san_marco_interior.jpg`: Interior of St. Mark's Basilica by Andrek02. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Interni_basilica_san_Marco_01.jpg). CC0 1.0.
 2. `open_source_portfolio/16_silophone_montreal.jpg`: *Silophone*, The User, at Montréal's Old Port by art_inthecity. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Silophone,_-The_User-,_2000,_Vieux-Port_de_Montr%C3%A9al_(5875027452).jpg). CC BY 2.0.
@@ -22,5 +22,6 @@ This ledger records every photograph reused in `docs/HISTORY_OF_ARTIFICIAL_REVER
 18. `10_tc_nova_reverb.jpg`: TC Electronic Nova Reverb photographed by Oldangelmidnight. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:T.c._electronic_NR-1_Nova_Reverb_-_Programmable_Digital_Reverb.jpg). CC BY-SA 2.0.
 19. `open_source_portfolio/24_ratf_horn_room.jpg`: Reverberant Acoustic Test Facility horn room by Illudium Pu-36. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:RATF_Horn_Room.JPG). CC BY-SA 3.0.
 20. `open_source_portfolio/14_hamilton_mausoleum.jpg`: Hamilton Mausoleum interior by Supergolden. [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Hamilton_Mausoleum_Interior.jpg). CC BY-SA 3.0.
+21. `11_abbey_road_studio_two_echo_chamber_reconstruction.png`: Original illustrated reconstruction generated for this guide in 2026. Historical details are based on [Abbey Road Studios' account of the Studio Two echo chamber](https://www.abbeyroad.com/news/studio-two-echo-chamber-gearthatmadeus-3114). Distributed under the repository's MIT license.
 
 License texts: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/), [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), and [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).

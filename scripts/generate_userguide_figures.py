@@ -86,6 +86,7 @@ def _math_text(value: str) -> str:
         value.replace(r"\alpha", "α")
         .replace(r"\beta", "β")
         .replace(r"\tau", "τ")
+        .replace(r"\minus", "\N{MINUS SIGN}")
         .replace("-", "\N{EN DASH}")
     )
 
@@ -927,7 +928,7 @@ EXTRA_FIGURES: tuple[tuple[str, str, str, str, int], ...] = (
 
 MORE_FIGURES: tuple[tuple[str, str, str, str, int], ...] = (
     ("Comb Filter Notches", "Short delays carve predictable notches that can make tails metallic.", "49_comb_filter_notches.png", "multi", 49),
-    ("Allpass Diffuser Response", "Allpass stages preserve energy while scrambling phase and timing.", "50_allpass_diffuser_response.png", "curve", 50),
+    ("Allpass Diffuser Group Delay", "Flat magnitude can coexist with strongly frequency-dependent delay.", "50_allpass_diffuser_response.png", "curve", 50),
     ("FDN Delay Distribution", "Prime-ish delay spacing avoids obvious repeating echo patterns.", "51_fdn_delay_distribution.png", "bars", 51),
     ("Modal Density Growth", "Large rooms pack more resonances into each octave.", "52_modal_density_growth.png", "curve", 52),
     ("Schroeder Frequency Estimate", "Below the transition band, individual modes matter more.", "53_schroeder_frequency_estimate.png", "bands", 53),
@@ -1231,7 +1232,165 @@ def fig_speaker_layout_coverage(filename: str = "72_speaker_layout_coverage.png"
     save(img, filename)
 
 
+def comb_filter_magnitude_curves(
+    *,
+    sample_rate: float = 48_000.0,
+    maximum_frequency: float = 10_000.0,
+    delay_samples: tuple[int, ...] = (24, 48, 96),
+    delayed_gain: float = 0.85,
+) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+    """Return peak-normalized feedforward-comb responses in amplitude decibels."""
+
+    frequencies = np.linspace(0.0, maximum_frequency, 2_001)
+    responses: list[np.ndarray] = []
+    for delay in delay_samples:
+        response = 1.0 + delayed_gain * np.exp(
+            -2j * np.pi * frequencies * delay / sample_rate
+        )
+        decibels = 20.0 * np.log10(np.maximum(np.abs(response), 1e-12))
+        decibels -= 20.0 * math.log10(1.0 + delayed_gain)
+        responses.append(decibels)
+    return frequencies, tuple(responses)
+
+
+def allpass_group_delay_curve(
+    *,
+    sample_rate: float = 48_000.0,
+    maximum_frequency: float = 10_000.0,
+    order: int = 24,
+    feedback: float = 0.65,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return the exact group delay of H(z)=(-g+z^-M)/(1-gz^-M)."""
+
+    frequencies = np.linspace(0.0, maximum_frequency, 2_001)
+    omega = 2.0 * np.pi * frequencies / sample_rate
+    denominator = 1.0 + feedback**2 - 2.0 * feedback * np.cos(order * omega)
+    delay_samples = order * (1.0 - feedback**2) / denominator
+    return frequencies, 1_000.0 * delay_samples / sample_rate
+
+
+def _response_axes(
+    d: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    xlab: str,
+    ylab: str,
+    x_ticks: tuple[float, ...],
+    y_ticks: tuple[float, ...],
+    *,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+    y_format: str,
+) -> None:
+    """Draw numerically labeled axes for a physical response curve."""
+
+    x0, y0, x1, y1 = box
+    d.rectangle(box, fill="#fbfaf6", outline=GRID, width=3)
+    for value in x_ticks:
+        x = x0 + value / x_max * (x1 - x0)
+        d.line((x, y0, x, y1), fill=GRID, width=2)
+        d.text((x, y1 + 12), f"{value / 1_000:g}", fill=MUTED, font=F_SMALL, anchor="ma")
+    for value in y_ticks:
+        y = y1 - (value - y_min) / (y_max - y_min) * (y1 - y0)
+        d.line((x0, y, x1, y), fill=GRID, width=2)
+        d.text((x0 - 14, y), y_format.format(value), fill=MUTED, font=F_SMALL, anchor="rm")
+    d.line((x0, y1, x1, y1), fill=INK, width=3)
+    d.line((x0, y0, x0, y1), fill=INK, width=3)
+    axis_labels(d, box, xlab, ylab)
+
+
+def fig_comb_filter_notches(filename: str = "49_comb_filter_notches.png") -> None:
+    img, d = canvas(
+        "Comb Filter Notches",
+        "Feedforward delays place minima at odd half-multiples of the reciprocal delay.",
+    )
+    box = (170, 190, 1420, 700)
+    _response_axes(
+        d,
+        box,
+        "Frequency (kHz)",
+        "Peak-normalized magnitude (dB)",
+        (0.0, 2_000.0, 4_000.0, 6_000.0, 8_000.0, 10_000.0),
+        (-24.0, -18.0, -12.0, -6.0, 0.0),
+        x_max=10_000.0,
+        y_min=-24.0,
+        y_max=0.0,
+        y_format="{:.0f}",
+    )
+    frequencies, curves = comb_filter_magnitude_curves()
+    colors = (BLUE, TEAL, RUST)
+    labels = ("M = 24 samples (0.5 ms)", "M = 48 samples (1 ms)", "M = 96 samples (2 ms)")
+    for curve, color, label in zip(curves, colors, labels, strict=True):
+        clipped = np.clip(curve, -24.0, 0.0)
+        px = box[0] + frequencies / 10_000.0 * (box[2] - box[0])
+        py = box[3] - (clipped + 24.0) / 24.0 * (box[3] - box[1])
+        d.line(list(zip(px, py, strict=True)), fill=color, width=4, joint="curve")
+        legend_y = 220 + labels.index(label) * 38
+        d.line((1000, legend_y + 9, 1050, legend_y + 9), fill=color, width=5)
+        d.text((1065, legend_y), label, fill=INK, font=F_SMALL)
+    draw_rich_text(
+        d,
+        (170, 790),
+        r"Model: $H(z)=1+0.85z^{\minus M}$; sample rate = 48 kHz.",
+        fill=INK,
+        selected_font=F_SMALL,
+    )
+    draw_rich_text(
+        d,
+        (170, 830),
+        "Notches occur at $f=(2k+1)F_s/(2M)$, where $k$ is an integer.",
+        fill=INK,
+        selected_font=F_SMALL,
+    )
+    save(img, filename)
+
+
+def fig_allpass_group_delay(filename: str = "50_allpass_diffuser_response.png") -> None:
+    img, d = canvas(
+        "Allpass Diffuser Group Delay",
+        "The ideal magnitude remains flat while phase slope redistributes delay by frequency.",
+    )
+    box = (170, 190, 1420, 700)
+    _response_axes(
+        d,
+        box,
+        "Frequency (kHz)",
+        "Group delay (ms)",
+        (0.0, 2_000.0, 4_000.0, 6_000.0, 8_000.0, 10_000.0),
+        (0.0, 0.5, 1.0, 1.5, 2.0, 2.5),
+        x_max=10_000.0,
+        y_min=0.0,
+        y_max=2.5,
+        y_format="{:.1f}",
+    )
+    frequencies, group_delay = allpass_group_delay_curve()
+    px = box[0] + frequencies / 10_000.0 * (box[2] - box[0])
+    py = box[3] - group_delay / 2.5 * (box[3] - box[1])
+    d.line(list(zip(px, py, strict=True)), fill=TEAL, width=5, joint="curve")
+    draw_rich_text(
+        d,
+        (170, 790),
+        r"Model: $H(z)=(\minus g+z^{\minus M})/(1\minus gz^{\minus M})$.",
+        fill=INK,
+        selected_font=F_SMALL,
+    )
+    draw_rich_text(
+        d,
+        (170, 830),
+        "Here $g=0.65$, $M=24$ samples, and the sample rate is 48 kHz.",
+        fill=INK,
+        selected_font=F_SMALL,
+    )
+    save(img, filename)
+
+
 def fig_extra(title: str, subtitle: str, filename: str, kind: str, seed: int) -> None:
+    if seed == 49:
+        fig_comb_filter_notches(filename)
+        return
+    if seed == 50:
+        fig_allpass_group_delay(filename)
+        return
     if kind == "layout":
         fig_speaker_layout_coverage(filename)
         return

@@ -140,7 +140,12 @@ def sorted_documents() -> dict[Path, str]:
     )
     sofa = sort_bullet_region(
         SOFA_FEASIBILITY.read_text(encoding="utf-8"),
-        "## References\n\n",
+        (
+            "## References\n\n"
+            "The formal and project references below describe the container family and its "
+            "conventions. Consult the convention named by a dataset in addition to the general "
+            "standard.\n"
+        ),
         None,
     )
     return {

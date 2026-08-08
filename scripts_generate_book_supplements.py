@@ -639,6 +639,14 @@ def generate_projects() -> None:
         "",
         "Evaluate every submission on prediction, method, evidence, listening judgment, reproducibility, and clarity. Unless a project states otherwise, students should retain source audio, exact commands, parameter or preset state, analysis JSON, plots, and a short reflection distinguishing observation from interpretation.",
         "",
+        "## Laboratory Protocol",
+        "",
+        "The technical projects share one experimental protocol so that their individual pages can concentrate on the question at hand. Begin with a dry baseline and one conservative reference render. Create at least five documented variants across the useful range, including one deliberately poor case when it can be produced without risking equipment or hearing. Change one principal variable at a time, loudness-match comparisons, retain deterministic seeds, and record effective settings rather than relying on shell history alone.",
+        "",
+        "Unless a project specifies a different submission, provide the source and rendered excerpts, runnable commands, presets or automation, analysis JSON, a compact comparison table, and one labeled figure. Record listening conditions, sample rate, channel layout, block or partition size, software revision, and warnings. Another student should be able to reproduce the central result, and conclusions should cite both measurement and level-matched listening rather than screenshots alone.",
+        "",
+        "Every technical report should answer the same five questions: Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting lie relative to a failure boundary? Which confound deserves a follow-up experiment? Finish by repeating the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and state which conclusions generalize.",
+        "",
     ]
     for number, (title, concepts, brief) in enumerate(PROJECTS, 1):
         composition = COMPOSITION_PROJECTS.get(number)
@@ -647,41 +655,24 @@ def generate_projects() -> None:
             if composition
             else "Begin with a written prediction that names the expected audible and measurable changes. Use controlled source material and alter one principal variable at a time before combining controls."
         )
-        procedure = (
-            composition["procedure"]
-            if composition
-            else "Establish a dry baseline and one conservative reference render. Create at least five documented variants spanning the useful range, including one deliberately poor or unstable case when safe. Loudness-match comparisons, preserve deterministic seeds where applicable, and record effective settings rather than relying on command history alone."
-        )
-        evidence = (
-            composition["evidence"]
-            if composition
-            else "Submit the source and rendered excerpts, exact runnable commands, preset or automation files, analysis JSON, a compact comparison table, and one labeled figure. Include listening conditions, sample rate, channel layout, block or partition size, software revision, and any warnings produced by verbx."
-        )
-        questions = (
-            composition["questions"]
-            if composition
-            else "Which prediction was confirmed? Which result contradicted the model? What changed perceptually before a standard metric changed? Where does the preferred setting sit relative to a technical failure boundary? Name one confound and design a follow-up that isolates it."
-        )
-        completion = (
-            composition["completion"]
-            if composition
-            else "Another student must be able to reproduce the central result from the submitted materials. Conclusions must cite both measured evidence and level-matched critical listening; screenshots alone are not evidence."
-        )
-        extension = (
-            composition["extension"]
-            if composition
-            else "Repeat the decisive comparison with a contrasting source, room, sample rate, or reproduction layout and explain which conclusions generalize."
-        )
         lines.extend((
             "\\newpage", "", f"## Project {number}: {title}", "",
             *(["**Project mode:** Musical composition and production.", ""] if composition else []),
             f"**Central concepts:** {concepts}.", "",
             f"**Design brief.** {brief} {design_method}", "",
-            f"**Procedure.** {procedure}", "",
-            f"**Evidence package.** {evidence}", "",
-            f"**Questions for the report.** {questions}", "",
-            f"**Completion standard.** {completion}", "",
-            f"**Extension.** {extension}", "",
+            *(
+                [
+                    f"**Procedure.** {composition['procedure']}", "",
+                    f"**Evidence package.** {composition['evidence']}", "",
+                    f"**Questions for the report.** {composition['questions']}", "",
+                    f"**Completion standard.** {composition['completion']}", "",
+                    f"**Extension.** {composition['extension']}", "",
+                ]
+                if composition
+                else [
+                    "**Method.** Apply the shared laboratory protocol above, choosing the comparison range and deliberately poor case to expose this project's central mechanism rather than an unrelated failure.", "",
+                ]
+            ),
             "```{=latex}",
             "\\vfill",
             f"\\verbxFigureLead{{Project {number} laboratory cycle: {title}}}",

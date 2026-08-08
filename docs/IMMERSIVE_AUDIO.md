@@ -507,6 +507,8 @@ Before using a large matrix in a mix, test one input at a time. Confirm that fro
 
 ## 7. Bed, Object, and Hybrid Reverb Strategies
 
+The representation assigned to a return should follow its musical function. The strategies below move from a stable shared environment to a localized event, then combine both approaches in a session architecture that keeps ordinary room energy separate from exceptional gestures.
+
 ### 7.1 Bed return
 
 A bed return is the safest default for a shared acoustic environment. Route multiple sources to one immersive reverb, preserve a coherent decay law, and use channel-dependent decorrelation to create width. This approach conserves object paths and keeps the room stable as sources move.
@@ -538,6 +540,8 @@ Use names that describe both acoustic function and spatial role. “BigVerb12”
 
 ## 8. DAW and Renderer Handoff
 
+verbx can prepare audio and evidence, but the authoring environment remains responsible for beds, objects, trajectories, binaural metadata, and the authoritative master. A dependable handoff makes that boundary explicit and gives the receiving engineer enough information to reconstruct channel meaning before making creative changes.
+
 ### 8.1 Integrated-renderer workflow
 
 In an integrated environment such as Logic Pro, assign tracks and returns to the bed or to objects, place Atmos-aware processing in the correct part of the signal path, and monitor through the project’s Dolby Atmos plug-in. Apple documents an important signal-flow distinction: processing before the Atmos plug-in operates on the bed path, while processing after it affects monitoring and channel-based bounces rather than the exported object master. Verify the current application behavior rather than assuming an ordinary surround-master insert model.
@@ -550,7 +554,7 @@ With a separate Dolby Atmos Renderer, route each bed channel and object path to 
 
 ### 8.3 Handoff package
 
-A strong handoff includes more than audio:
+A strong handoff includes more than audio. The following items prevent a technically valid stem from arriving without the context needed to place or verify it:
 
 - Clearly named mono, stereo, and multichannel WAV files.
 - A channel-order document for every file wider than stereo.
@@ -636,7 +640,11 @@ Figure 5 marks the practical boundary. verbx creates audio assets and evidence o
 
 ## 12. Immersive Quality-Control Checklist
 
+Quality control is easiest when it follows the same order as production. The three passes below separate source and routing preparation, active authoring checks, and final delivery evidence so that a late discovery can be traced to the stage that introduced it.
+
 ### 12.1 Before authoring
+
+Before opening the Atmos session, verify the identity and technical contract of every source. This pass should resolve basic ambiguity before any renderer-specific routing can conceal it.
 
 - Confirm every source file’s sample rate, bit depth, duration, start point, and channel count.
 - Read the verbx JSON report and compare it with the filename and handoff note.
@@ -645,6 +653,8 @@ Figure 5 marks the practical boundary. verbx creates audio assets and evidence o
 - Confirm that no limiter, normalizer, or loudness stage was applied accidentally to a wet stem.
 
 ### 12.2 During Atmos authoring
+
+During authoring, inspect both the authored representation and what the current Renderer produces. The checks below concentrate on bed order, object metadata, endpoint translation, and gain structure.
 
 - Verify 7.1.2 bed order as `L, R, C, LFE, Ls, Rs, Lrs, Rrs, Ltm, Rtm` at the Renderer boundary.
 - Solo every bed channel and object input at least once.
@@ -655,6 +665,8 @@ Figure 5 marks the practical boundary. verbx creates audio assets and evidence o
 
 ### 12.3 Before delivery
 
+The delivery pass preserves the authoritative master and the evidence needed to identify it later. Complete these checks only after all required endpoint reviews have returned to the source session.
+
 - Verify or record the final master through the authoritative Renderer workflow.
 - Play the master from beginning to end in the Renderer rather than checking only a DAW bounce.
 - Check all contractually required re-renders, including stereo and binaural where applicable.
@@ -664,6 +676,8 @@ Figure 5 marks the practical boundary. verbx creates audio assets and evidence o
 - Preserve the source session, Renderer master, verbx reports, and delivery notes together.
 
 ## 13. Creative Spatial-Reverb Recipes
+
+These recipes are starting architectures rather than presets. Each one names a perceptual job, a representation, and an evaluation method so that changes can be judged against musical intention rather than the number of active loudspeakers.
 
 ### 13.1 Natural hall around a front ensemble
 
@@ -690,6 +704,8 @@ Automate the acoustic architecture rather than merely raising wet level. Begin w
 A frozen field can occupy a bed when it represents an environment, or an object when it behaves as a featured musical entity. Watch low-frequency accumulation and interchannel correlation. A stationary, diffuse freeze often feels larger than a freeze that continuously circles the listener.
 
 ## 14. Common Failure Modes
+
+Immersive failures often sound like aesthetic disappointments while originating in routing, correlation, metadata, or monitoring. The symptoms below begin with what a mixer hears and then identify the production assumption most worth checking.
 
 ### “The height disappears in stereo.”
 

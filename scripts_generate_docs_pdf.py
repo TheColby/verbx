@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
 from pathlib import Path
 
 from PIL import Image, ImageChops
@@ -35,7 +36,7 @@ TERMINAL_ASSET_GENERATOR = ROOT / "scripts" / "generate_terminal_screenshots.py"
 IMMERSIVE_AUDIO_ASSET_GENERATOR = ROOT / "scripts" / "generate_immersive_audio_figures.py"
 AI_AUGMENTATION_ASSET_GENERATOR = ROOT / "scripts" / "generate_ai_augmentation_figures.py"
 DEFAULT_AUTHOR = "Colby Leider, PhD"
-BOOK_EDITION_DATE = "July 26, 2026"
+BOOK_EDITION_DATE = "August 5, 2026"
 RESEARCH_REFERENCE_PATTERN = re.compile(
     r"(?m)^\*\*\[(?P<key>[^]]+)\]\*\*\s+(?P<authors>.+?)\s+"
     r"\((?P<year>(?:18|19|20)\d{2}[a-z]?|n\.d\.)\)\.\s+"
@@ -1283,24 +1284,18 @@ def _illustrate_operational_cards(markdown: str) -> str:
         r"(?ms)^(?P<title>\*\*(?:Production|Automation|Quality|Validation|"
         r"Troubleshooting|Preset|Interaction|Audition|Asset|Release|Bus|"
         r"Signal-test|Triage) card.*?\*\*)\n"
-        r"(?P<body>.*?)(?=^\\newpage\s*$)"
+        r"(?P<body>.*?)^\\newpage\s*$"
     )
 
     def illustrate_card(match: re.Match[str]) -> str:
         title_line = match.group("title")
         title = title_line.removeprefix("**").removesuffix("**")
-        command = _card_visual_command(title)
         return (
-            "```{=latex}\n\\clearpage\n```\n\n"
+            "```{=latex}\n\\Needspace{11\\baselineskip}\n```\n\n"
             + title_line
             + "\n"
             + match.group("body").rstrip()
-            + "\n\n```{=latex}\n"
-            + "\\vfill\n"
-            + f"\\verbxFigureLead{{{_latex_text(title)} illustration}}\n"
-            + command
-            + f"\n\\verbxFigureCaption{{{_latex_text(title)} illustration}}"
-            + "\n```\n\n"
+            + "\n\n"
         )
 
     handbook, card_count = card_pattern.subn(illustrate_card, handbook)
@@ -1423,7 +1418,7 @@ def _latex_text_with_inline_math(value: str) -> str:
 
 
 def _compact_illustrated_guide(markdown: str) -> str:
-    """Typeset each illustrated-guide image beside its long description."""
+    """Typeset each illustrated-guide image beside its figure-specific prose."""
 
     start = markdown.find("# Illustrated Guide")
     if start == -1:
@@ -1436,16 +1431,18 @@ def _compact_illustrated_guide(markdown: str) -> str:
     entry_pattern = re.compile(
         r"(?P<lead>The figure below introduces.*?)(?=\n\n)\n\n"
         r"(?P<image>!\[Figure\s+\d+:[^\n]+\]\([^\n]+\))\n\n"
-        r"\*\*Figure\s+\d+[.:]\s+(?P<title>.+?)\.\*\*\s*"
-        r"(?P<description>Read (?:the figure|each plan).*?)"
-        r"(?=\n\n(?:The figure below|##\s)|\Z)",
+        r"\*\*Figure\s+\d+[.:]\s+(?P<title>.+?)\.\*\*[ \t]*"
+        r"(?:\n\n(?P<description>Read (?:the figure|each plan).*?))?"
+        r"(?=\n\n(?:The figure below|##\s)|\s*\Z)",
         re.DOTALL,
     )
 
     def compact_entry(match: re.Match[str]) -> str:
         title = match.group("title")
         latex_title = _latex_text_with_inline_math(title)
+        description = (match.group("description") or "").strip()
         if title == "Loudspeaker Layouts: Plan and Elevation":
+            note = f"\n\n{description}" if description else ""
             return (
                 f"{match.group('lead').strip()}\n\n"
                 "```{=latex}\n"
@@ -1458,10 +1455,12 @@ def _compact_illustrated_guide(markdown: str) -> str:
                 f"\\verbxFigureCaption{{{latex_title}}}\n"
                 "\\end{minipage}\\par\\medskip\n"
                 "```\n\n"
-                f"{match.group('description')}"
+                f"{note.lstrip()}"
             )
+        side_text = match.group("lead").strip()
+        if description:
+            side_text += f"\n\n{description}"
         return (
-            f"{match.group('lead').strip()}\n\n"
             "```{=latex}\n"
             f"\\verbxFigureLead{{{latex_title}}}\n"
             "\\par\\medskip\\noindent\n"
@@ -1475,7 +1474,7 @@ def _compact_illustrated_guide(markdown: str) -> str:
             "\\end{minipage}\\hfill\n"
             "\\begin{minipage}[t]{0.54\\textwidth}\\vspace{0pt}\n"
             "```\n\n"
-            f"{match.group('description')}\n\n"
+            f"{side_text}\n\n"
             "```{=latex}\n"
             "\\end{minipage}\\par\\medskip\n"
             "```"
@@ -1706,6 +1705,54 @@ def _bibliography_index_phrases(title: str) -> list[str]:
     return [phrase for phrase, pattern in fallbacks if re.search(pattern, normalized)][:1]
 
 
+_BIBLIOGRAPHY_AUTHOR_OVERRIDES = {
+    "jot j m": "Jot, Jean-Marc",
+    "vorlander m": "Vorländer, Michael",
+    "vorlander michael": "Vorländer, Michael",
+}
+
+
+def _fold_person_name(value: str) -> str:
+    """Return a punctuation-free, accent-insensitive identity key."""
+
+    decomposed = unicodedata.normalize("NFKD", value)
+    unaccented = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return re.sub(r"[^a-z0-9]+", " ", unaccented.casefold()).strip()
+
+
+def _canonical_bibliography_author(value: str) -> str:
+    """Normalize one bibliography author to a stable surname-first display name."""
+
+    author = unicodedata.normalize("NFC", value)
+    author = re.sub(r"\s+", " ", author).strip(" ,")
+    folded = _fold_person_name(author)
+    if folded in _BIBLIOGRAPHY_AUTHOR_OVERRIDES:
+        return _BIBLIOGRAPHY_AUTHOR_OVERRIDES[folded]
+
+    if "," in author:
+        family, given = (part.strip(" .,;") for part in author.split(",", 1))
+        canonical = f"{family}, {given}" if given else family
+    else:
+        words = author.split()
+        if len(words) == 2 and folded not in {"et al", "unknown authors"}:
+            canonical = f"{words[-1].strip('.,;')}, {words[0].strip('.,;')}"
+        else:
+            canonical = author
+
+    canonical = re.sub(r"\.{2,}", ".", canonical)
+    canonical = re.sub(r"\s+", " ", canonical).strip(" ,")
+    return _BIBLIOGRAPHY_AUTHOR_OVERRIDES.get(_fold_person_name(canonical), canonical)
+
+
+def _bibliography_author_index_term(value: str) -> str:
+    """Return a makeindex term sorted by surname and displayed with accents."""
+
+    display = _canonical_bibliography_author(value)
+    decomposed = unicodedata.normalize("NFKD", display)
+    sort_key = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return f"{_latex_index_term(sort_key)}@{_latex_text(display)}"
+
+
 def _index_bibliography(markdown: str) -> str:
     """Index paper authors and controlled subject phrases, never full titles."""
 
@@ -1726,12 +1773,14 @@ def _index_bibliography(markdown: str) -> str:
             author = re.sub(r"\s+", " ", author).strip(" ,")
             if author.lower() == "et al.":
                 continue
-            if author in {"Jot, J.-M.", "Jot, J. M."}:
-                author = "Jot, Jean-Marc"
-            if author and author not in normalized:
-                normalized.append(author)
+            if author:
+                term = _bibliography_author_index_term(author)
+                if term not in normalized:
+                    normalized.append(term)
         terms = [*normalized, *_bibliography_index_phrases(match.group("title"))]
-        commands = "\n".join(rf"\index{{{_latex_index_term(term)}}}" for term in terms)
+        commands = "\n".join(
+            rf"\index{{{term if '@' in term else _latex_index_term(term)}}}" for term in terms
+        )
         return f"```{{=latex}}\n{commands}\n```\n\n{match.group('entry')}"
 
     references = entry_pattern.sub(index_entry, references)

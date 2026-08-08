@@ -22,7 +22,7 @@ Before recording, reverberation could not be separated from the event that produ
 
 Architecture supplied all of the operations later reverberators would imitate: delay through propagation, level loss through spreading and absorption, spectral change at boundaries, diffusion through ornament and irregular geometry, and recursive mixing through repeated reflection. Yet architecture did not offer a single global “reverb amount.” A listener's experience depended on source position, directivity, receiver position, orientation, occupancy, temperature, and frequency. Moving a choir changed the response. Opening a curtain changed the response. Filling a hall changed the response. The “preset” was a physical arrangement.
 
-Figure 2-33 presents St. Mark's Basilica in Venice as an instructive historical model. Its coupled volumes, hard surfaces, galleries, and separated performance positions help explain why spatial exchange and reverberant fusion could become compositional resources long before electronic media.
+The following figure presents St. Mark's Basilica in Venice as an instructive historical model. Its coupled volumes, hard surfaces, galleries, and separated performance positions help explain why spatial exchange and reverberant fusion could become compositional resources long before electronic media.
 
 ![Interior of St. Mark's Basilica in Venice](assets/open_source_portfolio/10_san_marco_interior.jpg)
 
@@ -42,7 +42,17 @@ Early chambers were not always designed from scratch. Bathrooms, stairwells, hal
 
 Accounts of Bill Putnam's work on the Harmonicats' *Peg o' My Heart* in 1947 are often used to mark an early artistic milestone in record-production chamber reverb. The exact priority claim matters less than the workflow it represents: a recorded signal was deliberately sent into a separate reflective room, captured, and blended as an authored layer. By the 1950s, purpose-built chambers became prestige infrastructure in major studios. Capitol's underground chambers, for example, treated architecture as a repeatable part of the recording system rather than an accidental bathroom effect. The [AES Reverb Collection](https://aes2.org/community/aes-committees/aes-historical-committee/aes-e-library-collections/) places chamber design alongside spring, plate, algorithmic, and perceptual research, emphasizing that chamber history belongs inside audio engineering rather than outside it.
 
-Unusual spaces demonstrate why chamber selection was an empirical art. Figure 2-34 documents a particularly direct example: *Silophone* (2000–2001), a public sound installation by The User, the Montréal collaboration of Thomas McIntosh and Emmanuel Madan. It transformed four empty storage chambers in Montréal's Silo No. 5 into a remotely playable instrument: visitors submitted sounds by telephone or the web, loudspeakers projected them into the silo, microphones captured the resulting resonance, and the return was broadcast back to listeners.
+Abbey Road's Studio Two echo chamber offers a compact British example. EMI technician Henry Clark and Abbey Road engineer Stuart Eltham converted a wartime air-raid shelter during the mid-1950s, lining the room with hard reflective surfaces and using glazed sewer-pipe sections as scatterers. A console send drove a loudspeaker in the chamber, while microphones returned the reflected sound to the control room. The room was not a neutral container. Loudspeaker position, microphone distance, boundary reflections, pipe scattering, and the frequency responses of the transducers all became part of its signature. Abbey Road's [history of the Studio Two echo chamber](https://www.abbeyroad.com/news/studio-two-echo-chamber-gearthatmadeus-3114) describes its use on recordings by the Shadows, Peter Sellers, the Beatles, and Pink Floyd, including John Lennon's vocal in *A Day in the Life* (1967).
+
+The following reconstruction is intended to make that physical signal path visible. It preserves the documented two tall glazed pipes and one shorter pipe, together with a loudspeaker and two microphone positions, but it does not claim to reproduce a particular archival photograph or every historical equipment choice.
+
+![Illustrated reconstruction of the Abbey Road Studio Two echo chamber](assets/reverb_history/11_abbey_road_studio_two_echo_chamber_reconstruction.png)
+
+**Figure: Illustrated reconstruction of the Abbey Road Studio Two echo chamber.** The loudspeaker excites the reflective room; the microphones capture a return shaped by distance, hard boundaries, and the three glazed pipe scatterers. The image is interpretive rather than an archival photograph.
+
+*Source and license:* Original illustration generated for this guide in 2026 and distributed under the repository's MIT license. Historical details are based on [Abbey Road Studios' account of the Studio Two echo chamber](https://www.abbeyroad.com/news/studio-two-echo-chamber-gearthatmadeus-3114).
+
+Unusual spaces demonstrate why chamber selection was an empirical art. The following figure documents a particularly direct example: *Silophone* (2000–2001), a public sound installation by The User, the Montréal collaboration of Thomas McIntosh and Emmanuel Madan. It transformed four empty storage chambers in Montréal's Silo No. 5 into a remotely playable instrument: visitors submitted sounds by telephone or the web, loudspeakers projected them into the silo, microphones captured the resulting resonance, and the return was broadcast back to listeners.
 
 The project treated reverberation as both material and interface. A participant did not simply select a large-room preset; they addressed a specific industrial structure with its own chamber geometry, modes, noise, access constraints, and playback chain. The feedback path between remote sender, loudspeaker, chamber, microphone, and stream made the space audible as a changing instrument rather than a passive effect. This is a useful corrective to the generic “silo reverb” trope: the acoustic result belongs to the actual site and its electroacoustic routing, not merely to a building type.
 
@@ -56,7 +66,7 @@ The chamber made several production ideas explicit. First, **dry and wet became 
 
 The cost was operational. A chamber consumed real estate and required isolation from traffic, ventilation, electrical hum, and studio activity. It could not instantly become a different size. Microphone self-noise and amplifier noise accumulated in the return. Low-frequency modes and flutter had to be managed physically or electronically. A chamber could be exceptional, but it was not portable, cheap, or infinitely reproducible.
 
-Figure 2-35 shows the TU Dresden echo chamber as a purpose-built acoustic instrument. Its nonparallel elements and reflective surfaces are visible evidence that chamber reverberation is designed through geometry rather than by selecting a room-name label.
+The following figure shows the TU Dresden echo chamber as a purpose-built acoustic instrument. Its nonparallel elements and reflective surfaces are visible evidence that chamber reverberation is designed through geometry rather than by selecting a room-name label.
 
 ![TU Dresden acoustic echo chamber](assets/open_source_portfolio/23_tu_dresden_echo_chamber.jpg)
 
@@ -74,7 +84,7 @@ An acoustic delay path is conceptually simple. A pressure wave enters a tube, tr
 
 These systems foreshadow digital delay networks. A pipe section behaves like a delay with frequency-dependent loss. A reflection or branch behaves like a scattering junction. A microphone and amplifier supply gain. Feedback creates recursion. The later digital abstraction replaces air and transducers with memory and arithmetic, but the block diagram remains recognizable.
 
-Figure 2-36 presents the exterior identification of an O. C. Electronics Folded-Line reverberation device. Its enclosure hides the propagation path, encouraging the user to treat a mechanical-acoustic structure as outboard equipment.
+The following figure presents the exterior identification of an O. C. Electronics Folded-Line reverberation device. Its enclosure hides the propagation path, encouraging the user to treat a mechanical-acoustic structure as outboard equipment.
 
 ![Exterior of an O. C. Electronics Folded-Line reverberation device](assets/open_source_portfolio/21_folded_line_reverb_front.jpg)
 
@@ -82,7 +92,7 @@ Figure 2-36 presents the exterior identification of an O. C. Electronics Folded-
 
 *Source and license:* Grebe, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Reverb-6.jpg), CC BY-SA 3.0.
 
-The interior in Figure 2-37 makes the hidden mechanism visible. The folded structure compresses path length into a cabinet, trading architectural volume for a constrained propagation system.
+The following interior view makes the hidden mechanism visible. The folded structure compresses path length into a cabinet, trading architectural volume for a constrained propagation system.
 
 ![Interior of an O. C. Electronics Folded-Line reverberation device](assets/open_source_portfolio/22_folded_line_reverb_interior.jpg)
 
@@ -100,7 +110,7 @@ EMT introduced the EMT 140 in 1957. It became a studio standard because it offer
 
 The plate solved several chamber problems while creating a new aesthetic. It did not capture traffic outside the studio. It required much less architectural volume. Its response was available whenever the studio was open. The onset could be dense and flattering on voice, percussion, and orchestral material. At the same time, the plate did not provide a literal sequence of room reflections. It offered a synthetic field whose credibility came from perceptual sufficiency: enough density, smoothness, bandwidth, and decay to create a stable sense of reverberant extension.
 
-Figure 2-38 shows an EMT 140 assembly with its large framed plate, drive and pickup mechanisms, and control hardware. The photograph corrects the modern plug-in user's scale intuition. “Plate” originally meant an industrial electromechanical instrument, not a menu item.
+The following figure shows an EMT 140 assembly with its large framed plate, drive and pickup mechanisms, and control hardware. The photograph corrects the modern plug-in user's scale intuition. “Plate” originally meant an industrial electromechanical instrument, not a menu item.
 
 ![EMT 140 plate reverberator](assets/open_source_portfolio/18_emt_140_plate.jpg)
 
@@ -122,7 +132,7 @@ Laurens Hammond's 1939 patent application, published as [US 2,230,836](https://p
 
 The spring's physics ensures that this response is not neutral. Torsional and transverse modes propagate differently; wave speed varies with frequency; reflections at terminations create chirps and repeated structures; transducers impose bandwidth limits; shock can produce the famous crash. Designers use multiple springs and coupling arrangements to increase complexity, but the result retains a recognizable dispersive fingerprint. That fingerprint became a musical language rather than a defect to be eliminated.
 
-Figure 2-39 shows the drive and pickup region of a Gibbs Special Products reverberation unit associated with Hammond's electromechanical tradition. The visible coils, magnetic structures, spring terminations, and mounting assembly demonstrate how a patented physical principle became a serviceable component inside electronic instruments.
+The following figure shows the drive and pickup region of a Gibbs Special Products reverberation unit associated with Hammond's electromechanical tradition. The visible coils, magnetic structures, spring terminations, and mounting assembly demonstrate how a patented physical principle became a serviceable component inside electronic instruments.
 
 ![Gibbs Special Products spring reverberation unit](assets/reverb_history/02_gibbs_reverb_unit.jpg)
 
@@ -132,7 +142,7 @@ Figure 2-39 shows the drive and pickup region of a Gibbs Special Products reverb
 
 Spring reverb entered guitar culture through amplifiers and standalone units, where it interacted with pickups, tubes, loudspeakers, performance dynamics, and stage volume. The Fender Reverb Unit introduced in the early 1960s made “dwell,” tone, and mix performable controls. Dwell changed how strongly the tank was excited, which affected both level and apparent behavior. Tone shaped the wet path. Mix balanced direct and returned sound. These controls remain conceptually important because they separate excitation, timbre, and blend instead of reducing the effect to one amount.
 
-Figure 2-40 presents the rear chassis of a standalone Fender reverb unit. Its exposed tubes, transformers, connectors, wiring, and cabinet construction show that spring reverberation had become musician-operated amplification gear, not only studio infrastructure.
+The following figure presents the rear chassis of a standalone Fender reverb unit. Its exposed tubes, transformers, connectors, wiring, and cabinet construction show that spring reverberation had become musician-operated amplification gear, not only studio infrastructure.
 
 ![Fender standalone spring reverb unit](assets/reverb_history/01_fender_reverb_unit.jpg)
 
@@ -142,7 +152,7 @@ Figure 2-40 presents the rear chassis of a standalone Fender reverb unit. Its ex
 
 Surf guitar foregrounded the spring's splash, brightness, and transient response. Dub engineers later used springs as part of a performative mixing system with tape echo, filtering, feedback, muting, and fader movement. In both cases the device was not judged by how closely it reproduced a concert hall. Its identity came from the relation between attack and mechanical tail. A picked note or snare hit could trigger a burst whose chirp and density occupied rhythmic space.
 
-Figure 2-41 removes the surrounding product enclosure so the parallel springs, input driver, and output pickup can be inspected directly. This visible signal path explains why spring emulations must model more than an exponential decay.
+The following figure removes the surrounding product enclosure so the parallel springs, input driver, and output pickup can be inspected directly. This visible signal path explains why spring emulations must model more than an exponential decay.
 
 ![Open spring-reverb tank](assets/open_source_portfolio/19_spring_reverb_tank.jpg)
 
@@ -152,7 +162,7 @@ Figure 2-41 removes the surrounding product enclosure so the parallel springs, i
 
 The spring also demonstrates how technologies migrate across scale. The large studio chamber became a plate; the plate's principle of distributed mechanical storage became a compact spring assembly; the spring assembly later became a digital algorithm, convolution response, and learned model. Yet physical springs remain in production because no simulation eliminates the attraction of directly exciting a resonant object.
 
-Figure 2-42 shows a modern modular-synthesizer spring assembly. The physical tank is still separated from the control electronics, preserving a design lineage in which voltage and code prepare and recover a process that occurs in metal.
+The following figure shows a modern modular-synthesizer spring assembly. The physical tank is still separated from the control electronics, preserving a design lineage in which voltage and code prepare and recover a process that occurs in metal.
 
 ![Doepfer A-199 spring-reverb assembly](assets/open_source_portfolio/20_doepfer_spring_reverb.jpg)
 
@@ -166,11 +176,11 @@ The key transition is conceptual: a reverberant response does not require a lite
 
 #### From Electromechanical Media to Delay-and-Feedback Abstraction
 
-Figure 2-43 places a Dynacord DRS-78 digital reverberator beside a VRS-23 “vertical reverb.” The pairing is historically valuable because two design regimes share one photograph. One stores and processes response through electronic and digital means; the other belongs to the family of compact physical reverberators. Studios did not move from one era to another overnight. They compared, layered, and retained devices according to sound.
+The following figure places a Dynacord DRS-78 digital reverberator beside a VRS-23 “vertical reverb.” The pairing is historically valuable because two electronic delay regimes share one photograph. The DRS-78 processes its delay and reverberation digitally, while the VRS-23 uses clocked analog bucket-brigade delay lines arranged for echo or reverberation. Studios did not move from one era to another overnight. They compared, layered, and retained devices according to sound.
 
 ![Dynacord DRS-78 and VRS-23 reverberators](assets/reverb_history/03_dynacord_drs78_vrs23.jpg)
 
-**Figure: Dynacord digital and physical reverberators side by side.** The DRS-78 and VRS-23 embody overlapping approaches to artificial decay. Their coexistence shows that digital adoption expanded the palette rather than immediately erasing mechanical media.
+**Figure: Dynacord digital and analog bucket-brigade reverberators side by side.** The DRS-78 and VRS-23 embody overlapping electronic approaches to artificial decay. Their coexistence shows that digital adoption expanded the palette rather than immediately erasing analog delay technology.
 
 *Source and license:* Mikael Altemark, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Dynacord_DRS-78_Digital_Reverb,_Dynacord_VRS-23_Vertical_Reverb._%282015-03-01_10.53.01_by_mikael_altemark%29.jpg), CC BY 2.0.
 
@@ -200,7 +210,7 @@ The 224's algorithms were not neutral simulations. Limited memory and arithmetic
 
 AMS developed digital delay and reverberation as another distinct lineage. The company's [official history](https://www.ams-neve.com/our-story/ams-history/) traces its formation in 1976 and early digital products. The [RMX16 documentation](https://www.ams-neve.com/outboard/500-series-range/ams-rmx16/) describes the original 1982 unit as the first microprocessor-controlled, full-bandwidth digital reverberator. Its programs, including nonlinear and gated responses, became tightly associated with 1980s production because they transformed the envelope of reverberation rather than merely extending decay.
 
-Figure 2-44 shows a working studio rack containing a Lexicon 200, AMS RMX16, and Lexicon PCM42 delay. The image is more historically truthful than an isolated museum portrait: landmark processors lived beside delays, compressors, patchbays, and console sends, where engineers combined them into systems.
+The following figure shows a working studio rack containing a Lexicon 200, AMS RMX16, and Lexicon PCM42 delay. The image is more historically truthful than an isolated museum portrait: landmark processors lived beside delays, compressors, patchbays, and console sends, where engineers combined them into systems.
 
 ![Lexicon 200, AMS RMX16, and Lexicon PCM42 in a studio rack](assets/reverb_history/04_lexicon_200_ams_rmx16.jpg)
 
@@ -218,7 +228,7 @@ High-end digital reverberators initially belonged to major studios, broadcasters
 
 Affordable units often exposed fewer editable parameters and used lower-cost converters, restricted bandwidth, short programs, and compact displays. These constraints became aesthetic markers. Grainy tails, audible modulation, narrow bandwidth, and abrupt program envelopes could make a source sit in a mix precisely because the return did not resemble unprocessed high-fidelity audio. A producer could choose a small box for its attack and texture rather than apologize for it as a compromised hall.
 
-Alesis's MIDIVerb family represents this democratization. MIDI control connected effects to increasingly automated studios, while preset-oriented operation let users move quickly among rooms, plates, gates, and special effects. Figure 2-45 shows the original MIDIVerb as a compact front-panel device. Its scale contrasts sharply with the EMT plate and freestanding EMT 250.
+Alesis's MIDIVerb family represents this democratization. MIDI control connected effects to increasingly automated studios, while preset-oriented operation let users move quickly among rooms, plates, gates, and special effects. The following figure shows the original MIDIVerb as a compact front-panel device. Its scale contrasts sharply with the EMT plate and freestanding EMT 250.
 
 ![Alesis MIDIVerb digital reverberator](assets/reverb_history/05_alesis_midiverb.jpg)
 
@@ -228,7 +238,7 @@ Alesis's MIDIVerb family represents this democratization. MIDI control connected
 
 Yamaha's REV and SPX families likewise helped turn digital effects into routine infrastructure. The SPX90, introduced in the mid-1980s, combined reverberation with delay, pitch change, modulation, gating, and other utilities in a one-rack-space unit. Its gated and reverse-style programs became production signatures, but its broader importance was functional integration. One processor could solve several session problems and could be repatched as the arrangement changed.
 
-Figure 2-46 shows a Yamaha SPX90 and Alesis Microverb III inside a working rack. The photograph documents the practical ecosystem of the era: effects shared space with patching, conversion, synthesis, and other studio utilities.
+The following figure shows a Yamaha SPX90 and Alesis Microverb III inside a working rack. The photograph documents the practical ecosystem of the era: effects shared space with patching, conversion, synthesis, and other studio utilities.
 
 ![Yamaha SPX90 and Alesis Microverb III in a studio rack](assets/reverb_history/06_yamaha_spx90_microverb.jpg)
 
@@ -244,7 +254,7 @@ The risk was fragmentation. If every source received an unrelated preset, the mi
 
 Digital memory allowed reverberation to interact with pitch shifting, delay, modulation, filtering, and dynamics inside one programmable system. Eventide's Harmonizer lineage made pitch and delay central studio resources; later multi-effects units such as the H3000 exposed patchable structures and algorithms whose spatial results could be deliberately unreal. A pitch-shifted feedback path could rise or fall indefinitely. Modulated delays could widen and animate a tail. Reverse and multitap patterns could imply spaces that no architecture would produce.
 
-Figure 2-47 presents an Eventide H3000 SE. Its dense front panel and program structure represent a move from a dedicated “room simulator” toward a general spatial and timbral computer.
+The following figure presents an Eventide H3000 SE. Its dense front panel and program structure represent a move from a dedicated “room simulator” toward a general spatial and timbral computer.
 
 ![Eventide H3000 SE Ultra-Harmonizer](assets/reverb_history/07_eventide_h3000.jpg)
 
@@ -264,7 +274,7 @@ Algorithm design also became more systematic. Feedback delay networks used a mat
 
 Jean-Marc Jot's work is central to this transition because it treats perceptual decay specification, energy-preserving mixing, and correction of modal response as related design tasks. Rather than tuning every feedback gain by trial, a designer can derive gains from desired decay times. Rather than accept the uncolored ideal as sufficient, correction filters can compensate for irregular mode distribution. The FDN becomes a framework within which different matrices, delays, filters, and modulators create families of reverberators.
 
-Figure 2-48 shows a later studio rack containing Lexicon PCM 90, Alex, and Vortex processors with a Sony HR-MP5. The image illustrates diversification within digital effects: dedicated and multi-effects units coexisted, and a studio's “digital reverb” was often a collection of algorithms with different generations and control philosophies.
+The following figure shows a later studio rack containing Lexicon PCM 90, Alex, and Vortex processors with a Sony HR-MP5. The image illustrates diversification within digital effects: dedicated and multi-effects units coexisted, and a studio's “digital reverb” was often a collection of algorithms with different generations and control philosophies.
 
 ![Lexicon PCM 90, Sony HR-MP5, Lexicon Alex, and Lexicon Vortex](assets/reverb_history/08_lexicon_pcm90_family.jpg)
 
@@ -302,7 +312,7 @@ Automation turned reverb into a time-varying arrangement layer. Engineers could 
 
 Digital signal processors eventually became small and efficient enough for floor pedals and modular-synthesizer modules. This migration changed who performed the reverb and when. A rack return is often controlled by an engineer after capture. A pedal is touched by the performer, placed before or after distortion, and incorporated into technique. A modular reverb can receive control voltage, audio-rate modulation, and feedback from an open patch.
 
-Figure 2-49 shows the Make Noise Erbe-Verb in a Eurorack context. Its many continuous controls present reverberation as a voltage-controllable synthesis process rather than a fixed room selector.
+The following figure shows the Make Noise Erbe-Verb in a Eurorack context. Its many continuous controls present reverberation as a voltage-controllable synthesis process rather than a fixed room selector.
 
 ![Make Noise Erbe-Verb and Rosie modules](assets/reverb_history/09_make_noise_erbe_verb.jpg)
 
@@ -312,7 +322,7 @@ Figure 2-49 shows the Make Noise Erbe-Verb in a Eurorack context. Its many conti
 
 Continuous control revives an older physical intuition. Moving a plate damper changed decay mechanically; changing a chamber microphone changed perspective; striking a spring changed its state. Modular control makes analogous changes electronic and repeatable, though rapid modulation can create pitch, zipper noise, or instability if the algorithm is not designed for it. The control surface therefore reveals whether a reverb is a static processor with interpolated parameters or a genuinely time-varying instrument.
 
-Figure 2-50 shows the TC Electronic Nova Reverb pedal. Its display, preset architecture, and knobs compress studio-style digital processing into a performance format.
+The following figure shows the TC Electronic Nova Reverb pedal. Its display, preset architecture, and knobs compress studio-style digital processing into a performance format.
 
 ![TC Electronic Nova Reverb pedal](assets/reverb_history/10_tc_nova_reverb.jpg)
 
@@ -326,7 +336,7 @@ Pedal and modular culture also encouraged hybrid categories: shimmer, black-hole
 
 Artificial reverberation has always depended on measurement, even when design was guided primarily by ear. Decay curves, frequency response, echo density, noise, distortion, and spatial correlation help distinguish a useful field from ringing or instability. Reverberation chambers used in acoustics and aerospace testing push the physical principle toward controlled diffuse excitation. Their purpose may be material testing, source-power measurement, or qualification rather than music, but they reveal the engineering ideal of statistically distributed energy.
 
-Figure 2-51 shows a Reverberant Acoustic Test Facility horn room. High-output horns excite a large reflective volume so equipment can be exposed to intense diffuse acoustic energy. The image expands the history beyond studio effects: a reverberant field can be a measurement environment, a stress condition, and a designed laboratory tool.
+The following figure shows a Reverberant Acoustic Test Facility horn room. High-output horns excite a large reflective volume so equipment can be exposed to intense diffuse acoustic energy. The image expands the history beyond studio effects: a reverberant field can be a measurement environment, a stress condition, and a designed laboratory tool.
 
 ![Reverberant Acoustic Test Facility horn room](assets/open_source_portfolio/24_ratf_horn_room.jpg)
 
@@ -346,7 +356,7 @@ The most convincing immersive result may therefore combine several historical me
 
 Some spaces become historically important because their decay exceeds ordinary expectations. Hamilton Mausoleum was long associated with an exceptionally extended echo. Tanks, tunnels, silos, cisterns, and industrial chambers attract musicians because their modes and long paths turn isolated events into large-form material. Digital capture allows these spaces to circulate as impulse responses, but the fascination begins with bodily experience: a sound continues after its source has stopped, returning from a structure too large or irregular to apprehend at once.
 
-Figure 2-52 presents Hamilton Mausoleum as the final photographic anchor in this history. Its hard circular enclosure illustrates why extraordinary decay is both an acoustic measurement and a cultural story.
+The following figure presents Hamilton Mausoleum as the final photographic anchor in this history. Its hard circular enclosure illustrates why extraordinary decay is both an acoustic measurement and a cultural story.
 
 ![Interior of Hamilton Mausoleum](assets/open_source_portfolio/14_hamilton_mausoleum.jpg)
 

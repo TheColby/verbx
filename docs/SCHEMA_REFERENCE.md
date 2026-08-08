@@ -1,10 +1,10 @@
 # verbx Schema Reference
 
-JSON and CSV format specifications for batch manifests and automation files.
+This reference defines the JSON and CSV contracts used by batch manifests, automation files, generated-IR metadata, and analysis reports. Read the prose before each table: a field's scope and provenance are as important as its serialized type.
 
-_Current as of v0.9.0._
+_Current as of v0.9.9._
 
-Notes for `v0.7.7`:
+The current boundary is:
 
 - Batch manifests map to the offline `verbx render` surface.
 - Realtime device selection (`verbx realtime`, `--input-device`, `--output-device`)
@@ -16,9 +16,11 @@ Notes for `v0.7.7`:
 
 ## Batch Manifest (`batch.json` / `batch.jsonl`)
 
-Used with `verbx batch render --manifest <file>`.
+Batch manifests describe offline render jobs for `verbx batch render --manifest <file>`. A JSON document groups jobs under one versioned object, while JSONL stores one independent job per line for streaming and append-oriented workflows.
 
 ### JSON format
+
+Use the object form when a complete batch is authored and reviewed as one document. Relative paths are interpreted in the command's execution context, so production manifests should be run from a documented working directory or use resolved paths.
 
 ```json
 {
@@ -44,7 +46,7 @@ Used with `verbx batch render --manifest <file>`.
 
 ### JSONL format (newline-delimited)
 
-One job object per line (no wrapping object, no `"jobs"` key):
+Use JSONL when tooling needs to process or generate records incrementally. Each line contains one job object with no wrapping object and no `"jobs"` key:
 
 ```jsonl
 {"infile": "dry/kick.wav", "outfile": "wet/kick.wav", "options": {"engine": "algo", "rt60": 0.4}}
@@ -52,6 +54,8 @@ One job object per line (no wrapping object, no `"jobs"` key):
 ```
 
 ### Job object fields
+
+Every job names an input and output. The optional `options` object overrides render defaults for that job and uses `RenderConfig` field names rather than shell spellings.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -61,7 +65,7 @@ One job object per line (no wrapping object, no `"jobs"` key):
 
 `options` keys map directly to `RenderConfig` fields. All keys are optional – unset fields use defaults. Boolean flags use JSON booleans (`true`/`false`).
 
-**Common options:**
+The following table covers common options rather than every experimental control:
 
 | Option | Type | Default | Range |
 |---|---|---|---|
@@ -115,9 +119,11 @@ Generate a template with: `verbx batch template`
 
 ## Automation File (`.json` or `.csv`)
 
-Used with `verbx render --automation-file <file>`.
+Automation files describe time-varying controls for `verbx render --automation-file <file>`. JSON supports several lane types and combination rules; CSV provides a compact breakpoint format for tools that naturally emit rows.
 
 ### JSON format
+
+The JSON object selects a timing mode and contains one or more lanes. This example combines a wet-mix envelope with a slow RT60 oscillator:
 
 ```json
 {
@@ -148,6 +154,8 @@ Used with `verbx render --automation-file <file>`.
 
 ### Top-level fields
 
+Top-level fields establish the evaluation rate and collect the lanes. A lane may operate at control-block or sample rate according to the selected mode and target implementation.
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `mode` | string | `"block"` | `"block"` (control-rate) or `"sample"` (sample-rate) |
@@ -156,7 +164,11 @@ Used with `verbx render --automation-file <file>`.
 
 ### Lane types
 
+Lane type determines how values are generated between or within the times supplied by the author. Several lanes may address one target when their combination rules are intentional.
+
 #### `breakpoints` – interpolated envelope
+
+A breakpoint lane is the clearest choice for authored cues and gradual transitions. Points are expressed in seconds and evaluated using the selected interpolation rule.
 
 ```json
 {
@@ -179,11 +191,13 @@ Used with `verbx render --automation-file <file>`.
 | `combine` | string | `"replace"` | How to merge with prior lanes for same target |
 | `points` | array | required | Array of `{"time": seconds, "value": float}` |
 
-**Interpolation modes:** `linear`, `hold`, `step`, `smooth`, `smoothstep`, `exp` / `exponential`
+Available interpolation modes are `linear`, `hold`, `step`, `smooth`, `smoothstep`, `exp`, and `exponential`.
 
-**Combine modes:** `replace`, `add`, `multiply`
+Available combination modes are `replace`, `add`, and `multiply`.
 
 #### `lfo` – low-frequency oscillator
+
+An LFO lane generates periodic or seeded low-rate variation around a center value. Its `depth` uses the target's native unit, so the same numeric depth has different meaning for damping and RT60.
 
 ```json
 {
@@ -209,6 +223,8 @@ Used with `verbx render --automation-file <file>`.
 
 #### `segments` – piecewise constant/linear segments
 
+A segment lane gives each interval an explicit start, end, value, and interpolation policy. It is useful when a control timeline comes from an edit decision list or cue system rather than isolated points.
+
 ```json
 {
   "target": "gain-db",
@@ -223,6 +239,8 @@ Used with `verbx render --automation-file <file>`.
 
 ### CSV format
 
+CSV automation represents breakpoint rows only. It is convenient for spreadsheets and measurement software, but it cannot express every JSON lane property.
+
 ```csv
 target,time_s,value,interp
 wet,0.0,0.2,linear
@@ -232,9 +250,11 @@ rt60,0.0,1.0,smooth
 rt60,8.0,4.0,smooth
 ```
 
-Required columns: `target`, `time_s`, `value`. Optional: `interp`.
+The required columns are `target`, `time_s`, and `value`; `interp` is optional.
 
 ### Automation targets
+
+Targets are grouped by the stage at which the value acts. Ranges below are serialization limits, not promises that every extreme will be musically useful for every source.
 
 | Target | Domain | Range | Description |
 |---|---|---|---|
@@ -336,6 +356,8 @@ for classification, fit-method, interpretation, and confidence fields.
 
 ### Default reverb fields
 
+Default reverb analysis fields combine decay estimates, energy ratios, source classification, and confidence. Units are part of the key contract and should be retained when values are moved into a table or plotting system.
+
 | Key | Unit/values | Description |
 |---|---|---|
 | `reverb_rt60_seconds` | s | Selected broadband RT60 estimate; T30 preferred, then T20, then EDT |
@@ -373,6 +395,8 @@ keys (all prefixed `room_`):
 
 ### Numeric fields (float)
 
+Numeric room fields describe the fitted acoustic model and its uncertainty. They are estimates inferred from the analyzed response, not surveyed architectural dimensions.
+
 | Key | Unit | Description |
 |---|---|---|
 | `room_rt60_s` | s | Best RT60 estimate used as sizing input (mid-band preferred) |
@@ -394,6 +418,8 @@ keys (all prefixed `room_`):
 
 ### String fields
 
+String fields summarize the selected estimation method and qualitative classifications. Preserve the underlying numeric fields when using these labels in reports.
+
 | Key | Values | Description |
 |---|---|---|
 | `room_class` | `"closet"` `"small"` `"medium"` `"large"` `"very_large"` `"cathedral"` `"unknown"` | Qualitative room size label |
@@ -401,6 +427,8 @@ keys (all prefixed `room_`):
 | `room_confidence` | `"high"` `"medium"` `"low"` | Qualitative confidence rating |
 
 ### Room class thresholds
+
+Room classes are coarse interpretive bins derived from approximate volume and decay. They help organize results but do not replace the volume interval or confidence score.
 
 | Class | Approx. volume | Approx. RT60 |
 |---|---|---|
