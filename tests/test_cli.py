@@ -656,6 +656,10 @@ def test_render_ism_fdn_reports_resolved_room_scene(tmp_path: Path) -> None:
     assert scene["render_path"] == "ism-fdn"
     assert scene["ism_order"] == 3
     assert scene["wall_materials"]["left"] == "hall"
+    handoff = scene["echo_density_handoff"]
+    assert handoff["path_count"] > 0
+    assert handoff["sample_rate_hz"] == payload["effective"]["processing_sample_rate"]
+    assert handoff["handoff_seconds"] >= 0.0
 
 
 def test_render_matrix_morph_and_er_geometry_complete(tmp_path: Path) -> None:

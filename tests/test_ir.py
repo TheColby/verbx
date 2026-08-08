@@ -121,6 +121,33 @@ def _write_simple_room_dxf(path: Path) -> None:
     )
 
 
+def _write_layered_room_dxf(path: Path) -> None:
+    """Write a rectangular room whose walls use distinct CAD layers."""
+    entities: list[str] = []
+    for layer, x1, y1, x2, y2 in (
+        ("west-wall", 0, 0, 0, 4),
+        ("east-wall", 6, 0, 6, 4),
+        ("south-wall", 0, 0, 6, 0),
+        ("north-wall", 0, 4, 6, 4),
+    ):
+        entities.extend(
+            [
+                "0", "LINE", "8", layer,
+                "10", str(x1), "20", str(y1), "11", str(x2), "21", str(y2),
+            ]
+        )
+    path.write_text(
+        "\n".join(
+            [
+                "0", "SECTION", "2", "HEADER", "9", "$INSUNITS", "70", "6",
+                "0", "ENDSEC", "0", "SECTION", "2", "ENTITIES", *entities,
+                "0", "ENDSEC", "0", "EOF",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_trace_dxf_parser_and_ir_generation(tmp_path: Path) -> None:
     dxf = tmp_path / "room.dxf"
     _write_simple_room_dxf(dxf)
@@ -234,6 +261,63 @@ def test_ir_trace_command_rejects_unknown_material(tmp_path: Path) -> None:
 
     assert result.exit_code != 0
     assert "Unknown material" in _combined_cli_output(result)
+
+
+def test_ir_trace_layer_material_overrides_are_reported_and_applied(tmp_path: Path) -> None:
+    dxf = tmp_path / "layered_room.dxf"
+    out_ir = tmp_path / "layered_room_ir.wav"
+    report_path = tmp_path / "layered_trace.json"
+    _write_layered_room_dxf(dxf)
+
+    result = runner.invoke(
+        app,
+        [
+            "ir", "trace", str(dxf), str(out_ir),
+            "--source", "1,1,1.5", "--listener", "5,3,1.5",
+            "--material", "studio",
+            "--layer-material", "west-wall=concrete",
+            "--layer-material", "east-wall=acoustic-panel",
+            "--rays", "100", "--length", "0.1", "--target-sr", "8000",
+            "--json-out", str(report_path), "--silent",
+        ],
+    )
+
+    assert result.exit_code == 0, _combined_cli_output(result)
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert payload["material"]["layer_material_overrides"] == {
+        "east-wall": "acoustic-panel",
+        "west-wall": "concrete",
+    }
+    assert payload["material"]["surface_layers"]["left"] == ["west-wall"]
+    assert payload["material"]["surface_profiles"]["left"]["name"] == "concrete"
+    assert payload["material"]["surface_profiles"]["right"]["name"] == "acoustic-panel"
+    assert payload["material"]["surface_profiles"]["front"]["name"] == "studio"
+
+
+def test_ir_trace_layer_material_rejects_unknown_layer_and_bad_syntax(tmp_path: Path) -> None:
+    dxf = tmp_path / "layered_room.dxf"
+    out_ir = tmp_path / "layered_room_ir.wav"
+    _write_layered_room_dxf(dxf)
+
+    unknown_layer = runner.invoke(
+        app,
+        [
+            "ir", "trace", str(dxf), str(out_ir), "--source", "1,1,1.5",
+            "--listener", "5,3,1.5", "--layer-material", "missing=stone",
+        ],
+    )
+    assert unknown_layer.exit_code != 0
+    assert "unknown DXF layer" in _combined_cli_output(unknown_layer)
+
+    malformed = runner.invoke(
+        app,
+        [
+            "ir", "trace", str(dxf), str(out_ir), "--source", "1,1,1.5",
+            "--listener", "5,3,1.5", "--layer-material", "west-wall",
+        ],
+    )
+    assert malformed.exit_code != 0
+    assert "LAYER=MATERIAL" in _combined_cli_output(malformed)
 
 
 def test_ir_gen_format_switch_overrides_extension(tmp_path: Path) -> None:

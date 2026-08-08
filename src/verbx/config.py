@@ -264,6 +264,7 @@ class SpatialConfig:
     ambi_decode_to: AmbiDecodeTo
     ambi_rotate_yaw_deg: float
     er_geometry: bool
+    ism_fdn_handoff: bool
     ism_order: int
     er_room_dims_m: tuple[float, float, float]
     er_source_pos_m: tuple[float, float, float]
@@ -585,6 +586,10 @@ class RenderConfig:
     shimmer_decorrelation_ms: float = 1.5
     auto_fit: AutoFitProfile = "none"
     er_geometry: bool = False
+    # Internal runtime marker set when --engine ism-fdn is resolved.  Keeping
+    # this distinct from --er-geometry preserves the latter's existing
+    # pre-stage-only behavior.
+    ism_fdn_handoff: bool = False
     ism_order: int = 1
     er_room_dims_m: tuple[float, float, float] = (10.0, 7.0, 3.0)
     er_source_pos_m: tuple[float, float, float] = (2.0, 2.0, 1.5)
@@ -779,6 +784,7 @@ class RenderConfig:
             ambi_decode_to=self.ambi_decode_to,
             ambi_rotate_yaw_deg=self.ambi_rotate_yaw_deg,
             er_geometry=self.er_geometry,
+            ism_fdn_handoff=self.ism_fdn_handoff,
             ism_order=self.ism_order,
             er_room_dims_m=self.er_room_dims_m,
             er_source_pos_m=self.er_source_pos_m,

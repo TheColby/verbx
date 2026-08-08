@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import numpy as np
 
-from verbx.core.early_reflections import apply_image_source_early_reflections
+from verbx.core.early_reflections import (
+    ImageSourcePath,
+    apply_image_source_early_reflections,
+    delay_audio_for_fdn_handoff,
+    estimate_echo_density_handoff,
+)
 from verbx.core.room_geometry import RoomGeometry, infer_room_geometry_from_rt60
 
 
@@ -86,3 +91,35 @@ def test_image_source_order_adds_deterministic_material_aware_reflections() -> N
     assert np.all(np.isfinite(third_order))
     assert not np.allclose(first_order, third_order)
     assert float(np.sum(np.abs(third_order))) > float(np.sum(np.abs(first_order)))
+
+
+def test_echo_density_handoff_uses_first_dense_arrival_bin() -> None:
+    paths = tuple(
+        ImageSourcePath((), 1.0, delay, 1.0)
+        for delay in (30, 31, 32, 33, 34, 50, 51, 52, 53, 54)
+    )
+    handoff = estimate_echo_density_handoff(
+        paths,
+        sr=1_000,
+        bin_ms=10.0,
+        threshold_arrivals_per_second=500.0,
+    )
+    assert handoff.threshold_reached is True
+    assert handoff.handoff_sample == 30
+    assert handoff.peak_arrivals_per_second == 500.0
+    assert handoff.path_count == 10
+
+
+def test_echo_density_sparse_fallback_and_audio_delay_preserve_source() -> None:
+    paths = (
+        ImageSourcePath((), 1.0, 10, 1.0),
+        ImageSourcePath(("left",), 2.0, 70, 0.5),
+    )
+    handoff = estimate_echo_density_handoff(paths, sr=1_000, threshold_arrivals_per_second=1_000.0)
+    assert handoff.threshold_reached is False
+    assert handoff.handoff_sample == 70
+    source = np.array([[1.0], [0.5]], dtype=np.float64)
+    delayed = delay_audio_for_fdn_handoff(source, handoff.handoff_sample)
+    assert delayed.shape == (72, 1)
+    assert np.allclose(delayed[:70], 0.0)
+    assert np.allclose(delayed[70:], source)

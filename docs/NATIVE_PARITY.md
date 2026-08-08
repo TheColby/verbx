@@ -30,7 +30,7 @@ Chosen `v0.8` shape: **hybrid wrapper phase before full replacement**.
 | WAV input | libsndfile-backed broad format support | Mono/stereo WAV PCM16/24/32 and float32/float64 | Narrow parity | `tests/test_native_scaffold.py` |
 | WAV output | Broad libsndfile output support | `pcm16`, `float32`, `float64` WAV | Narrow parity | `tests/test_native_scaffold.py` |
 | Render controls | Hundreds of CLI options including `--algo-model` | `--model fdn|spring|plate`, `rt60`, `wet`, `dry`, pre-delay, damping, bounded tail padding, tail controls, peak-safe output | Narrow parity | `tests/test_native_scaffold.py` |
-| Tail handling | Python tail-stop semantics plus long-render safeguards | `--tail-limit` bounds model tail padding; threshold/hold trim ends in exact zeros | Partial parity | Native scaffold tests and parity report |
+| Tail handling | Python tail-stop semantics plus long-render safeguards | `--tail-limit` bounds Python-equivalent non-shimmer padding (`max(0.25, RT60 + pre-delay)`); threshold/hold trim ends in exact zeros | Partial parity | Native scaffold tests and parity report |
 | Peak-safe output | Limiter/normalization/output peak controls | `--peak-safe --peak-ceiling-db` render-level scaling | Implemented for native slice | `test_native_render_peak_safe_scales_float_output_to_ceiling` |
 | Machine-readable reports | Render, realtime, dereverb, doctor, compare reports | `native-render-report-v1`, `native-doctor-report-v1` | Implemented for native slice | Native scaffold tests |
 | Plug-in foundation | Not applicable | Parameter manifest, RT60 mapping, realtime context API, guarded JUCE scaffold | Foundation slice | `ctest --test-dir build/native/verbx_c-plan --output-on-failure` |
@@ -100,3 +100,18 @@ For each new native feature slice:
   generated preset coverage.
 - Homebrew/tap integration for installing `verbx-c` directly.
 - CI release packaging checks for native artifacts.
+
+## Realtime Transition Decision
+
+Realtime processing is **not Python-only** during the transition: the bounded
+native realtime core is the plug-in-facing implementation. Python remains the
+default public CLI and the reference path for device I/O, convolution,
+dereverberation, and the broader offline FDN surface. The native executable
+remains an opt-in deterministic offline renderer until its checked-in parity
+contract passes beyond the current structural tier.
+
+For the current non-shimmer native renderer, model tail padding uses the same
+formula as Python before shimmer extension: `max(0.25, rt60 + pre_delay)`.
+An explicit `--tail-limit` takes the minimum, and the report records the
+resolved `tail_padding_seconds`. Native preserves the decoded WAV sample rate;
+target-rate conversion is deferred because the native slice has no resampler.

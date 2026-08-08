@@ -15,6 +15,8 @@ verbx ir trace room.dxf room_ir.wav \
   --listener 6,4,1.5 \
   --height 3 \
   --material studio \
+  --layer-material west-wall=concrete \
+  --layer-material east-wall=acoustic-panel \
   --rays 50000 \
   --length 4.0 \
   --target-sr 48000 \
@@ -28,6 +30,15 @@ Useful material names include `studio`, `hall`, `dead`, `anechoic`, `stone`,
 absorption coefficients plus a scattering value to the `trace-report-v1`
 material payload; the current renderer still collapses those bands to a
 broadband value for first-order reflection and late-tail synthesis.
+
+`--layer-material` is repeatable and assigns a material to an ASCII DXF entity
+layer using `LAYER=MATERIAL`. Layer names must occur in the parsed outline and
+each layer may be assigned once. For this axis-aligned bounding-box prototype,
+`LINE` entities are associated with their corresponding vertical or horizontal
+wall; a boundary `LWPOLYLINE` applies to every bounding-box wall it touches.
+Floor and ceiling retain `--material`, because a 2D plan has no CAD layers for
+those faces. Conflicting material overrides that resolve to one surface fail
+fast rather than selecting one arbitrarily.
 
 Use the generated IR with convolution render:
 
@@ -51,7 +62,6 @@ Deferred:
 - arbitrary CAD cleanup
 - arcs, splines, blocks, inserts, meshes, and 3D solids
 - non-rectangular acoustic diffraction
-- material assignment from CAD layers
 - validated architectural-acoustics simulation
 
 ## Output
@@ -65,7 +75,8 @@ Deferred:
 The trace report contains:
 
 - geometry summary
-- material/absorption/scattering summary, including octave-band coefficients
+- material/absorption/scattering summary, including octave-band coefficients,
+  layer overrides, parsed surface layers, and the resolved per-surface profiles
 - source and listener coordinates
 - direct-path timing
 - first-order reflection timings

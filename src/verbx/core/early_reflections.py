@@ -33,6 +33,26 @@ class ImageSourcePath:
     gain: float
 
 
+@dataclass(frozen=True, slots=True)
+class EchoDensityHandoff:
+    """A deterministic late-field handoff estimated from ISM arrival density.
+
+    The threshold is deliberately expressed in arrivals/second rather than as
+    a claim of a measured Schroeder transition.  It is an auditable policy for
+    the bounded ``ism-fdn`` hybrid: the FDN is excited only once the enumerated
+    image-source field becomes sufficiently dense, or at its final arrival
+    when the chosen order cannot meet the threshold.
+    """
+
+    handoff_sample: int
+    handoff_seconds: float
+    bin_ms: float
+    threshold_arrivals_per_second: float
+    peak_arrivals_per_second: float
+    path_count: int
+    threshold_reached: bool
+
+
 def material_absorption(material: str, default: float) -> float:
     key = str(material).strip().lower()
     if key in MATERIAL_ABSORPTION:
@@ -127,6 +147,70 @@ def enumerate_image_source_paths(
                 next_frontier.append((reflected, reflected_gain, wall, reflected_walls))
         frontier = next_frontier
     return tuple(paths)
+
+
+def estimate_echo_density_handoff(
+    paths: tuple[ImageSourcePath, ...],
+    *,
+    sr: int,
+    bin_ms: float = 10.0,
+    threshold_arrivals_per_second: float = 1_000.0,
+) -> EchoDensityHandoff:
+    """Estimate a bounded ISM-to-FDN handoff from local path-arrival density.
+
+    A 10 ms bin is short enough to retain a useful early/late boundary while
+    avoiding sample-level coincidences.  Empty or sparse enumerations fall
+    back to their final path instead of inventing diffuse energy.
+    """
+    if sr <= 0:
+        raise ValueError("sr must be strictly positive.")
+    if bin_ms <= 0.0:
+        raise ValueError("bin_ms must be strictly positive.")
+    if threshold_arrivals_per_second <= 0.0:
+        raise ValueError("threshold_arrivals_per_second must be strictly positive.")
+    if len(paths) == 0:
+        return EchoDensityHandoff(
+            handoff_sample=0,
+            handoff_seconds=0.0,
+            bin_ms=float(bin_ms),
+            threshold_arrivals_per_second=float(threshold_arrivals_per_second),
+            peak_arrivals_per_second=0.0,
+            path_count=0,
+            threshold_reached=False,
+        )
+
+    bin_samples = max(1, round(float(sr) * float(bin_ms) / 1_000.0))
+    delays = np.asarray([max(0, path.delay_samples) for path in paths], dtype=np.int64)
+    bins = delays // bin_samples
+    unique_bins, counts = np.unique(bins, return_counts=True)
+    densities = counts.astype(np.float64) * (float(sr) / float(bin_samples))
+    reached = np.flatnonzero(densities >= float(threshold_arrivals_per_second))
+    threshold_reached = len(reached) > 0
+    if threshold_reached:
+        handoff_bin = int(unique_bins[int(reached[0])])
+        # Align to the actual first path in this dense bin, rather than its
+        # preceding bin edge, so zero-padding cannot start before the onset.
+        handoff_sample = int(np.min(delays[bins == handoff_bin]))
+    else:
+        handoff_sample = int(np.max(delays))
+    return EchoDensityHandoff(
+        handoff_sample=handoff_sample,
+        handoff_seconds=float(handoff_sample) / float(sr),
+        bin_ms=float(bin_ms),
+        threshold_arrivals_per_second=float(threshold_arrivals_per_second),
+        peak_arrivals_per_second=float(np.max(densities)),
+        path_count=len(paths),
+        threshold_reached=threshold_reached,
+    )
+
+
+def delay_audio_for_fdn_handoff(audio: AudioArray, handoff_samples: int) -> AudioArray:
+    """Prepend silence so FDN excitation begins at the derived late boundary."""
+    x = ensure_mono_or_stereo(audio)
+    delay = max(0, int(handoff_samples))
+    if delay == 0 or x.shape[0] == 0:
+        return x.copy()
+    return np.pad(x, ((delay, 0), (0, 0)), mode="constant")
 
 
 def apply_image_source_early_reflections(

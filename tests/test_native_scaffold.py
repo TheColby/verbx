@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 
 import numpy as np
+import pytest
 import soundfile as sf
 
 
@@ -233,9 +234,44 @@ def test_native_tail_limit_bounds_model_tail_padding_and_is_reported(tmp_path: P
     payload = json.loads(report_path.read_text(encoding="utf-8"))
     assert out_sr == sr
     assert payload["tail_limit_seconds"] == tail_limit_seconds
+    assert payload["tail_padding_seconds"] == tail_limit_seconds
     # The final exact-zero hold may add one millisecond after the bounded DSP tail.
     assert rendered.shape[0] <= input_frames + round(sr * (tail_limit_seconds + 0.001))
     assert np.max(np.abs(rendered[-8:, :])) == 0.0
+
+
+def test_native_tail_padding_matches_python_non_shimmer_rule(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    exe = _build_native_executable(tmp_path)
+    sr = 16_000
+    audio = np.zeros((128, 1), dtype=np.float64)
+    infile = tmp_path / "tail_rule_in.wav"
+    outfile = tmp_path / "tail_rule_out.wav"
+    report_path = tmp_path / "tail_rule.json"
+    sf.write(str(infile), audio, sr, subtype="DOUBLE")
+
+    subprocess.run(
+        [
+            str(exe),
+            "render",
+            str(infile),
+            str(outfile),
+            "--rt60",
+            "0.10",
+            "--pre-delay-ms",
+            "200",
+            "--json-out",
+            str(report_path),
+        ],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    # Python's non-shimmer rule is max(0.25, rt60 + pre_delay_seconds).
+    assert payload["tail_padding_seconds"] == pytest.approx(0.30)
 
 
 def test_native_tail_limit_rejects_negative_values(tmp_path: Path) -> None:

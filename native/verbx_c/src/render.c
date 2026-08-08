@@ -128,6 +128,7 @@ int verbx_render_file(
     report->output_peak_abs = buffer_peak_abs(&output);
     report->peak_ceiling_db = options->peak_ceiling_db;
     report->peak_safe_applied = options->peak_safe ? 1 : 0;
+    report->tail_padding_seconds = verbx_algo_resolved_tail_padding_seconds(options);
     if (verbx_wav_write(output_path, &output, options->out_format, error_message, error_message_size) != 0) {
         report->status_code = VERBX_STATUS_IO_ERROR;
         verbx_audio_buffer_free(&input);

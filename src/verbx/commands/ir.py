@@ -431,6 +431,11 @@ def ir_trace(
             "(for example studio, drywall, glass, concrete, acoustic-panel)."
         ),
     ),
+    layer_material: list[str] | None = typer.Option(
+        None,
+        "--layer-material",
+        help="Repeatable DXF layer override: LAYER=MATERIAL (for example walls=concrete).",
+    ),
     rays: int = typer.Option(
         50_000,
         "--rays",

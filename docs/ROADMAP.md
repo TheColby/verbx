@@ -213,14 +213,14 @@ released/public-alpha tool during the transition.
 - [x] Land native source tree and build entrypoint (`native/verbx_c/`, `scripts/build_verbx_c.sh`).
 - [x] Establish standalone executable identity (`verbx-c`) and minimal CLI surface.
 - [x] Define native error model, logging model, and deterministic offline process contract.
-- [ ] Decide whether realtime audio belongs in the native line immediately or remains Python-only during transition.
+- [x] Decide whether realtime audio belongs in the native line immediately or remains Python-only during transition: the bounded native realtime core serves the plug-in track; Python remains the default CLI/reference path while executable parity matures.
 
 ### 4.2 Audio Runtime
 
 - [x] Implement mono/stereo WAV read in C with float64 decode for PCM16/24/32 and float32/float64 inputs.
 - [x] Implement native WAV write for `pcm16`, `float32`, and `float64`.
 - [x] Port analysis-free offline render lifecycle: read -> process -> tail finalize -> write.
-- [ ] Mirror current Python tail-stop semantics and sample-rate policy deterministically.
+- [x] Mirror current Python non-shimmer model-tail padding deterministically (`max(0.25, RT60 + pre-delay)`, explicit limit wins) and report the resolved value; native preserves decoded WAV sample rate while target-rate conversion remains deferred with the resampler.
 - [x] Add explicit native `--tail-limit` control and report it in `native-render-report-v1`; model-derived DSP padding is now bounded consistently with Python's configured tail limit.
 
 ### 4.3 DSP Port
@@ -298,14 +298,16 @@ section tracks the work needed to add first-class physics-driven simulation.
 
 The shipped `ism-fdn` engine generates deterministic image-source paths at
 orders 0–6 and hands the material-aware early field to the established FDN
-late field. A pure full-response ISM engine and an echo-density-derived
-Schroeder handoff remain research work.
+late field. Its bounded hybrid now estimates the handoff from local
+image-source arrival density (with explicit fallback for sparse enumerations);
+a pure full-response ISM engine remains research work.
 
 - [x] Extend ISM early-field generation to configurable reflection order
   (0–6) with material-dependent wall absorption.
-- [ ] Compute diffuse energy onset time from echo density and derive the FDN
-  handoff at the Schroeder transition instead of using the current hybrid
-  boundary.
+- [x] Compute a deterministic, bounded diffuse-onset estimate from local ISM
+  echo density and delay FDN excitation to that handoff. The render report
+  records the path count, bin, threshold, peak density, and sparse fallback;
+  this is not a claim of measured Schroeder-transition validation.
 - [x] Expose the two-stage early-ISM/late-FDN path as `--engine ism-fdn`.
 - [ ] Add a pure `--engine ism` full-response mode only after its computational
   bounds and validation contract are defined.
@@ -347,7 +349,9 @@ parameter choices:
   `RoomGeometry` mean-absorption model.
 - [x] Include coefficient units/frequency bands in the module docstring and
   JSON report payload.
-- [ ] Add per-surface/per-layer material assignment once DXF layer import lands.
+- [x] Add deterministic DXF per-layer material assignment through repeatable
+  `--layer-material LAYER=MATERIAL` overrides, resolved into per-surface
+  profiles and trace-report provenance.
 
 ### 6.6 CAD / DXF Ray-Tracing IR Import
 
@@ -368,7 +372,9 @@ architectural-acoustics accuracy in the first slice.
   and amplitude, then synthesize late decay from stochastic ray energy histograms.
 - [x] Support frequency-dependent material absorption/scattering for the default
   material profile in `trace-report-v1`.
-- [ ] Add per-layer material overrides once DXF layer import lands.
+- [x] Add per-layer material overrides via repeatable `--layer-material`
+  assignments, with duplicate/unknown/conflict validation and resolved
+  surface-profile reporting.
 - [x] Write `trace-report-v1` JSON with geometry stats, material assignment,
   direct path, reflection counts, ray budget, estimated RT60, and warnings.
 - [x] Output an IR WAV usable by `verbx render --engine conv --ir OUT_IR.wav`.

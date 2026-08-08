@@ -859,6 +859,7 @@ verbx ir trace room.dxf room_ir.wav \
   --listener 6,4,1.5 \
   --height 3 \
   --material studio \
+  --layer-material west-wall=concrete \
   --rays 50000 \
   --length 4 \
   --target-sr 48000 \
@@ -871,8 +872,9 @@ This MVP supports ASCII DXF `LINE`/`LWPOLYLINE` 2D room outlines and derives an
 axis-aligned room box with direct path, first-order reflections, and a
 stochastic late tail. `--material` now validates against octave-band material
 profiles such as `studio`, `drywall`, `glass`, `concrete`, `carpet`,
-`acoustic-panel`, and `diffuser`; `trace-report-v1` records those absorption
-bands plus scattering metadata. See [`docs/DXF_TRACE_MVP.md`](docs/DXF_TRACE_MVP.md).
+`acoustic-panel`, and `diffuser`. Repeat `--layer-material LAYER=MATERIAL` to
+override the material for an existing ASCII-DXF outline layer; the report records
+the resolved per-surface profiles. See [`docs/DXF_TRACE_MVP.md`](docs/DXF_TRACE_MVP.md).
 
 ---
 

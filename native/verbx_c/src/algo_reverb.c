@@ -64,6 +64,36 @@ static size_t delay_from_ms(unsigned int sample_rate, double ms, double offset_s
     return (size_t)llround(frames);
 }
 
+double verbx_algo_resolved_tail_padding_seconds(const verbx_render_options *options) {
+    double rt60;
+    double pre_delay_seconds;
+    double model_tail;
+
+    if (options == NULL) {
+        return 0.0;
+    }
+    rt60 = options->rt60;
+    if (!isfinite(rt60) || rt60 < 0.01) {
+        rt60 = 0.01;
+    }
+    pre_delay_seconds = options->pre_delay_ms;
+    if (!isfinite(pre_delay_seconds) || pre_delay_seconds < 0.0) {
+        pre_delay_seconds = 0.0;
+    }
+    pre_delay_seconds /= 1000.0;
+
+    /* Match _algo_tail_padding_seconds() for the non-shimmer native slice. */
+    model_tail = rt60 + pre_delay_seconds;
+    if (model_tail < 0.25) {
+        model_tail = 0.25;
+    }
+    if (isfinite(options->tail_limit_seconds) && options->tail_limit_seconds >= 0.0
+        && options->tail_limit_seconds < model_tail) {
+        return options->tail_limit_seconds;
+    }
+    return model_tail;
+}
+
 static int init_channel_state(
     verbx_channel_state *state,
     unsigned int sample_rate,
@@ -400,7 +430,6 @@ int verbx_algo_render(
     double dry;
     double rt60;
     double pre_delay_ms;
-    double tail_limit_seconds;
 
     if ((input == NULL) || (input->samples == NULL) || (options == NULL) || (output == NULL)) {
         set_error(error_message, error_message_size, "invalid render arguments");
@@ -422,7 +451,6 @@ int verbx_algo_render(
     dry = options->dry;
     rt60 = options->rt60;
     pre_delay_ms = options->pre_delay_ms;
-    tail_limit_seconds = options->tail_limit_seconds;
 
     if (rt60 < 0.01) {
         rt60 = 0.01;
@@ -442,18 +470,9 @@ int verbx_algo_render(
     if (pre_delay_ms < 0.0) {
         pre_delay_ms = 0.0;
     }
-    max_tail_frames = (size_t)llround(
-        (double)input->sample_rate *
-        ((rt60 * 2.0) < 1.0 ? 1.0 : ((rt60 * 2.0) > 60.0 ? 60.0 : (rt60 * 2.0)))
+    max_tail_frames = (size_t)ceil(
+        (double)input->sample_rate * verbx_algo_resolved_tail_padding_seconds(options)
     );
-    if (tail_limit_seconds >= 0.0) {
-        size_t tail_limit_frames = (size_t)llround(
-            (double)input->sample_rate * tail_limit_seconds
-        );
-        if (tail_limit_frames < max_tail_frames) {
-            max_tail_frames = tail_limit_frames;
-        }
-    }
     total_frames = input->frames + max_tail_frames;
 
     rendered.samples = (double *)calloc(total_frames * input->channels, sizeof(double));

@@ -31,6 +31,7 @@ from verbx.ir.sofa import extract_sofa_ir, read_sofa_info
 from verbx.ir.trace import (
     generate_trace_ir,
     parse_dxf_room_outline,
+    parse_layer_material_overrides,
     parse_trace_vector,
     write_trace_report,
 )
@@ -213,6 +214,7 @@ def ir_trace_impl(
     listener: str = typer.Option(..., "--listener"),
     height: float = typer.Option(3.0, "--height", min=0.1),
     material: str = typer.Option("studio", "--material"),
+    layer_material: list[str] | None = typer.Option(None, "--layer-material"),
     rays: int = typer.Option(50_000, "--rays", min=1),
     length: float = typer.Option(4.0, "--length", min=0.05),
     target_sr: int = typer.Option(48_000, "--target-sr", min=8_000),
@@ -228,11 +230,13 @@ def ir_trace_impl(
         listener_pos = parse_trace_vector(listener, label="--listener")
         with cli_module._processing_status("Trace DXF room", enabled=not silent):
             geometry = parse_dxf_room_outline(dxf_file, height_m=float(height))
+            layer_materials = parse_layer_material_overrides(layer_material)
             audio, report = generate_trace_ir(
                 geometry=geometry,
                 source_pos_m=source_pos,
                 listener_pos_m=listener_pos,
                 material=str(material),
+                layer_materials=layer_materials,
                 rays=int(rays),
                 length_s=float(length),
                 sr=int(target_sr),
@@ -267,6 +271,12 @@ def ir_trace_impl(
     table.add_row("report", str(report_path))
     table.add_row("room_dims_m", str(room["room_dims_m"]))
     table.add_row("material", str(report["material"]["default"]))
+    overrides = report["material"].get("layer_material_overrides", {})
+    if isinstance(overrides, dict) and overrides:
+        table.add_row(
+            "layer_materials",
+            ", ".join(f"{layer}={value}" for layer, value in overrides.items()),
+        )
     table.add_row("rays", str(trace["rays"]))
     table.add_row("sample_rate", str(trace["target_sr"]))
     table.add_row("length_s", f"{float(trace['length_s']):.3f}")

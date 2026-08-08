@@ -42,7 +42,13 @@ from verbx.core.automation import (
     write_feature_vector_trace,
 )
 from verbx.core.convolution_reverb import ConvolutionReverbConfig, ConvolutionReverbEngine
-from verbx.core.early_reflections import apply_image_source_early_reflections, material_absorption
+from verbx.core.early_reflections import (
+    apply_image_source_early_reflections,
+    delay_audio_for_fdn_handoff,
+    enumerate_image_source_paths,
+    estimate_echo_density_handoff,
+    material_absorption,
+)
 from verbx.core.engine_base import ReverbEngine
 from verbx.core.freeze import freeze_segment
 from verbx.core.loudness import apply_output_targets
@@ -461,6 +467,25 @@ def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
                 "ceiling": runtime_config.er_material,
             },
         )
+        if runtime_config.ism_fdn_handoff:
+            paths = enumerate_image_source_paths(
+                sr=sr,
+                room_dims_m=runtime_config.er_room_dims_m,
+                source_pos_m=runtime_config.er_source_pos_m,
+                listener_pos_m=runtime_config.er_listener_pos_m,
+                absorption=absorption,
+                reflection_order=runtime_config.ism_order,
+                wall_materials={
+                    "left": runtime_config.er_material,
+                    "right": runtime_config.er_material,
+                    "front": runtime_config.er_material,
+                    "rear": runtime_config.er_material,
+                    "floor": runtime_config.er_material,
+                    "ceiling": runtime_config.er_material,
+                },
+            )
+            handoff = estimate_echo_density_handoff(paths, sr=sr)
+            audio = delay_audio_for_fdn_handoff(audio, handoff.handoff_sample)
 
     input_for_engine = _prepare_spatial_input(audio, runtime_config)
     if runtime_config.freeze:
@@ -783,7 +808,7 @@ def _run_in_memory_pipeline(context: _PipelineContext) -> RenderReport:
             "modulation": modulation_payload,
             "automation": automation_summary,
             "perceptual_macros": context.perceptual_macro_summary,
-            "room_geometry": _room_geometry_summary(runtime_config),
+            "room_geometry": _room_geometry_summary(runtime_config, sr=sr),
             "non_default_settings": _non_default_settings(runtime_config),
         },
         ir_runtime=context.ir_runtime,
@@ -1074,6 +1099,7 @@ def _prepare_runtime_config(
     if runtime.engine == "ism-fdn":
         runtime.engine = "algo"
         runtime.er_geometry = True
+        runtime.ism_fdn_handoff = True
     runtime.ir_blend_base_ir = None
     runtime.ir_blend_composite_ir = None
     ir_runtime_steps: list[dict[str, Any]] = []
@@ -1209,7 +1235,7 @@ def _prepare_runtime_config(
     return runtime, ir_runtime
 
 
-def _room_geometry_summary(config: RenderConfig) -> dict[str, Any] | None:
+def _room_geometry_summary(config: RenderConfig, *, sr: int = 48_000) -> dict[str, Any] | None:
     """Return the resolved ISM scene when geometry staging is active."""
     if not config.er_geometry:
         return None
@@ -1231,6 +1257,31 @@ def _room_geometry_summary(config: RenderConfig) -> dict[str, Any] | None:
     summary = geometry.summary()
     summary["ism_order"] = int(config.ism_order)
     summary["render_path"] = "ism-fdn"
+    if config.ism_fdn_handoff:
+        mean_absorption = (
+            float(geometry.mean_absorption)
+            if geometry.mean_absorption is not None
+            else float(config.er_absorption)
+        )
+        paths = enumerate_image_source_paths(
+            sr=sr,
+            room_dims_m=config.er_room_dims_m,
+            source_pos_m=config.er_source_pos_m,
+            listener_pos_m=config.er_listener_pos_m,
+            absorption=mean_absorption,
+            reflection_order=config.ism_order,
+            wall_materials=geometry.wall_materials,
+        )
+        handoff = estimate_echo_density_handoff(paths, sr=sr)
+        summary["echo_density_handoff"] = {
+            "sample_rate_hz": sr,
+            "handoff_seconds": handoff.handoff_seconds,
+            "path_count": handoff.path_count,
+            "bin_ms": handoff.bin_ms,
+            "threshold_arrivals_per_second": handoff.threshold_arrivals_per_second,
+            "peak_arrivals_per_second": handoff.peak_arrivals_per_second,
+            "threshold_reached": handoff.threshold_reached,
+        }
     return summary
 
 

@@ -5,6 +5,12 @@
 
 #include <stddef.h>
 
+/*
+ * Native FDN has no shimmer path.  Its model-derived padding therefore maps
+ * directly to Python's non-shimmer algorithmic tail policy.
+ */
+double verbx_algo_resolved_tail_padding_seconds(const verbx_render_options *options);
+
 int verbx_algo_render(
     const verbx_audio_buffer *input,
     const verbx_render_options *options,

@@ -49,6 +49,7 @@ typedef struct {
     double output_peak_abs;
     double peak_gain;
     double peak_ceiling_db;
+    double tail_padding_seconds;
     int peak_safe_applied;
     verbx_wav_format out_format;
     verbx_tail_metric tail_metric;

@@ -27,6 +27,7 @@ class DXFTraceGeometry:
     height_m: float
     units: str
     warnings: tuple[str, ...] = ()
+    surface_layers: dict[str, tuple[str, ...]] | None = None
 
     @property
     def width_m(self) -> float:
@@ -46,6 +47,11 @@ class DXFTraceGeometry:
         min_x = min(point[0] for point in self.vertices_xy)
         min_y = min(point[1] for point in self.vertices_xy)
         return [[float(x - min_x), float(y - min_y)] for x, y in self.vertices_xy]
+
+    def known_layers(self) -> tuple[str, ...]:
+        """Return the deterministic set of CAD layers present in the outline."""
+        layers = self.surface_layers or {}
+        return tuple(sorted({layer for values in layers.values() for layer in values}))
 
 
 def parse_trace_vector(value: str, *, label: str) -> tuple[float, float, float]:
@@ -79,7 +85,7 @@ def parse_dxf_room_outline(path: Path, *, height_m: float = 3.0) -> DXFTraceGeom
     pairs = list(zip(lines[0::2], lines[1::2], strict=False))
     units = _resolve_units(pairs)
     scale = _unit_scale_to_meters(units)
-    points: list[tuple[float, float]] = []
+    entities: list[tuple[list[tuple[float, float]], str]] = []
     warnings: list[str] = []
 
     index = 0
@@ -87,14 +93,16 @@ def parse_dxf_room_outline(path: Path, *, height_m: float = 3.0) -> DXFTraceGeom
         code, value = pairs[index]
         entity = value.upper()
         if code == "0" and entity == "LINE":
-            parsed, index = _parse_line_entity(pairs, index + 1, scale)
-            points.extend(parsed)
+            parsed, layer, index = _parse_line_entity(pairs, index + 1, scale)
+            entities.append((parsed, layer))
             continue
         if code == "0" and entity == "LWPOLYLINE":
-            parsed, index = _parse_lwpolyline_entity(pairs, index + 1, scale)
-            points.extend(parsed)
+            parsed, layer, index = _parse_lwpolyline_entity(pairs, index + 1, scale)
+            entities.append((parsed, layer))
             continue
         index += 1
+
+    points = [point for entity_points, _ in entities for point in entity_points]
 
     if len(points) < 2:
         raise ValueError(
@@ -118,6 +126,9 @@ def parse_dxf_room_outline(path: Path, *, height_m: float = 3.0) -> DXFTraceGeom
         height_m=float(height_m),
         units=units,
         warnings=tuple(warnings),
+        surface_layers=_surface_layers_from_entities(
+            entities, min_x=min_x, max_x=max_x, min_y=min_y, max_y=max_y
+        ),
     )
 
 
@@ -127,6 +138,7 @@ def generate_trace_ir(
     source_pos_m: tuple[float, float, float],
     listener_pos_m: tuple[float, float, float],
     material: str,
+    layer_materials: dict[str, str] | None = None,
     rays: int,
     length_s: float,
     sr: int,
@@ -141,14 +153,20 @@ def generate_trace_ir(
         raise ValueError("--rays must be >= 1.")
 
     material_profile = get_material_profile(material)
-    absorption = material_profile.broadband_absorption()
+    overrides = _validate_layer_materials(geometry, layer_materials or {})
+    surface_materials = _resolve_surface_materials(
+        geometry, default_material=material_profile.name, layer_materials=overrides
+    )
+    surface_profiles = {
+        surface: get_material_profile(name) for surface, name in surface_materials.items()
+    }
     room = RoomGeometry(
         room_dims_m=geometry.room_dims_m,
         source_pos_m=source_pos_m,
         listener_pos_m=listener_pos_m,
-        wall_materials={name: material_profile.name for name in _SURFACE_NAMES},
-        mean_absorption=absorption,
+        wall_materials=surface_materials,
     )
+    absorption = float(room.mean_absorption if room.mean_absorption is not None else 0.35)
     frames = max(1, round(float(length_s) * int(sr)))
     audio = np.zeros((frames, 2), dtype=np.float64)
     rng = np.random.default_rng(int(seed))
@@ -170,7 +188,8 @@ def generate_trace_ir(
     for surface, image in _first_order_images(room).items():
         distance = float(np.linalg.norm(np.asarray(image) - np.asarray(listener_pos_m)))
         delay = distance / _SPEED_OF_SOUND_M_S
-        amp = (1.0 - absorption) / max(1.0, distance)
+        surface_absorption = surface_profiles[surface].broadband_absorption()
+        amp = (1.0 - surface_absorption) / max(1.0, distance)
         pan = _surface_pan(surface)
         _add_stereo_impulse(audio, sr, delay, amp, pan=pan)
         reflection_rows.append(
@@ -212,8 +231,13 @@ def generate_trace_ir(
             "default": material_profile.name,
             "mean_absorption": absorption,
             "profile": material_profile.to_report(),
+            "layer_material_overrides": dict(sorted(overrides.items())),
+            "surface_layers": {
+                surface: list((geometry.surface_layers or {}).get(surface, ()))
+                for surface in _SURFACE_NAMES
+            },
             "surface_profiles": {
-                surface: material_profile.to_report() for surface in _SURFACE_NAMES
+                surface: surface_profiles[surface].to_report() for surface in _SURFACE_NAMES
             },
         },
         "trace": {
@@ -265,27 +289,31 @@ def _unit_scale_to_meters(units: str) -> float:
 
 def _parse_line_entity(
     pairs: list[tuple[str, str]], index: int, scale: float
-) -> tuple[list[tuple[float, float]], int]:
+) -> tuple[list[tuple[float, float]], str, int]:
     values: dict[str, float] = {}
+    layer = "0"
     while index < len(pairs):
         code, value = pairs[index]
         if code == "0":
             break
         if code in {"10", "20", "11", "21"}:
             values[code] = float(value) * scale
+        elif code == "8":
+            layer = value or "0"
         index += 1
     points: list[tuple[float, float]] = []
     if {"10", "20", "11", "21"}.issubset(values):
         points.append((values["10"], values["20"]))
         points.append((values["11"], values["21"]))
-    return points, index
+    return points, layer, index
 
 
 def _parse_lwpolyline_entity(
     pairs: list[tuple[str, str]], index: int, scale: float
-) -> tuple[list[tuple[float, float]], int]:
+) -> tuple[list[tuple[float, float]], str, int]:
     points: list[tuple[float, float]] = []
     pending_x: float | None = None
+    layer = "0"
     while index < len(pairs):
         code, value = pairs[index]
         if code == "0":
@@ -295,8 +323,98 @@ def _parse_lwpolyline_entity(
         elif code == "20" and pending_x is not None:
             points.append((pending_x, float(value) * scale))
             pending_x = None
+        elif code == "8":
+            layer = value or "0"
         index += 1
-    return points, index
+    return points, layer, index
+
+
+def parse_layer_material_overrides(values: list[str] | None) -> dict[str, str]:
+    """Parse repeatable ``LAYER=MATERIAL`` CLI options deterministically."""
+    overrides: dict[str, str] = {}
+    for raw_value in values or []:
+        layer, separator, material = str(raw_value).partition("=")
+        layer = layer.strip()
+        material = material.strip()
+        if separator == "" or layer == "" or material == "":
+            raise ValueError(
+                "--layer-material must use LAYER=MATERIAL, for example walls=concrete."
+            )
+        profile = get_material_profile(material)
+        if layer in overrides:
+            raise ValueError(f"--layer-material assigns layer '{layer}' more than once.")
+        overrides[layer] = profile.name
+    return dict(sorted(overrides.items()))
+
+
+def _surface_layers_from_entities(
+    entities: list[tuple[list[tuple[float, float]], str]],
+    *,
+    min_x: float,
+    max_x: float,
+    min_y: float,
+    max_y: float,
+) -> dict[str, tuple[str, ...]]:
+    """Map axis-aligned 2D boundary entities to rectangular room faces."""
+    result: dict[str, set[str]] = {surface: set() for surface in _SURFACE_NAMES}
+    tolerance = 1e-6
+    for points, layer in entities:
+        if len(points) < 2:
+            continue
+        xs = [point[0] for point in points]
+        ys = [point[1] for point in points]
+        if max(xs) - min(xs) <= tolerance:
+            if abs(xs[0] - min_x) <= tolerance:
+                result["left"].add(layer)
+            if abs(xs[0] - max_x) <= tolerance:
+                result["right"].add(layer)
+        if max(ys) - min(ys) <= tolerance:
+            if abs(ys[0] - min_y) <= tolerance:
+                result["front"].add(layer)
+            if abs(ys[0] - max_y) <= tolerance:
+                result["rear"].add(layer)
+        # A polyline boundary can legitimately cover several faces. Associate
+        # its layer with every bounding-box face it touches.
+        if len(points) > 2:
+            if any(abs(x - min_x) <= tolerance for x in xs):
+                result["left"].add(layer)
+            if any(abs(x - max_x) <= tolerance for x in xs):
+                result["right"].add(layer)
+            if any(abs(y - min_y) <= tolerance for y in ys):
+                result["front"].add(layer)
+            if any(abs(y - max_y) <= tolerance for y in ys):
+                result["rear"].add(layer)
+    return {surface: tuple(sorted(layers)) for surface, layers in result.items()}
+
+
+def _validate_layer_materials(
+    geometry: DXFTraceGeometry, layer_materials: dict[str, str]
+) -> dict[str, str]:
+    known_layers = set(geometry.known_layers())
+    unknown = sorted(set(layer_materials) - known_layers)
+    if unknown:
+        available = ", ".join(sorted(known_layers)) or "(none)"
+        raise ValueError(
+            "--layer-material references unknown DXF layer(s): "
+            f"{', '.join(unknown)}. Available layers: {available}."
+        )
+    return dict(sorted(layer_materials.items()))
+
+
+def _resolve_surface_materials(
+    geometry: DXFTraceGeometry, *, default_material: str, layer_materials: dict[str, str]
+) -> dict[str, str]:
+    resolved: dict[str, str] = {}
+    for surface in _SURFACE_NAMES:
+        layers = (geometry.surface_layers or {}).get(surface, ())
+        mapped = [layer_materials[layer] for layer in layers if layer in layer_materials]
+        if len(mapped) > 1 and len(set(mapped)) > 1:
+            raise ValueError(
+                f"DXF surface '{surface}' has conflicting --layer-material assignments: "
+                f"{', '.join(sorted(set(mapped)))}."
+            )
+        resolved[surface] = mapped[0] if mapped else default_material
+    return resolved
 
 
 def _first_order_images(room: RoomGeometry) -> dict[str, tuple[float, float, float]]:

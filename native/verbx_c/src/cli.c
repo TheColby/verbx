@@ -287,6 +287,7 @@ static int write_render_json_report(
     } else {
         fputs("  \"tail_limit_seconds\": null,\n", stream);
     }
+    fprintf(stream, "  \"tail_padding_seconds\": %.17g,\n", report->tail_padding_seconds);
     fprintf(stream, "  \"tail_threshold_db\": %.17g,\n", options->tail_threshold_db);
     fprintf(stream, "  \"tail_hold_ms\": %.17g,\n", options->tail_hold_ms);
     fprintf(stream, "  \"peak_safe\": %s,\n", report->peak_safe_applied ? "true" : "false");
