@@ -304,10 +304,11 @@ a pure full-response ISM engine remains research work.
 
 - [x] Extend ISM early-field generation to configurable reflection order
   (0–6) with material-dependent wall absorption.
-- [x] Compute a deterministic, bounded diffuse-onset estimate from local ISM
-  echo density and delay FDN excitation to that handoff. The render report
-  records the path count, bin, threshold, peak density, and sparse fallback;
-  this is not a claim of measured Schroeder-transition validation.
+- [x] Compute a deterministic, bounded diffuse-onset estimate from local,
+  gain-weighted ISM echo density and delay only the FDN excitation to that
+  handoff. The direct/early path remains time-aligned; the render report
+  records the path count, bin, threshold, peak density, and sparse fallback.
+  This is not a claim of measured Schroeder-transition validation.
 - [x] Expose the two-stage early-ISM/late-FDN path as `--engine ism-fdn`.
 - [ ] Add a pure `--engine ism` full-response mode only after its computational
   bounds and validation contract are defined.
@@ -318,12 +319,17 @@ a pure full-response ISM engine remains research work.
 verbx's FDN matrix already contains an `sdn_hybrid` matrix type but without
 a true SDN room topology.  SDN explicitly models wall scattering nodes.
 
+- [x] Define a six-face rectangular SDN geometry contract with analytic
+  source/node/listener/inter-node delays, material profiles, and
+  absorption-derived feedback gains. This is a tested foundation, not an
+  audio engine or an exposed `--engine sdn` mode.
 - [ ] Implement full SDN room model: one scattering node per wall face,
   delay lines from source → nodes → listener, inter-node coupling matrix
   derived from room geometry.
-- [ ] Derive delay-line lengths analytically from room dimensions and
-  source/listener positions.
-- [ ] Map SDN absorption coefficients from `RoomGeometry` wall materials.
+- [x] Derive the SDN foundation's source/node/listener and inter-node delays
+  analytically from room dimensions and source/listener positions.
+- [x] Map `RoomGeometry` wall-material absorption into SDN feedback gains;
+  full frequency-dependent SDN filtering remains part of the future engine.
 - [ ] Validate against known RT60 and early-reflection timing benchmarks.
 - [ ] Expose as `--engine sdn` with `--engine sdn+ism` hybrid option.
 

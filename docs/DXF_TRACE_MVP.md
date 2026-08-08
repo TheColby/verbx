@@ -34,8 +34,9 @@ broadband value for first-order reflection and late-tail synthesis.
 `--layer-material` is repeatable and assigns a material to an ASCII DXF entity
 layer using `LAYER=MATERIAL`. Layer names must occur in the parsed outline and
 each layer may be assigned once. For this axis-aligned bounding-box prototype,
-`LINE` entities are associated with their corresponding vertical or horizontal
-wall; a boundary `LWPOLYLINE` applies to every bounding-box wall it touches.
+`LINE` entities and each `LWPOLYLINE` segment are associated with their
+corresponding vertical or horizontal wall. An open polyline does not invent a
+closing segment; a closed polyline contributes its explicit closing segment.
 Floor and ceiling retain `--material`, because a 2D plan has no CAD layers for
 those faces. Conflicting material overrides that resolve to one surface fail
 fast rather than selecting one arbitrarily.

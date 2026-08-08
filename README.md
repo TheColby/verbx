@@ -483,6 +483,13 @@ verbx render input.wav output.wav --engine algo --rt60 2.5 --wet 0.3 --dry 0.7
 
 This applies a natural-sounding 2.5-second algorithmic reverb. Output is written to `output.wav`, with analysis at `output.wav.analysis.json`.
 
+Before a first render or a demo, confirm the installed runtime and write a
+machine-readable readiness report:
+
+```bash
+verbx quickstart --verify --strict --smoke-test --json-out quickstart.json
+```
+
 Need a live preview instead of an offline bounce?
 
 ```bash
@@ -808,6 +815,9 @@ Current native status:
 - deterministic offline render lifecycle in C: read -> process -> tail-finalize -> write
 - explicit native process/error contract surfaced in `verbx-c doctor`
 - native tail-stop metric selection: `--tail-metric peak|rms`
+- native tail-padding safety: implicit algorithmic padding over 300 seconds is
+  rejected unless an explicit `--tail-limit` bounds the render; native reports
+  the resolved `tail_padding_seconds` in `native-render-report-v1`
 - native peak-safe output: `--peak-safe --peak-ceiling-db DB`
 - native JSON reports: `doctor --json-out` and `render --json-out`
 - foundational native algorithmic reverb core with float64 internal processing
@@ -873,8 +883,10 @@ axis-aligned room box with direct path, first-order reflections, and a
 stochastic late tail. `--material` now validates against octave-band material
 profiles such as `studio`, `drywall`, `glass`, `concrete`, `carpet`,
 `acoustic-panel`, and `diffuser`. Repeat `--layer-material LAYER=MATERIAL` to
-override the material for an existing ASCII-DXF outline layer; the report records
-the resolved per-surface profiles. See [`docs/DXF_TRACE_MVP.md`](docs/DXF_TRACE_MVP.md).
+override the material for an existing ASCII-DXF outline layer. `LINE` and
+`LWPOLYLINE` segments resolve independently to bounding-box walls; a 2D plan
+cannot assign floor or ceiling materials. The report records the resolved
+per-surface profiles. See [`docs/DXF_TRACE_MVP.md`](docs/DXF_TRACE_MVP.md).
 
 ---
 
@@ -5733,6 +5745,16 @@ Spatial switches declare channel semantics and Ambisonic conventions. A matching
 | `--ambi-decode-to` | none/stereo | Decode from Ambisonics after render |
 | `--ambi-rotate-yaw-deg` | degrees | Yaw rotation in Ambisonics domain |
 
+For large immersive buses, declare the target explicitly rather than relying on
+channel count alone:
+
+```bash
+verbx render in.wav out_7_2_4.wav --output-layout 7.2.4
+verbx render in.wav out_8_0.wav --output-layout 8.0
+verbx render in.wav out_16_0.wav --output-layout 16.0
+verbx render in.wav out_64_4.wav --output-layout 64.4
+```
+
 #### Effects
 
 The effect switches reshape the wet return through pitch, dynamics, filtering, repetition, or controlled feedback.
@@ -6457,6 +6479,7 @@ Minimal notebook examples:
 
 - `docs/notebooks/research_workflow.ipynb`
 - `docs/notebooks/dataset_workflow.ipynb`
+- [Notebook workflow guide](docs/notebooks/README.md)
 
 Structured schema docs for machine-generated payloads:
 

@@ -5,9 +5,9 @@ These notebooks provide minimal, reproducible examples for the stable
 
 ## Included notebooks
 
-- `01_render_and_analyze.ipynb` — render with `render_file` then inspect metrics with `analyze_file`.
-- `02_generate_ir.ipynb` — generate/write IR assets with `generate_ir`.
-- `03_corpus_pipeline.ipynb` — combine API + CLI calls for dataset workflow orchestration.
+- `01_render_and_analyze.ipynb`: render with `render_file` then inspect metrics with `analyze_file`.
+- `02_generate_ir.ipynb`: generate/write IR assets with `generate_ir`.
+- `03_corpus_pipeline.ipynb`: combine API + CLI calls for dataset workflow orchestration.
 
 ## Execution notes
 

@@ -522,6 +522,13 @@ verbx render input.wav output.wav --engine algo --rt60 2.5 --wet 0.3 --dry 0.7
 
 This applies a natural-sounding 2.5-second algorithmic reverb. Output is written to `output.wav`, with analysis at `output.wav.analysis.json`.
 
+Before a first render or a demo, confirm the installed runtime and write a
+machine-readable readiness report:
+
+```bash
+verbx quickstart --verify --strict --smoke-test --json-out quickstart.json
+```
+
 Need a live preview instead of an offline bounce?
 
 ```bash
@@ -898,6 +905,9 @@ Current native status:
 - deterministic offline render lifecycle in C: read -> process -> tail-finalize -> write
 - explicit native process/error contract surfaced in `verbx-c doctor`
 - native tail-stop metric selection: `--tail-metric peak|rms`
+- native tail-padding safety: implicit algorithmic padding over 300 seconds is
+  rejected unless an explicit `--tail-limit` bounds the render; native reports
+  the resolved `tail_padding_seconds` in `native-render-report-v1`
 - native peak-safe output: `--peak-safe --peak-ceiling-db DB`
 - native JSON reports: `doctor --json-out` and `render --json-out`
 - foundational native algorithmic reverb core with float64 internal processing
@@ -949,6 +959,7 @@ verbx ir trace room.dxf room_ir.wav \
   --listener 6,4,1.5 \
   --height 3 \
   --material studio \
+  --layer-material west-wall=concrete \
   --rays 50000 \
   --length 4 \
   --target-sr 48000 \
@@ -961,8 +972,11 @@ This MVP supports ASCII DXF `LINE`/`LWPOLYLINE` 2D room outlines and derives an
 axis-aligned room box with direct path, first-order reflections, and a
 stochastic late tail. `--material` now validates against octave-band material
 profiles such as `studio`, `drywall`, `glass`, `concrete`, `carpet`,
-`acoustic-panel`, and `diffuser`; `trace-report-v1` records those absorption
-bands plus scattering metadata. See [`docs/DXF_TRACE_MVP.md`](docs/DXF_TRACE_MVP.md).
+`acoustic-panel`, and `diffuser`. Repeat `--layer-material LAYER=MATERIAL` to
+override the material for an existing ASCII-DXF outline layer. `LINE` and
+`LWPOLYLINE` segments resolve independently to bounding-box walls; a 2D plan
+cannot assign floor or ceiling materials. The report records the resolved
+per-surface profiles. See [`docs/DXF_TRACE_MVP.md`](docs/DXF_TRACE_MVP.md).
 
 ---
 
@@ -6376,6 +6390,36 @@ Source syntax: `lfo:<shape>:<rate_hz>[:depth[:phase_deg]][*weight]` | `env[:atta
 
 ---
 
+## Python API (stable surface)
+
+For notebook/research pipelines, use `verbx.api` instead of shelling out to the
+CLI. The stable API surface includes:
+
+- `render_file(infile, outfile, config=RenderConfig(...), **overrides)`
+- `generate_ir(out_ir, config=IRGenConfig(...), write_metadata=True)`
+- `analyze_file(infile, include_loudness=False, include_edr=False, ...)`
+
+```python
+from verbx.api import analyze_file, generate_ir, render_file
+from verbx.config import RenderConfig
+from verbx.ir.generator import IRGenConfig
+
+render_report = render_file(
+    "in.wav",
+    "out.wav",
+    config=RenderConfig(engine="algo", rt60=2.5, progress=False, silent=True),
+)
+
+ir_report = generate_ir(
+    "ir.wav",
+    config=IRGenConfig(mode="stochastic", length=0.5, sr=48_000, channels=2),
+)
+
+analysis = analyze_file("out.wav", include_loudness=True, json_out="analysis.json")
+```
+
+---
+
 ## CLI Reference
 
 Canonical help snapshots live in
@@ -6475,6 +6519,16 @@ Spatial switches declare channel semantics and Ambisonic conventions. A matching
 | `--ambi-encode-from` | none/mono/stereo | Encode to FOA before render |
 | `--ambi-decode-to` | none/stereo | Decode from Ambisonics after render |
 | `--ambi-rotate-yaw-deg` | degrees | Yaw rotation in Ambisonics domain |
+
+For large immersive buses, declare the target explicitly rather than relying on
+channel count alone:
+
+```bash
+verbx render in.wav out_7_2_4.wav --output-layout 7.2.4
+verbx render in.wav out_8_0.wav --output-layout 8.0
+verbx render in.wav out_16_0.wav --output-layout 16.0
+verbx render in.wav out_64_4.wav --output-layout 64.4
+```
 
 #### Effects
 
@@ -7186,6 +7240,32 @@ uv run python scripts/generate_ir_library.py \
 ```bash
 verbx render long_input.wav output.wav --engine algo --rt60 180 --fdn-lines 32 --dry-run
 # prints resolved config, estimated output duration, device selection – no audio written
+```
+
+### Python API (`verbx.api`)
+
+`verbx` now exposes a stable Python surface for file-level workflows:
+
+- `verbx.api.render_file(infile, outfile, **render_options)`
+- `verbx.api.generate_ir(outfile, **ir_options)`
+- `verbx.api.analyze_file(infile, **analysis_options)`
+
+Minimal notebook examples:
+
+- `docs/notebooks/research_workflow.ipynb`
+- `docs/notebooks/dataset_workflow.ipynb`
+- [Notebook workflow guide](docs/notebooks/README.md)
+
+Structured schema docs for machine-generated payloads:
+
+- `docs/SCHEMAS.md` (batch manifest + automation schema references)
+
+```python
+from verbx.api import analyze_file, generate_ir, render_file
+
+ir = generate_ir("research_ir.wav", mode="hybrid", length=1.5, sr=48000, channels=1)
+metrics = analyze_file("dry.wav")
+report = render_file("dry.wav", "wet.wav", engine="conv", ir=ir["outfile"], wet=0.7, dry=0.3)
 ```
 
 ---
