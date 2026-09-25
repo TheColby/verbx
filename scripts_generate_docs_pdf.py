@@ -178,7 +178,7 @@ CHAPTER_EXERCISES: dict[str, tuple[str, ...]] = {
         "Design a safe long-tail render with explicit duration, container, limiter, and report settings. Explain each guardrail.",
         "Create a minimal repeatable render manifest containing input hashes, command line, version, output format, and analysis sidecar location.",
     ),
-    "Immersive Reverb, Surround Sound, and Dolby Atmos": (
+    "Immersive Reverb, Surround Sound, Dolby Atmos, and Eclipsa Audio": (
         "Build a source-bound early field, an environment-bound late field, and one gesture-bound effect from the same dry source. Assign a distinct spatial role to each.",
         "Verify a 7.1.2 or 7.1.4 handoff with spoken labels or impulses before auditioning music; record the exact channel map used by the receiving DAW.",
         "Render an FOA intermediate, rotate it, decode it, and compare that result with a fixed stereo or surround print at matched loudness.",
@@ -274,7 +274,7 @@ CHAPTER_EXERCISE_EXTENSIONS: dict[str, tuple[str, ...]] = {
         "Validate a channel layout with a single-sample impulse in every channel and archive the result with the render metadata.",
         "Write an explicit stop condition for a very long tail, then explain why it is safer than relying on an implicit default.",
     ),
-    "Immersive Reverb, Surround Sound, and Dolby Atmos": (
+    "Immersive Reverb, Surround Sound, Dolby Atmos, and Eclipsa Audio": (
         "Build a moving source with stationary room energy and a stationary source with moving room energy; compare the two spatial narratives.",
         "Create an immersive reverb plan for a one-minute scene, specifying bed channels, objects, height treatment, and fold-down priorities.",
         "Measure or listen for interchannel correlation in one return and revise the design to improve envelopment without losing image stability.",

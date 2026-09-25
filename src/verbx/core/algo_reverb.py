@@ -66,6 +66,11 @@ from verbx.io.audio import ensure_mono_or_stereo
 AudioArray = npt.NDArray[np.float64]
 CurveMap = dict[str, npt.NDArray[np.float64]]
 
+# Preserve RT60-calibrated gains near unity. The former 0.995 cap collapsed
+# distinct long-decay requests to the same response. This is only a scalar
+# roundoff guard, not a stability certificate for the complete filtered FDN.
+_NORMAL_FEEDBACK_GAIN_CEILING = np.nextafter(np.float64(1.0), np.float64(0.0))
+
 try:
     from numba import njit  # type: ignore[import-untyped]
 
@@ -222,7 +227,9 @@ class AlgoReverbEngine(ReverbEngine):
         self._config = self._resolve_model_config(config)
         config = self._config
         self._unsafe_self_oscillate = bool(config.unsafe_self_oscillate)
-        self._feedback_gain_ceiling = 1.25 if self._unsafe_self_oscillate else 0.995
+        self._feedback_gain_ceiling = (
+            1.25 if self._unsafe_self_oscillate else _NORMAL_FEEDBACK_GAIN_CEILING
+        )
         unsafe_loop_gain = float(config.unsafe_loop_gain)
         if self._unsafe_self_oscillate and unsafe_loop_gain <= 1.0:
             unsafe_loop_gain = 1.02
@@ -1517,7 +1524,11 @@ class AlgoReverbEngine(ReverbEngine):
             )
 
         pre_delay_samples = max(1, int((self._config.pre_delay_ms / 1000.0) * sr))
-        max_mod_samples = max(1, int((self._config.mod_depth_ms / 1000.0) * sr))
+        max_mod_samples = (
+            max(1, int((self._config.mod_depth_ms / 1000.0) * sr))
+            if self._config.mod_depth_ms > 0.0
+            else 0
+        )
 
         line_delays = np.maximum(
             2,
@@ -1660,7 +1671,9 @@ class AlgoReverbEngine(ReverbEngine):
         link_filter_mode = self._link_filter_mode
 
         # Larger damping value -> stronger HF attenuation in the feedback loop.
-        lp_alpha = np.float64(0.15 + (0.83 * base_damping))
+        # Zero damping is a neutral-loop bypass, including the loop DC filter.
+        # Otherwise fixed per-traversal losses dominate extreme RT60 targets.
+        lp_alpha = np.float64(0.15 + (0.83 * base_damping) if base_damping > 0.0 else 0.0)
         dc_alpha = np.float64(0.995)
         mod_rate = np.float64(max(self._config.mod_rate_hz, 0.0))
 
@@ -1699,9 +1712,10 @@ class AlgoReverbEngine(ReverbEngine):
                 np.asarray(np.round((self._cascade_delay_ms / 1000.0) * sr), dtype=np.int32),
             )
             cascade_num_lines = int(cascade_line_delays.shape[0])
-            cascade_max_mod_samples = max(
-                1,
-                int(max_mod_samples * self._cascade_delay_scale),
+            cascade_max_mod_samples = (
+                max(1, int(max_mod_samples * self._cascade_delay_scale))
+                if max_mod_samples > 0
+                else 0
             )
             cascade_delay_buffers = [
                 np.zeros(delay + (2 * cascade_max_mod_samples) + 4, dtype=np.float64)
@@ -1976,7 +1990,8 @@ class AlgoReverbEngine(ReverbEngine):
                         tonal_mid_scale = np.float64(1.0)
                         tonal_high_scale = np.float64(1.0)
 
-                lp_alpha_sample = float(0.15 + (0.83 * np.clip(damping_effective, 0.0, 1.0)))
+                damping_sample = float(np.clip(damping_effective, 0.0, 1.0))
+                lp_alpha_sample = 0.15 + (0.83 * damping_sample) if damping_sample > 0.0 else 0.0
                 if abs(lp_alpha_sample - last_lp_alpha) > self._LP_ALPHA_UPDATE_EPS:
                     lp_alpha = np.float64(lp_alpha_sample)
                     last_lp_alpha = lp_alpha_sample
@@ -2029,6 +2044,8 @@ class AlgoReverbEngine(ReverbEngine):
                             - cascade_dc_prev_in[i]
                             + (dc_alpha * cascade_dc_prev_out[i])
                         )
+                        if lp_alpha == 0.0:
+                            dc_filtered = read_value
                         cascade_dc_prev_in[i] = cascade_lp_state[i]
                         cascade_dc_prev_out[i] = dc_filtered
                         cascade_fdn_out[i] = dc_filtered
@@ -2055,10 +2072,12 @@ class AlgoReverbEngine(ReverbEngine):
                         delay_samples=delay,
                     )
 
-                    # Damping + DC-blocking lives inside the feedback loop so
-                    # high frequencies and subsonic drift decay faster.
+                    # Positive damping filters the feedback loop. At zero,
+                    # bypass both filters to preserve scalar RT60 calibration.
                     lp_state[i] = ((1.0 - lp_alpha) * read_value) + (lp_alpha * lp_state[i])
                     dc_filtered = lp_state[i] - dc_prev_in[i] + (dc_alpha * dc_prev_out[i])
+                    if lp_alpha == 0.0:
+                        dc_filtered = read_value
                     dc_prev_in[i] = lp_state[i]
                     dc_prev_out[i] = dc_filtered
                     fdn_out[i] = dc_filtered
@@ -2302,7 +2321,7 @@ def _process_channel_kernel(
         return output
 
     pre_delay_samples = max(1, int((float(pre_delay_ms) / 1000.0) * sr))
-    max_mod_samples = max(1, int((float(mod_depth_ms) / 1000.0) * sr))
+    max_mod_samples = max(1, int((float(mod_depth_ms) / 1000.0) * sr)) if mod_depth_ms > 0.0 else 0
 
     line_delays = np.maximum(2, np.asarray(np.round((base_delay_ms / 1000.0) * sr), dtype=np.int32))
     num_lines = int(line_delays.shape[0])
@@ -2338,8 +2357,8 @@ def _process_channel_kernel(
     delays_sec = line_delays.astype(np.float64) / float(sr)
     base_gain = np.power(10.0, (-3.0 * delays_sec) / max(float(rt60), 0.1)).astype(np.float64)
     for i in range(num_lines):
-        if base_gain[i] > np.float64(0.995):
-            base_gain[i] = np.float64(0.995)
+        if base_gain[i] > _NORMAL_FEEDBACK_GAIN_CEILING:
+            base_gain[i] = _NORMAL_FEEDBACK_GAIN_CEILING
         elif base_gain[i] < np.float64(0.0):
             base_gain[i] = np.float64(0.0)
 
@@ -2348,7 +2367,7 @@ def _process_channel_kernel(
         damp = 0.0
     elif damp > 1.0:
         damp = 1.0
-    lp_alpha = np.float64(0.15 + (0.83 * damp))
+    lp_alpha = np.float64(0.15 + (0.83 * damp) if damp > 0.0 else 0.0)
     dc_alpha = np.float64(0.995)
     mod_rate = np.float64(max(float(mod_rate_hz), 0.0))
 
@@ -2395,6 +2414,8 @@ def _process_channel_kernel(
 
                 lp_state[i] = ((1.0 - lp_alpha) * read_value) + (lp_alpha * lp_state[i])
                 dc_filtered = lp_state[i] - dc_prev_in[i] + (dc_alpha * dc_prev_out[i])
+                if lp_alpha == 0.0:
+                    dc_filtered = read_value
                 dc_prev_in[i] = lp_state[i]
                 dc_prev_out[i] = dc_filtered
                 fdn_out[i] = dc_filtered

@@ -38,6 +38,7 @@ EXCLUDED_PARTS = {
     "build",
     "dist",
     "node_modules",
+    "output",
     "tmp",
 }
 

@@ -1,4 +1,4 @@
-# Immersive Reverb, Surround Sound, and Dolby Atmos
+# Immersive Reverb, Surround Sound, Dolby Atmos, and Eclipsa Audio
 
 Immersive audio is not simply stereo with more loudspeakers. It is the deliberate composition, capture, synthesis, organization, and reproduction of an acoustic world around a listener. That world may be represented as fixed output channels, as a listener-centered sound field, as audio objects accompanied by position metadata, or as a hybrid of all three. Each representation makes a different promise. A channel promises a destination. A scene promises a field that can be decoded. An object promises an element whose position and other rendering instructions can survive until a later stage. None of those promises, by itself, guarantees that the result will feel large, coherent, natural, dramatic, or musically necessary.
 
@@ -24,7 +24,7 @@ Reverberation can reinforce or destabilize every one of those cues. Highly corre
 
 In music, the relevant time scale may be a transient, a beat, a phrase, or an entire section. A 2.5-second decay is not intrinsically long or short. It may be transparent around sparse attacks and destructive around dense repeated notes. A 40-millisecond pre-delay can clarify one vocal tempo and create an unwanted flam at another. A rear reflection arriving after a rhythmic subdivision may sound like a response rather than a room. The best immersive settings are therefore evaluated against musical density, tempo, register, articulation, and formal role, not selected from room names alone.
 
-**Authoring and rendering are different acts.** Authoring describes intent in a representation: channel assignments, object positions, Ambisonic components, automation, routing, and metadata. Rendering turns that representation into signals for an endpoint. In a fixed-channel workflow, much of the rendering decision is committed during the mix. In Ambisonics, a decoder maps the stored scene to loudspeakers or headphones. In Dolby Atmos, the Renderer combines a 7.1.2 bed, objects, and metadata to produce a target-specific loudspeaker or binaural presentation. A 7.1.4 WAV is therefore one possible rendered speaker feed, not a substitute for an editable bed-and-object master.
+**Authoring and rendering are different acts.** Authoring describes intent in a representation: channel assignments, object positions, Ambisonic components, automation, routing, and metadata. Rendering turns that representation into signals for an endpoint. In a fixed-channel workflow, much of the rendering decision is committed during the mix. In Ambisonics, a decoder maps the stored scene to loudspeakers or headphones. In Dolby Atmos, the Renderer combines a 7.1.2 bed, objects, and metadata to produce a target-specific loudspeaker or binaural presentation. In IAMF-based Eclipsa Audio, an IAMF renderer similarly interprets the encoded immersive presentation for its endpoint. A 7.1.4 WAV is therefore one possible rendered speaker feed, not a substitute for an editable metadata-bearing immersive master.
 
 This distinction matters because two listeners may receive different channel signals from the same authored session. A large Atmos room, a soundbar, stereo loudspeakers, and binaural headphones cannot reproduce identical physical fields. The production goal is not sample-for-sample identity among endpoints. It is preservation of hierarchy and intention: the lead remains legible, the room retains scale, a featured trajectory remains meaningful, low-frequency energy remains controlled, and the work does not collapse when height or rear resolution is reduced.
 
@@ -36,9 +36,9 @@ The artistic discipline lies in assigning each layer the least complicated repre
 
 For that reason, translation checks must begin before the mix is finished. Listen to the discrete target layout, a binaural render, stereo, and at least one reduced surround format. Check at calibrated working level and quietly. Inspect each channel and stem in isolation, but make decisions in the complete render. Verify channel identity with impulses or spoken labels. Compare bass-managed and full-range behavior when possible. A spatial effect that survives only one premium monitoring configuration is not necessarily wrong, but its limitation must be intentional and documented.
 
-**The role of verbx.** This chapter explains those distinctions and turns them into practical verbx workflows. It covers conventional surround, height layouts, Ambisonics, binaural monitoring, Dolby Atmos beds and objects, reverb routing, DAW handoff, deliverables, and quality control. verbx is particularly useful before and around the final immersive authoring stage: it can design algorithmic fields, apply matrix impulse responses, create discrete wet stems, process Ambisonic material within documented limits, generate channel-identification and analysis evidence, and preserve reproducible settings in machine-readable reports.
+**The role of verbx.** This chapter explains those distinctions and turns them into practical verbx workflows. It covers conventional surround, height layouts, Ambisonics, binaural monitoring, Dolby Atmos beds and objects, Eclipsa Audio/IAMF handoff, reverb routing, deliverables, and quality control. verbx is particularly useful before and around the final immersive authoring stage: it can design algorithmic fields, apply matrix impulse responses, create discrete wet stems, process Ambisonic material within documented limits, generate channel-identification and analysis evidence, and preserve reproducible settings in machine-readable reports.
 
-The present product boundary must remain plain: **verbx can generate and process discrete multichannel audio, Ambisonic material, matrix-routed convolution, and machine-readable handoff evidence; it does not currently author Dolby object metadata or create an ADM BWF, DAMF, or IMF IAB master.** Use an Atmos-capable DAW and the Dolby Atmos Renderer for that final authoring stage. A JSON sidecar can describe intended routing and preserve provenance, but it does not become embedded Dolby metadata simply because it accompanies a multichannel file.
+The present product boundary must remain plain: **verbx can generate and process discrete multichannel audio, Ambisonic material, matrix-routed convolution, and machine-readable handoff evidence; it does not currently author Dolby object metadata, IAMF/Eclipsa metadata, an ADM BWF, DAMF, IMF IAB, or IAMF master.** Use an Atmos-capable DAW and the Dolby Atmos Renderer for Atmos authoring, or a compatible IAMF/Eclipsa toolchain for IAMF authoring. A JSON sidecar can describe intended routing and preserve provenance, but it does not become embedded Dolby or IAMF metadata simply because it accompanies a multichannel file.
 
 **Questions this chapter will answer.** By the end of the chapter, the reader should be able to:
 
@@ -50,6 +50,7 @@ The present product boundary must remain plain: **verbx can generate and process
 - preserve intelligibility, transient definition, low-frequency headroom, and musical hierarchy while increasing envelopment;
 - evaluate interchannel correlation, fold-down behavior, binaural translation, and loudspeaker translation as related but nonidentical tests;
 - document the difference between an editable immersive master, a bed or object stem, and a speaker-channel re-render;
+- distinguish a Dolby Atmos authoring master from an IAMF/Eclipsa delivery package;
 - use verbx to create reproducible spatial assets without claiming metadata or mastering capabilities it does not provide.
 
 **A disciplined listening method.** Begin every immersive-reverb study with the smallest useful source: a spoken phrase, a single percussion hit, a sustained chord, and a short musical excerpt. First listen to the dry source and identify its natural width, onset, register, and phrase rhythm. Next audition early reflections alone and ask whether they change direction, distance, or scale. Then audition the late field alone and listen for density, spectral decay, modulation, and directional balance. Restore the complete mix and decide whether the source and room feel causally connected. Finally, compare the main loudspeaker render, binaural, stereo, and a reduced layout at matched loudness. This sequence makes faults diagnosable. It also prevents the excitement of “more speakers” from concealing a field that is merely louder, less coherent, or less musical.
@@ -139,7 +140,7 @@ verbx currently uses the symbolic `7.1.2` labels `L, R, C, LFE, Ls, Rs, Lrs, Rrs
 
 Use a spoken channel-identification file or short, non-overlapping impulses before trusting a complex mix. A successful import proves only that the container is readable; it does not prove semantic routing.
 
-## 3. Dolby Atmos Architecture
+## 3. Dolby Atmos and Eclipsa Audio Architectures
 
 Dolby Atmos separates audio into beds and objects, then delegates endpoint-specific channel generation to a Renderer. According to Dolby’s current professional documentation, a typical music workflow uses one 7.1.2 bed and may use up to 118 objects within a system supporting up to 128 input paths. The exact available count can depend on how stereo objects and beds consume paths.
 
@@ -162,6 +163,16 @@ An object may remain stationary for an entire piece. The useful property is not 
 ### 3.3 The Renderer is part of the instrument
 
 In object-based production, monitoring is already a render. A pan decision heard over 7.1.4 loudspeakers and the corresponding binaural result are two interpretations of the same metadata. Neither should be treated as a disposable preview. The production process must listen through the intended render paths early enough that translation problems can inform the mix.
+
+### 3.4 Eclipsa Audio and IAMF
+
+Eclipsa Audio is the consumer and certification brand built on the open Immersive Audio Model and Formats (IAMF) standard developed within AOMedia. IAMF can package immersive audio presentations and the metadata needed for a renderer to adapt them to a playback endpoint. That makes it an immersive delivery format, not another name for a fixed 7.1.4 WAV.
+
+The useful contrast is practical rather than ideological. Dolby Atmos workflows commonly use a 7.1.2 bed, objects, and Dolby-specific authoring/master formats; Eclipsa workflows encode IAMF through compatible tools and renderers. Both can preserve more downstream spatial intent than a speaker print. Neither eliminates the need for deliberate reverb design, semantic channel mapping, listening on multiple endpoints, or an explicit delivery contract.
+
+For an Eclipsa-ready handoff, use verbx to create and document the source assets: clearly named discrete stems, Ambisonic material where appropriate, a channel map, sample rate and reference level, processing reports, and a note identifying any intended presentation or object role. Import those assets into an IAMF/Eclipsa-capable renderer or DAW plug-in to author the final IAMF metadata and export. Do not relabel a WAV, JSON sidecar, ADM BWF, or Atmos re-render as IAMF; the metadata must be authored and encoded by a compatible toolchain.
+
+IAMF/Eclipsa support is developing across authoring tools, services, and devices. Check the recipient's current requirements for IAMF profile, codecs, container, loudspeaker and binaural targets, and validation process before committing a delivery. Preserve a conventional stereo or multichannel reference render alongside the IAMF package so the spatial intent can still be reviewed when a receiver lacks the intended renderer.
 
 ## 4. Reverb as an Immersive Layer
 
@@ -398,21 +409,22 @@ The compositional opportunity is substantial. WFS can make a dry instrumental li
 
 The following boundary is intentionally explicit.
 
-| Capability | Current status | Meaning for an Atmos workflow |
+| Capability | Current status | Meaning for an immersive workflow |
 |---|---|---|
 | Discrete multichannel WAVE rendering | Supported | Produce bed candidates, speaker prints, wet stems, and channel-identification files |
 | Named input/output layouts | Supported | Declare routing intent for common layouts rather than relying only on channel count |
 | Matrix convolution | Supported | Route each input independently to one or more output channels with an explicitly packed IR matrix |
 | Algorithmic spatial decorrelation | Supported | Shape front, rear, and top late-field relationships |
-| FOA encode, rotate, and stereo decode | Supported with documented constraints | Prepare or process a scene-based field before a separate Atmos authoring stage |
+| FOA encode, rotate, and stereo decode | Supported with documented constraints | Prepare or process a scene-based field before a separate Atmos or IAMF authoring stage |
 | Higher-order Ambisonic validation and channel-order metadata | Supported where documented by the CLI | Keep scene conventions explicit during handoff |
 | JSON analysis and handoff manifests | Supported | Record channels, routing, settings, and QC evidence alongside audio |
 | Dolby object trajectories and size automation | Not currently authored | Create these in an Atmos-capable DAW |
 | Per-object Dolby binaural metadata | Not currently authored | Set and audition this in the DAW/Renderer |
 | Native ADM BWF, DAMF, or IMF IAB master | Not currently written | Export or record the master through the Dolby Atmos Renderer or an integrated authoring environment |
+| Native IAMF/Eclipsa master or metadata | Not currently written | Export through a compatible IAMF/Eclipsa authoring toolchain |
 | Dolby certification or delivery approval | Not implied | Follow the current distributor, label, broadcaster, studio, and Dolby requirements |
 
-A JSON sidecar can be extremely useful, but it is documentation rather than embedded Dolby metadata. Renaming a sidecar or adding the letters “ADM” to a filename does not create the required BWF metadata chunk. Likewise, a 7.1.4 WAV is a speaker-channel render, not an editable object master.
+A JSON sidecar can be extremely useful, but it is documentation rather than embedded Dolby or IAMF metadata. Renaming a sidecar or adding `ADM` or `IAMF` to a filename does not create the required metadata. Likewise, a 7.1.4 WAV is a speaker-channel render, not an editable object master or IAMF presentation.
 
 ## 6. Practical verbx Recipes
 
@@ -632,11 +644,15 @@ A Dolby Atmos Master File set is the Renderer’s native master representation, 
 
 IMF Immersive Audio Bitstream packages are associated with interoperable mastering and distribution workflows. Use them only when required by the delivery specification and generated through the appropriate toolchain.
 
+### 11.5 IAMF / Eclipsa Audio
+
+IAMF is the open immersive-audio standard underlying Eclipsa Audio. It carries an immersive presentation and associated rendering metadata through a compatible IAMF delivery workflow. Treat it as a final-format handoff from an IAMF-capable authoring tool, not as a file extension to apply to a multichannel stem. Keep the verbx source renders, channel map, reports, renderer export, and any required validation evidence together.
+
 Figure 5 marks the practical boundary. verbx creates audio assets and evidence on the left; the Atmos DAW and Renderer author spatial metadata and master formats on the right.
 
 ![A delivery diagram separating verbx-generated audio and reports from Atmos metadata authoring and master-file generation.](assets/immersive_audio/05_delivery_boundary.png)
 
-**Figure: verbx-to-Atmos delivery boundary.** verbx can create discrete stems, Ambisonic scenes, matrix-convolved outputs, and reports that make a handoff reproducible. The receiving Atmos session assigns beds and objects, writes trajectories and binaural metadata, renders endpoints, and produces the required ADM BWF, DAMF, or IMF IAB master. The arrow represents explicit DAW import and mapping, not an automatic file conversion.
+**Figure: verbx-to-immersive delivery boundary.** verbx can create discrete stems, Ambisonic scenes, matrix-convolved outputs, and reports that make a handoff reproducible. The receiving Atmos session assigns beds and objects, writes trajectories and binaural metadata, and produces the required ADM BWF, DAMF, or IMF IAB master; a compatible IAMF workflow authors and exports the IAMF/Eclipsa package. The arrow represents explicit DAW import and mapping, not an automatic file conversion.
 
 ## 12. Immersive Quality-Control Checklist
 
@@ -747,6 +763,8 @@ The following primary documentation is arranged alphabetically by organization:
 - **Dolby.** [Overview of Dolby Atmos Master File Formats](https://professionalsupport.dolby.com/s/article/Overview-of-Dolby-Atmos-Master-File-Formats). Compares ADM BWF, DAMF, and IMF IAB roles.
 - **Dolby.** [What are Beds and Objects in Dolby Atmos?](https://professionalsupport.dolby.com/s/article/What-are-Beds-and-Objects-in-Dolby-Atmos). Defines the default 7.1.2 bed and object workflow.
 - **Dolby.** [What channel order should be used for assigning bed audio to the Renderer?](https://professionalsupport.dolby.com/s/article/What-channel-order-should-be-used-for-assigning-bed-audio-to-the-Renderer). Gives the SMPTE 7.1.2 bed order used at the Renderer boundary.
+- **Google Open Source.** [Introducing Eclipsa Audio: immersive audio for everyone](https://opensource.googleblog.com/2025/01/introducing-eclipsa-audio-immersive-audio-for-everyone.html). Introduces the IAMF-based Eclipsa workflow, reference renderer, and available tools.
+- **Google Open Source.** [Introducing the open-source DAW plugin for Eclipsa Audio](https://opensource.googleblog.com/2025/06/introducing-open-source-daw-plugin-for-eclipsa-audio.html). Describes IAMF renderer-plugin authoring, monitoring, and export.
 - **International Telecommunication Union.** [Recommendation ITU-R BS.2051: Advanced sound system for programme production](https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.2051-2-201807-S%21%21PDF-E.pdf). Defines reference loudspeaker-layout concepts for advanced sound systems.
 
 Specifications, application behavior, and distributor requirements change. Treat these links and the recipient’s current delivery document as authoritative for a production, and treat this chapter as an engineering and creative workflow guide.

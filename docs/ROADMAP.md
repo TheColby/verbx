@@ -1,6 +1,6 @@
 # verbx Roadmap
 
-_Last updated: 2026-07-26. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
+_Last updated: 2026-09-24. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
 
 ---
 
@@ -14,6 +14,34 @@ verbx currently ships dual-engine reverb, deterministic automation/feature
 control, immersive QC/handoff, reproducibility tooling, f64 internal DSP,
 experimental dereverberation workflows, a room size estimator, and initial
 CLI-selectable realtime duplex auditioning.
+
+The September 2026 refresh adds a validated long-RT60 calibration path,
+continues the command-module decomposition, and expands the immersive handoff
+documentation to cover IAMF/Eclipsa Audio alongside Dolby Atmos.
+
+## 1a. September 2026 Stabilization Slice
+
+- [x] Remove the historical `0.995` feedback ceiling from the normal Python and
+  Numba FDN paths while retaining a scalar roundoff guard below unity.
+- [x] Preserve requested finite decay for extreme settings, including a
+  documented approximately one-hour neutral RT60 validation at 48 kHz.
+- [x] Make exact-zero damping and modulation explicit stable modes, including
+  the Python, accelerated, automation, cascade, and multiband paths.
+- [x] Add regression coverage for long-tail finiteness, requested decay,
+  accelerated/Python agreement, and the one-sample integer-delay path.
+- [x] Add `scripts/validate_long_rt60.py` and
+  `docs/LONG_RT60_VALIDATION.md` with reproducible configuration, source hash,
+  fit windows, and measurement limits.
+- [ ] Finish testing the current `cli.py` extraction of batch, dereverb,
+  immersive, and shared validation logic into command modules before landing
+  the public CLI compatibility claim.
+- [x] Update immersive documentation and generated guide outputs for
+  Eclipsa Audio/IAMF handoff, renderer boundaries, and current verbx limits.
+
+The long-tail result is a bounded kernel measurement, not a blanket stability
+claim for nonlinear, modulated, time-varying, filtered, or cascaded settings.
+Those configurations still require separate evidence before they are promoted
+to release guarantees.
 
 ---
 
@@ -413,10 +441,16 @@ v0.7.7.
 
 ## Next 30 Days Priorities (Snapshot)
 
-- Lock a first-pass `verbx.api` module and document stability guarantees.
-- Publish at least two notebook examples (`render`, `ir`, `analyze`).
-- Add immersive routing docs for `7.2.4` and `16.0` as baseline layouts.
-- Complete one end-to-end schema example for automation + manifest JSON.
+- Land and test the current CLI decomposition, keeping compatibility aliases and
+  generated help snapshots synchronized.
+- Lock the first-pass `verbx.api` module and document stability guarantees.
+- Promote the long-RT60 validation from a neutral-kernel measurement to a
+  broader benchmark matrix only where memory, runtime, and numerical evidence
+  are available.
+- Publish and test notebook examples for `render`, `ir`, and `analyze`.
+- Complete one end-to-end schema example for automation plus manifest JSON.
+- Keep Dolby Atmos and IAMF/Eclipsa handoff notes aligned with current
+  renderer, profile, and distributor requirements.
 
 ---
 
