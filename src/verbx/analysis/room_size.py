@@ -49,6 +49,7 @@ each can be tested, replaced, or called in isolation:
 from __future__ import annotations
 
 import math
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -73,9 +74,7 @@ _ASPECT_VOLUME = _ASPECT_W * _ASPECT_D * _ASPECT_H  # ≈ 0.775
 
 # Surface-area-to-(W²) ratio for the chosen aspect ratios
 _ASPECT_SA_COEF = 2.0 * (
-    _ASPECT_W * _ASPECT_D
-    + _ASPECT_W * _ASPECT_H
-    + _ASPECT_D * _ASPECT_H
+    _ASPECT_W * _ASPECT_D + _ASPECT_W * _ASPECT_H + _ASPECT_D * _ASPECT_H
 )  # ≈ 4.85  → S = _ASPECT_SA_COEF * W²
 
 
@@ -122,9 +121,7 @@ def extract_edr_rt60(audio: AudioArray, sr: int) -> dict[str, float]:
     # Derive basic signal properties needed for confidence scoring
     mono = np.mean(audio, axis=1)
     duration_s = float(audio.shape[0]) / max(1.0, float(sr))
-    silence_ratio = (
-        float(np.mean(np.abs(mono) < 10.0 ** (-50.0 / 20.0))) if mono.size > 0 else 1.0
-    )
+    silence_ratio = float(_silence_fraction(mono)) if mono.size > 0 else 1.0
 
     return {
         "rt60_s": rt60,
@@ -245,8 +242,13 @@ def estimate_volume(rt60: float, alpha: float) -> dict[str, float]:
         ``sabine_m3``, ``eyring_m3``, ``primary_m3``, ``low_m3``, ``high_m3``.
     """
     if rt60 <= 0.0:
-        return {"sabine_m3": 0.0, "eyring_m3": 0.0, "primary_m3": 0.0,
-                "low_m3": 0.0, "high_m3": 0.0}
+        return {
+            "sabine_m3": 0.0,
+            "eyring_m3": 0.0,
+            "primary_m3": 0.0,
+            "low_m3": 0.0,
+            "high_m3": 0.0,
+        }
 
     alpha_c = float(np.clip(alpha, 0.01, 0.99))
 
@@ -255,7 +257,7 @@ def estimate_volume(rt60: float, alpha: float) -> dict[str, float]:
     # -> V^(1/3) = RT60 * a * (_ASPECT_SA_COEF / _ASPECT_VOLUME^(2/3)) / K
     sa_v23 = _ASPECT_SA_COEF / (_ASPECT_VOLUME ** (2.0 / 3.0))
     v_cube_root = (rt60 * alpha_c * sa_v23) / _SABINE_K
-    v_sabine = max(0.0, v_cube_root ** 3.0)
+    v_sabine = max(0.0, v_cube_root**3.0)
 
     # Eyring: one refinement pass using Sabine V as seed
     w_est = max(1e-3, (v_sabine / _ASPECT_VOLUME) ** (1.0 / 3.0))
@@ -406,6 +408,12 @@ def classify_room(volume_m3: float, rt60_s: float) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _silence_fraction(mono: npt.NDArray[np.float64]) -> np.float64:
+    """Fraction of samples below -50 dBFS."""
+    flags = (np.abs(mono) < 10.0 ** (-50.0 / 20.0)).astype(np.float64)
+    return cast(np.float64, np.mean(flags))
+
+
 def estimate_room_size(
     audio: AudioArray,
     sr: int,
@@ -462,7 +470,8 @@ def estimate_room_size(
 
     # Guard: degenerate / silent input
     mono = np.mean(audio, axis=1)
-    rms_val = float(np.sqrt(np.mean(np.square(mono)))) if mono.size > 0 else 0.0
+    mono_sq_mean = cast(np.float64, np.mean(np.square(mono))) if mono.size > 0 else np.float64(0.0)
+    rms_val = float(np.sqrt(mono_sq_mean))
     if rt60 <= 0.01 or rms_val < 1e-9:
         return _empty_result()
 

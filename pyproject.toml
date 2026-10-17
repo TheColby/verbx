@@ -104,15 +104,27 @@ reportMissingTypeStubs = "none"
 reportUntypedFunctionDecorator = "none"
 
 # reportUnknownMemberType / reportUnknownVariableType / reportUnknownArgumentType:
-# These are suppressed project-wide because numpy typing (NDArray[float64],
-# ufunc return types) and scipy's stubs produce cascading "Unknown" inference
-# across DSP code.  The goal for 0.7.7 is to shrink these to per-file
-# suppressions once the dict[str, Any] report contracts in pipeline.py are
-# replaced by typed dataclasses (roadmap item 3).
-# TODO(0.7.7): move to per-file pyright: ignore after pipeline.py RenderReport
+# Suppressed for numpy/scipy-heavy DSP code where upstream stubs produce
+# cascading "Unknown" inference.  Scopes that are already clean opt back in
+# via executionEnvironments below; extend that list as modules are cleaned up
+# (roadmap: core/, io/, ir/, commands/, then cli.py).
 reportUnknownMemberType = "none"
 reportUnknownVariableType = "none"
 reportUnknownArgumentType = "none"
+
+# Clean scopes run with the unknown-type diagnostics fully enabled so new
+# regressions cannot creep in.
+[[tool.pyright.executionEnvironments]]
+root = "src/verbx/analysis"
+reportUnknownMemberType = "error"
+reportUnknownVariableType = "error"
+reportUnknownArgumentType = "error"
+
+[[tool.pyright.executionEnvironments]]
+root = "src/verbx/presets"
+reportUnknownMemberType = "error"
+reportUnknownVariableType = "error"
+reportUnknownArgumentType = "error"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

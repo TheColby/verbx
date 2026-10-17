@@ -90,7 +90,7 @@ def spectral_rolloff(audio: AudioArray, sr: int, roll_percent: float = 0.85) -> 
     cumulative = np.cumsum(spectrum)
     if cumulative[-1] <= 0.0:
         return 0.0
-    cutoff = roll_percent * cumulative[-1]
+    cutoff = float(roll_percent) * float(cumulative[-1])
     idx = int(np.searchsorted(cumulative, cutoff))
     idx = min(idx, freqs.shape[0] - 1)
     return float(freqs[idx])

@@ -6,6 +6,8 @@ CLI diagnostics rather than forensic/mastering-grade metering.
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 import numpy.typing as npt
 
@@ -95,7 +97,9 @@ def transient_density(audio: AudioArray) -> float:
     """Estimate transient density via first-order envelope differencing."""
     env = np.abs(np.mean(audio, axis=1))
     diff = np.diff(env, prepend=env[:1])
-    threshold = float(np.mean(diff) + (2.0 * np.std(diff)))
+    diff_mean = float(cast(np.float64, np.mean(diff)))
+    diff_std = float(cast(np.float64, np.std(diff)))
+    threshold = diff_mean + (2.0 * diff_std)
     hits = np.count_nonzero(diff > threshold)
     return float(hits / max(1, env.shape[0]))
 

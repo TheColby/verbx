@@ -60,6 +60,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.auth.outputs.mode }}
     environment:
       name: pypi
       url: https://pypi.org/p/verbx
@@ -219,7 +221,9 @@ jobs:
           echo "Published Homebrew formula update to ${TAP_REPO} for ${TAG}." >> "$GITHUB_STEP_SUMMARY"
 
   verify-pypi-install:
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Only meaningful when a publish actually happened; a skipped publish is
+    # already surfaced loudly in the publish-pypi job summary.
+    if: startsWith(github.ref, 'refs/tags/v') && needs.publish-pypi.outputs.mode != 'skip'
     needs: publish-pypi
     runs-on: ubuntu-latest
     steps:
@@ -257,6 +261,19 @@ jobs:
         with:
           name: dist
           path: dist
+
+      - name: Surface publish status in release summary
+        env:
+          PYPI_MODE: ${{ needs.publish-pypi.outputs.mode }}
+        run: |
+          echo "PyPI publish mode: ${PYPI_MODE}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${PYPI_MODE}" = "skip" ]; then
+            {
+              echo "WARNING: GitHub release is being created WITHOUT a PyPI publish."
+              echo "RELEASE_REQUIRE_PYPI=false allowed the publish step to be skipped."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::GitHub release created without PyPI publish (auth unconfigured, RELEASE_REQUIRE_PYPI=false)."
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2.6.0

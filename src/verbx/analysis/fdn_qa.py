@@ -7,6 +7,7 @@ algorithmic FDN topology changes over time.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -58,7 +59,7 @@ def echo_density_curve(
         if end <= start:
             continue
         frame_slice = x[start:end]
-        density = float(np.mean(frame_slice >= threshold))
+        density = float(cast(np.float64, np.mean((frame_slice >= threshold).astype(np.float64))))
         center_time = (start + ((end - start) * 0.5)) / float(sr)
         time_values.append(center_time)
         density_values.append(density)

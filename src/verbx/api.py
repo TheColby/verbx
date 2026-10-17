@@ -32,8 +32,8 @@ from typing import Any, TypeVar
 import numpy as np
 import numpy.typing as npt
 
-from verbx.core.render_report import RenderReport
 from verbx.config import RenderConfig
+from verbx.core.render_report import RenderReport
 from verbx.ir.generator import IRGenConfig
 
 __all__ = [
