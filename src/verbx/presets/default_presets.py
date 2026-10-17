@@ -368,3 +368,11 @@ def resolve_preset(value: str) -> tuple[str, dict[str, PresetValue]]:
             f"Available presets: {options}."
         )
     raise ValueError(f"Unknown preset '{value}'. Available presets: {options}.")
+
+
+def get_preset(name: str) -> dict[str, PresetValue] | None:
+    return DEFAULT_PRESETS.get(name)
+
+
+def list_presets() -> list[str]:
+    return list(DEFAULT_PRESETS.keys())
