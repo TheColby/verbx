@@ -5690,3 +5690,12 @@ def test_version(runner: CliRunner) -> None:
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
     assert f"verbx v{__version__}" in result.stdout
+
+def test_presets_list() -> None:
+    result = runner.invoke(app, ["presets"])
+    assert result.exit_code == 0
+    assert "Available Presets" in result.stdout
+    assert "cathedral_extreme" in result.stdout
+    assert "shimmer_wash" in result.stdout
+
+
