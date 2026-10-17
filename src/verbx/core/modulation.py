@@ -374,7 +374,7 @@ def _source_to_unit(
     if source.kind == "chaos":
         wave = _chaos_wave(n_samples=n_samples, sr=sr, rate_hz=source.rate_hz)
         depth = float(np.clip(source.depth, 0.0, 2.0))
-        return np.clip(0.5 + (0.5 * depth * wave), 0.0, 1.0).astype(np.float32)
+        return np.clip(0.5 + (0.5 * depth * wave), 0.0, 1.0).astype(np.float64)
 
     msg = f"Unsupported modulation source kind: {source.kind}"
     raise ValueError(msg)
@@ -418,7 +418,7 @@ def _chaos_wave(n_samples: int, sr: int, rate_hz: float) -> ControlArray:
     """Generate a chaotic control signal using a Lorenz attractor.
 
     The speed of the evolution is scaled by ``rate_hz``.
-    Returns a float32 array roughly in the range [-1.0, 1.0].
+    Returns a float64 array roughly in the range [-1.0, 1.0].
     """
     sigma, rho, beta = 10.0, 28.0, 8.0 / 3.0
     x, y, z = 1.0, 1.0, 1.0
@@ -426,7 +426,7 @@ def _chaos_wave(n_samples: int, sr: int, rate_hz: float) -> ControlArray:
     # Scale physical dt so 1 Hz equals 20 Lorenz time-units per second
     dt = (rate_hz * 20.0) / float(sr)
 
-    out = np.zeros(n_samples, dtype=np.float32)
+    out = np.zeros(n_samples, dtype=np.float64)
     for i in range(n_samples):
         dx = sigma * (y - x)
         dy = x * (rho - z) - y
@@ -440,7 +440,7 @@ def _chaos_wave(n_samples: int, sr: int, rate_hz: float) -> ControlArray:
 
     # The x-coordinate typically oscillates between roughly -20 and 20
     # Normalize it into [-1, 1] range for standard depth mapping
-    return np.clip(out / 20.0, -1.0, 1.0).astype(np.float32)
+    return np.clip(out / 20.0, -1.0, 1.0).astype(np.float64)
 
 
 def _lfo_wave(

@@ -48,7 +48,7 @@ def test_peak_normalize():
 
 def test_soft_limiter():
     """Test soft limiter."""
-    audio = np.array([10.0, -10.0], dtype=np.float32)
+    audio = np.tile(np.array([10.0, -10.0], dtype=np.float64), 4800)
     limited = soft_limiter(audio, threshold_dbfs=0.0)
     assert np.max(np.abs(limited)) < 1.0 + 1e-4
     assert np.max(np.abs(limited)) > 0.9

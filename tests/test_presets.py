@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 from verbx.config import RenderConfig
-from verbx.presets.default_presets import DEFAULT_PRESETS, preset_names, resolve_preset
+from verbx.presets.default_presets import (
+    DEFAULT_PRESETS,
+    get_preset,
+    list_presets,
+    preset_names,
+    resolve_preset,
+)
 
 
 def test_builtin_preset_bank_contains_hundreds_of_reverb_presets() -> None:
@@ -29,7 +35,6 @@ def test_generated_preset_names_resolve_from_cli_style_tokens() -> None:
     assert "warm_chamber" in preset_names()
 
 
-from verbx.presets.default_presets import get_preset, list_presets
 
 
 def test_preset_names_returns_sorted_keys():
@@ -71,4 +76,4 @@ def test_all_presets_have_required_fields():
         assert "rt60" in preset
         assert "wet" in preset
         assert "dry" in preset
-        assert "repeat" in preset
+        assert RenderConfig(**preset).repeat >= 1

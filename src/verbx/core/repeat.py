@@ -89,7 +89,7 @@ def process_pass_stream(
         The processed audio block.
     """
     for block in input_stream:
-        block = np.asarray(block, dtype=np.float32)
+        block = np.asarray(block, dtype=np.float64)
         processed = engine.process(block, sr)
         processed = processed * wet_decay
 

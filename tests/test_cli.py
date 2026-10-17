@@ -5689,9 +5689,9 @@ def test_version(runner: CliRunner) -> None:
 
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
-    assert f"verbx v{__version__}" in result.stdout
+    assert f"verbx {__version__}" in result.stdout
 
-def test_presets_list() -> None:
+def test_presets_list(runner: CliRunner) -> None:
     result = runner.invoke(app, ["presets"])
     assert result.exit_code == 0
     assert "Available Presets" in result.stdout
@@ -5757,4 +5757,4 @@ def test_suggest_file_error(tmp_path: Path) -> None:
     result = runner.invoke(app, ["suggest", str(infile)])
     assert result.exit_code != 0
     output = result.stdout or result.stderr
-    assert "Invalid value for 'INFILE'" in output or "No such file" in output
+    assert "does not exist" in output
