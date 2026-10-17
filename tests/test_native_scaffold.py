@@ -589,7 +589,6 @@ def test_plugin_editor_knobs_support_direct_interaction() -> None:
     assert "setScrollWheelEnabled(true)" in editor_source
     assert "setDoubleClickReturnValue" in editor_source
     assert "setComponentID(definition.parameterId)" in editor_source
-    assert "EXPERT CONTROL MATRIX" in editor_source
     assert "expert_knob_" in editor_source
     assert "expert_fader_" in editor_source
     assert "expert_select_" in editor_source

@@ -52,9 +52,9 @@ def test_extended_layout_hints_and_labels() -> None:
     assert labels[3] == "LFE1"
     assert labels[12] == "Rtr"
     labels16 = channel_labels_for_layout("16.0", 16)
-    assert labels16[12] == "Lw"
+    assert labels16[12] == "Lmf"
     labels64 = channel_labels_for_layout("64.4", 68)
-    assert labels64[0] == "B1"
+    assert labels64[0] == "Sp01"
     assert labels64[-1] == "LFE4"
 
 

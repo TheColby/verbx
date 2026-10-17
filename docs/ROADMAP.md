@@ -1,12 +1,12 @@
 # verbx Roadmap
 
-_Last updated: 2026-09-24. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
+_Last updated: 2026-10-17. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
 
 ---
 
 ## 1. Release Posture
 
-**Current release:** `v0.9.9`
+**Current release:** `v0.9.10`
 **Status:** public alpha (research-grade)
 **Versioning policy:** semantic prerelease (`0.x` during public alpha)
 
@@ -32,9 +32,8 @@ documentation to cover IAMF/Eclipsa Audio alongside Dolby Atmos.
 - [x] Add `scripts/validate_long_rt60.py` and
   `docs/LONG_RT60_VALIDATION.md` with reproducible configuration, source hash,
   fit windows, and measurement limits.
-- [ ] Finish testing the current `cli.py` extraction of batch, dereverb,
-  immersive, and shared validation logic into command modules before landing
-  the public CLI compatibility claim.
+- [x] Validate command extraction and restore corpus-generation registration
+  and helpers; bound long-RT60 CLI regression renders for repeatable testing.
 - [x] Update immersive documentation and generated guide outputs for
   Eclipsa Audio/IAMF handoff, renderer boundaries, and current verbx limits.
 

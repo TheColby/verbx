@@ -69,6 +69,7 @@ from verbx.commands.common import sha256_file as _sha256_file
 from verbx.commands.common import write_csv_atomic as _write_csv_atomic
 from verbx.commands.common import write_json_atomic as _write_json_atomic
 from verbx.commands.compare import compare as compare_command
+from verbx.commands.corpus import batch_corpus_generate as batch_corpus_generate_command
 from verbx.commands.dereverb import dereverb as dereverb_command
 from verbx.commands.dereverb_impl import dereverb_impl as _dereverb_impl
 from verbx.commands.immersive import (
@@ -391,6 +392,7 @@ ir_app.command("process")(ir_process_command)
 ir_app.command("morph")(ir_morph_command)
 ir_app.command("morph-sweep")(ir_morph_sweep_command)
 ir_app.command("fit")(ir_fit_command)
+batch_app.command("corpus-generate")(batch_corpus_generate_command)
 batch_app.command("template")(batch_template_command)
 batch_app.command("augment-template")(batch_augment_template_command)
 batch_app.command("augment-profiles")(batch_augment_profiles_command)

@@ -1289,7 +1289,6 @@ def _illustrate_operational_cards(markdown: str) -> str:
 
     def illustrate_card(match: re.Match[str]) -> str:
         title_line = match.group("title")
-        title = title_line.removeprefix("**").removesuffix("**")
         return (
             "```{=latex}\n\\Needspace{11\\baselineskip}\n```\n\n"
             + title_line

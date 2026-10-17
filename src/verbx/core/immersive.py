@@ -296,7 +296,9 @@ def evaluate_immersive_qc(
     measured_true_peak = float(true_peak_dbfs(x, int(sr), oversample=4))
 
     loudness_error = float(abs(measured_lufs - float(qc_gates.target_lufs)))
+    expected_channels = LAYOUT_CHANNELS.get(resolved_layout)
     passes = {
+        "layout_channels": expected_channels is None or int(x.shape[1]) == expected_channels,
         "loudness": loudness_error <= float(qc_gates.lufs_tolerance),
         "true_peak": measured_true_peak <= float(qc_gates.max_true_peak_dbfs),
         "fold_down_delta": abs(fold_down_delta_db) <= float(qc_gates.max_fold_down_delta_db),

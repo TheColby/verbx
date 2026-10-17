@@ -759,7 +759,7 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.9.9**.
+Current public alpha release: **v0.9.10**.
 
 Current stabilization status:
 
@@ -6862,4 +6862,4 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.9.9 is the current public alpha. See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.9.10 is the current public alpha. See [CHANGELOG.md](CHANGELOG.md) for version history.

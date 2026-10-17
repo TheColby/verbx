@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "verbx"
-version = "0.9.9"
+version = "0.9.10"
 description = "Research-grade CLI for extreme reverb processing and analysis."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -43,9 +43,11 @@ dev = [
 verbx = "verbx.cli:app"
 
 [tool.hatch.build.targets.wheel]
+core-metadata-version = "2.4"
 packages = ["src/verbx"]
 
 [tool.hatch.build.targets.sdist]
+core-metadata-version = "2.4"
 include = ["src/verbx", "man", "tests", "README.md", "LICENSE", "CHANGELOG.md"]
 
 [tool.hatch.build.targets.wheel.shared-data]

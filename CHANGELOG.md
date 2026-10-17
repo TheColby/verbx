@@ -4,6 +4,29 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.9.10] - 2026-10-17
+
+### Added
+- Block-stream repeat processing and freeze generators, with regression tests.
+- Chaotic modulation sources and preset lookup helpers.
+
+### Changed
+- Extracted batch, dereverb, and immersive CLI implementations into command modules.
+- Enabled stricter unknown-type diagnostics for analysis and preset modules.
+- Limited file reads used for render-side analysis to the first five minutes.
+- Added release summaries that surface skipped PyPI publishing.
+
+### Fixed
+- Restored the `batch corpus-generate` command and augmentation helpers lost
+  during command extraction, including checkpoint resume and worker selection.
+- Restored immersive QC layout/channel-count consistency checks.
+- Bounded the long-RT60 automation regression render while retaining its
+  extreme control-value assertions.
+
+### Development
+- Consolidated outstanding branches and adapted historical tests to the current
+  float64 DSP and command APIs.
+
 ## [0.9.9] - 2026-07-26
 
 ### Added

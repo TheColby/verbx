@@ -4657,6 +4657,8 @@ def test_render_automation_points_drive_algo_engine_targets(
             "algo",
             "--normalize-stage",
             "none",
+            "--tail-limit",
+            "0.5",
             "--automation-point",
             "rt60:0.0:0.4:linear",
             "--automation-point",

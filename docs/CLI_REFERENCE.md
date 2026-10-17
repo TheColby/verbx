@@ -2235,6 +2235,8 @@ Do not edit manually.
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ corpus-generate   Generate augmented audio corpora from one file or a        │
+│                   directory of files.                                        │
 │ template                                                                     │
 │ augment-template                                                             │
 │ augment-profiles                                                             │
