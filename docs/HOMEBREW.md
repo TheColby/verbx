@@ -29,34 +29,31 @@ A release maintainer refreshes the formula only after the version and release ar
 1. Refresh formula pins for a new release tag:
 
 ```bash
-./scripts/refresh_homebrew_formula.sh 0.9.9
+./scripts/refresh_homebrew_formula.sh 0.9.10
 ```
 
 2. Commit formula changes in this repo:
 
 ```bash
 git add packaging/homebrew/verbx.rb scripts/refresh_homebrew_formula.sh docs/HOMEBREW.md
-git commit -m "chore(homebrew): refresh formula for v0.9.9"
+git commit -m "chore(homebrew): refresh formula for v0.9.10"
 ```
 
 3. Ensure tap repo formula is updated and pushed.
 
 ## Release Automation
 
-The release workflow can synchronize the tap after a version tag is pushed. Repository secrets and policy variables determine whether a missing tap credential blocks the release.
+The tap owns `.github/workflows/sync-release.yml`. It checks the latest published
+GitHub release hourly (at minute 17) and also supports **Run workflow** for an
+immediate update. It fetches the formula from the release tag, updates the source
+URL and SHA-256, and commits with the tap's own `GITHUB_TOKEN`.
 
-`.github/workflows/release.yml` includes gated tap sync:
+This setup needs no personal token or cross-repository secret. Inspect or run it
+at <https://github.com/TheColby/homebrew-verbx/actions/workflows/sync-release.yml>.
 
-- Trigger: tag push (`v*`)
-- Job: `sync-homebrew-tap`
-- Requires secret: `HOMEBREW_TAP_TOKEN` (when sync required)
-- Optional variable: `HOMEBREW_TAP_REPO` (default `TheColby/homebrew-verbx`)
-- Policy variable: `RELEASE_REQUIRE_HOMEBREW` (`true` by default)
-
-Behavior:
-
-- `RELEASE_REQUIRE_HOMEBREW=true` (default): release fails if token is missing.
-- `RELEASE_REQUIRE_HOMEBREW=false`: sync is skipped when token is missing.
+The upstream release workflow retains optional direct sync for maintainers who
+supply `HOMEBREW_TAP_TOKEN`. `RELEASE_REQUIRE_HOMEBREW=false` allows release
+creation while the tap's scheduled workflow handles synchronization separately.
 
 ## Compatibility Notes
 
