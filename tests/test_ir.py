@@ -20,7 +20,12 @@ from verbx.ir.materials import get_material_profile, material_names
 from verbx.ir.sofa import extract_sofa_ir_matrix_from_array
 from verbx.ir.trace import generate_trace_ir, parse_dxf_room_outline, parse_trace_vector
 
-runner = CliRunner()
+
+@pytest.fixture
+def runner() -> CliRunner:
+    return CliRunner()
+
+
 _ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 
 
@@ -35,7 +40,7 @@ def _combined_cli_output(result: ClickResult) -> str:
     return _ANSI_ESCAPE_RE.sub("", "\n".join(parts))
 
 
-def test_ir_gen_writes_wav_and_meta(tmp_path: Path) -> None:
+def test_ir_gen_writes_wav_and_meta(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "test_ir.wav"
 
     result = runner.invoke(
@@ -132,16 +137,42 @@ def _write_layered_room_dxf(path: Path) -> None:
     ):
         entities.extend(
             [
-                "0", "LINE", "8", layer,
-                "10", str(x1), "20", str(y1), "11", str(x2), "21", str(y2),
+                "0",
+                "LINE",
+                "8",
+                layer,
+                "10",
+                str(x1),
+                "20",
+                str(y1),
+                "11",
+                str(x2),
+                "21",
+                str(y2),
             ]
         )
     path.write_text(
         "\n".join(
             [
-                "0", "SECTION", "2", "HEADER", "9", "$INSUNITS", "70", "6",
-                "0", "ENDSEC", "0", "SECTION", "2", "ENTITIES", *entities,
-                "0", "ENDSEC", "0", "EOF",
+                "0",
+                "SECTION",
+                "2",
+                "HEADER",
+                "9",
+                "$INSUNITS",
+                "70",
+                "6",
+                "0",
+                "ENDSEC",
+                "0",
+                "SECTION",
+                "2",
+                "ENTITIES",
+                *entities,
+                "0",
+                "ENDSEC",
+                "0",
+                "EOF",
             ]
         ),
         encoding="utf-8",
@@ -189,14 +220,69 @@ def test_trace_dxf_polyline_layer_maps_only_its_boundary_segments(tmp_path: Path
     dxf.write_text(
         "\n".join(
             [
-                "0", "SECTION", "2", "HEADER", "9", "$INSUNITS", "70", "6",
-                "0", "ENDSEC", "0", "SECTION", "2", "ENTITIES",
-                "0", "LWPOLYLINE", "8", "corner-layer", "90", "3", "70", "0",
-                "10", "0", "20", "0", "10", "0", "20", "4", "10", "6", "20", "4",
+                "0",
+                "SECTION",
+                "2",
+                "HEADER",
+                "9",
+                "$INSUNITS",
+                "70",
+                "6",
+                "0",
+                "ENDSEC",
+                "0",
+                "SECTION",
+                "2",
+                "ENTITIES",
+                "0",
+                "LWPOLYLINE",
+                "8",
+                "corner-layer",
+                "90",
+                "3",
+                "70",
+                "0",
+                "10",
+                "0",
+                "20",
+                "0",
+                "10",
+                "0",
+                "20",
+                "4",
+                "10",
+                "6",
+                "20",
+                "4",
                 # Remaining segments establish the bounding box on their own layers.
-                "0", "LINE", "8", "east", "10", "6", "20", "0", "11", "6", "21", "4",
-                "0", "LINE", "8", "south", "10", "0", "20", "0", "11", "6", "21", "0",
-                "0", "ENDSEC", "0", "EOF",
+                "0",
+                "LINE",
+                "8",
+                "east",
+                "10",
+                "6",
+                "20",
+                "0",
+                "11",
+                "6",
+                "21",
+                "4",
+                "0",
+                "LINE",
+                "8",
+                "south",
+                "10",
+                "0",
+                "20",
+                "0",
+                "11",
+                "6",
+                "21",
+                "0",
+                "0",
+                "ENDSEC",
+                "0",
+                "EOF",
             ]
         ),
         encoding="utf-8",
@@ -224,7 +310,7 @@ def test_material_profiles_cover_common_trace_materials() -> None:
     assert drywall.to_report()["octave_bands_hz"] == [125, 250, 500, 1000, 2000, 4000]
 
 
-def test_ir_trace_command_writes_wav_and_report(tmp_path: Path) -> None:
+def test_ir_trace_command_writes_wav_and_report(tmp_path: Path, runner: CliRunner) -> None:
     dxf = tmp_path / "room.dxf"
     out_ir = tmp_path / "room_ir.wav"
     report_path = tmp_path / "trace.json"
@@ -269,7 +355,7 @@ def test_ir_trace_command_writes_wav_and_report(tmp_path: Path) -> None:
     assert payload["material"]["profile"]["name"] == "studio"
 
 
-def test_ir_trace_command_rejects_unknown_material(tmp_path: Path) -> None:
+def test_ir_trace_command_rejects_unknown_material(tmp_path: Path, runner: CliRunner) -> None:
     dxf = tmp_path / "room.dxf"
     out_ir = tmp_path / "room_ir.wav"
     _write_simple_room_dxf(dxf)
@@ -294,7 +380,9 @@ def test_ir_trace_command_rejects_unknown_material(tmp_path: Path) -> None:
     assert "Unknown material" in _combined_cli_output(result)
 
 
-def test_ir_trace_layer_material_overrides_are_reported_and_applied(tmp_path: Path) -> None:
+def test_ir_trace_layer_material_overrides_are_reported_and_applied(
+    tmp_path: Path, runner: CliRunner
+) -> None:
     dxf = tmp_path / "layered_room.dxf"
     out_ir = tmp_path / "layered_room_ir.wav"
     report_path = tmp_path / "layered_trace.json"
@@ -303,13 +391,29 @@ def test_ir_trace_layer_material_overrides_are_reported_and_applied(tmp_path: Pa
     result = runner.invoke(
         app,
         [
-            "ir", "trace", str(dxf), str(out_ir),
-            "--source", "1,1,1.5", "--listener", "5,3,1.5",
-            "--material", "studio",
-            "--layer-material", "west-wall=concrete",
-            "--layer-material", "east-wall=acoustic-panel",
-            "--rays", "100", "--length", "0.1", "--target-sr", "8000",
-            "--json-out", str(report_path), "--silent",
+            "ir",
+            "trace",
+            str(dxf),
+            str(out_ir),
+            "--source",
+            "1,1,1.5",
+            "--listener",
+            "5,3,1.5",
+            "--material",
+            "studio",
+            "--layer-material",
+            "west-wall=concrete",
+            "--layer-material",
+            "east-wall=acoustic-panel",
+            "--rays",
+            "100",
+            "--length",
+            "0.1",
+            "--target-sr",
+            "8000",
+            "--json-out",
+            str(report_path),
+            "--silent",
         ],
     )
 
@@ -325,7 +429,9 @@ def test_ir_trace_layer_material_overrides_are_reported_and_applied(tmp_path: Pa
     assert payload["material"]["surface_profiles"]["front"]["name"] == "studio"
 
 
-def test_ir_trace_layer_material_rejects_unknown_layer_and_bad_syntax(tmp_path: Path) -> None:
+def test_ir_trace_layer_material_rejects_unknown_layer_and_bad_syntax(
+    tmp_path: Path, runner: CliRunner
+) -> None:
     dxf = tmp_path / "layered_room.dxf"
     out_ir = tmp_path / "layered_room_ir.wav"
     _write_layered_room_dxf(dxf)
@@ -333,8 +439,16 @@ def test_ir_trace_layer_material_rejects_unknown_layer_and_bad_syntax(tmp_path: 
     unknown_layer = runner.invoke(
         app,
         [
-            "ir", "trace", str(dxf), str(out_ir), "--source", "1,1,1.5",
-            "--listener", "5,3,1.5", "--layer-material", "missing=stone",
+            "ir",
+            "trace",
+            str(dxf),
+            str(out_ir),
+            "--source",
+            "1,1,1.5",
+            "--listener",
+            "5,3,1.5",
+            "--layer-material",
+            "missing=stone",
         ],
     )
     assert unknown_layer.exit_code != 0
@@ -343,15 +457,23 @@ def test_ir_trace_layer_material_rejects_unknown_layer_and_bad_syntax(tmp_path: 
     malformed = runner.invoke(
         app,
         [
-            "ir", "trace", str(dxf), str(out_ir), "--source", "1,1,1.5",
-            "--listener", "5,3,1.5", "--layer-material", "west-wall",
+            "ir",
+            "trace",
+            str(dxf),
+            str(out_ir),
+            "--source",
+            "1,1,1.5",
+            "--listener",
+            "5,3,1.5",
+            "--layer-material",
+            "west-wall",
         ],
     )
     assert malformed.exit_code != 0
     assert "LAYER=MATERIAL" in _combined_cli_output(malformed)
 
 
-def test_ir_gen_format_switch_overrides_extension(tmp_path: Path) -> None:
+def test_ir_gen_format_switch_overrides_extension(tmp_path: Path, runner: CliRunner) -> None:
     out_base = tmp_path / "custom_name.placeholder"
     expected = out_base.with_suffix(".aiff")
 
@@ -383,7 +505,7 @@ def test_ir_gen_format_switch_overrides_extension(tmp_path: Path) -> None:
     assert audio.shape[1] == 1
 
 
-def test_ir_morph_command_writes_output_and_meta(tmp_path: Path) -> None:
+def test_ir_morph_command_writes_output_and_meta(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     a = np.zeros((2400, 1), dtype=np.float64)
     b = np.zeros((2400, 1), dtype=np.float64)
@@ -428,7 +550,7 @@ def test_ir_morph_command_writes_output_and_meta(tmp_path: Path) -> None:
     assert "quality" in payload
 
 
-def test_ir_gen_supports_tvu_and_dfm_controls(tmp_path: Path) -> None:
+def test_ir_gen_supports_tvu_and_dfm_controls(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "fdn_tvu.wav"
     result = runner.invoke(
         app,
@@ -467,7 +589,7 @@ def test_ir_gen_supports_tvu_and_dfm_controls(tmp_path: Path) -> None:
     assert len(params["fdn_dfm_delays_ms"]) == 4
 
 
-def test_ir_gen_supports_sparse_high_order_controls(tmp_path: Path) -> None:
+def test_ir_gen_supports_sparse_high_order_controls(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "fdn_sparse.wav"
     result = runner.invoke(
         app,
@@ -499,7 +621,7 @@ def test_ir_gen_supports_sparse_high_order_controls(tmp_path: Path) -> None:
     assert int(params["fdn_sparse_degree"]) == 3
 
 
-def test_ir_gen_supports_graph_fdn_controls(tmp_path: Path) -> None:
+def test_ir_gen_supports_graph_fdn_controls(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "fdn_graph.wav"
     result = runner.invoke(
         app,
@@ -535,7 +657,9 @@ def test_ir_gen_supports_graph_fdn_controls(tmp_path: Path) -> None:
     assert int(params["fdn_graph_seed"]) == 42
 
 
-def test_ir_gen_supports_sdn_spatial_and_nonlinear_controls(tmp_path: Path) -> None:
+def test_ir_gen_supports_sdn_spatial_and_nonlinear_controls(
+    tmp_path: Path, runner: CliRunner
+) -> None:
     out_ir = tmp_path / "fdn_sdn_spatial.wav"
     result = runner.invoke(
         app,
@@ -576,7 +700,9 @@ def test_ir_gen_supports_sdn_spatial_and_nonlinear_controls(tmp_path: Path) -> N
     assert abs(float(params["fdn_nonlinearity_drive"]) - 2.0) < 1e-9
 
 
-def test_ir_gen_rejects_graph_options_without_graph_matrix(tmp_path: Path) -> None:
+def test_ir_gen_rejects_graph_options_without_graph_matrix(
+    tmp_path: Path, runner: CliRunner
+) -> None:
     out_ir = tmp_path / "bad_graph.wav"
     result = runner.invoke(
         app,
@@ -602,7 +728,7 @@ def test_ir_gen_rejects_graph_options_without_graph_matrix(tmp_path: Path) -> No
     assert "--fdn-matrix graph" in text
 
 
-def test_ir_gen_supports_cascaded_fdn_controls(tmp_path: Path) -> None:
+def test_ir_gen_supports_cascaded_fdn_controls(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "fdn_cascade.wav"
     result = runner.invoke(
         app,
@@ -640,7 +766,7 @@ def test_ir_gen_supports_cascaded_fdn_controls(tmp_path: Path) -> None:
     assert abs(float(params["fdn_cascade_rt60_ratio"]) - 0.45) < 1e-6
 
 
-def test_ir_gen_rejects_cascade_with_single_line_fdn(tmp_path: Path) -> None:
+def test_ir_gen_rejects_cascade_with_single_line_fdn(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "bad_cascade.wav"
     result = runner.invoke(
         app,
@@ -665,7 +791,7 @@ def test_ir_gen_rejects_cascade_with_single_line_fdn(tmp_path: Path) -> None:
     assert "--fdn-cascade requires at least 2 FDN lines." in _combined_cli_output(result)
 
 
-def test_ir_gen_supports_multiband_fdn_controls(tmp_path: Path) -> None:
+def test_ir_gen_supports_multiband_fdn_controls(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "fdn_multiband.wav"
     result = runner.invoke(
         app,
@@ -707,7 +833,7 @@ def test_ir_gen_supports_multiband_fdn_controls(tmp_path: Path) -> None:
     assert abs(float(params["fdn_xover_high_hz"]) - 3200.0) < 1e-6
 
 
-def test_ir_gen_supports_track_c_perceptual_fdn_controls(tmp_path: Path) -> None:
+def test_ir_gen_supports_track_c_perceptual_fdn_controls(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "fdn_track_c.wav"
     result = runner.invoke(
         app,
@@ -746,7 +872,7 @@ def test_ir_gen_supports_track_c_perceptual_fdn_controls(tmp_path: Path) -> None
     assert abs(float(params["envelopment_macro"]) - 0.30) < 1e-6
 
 
-def test_ir_gen_rejects_partial_multiband_rt60_set(tmp_path: Path) -> None:
+def test_ir_gen_rejects_partial_multiband_rt60_set(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "bad_multiband.wav"
     result = runner.invoke(
         app,
@@ -772,7 +898,7 @@ def test_ir_gen_rejects_partial_multiband_rt60_set(tmp_path: Path) -> None:
     assert "provide all three values" in _combined_cli_output(result)
 
 
-def test_ir_gen_supports_filter_feedback_controls(tmp_path: Path) -> None:
+def test_ir_gen_supports_filter_feedback_controls(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "fdn_filter.wav"
     result = runner.invoke(
         app,
@@ -840,11 +966,12 @@ def test_sofa_extract_strict_rejects_unsupported_rank() -> None:
         _ = extract_sofa_ir_matrix_from_array(data_ir, strict=True)
 
 
-def test_ir_sofa_info_reports_optional_dependency_when_h5py_missing(tmp_path: Path) -> None:
+def test_ir_sofa_info_reports_optional_dependency_when_h5py_missing(
+    tmp_path: Path, runner: CliRunner
+) -> None:
     if importlib.util.find_spec("h5py") is not None:
         pytest.skip(
-            "h5py is installed in this environment; "
-            "missing-dependency path not applicable."
+            "h5py is installed in this environment; missing-dependency path not applicable."
         )
 
     sofa_path = tmp_path / "dummy.sofa"
@@ -856,7 +983,7 @@ def test_ir_sofa_info_reports_optional_dependency_when_h5py_missing(tmp_path: Pa
     assert "sofa support requires optional dependency 'h5py'" in text
 
 
-def test_ir_gen_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
+def test_ir_gen_rejects_invalid_filter_feedback_mode(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "bad_filter.wav"
     result = runner.invoke(
         app,
@@ -880,7 +1007,7 @@ def test_ir_gen_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
     assert "--fdn-link-filter must be one of" in _combined_cli_output(result)
 
 
-def test_ir_gen_accepts_hyphenated_filter_feedback_alias(tmp_path: Path) -> None:
+def test_ir_gen_accepts_hyphenated_filter_feedback_alias(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "fdn_filter_alias.wav"
     result = runner.invoke(
         app,
@@ -906,7 +1033,7 @@ def test_ir_gen_accepts_hyphenated_filter_feedback_alias(tmp_path: Path) -> None
     assert payload["params"]["fdn_link_filter"] == "lowpass"
 
 
-def test_ir_gen_with_explicit_f0(tmp_path: Path) -> None:
+def test_ir_gen_with_explicit_f0(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "with_f0.wav"
     result = runner.invoke(
         app,
@@ -934,7 +1061,7 @@ def test_ir_gen_with_explicit_f0(tmp_path: Path) -> None:
     assert abs(float(params["f0_hz"]) - 64.0) < 1e-6
 
 
-def test_ir_gen_analyze_input_tuning(tmp_path: Path) -> None:
+def test_ir_gen_analyze_input_tuning(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16000
     t = np.arange(sr, dtype=np.float64) / sr
     src = (0.4 * np.sin(2.0 * np.pi * 220.0 * t)).astype(np.float64)[:, np.newaxis]
@@ -970,7 +1097,7 @@ def test_ir_gen_analyze_input_tuning(tmp_path: Path) -> None:
     assert len(params["harmonic_targets_hz"]) >= 3
 
 
-def test_ir_gen_resonator_layer(tmp_path: Path) -> None:
+def test_ir_gen_resonator_layer(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "resonated.wav"
     result = runner.invoke(
         app,
@@ -1013,7 +1140,9 @@ def test_ir_gen_resonator_layer(tmp_path: Path) -> None:
     assert abs(float(params["resonator_mix"]) - 0.45) < 1e-9
 
 
-def test_ir_gen_with_scala_scale_records_resolved_targets(tmp_path: Path) -> None:
+def test_ir_gen_with_scala_scale_records_resolved_targets(
+    tmp_path: Path, runner: CliRunner
+) -> None:
     scale_path = tmp_path / "19edo.scl"
     scale_path.write_text(
         "\n".join(
@@ -1073,7 +1202,7 @@ def test_ir_gen_with_scala_scale_records_resolved_targets(tmp_path: Path) -> Non
     assert abs(float(params["scala_gain_db"]) - 6.0) < 1e-9
 
 
-def test_ir_gen_rejects_scala_with_source_analysis(tmp_path: Path) -> None:
+def test_ir_gen_rejects_scala_with_source_analysis(tmp_path: Path, runner: CliRunner) -> None:
     scale_path = tmp_path / "scale.scl"
     scale_path.write_text("Octave\n1\n2/1\n", encoding="utf-8")
     source_path = tmp_path / "source.wav"
@@ -1110,7 +1239,7 @@ def test_ir_cache_hit(tmp_path: Path) -> None:
     assert hit2 is True
 
 
-def test_ir_fit_heuristic_scoring_outputs_top_k(tmp_path: Path) -> None:
+def test_ir_fit_heuristic_scoring_outputs_top_k(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     t = np.arange(sr, dtype=np.float64) / sr
     audio = (0.25 * np.sin(2.0 * np.pi * 196.0 * t)).astype(np.float64)[:, np.newaxis]

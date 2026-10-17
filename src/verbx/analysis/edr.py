@@ -140,4 +140,3 @@ def _empty_summary() -> dict[str, float]:
         "edr_rt60_high_s": 0.0,
         "edr_valid_bins": 0.0,
     }
-

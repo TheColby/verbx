@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 import numpy as np
+import pytest
 import soundfile as sf
 from click.testing import Result as ClickResult
 from pytest import MonkeyPatch
@@ -16,7 +17,9 @@ from verbx import __version__
 from verbx.cli import app
 from verbx.core import accel
 
-runner = CliRunner()
+@pytest.fixture
+def runner() -> CliRunner:
+    return CliRunner()
 _ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 _DEFAULT_RENDER_SR = 192_000
 
@@ -32,7 +35,7 @@ def _combined_cli_output(result: ClickResult) -> str:
     return _ANSI_ESCAPE_RE.sub("", "\n".join(parts))
 
 
-def test_cli_boots() -> None:
+def test_cli_boots(runner: CliRunner) -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
     assert "render" in result.stdout
@@ -51,7 +54,7 @@ def test_cli_boots() -> None:
     assert "immersive" in result.stdout
 
 
-def test_version_command_reports_package_version() -> None:
+def test_version_command_reports_package_version(runner: CliRunner) -> None:
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
     assert f"verbx {__version__}" in result.stdout
@@ -73,7 +76,7 @@ def test_ir_command_impls_resolve_to_extracted_module() -> None:
         assert impl.__module__ == "verbx.commands.ir_impl"
 
 
-def test_room_model_command_infers_geometry_and_writes_json(tmp_path: Path) -> None:
+def test_room_model_command_infers_geometry_and_writes_json(tmp_path: Path, runner: CliRunner) -> None:
     json_out = tmp_path / "room_model.json"
     result = runner.invoke(
         app,
@@ -97,7 +100,7 @@ def test_room_model_command_infers_geometry_and_writes_json(tmp_path: Path) -> N
     assert float(payload["geometry"]["volume_m3"]) > 0.0
 
 
-def test_quickstart_command_prints_copyable_workflows() -> None:
+def test_quickstart_command_prints_copyable_workflows(runner: CliRunner) -> None:
     result = runner.invoke(app, ["quickstart"])
     assert result.exit_code == 0
     text = _combined_cli_output(result)
@@ -109,7 +112,7 @@ def test_quickstart_command_prints_copyable_workflows() -> None:
     assert "--output-container w64" in text
 
 
-def test_doctor_command_prints_runtime_diagnostics(tmp_path: Path) -> None:
+def test_doctor_command_prints_runtime_diagnostics(tmp_path: Path, runner: CliRunner) -> None:
     json_out = tmp_path / "doctor.json"
     result = runner.invoke(app, ["doctor", "--json-out", str(json_out)])
     assert result.exit_code == 0, result.stdout
@@ -124,7 +127,7 @@ def test_doctor_command_prints_runtime_diagnostics(tmp_path: Path) -> None:
     assert "dependencies" in payload
 
 
-def test_quickstart_verify_emits_readiness_report(tmp_path: Path) -> None:
+def test_quickstart_verify_emits_readiness_report(tmp_path: Path, runner: CliRunner) -> None:
     json_out = tmp_path / "quickstart_verify.json"
     result = runner.invoke(app, ["quickstart", "--verify", "--json-out", str(json_out)])
     assert result.exit_code == 0, result.stdout
@@ -135,7 +138,7 @@ def test_quickstart_verify_emits_readiness_report(tmp_path: Path) -> None:
     assert "ready" in payload
 
 
-def test_quickstart_smoke_test_writes_artifacts(tmp_path: Path) -> None:
+def test_quickstart_smoke_test_writes_artifacts(tmp_path: Path, runner: CliRunner) -> None:
     smoke_dir = tmp_path / "smoke"
     json_out = tmp_path / "quickstart_smoke.json"
     result = runner.invoke(
@@ -159,7 +162,7 @@ def test_quickstart_smoke_test_writes_artifacts(tmp_path: Path) -> None:
     assert Path(str(smoke.get("outfile", ""))).exists()
 
 
-def test_doctor_strict_fails_when_checks_fail(monkeypatch: MonkeyPatch) -> None:
+def test_doctor_strict_fails_when_checks_fail(monkeypatch: MonkeyPatch, runner: CliRunner) -> None:
     report: dict[str, object] = {
         "verbx_version": __version__,
         "python_version": "3.10.0",
@@ -195,7 +198,7 @@ def test_doctor_strict_fails_when_checks_fail(monkeypatch: MonkeyPatch) -> None:
     assert result.exit_code == 2
 
 
-def test_doctor_strict_fails_when_smoke_test_fails(monkeypatch: MonkeyPatch) -> None:
+def test_doctor_strict_fails_when_smoke_test_fails(monkeypatch: MonkeyPatch, runner: CliRunner) -> None:
     def _fake_smoke_report(out_dir: Path) -> dict[str, object]:
         _ = out_dir
         return {
@@ -212,7 +215,7 @@ def test_doctor_strict_fails_when_smoke_test_fails(monkeypatch: MonkeyPatch) -> 
     assert result.exit_code == 2
 
 
-def test_render_room_preset_derives_geometry_defaults(tmp_path: Path) -> None:
+def test_render_room_preset_derives_geometry_defaults(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1200, 1), dtype=np.float64)
     audio[32:96, 0] = 0.4
     infile = tmp_path / "in.wav"
@@ -242,7 +245,7 @@ def test_render_room_preset_derives_geometry_defaults(tmp_path: Path) -> None:
     assert float(config["pre_delay_ms"]) > 0.0
 
 
-def test_presets_show_displays_resolved_values() -> None:
+def test_presets_show_displays_resolved_values(runner: CliRunner) -> None:
     result = runner.invoke(app, ["presets", "--show", "cathedral-extreme"])
     assert result.exit_code == 0, result.stdout
     text = _combined_cli_output(result)
@@ -252,7 +255,7 @@ def test_presets_show_displays_resolved_values() -> None:
     assert "90.0" in text
 
 
-def test_presets_include_perceptual_regression_corpus_variants() -> None:
+def test_presets_include_perceptual_regression_corpus_variants(runner: CliRunner) -> None:
     result = runner.invoke(app, ["presets"])
     assert result.exit_code == 0, result.stdout
     text = _combined_cli_output(result)
@@ -268,7 +271,7 @@ def test_presets_include_perceptual_regression_corpus_variants() -> None:
     assert "room_size_macro" in detail_text
 
 
-def test_render_dry_run_validates_without_writing_audio(tmp_path: Path) -> None:
+def test_render_dry_run_validates_without_writing_audio(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1024, 1), dtype=np.float64)
     audio[10:40, 0] = 0.4
     infile = tmp_path / "in.wav"
@@ -299,7 +302,7 @@ def test_render_dry_run_validates_without_writing_audio(tmp_path: Path) -> None:
     assert not Path(f"{outfile}.analysis.json").exists()
 
 
-def test_render_dry_run_accepts_extended_rt60_upper_bound(tmp_path: Path) -> None:
+def test_render_dry_run_accepts_extended_rt60_upper_bound(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((256, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -328,7 +331,7 @@ def test_render_dry_run_accepts_extended_rt60_upper_bound(tmp_path: Path) -> Non
     assert not Path(f"{outfile}.analysis.json").exists()
 
 
-def test_render_rejects_unbounded_extreme_algo_tail_without_tail_limit(tmp_path: Path) -> None:
+def test_render_rejects_unbounded_extreme_algo_tail_without_tail_limit(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((256, 1), dtype=np.float64)
     audio[0, 0] = 0.8
     infile = tmp_path / "in.wav"
@@ -356,7 +359,7 @@ def test_render_rejects_unbounded_extreme_algo_tail_without_tail_limit(tmp_path:
     assert not outfile.exists()
 
 
-def test_render_allows_extreme_algo_tail_when_tail_limit_is_set(tmp_path: Path) -> None:
+def test_render_allows_extreme_algo_tail_when_tail_limit_is_set(tmp_path: Path, runner: CliRunner) -> None:
     sr = 2_000
     audio = np.zeros((1_000, 1), dtype=np.float64)
     audio[0, 0] = 0.8
@@ -396,7 +399,7 @@ def test_render_allows_extreme_algo_tail_when_tail_limit_is_set(tmp_path: Path) 
     assert np.max(np.abs(y[: min(y.shape[0], 512), :])) > 0.0
 
 
-def test_render_long_tail_prints_preflight_status(tmp_path: Path) -> None:
+def test_render_long_tail_prints_preflight_status(tmp_path: Path, runner: CliRunner) -> None:
     sr = 2_000
     audio = np.zeros((256, 1), dtype=np.float64)
     audio[0, 0] = 0.8
@@ -434,7 +437,7 @@ def test_render_long_tail_prints_preflight_status(tmp_path: Path) -> None:
     assert "Long tail is bounded by --tail-limit" in text
 
 
-def test_render_dry_run_accepts_w64_extension(tmp_path: Path) -> None:
+def test_render_dry_run_accepts_w64_extension(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((256, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.w64"
@@ -456,7 +459,7 @@ def test_render_dry_run_accepts_w64_extension(tmp_path: Path) -> None:
     assert not outfile.exists()
 
 
-def test_render_auto_fit_profile_applies_when_not_overridden(tmp_path: Path) -> None:
+def test_render_auto_fit_profile_applies_when_not_overridden(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((4096, 1), dtype=np.float64)
     audio[64:192, 0] = 0.4
     infile = tmp_path / "in.wav"
@@ -485,7 +488,7 @@ def test_render_auto_fit_profile_applies_when_not_overridden(tmp_path: Path) -> 
     assert abs(float(config["pre_delay_ms"]) - 14.0) < 1e-6
 
 
-def test_render_algo_stream_proxy_path_reports_proxy_backend(tmp_path: Path) -> None:
+def test_render_algo_stream_proxy_path_reports_proxy_backend(tmp_path: Path, runner: CliRunner) -> None:
     sr = 12_000
     audio = np.zeros((2048, 1), dtype=np.float64)
     audio[0, 0] = 1.0
@@ -521,7 +524,7 @@ def test_render_algo_stream_proxy_path_reports_proxy_backend(tmp_path: Path) -> 
     assert bool(effective["streaming_mode"])
 
 
-def test_render_spring_and_plate_physical_proxy_options_are_reported(tmp_path: Path) -> None:
+def test_render_spring_and_plate_physical_proxy_options_are_reported(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     audio = np.zeros((1024, 1), dtype=np.float64)
     audio[0, 0] = 0.5
@@ -563,7 +566,7 @@ def test_render_spring_and_plate_physical_proxy_options_are_reported(tmp_path: P
     assert len(config["spring_specs"]) == 2
 
 
-def test_render_modal_fe_spring_reports_resolved_structural_modes(tmp_path: Path) -> None:
+def test_render_modal_fe_spring_reports_resolved_structural_modes(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     audio = np.zeros((1024, 1), dtype=np.float64)
     audio[0, 0] = 0.5
@@ -611,7 +614,7 @@ def test_render_modal_fe_spring_reports_resolved_structural_modes(tmp_path: Path
     assert float(np.max(np.abs(rendered))) > 1e-6
 
 
-def test_render_ism_fdn_reports_resolved_room_scene(tmp_path: Path) -> None:
+def test_render_ism_fdn_reports_resolved_room_scene(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     audio = np.zeros((2048, 1), dtype=np.float64)
     audio[0, 0] = 0.5
@@ -662,7 +665,7 @@ def test_render_ism_fdn_reports_resolved_room_scene(tmp_path: Path) -> None:
     assert handoff["handoff_seconds"] >= 0.0
 
 
-def test_render_ism_fdn_handoff_preserves_dry_early_onset(tmp_path: Path) -> None:
+def test_render_ism_fdn_handoff_preserves_dry_early_onset(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     audio = np.zeros((2048, 1), dtype=np.float64)
     audio[0, 0] = 0.5
@@ -701,7 +704,7 @@ def test_render_ism_fdn_handoff_preserves_dry_early_onset(tmp_path: Path) -> Non
     assert rendered[0, 0] > 0.3
 
 
-def test_render_matrix_morph_and_er_geometry_complete(tmp_path: Path) -> None:
+def test_render_matrix_morph_and_er_geometry_complete(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     audio = np.zeros((4096, 1), dtype=np.float64)
     audio[80:220, 0] = 0.6
@@ -741,7 +744,7 @@ def test_render_matrix_morph_and_er_geometry_complete(tmp_path: Path) -> None:
     assert out_audio.shape[1] == 1
 
 
-def test_render_long_tail_regression_rt60_over_120_seconds(tmp_path: Path) -> None:
+def test_render_long_tail_regression_rt60_over_120_seconds(tmp_path: Path, runner: CliRunner) -> None:
     sr = 2_000
     audio = np.zeros((1_000, 1), dtype=np.float64)
     audio[0, 0] = 0.8
@@ -782,7 +785,7 @@ def test_render_long_tail_regression_rt60_over_120_seconds(tmp_path: Path) -> No
     assert np.max(np.abs(y[-max(1, sr // 100) :, :])) == 0.0
 
 
-def test_render_preset_applies_defaults_and_respects_cli_override(tmp_path: Path) -> None:
+def test_render_preset_applies_defaults_and_respects_cli_override(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1600, 1), dtype=np.float64)
     audio[100:200, 0] = 0.5
     infile = tmp_path / "in.wav"
@@ -812,7 +815,7 @@ def test_render_preset_applies_defaults_and_respects_cli_override(tmp_path: Path
     assert abs(float(config["dry"]) - 0.1) < 1e-6
 
 
-def test_render_invalid_fdn_matrix_includes_suggestion(tmp_path: Path) -> None:
+def test_render_invalid_fdn_matrix_includes_suggestion(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -838,7 +841,7 @@ def test_render_invalid_fdn_matrix_includes_suggestion(tmp_path: Path) -> None:
     assert "hadamard" in text
 
 
-def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
+def test_render_creates_output_and_analysis(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((2048, 2), dtype=np.float64)
     audio[100:130, 0] = 0.6
     audio[100:130, 1] = -0.6
@@ -890,7 +893,7 @@ def test_render_creates_output_and_analysis(tmp_path: Path) -> None:
     assert payload["output_samples"] > payload["input_samples"]
 
 
-def test_render_prints_output_feature_table_by_default(tmp_path: Path) -> None:
+def test_render_prints_output_feature_table_by_default(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1024, 1), dtype=np.float64)
     audio[10:30, 0] = 0.4
     infile = tmp_path / "in.wav"
@@ -917,7 +920,7 @@ def test_render_prints_output_feature_table_by_default(tmp_path: Path) -> None:
     assert "Output Audio Features and Statistics" in result.stdout
 
 
-def test_render_writes_repro_bundle(tmp_path: Path) -> None:
+def test_render_writes_repro_bundle(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1024, 1), dtype=np.float64)
     audio[10:30, 0] = 0.4
     infile = tmp_path / "in.wav"
@@ -951,7 +954,7 @@ def test_render_writes_repro_bundle(tmp_path: Path) -> None:
     assert len(str(payload.get("run_signature"))) == 64
 
 
-def test_render_quiet_or_low_verbosity_suppresses_output_feature_table(tmp_path: Path) -> None:
+def test_render_quiet_or_low_verbosity_suppresses_output_feature_table(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1024, 1), dtype=np.float64)
     audio[20:40, 0] = 0.5
     infile = tmp_path / "in.wav"
@@ -998,8 +1001,7 @@ def test_render_quiet_or_low_verbosity_suppresses_output_feature_table(tmp_path:
 
 def test_render_algo_auto_reports_engine_specific_device(
     tmp_path: Path,
-    monkeypatch: MonkeyPatch,
-) -> None:
+    monkeypatch: MonkeyPatch,, runner: CliRunner) -> None:
     monkeypatch.setattr(accel, "cuda_available", lambda: True)
     monkeypatch.setattr(accel, "is_apple_silicon", lambda: False)
 
@@ -1035,8 +1037,7 @@ def test_render_algo_auto_reports_engine_specific_device(
 
 def test_render_conv_auto_prefers_cuda_when_available(
     tmp_path: Path,
-    monkeypatch: MonkeyPatch,
-) -> None:
+    monkeypatch: MonkeyPatch,, runner: CliRunner) -> None:
     monkeypatch.setattr(accel, "cuda_available", lambda: True)
     monkeypatch.setattr(accel, "is_apple_silicon", lambda: True)
 
@@ -1074,7 +1075,7 @@ def test_render_conv_auto_prefers_cuda_when_available(
     assert payload["effective"]["device_resolved"] == "cuda"
 
 
-def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path) -> None:
+def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((2048, 2), dtype=np.float64)
     audio[200:280, :] = 0.3
     infile = tmp_path / "in.wav"
@@ -1116,7 +1117,7 @@ def test_render_allpass_and_comb_switches_are_applied(tmp_path: Path) -> None:
     assert config["fdn_lines"] == 10
 
 
-def test_render_tvu_and_dfm_switches_are_applied(tmp_path: Path) -> None:
+def test_render_tvu_and_dfm_switches_are_applied(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1536, 1), dtype=np.float64)
     audio[120:220, 0] = 0.4
     infile = tmp_path / "in.wav"
@@ -1156,7 +1157,7 @@ def test_render_tvu_and_dfm_switches_are_applied(tmp_path: Path) -> None:
     assert len(config["fdn_dfm_delays_ms"]) == 4
 
 
-def test_render_rejects_invalid_tvu_combo(tmp_path: Path) -> None:
+def test_render_rejects_invalid_tvu_combo(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -1181,7 +1182,7 @@ def test_render_rejects_invalid_tvu_combo(tmp_path: Path) -> None:
     assert "--fdn-tv-depth > 0" in text
 
 
-def test_render_comb_cloud_mode_is_applied(tmp_path: Path) -> None:
+def test_render_comb_cloud_mode_is_applied(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1536, 1), dtype=np.float64)
     audio[0, 0] = 1.0
     infile = tmp_path / "in.wav"
@@ -1222,7 +1223,7 @@ def test_render_comb_cloud_mode_is_applied(tmp_path: Path) -> None:
     assert "combcloud" in str(payload["effective"]["compute_backend"])
 
 
-def test_render_sparse_high_order_switches_are_applied(tmp_path: Path) -> None:
+def test_render_sparse_high_order_switches_are_applied(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1024, 1), dtype=np.float64)
     audio[20:120, 0] = 0.35
     infile = tmp_path / "in.wav"
@@ -1255,7 +1256,7 @@ def test_render_sparse_high_order_switches_are_applied(tmp_path: Path) -> None:
     assert int(config["fdn_sparse_degree"]) == 4
 
 
-def test_render_rejects_sparse_with_tv_unitary(tmp_path: Path) -> None:
+def test_render_rejects_sparse_with_tv_unitary(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1024, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -1287,7 +1288,7 @@ def test_render_rejects_sparse_with_tv_unitary(tmp_path: Path) -> None:
     )
 
 
-def test_render_graph_fdn_switches_are_applied(tmp_path: Path) -> None:
+def test_render_graph_fdn_switches_are_applied(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1200, 1), dtype=np.float64)
     audio[80:180, 0] = 0.3
     infile = tmp_path / "in.wav"
@@ -1326,7 +1327,7 @@ def test_render_graph_fdn_switches_are_applied(tmp_path: Path) -> None:
     assert "graph" in str(payload["effective"]["compute_backend"])
 
 
-def test_render_rejects_graph_options_without_graph_matrix(tmp_path: Path) -> None:
+def test_render_rejects_graph_options_without_graph_matrix(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -1351,7 +1352,7 @@ def test_render_rejects_graph_options_without_graph_matrix(tmp_path: Path) -> No
     assert "--fdn-matrix graph" in text
 
 
-def test_render_rejects_sparse_with_graph_matrix(tmp_path: Path) -> None:
+def test_render_rejects_sparse_with_graph_matrix(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -1375,7 +1376,7 @@ def test_render_rejects_sparse_with_graph_matrix(tmp_path: Path) -> None:
     assert "--fdn-sparse cannot be combined with --fdn-matrix graph" in _combined_cli_output(result)
 
 
-def test_render_sdn_spatial_and_nonlinear_switches_are_applied(tmp_path: Path) -> None:
+def test_render_sdn_spatial_and_nonlinear_switches_are_applied(tmp_path: Path, runner: CliRunner) -> None:
     infile = tmp_path / "in_sdn.wav"
     outfile = tmp_path / "out_sdn.wav"
     sr = 8_000
@@ -1424,7 +1425,7 @@ def test_render_sdn_spatial_and_nonlinear_switches_are_applied(tmp_path: Path) -
     assert "nonlinear" in str(payload["effective"]["compute_backend"])
 
 
-def test_render_cascaded_fdn_switches_are_applied(tmp_path: Path) -> None:
+def test_render_cascaded_fdn_switches_are_applied(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1400, 1), dtype=np.float64)
     audio[40:170, 0] = 0.3
     infile = tmp_path / "in.wav"
@@ -1464,7 +1465,7 @@ def test_render_cascaded_fdn_switches_are_applied(tmp_path: Path) -> None:
     assert "cascade" in str(payload["effective"]["compute_backend"])
 
 
-def test_render_rejects_cascade_with_single_line_fdn(tmp_path: Path) -> None:
+def test_render_rejects_cascade_with_single_line_fdn(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1024, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -1488,7 +1489,7 @@ def test_render_rejects_cascade_with_single_line_fdn(tmp_path: Path) -> None:
     assert "--fdn-cascade requires at least 2 FDN lines." in _combined_cli_output(result)
 
 
-def test_render_rejects_unsafe_loop_gain_without_unsafe_mode(tmp_path: Path) -> None:
+def test_render_rejects_unsafe_loop_gain_without_unsafe_mode(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1024, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -1511,7 +1512,7 @@ def test_render_rejects_unsafe_loop_gain_without_unsafe_mode(tmp_path: Path) -> 
     assert "--unsafe-loop-gain requires --unsafe-self-oscillate." in _combined_cli_output(result)
 
 
-def test_render_accepts_unsafe_self_oscillation_settings_in_dry_run(tmp_path: Path) -> None:
+def test_render_accepts_unsafe_self_oscillation_settings_in_dry_run(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1400, 1), dtype=np.float64)
     audio[30:140, 0] = 0.4
     infile = tmp_path / "in.wav"
@@ -1545,7 +1546,7 @@ def test_render_accepts_unsafe_self_oscillation_settings_in_dry_run(tmp_path: Pa
     assert "Render Dry-Run Plan" in text
 
 
-def test_render_multiband_fdn_switches_are_applied(tmp_path: Path) -> None:
+def test_render_multiband_fdn_switches_are_applied(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1400, 1), dtype=np.float64)
     audio[40:170, 0] = 0.3
     infile = tmp_path / "in.wav"
@@ -1590,7 +1591,7 @@ def test_render_multiband_fdn_switches_are_applied(tmp_path: Path) -> None:
     assert "tonalcorr" in str(payload["effective"]["compute_backend"])
 
 
-def test_render_rejects_partial_multiband_rt60_set(tmp_path: Path) -> None:
+def test_render_rejects_partial_multiband_rt60_set(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1024, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -1615,7 +1616,7 @@ def test_render_rejects_partial_multiband_rt60_set(tmp_path: Path) -> None:
     assert "provide all three values" in _combined_cli_output(result)
 
 
-def test_render_filter_feedback_switches_are_applied(tmp_path: Path) -> None:
+def test_render_filter_feedback_switches_are_applied(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1200, 1), dtype=np.float64)
     audio[60:180, 0] = 0.32
     infile = tmp_path / "in.wav"
@@ -1650,7 +1651,7 @@ def test_render_filter_feedback_switches_are_applied(tmp_path: Path) -> None:
     assert abs(float(config["fdn_link_filter_mix"]) - 0.65) < 1e-6
 
 
-def test_render_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
+def test_render_rejects_invalid_filter_feedback_mode(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((640, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -1675,7 +1676,7 @@ def test_render_rejects_invalid_filter_feedback_mode(tmp_path: Path) -> None:
     assert "--fdn-link-filter must be one of" in _combined_cli_output(result)
 
 
-def test_render_accepts_hyphenated_filter_feedback_alias(tmp_path: Path) -> None:
+def test_render_accepts_hyphenated_filter_feedback_alias(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1200, 1), dtype=np.float64)
     audio[60:180, 0] = 0.32
     infile = tmp_path / "alias_filter_in.wav"
@@ -1703,7 +1704,7 @@ def test_render_accepts_hyphenated_filter_feedback_alias(tmp_path: Path) -> None
     assert payload["config"]["fdn_link_filter"] == "lowpass"
 
 
-def test_render_track_c_perceptual_fdn_controls_are_applied(tmp_path: Path) -> None:
+def test_render_track_c_perceptual_fdn_controls_are_applied(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((1400, 1), dtype=np.float64)
     audio[45:180, 0] = 0.28
     infile = tmp_path / "track_c_in.wav"
@@ -1749,7 +1750,7 @@ def test_render_track_c_perceptual_fdn_controls_are_applied(tmp_path: Path) -> N
     assert "delta_from_requested" in macro_report
 
 
-def test_render_post_shaping_controls_are_applied(tmp_path: Path) -> None:
+def test_render_post_shaping_controls_are_applied(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((2400, 1), dtype=np.float64)
     audio[80:220, 0] = 0.3
     infile = tmp_path / "post_shape_in.wav"
@@ -1807,7 +1808,7 @@ def test_render_post_shaping_controls_are_applied(tmp_path: Path) -> None:
     assert abs(float(config["tilt_pivot_hz"]) - 700.0) < 1e-6
 
 
-def test_render_convolution_route_map_and_trajectory(tmp_path: Path) -> None:
+def test_render_convolution_route_map_and_trajectory(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "mono_in.wav"
     outfile = tmp_path / "stereo_out.wav"
@@ -1862,7 +1863,7 @@ def test_render_convolution_route_map_and_trajectory(tmp_path: Path) -> None:
     assert late_right > late_left
 
 
-def test_render_convolution_accepts_extended_output_layout_token(tmp_path: Path) -> None:
+def test_render_convolution_accepts_extended_output_layout_token(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "mono_in.wav"
     irfile = tmp_path / "mono_ir.wav"
@@ -1901,7 +1902,7 @@ def test_render_convolution_accepts_extended_output_layout_token(tmp_path: Path)
     assert out.shape[1] == 13
 
 
-def test_render_convolution_large_layout_requires_explicit_route_map(tmp_path: Path) -> None:
+def test_render_convolution_large_layout_requires_explicit_route_map(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "mono_in_large.wav"
     irfile = tmp_path / "mono_ir_large.wav"
@@ -1964,7 +1965,7 @@ def test_render_convolution_large_layout_requires_explicit_route_map(tmp_path: P
     assert out.shape[1] == 16
 
 
-def test_render_convolution_ir_blend_generates_composite_ir_runtime(tmp_path: Path) -> None:
+def test_render_convolution_ir_blend_generates_composite_ir_runtime(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -2019,7 +2020,7 @@ def test_render_convolution_ir_blend_generates_composite_ir_runtime(tmp_path: Pa
     assert len(blend_meta.get("sources", [])) == 2
 
 
-def test_render_rejects_ir_blend_without_base_ir_source(tmp_path: Path) -> None:
+def test_render_rejects_ir_blend_without_base_ir_source(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -2048,7 +2049,7 @@ def test_render_rejects_ir_blend_without_base_ir_source(tmp_path: Path) -> None:
     assert "--ir-blend requires base IR source" in _combined_cli_output(result)
 
 
-def test_render_ir_blend_strict_policy_rejects_mismatch(tmp_path: Path) -> None:
+def test_render_ir_blend_strict_policy_rejects_mismatch(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "blend_strict_in.wav"
     base_ir = tmp_path / "blend_strict_base.wav"
@@ -2090,7 +2091,7 @@ def test_render_ir_blend_strict_policy_rejects_mismatch(tmp_path: Path) -> None:
     assert "sample-rate mismatch" in text
 
 
-def test_render_rejects_ambiguous_matrix_ir_without_route_hint(tmp_path: Path) -> None:
+def test_render_rejects_ambiguous_matrix_ir_without_route_hint(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "st_in.wav"
     outfile = tmp_path / "st_out.wav"
@@ -2142,7 +2143,7 @@ def test_render_rejects_ambiguous_matrix_ir_without_route_hint(tmp_path: Path) -
     assert good.exit_code == 0, good.stdout
 
 
-def test_render_layout_mismatch_error_reports_channel_math(tmp_path: Path) -> None:
+def test_render_layout_mismatch_error_reports_channel_math(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "layout_in.wav"
     outfile = tmp_path / "layout_out.wav"
@@ -2182,7 +2183,7 @@ def test_render_layout_mismatch_error_reports_channel_math(tmp_path: Path) -> No
     assert "output_channels." in text
 
 
-def test_render_allpass_gain_count_mismatch_rejected(tmp_path: Path) -> None:
+def test_render_allpass_gain_count_mismatch_rejected(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -2207,7 +2208,7 @@ def test_render_allpass_gain_count_mismatch_rejected(tmp_path: Path) -> None:
     assert "exactly 4 entries" in _combined_cli_output(result)
 
 
-def test_analyze_lufs_mode(tmp_path: Path) -> None:
+def test_analyze_lufs_mode(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((4096, 2), dtype=np.float64)
     audio[64:512, :] = 0.2
     infile = tmp_path / "analyze.wav"
@@ -2218,7 +2219,7 @@ def test_analyze_lufs_mode(tmp_path: Path) -> None:
     assert "integrated_lufs" in result.stdout
 
 
-def test_analyze_edr_mode(tmp_path: Path) -> None:
+def test_analyze_edr_mode(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     n = sr * 2
     t = np.arange(n, dtype=np.float64) / sr
@@ -2233,7 +2234,7 @@ def test_analyze_edr_mode(tmp_path: Path) -> None:
     assert "edr_rt60_median_s" in result.stdout
 
 
-def test_analyze_reverb_metrics_and_versioned_json_are_default(tmp_path: Path) -> None:
+def test_analyze_reverb_metrics_and_versioned_json_are_default(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     target_rt60 = 1.0
     t = np.arange(sr * 3, dtype=np.float64) / float(sr)
@@ -2261,7 +2262,7 @@ def test_analyze_reverb_metrics_and_versioned_json_are_default(tmp_path: Path) -
     assert abs(payload["metrics"]["reverb_rt60_seconds"] - target_rt60) < 0.03
 
 
-def test_analyze_no_reverb_preserves_legacy_metric_mode(tmp_path: Path) -> None:
+def test_analyze_no_reverb_preserves_legacy_metric_mode(tmp_path: Path, runner: CliRunner) -> None:
     infile = tmp_path / "dry.wav"
     sf.write(str(infile), np.zeros((4096, 1), dtype=np.float64), 48_000)
 
@@ -2272,7 +2273,7 @@ def test_analyze_no_reverb_preserves_legacy_metric_mode(tmp_path: Path) -> None:
     assert "spectral_centroid" in result.stdout
 
 
-def test_compare_command_writes_json(tmp_path: Path) -> None:
+def test_compare_command_writes_json(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     n = 4096
     a = np.zeros((n, 1), dtype=np.float64)
@@ -2295,7 +2296,7 @@ def test_compare_command_writes_json(tmp_path: Path) -> None:
     assert "delta" in payload
 
 
-def test_suggest_command_pins_json(tmp_path: Path) -> None:
+def test_suggest_command_pins_json(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     audio = np.zeros((4096, 1), dtype=np.float64)
     audio[64:512, 0] = 0.3
@@ -2315,7 +2316,7 @@ def test_suggest_command_pins_json(tmp_path: Path) -> None:
     assert payload["suggestion"]["method"] == "deterministic-feature-heuristic"
 
 
-def test_dereverb_command_writes_output_and_json(tmp_path: Path) -> None:
+def test_dereverb_command_writes_output_and_json(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     n = sr
     x = np.zeros((n, 1), dtype=np.float64)
@@ -2362,7 +2363,7 @@ def test_dereverb_command_writes_output_and_json(tmp_path: Path) -> None:
     assert "rms_delta_db" in payload["metrics"]
 
 
-def test_dereverb_rejects_hop_ms_not_smaller_than_window(tmp_path: Path) -> None:
+def test_dereverb_rejects_hop_ms_not_smaller_than_window(tmp_path: Path, runner: CliRunner) -> None:
     audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -2385,7 +2386,7 @@ def test_dereverb_rejects_hop_ms_not_smaller_than_window(tmp_path: Path) -> None
     assert "--hop-ms must be smaller than --window-ms." in text
 
 
-def test_dereverb_window_options_are_reported_in_json(tmp_path: Path) -> None:
+def test_dereverb_window_options_are_reported_in_json(tmp_path: Path, runner: CliRunner) -> None:
     sr = 24_000
     audio = np.zeros((2048, 1), dtype=np.float64)
     audio[80:220, 0] = 0.3
@@ -2443,7 +2444,7 @@ def test_dereverb_window_options_are_reported_in_json(tmp_path: Path) -> None:
     assert cfg["window_weights"] == [0.42, 0.5, 0.08]
 
 
-def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> None:
+def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     audio = np.zeros((1024, 2), dtype=np.float64)
     audio[100:140, :] = 0.25
@@ -2528,7 +2529,7 @@ def test_render_output_subtype_and_peak_normalization_modes(tmp_path: Path) -> N
     assert abs(target_peak - expected_target) <= 0.01
 
 
-def test_render_defaults_to_hd_output_definition(tmp_path: Path) -> None:
+def test_render_defaults_to_hd_output_definition(tmp_path: Path, runner: CliRunner) -> None:
     sr_in = 48_000
     audio = np.zeros((1024, 1), dtype=np.float64)
     audio[16, 0] = 0.6
@@ -2561,7 +2562,7 @@ def test_render_defaults_to_hd_output_definition(tmp_path: Path) -> None:
     assert info.subtype == "FLOAT"
 
 
-def test_render_limiter_options_round_trip_into_analysis_config(tmp_path: Path) -> None:
+def test_render_limiter_options_round_trip_into_analysis_config(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     audio = np.zeros((1024, 1), dtype=np.float64)
     audio[8:32, 0] = 1.4
@@ -2635,7 +2636,7 @@ def test_render_limiter_options_round_trip_into_analysis_config(tmp_path: Path) 
     assert config["limiter_dc_block"] is True
 
 
-def test_render_rejects_limiter_threshold_above_ceiling(tmp_path: Path) -> None:
+def test_render_rejects_limiter_threshold_above_ceiling(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     audio = np.zeros((512, 1), dtype=np.float64)
     audio[0, 0] = 1.0
@@ -2669,7 +2670,7 @@ def test_render_rejects_limiter_threshold_above_ceiling(tmp_path: Path) -> None:
     assert not outfile.exists()
 
 
-def test_render_rejects_explicit_container_extension_mismatch(tmp_path: Path) -> None:
+def test_render_rejects_explicit_container_extension_mismatch(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     audio = np.zeros((512, 1), dtype=np.float64)
     audio[0, 0] = 1.0
@@ -2701,7 +2702,7 @@ def test_render_rejects_explicit_container_extension_mismatch(tmp_path: Path) ->
     assert not outfile.exists()
 
 
-def test_presets_include_week3_stabilization_examples() -> None:
+def test_presets_include_week3_stabilization_examples(runner: CliRunner) -> None:
     result = runner.invoke(app, ["presets"])
     assert result.exit_code == 0, result.stdout
     assert "room_model_studio" in result.stdout
@@ -2714,7 +2715,7 @@ def test_presets_include_week3_stabilization_examples() -> None:
     assert "output_peak_norm" in detail.stdout
 
 
-def test_render_quality_preset_sd_and_explicit_override_precedence(tmp_path: Path) -> None:
+def test_render_quality_preset_sd_and_explicit_override_precedence(tmp_path: Path, runner: CliRunner) -> None:
     sr_in = 48_000
     audio = np.zeros((512, 1), dtype=np.float64)
     audio[0, 0] = 0.7
@@ -2775,7 +2776,7 @@ def test_render_quality_preset_sd_and_explicit_override_precedence(tmp_path: Pat
     assert override_info.subtype == "DOUBLE"
 
 
-def test_render_target_sample_rate_conversion_and_float32_output(tmp_path: Path) -> None:
+def test_render_target_sample_rate_conversion_and_float32_output(tmp_path: Path, runner: CliRunner) -> None:
     sr_in = 48_000
     sr_out = 192_000
     audio = np.zeros((1024, 1), dtype=np.float64)
@@ -2818,7 +2819,7 @@ def test_render_target_sample_rate_conversion_and_float32_output(tmp_path: Path)
     assert payload["effective"]["sample_rate_action"] == f"resample:{sr_in}->{sr_out}"
 
 
-def test_render_conv_streaming_mode(tmp_path: Path) -> None:
+def test_render_conv_streaming_mode(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     audio = np.zeros((8192, 2), dtype=np.float64)
     audio[0:64, :] = 0.5
@@ -2862,7 +2863,7 @@ def test_render_conv_streaming_mode(tmp_path: Path) -> None:
     assert np.all(out_audio[-tail_zero_window:, :] == 0.0)
 
 
-def test_render_self_convolve(tmp_path: Path) -> None:
+def test_render_self_convolve(tmp_path: Path, runner: CliRunner) -> None:
     sr = 24_000
     n = 2048
     t = np.arange(n, dtype=np.float64) / sr
@@ -2900,7 +2901,7 @@ def test_render_self_convolve(tmp_path: Path) -> None:
     assert str(payload["effective"]["ir_used"]).endswith("self_in.wav")
 
 
-def test_render_modulation_multi_source(tmp_path: Path) -> None:
+def test_render_modulation_multi_source(tmp_path: Path, runner: CliRunner) -> None:
     sr = 24_000
     n = 4096
     t = np.arange(n, dtype=np.float64) / np.float64(sr)
@@ -2952,7 +2953,7 @@ def test_render_modulation_multi_source(tmp_path: Path) -> None:
     assert len(modulation["sources"]) == 3
 
 
-def test_render_modulation_multiple_routes(tmp_path: Path) -> None:
+def test_render_modulation_multiple_routes(tmp_path: Path, runner: CliRunner) -> None:
     sr = 24_000
     n = 4096
     t = np.arange(n, dtype=np.float64) / np.float64(sr)
@@ -2991,7 +2992,7 @@ def test_render_modulation_multiple_routes(tmp_path: Path) -> None:
     assert routes[1]["target"] == "gain-db"
 
 
-def test_render_beast_mode_scales_algo_tail(tmp_path: Path) -> None:
+def test_render_beast_mode_scales_algo_tail(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     audio = np.zeros((1024, 1), dtype=np.float64)
     audio[0, 0] = 0.7
@@ -3046,7 +3047,7 @@ def test_render_beast_mode_scales_algo_tail(tmp_path: Path) -> None:
     assert float(payload["config"]["rt60"]) > 0.2
 
 
-def test_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
+def test_render_lucky_mode_creates_multiple_outputs(tmp_path: Path, runner: CliRunner) -> None:
     sr = 4_000
     audio = np.zeros((2048, 1), dtype=np.float64)
     audio[100:220, 0] = 0.5
@@ -3086,7 +3087,7 @@ def test_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
         assert 0.1 <= float(payload["config"]["tail_limit"]) <= 0.3000001
 
 
-def test_ir_gen_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
+def test_ir_gen_lucky_mode_creates_multiple_outputs(tmp_path: Path, runner: CliRunner) -> None:
     out_ir = tmp_path / "gen_base.wav"
     out_dir = tmp_path / "gen_lucky"
 
@@ -3121,7 +3122,7 @@ def test_ir_gen_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
         assert Path(f"{path}.ir.meta.json").exists()
 
 
-def test_ir_process_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
+def test_ir_process_lucky_mode_creates_multiple_outputs(tmp_path: Path, runner: CliRunner) -> None:
     sr = 12_000
     in_ir = tmp_path / "in_ir.wav"
     out_ir = tmp_path / "proc_base.wav"
@@ -3155,7 +3156,7 @@ def test_ir_process_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
         assert Path(f"{path}.ir.meta.json").exists()
 
 
-def test_ir_morph_sweep_generates_qa_bundle(tmp_path: Path) -> None:
+def test_ir_morph_sweep_generates_qa_bundle(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     ir_a = tmp_path / "a.wav"
     ir_b = tmp_path / "b.wav"
@@ -3205,7 +3206,7 @@ def test_ir_morph_sweep_generates_qa_bundle(tmp_path: Path) -> None:
     assert int(summary["failed"]) == 0
 
 
-def test_ir_morph_sweep_resume_skips_completed_outputs(tmp_path: Path) -> None:
+def test_ir_morph_sweep_resume_skips_completed_outputs(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     ir_a = tmp_path / "a.wav"
     ir_b = tmp_path / "b.wav"
@@ -3270,7 +3271,7 @@ def test_ir_morph_sweep_resume_skips_completed_outputs(tmp_path: Path) -> None:
     assert int(summary["resumed_skipped"]) == 2
 
 
-def test_ir_morph_sweep_retries_and_persists_failures(tmp_path: Path) -> None:
+def test_ir_morph_sweep_retries_and_persists_failures(tmp_path: Path, runner: CliRunner) -> None:
     ir_a = tmp_path / "a.wav"
     ir_b = tmp_path / "not_audio.wav"
     out_dir = tmp_path / "failed_sweep"
@@ -3313,7 +3314,7 @@ def test_ir_morph_sweep_retries_and_persists_failures(tmp_path: Path) -> None:
     assert all(not bool(row["success"]) for row in rows if isinstance(row, dict))
 
 
-def test_batch_render_parallel_jobs(tmp_path: Path) -> None:
+def test_batch_render_parallel_jobs(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     irfile = tmp_path / "ir.wav"
     ir = np.zeros((256, 1), dtype=np.float64)
@@ -3361,7 +3362,7 @@ def test_batch_render_parallel_jobs(tmp_path: Path) -> None:
     assert out2.exists()
 
 
-def test_batch_augment_template_emits_manifest_shape() -> None:
+def test_batch_augment_template_emits_manifest_shape(runner: CliRunner) -> None:
     result = runner.invoke(app, ["batch", "augment-template"])
     assert result.exit_code == 0, result.stdout
     payload = json.loads(result.stdout)
@@ -3371,7 +3372,7 @@ def test_batch_augment_template_emits_manifest_shape() -> None:
     assert "asr-reverb-v1" in payload["profiles"]
 
 
-def test_batch_augment_profiles_lists_builtin_profiles() -> None:
+def test_batch_augment_profiles_lists_builtin_profiles(runner: CliRunner) -> None:
     result = runner.invoke(app, ["batch", "augment-profiles", "--json"])
     assert result.exit_code == 0, result.stdout
     payload = json.loads(result.stdout)
@@ -3380,7 +3381,7 @@ def test_batch_augment_profiles_lists_builtin_profiles() -> None:
     assert "drums-room-v1" in payload
 
 
-def test_batch_corpus_generate_dry_run_reports_large_plan(tmp_path: Path) -> None:
+def test_batch_corpus_generate_dry_run_reports_large_plan(tmp_path: Path, runner: CliRunner) -> None:
     infile = tmp_path / "in.wav"
     audio = np.zeros((2048, 1), dtype=np.float64)
     audio[50:120, 0] = 0.25
@@ -3406,7 +3407,7 @@ def test_batch_corpus_generate_dry_run_reports_large_plan(tmp_path: Path) -> Non
     assert "outputs=1000000" in text
 
 
-def test_batch_corpus_generate_dry_run_shard_metadata(tmp_path: Path) -> None:
+def test_batch_corpus_generate_dry_run_shard_metadata(tmp_path: Path, runner: CliRunner) -> None:
     in_dir = tmp_path / "inputs"
     in_dir.mkdir()
     for idx in range(3):
@@ -3439,7 +3440,7 @@ def test_batch_corpus_generate_dry_run_shard_metadata(tmp_path: Path) -> None:
     assert "shard=1/2" in text
 
 
-def test_batch_corpus_generate_writes_manifest_and_audio(tmp_path: Path) -> None:
+def test_batch_corpus_generate_writes_manifest_and_audio(tmp_path: Path, runner: CliRunner) -> None:
     in_dir = tmp_path / "in"
     in_dir.mkdir()
     for idx in range(2):
@@ -3490,7 +3491,7 @@ def test_batch_corpus_generate_writes_manifest_and_audio(tmp_path: Path) -> None
     assert len(generated_wavs) == 4
 
 
-def test_batch_corpus_generate_resume_uses_checkpoint(tmp_path: Path) -> None:
+def test_batch_corpus_generate_resume_uses_checkpoint(tmp_path: Path, runner: CliRunner) -> None:
     infile = tmp_path / "voice.wav"
     audio = np.zeros((2048, 1), dtype=np.float64)
     audio[80:200, 0] = 0.35
@@ -3542,7 +3543,7 @@ def test_batch_corpus_generate_resume_uses_checkpoint(tmp_path: Path) -> None:
     assert int(summary["generated_outputs"]) == 0
     assert int(summary["resumed_skipped"]) == 2
 
-def test_batch_augment_dry_run_plans_without_writing_audio(tmp_path: Path) -> None:
+def test_batch_augment_dry_run_plans_without_writing_audio(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "in.wav"
     audio = np.zeros((1024, 1), dtype=np.float64)
@@ -3579,7 +3580,7 @@ def test_batch_augment_dry_run_plans_without_writing_audio(tmp_path: Path) -> No
     assert not out_root.exists()
 
 
-def test_batch_augment_split_isolation_rejects_overlapping_sources(tmp_path: Path) -> None:
+def test_batch_augment_split_isolation_rejects_overlapping_sources(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "source.wav"
     audio = np.zeros((1024, 1), dtype=np.float64)
@@ -3622,7 +3623,7 @@ def test_batch_augment_split_isolation_rejects_overlapping_sources(tmp_path: Pat
     assert allowed.exit_code == 0, allowed.stdout
 
 
-def test_batch_augment_generates_dataset_and_metadata(tmp_path: Path) -> None:
+def test_batch_augment_generates_dataset_and_metadata(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "voice.wav"
     audio = np.zeros((1400, 1), dtype=np.float64)
@@ -3726,7 +3727,7 @@ def test_batch_augment_generates_dataset_and_metadata(tmp_path: Path) -> None:
     assert isinstance(qa.get("split_quality"), dict)
 
 
-def test_batch_augment_baseline_summary_emits_class_balance_delta(tmp_path: Path) -> None:
+def test_batch_augment_baseline_summary_emits_class_balance_delta(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "voice_base.wav"
     audio = np.zeros((1200, 1), dtype=np.float64)
@@ -3802,7 +3803,7 @@ def test_batch_augment_baseline_summary_emits_class_balance_delta(tmp_path: Path
     assert isinstance(delta.get("global_label_delta"), dict)
 
 
-def test_batch_augment_without_copy_dry_still_writes_outputs(tmp_path: Path) -> None:
+def test_batch_augment_without_copy_dry_still_writes_outputs(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     infile = tmp_path / "voice.wav"
     audio = np.zeros((1024, 1), dtype=np.float64)
@@ -3858,7 +3859,7 @@ def test_batch_augment_without_copy_dry_still_writes_outputs(tmp_path: Path) -> 
     assert (out_root / "augmentation_summary.json").exists()
 
 
-def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> None:
+def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path, runner: CliRunner) -> None:
     sr = 4_000
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -3910,7 +3911,7 @@ def test_batch_render_lucky_mode_creates_multiple_outputs(tmp_path: Path) -> Non
         assert 0.1 <= float(payload["config"]["tail_limit"]) <= 0.2
 
 
-def test_batch_render_checkpoint_resume_skips_completed(tmp_path: Path) -> None:
+def test_batch_render_checkpoint_resume_skips_completed(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     irfile = tmp_path / "ir.wav"
     ir = np.zeros((128, 1), dtype=np.float64)
@@ -3975,7 +3976,7 @@ def test_batch_render_checkpoint_resume_skips_completed(tmp_path: Path) -> None:
     assert "skipped 2 completed jobs" in second.stdout
 
 
-def test_render_validation_errors(tmp_path: Path) -> None:
+def test_render_validation_errors(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
@@ -4108,7 +4109,7 @@ def test_render_validation_errors(tmp_path: Path) -> None:
     assert bad_mod_route.exit_code != 0
 
 
-def test_render_validation_rejects_repro_bundle_in_lucky_mode(tmp_path: Path) -> None:
+def test_render_validation_rejects_repro_bundle_in_lucky_mode(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
@@ -4133,7 +4134,7 @@ def test_render_validation_rejects_repro_bundle_in_lucky_mode(tmp_path: Path) ->
     assert "--repro-bundle" in text
 
 
-def test_render_validation_suggests_supported_output_extension(tmp_path: Path) -> None:
+def test_render_validation_suggests_supported_output_extension(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
@@ -4160,8 +4161,7 @@ def test_render_validation_suggests_supported_output_extension(tmp_path: Path) -
 
 def test_render_writes_failure_report_when_pipeline_raises(
     tmp_path: Path,
-    monkeypatch: MonkeyPatch,
-) -> None:
+    monkeypatch: MonkeyPatch,, runner: CliRunner) -> None:
     audio = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "in.wav"
     outfile = tmp_path / "out.wav"
@@ -4193,7 +4193,7 @@ def test_render_writes_failure_report_when_pipeline_raises(
     assert "simulated pipeline failure" in str(payload["error"])
 
 
-def test_ir_gen_validation_errors(tmp_path: Path) -> None:
+def test_ir_gen_validation_errors(tmp_path: Path, runner: CliRunner) -> None:
     result = runner.invoke(
         app,
         [
@@ -4211,7 +4211,7 @@ def test_ir_gen_validation_errors(tmp_path: Path) -> None:
     assert result.exit_code != 0
 
 
-def test_render_ambisonics_encode_rotate_decode(tmp_path: Path) -> None:
+def test_render_ambisonics_encode_rotate_decode(tmp_path: Path, runner: CliRunner) -> None:
     sr = 24_000
     n = 4096
     t = np.arange(n, dtype=np.float64) / np.float64(sr)
@@ -4254,7 +4254,7 @@ def test_render_ambisonics_encode_rotate_decode(tmp_path: Path) -> None:
     assert payload["config"]["ambi_decode_to"] == "stereo"
 
 
-def test_render_rejects_ambi_channel_mismatch_without_encode(tmp_path: Path) -> None:
+def test_render_rejects_ambi_channel_mismatch_without_encode(tmp_path: Path, runner: CliRunner) -> None:
     sr = 24_000
     stereo = np.zeros((2048, 2), dtype=np.float64)
     infile = tmp_path / "bad_ambi_in.wav"
@@ -4280,7 +4280,7 @@ def test_render_rejects_ambi_channel_mismatch_without_encode(tmp_path: Path) -> 
     assert "--ambi-order 2" in text
 
 
-def test_analyze_ambisonic_metrics_mode(tmp_path: Path) -> None:
+def test_analyze_ambisonic_metrics_mode(tmp_path: Path, runner: CliRunner) -> None:
     sr = 48_000
     n = 4096
     t = np.arange(n, dtype=np.float64) / np.float64(sr)
@@ -4312,7 +4312,7 @@ def test_analyze_ambisonic_metrics_mode(tmp_path: Path) -> None:
     assert "ambi_directionality_stability" in result.stdout
 
 
-def test_render_rejects_ambi_order_above_supported_max(tmp_path: Path) -> None:
+def test_render_rejects_ambi_order_above_supported_max(tmp_path: Path, runner: CliRunner) -> None:
     infile = tmp_path / "hoa_in.wav"
     outfile = tmp_path / "hoa_out.wav"
     audio = np.zeros((1024, 1), dtype=np.float64)
@@ -4339,7 +4339,7 @@ def test_render_rejects_ambi_order_above_supported_max(tmp_path: Path) -> None:
     assert "0<=x<=7" in text
 
 
-def test_render_automation_file_wet_ramp_and_trace(tmp_path: Path) -> None:
+def test_render_automation_file_wet_ramp_and_trace(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     n = sr // 2
     x = np.ones((n, 1), dtype=np.float64)
@@ -4405,7 +4405,7 @@ def test_render_automation_file_wet_ramp_and_trace(tmp_path: Path) -> None:
     assert "wet" in automation["targets"]
 
 
-def test_render_rejects_automation_options_without_file(tmp_path: Path) -> None:
+def test_render_rejects_automation_options_without_file(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.zeros((512, 1), dtype=np.float64)
     infile = tmp_path / "no_auto_in.wav"
@@ -4429,7 +4429,7 @@ def test_render_rejects_automation_options_without_file(tmp_path: Path) -> None:
     assert "--automation-point" in _combined_cli_output(result)
 
 
-def test_render_automation_points_wet_ramp_without_file(tmp_path: Path) -> None:
+def test_render_automation_points_wet_ramp_without_file(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     n = sr // 2
     x = np.ones((n, 1), dtype=np.float64)
@@ -4476,7 +4476,7 @@ def test_render_automation_points_wet_ramp_without_file(tmp_path: Path) -> None:
     assert "wet" in automation.get("post_targets", [])
 
 
-def test_render_rejects_invalid_automation_point_interp(tmp_path: Path) -> None:
+def test_render_rejects_invalid_automation_point_interp(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     n = sr // 4
     x = np.ones((n, 1), dtype=np.float64)
@@ -4507,7 +4507,7 @@ def test_render_rejects_invalid_automation_point_interp(tmp_path: Path) -> None:
     assert "automation interpolation" in _combined_cli_output(result)
 
 
-def test_render_rejects_invalid_automation_file_interp(tmp_path: Path) -> None:
+def test_render_rejects_invalid_automation_file_interp(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     n = sr // 4
     x = np.ones((n, 1), dtype=np.float64)
@@ -4556,7 +4556,7 @@ def test_render_rejects_invalid_automation_file_interp(tmp_path: Path) -> None:
     assert "automation interpolation" in _combined_cli_output(result)
 
 
-def test_render_automation_points_drive_algo_engine_targets(tmp_path: Path) -> None:
+def test_render_automation_points_drive_algo_engine_targets(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.zeros((sr // 4, 1), dtype=np.float64)
     x[0, 0] = 1.0
@@ -4612,7 +4612,7 @@ def test_render_automation_points_drive_algo_engine_targets(tmp_path: Path) -> N
     assert "room-size" in automation.get("engine_targets", [])
 
 
-def test_render_automation_points_drive_perceptual_macro_targets(tmp_path: Path) -> None:
+def test_render_automation_points_drive_perceptual_macro_targets(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.zeros((sr // 4, 1), dtype=np.float64)
     x[0, 0] = 1.0
@@ -4657,7 +4657,7 @@ def test_render_automation_points_drive_perceptual_macro_targets(tmp_path: Path)
     assert "warmth-macro" in automation.get("engine_targets", [])
 
 
-def test_render_automation_points_drive_track_c_targets(tmp_path: Path) -> None:
+def test_render_automation_points_drive_track_c_targets(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.zeros((sr // 4, 1), dtype=np.float64)
     x[0, 0] = 1.0
@@ -4701,7 +4701,7 @@ def test_render_automation_points_drive_track_c_targets(tmp_path: Path) -> None:
     assert "tonalcorr" in str(payload["effective"]["compute_backend"])
 
 
-def test_render_rejects_engine_automation_targets_for_convolution(tmp_path: Path) -> None:
+def test_render_rejects_engine_automation_targets_for_convolution(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.zeros((sr // 4, 1), dtype=np.float64)
     x[0, 0] = 1.0
@@ -4732,7 +4732,7 @@ def test_render_rejects_engine_automation_targets_for_convolution(tmp_path: Path
     assert "require algorithmic render path" in _combined_cli_output(result)
 
 
-def test_render_rejects_conv_automation_targets_for_algo(tmp_path: Path) -> None:
+def test_render_rejects_conv_automation_targets_for_algo(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.zeros((sr // 4, 1), dtype=np.float64)
     x[0, 0] = 1.0
@@ -4757,7 +4757,7 @@ def test_render_rejects_conv_automation_targets_for_algo(tmp_path: Path) -> None
     assert "require convolution render path" in _combined_cli_output(result)
 
 
-def test_render_rejects_ir_blend_alpha_without_ir_blend(tmp_path: Path) -> None:
+def test_render_rejects_ir_blend_alpha_without_ir_blend(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.zeros((sr // 4, 1), dtype=np.float64)
     x[0, 0] = 1.0
@@ -4790,7 +4790,7 @@ def test_render_rejects_ir_blend_alpha_without_ir_blend(tmp_path: Path) -> None:
     assert "requires --ir-blend" in _combined_cli_output(result)
 
 
-def test_render_conv_ir_blend_alpha_automation_applies(tmp_path: Path) -> None:
+def test_render_conv_ir_blend_alpha_automation_applies(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.zeros((2 * sr, 1), dtype=np.float64)
     x[0, 0] = 1.0
@@ -4840,7 +4840,7 @@ def test_render_conv_ir_blend_alpha_automation_applies(tmp_path: Path) -> None:
     assert float(conv_summary.get("alpha_max", 0.0)) >= float(conv_summary.get("alpha_min", 0.0))
 
 
-def test_render_automation_mixed_lanes_deterministic_replay(tmp_path: Path) -> None:
+def test_render_automation_mixed_lanes_deterministic_replay(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.zeros((3 * sr, 1), dtype=np.float64)
     x[100:300, 0] = 0.5
@@ -4931,7 +4931,7 @@ def test_render_automation_mixed_lanes_deterministic_replay(tmp_path: Path) -> N
     assert np.allclose(y_a, y_b, atol=1e-7)
 
 
-def test_render_automation_invalid_lane_context_is_reported(tmp_path: Path) -> None:
+def test_render_automation_invalid_lane_context_is_reported(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.zeros((sr // 2, 1), dtype=np.float64)
     x[0, 0] = 1.0
@@ -4975,7 +4975,7 @@ def test_render_automation_invalid_lane_context_is_reported(tmp_path: Path) -> N
     assert "lane #1" in _combined_cli_output(result)
 
 
-def test_render_feature_vector_lanes_drive_wet_and_emit_trace(tmp_path: Path) -> None:
+def test_render_feature_vector_lanes_drive_wet_and_emit_trace(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     n = 2 * sr
     x = np.zeros((n, 1), dtype=np.float64)
@@ -5037,7 +5037,7 @@ def test_render_feature_vector_lanes_drive_wet_and_emit_trace(tmp_path: Path) ->
     assert "target_wet" in trace_header
 
 
-def test_render_feature_vector_lanes_are_deterministic(tmp_path: Path) -> None:
+def test_render_feature_vector_lanes_are_deterministic(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     n = 2 * sr
     t = np.arange(n, dtype=np.float64) / np.float64(sr)
@@ -5096,8 +5096,7 @@ def test_render_feature_vector_lanes_are_deterministic(tmp_path: Path) -> None:
 
 
 def test_render_feature_vector_target_source_mapping_graph_is_topological(
-    tmp_path: Path,
-) -> None:
+    tmp_path: Path,, runner: CliRunner) -> None:
     sr = 16_000
     n = sr
     t = np.arange(n, dtype=np.float64) / np.float64(sr)
@@ -5150,7 +5149,7 @@ def test_render_feature_vector_target_source_mapping_graph_is_topological(
     assert isinstance(feature_payload.get("signature"), str)
 
 
-def test_render_rejects_feature_vector_target_source_cycle(tmp_path: Path) -> None:
+def test_render_rejects_feature_vector_target_source_cycle(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.zeros((sr, 1), dtype=np.float64)
     x[200:1200, 0] = 0.5
@@ -5185,7 +5184,7 @@ def test_render_rejects_feature_vector_target_source_cycle(tmp_path: Path) -> No
     assert "contains a cycle" in _combined_cli_output(result).lower()
 
 
-def test_render_rejects_unresolved_feature_vector_target_source(tmp_path: Path) -> None:
+def test_render_rejects_unresolved_feature_vector_target_source(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.zeros((sr, 1), dtype=np.float64)
     x[200:800, 0] = 0.6
@@ -5218,7 +5217,7 @@ def test_render_rejects_unresolved_feature_vector_target_source(tmp_path: Path) 
     assert "define automation for 'wet' first" in _combined_cli_output(result).lower()
 
 
-def test_render_rejects_invalid_feature_vector_lane(tmp_path: Path) -> None:
+def test_render_rejects_invalid_feature_vector_lane(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.zeros((sr // 2, 1), dtype=np.float64)
     ir = np.zeros((64, 1), dtype=np.float64)
@@ -5248,7 +5247,7 @@ def test_render_rejects_invalid_feature_vector_lane(tmp_path: Path) -> None:
     assert "unsupported source" in _combined_cli_output(result).lower()
 
 
-def test_render_automation_file_feature_vector_lane(tmp_path: Path) -> None:
+def test_render_automation_file_feature_vector_lane(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     n = sr
     x = np.zeros((n, 1), dtype=np.float64)
@@ -5315,7 +5314,7 @@ def test_render_automation_file_feature_vector_lane(tmp_path: Path) -> None:
     assert "loudness_norm" in feature_payload.get("sources", [])
 
 
-def test_render_feature_guide_align_reports_mismatch_actions(tmp_path: Path) -> None:
+def test_render_feature_guide_align_reports_mismatch_actions(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     n = 2 * sr
     x = np.zeros((n, 1), dtype=np.float64)
@@ -5382,7 +5381,7 @@ def test_render_feature_guide_align_reports_mismatch_actions(tmp_path: Path) -> 
     assert str(guide_alignment.get("duration_action", "")).startswith("hold-last:")
 
 
-def test_render_feature_guide_strict_rejects_mismatch(tmp_path: Path) -> None:
+def test_render_feature_guide_strict_rejects_mismatch(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     n = sr
     x = np.zeros((n, 1), dtype=np.float64)
@@ -5432,7 +5431,7 @@ def test_render_feature_guide_strict_rejects_mismatch(tmp_path: Path) -> None:
     assert "feature-guide sample-rate mismatch" in _combined_cli_output(result).lower()
 
 
-def test_render_feature_vector_payload_includes_schema_metadata(tmp_path: Path) -> None:
+def test_render_feature_vector_payload_includes_schema_metadata(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     n = int(1.5 * sr)
     t = np.arange(n, dtype=np.float64) / float(sr)
@@ -5478,7 +5477,7 @@ def test_render_feature_vector_payload_includes_schema_metadata(tmp_path: Path) 
     assert "formant_balance_norm" in source_schema
 
 
-def test_render_automation_safety_guards_reduce_control_step_delta(tmp_path: Path) -> None:
+def test_render_automation_safety_guards_reduce_control_step_delta(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     x = np.ones((sr, 1), dtype=np.float64)
     ir = np.zeros((64, 1), dtype=np.float64)
@@ -5536,7 +5535,7 @@ def test_render_automation_safety_guards_reduce_control_step_delta(tmp_path: Pat
     )
 
 
-def test_render_track_c_calibration_diagnostics_are_emitted(tmp_path: Path) -> None:
+def test_render_track_c_calibration_diagnostics_are_emitted(tmp_path: Path, runner: CliRunner) -> None:
     sr = 16_000
     n = int(1.2 * sr)
     t = np.arange(n, dtype=np.float64) / float(sr)
