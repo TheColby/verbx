@@ -20,12 +20,19 @@ LimiterMode = Literal["tanh", "arctan", "softsign", "hard"]
 LimiterDetect = Literal["peak", "rms"]
 
 
-def read_audio(path: str) -> tuple[AudioArray, int]:
+def read_audio(path: str, max_duration: float | None = None) -> tuple[AudioArray, int]:
     """Read audio as float64 with shape ``(samples, channels)``.
 
     ``soundfile`` handles WAV/FLAC/AIFF and other libsndfile-backed formats.
+    If ``max_duration`` is provided, reads at most that many seconds of audio.
     """
-    audio, sr = sf.read(path, always_2d=True, dtype="float64")
+    if max_duration is not None:
+        info = sf.info(path)
+        frames = int(max_duration * info.samplerate)
+        audio, sr = sf.read(path, always_2d=True, dtype="float64", frames=frames)
+    else:
+        audio, sr = sf.read(path, always_2d=True, dtype="float64")
+
     array = np.asarray(audio, dtype=np.float64)
     return array, int(sr)
 

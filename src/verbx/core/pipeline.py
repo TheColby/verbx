@@ -908,12 +908,12 @@ def _maybe_attach_analysis_report(
         if input_audio_path is None:
             msg = "input_audio_path is required when input_audio is not provided"
             raise ValueError(msg)
-        input_audio, _ = read_audio(str(input_audio_path))
+        input_audio, _ = read_audio(str(input_audio_path), max_duration=300.0)
     if output_audio is None:
         if output_audio_path is None:
             msg = "output_audio_path is required when output_audio is not provided"
             raise ValueError(msg)
-        output_audio, _ = read_audio(str(output_audio_path))
+        output_audio, _ = read_audio(str(output_audio_path), max_duration=300.0)
 
     report.input = analyzer.analyze(
         input_audio,
