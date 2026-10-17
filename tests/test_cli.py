@@ -5682,3 +5682,11 @@ def test_render_track_c_calibration_diagnostics_are_emitted(
     assert isinstance(calibration.get("measured"), dict)
     assert isinstance(calibration.get("errors"), dict)
     assert isinstance(calibration.get("within_envelope"), bool)
+
+
+def test_version(runner: CliRunner) -> None:
+    from verbx import __version__
+
+    result = runner.invoke(app, ["version"])
+    assert result.exit_code == 0
+    assert f"verbx v{__version__}" in result.stdout
