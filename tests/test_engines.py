@@ -581,3 +581,35 @@ def test_algo_engine_surround_decorrelation_controls_for_7p2p4() -> None:
     assert out.shape == audio.shape
     assert out.dtype == np.float64
     assert np.all(np.isfinite(out))
+
+
+def test_convolution_engine_invalid_ir_path(tmp_path: Path) -> None:
+    invalid_path = tmp_path / "does_not_exist.wav"
+    engine = ConvolutionReverbEngine(
+        ConvolutionReverbConfig(
+            ir_path=str(invalid_path),
+            wet=1.0,
+            dry=0.0,
+        )
+    )
+    audio = np.zeros((100, 1), dtype=np.float32)
+    with pytest.raises(sf.LibsndfileError) as excinfo:
+        engine.process(audio, sr=48_000)
+    assert "Error opening" in str(excinfo.value)
+
+
+def test_convolution_engine_non_audio_file(tmp_path: Path) -> None:
+    text_file = tmp_path / "not_audio.txt"
+    text_file.write_text("This is not an audio file")
+
+    engine = ConvolutionReverbEngine(
+        ConvolutionReverbConfig(
+            ir_path=str(text_file),
+            wet=1.0,
+            dry=0.0,
+        )
+    )
+    audio = np.zeros((100, 1), dtype=np.float32)
+    with pytest.raises(sf.LibsndfileError) as excinfo:
+        engine.process(audio, sr=48_000)
+    assert "Error opening" in str(excinfo.value)
