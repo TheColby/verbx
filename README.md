@@ -761,7 +761,7 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 Current public alpha release: **v0.9.10**.
 
-Next development version: **0.9.11.dev0**; see [the roadmap](docs/ROADMAP.md).
+Prepared release: **0.9.11** (hosted validation pending); see [the roadmap](docs/ROADMAP.md).
 
 Current stabilization status:
 

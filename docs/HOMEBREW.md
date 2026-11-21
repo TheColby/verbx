@@ -81,7 +81,8 @@ rebuilt as duplicate Python resources. The virtualenv uses the matching system
 site-packages.
 
 Pinned resources include librosa's Numba, llvmlite, scikit-learn, joblib,
-threadpoolctl, and narwhals dependencies. CMake and Ninja support source builds;
+threadpoolctl, and narwhals dependencies. CMake, Ninja, and Rust support source builds (Rust bootstraps Narwhals’
+`uv_build`/maturin backend);
 llvmlite links to versioned `llvm@22`. Formula tests run `pip check`, import the
 numerical stack, and perform an actual pitch shift with finite/nonzero output.
 

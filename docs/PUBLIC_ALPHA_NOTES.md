@@ -6,7 +6,7 @@ _Updated: 2026-10-17_
 reproducibility, advanced DSP control, structural cleanup, and initial
 realtime duplex auditioning.
 
-The next development cycle is `0.9.11.dev0`. Version 0.9.10 restores corpus
+Version `0.9.11` is prepared for release, pending hosted installation and CI. Version 0.9.10 restores corpus
 augmentation and immersive layout/channel-count QC and validates the extracted
 command modules. GitHub and PyPI publication succeeded; the Homebrew tap has
 synchronized. A clean Homebrew installation still needs validation.

@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-Target version: **0.9.11** (development builds: `0.9.11.dev0`).
+## [0.9.11] - 2026-11-21
 
 ### Added
 - Opt-in native FDN fractional-delay modulation and three-band RT60 controls.
@@ -15,6 +15,10 @@ Target version: **0.9.11** (development builds: `0.9.11.dev0`).
 - Manual clean-macOS Homebrew installation workflow with installed CLI checks.
 
 ### Changed
+- Calibrated the short-room benchmark reference to three archived warmed CI
+  measurements; retained all absolute budgets and other scenario references.
+- Completed the Homebrew source dependency stack with matching Python 3.14
+  numerical bindings, LLVM-backed Numba, Rust build tooling, and real DSP checks.
 - Documented PyPI trusted publishing and the tap-owned hourly Homebrew sync.
 - Refreshed public-alpha notes and the roadmap after the 0.9.10 release.
 

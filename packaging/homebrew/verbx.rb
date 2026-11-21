@@ -9,6 +9,8 @@ class Verbx < Formula
 
   depends_on "cmake" => :build
   depends_on "ninja" => :build
+  # Narwhals uses uv_build, whose source bootstrap is built with maturin.
+  depends_on "rust" => :build
   depends_on "llvm@22"
   depends_on "jpeg-turbo"
   depends_on "zlib"

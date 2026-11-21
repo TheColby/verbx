@@ -772,14 +772,20 @@ normal installer before retrying on that machine, or use the clean-runner check.
 
 ### Compatibility Notes
 
-The formula keeps compiler-sensitive acceleration packages outside its required resource set. This limits installation failures without changing the core command-line DSP contract.
+The formula uses Python 3.14 to match Homebrew's NumPy and SciPy bottle
+bindings. Those packages are supplied by formula dependencies rather than
+rebuilt as duplicate Python resources. The virtualenv uses the matching system
+site-packages.
 
-- Formula pins Python resources using `brew update-python-resources`.
-- `numba`/`llvmlite`/`scikit-learn` are intentionally excluded from Homebrew
-  resources to avoid fragile compiler-bound builds in common macOS
-  environments.
-- Core DSP paths are unaffected; shimmer remains available with librosa and
-  falls back gracefully when acceleration dependencies are absent.
+Pinned resources include librosa's Numba, llvmlite, scikit-learn, joblib,
+threadpoolctl, and narwhals dependencies. CMake, Ninja, and Rust support source builds (Rust bootstraps Narwhals’
+`uv_build`/maturin backend);
+llvmlite links to versioned `llvm@22`. Formula tests run `pip check`, import the
+numerical stack, and perform an actual pitch shift with finite/nonzero output.
+
+These packaging changes require a successful hosted source installation before
+being treated as validated. Homebrew's helper enables build isolation for Python
+resource builds; package build requirements may still need network access.
 
 If `verbx` is not found after install, add `~/.local/bin` to your PATH:
 
@@ -866,7 +872,7 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 Current public alpha release: **v0.9.10**.
 
-Next development version: **0.9.11.dev0**; see [the roadmap](docs/ROADMAP.md).
+Prepared release: **0.9.11** (hosted validation pending); see [the roadmap](docs/ROADMAP.md).
 
 Current stabilization status:
 
@@ -31901,7 +31907,7 @@ _Updated: 2026-10-17_
 reproducibility, advanced DSP control, structural cleanup, and initial
 realtime duplex auditioning.
 
-The next development cycle is `0.9.11.dev0`. Version 0.9.10 restores corpus
+Version `0.9.11` is prepared for release, pending hosted installation and CI. Version 0.9.10 restores corpus
 augmentation and immersive layout/channel-count QC and validates the extracted
 command modules. GitHub and PyPI publication succeeded; the Homebrew tap has
 synchronized. A clean Homebrew installation still needs validation.

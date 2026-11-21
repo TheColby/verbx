@@ -7,7 +7,7 @@ _Last updated: 2026-11-21. Maintained with `README.md`, `CHANGELOG.md`, and the 
 ## 1. Release Posture
 
 **Current release:** `v0.9.10`
-**Next development version:** `v0.9.11.dev0`
+**Prepared release:** `v0.9.11` (hosted installation/CI pending)
 **Status:** public alpha (research-grade)
 **Versioning policy:** semantic prerelease (`0.x` during public alpha)
 

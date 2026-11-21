@@ -1,0 +1,114 @@
+{
+  "tool": "scripts/benchmark_render_baseline.py",
+  "compare_threshold": 3.0,
+  "baseline_path": "docs/benchmarks/ci_baseline.json",
+  "baseline_version": "0.7.1",
+  "timing_policy": {
+    "comparison": "warmed_render",
+    "warmup_runs_per_scenario": 1,
+    "measured_runs_per_scenario": 1,
+    "first_render_includes": "pipeline initialization and JIT where needed"
+  },
+  "first_render_scenarios": [
+    {
+      "name": "algo_short_room",
+      "elapsed_seconds": 6.1873656530000005,
+      "output_seconds": 5.03,
+      "realtime_factor": 0.8129469441588859,
+      "output_channels": 1,
+      "output_samples": 80480
+    },
+    {
+      "name": "algo_long_tail_130s",
+      "elapsed_seconds": 3.0141302819999964,
+      "output_seconds": 54.3355,
+      "realtime_factor": 18.026924822886627,
+      "output_channels": 1,
+      "output_samples": 108671
+    },
+    {
+      "name": "conv_matrix_stereo",
+      "elapsed_seconds": 0.00894933699999001,
+      "output_seconds": 0.8,
+      "realtime_factor": 89.3920968671638,
+      "output_channels": 2,
+      "output_samples": 12800
+    },
+    {
+      "name": "conv_target_sr_192k",
+      "elapsed_seconds": 0.6597733369999901,
+      "output_seconds": 0.31199479166666666,
+      "realtime_factor": 0.4728817825305228,
+      "output_channels": 1,
+      "output_samples": 59903
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "algo_short_room",
+      "elapsed_seconds": 0.9497869489999857,
+      "output_seconds": 5.03,
+      "realtime_factor": 5.295924528438721,
+      "output_channels": 1,
+      "output_samples": 80480,
+      "baseline_reference_seconds": 0.3,
+      "baseline_max_seconds": 2.5,
+      "ratio_to_reference": 3.1659564966666194,
+      "compare_threshold": 3.0,
+      "over_budget": false,
+      "baseline_missing": false,
+      "regression": true
+    },
+    {
+      "name": "algo_long_tail_130s",
+      "elapsed_seconds": 3.0007897460000095,
+      "output_seconds": 54.3355,
+      "realtime_factor": 18.107066672174582,
+      "output_channels": 1,
+      "output_samples": 108671,
+      "baseline_reference_seconds": 1.8,
+      "baseline_max_seconds": 12.0,
+      "ratio_to_reference": 1.6671054144444497,
+      "compare_threshold": 3.0,
+      "over_budget": false,
+      "baseline_missing": false,
+      "regression": false
+    },
+    {
+      "name": "conv_matrix_stereo",
+      "elapsed_seconds": 0.008328022000000601,
+      "output_seconds": 0.8,
+      "realtime_factor": 96.06122558273049,
+      "output_channels": 2,
+      "output_samples": 12800,
+      "baseline_reference_seconds": 0.15,
+      "baseline_max_seconds": 2.0,
+      "ratio_to_reference": 0.055520146666670676,
+      "compare_threshold": 3.0,
+      "over_budget": false,
+      "baseline_missing": false,
+      "regression": false
+    },
+    {
+      "name": "conv_target_sr_192k",
+      "elapsed_seconds": 0.6617193870000051,
+      "output_seconds": 0.31199479166666666,
+      "realtime_factor": 0.47149108488590236,
+      "output_channels": 1,
+      "output_samples": 59903,
+      "baseline_reference_seconds": 0.6,
+      "baseline_max_seconds": 4.0,
+      "ratio_to_reference": 1.1028656450000085,
+      "compare_threshold": 3.0,
+      "over_budget": false,
+      "baseline_missing": false,
+      "regression": false
+    }
+  ],
+  "summary": {
+    "scenario_count": 4,
+    "regression_count": 1,
+    "missing_baseline_count": 0,
+    "has_regression": true
+  }
+}
