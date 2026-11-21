@@ -3,12 +3,17 @@ class Verbx < Formula
 
   desc "Research-grade CLI for extreme reverb processing and analysis"
   homepage "https://github.com/TheColby/verbx"
-  url "https://github.com/TheColby/verbx/archive/refs/tags/v0.7.4.tar.gz"
-  sha256 "46c5d24c7d446aa8d29921e9814c8497200ff0db2aff0d2dd8628d193bf4d95f"
+  url "https://github.com/TheColby/verbx/archive/refs/tags/v0.9.10.tar.gz"
+  sha256 "9c7f1dc541530dc3ff3b03614402f35220a434a764d03853e50ff9bed3c40bdf"
   license "MIT"
 
+  depends_on "cmake" => :build
+  depends_on "ninja" => :build
+  depends_on "llvm@22"
+  depends_on "jpeg-turbo"
+  depends_on "zlib"
   depends_on "libsndfile"
-  depends_on "python@3.12"
+  depends_on "python@3.14"
   depends_on "numpy"
   depends_on "scipy"
   resource "annotated-doc" do
@@ -76,11 +81,6 @@ class Verbx < Formula
     sha256 "3b60763c1373dd60f398488069bcdc703cd08a711477b5d480eecc9f9626f47e"
   end
 
-  resource "numpy" do
-    url "https://files.pythonhosted.org/packages/10/8b/c265f4823726ab832de836cdd184d0986dcf94480f81e8739692a7ac7af2/numpy-2.4.3.tar.gz"
-    sha256 "483a201202b73495f00dbc83796c6ae63137a9bdade074f7648b3e32613412dd"
-  end
-
   resource "packaging" do
     url "https://files.pythonhosted.org/packages/65/ee/299d360cdc32edc7d2cf530f3accf79c4fca01e96ffc950d8a52213bd8e4/packaging-26.0.tar.gz"
     sha256 "00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4"
@@ -121,11 +121,6 @@ class Verbx < Formula
     sha256 "b8daa0b9e4eef54dd8cf7c86c03713f53241884e814f4e2f5fb342fe520f639b"
   end
 
-  resource "scipy" do
-    url "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz"
-    sha256 "95d8e012d8cb8816c226aef832200b1d45109ed4464303e997c5b13122b297c0"
-  end
-
   resource "shellingham" do
     url "https://files.pythonhosted.org/packages/58/15/8b3609fd3830ef7b27b655beb4b4e9c62313a4e8da8c676e142cc210d58e/shellingham-1.5.4.tar.gz"
     sha256 "8dbca0739d487e5bd35ab3ca4b36e11c4078f3a234bfce294b0a0291363404de"
@@ -156,11 +151,62 @@ class Verbx < Formula
     sha256 "1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed"
   end
 
+  resource "pillow" do
+    url "https://files.pythonhosted.org/packages/ce/a4/9cc30690a394a8305e8be4c9036aa16d0dfddadd09079860b582f562496d/pillow-13.0.0.tar.gz"
+    sha256 "cdcd1ba258178f7356d74170c9a81ba4eab6a5d55748bc402a5a2a6fe6be3510"
+  end
+
+  resource "llvmlite" do
+    url "https://files.pythonhosted.org/packages/11/c5/907cec40688a34eb489cded74d555e1ee4af8cf49d83e03dba2c2d4cfe27/llvmlite-0.50.0.tar.gz"
+    sha256 "f2a2cd6ec9ffcc1b7147dea0d7a49efebf17a2b434e0c2844fe175999d571eb4"
+  end
+
+  resource "numba" do
+    url "https://files.pythonhosted.org/packages/0f/a4/a60b14d955b898ce00d815dfe14435ae3b30c1dd2587aa0a172e92310cf8/numba-0.68.1.tar.gz"
+    sha256 "9de461812470173a14eeb7e0bbd27c897dffe835402a33861166842fc5f6ea57"
+  end
+
+  resource "joblib" do
+    url "https://files.pythonhosted.org/packages/d5/1d/537ab090f302b838943a1b56497dd53059b9a9b46a074936470173a2e207/joblib-1.6.0.tar.gz"
+    sha256 "2ccc96785b12046c08fd6d55839c12857831b54a3c1673ffadd2f04bfc4eda03"
+  end
+
+  resource "threadpoolctl" do
+    url "https://files.pythonhosted.org/packages/56/97/b4748951a683e369513691c8eea33d100298d556308dcb0ab66b132a67f0/threadpoolctl-3.8.0.tar.gz"
+    sha256 "01080674ad7ac6182429c918a79de92da789bb448acc02fc0b620b1abd6b6137"
+  end
+
+  resource "narwhals" do
+    url "https://files.pythonhosted.org/packages/c4/20/e2cce41bfa17909205b39c8a4aa3ec730d87f1c4e77453efd3f5aaf50b81/narwhals-2.29.0.tar.gz"
+    sha256 "eb19c877d9a705300bcc9414499a07b32a52db703369414e57e474ca5fc63c42"
+  end
+
+  resource "scikit-learn" do
+    url "https://files.pythonhosted.org/packages/d2/eb/eaf5e07fcc0da7149b0e084f24e54edd7441b9a89ce7e034032ae97fe3a0/scikit_learn-1.9.1.tar.gz"
+    sha256 "629cada3e33e2b9bf376cdc7614a47a4140b8aedc1d836579e359736fbd82977"
+  end
+
   def install
+    # Link to the versioned LLVM shared library used by llvmlite.
+    ENV["CMAKE_ARGS"] = "-DLLVM_DIR=#{Formula["llvm@22"].opt_lib}/cmake/llvm"
+    ENV["LLVMLITE_SHARED"] = "1"
     virtualenv_install_with_resources
   end
 
   test do
     assert_match "verbx", shell_output("#{bin}/verbx version")
+    system Formula["python@3.14"].opt_libexec/"bin/python", "-m", "pip",
+           "--python", libexec/"bin/python", "check"
+    system libexec/"bin/python", "-c", <<~PYTHON
+      import numpy as np
+      import librosa
+      import numba
+      import sklearn
+      samples = np.sin(2 * np.pi * 440 * np.arange(4096) / 22050)
+      shifted = librosa.effects.pitch_shift(samples, sr=22050, n_steps=2)
+      assert shifted.shape == samples.shape
+      assert np.isfinite(shifted).all()
+      assert np.max(np.abs(shifted)) > 0
+    PYTHON
   end
 end

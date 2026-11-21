@@ -75,11 +75,16 @@ normal installer before retrying on that machine, or use the clean-runner check.
 
 ## Compatibility Notes
 
-The formula keeps compiler-sensitive acceleration packages outside its required resource set. This limits installation failures without changing the core command-line DSP contract.
+The formula uses Python 3.14 to match Homebrew's NumPy and SciPy bottle
+bindings. Those packages are supplied by formula dependencies rather than
+rebuilt as duplicate Python resources. The virtualenv uses the matching system
+site-packages.
 
-- Formula pins Python resources using `brew update-python-resources`.
-- `numba`/`llvmlite`/`scikit-learn` are intentionally excluded from Homebrew
-  resources to avoid fragile compiler-bound builds in common macOS
-  environments.
-- Core DSP paths are unaffected; shimmer remains available with librosa and
-  falls back gracefully when acceleration dependencies are absent.
+Pinned resources include librosa's Numba, llvmlite, scikit-learn, joblib,
+threadpoolctl, and narwhals dependencies. CMake and Ninja support source builds;
+llvmlite links to versioned `llvm@22`. Formula tests run `pip check`, import the
+numerical stack, and perform an actual pitch shift with finite/nonzero output.
+
+These packaging changes require a successful hosted source installation before
+being treated as validated. Homebrew's helper enables build isolation for Python
+resource builds; package build requirements may still need network access.
