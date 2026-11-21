@@ -5751,11 +5751,12 @@ def test_suggest_algo_engine(tmp_path: Path) -> None:
     assert "36.00" in result.stdout
 
 
-def test_suggest_file_error(tmp_path: Path) -> None:
+def test_suggest_file_error(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
 
     runner = CliRunner()
-    infile = tmp_path / "missing.wav"
-
-    result = runner.invoke(app, ["suggest", str(infile)])
+    # A short display path keeps Rich's wrapped error message comparable across
+    # local and hosted runners, whose temporary directory names differ greatly.
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(app, ["suggest", "missing.wav"])
     assert result.exit_code != 0
     assert "does not exist" in _combined_cli_output(result)
