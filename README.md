@@ -759,11 +759,15 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.9.10**.
+Current public alpha release: **v0.9.11**.
 
-Prepared release: **0.9.11** (hosted validation pending); see [the roadmap](docs/ROADMAP.md).
+See [the roadmap](docs/ROADMAP.md) for remaining validation and research work.
 
 Current stabilization status:
+
+- `v0.9.11` adds bounded native FDN modulation/multiband controls, C API
+  automation, measured-IR convolution checks, and sanitizer coverage. Full native
+  DSP metric parity remains open. Clean Homebrew validation is tracked separately.
 
 - `v0.9.10` restores corpus generation, immersive channel-count QC, and validates
   extracted CLI commands. PyPI trusted publishing and hourly Homebrew tap sync
@@ -6868,4 +6872,4 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.9.10 is the current public alpha. See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.9.11 is the current public alpha. See [CHANGELOG.md](CHANGELOG.md) for version history.

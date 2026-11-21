@@ -6,8 +6,7 @@ _Last updated: 2026-11-21. Maintained with `README.md`, `CHANGELOG.md`, and the 
 
 ## 1. Release Posture
 
-**Current release:** `v0.9.10`
-**Prepared release:** `v0.9.11` (hosted installation/CI pending)
+**Current release:** `v0.9.11`
 **Status:** public alpha (research-grade)
 **Versioning policy:** semantic prerelease (`0.x` during public alpha)
 
@@ -24,7 +23,7 @@ documentation to cover IAMF/Eclipsa Audio alongside Dolby Atmos.
 
 - [x] Start the development version and refresh release/publishing documentation.
 - [x] Correct the PyPI installation smoke command to `verbx version`.
-- [ ] Verify that corrected smoke check on the next tagged release.
+- [ ] Verify corrected PyPI installation smoke check on the v0.9.11 tag.
 - [x] Add a manual clean-macOS Homebrew installation smoke workflow.
 - [ ] Validate a clean Homebrew installation, beyond formula synchronization.
   Local attempt is blocked by missing Command Line Tools required by the GCC

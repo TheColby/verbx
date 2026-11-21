@@ -80,6 +80,9 @@ bindings. Those packages are supplied by formula dependencies rather than
 rebuilt as duplicate Python resources. The virtualenv uses the matching system
 site-packages.
 
+The formula also pins Python 3.14 audio backports and a compatible
+`typing-extensions` version; `pip check` remains enforced.
+
 Pinned resources include librosa's Numba, llvmlite, scikit-learn, joblib,
 threadpoolctl, and narwhals dependencies. CMake, Ninja, and Rust support source builds (Rust bootstraps Narwhals’
 `uv_build`/maturin backend);

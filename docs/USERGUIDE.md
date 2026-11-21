@@ -777,6 +777,9 @@ bindings. Those packages are supplied by formula dependencies rather than
 rebuilt as duplicate Python resources. The virtualenv uses the matching system
 site-packages.
 
+The formula also pins Python 3.14 audio backports and a compatible
+`typing-extensions` version; `pip check` remains enforced.
+
 Pinned resources include librosa's Numba, llvmlite, scikit-learn, joblib,
 threadpoolctl, and narwhals dependencies. CMake, Ninja, and Rust support source builds (Rust bootstraps Narwhals’
 `uv_build`/maturin backend);
@@ -870,11 +873,15 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.9.10**.
+Current public alpha release: **v0.9.11**.
 
-Prepared release: **0.9.11** (hosted validation pending); see [the roadmap](docs/ROADMAP.md).
+See [the roadmap](docs/ROADMAP.md) for remaining validation and research work.
 
 Current stabilization status:
+
+- `v0.9.11` adds bounded native FDN modulation/multiband controls, C API
+  automation, measured-IR convolution checks, and sanitizer coverage. Full native
+  DSP metric parity remains open. Clean Homebrew validation is tracked separately.
 
 - `v0.9.10` restores corpus generation, immersive channel-count QC, and validates
   extracted CLI commands. PyPI trusted publishing and hourly Homebrew tap sync
@@ -7717,7 +7724,7 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.9.10 is the current public alpha. See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.9.11 is the current public alpha. See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 
 \newpage
@@ -31899,15 +31906,16 @@ explains the musical tradeoffs and reproducible workflow.
 
 <!-- docs/PUBLIC_ALPHA_NOTES.md -->
 
-# Public Alpha Notes (v0.9.10)
+# Public Alpha Notes (v0.9.11)
 
-_Updated: 2026-10-17_
+_Updated: 2026-11-21_
 
-`verbx` v0.9.10 is a public alpha focused on robust offline rendering,
+`verbx` v0.9.11 is a public alpha focused on robust offline rendering,
 reproducibility, advanced DSP control, structural cleanup, and initial
 realtime duplex auditioning.
 
-Version `0.9.11` is prepared for release, pending hosted installation and CI. Version 0.9.10 restores corpus
+Version `0.9.11` adds native control and sanitizer validation, measured-IR
+convolution fixtures, and platform fixes. Full DSP metric parity remains open. Version 0.9.10 restores corpus
 augmentation and immersive layout/channel-count QC and validates the extracted
 command modules. GitHub and PyPI publication succeeded; the Homebrew tap has
 synchronized. A clean Homebrew installation still needs validation.
