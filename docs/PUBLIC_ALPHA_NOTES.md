@@ -10,7 +10,8 @@ Version `0.9.11` adds native control and sanitizer validation, measured-IR
 convolution fixtures, and platform fixes. Full DSP metric parity remains open. Version 0.9.10 restores corpus
 augmentation and immersive layout/channel-count QC and validates the extracted
 command modules. GitHub and PyPI publication succeeded; the Homebrew tap has
-synchronized. A clean Homebrew installation still needs validation.
+synchronized. The clean v0.9.11 Homebrew source installation passed dependency, DSP, version,
+and render checks on a hosted macOS runner.
 
 ## Scope
 

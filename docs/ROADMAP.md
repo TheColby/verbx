@@ -25,8 +25,9 @@ documentation to cover IAMF/Eclipsa Audio alongside Dolby Atmos.
 - [x] Correct the PyPI installation smoke command to `verbx version`.
 - [x] Verify corrected PyPI installation smoke check on the v0.9.11 tag.
 - [x] Add a manual clean-macOS Homebrew installation smoke workflow.
-- [ ] Validate a clean Homebrew installation, beyond formula synchronization.
-  Exact v0.9.11 hosted check: GitHub Actions run `44953455618`.
+- [x] Validate a clean Homebrew v0.9.11 source installation, dependency audit,
+  real pitch shifting, exact version, and strict render smoke test.
+  [Hosted evidence](https://github.com/TheColby/verbx/actions/runs/44953455618).
   Local installation remains deferred because of Command Line Tools/disk constraints.
 - [x] Add realtime impulse/reset/block-size/automation contracts and sanitizer CI.
 - [x] Validate measured AIR room IR convolution against an independent direct

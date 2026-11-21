@@ -57,7 +57,12 @@ creation while the tap's scheduled workflow handles synchronization separately.
 
 ## Installation Validation
 
-The tap's synchronization workflow passed for v0.9.11. Synchronization verifies
+The exact v0.9.11 clean source installation passed on hosted macOS 15 with
+Python 3.14: [installation evidence](https://github.com/TheColby/verbx/actions/runs/44953455618).
+The job runs dependency validation, real librosa pitch shifting, exact-version
+assertion, CLI help/doctor checks, and a strict end-to-end render smoke test.
+
+The tap's synchronization workflow also passed. Synchronization verifies
 formula generation and checksums; it does not prove that installation succeeds.
 Run the upstream `Homebrew installation smoke` workflow manually on a clean
 macOS runner to install from source and exercise the installed CLI:
@@ -69,8 +74,8 @@ gh workflow run homebrew-smoke.yml --repo TheColby/verbx -f expected_version=0.9
 The 2026-10-17 local upgrade attempt stopped during Homebrew dependency
 resolution because the GCC bottle required Xcode Command Line Tools at
 `/Library/Developer/CommandLineTools`. Xcode.app alone did not satisfy that
-requirement. The verbx formula's installation stage was not reached, so a clean
-installation remains unverified. Install the Command Line Tools through Apple's
+requirement. The verbx formula's installation stage was not reached, so that local
+attempt did not validate installation; the hosted check above subsequently passed. Install the Command Line Tools through Apple's
 normal installer before retrying on that machine, or use the clean-runner check.
 
 ## Compatibility Notes
@@ -89,6 +94,5 @@ threadpoolctl, and narwhals dependencies. CMake, Ninja, and Rust support source 
 llvmlite links to versioned `llvm@22`. Formula tests run `pip check`, import the
 numerical stack, and perform an actual pitch shift with finite/nonzero output.
 
-These packaging changes require a successful hosted source installation before
-being treated as validated. Homebrew's helper enables build isolation for Python
+These packaging changes passed the exact v0.9.11 hosted source-installation check. Homebrew's helper enables build isolation for Python
 resource builds; package build requirements may still need network access.

@@ -72,7 +72,7 @@ measured validation.
 - [x] Correct the PyPI smoke command to `verbx version` for the next release.
 - [x] Add a manual clean-macOS Homebrew installation smoke workflow.
 - [x] Verify the corrected PyPI install smoke job on the v0.9.11 tag.
-- [ ] Verify the clean Homebrew v0.9.11 installation job (`44953455618`).
+- [x] Verify the clean Homebrew v0.9.11 installation job (`44953455618`).
 - [x] Tag and publish `v0.9.11` after Python/native/packaging gates pass;
   independent Homebrew installation validation remains tracked above.
 

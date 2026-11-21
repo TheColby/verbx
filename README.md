@@ -767,7 +767,8 @@ Current stabilization status:
 
 - `v0.9.11` adds bounded native FDN modulation/multiband controls, C API
   automation, measured-IR convolution checks, and sanitizer coverage. Full native
-  DSP metric parity remains open. Clean Homebrew validation is tracked separately.
+  DSP metric parity remains open. Fresh PyPI and exact-version Homebrew
+  installation checks passed; see [Homebrew validation](docs/HOMEBREW.md).
 
 - `v0.9.10` restores corpus generation, immersive channel-count QC, and validates
   extracted CLI commands. PyPI trusted publishing and hourly Homebrew tap sync
