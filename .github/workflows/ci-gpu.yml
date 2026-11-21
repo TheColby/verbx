@@ -21,7 +21,7 @@ on:
 
 # This workflow covers CUDA and Apple Silicon (MPS) acceleration paths.
 # CUDA tests run on ubuntu-latest (CPU fallback without a real GPU runner).
-# Apple Silicon tests run on macos-14, which provides M1 hardware.
+# Apple Silicon tests run on macos-15, which provides M1 hardware.
 
 jobs:
   test-cuda:
@@ -60,8 +60,8 @@ jobs:
 
   test-apple-silicon:
     name: Apple Silicon / MPS paths (Python ${{ inputs.python_version || '3.11' }})
-    # macos-14 is guaranteed Apple Silicon (M1).  macos-latest may be Intel.
-    runs-on: macos-14
+    # macos-15 uses Apple Silicon (M1) for this hosted runner.
+    runs-on: macos-15
     strategy:
       fail-fast: false
       matrix:
