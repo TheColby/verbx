@@ -5758,5 +5758,4 @@ def test_suggest_file_error(tmp_path: Path) -> None:
 
     result = runner.invoke(app, ["suggest", str(infile)])
     assert result.exit_code != 0
-    output = result.stdout or result.stderr
-    assert "does not exist" in output
+    assert "does not exist" in _combined_cli_output(result)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from rich.text import Text
 from typer.testing import CliRunner
 
 from verbx.cli import app
@@ -13,7 +14,7 @@ def test_readme_includes_key_batch_render_flags() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     result = runner.invoke(app, ["batch", "render", "--help"])
     assert result.exit_code == 0, result.stdout
-    help_text = result.stdout
+    help_text = Text.from_ansi(result.stdout).plain
     for flag in ["--retries", "--checkpoint-file", "--resume"]:
         assert flag in help_text
         assert flag in readme
@@ -23,7 +24,7 @@ def test_readme_includes_key_quickstart_flags() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     result = runner.invoke(app, ["quickstart", "--help"])
     assert result.exit_code == 0, result.stdout
-    help_text = result.stdout
+    help_text = Text.from_ansi(result.stdout).plain
     for flag in ["--verify", "--strict", "--smoke-test", "--json-out"]:
         assert flag in help_text
         assert flag in readme

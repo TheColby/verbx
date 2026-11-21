@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 from click.testing import Result as ClickResult
 from pytest import MonkeyPatch
+from rich.text import Text
 from typer.testing import CliRunner
 
 from verbx.cli import app
@@ -26,7 +27,7 @@ def _combined_output(result: ClickResult) -> str:
         parts.append(stdout_text)
     if isinstance(stderr_text, str):
         parts.append(stderr_text)
-    return "\n".join(parts)
+    return Text.from_ansi("\n".join(parts)).plain
 
 
 def test_resolve_audio_device_supports_index_and_substring() -> None:

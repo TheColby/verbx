@@ -1838,7 +1838,10 @@ def test_illustrative_fdn_projection_matches_its_stable_real_root_model() -> Non
     assert len(poles) == 38
     assert len(zeros) == 6
     assert max(abs(pole) for pole in poles) < 1.0
-    np.testing.assert_allclose(np.poly(poles).imag, 0.0, atol=5e-15)
+    # Degree-38 polynomial expansion accumulates roundoff across platforms.
+    coefficients = np.poly(poles)
+    roundoff = 64 * np.finfo(float).eps * max(1.0, float(np.max(np.abs(coefficients))))
+    np.testing.assert_allclose(coefficients.imag, 0.0, atol=roundoff)
     np.testing.assert_allclose(np.poly(zeros).imag, 0.0, atol=1e-15)
 
     unit_circle = np.exp(2j * np.pi * frequencies)

@@ -1226,7 +1226,7 @@ def test_ir_gen_rejects_scala_with_source_analysis(tmp_path: Path, runner: CliRu
     )
 
     assert result.exit_code != 0
-    assert "--scala-file cannot be combined with --analyze-input" in result.stderr
+    assert "--scala-file cannot be combined with --analyze-input" in _combined_cli_output(result)
 
 
 def test_ir_cache_hit(tmp_path: Path) -> None:

@@ -49,10 +49,17 @@ def font(
         (False, True): "Arial Italic.ttf",
         (True, True): "Arial Bold Italic.ttf",
     }[(bold, italic)]
+    liberation_style = "BoldItalic" if bold and italic else "Bold" if bold else "Italic" if italic else "Regular"
+    dejavu_suffix = "-BoldItalic" if bold and italic else "-Bold" if bold else "-Italic" if italic else ""
     candidates = [
         f"/System/Library/Fonts/Supplemental/{georgia_style}",
         f"/System/Library/Fonts/Supplemental/{arial_style}",
     ]
+    candidates.extend([
+        f"/usr/share/fonts/truetype/liberation2/LiberationSerif-{liberation_style}.ttf",
+        f"/usr/share/fonts/truetype/liberation/LiberationSerif-{liberation_style}.ttf",
+        f"/usr/share/fonts/truetype/dejavu/DejaVuSerif{dejavu_suffix}.ttf",
+    ])
     for candidate in candidates:
         try:
             return ImageFont.truetype(candidate, size)

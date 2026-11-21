@@ -42,6 +42,8 @@ def font(
         if italic
         else "Georgia.ttf"
     )
+    liberation_style = "BoldItalic" if bold and italic else "Bold" if bold else "Italic" if italic else "Regular"
+    dejavu_suffix = "-BoldItalic" if bold and italic else "-Bold" if bold else "-Italic" if italic else ""
     candidates = [
         *(
             [
@@ -54,6 +56,11 @@ def font(
         ),
         f"/System/Library/Fonts/Supplemental/{georgia_style}",
     ]
+    candidates.extend([
+        f"/usr/share/fonts/truetype/liberation2/LiberationSerif-{liberation_style}.ttf",
+        f"/usr/share/fonts/truetype/liberation/LiberationSerif-{liberation_style}.ttf",
+        f"/usr/share/fonts/truetype/dejavu/DejaVuSerif{dejavu_suffix}.ttf",
+    ])
     for path in candidates:
         try:
             return ImageFont.truetype(path, size)
