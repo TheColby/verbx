@@ -29,14 +29,14 @@ A release maintainer refreshes the formula only after the version and release ar
 1. Refresh formula pins for a new release tag:
 
 ```bash
-./scripts/refresh_homebrew_formula.sh 0.9.10
+./scripts/refresh_homebrew_formula.sh 0.9.11
 ```
 
 2. Commit formula changes in this repo:
 
 ```bash
 git add packaging/homebrew/verbx.rb scripts/refresh_homebrew_formula.sh docs/HOMEBREW.md
-git commit -m "chore(homebrew): refresh formula for v0.9.10"
+git commit -m "chore(homebrew): refresh formula for v0.9.11"
 ```
 
 3. Ensure tap repo formula is updated and pushed.
@@ -57,13 +57,13 @@ creation while the tap's scheduled workflow handles synchronization separately.
 
 ## Installation Validation
 
-The tap's synchronization workflow passed for v0.9.10. Synchronization verifies
+The tap's synchronization workflow passed for v0.9.11. Synchronization verifies
 formula generation and checksums; it does not prove that installation succeeds.
 Run the upstream `Homebrew installation smoke` workflow manually on a clean
 macOS runner to install from source and exercise the installed CLI:
 
 ```bash
-gh workflow run homebrew-smoke.yml --repo TheColby/verbx
+gh workflow run homebrew-smoke.yml --repo TheColby/verbx -f expected_version=0.9.11
 ```
 
 The 2026-10-17 local upgrade attempt stopped during Homebrew dependency

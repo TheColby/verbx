@@ -31,13 +31,15 @@ Trusted publishing is registered on PyPI with these exact identifiers:
 No PyPI API token is needed. Keep the workflow's `id-token: write` permission.
 The v0.9.10 publish job succeeded and its verification job installed the package
 from PyPI. That job then failed on the obsolete `verbx --version` invocation;
-development now uses `verbx version`. The corrected workflow needs validation
-on the next tagged release.
+v0.9.11 corrected this to `verbx version`. Its complete release workflow,
+including a fresh PyPI installation and CLI/import smoke check, passed:
+[release verification](https://github.com/TheColby/verbx/actions/runs/44953092774).
 
-For an existing tag, dispatch the release workflow using the tag as the ref:
+For an unpublished release tag, dispatch the workflow using that tag as the ref
+(replace `vX.Y.Z` with the actual new tag):
 
 ```bash
-gh workflow run release.yml --repo TheColby/verbx --ref v0.9.10
+gh workflow run release.yml --repo TheColby/verbx --ref vX.Y.Z
 ```
 
 Check whether the version is already on PyPI before retrying publication;

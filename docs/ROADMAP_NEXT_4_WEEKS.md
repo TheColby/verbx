@@ -71,8 +71,10 @@ measured validation.
 - [x] Publish `v0.9.10` to GitHub and PyPI and synchronize the Homebrew tap.
 - [x] Correct the PyPI smoke command to `verbx version` for the next release.
 - [x] Add a manual clean-macOS Homebrew installation smoke workflow.
-- [ ] Verify clean Homebrew installation and the corrected tagged PyPI smoke job.
-- [ ] Tag and publish `v0.9.11` only after all required checks pass.
+- [x] Verify the corrected PyPI install smoke job on the v0.9.11 tag.
+- [ ] Verify the clean Homebrew v0.9.11 installation job (`44953455618`).
+- [x] Tag and publish `v0.9.11` after Python/native/packaging gates pass;
+  independent Homebrew installation validation remains tracked above.
 
 ## Week 2: Architecture
 
