@@ -11,13 +11,14 @@ class Verbx < Formula
   depends_on "ninja" => :build
   # Narwhals uses uv_build, whose source bootstrap is built with maturin.
   depends_on "rust" => :build
-  depends_on "llvm@22"
   depends_on "jpeg-turbo"
-  depends_on "zlib"
   depends_on "libsndfile"
-  depends_on "python@3.14"
+  depends_on "llvm@22"
   depends_on "numpy"
+  depends_on "python@3.14"
   depends_on "scipy"
+  depends_on "zlib"
+
   resource "annotated-doc" do
     url "https://files.pythonhosted.org/packages/57/ba/046ceea27344560984e26a590f90bc7f4a75b06701f653222458922b558c/annotated_doc-0.0.4.tar.gz"
     sha256 "fbcda96e87e9c92ad167c2e53839e57503ecfda18804ea28102353485033faa4"
@@ -215,14 +216,14 @@ class Verbx < Formula
 
   def install
     # Link to the versioned LLVM shared library used by llvmlite.
-    ENV["CMAKE_ARGS"] = "-DLLVM_DIR=#{Formula["llvm@22"].opt_lib}/cmake/llvm"
+    ENV["CMAKE_ARGS"] = "-DLLVM_DIR=#{formula_opt_lib("llvm@22")}/cmake/llvm"
     ENV["LLVMLITE_SHARED"] = "1"
     virtualenv_install_with_resources
   end
 
   test do
     assert_match "verbx", shell_output("#{bin}/verbx version")
-    system Formula["python@3.14"].opt_libexec/"bin/python", "-m", "pip",
+    system formula_opt_libexec("python@3.14")/"bin/python", "-m", "pip",
            "--python", libexec/"bin/python", "check"
     system libexec/"bin/python", "-c", <<~PYTHON
       import numpy as np
