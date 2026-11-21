@@ -23,6 +23,8 @@ All notable changes to this project are documented in this file.
 - Refreshed public-alpha notes and the roadmap after the 0.9.10 release.
 
 ### Fixed
+- CI invokes pytest directly through Hatch so scoped documentation/GPU checks
+  and coverage flags reach pytest instead of silently running the default suite.
 - Shimmer skips spectral pitch analysis for empty/single-sample blocks, avoiding
   dependency-specific NaNs seen under Python 3.12.
 - Native parity now compares ceiling-only attenuation on both paths instead of
