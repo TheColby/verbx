@@ -317,8 +317,16 @@ def test_native_extreme_rt60_accepts_small_explicit_tail_limit(tmp_path: Path) -
 
     subprocess.run(
         [
-            str(exe), "render", str(infile), str(outfile), "--rt60", "1e300",
-            "--tail-limit", "0.001", "--tail-hold-ms", "1",
+            str(exe),
+            "render",
+            str(infile),
+            str(outfile),
+            "--rt60",
+            "1e300",
+            "--tail-limit",
+            "0.001",
+            "--tail-hold-ms",
+            "1",
         ],
         check=True,
         cwd=repo_root,
@@ -564,9 +572,7 @@ def test_plugin_metadata_uses_colby_leider_vendor_identity() -> None:
 
 def test_plugin_editor_uses_host_safe_resizing() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    editor_source = (
-        repo_root / "native/verbx_plugin/src/VerbXPluginEditor.cpp"
-    ).read_text()
+    editor_source = (repo_root / "native/verbx_plugin/src/VerbXPluginEditor.cpp").read_text()
 
     assert "setResizeLimits(800, 450, 2560, 1440)" in editor_source
     assert "setSize(1280, 720)" in editor_source
@@ -575,12 +581,8 @@ def test_plugin_editor_uses_host_safe_resizing() -> None:
 
 def test_plugin_editor_knobs_support_direct_interaction() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    editor_header = (
-        repo_root / "native/verbx_plugin/src/VerbXPluginEditor.h"
-    ).read_text()
-    editor_source = (
-        repo_root / "native/verbx_plugin/src/VerbXPluginEditor.cpp"
-    ).read_text()
+    editor_header = (repo_root / "native/verbx_plugin/src/VerbXPluginEditor.h").read_text()
+    editor_source = (repo_root / "native/verbx_plugin/src/VerbXPluginEditor.cpp").read_text()
 
     assert "class VerbXKnobSlider final" in editor_header
     assert "setValueFromDialPosition(event.position)" in editor_source
@@ -628,12 +630,8 @@ def test_plugin_realtime_c_contract_executes(tmp_path: Path) -> None:
 
 def test_plugin_quality_reprepare_stays_off_audio_thread() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    processor_header = (
-        repo_root / "native/verbx_plugin/src/VerbXPluginProcessor.h"
-    ).read_text()
-    processor_source = (
-        repo_root / "native/verbx_plugin/src/VerbXPluginProcessor.cpp"
-    ).read_text()
+    processor_header = (repo_root / "native/verbx_plugin/src/VerbXPluginProcessor.h").read_text()
+    processor_source = (repo_root / "native/verbx_plugin/src/VerbXPluginProcessor.cpp").read_text()
 
     assert "private juce::AsyncUpdater" in processor_header
     assert "std::atomic_flag realtimeContextGuard_" in processor_header
@@ -842,3 +840,54 @@ def test_native_render_parity_contract_is_narrow_and_deterministic() -> None:
     assert len(payload["fixtures"]) >= 2
     assert payload["acceptance_metrics"]["finite_samples_only"] is True
     assert payload["acceptance_metrics"]["tail_ends_in_exact_zeros"] is True
+
+
+def test_native_fdn_modulation_multiband_controls(tmp_path: Path) -> None:
+    exe = _build_native_executable(tmp_path)
+    infile = tmp_path / "impulse.wav"
+    outfile = tmp_path / "controlled.wav"
+    report = tmp_path / "controlled.json"
+    audio = np.zeros(400)
+    audio[0] = 0.5
+    sf.write(infile, audio, 8000, subtype="DOUBLE")
+    result = subprocess.run(
+        [
+            str(exe),
+            "render",
+            str(infile),
+            str(outfile),
+            "--rt60",
+            "0.3",
+            "--tail-limit",
+            "0.4",
+            "--mod-depth-ms",
+            "2.0",
+            "--mod-rate-hz",
+            "0.7",
+            "--rt60-low",
+            "0.4",
+            "--rt60-mid",
+            "0.3",
+            "--rt60-high",
+            "0.15",
+            "--json-out",
+            str(report),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    rendered, sr = sf.read(outfile)
+    assert sr == 8000
+    assert np.isfinite(rendered).all()
+    assert np.count_nonzero(rendered) > 100
+    payload = json.loads(report.read_text())
+    assert payload["mod_depth_ms"] == 2.0
+    assert payload["rt60_high"] == 0.15
+    rejected = subprocess.run(
+        [str(exe), "render", str(infile), str(outfile), "--rt60-low", "0.4"],
+        capture_output=True,
+        text=True,
+    )
+    assert rejected.returncode != 0
+    assert "invalid or incompatible FDN controls" in rejected.stderr

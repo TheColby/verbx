@@ -28,3 +28,4 @@ jobs:
           verbx --help
           verbx batch corpus-generate --help
           verbx doctor
+          verbx quickstart --smoke-test --strict

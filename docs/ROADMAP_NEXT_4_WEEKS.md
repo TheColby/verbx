@@ -3,7 +3,7 @@
 _Execution checklist derived from `README.md`, `CHANGELOG.md`, and
 `docs/ROADMAP.md`._
 
-_Last updated: 2026-10-17._
+_Last updated: 2026-11-21._
 
 ---
 
@@ -41,8 +41,10 @@ measured validation.
 - [x] Preserve a deterministic source-duration floor for silent native input.
 - [x] Replace the foundational native `fdn` comb bank with a bounded
   allocation-free eight-line Hadamard FDN slice.
-- [ ] Extend that slice toward Python-reference modulation, multiband, and
-  automation parity.
+- [x] Extend the offline FDN with fractional modulation, fixed-crossover
+  three-band decay, and sample-addressed C API automation.
+- [ ] Close Python-reference metric parity; current structural checks pass but
+  aggregate DSP tolerances still fail.
 - [ ] Implement bounded-lookahead reverse processing.
 - [ ] Complete signed AUv3 and representative DAW-host validation.
 - [ ] Add multichannel layouts and host compatibility certification.
@@ -52,8 +54,10 @@ measured validation.
 - [x] Expose deterministic image-source paths before tap aggregation.
 - [x] Check in an analytic rectangular-room reference corpus.
 - [x] Validate direct and first-order distance, delay, and per-material gain.
-- [ ] Add measured anechoic/convolution references with documented capture
-  provenance.
+- [x] Add licensed measured room IRs with source/archive hashes and independent
+  convolution parity checks (`docs/MEASURED_ACOUSTIC_REFERENCES.md`).
+- [ ] Add measured anechoic dry recordings and physical acoustic expectations
+  with documented capture provenance.
 - [x] Retain DXF tracing as experimental until measured-reference validation
   and per-layer material assignment are complete.
 
@@ -82,13 +86,16 @@ measured validation.
 ## Week 3: Native DSP and Hosts
 
 - [x] Port one bounded FDN slice with allocation-free sample processing.
-- [ ] Add impulse, reset, automation, and sanitizer coverage for that slice.
+- [x] Add impulse, reset, block-partition, automation, and sanitizer coverage
+  for the native realtime core.
 - [ ] Validate AU/VST3 loading and audible wet-tail output in supported hosts.
 - [ ] Record host, OS, architecture, sample rate, block size, and result.
 
 ## Week 4: Evidence Review
 
-- [ ] Compare benchmark trends against the `v0.9.1` baseline.
+- [x] Compare local renders against checked-in CI budgets; all four pass.
+  Evidence: `docs/benchmarks/0.9.11-development.json`. Timings are local and
+  do not establish cross-machine trends; the budget file identifies v0.7.1.
 - [ ] Review ISM timing against the first measured reference.
 - [x] Retain DXF tracing as experimental pending measured evidence.
 - [ ] Select the next release from evidence: native FDN parity, physical-room

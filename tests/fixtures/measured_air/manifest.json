@@ -1,0 +1,24 @@
+{
+  "dataset": "RWTH Aachen Impulse Response Database 1.4",
+  "source_page": "https://www.iks.rwth-aachen.de/en/research/tools-downloads/databases/aachen-impulse-response-database/",
+  "download_url": "https://www.iks.rwth-aachen.de/fileadmin/user_upload/downloads/forschung/tools-downloads/air_database_release_1_4.zip",
+  "archive_sha256": "d2fd52767505c402e8aed9299dcd046493c8254cfab2f769fcf480dc7c616a5f",
+  "license": "MIT",
+  "retrieved_date": "2026-11-21",
+  "references": [
+    {
+      "file": "air_booth_0_0_1.wav",
+      "archive_member": "AIR_1_4/AIR_wav_files.zip!/air_booth_0_0_1.wav",
+      "sha256": "a03f1f2827db35959f7bfed5eed12b7d7626bd75e5468ec31a6d7b15245042a7",
+      "modifications": "none; original WAV bytes",
+      "kind": "measured room impulse response"
+    },
+    {
+      "file": "air_meeting_0_0_1.wav",
+      "archive_member": "AIR_1_4/AIR_wav_files.zip!/air_meeting_0_0_1.wav",
+      "sha256": "28110e3285e58304b5ecb326665dfb2c33b191a8ff5879dc094c666545390f9d",
+      "modifications": "none; original WAV bytes",
+      "kind": "measured room impulse response"
+    }
+  ]
+}

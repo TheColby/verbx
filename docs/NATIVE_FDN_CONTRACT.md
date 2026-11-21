@@ -84,3 +84,33 @@ structural parity pass. The aggregate metric contract remains intentionally
 open: mono RMS delta improved from 26.58 dB to 13.06 dB, while duration and
 stereo RMS/peak deltas show that Python-reference diffusion, output scaling,
 and tail behavior still need dedicated parity work.
+
+## Modulation, multiband, and automation increment
+
+The offline FDN now accepts opt-in `--mod-depth-ms` (0–20 ms) and
+`--mod-rate-hz` (0–20 Hz). Eight phase-offset sine oscillators drive linear
+fractional delay reads. Buffers include the maximum modulation excursion at
+initialization; the sample loop allocates no memory. Zero depth preserves the
+unmodulated signal path.
+
+`--rt60-low`, `--rt60-mid`, and `--rt60-high` must be supplied together.
+Complementary first-order lowpass differences split feedback into three bands
+with 250 Hz and 4 kHz crossovers (clamped below Nyquist at low sample rates).
+Each band uses its own delay-derived decay gain. This is a bounded native
+filter implementation, not Python's multiband filter or metric parity.
+
+The C API additionally accepts caller-owned sample-addressed `wet`, `dry`,
+`damping`, and `rt60` arrays through `verbx_render_options.automation`. The last
+sample holds through the tail. Lanes are validated before rendering. RT60
+updates feedback coefficients per sample; this offline API does not promise
+realtime coefficient construction. RT60 automation and multiband decay cannot
+be combined yet and are rejected explicitly. Modulation, multiband decay, and
+RT60 automation are FDN-only; spring/plate reject those controls.
+
+Repeated renders start from cleared state and produce identical impulses.
+C tests cover constant RT60 lane equivalence, changing RT60 feedback, exact
+sample-addressed dry/wet mixing, deterministic modulated multiband impulses,
+and invalid/incompatible controls. Address/undefined sanitizer gates apply.
+The separate plugin realtime implementation is unchanged. CLI automation-file
+loading, multichannel support, shimmer/freeze parity, and aggregate Python DSP
+metric parity remain open.

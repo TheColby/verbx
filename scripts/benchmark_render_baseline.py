@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run deterministic render micro-benchmarks and compare against baseline budgets."""
+"""Compare warmed render throughput to budgets; report first renders separately."""
 
 from __future__ import annotations
 
@@ -215,6 +215,28 @@ def _load_baseline(path: Path | None) -> dict[str, Any]:
     return payload
 
 
+def _run_scenarios(tmp: Path) -> tuple[list[ScenarioResult], list[ScenarioResult]]:
+    """Warm every exact render path once, then measure fresh renders.
+
+    First renders include lazy imports/JIT compilation where required. Keep their
+    timings visible, but apply the throughput budgets only to the second pass.
+    Distinct output directories ensure the measured pass cannot reuse outputs.
+    """
+    scenarios = (
+        _scenario_algo_short,
+        _scenario_algo_long_tail,
+        _scenario_conv_matrix,
+        _scenario_conv_target_sr_192k,
+    )
+    warmup_dir = tmp / "first_render"
+    measured_dir = tmp / "measured"
+    warmup_dir.mkdir()
+    measured_dir.mkdir()
+    first_renders = [scenario(warmup_dir) for scenario in scenarios]
+    measured = [scenario(measured_dir) for scenario in scenarios]
+    return measured, first_renders
+
+
 def _evaluate(
     *,
     results: list[ScenarioResult],
@@ -244,8 +266,10 @@ def _evaluate(
         over_budget = None if budget is None else item.elapsed_seconds > budget
         baseline_missing = reference is None and budget is None
         regression = (
-            ratio_to_reference is not None and ratio_to_reference > float(compare_threshold)
-        ) or (over_budget is True) or baseline_missing
+            (ratio_to_reference is not None and ratio_to_reference > float(compare_threshold))
+            or (over_budget is True)
+            or baseline_missing
+        )
         missing_baseline_count += int(baseline_missing)
         has_regression = has_regression or bool(regression)
 
@@ -332,12 +356,7 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="verbx_bench_") as tmp_dir:
         tmp = Path(tmp_dir)
-        results = [
-            _scenario_algo_short(tmp),
-            _scenario_algo_long_tail(tmp),
-            _scenario_conv_matrix(tmp),
-            _scenario_conv_target_sr_192k(tmp),
-        ]
+        results, first_renders = _run_scenarios(tmp)
 
     evaluated, has_regression = _evaluate(
         results=results,
@@ -348,11 +367,19 @@ def main() -> int:
         "tool": "scripts/benchmark_render_baseline.py",
         "compare_threshold": compare_threshold,
         "baseline_path": str(args.baseline),
-        "baseline_version": baseline.get("version") if isinstance(baseline, dict) else None,
+        "baseline_version": baseline.get("version"),
+        "timing_policy": {
+            "comparison": "warmed_render",
+            "warmup_runs_per_scenario": 1,
+            "measured_runs_per_scenario": 1,
+            "first_render_includes": "pipeline initialization and JIT where needed",
+        },
+        "first_render_scenarios": [asdict(item) for item in first_renders],
         **evaluated,
     }
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
     args.json_out.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    print("Throughput after one warmup per scenario; first-render timings are in the JSON report.")
     print(_render_markdown_table(report))
     print(f"Report written: {args.json_out}")
 

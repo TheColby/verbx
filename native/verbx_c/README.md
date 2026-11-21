@@ -142,3 +142,12 @@ uv run python scripts/compare_native_render_parity.py \
 The script can build `verbx-c`, renders every contract
 fixture through both the Python reference and native candidate, and emits a
 machine-readable metric report. Add `--strict` when using it as a failing gate.
+
+Offline FDN controls include `--mod-depth-ms 2 --mod-rate-hz 0.7` and
+`--rt60-low 2 --rt60-mid 1.5 --rt60-high 0.8`. All three band decay times
+are required together; modulation depth is bounded to 20 ms. Controls default
+to disabled and are included in `--json-out` reports. The C render API also
+accepts optional sample-addressed wet/dry/damping/RT60 lanes with held final
+values. RT60 lanes cannot yet combine with multiband decay. See
+[`NATIVE_FDN_CONTRACT.md`](../../docs/NATIVE_FDN_CONTRACT.md) for the supported
+slice and outstanding Python metric parity work.

@@ -7,6 +7,11 @@ All notable changes to this project are documented in this file.
 Target version: **0.9.11** (development builds: `0.9.11.dev0`).
 
 ### Added
+- Opt-in native FDN fractional-delay modulation and three-band RT60 controls.
+- Sample-addressed wet/dry/damping/RT60 automation through the C render API.
+- Native realtime impulse/reset/block-size/automation contracts with ASan/UBSan CI.
+- Compact licensed measured AIR room IR fixtures, provenance, and independent
+  in-memory/streaming convolution parity checks.
 - Manual clean-macOS Homebrew installation workflow with installed CLI checks.
 
 ### Changed
@@ -14,6 +19,9 @@ Target version: **0.9.11** (development builds: `0.9.11.dev0`).
 - Refreshed public-alpha notes and the roadmap after the 0.9.10 release.
 
 ### Fixed
+- Migrated hosted macOS checks from the retired macOS 14 runner to macOS 15.
+- Render benchmarks now warm exact scenario paths before enforcing throughput
+  budgets and retain first-render timings for startup/JIT diagnostics.
 - Release installation verification now uses the supported `verbx version`
   subcommand instead of the unsupported `--version` option.
 

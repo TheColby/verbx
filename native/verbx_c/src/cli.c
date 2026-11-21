@@ -25,6 +25,7 @@ static void print_usage(FILE *stream) {
     );
     fprintf(
         stream,
+        "           [--mod-depth-ms MS] [--mod-rate-hz HZ] [--rt60-low SEC --rt60-mid SEC --rt60-high SEC]\n"
         "           [--pre-delay-ms MS] [--damping X] [--tail-limit SEC] [--tail-threshold-db DB]\n"
     );
     fprintf(
@@ -281,6 +282,11 @@ static int write_render_json_report(
     fprintf(stream, "  \"wet\": %.17g,\n", options->wet);
     fprintf(stream, "  \"dry\": %.17g,\n", options->dry);
     fprintf(stream, "  \"damping\": %.17g,\n", options->damping);
+    fprintf(stream, "  \"mod_depth_ms\": %.17g,\n", options->mod_depth_ms);
+    fprintf(stream, "  \"mod_rate_hz\": %.17g,\n", options->mod_rate_hz);
+    fprintf(stream, "  \"rt60_low\": %.17g,\n", options->rt60_low);
+    fprintf(stream, "  \"rt60_mid\": %.17g,\n", options->rt60_mid);
+    fprintf(stream, "  \"rt60_high\": %.17g,\n", options->rt60_high);
     fprintf(stream, "  \"pre_delay_ms\": %.17g,\n", options->pre_delay_ms);
     if (options->tail_limit_seconds >= 0.0) {
         fprintf(stream, "  \"tail_limit_seconds\": %.17g,\n", options->tail_limit_seconds);
@@ -358,6 +364,16 @@ static int handle_render(int argc, char **argv) {
             if (parse_double_option("--damping", argv[++index], &options.damping) != 0) {
                 return 2;
             }
+        } else if ((strcmp(arg, "--mod-depth-ms") == 0) && (index + 1 < argc)) {
+            if (parse_double_option("--mod-depth-ms", argv[++index], &options.mod_depth_ms) != 0) return 2;
+        } else if ((strcmp(arg, "--mod-rate-hz") == 0) && (index + 1 < argc)) {
+            if (parse_double_option("--mod-rate-hz", argv[++index], &options.mod_rate_hz) != 0) return 2;
+        } else if ((strcmp(arg, "--rt60-low") == 0) && (index + 1 < argc)) {
+            if (parse_double_option("--rt60-low", argv[++index], &options.rt60_low) != 0) return 2;
+        } else if ((strcmp(arg, "--rt60-mid") == 0) && (index + 1 < argc)) {
+            if (parse_double_option("--rt60-mid", argv[++index], &options.rt60_mid) != 0) return 2;
+        } else if ((strcmp(arg, "--rt60-high") == 0) && (index + 1 < argc)) {
+            if (parse_double_option("--rt60-high", argv[++index], &options.rt60_high) != 0) return 2;
         } else if ((strcmp(arg, "--pre-delay-ms") == 0) && (index + 1 < argc)) {
             if (parse_double_option("--pre-delay-ms", argv[++index], &options.pre_delay_ms) != 0) {
                 return 2;

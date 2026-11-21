@@ -23,6 +23,16 @@ typedef enum {
     VERBX_ALGO_MODEL_PLATE = 2
 } verbx_algo_model;
 
+/* Optional sample-addressed lanes. Values hold at their final sample. The caller
+ * owns storage until render returns; NULL disables a lane. */
+typedef struct {
+    const double *wet;
+    const double *dry;
+    const double *damping;
+    const double *rt60;
+    size_t frames;
+} verbx_render_automation;
+
 typedef struct {
     verbx_algo_model algo_model;
     double rt60;
@@ -38,6 +48,13 @@ typedef struct {
     double peak_ceiling_db;
     verbx_tail_metric tail_metric;
     verbx_wav_format out_format;
+    /* Zero depth disables modulation; zero band RT60s disable multiband. */
+    double mod_depth_ms;
+    double mod_rate_hz;
+    double rt60_low;
+    double rt60_mid;
+    double rt60_high;
+    verbx_render_automation automation;
 } verbx_render_options;
 
 typedef struct {

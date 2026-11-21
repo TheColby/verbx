@@ -41,6 +41,10 @@ typedef struct {
     double filter_state;
     double dc_prev_input;
     double dc_prev_output;
+    size_t capacity;
+    double low_state;
+    double high_state;
+    double band_gain[3];
 } verbx_fdn_line_state;
 
 typedef struct {
@@ -48,6 +52,12 @@ typedef struct {
     size_t predelay_length;
     size_t predelay_index;
     int use_fdn;
+    double phase;
+    double phase_step;
+    double mod_depth;
+    double low_alpha;
+    double high_alpha;
+    int multiband;
     verbx_fdn_line_state fdn_lines[VERBX_FDN_LINE_COUNT];
     verbx_comb_state combs[VERBX_COMB_COUNT];
     verbx_allpass_state allpasses[VERBX_ALLPASS_COUNT];
@@ -77,6 +87,15 @@ double verbx_algo_resolved_tail_padding_seconds(const verbx_render_options *opti
         return 0.0;
     }
     rt60 = options->rt60;
+    if (options->rt60_low > rt60) rt60 = options->rt60_low;
+    if (options->rt60_mid > rt60) rt60 = options->rt60_mid;
+    if (options->rt60_high > rt60) rt60 = options->rt60_high;
+    if (options->automation.rt60 != NULL) {
+        size_t point;
+        for (point = 0; point < options->automation.frames; ++point) {
+            if (options->automation.rt60[point] > rt60) rt60 = options->automation.rt60[point];
+        }
+    }
     if (!isfinite(rt60) || rt60 < 0.01) {
         rt60 = 0.01;
     }
@@ -104,7 +123,8 @@ static int init_channel_state(
     double rt60,
     double pre_delay_ms,
     double stereo_scale,
-    verbx_algo_model model
+    verbx_algo_model model,
+    const verbx_render_options *options
 ) {
     static const double comb_delay_ms[VERBX_COMB_COUNT] = {29.7, 37.1, 41.1, 43.7};
     static const double allpass_delay_ms[VERBX_ALLPASS_COUNT] = {5.0, 1.7};
@@ -139,17 +159,29 @@ static int init_channel_state(
 
     if (model == VERBX_ALGO_MODEL_FDN) {
         state->use_fdn = 1;
+        state->mod_depth = options->mod_depth_ms * (double)sample_rate / 1000.0;
+        state->phase_step = 2.0 * VERBX_PI * options->mod_rate_hz / (double)sample_rate;
+        state->multiband = options->rt60_low > 0.0;
+        state->low_alpha = 1.0 - exp(-2.0 * VERBX_PI * fmin(250.0, sample_rate * 0.1) / sample_rate);
+        state->high_alpha = 1.0 - exp(-2.0 * VERBX_PI * fmin(4000.0, sample_rate * 0.4) / sample_rate);
         for (i = 0U; i < VERBX_FDN_LINE_COUNT; ++i) {
             double delay_seconds;
             state->fdn_lines[i].length =
                 delay_from_ms(sample_rate, fdn_delay_ms[i] * stereo_scale, 1.0);
+            state->fdn_lines[i].capacity = state->fdn_lines[i].length
+                + (size_t)ceil(2.0 * state->mod_depth) + 2U;
             state->fdn_lines[i].buffer =
-                (double *)calloc(state->fdn_lines[i].length, sizeof(double));
+                (double *)calloc(state->fdn_lines[i].capacity, sizeof(double));
             if (state->fdn_lines[i].buffer == NULL) {
                 return -1;
             }
             delay_seconds =
                 (double)state->fdn_lines[i].length / (double)sample_rate;
+            if (state->multiband) {
+                state->fdn_lines[i].band_gain[0] = fmin(0.995, pow(10.0, -3.0 * delay_seconds / options->rt60_low));
+                state->fdn_lines[i].band_gain[1] = fmin(0.995, pow(10.0, -3.0 * delay_seconds / options->rt60_mid));
+                state->fdn_lines[i].band_gain[2] = fmin(0.995, pow(10.0, -3.0 * delay_seconds / options->rt60_high));
+            }
             state->fdn_lines[i].feedback =
                 pow(10.0, (-3.0 * delay_seconds) / rt60);
             if (state->fdn_lines[i].feedback > 0.995) {
@@ -240,7 +272,21 @@ static double process_fdn(verbx_channel_state *state, double input, double dampi
 
     for (row = 0U; row < VERBX_FDN_LINE_COUNT; ++row) {
         verbx_fdn_line_state *line = &state->fdn_lines[row];
-        double delayed = line->buffer[line->index];
+        double delay = (double)line->length;
+        double read_position;
+        size_t left, right;
+        double fraction;
+        double delayed;
+        if (state->mod_depth > 0.0) {
+            delay += state->mod_depth * sin(state->phase + (double)row * 0.73);
+            delay = fmax(1.0, delay);
+        }
+        read_position = (double)line->index - delay;
+        if (read_position < 0.0) read_position += (double)line->capacity;
+        left = (size_t)floor(read_position);
+        right = (left + 1U) % line->capacity;
+        fraction = read_position - (double)left;
+        delayed = line->buffer[left] * (1.0 - fraction) + line->buffer[right] * fraction;
         double lowpassed;
         double dc_blocked;
         line->filter_state =
@@ -251,6 +297,13 @@ static double process_fdn(verbx_channel_state *state, double input, double dampi
         line->dc_prev_input = lowpassed;
         line->dc_prev_output = dc_blocked;
         filtered[row] = dc_blocked;
+        if (state->multiband) {
+            line->low_state += state->low_alpha * (dc_blocked - line->low_state);
+            line->high_state += state->high_alpha * (dc_blocked - line->high_state);
+            filtered[row] = line->low_state * line->band_gain[0]
+                + (line->high_state - line->low_state) * line->band_gain[1]
+                + (dc_blocked - line->high_state) * line->band_gain[2];
+        }
         wet += ((row & 1U) == 0U ? 1.0 : -1.0) * delayed;
     }
 
@@ -265,9 +318,11 @@ static double process_fdn(verbx_channel_state *state, double input, double dampi
     for (row = 0U; row < VERBX_FDN_LINE_COUNT; ++row) {
         verbx_fdn_line_state *line = &state->fdn_lines[row];
         double injection = input * (((row & 1U) == 0U) ? 0.25 : -0.25);
-        line->buffer[line->index] = injection + (mixed[row] * line->feedback);
-        line->index = (line->index + 1U) % line->length;
+        line->buffer[line->index] = injection + (mixed[row] * (state->multiband ? 1.0 : line->feedback));
+        line->index = (line->index + 1U) % line->capacity;
     }
+    state->phase += state->phase_step;
+    if (state->phase >= 2.0 * VERBX_PI) state->phase -= 2.0 * VERBX_PI;
     return wet * VERBX_INV_SQRT_8;
 }
 
@@ -450,6 +505,31 @@ int verbx_algo_render(
         return -1;
     }
 
+    {
+        const verbx_render_automation *a = &options->automation;
+        size_t point;
+        int bands = options->rt60_low > 0.0 && options->rt60_mid > 0.0 && options->rt60_high > 0.0;
+        int any_band = options->rt60_low != 0.0 || options->rt60_mid != 0.0 || options->rt60_high != 0.0;
+        if (!isfinite(options->mod_depth_ms) || options->mod_depth_ms < 0.0 || options->mod_depth_ms > 20.0
+            || !isfinite(options->mod_rate_hz) || options->mod_rate_hz < 0.0 || options->mod_rate_hz > 20.0
+            || !isfinite(options->rt60_low) || !isfinite(options->rt60_mid) || !isfinite(options->rt60_high)
+            || (any_band && !bands) || (bands && a->rt60 != NULL)
+            || ((any_band || options->mod_depth_ms > 0.0 || a->rt60 != NULL)
+                && options->algo_model != VERBX_ALGO_MODEL_FDN)
+            || ((a->wet || a->dry || a->damping || a->rt60) && a->frames == 0U)) {
+            set_error(error_message, error_message_size, "invalid or incompatible FDN controls");
+            return -1;
+        }
+        for (point = 0U; point < a->frames; ++point) {
+            if ((a->wet && (!isfinite(a->wet[point]) || a->wet[point] < 0.0))
+                || (a->dry && (!isfinite(a->dry[point]) || a->dry[point] < 0.0))
+                || (a->damping && (!isfinite(a->damping[point]) || a->damping[point] < 0.0 || a->damping[point] > 1.0))
+                || (a->rt60 && (!isfinite(a->rt60[point]) || a->rt60[point] < 0.01))) {
+                set_error(error_message, error_message_size, "invalid automation sample");
+                return -1;
+            }
+        }
+    }
     memset(states, 0, sizeof(states));
     memset(output, 0, sizeof(*output));
     damping = options->damping;
@@ -533,7 +613,8 @@ int verbx_algo_render(
                 rt60,
                 pre_delay_ms,
                 stereo_scale,
-                options->algo_model
+                options->algo_model,
+                options
             ) != 0) {
             set_error(error_message, error_message_size, "failed to initialize native reverb state");
             goto cleanup;
@@ -541,6 +622,23 @@ int verbx_algo_render(
     }
 
     for (frame = 0U; frame < total_frames; ++frame) {
+        const verbx_render_automation *automation = &options->automation;
+        if (automation->frames > 0U) {
+            size_t point = frame < automation->frames ? frame : automation->frames - 1U;
+            if (automation->wet != NULL) wet = automation->wet[point];
+            if (automation->dry != NULL) dry = automation->dry[point];
+            if (automation->damping != NULL) damping = fmin(0.98, automation->damping[point]);
+            if (automation->rt60 != NULL) {
+                size_t line;
+                for (channel = 0U; channel < input->channels; ++channel) {
+                    for (line = 0U; line < VERBX_FDN_LINE_COUNT; ++line) {
+                        verbx_fdn_line_state *fdn = &states[channel].fdn_lines[line];
+                        fdn->feedback = fmin(0.995, pow(10.0, (-3.0 * ((double)fdn->length
+                            / (double)input->sample_rate)) / automation->rt60[point]));
+                    }
+                }
+            }
+        }
         for (channel = 0U; channel < input->channels; ++channel) {
             double dry_in = 0.0;
             double wet_out;

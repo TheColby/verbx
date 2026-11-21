@@ -1,6 +1,6 @@
 # verbx Roadmap
 
-_Last updated: 2026-10-17. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
+_Last updated: 2026-11-21. Maintained with `README.md`, `CHANGELOG.md`, and the generated user guide outputs._
 
 ---
 
@@ -29,7 +29,13 @@ documentation to cover IAMF/Eclipsa Audio alongside Dolby Atmos.
 - [ ] Validate a clean Homebrew installation, beyond formula synchronization.
   Local attempt is blocked by missing Command Line Tools required by the GCC
   dependency bottle; run `homebrew-smoke.yml` on a clean hosted runner.
-- [ ] Extend native and physical-model parity only with repeatable regression evidence.
+- [x] Add realtime impulse/reset/block-size/automation contracts and sanitizer CI.
+- [x] Validate measured AIR room IR convolution against an independent direct
+  convolution reference, including partition boundaries and flushed tails.
+- [x] Add native FDN modulation, three-band decay, and sample-addressed C API
+  automation with deterministic effect and sanitizer tests.
+- [ ] Close full Python/native DSP metric parity and physical-model accuracy gaps.
+  Measured convolution checks do not establish physical-room model accuracy.
 
 PyPI trusted publishing is registered for `TheColby/verbx`, `release.yml`, and
 the `pypi` environment. Homebrew updates are managed by the tap's hourly workflow.

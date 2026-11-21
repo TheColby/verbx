@@ -7529,6 +7529,7 @@ selection comes near the end of that sequence, not at the beginning.
 ### Render Performance Baseline
 
 This directory tracks a small deterministic benchmark suite for CI comparison.
+See [timing policy](TIMING_POLICY.md) for warmup and first-render reporting details.
 
 #### What it measures
 

@@ -1,0 +1,28 @@
+name: Native realtime sanitizers
+
+on:
+  push:
+  pull_request:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  realtime-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install contract test runner
+        run: python -m pip install pytest
+      - name: Run callback signal and lifecycle contracts with ASan and UBSan
+        env:
+          CC: clang
+          VERBX_NATIVE_SANITIZERS: "1"
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: python -m pytest tests/test_native_realtime_contracts.py -q
