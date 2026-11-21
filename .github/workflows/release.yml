@@ -248,7 +248,7 @@ jobs:
             echo "Attempt ${attempt} failed – retrying in 30s..."
             sleep 30
           done
-          verbx --version
+          verbx version
           python -c "import verbx; print('import OK')"
 
   release-github:

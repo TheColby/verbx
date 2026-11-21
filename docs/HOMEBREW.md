@@ -55,6 +55,24 @@ The upstream release workflow retains optional direct sync for maintainers who
 supply `HOMEBREW_TAP_TOKEN`. `RELEASE_REQUIRE_HOMEBREW=false` allows release
 creation while the tap's scheduled workflow handles synchronization separately.
 
+## Installation Validation
+
+The tap's synchronization workflow passed for v0.9.10. Synchronization verifies
+formula generation and checksums; it does not prove that installation succeeds.
+Run the upstream `Homebrew installation smoke` workflow manually on a clean
+macOS runner to install from source and exercise the installed CLI:
+
+```bash
+gh workflow run homebrew-smoke.yml --repo TheColby/verbx
+```
+
+The 2026-10-17 local upgrade attempt stopped during Homebrew dependency
+resolution because the GCC bottle required Xcode Command Line Tools at
+`/Library/Developer/CommandLineTools`. Xcode.app alone did not satisfy that
+requirement. The verbx formula's installation stage was not reached, so a clean
+installation remains unverified. Install the Command Line Tools through Apple's
+normal installer before retrying on that machine, or use the clean-runner check.
+
 ## Compatibility Notes
 
 The formula keeps compiler-sensitive acceleration packages outside its required resource set. This limits installation failures without changing the core command-line DSP contract.

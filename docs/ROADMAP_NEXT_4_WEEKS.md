@@ -1,20 +1,20 @@
-# verbx v0.9.3 and Next 4 Weeks
+# verbx v0.9.11 and Next 4 Weeks
 
 _Execution checklist derived from `README.md`, `CHANGELOG.md`, and
 `docs/ROADMAP.md`._
 
-_Last updated: 2026-07-26._
+_Last updated: 2026-10-17._
 
 ---
 
 ## Goal
 
-Ship `v0.9.3` as a focused hardening release, then use its enforced quality
+Ship `v0.9.11` as a focused hardening release, then use its enforced quality
 gates as the baseline for the next native and physical-acoustics increments.
 New feature breadth remains secondary to compatibility, repeatability, and
 measured validation.
 
-## v0.9.3 Release Slice
+## v0.9.11 Release Slice
 
 ### Python Core
 
@@ -24,7 +24,7 @@ measured validation.
 - [x] Enforce streaming/in-memory parity for the convolution path.
 - [x] Split nonlinearity and spatial-coupling responsibilities out of
   `algo_reverb.py`.
-- [ ] Split the remaining delay-kernel responsibility out of `algo_reverb.py`.
+- [x] Extract FDN delay-layout helpers into `fdn_delays.py`.
 
 ### Quality Gates
 
@@ -64,7 +64,11 @@ measured validation.
 - [x] Confirm generated CLI reference and launch examples match the shipped
   interface.
 - [x] Review release notes for research-grade and experimental claims.
-- [ ] Tag and publish `v0.9.3` only after all required checks pass.
+- [x] Publish `v0.9.10` to GitHub and PyPI and synchronize the Homebrew tap.
+- [x] Correct the PyPI smoke command to `verbx version` for the next release.
+- [x] Add a manual clean-macOS Homebrew installation smoke workflow.
+- [ ] Verify clean Homebrew installation and the corrected tagged PyPI smoke job.
+- [ ] Tag and publish `v0.9.11` only after all required checks pass.
 
 ## Week 2: Architecture
 
@@ -92,7 +96,7 @@ measured validation.
 
 ## Exit Criteria
 
-- `v0.9.3` metadata and release notes agree.
+- `v0.9.11` metadata and release notes agree.
 - Python tests, lint, and type checking pass.
 - Performance and native structural parity are blocking CI checks.
 - Native render never shortens output below its deterministic source floor.

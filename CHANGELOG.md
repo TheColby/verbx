@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+Target version: **0.9.11** (development builds: `0.9.11.dev0`).
+
+### Added
+- Manual clean-macOS Homebrew installation workflow with installed CLI checks.
+
+### Changed
+- Documented PyPI trusted publishing and the tap-owned hourly Homebrew sync.
+- Refreshed public-alpha notes and the roadmap after the 0.9.10 release.
+
+### Fixed
+- Release installation verification now uses the supported `verbx version`
+  subcommand instead of the unsupported `--version` option.
+
 ## [0.9.10] - 2026-10-17
 
 ### Added

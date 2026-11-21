@@ -1314,7 +1314,7 @@ wheels = [
 
 [[package]]
 name = "verbx"
-version = "0.9.10"
+version = "0.9.11.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },

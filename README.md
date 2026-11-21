@@ -761,7 +761,13 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 Current public alpha release: **v0.9.10**.
 
+Next development version: **0.9.11.dev0**; see [the roadmap](docs/ROADMAP.md).
+
 Current stabilization status:
+
+- `v0.9.10` restores corpus generation, immersive channel-count QC, and validates
+  extracted CLI commands. PyPI trusted publishing and hourly Homebrew tap sync
+  are configured; see the maintainer guides below.
 
 - `v0.9.9` adds full-state A/B comparison to the native plug-in editor for
   direct reverb decisions without leaving the current session.
@@ -792,8 +798,8 @@ Current stabilization status:
 
 ## v0.8 Native Track
 
-`v0.8` is the planned native C executable line. The released tool remains the
-Python implementation in `v0.7.x`, but the native rewrite has now started with
+`v0.8` is the planned native C executable line. The default released tool remains the
+Python implementation in `v0.9.x`; the native track includes
 an executable scaffold under [`native/verbx_c/README.md`](native/verbx_c/README.md).
 The live feature/gap table is tracked in
 [`docs/NATIVE_PARITY.md`](docs/NATIVE_PARITY.md).

@@ -1,0 +1,30 @@
+name: Homebrew installation smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: macos-14
+    steps:
+      - name: Check developer tools
+        run: |
+          xcode-select -p
+          clang --version
+      - name: Install published tap formula
+        env:
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: |
+          brew update
+          brew tap thecolby/verbx
+          brew install --build-from-source thecolby/verbx/verbx
+      - name: Test installed package
+        run: |
+          brew test thecolby/verbx/verbx
+          verbx version
+          verbx --help
+          verbx batch corpus-generate --help
+          verbx doctor

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "verbx"
-version = "0.9.10"
+version = "0.9.11.dev0"
 description = "Research-grade CLI for extreme reverb processing and analysis."
 readme = "README.md"
 license = { file = "LICENSE" }

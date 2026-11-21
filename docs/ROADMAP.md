@@ -7,6 +7,7 @@ _Last updated: 2026-10-17. Maintained with `README.md`, `CHANGELOG.md`, and the 
 ## 1. Release Posture
 
 **Current release:** `v0.9.10`
+**Next development version:** `v0.9.11.dev0`
 **Status:** public alpha (research-grade)
 **Versioning policy:** semantic prerelease (`0.x` during public alpha)
 
@@ -18,6 +19,21 @@ CLI-selectable realtime duplex auditioning.
 The September 2026 refresh adds a validated long-RT60 calibration path,
 continues the command-module decomposition, and expands the immersive handoff
 documentation to cover IAMF/Eclipsa Audio alongside Dolby Atmos.
+
+## 1a. v0.9.11 Development Priorities
+
+- [x] Start the development version and refresh release/publishing documentation.
+- [x] Correct the PyPI installation smoke command to `verbx version`.
+- [ ] Verify that corrected smoke check on the next tagged release.
+- [x] Add a manual clean-macOS Homebrew installation smoke workflow.
+- [ ] Validate a clean Homebrew installation, beyond formula synchronization.
+  Local attempt is blocked by missing Command Line Tools required by the GCC
+  dependency bottle; run `homebrew-smoke.yml` on a clean hosted runner.
+- [ ] Extend native and physical-model parity only with repeatable regression evidence.
+
+PyPI trusted publishing is registered for `TheColby/verbx`, `release.yml`, and
+the `pypi` environment. Homebrew updates are managed by the tap's hourly workflow.
+See `docs/PYPI_PUBLISH_SETUP.md` and `docs/HOMEBREW.md` for operational details.
 
 ## 1a. September 2026 Stabilization Slice
 

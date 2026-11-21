@@ -726,34 +726,49 @@ A release maintainer refreshes the formula only after the version and release ar
 1. Refresh formula pins for a new release tag:
 
 ```bash
-./scripts/refresh_homebrew_formula.sh 0.9.9
+./scripts/refresh_homebrew_formula.sh 0.9.10
 ```
 
 2. Commit formula changes in this repo:
 
 ```bash
 git add packaging/homebrew/verbx.rb scripts/refresh_homebrew_formula.sh docs/HOMEBREW.md
-git commit -m "chore(homebrew): refresh formula for v0.9.9"
+git commit -m "chore(homebrew): refresh formula for v0.9.10"
 ```
 
 3. Ensure tap repo formula is updated and pushed.
 
 ### Release Automation
 
-The release workflow can synchronize the tap after a version tag is pushed. Repository secrets and policy variables determine whether a missing tap credential blocks the release.
+The tap owns `.github/workflows/sync-release.yml`. It checks the latest published
+GitHub release hourly (at minute 17) and also supports **Run workflow** for an
+immediate update. It fetches the formula from the release tag, updates the source
+URL and SHA-256, and commits with the tap's own `GITHUB_TOKEN`.
 
-`.github/workflows/release.yml` includes gated tap sync:
+This setup needs no personal token or cross-repository secret. Inspect or run it
+at <https://github.com/TheColby/homebrew-verbx/actions/workflows/sync-release.yml>.
 
-- Trigger: tag push (`v*`)
-- Job: `sync-homebrew-tap`
-- Requires secret: `HOMEBREW_TAP_TOKEN` (when sync required)
-- Optional variable: `HOMEBREW_TAP_REPO` (default `TheColby/homebrew-verbx`)
-- Policy variable: `RELEASE_REQUIRE_HOMEBREW` (`true` by default)
+The upstream release workflow retains optional direct sync for maintainers who
+supply `HOMEBREW_TAP_TOKEN`. `RELEASE_REQUIRE_HOMEBREW=false` allows release
+creation while the tap's scheduled workflow handles synchronization separately.
 
-Behavior:
+### Installation Validation
 
-- `RELEASE_REQUIRE_HOMEBREW=true` (default): release fails if token is missing.
-- `RELEASE_REQUIRE_HOMEBREW=false`: sync is skipped when token is missing.
+The tap's synchronization workflow passed for v0.9.10. Synchronization verifies
+formula generation and checksums; it does not prove that installation succeeds.
+Run the upstream `Homebrew installation smoke` workflow manually on a clean
+macOS runner to install from source and exercise the installed CLI:
+
+```bash
+gh workflow run homebrew-smoke.yml --repo TheColby/verbx
+```
+
+The 2026-10-17 local upgrade attempt stopped during Homebrew dependency
+resolution because the GCC bottle required Xcode Command Line Tools at
+`/Library/Developer/CommandLineTools`. Xcode.app alone did not satisfy that
+requirement. The verbx formula's installation stage was not reached, so a clean
+installation remains unverified. Install the Command Line Tools through Apple's
+normal installer before retrying on that machine, or use the clean-runner check.
 
 ### Compatibility Notes
 
@@ -849,9 +864,15 @@ Dry source files are in the same directory. See [`examples/audio/README.md`](exa
 
 ## Public Alpha Launch Notes
 
-Current public alpha release: **v0.9.9**.
+Current public alpha release: **v0.9.10**.
+
+Next development version: **0.9.11.dev0**; see [the roadmap](docs/ROADMAP.md).
 
 Current stabilization status:
+
+- `v0.9.10` restores corpus generation, immersive channel-count QC, and validates
+  extracted CLI commands. PyPI trusted publishing and hourly Homebrew tap sync
+  are configured; see the maintainer guides below.
 
 - `v0.9.9` adds full-state A/B comparison to the native plug-in editor for
   direct reverb decisions without leaving the current session.
@@ -882,8 +903,8 @@ Current stabilization status:
 
 ## v0.8 Native Track
 
-`v0.8` is the planned native C executable line. The released tool remains the
-Python implementation in `v0.7.x`, but the native rewrite has now started with
+`v0.8` is the planned native C executable line. The default released tool remains the
+Python implementation in `v0.9.x`; the native track includes
 an executable scaffold under [`native/verbx_c/README.md`](native/verbx_c/README.md).
 The live feature/gap table is tracked in
 [`docs/NATIVE_PARITY.md`](docs/NATIVE_PARITY.md).
@@ -7689,7 +7710,7 @@ Additional guides in `docs/`:
 
 See [LICENSE](LICENSE).
 
-v0.9.9 is the current public alpha. See [CHANGELOG.md](CHANGELOG.md) for version history.
+v0.9.10 is the current public alpha. See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 
 \newpage
@@ -10862,6 +10883,8 @@ Do not edit manually.
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ corpus-generate   Generate augmented audio corpora from one file or a        │
+│                   directory of files.                                        │
 │ template                                                                     │
 │ augment-template                                                             │
 │ augment-profiles                                                             │
@@ -31869,13 +31892,18 @@ explains the musical tradeoffs and reproducible workflow.
 
 <!-- docs/PUBLIC_ALPHA_NOTES.md -->
 
-# Public Alpha Notes (v0.9.9)
+# Public Alpha Notes (v0.9.10)
 
-_Updated: 2026-08-05_
+_Updated: 2026-10-17_
 
-`verbx` v0.9.9 is a public alpha focused on robust offline rendering,
+`verbx` v0.9.10 is a public alpha focused on robust offline rendering,
 reproducibility, advanced DSP control, structural cleanup, and initial
 realtime duplex auditioning.
+
+The next development cycle is `0.9.11.dev0`. Version 0.9.10 restores corpus
+augmentation and immersive layout/channel-count QC and validates the extracted
+command modules. GitHub and PyPI publication succeeded; the Homebrew tap has
+synchronized. A clean Homebrew installation still needs validation.
 
 ## Scope
 
