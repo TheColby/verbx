@@ -23,6 +23,11 @@ All notable changes to this project are documented in this file.
 - Refreshed public-alpha notes and the roadmap after the 0.9.10 release.
 
 ### Fixed
+- Shimmer skips spectral pitch analysis for empty/single-sample blocks, avoiding
+  dependency-specific NaNs seen under Python 3.12.
+- Native parity now compares ceiling-only attenuation on both paths instead of
+  boosting the Python reference; remaining DSP discrepancies stay visible.
+- Homebrew includes Python 3.14 audio backports and joblib's cloudpickle dependency.
 - Migrated hosted macOS checks from the retired macOS 14 runner to macOS 15.
 - Render benchmarks now warm exact scenario paths before enforcing throughput
   budgets and retain first-render timings for startup/JIT diagnostics.

@@ -207,3 +207,13 @@ def test_single_sample_input_no_crash() -> None:
     assert out.shape == (1, 1)
     assert out.dtype == np.float64
     assert np.all(np.isfinite(out))
+
+
+def test_degenerate_pitch_blocks_do_not_enter_spectral_backend() -> None:
+    # A backend that cannot process audio must never be asked to resolve a
+    # frequency from zero or one sample (which has no pitch information).
+    with patch.object(shimmer_mod, "librosa", object()):
+        for frames in (0, 1):
+            audio = np.ones((frames, 1), dtype=np.float64)
+            out = shimmer_mod._pitch_shift_audio(audio, 44100, 12.0)  # pyright: ignore[reportPrivateUsage]
+            np.testing.assert_array_equal(out, audio)

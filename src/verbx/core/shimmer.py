@@ -106,7 +106,9 @@ def _pitch_shift_audio(audio: AudioArray, sr: int, semitones: float) -> AudioArr
     interpolation fallback is kept for minimal dependency environments.
     """
     x = ensure_mono_or_stereo(audio)
-    if abs(semitones) < 1e-6:
+    # Degenerate blocks have no pitch to resolve; librosa can generate NaNs
+    # while padding/resampling these on some dependency versions.
+    if x.shape[0] < 2 or abs(semitones) < 1e-6:
         return x.copy()
 
     out = np.zeros_like(x, dtype=np.float64)

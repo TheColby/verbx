@@ -129,3 +129,39 @@ def test_structural_gate_rejects_missing_or_failed_checks() -> None:
 
     assert module.evaluate_required_checks({"scenarios": [{"checks": checks}]}) is False
     assert module.evaluate_required_checks({"scenarios": []}) is False
+
+
+def test_python_peak_safety_preserves_below_ceiling_audio(tmp_path: Path, monkeypatch) -> None:
+    _check_python_reference_peak_safety(tmp_path, monkeypatch, peak=0.25)
+
+
+def test_python_peak_safety_attenuates_above_ceiling_before_pcm_encoding(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _check_python_reference_peak_safety(tmp_path, monkeypatch, peak=2.0)
+
+
+def _check_python_reference_peak_safety(tmp_path: Path, monkeypatch, peak: float) -> None:
+    module = _load_module()
+    fixture = module.load_contract()["fixtures"][1]
+    paths = module.FixturePaths(
+        tmp_path / "input.wav", tmp_path / "python.wav", tmp_path / "native.wav"
+    )
+    audio = np.array([[peak, -peak / 2.0], [0.0, 0.0]])
+
+    def fake_pipeline(input_path, output_path, config):
+        assert config.output_peak_norm == "none"
+        assert config.output_subtype == "float64"
+        assert config.limiter is False
+        sf.write(output_path, audio, 22050, subtype="DOUBLE")
+
+    monkeypatch.setattr(module, "run_render_pipeline", fake_pipeline)
+    module._run_python_reference(fixture, paths)
+    rendered, sr = sf.read(paths.python_wav, always_2d=True)
+    ceiling = 10.0 ** (-1.0 / 20.0)
+    expected = audio * min(1.0, ceiling / peak)
+    # PCM16 rounding is the only permitted discrepancy; both channels share gain.
+    np.testing.assert_allclose(rendered, expected, atol=1.0 / 32768.0, rtol=0.0)
+    assert sr == 22050
+    assert sf.info(paths.python_wav).subtype == "PCM_16"
+    assert not list(tmp_path.glob("peak-safe-*"))

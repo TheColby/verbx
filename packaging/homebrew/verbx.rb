@@ -188,6 +188,31 @@ class Verbx < Formula
     sha256 "629cada3e33e2b9bf376cdc7614a47a4140b8aedc1d836579e359736fbd82977"
   end
 
+  resource "audioop-lts" do
+    url "https://files.pythonhosted.org/packages/38/53/946db57842a50b2da2e0c1e34bd37f36f5aadba1a929a3971c5d7841dbca/audioop_lts-0.2.2.tar.gz"
+    sha256 "64d0c62d88e67b98a1a5e71987b7aa7b5bcffc7dcee65b635823dbdd0a8dbbd0"
+  end
+
+  resource "standard-chunk" do
+    url "https://files.pythonhosted.org/packages/43/06/ce1bb165c1f111c7d23a1ad17204d67224baa69725bb6857a264db61beaf/standard_chunk-3.13.0.tar.gz"
+    sha256 "4ac345d37d7e686d2755e01836b8d98eda0d1a3ee90375e597ae43aaf064d654"
+  end
+
+  resource "standard-aifc" do
+    url "https://files.pythonhosted.org/packages/c4/53/6050dc3dde1671eb3db592c13b55a8005e5040131f7509cef0215212cb84/standard_aifc-3.13.0.tar.gz"
+    sha256 "64e249c7cb4b3daf2fdba4e95721f811bde8bdfc43ad9f936589b7bb2fae2e43"
+  end
+
+  resource "standard-sunau" do
+    url "https://files.pythonhosted.org/packages/66/e3/ce8d38cb2d70e05ffeddc28bb09bad77cfef979eb0a299c9117f7ed4e6a9/standard_sunau-3.13.0.tar.gz"
+    sha256 "b319a1ac95a09a2378a8442f403c66f4fd4b36616d6df6ae82b8e536ee790908"
+  end
+
+  resource "cloudpickle" do
+    url "https://files.pythonhosted.org/packages/59/df/0bf7ef6c2534c140bb4c3d787e1557542e50a96b393659efaa4f39f9a45a/cloudpickle-3.1.3.tar.gz"
+    sha256 "cbe9fde14429a5db009ea05ce94e5182cf998c97b96918d50c10f73f9c2f4f33"
+  end
+
   def install
     # Link to the versioned LLVM shared library used by llvmlite.
     ENV["CMAKE_ARGS"] = "-DLLVM_DIR=#{Formula["llvm@22"].opt_lib}/cmake/llvm"

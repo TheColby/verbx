@@ -1,0 +1,66 @@
+{
+  "contract_target": "verbx-c offline render parity slice",
+  "native_exe": "verbx-c (built from current source)",
+  "passed": false,
+  "scenarios": [
+    {
+      "channels": 1,
+      "checks": {
+        "channel_count_exact": true,
+        "duration_tolerance_ms": false,
+        "finite_samples_only": true,
+        "peak_abs_tolerance": false,
+        "rms_tolerance_db": false,
+        "sample_rate_exact": true,
+        "tail_ends_in_exact_zeros": true
+      },
+      "duration_delta_ms": 105.93749999999996,
+      "name": "mono_impulse_short_tail",
+      "native_frames": 5384,
+      "native_peak_abs": 0.06629125773906708,
+      "native_rms_dbfs": -50.808108549640664,
+      "native_stdout": "verbx-c render complete\nmodel: fdn\nsample_rate: 16000\nchannels: 1\ninput_frames: 256\noutput_frames: 5384\nout_format: float32\ntail_metric: rms\npeak_safe: false\npeak_ceiling_db: -1.00\ninput_peak_abs: 0.750000000\noutput_peak_abs: 0.066291261\npeak_gain: 1.000000000\nstatus: ok\n",
+      "passed": false,
+      "peak_abs_delta": 0.0616539278998971,
+      "python_frames": 7079,
+      "python_peak_abs": 0.004637329839169979,
+      "python_rms_dbfs": -63.866619251673356,
+      "rms_delta_db": 13.058510702032692,
+      "sample_rate": 16000
+    },
+    {
+      "channels": 2,
+      "checks": {
+        "channel_count_exact": true,
+        "duration_tolerance_ms": false,
+        "finite_samples_only": true,
+        "peak_abs_tolerance": true,
+        "rms_tolerance_db": false,
+        "sample_rate_exact": true,
+        "tail_ends_in_exact_zeros": true
+      },
+      "duration_delta_ms": 55.78231292517011,
+      "name": "stereo_impulse_mixed_tail",
+      "native_frames": 17172,
+      "native_peak_abs": 0.11248779296875,
+      "native_rms_dbfs": -56.23502937260462,
+      "native_stdout": "verbx-c render complete\nmodel: fdn\nsample_rate: 22050\nchannels: 2\ninput_frames: 331\noutput_frames: 17172\nout_format: pcm16\ntail_metric: peak\npeak_safe: true\npeak_ceiling_db: -1.00\ninput_peak_abs: 0.750000000\noutput_peak_abs: 0.112500000\npeak_gain: 1.000000000\nstatus: ok\n",
+      "passed": false,
+      "peak_abs_delta": 0.0,
+      "python_frames": 18402,
+      "python_peak_abs": 0.11248779296875,
+      "python_rms_dbfs": -61.5409381452422,
+      "rms_delta_db": 5.305908772637579,
+      "sample_rate": 22050
+    }
+  ],
+  "schema_version": 1,
+  "structural_checks": [
+    "sample_rate_exact",
+    "channel_count_exact",
+    "finite_samples_only",
+    "tail_ends_in_exact_zeros"
+  ],
+  "structural_passed": true,
+  "harness_sha256": "4fca425ad389974030b7200c1112741d3e1a94215b367226719fed0cb1fff424"
+}

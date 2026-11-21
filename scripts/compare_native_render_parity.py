@@ -9,12 +9,12 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import soundfile as sf
 
-from verbx.config import RenderConfig
+from verbx.config import OutputSubtype, RenderConfig, TailStopMetric
 from verbx.core.pipeline import run_render_pipeline
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -195,6 +195,7 @@ def ensure_native_exe(path: Path, *, build_native: bool, force_build: bool = Fal
 
 def _run_python_reference(fixture: dict[str, Any], paths: FixturePaths) -> None:
     args = dict(fixture["args"])
+    peak_safe = bool(args.get("peak_safe", False))
     config = RenderConfig(
         engine="algo",
         rt60=float(args["rt60"]),
@@ -204,16 +205,43 @@ def _run_python_reference(fixture: dict[str, Any], paths: FixturePaths) -> None:
         damping=float(args["damping"]),
         tail_stop_threshold_db=float(args["tail_threshold_db"]),
         tail_stop_hold_ms=float(args["tail_hold_ms"]),
-        tail_stop_metric=str(args["tail_metric"]),
-        output_subtype=_output_subtype_to_render_config(str(fixture["output_subtype"])),
-        output_peak_norm="target" if bool(args.get("peak_safe", False)) else "none",
-        output_peak_target_dbfs=float(args.get("peak_ceiling_db", -1.0)),
+        tail_stop_metric=cast(TailStopMetric, str(args["tail_metric"])),
+        output_subtype=(
+            "float64"
+            if peak_safe
+            else _output_subtype_to_render_config(str(fixture["output_subtype"]))
+        ),
+        output_peak_norm="none",
         limiter=False,
         normalize_stage="none",
         progress=False,
         silent=True,
     )
-    run_render_pipeline(paths.input_wav, paths.python_wav, config)
+    if not peak_safe:
+        run_render_pipeline(paths.input_wav, paths.python_wav, config)
+        return
+    # Native peak safety attenuates only, after tail completion and before WAV
+    # encoding. A floating intermediate prevents PCM clipping before this step.
+    with tempfile.TemporaryDirectory(prefix="peak-safe-", dir=paths.python_wav.parent) as tmp:
+        raw_path = Path(tmp) / "reference.wav"
+        run_render_pipeline(paths.input_wav, raw_path, config)
+        audio, sample_rate = sf.read(raw_path, always_2d=True, dtype="float64")
+        safe_audio = _apply_ceiling_only_peak_safety(
+            audio, float(args.get("peak_ceiling_db", -1.0))
+        )
+        sf.write(
+            paths.python_wav,
+            safe_audio,
+            sample_rate,
+            subtype=_input_subtype_to_soundfile(str(fixture["output_subtype"])),
+        )
+
+
+def _apply_ceiling_only_peak_safety(audio: np.ndarray, ceiling_db: float) -> np.ndarray:
+    """Match native render.c: linked-channel attenuation, never upward gain."""
+    ceiling = 10.0 ** (float(np.clip(ceiling_db, -120.0, 0.0)) / 20.0)
+    peak = _peak(audio)
+    return audio * (ceiling / peak) if peak > ceiling else audio
 
 
 def _run_native_candidate(fixture: dict[str, Any], paths: FixturePaths, native_exe: Path) -> str:
@@ -262,8 +290,8 @@ def _input_subtype_to_soundfile(value: str) -> str:
     return mapping[value]
 
 
-def _output_subtype_to_render_config(value: str) -> str:
-    mapping = {
+def _output_subtype_to_render_config(value: str) -> OutputSubtype:
+    mapping: dict[str, OutputSubtype] = {
         "pcm16": "pcm16",
         "float32": "float32",
         "float64": "float64",

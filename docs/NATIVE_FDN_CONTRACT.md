@@ -114,3 +114,7 @@ and invalid/incompatible controls. Address/undefined sanitizer gates apply.
 The separate plugin realtime implementation is unchanged. CLI automation-file
 loading, multichannel support, shimmer/freeze parity, and aggregate Python DSP
 metric parity remain open.
+
+The v0.9.11 comparison corrects mismatched peak-safety semantics in the
+original harness. See [the comparison correction](NATIVE_PEAK_SAFETY_CORRECTION.md)
+for corrected measurements and remaining metric failures.
