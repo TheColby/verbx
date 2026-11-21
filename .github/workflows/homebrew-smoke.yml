@@ -29,3 +29,10 @@ jobs:
           verbx batch corpus-generate --help
           verbx doctor
           verbx quickstart --smoke-test --strict
+      - name: Upload Homebrew build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: homebrew-build-logs
+          path: ~/Library/Logs/Homebrew/verbx
+          if-no-files-found: ignore
