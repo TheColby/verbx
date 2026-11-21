@@ -2,6 +2,11 @@ name: Homebrew installation smoke
 
 on:
   workflow_dispatch:
+    inputs:
+      expected_version:
+        description: Expected installed verbx version (blank checks the current tap)
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -9,6 +14,8 @@ permissions:
 jobs:
   install:
     runs-on: macos-15
+    env:
+      VERBX_EXPECTED_VERSION: ${{ inputs.expected_version }}
     steps:
       - name: Check developer tools
         run: |
@@ -25,6 +32,11 @@ jobs:
         run: |
           brew test thecolby/verbx/verbx
           verbx version
+          app_python="$(brew --prefix thecolby/verbx/verbx)/libexec/bin/python"
+          installed_version="$("$app_python" -c 'import verbx; print(verbx.__version__)')"
+          if [ -n "$VERBX_EXPECTED_VERSION" ]; then
+            test "$installed_version" = "$VERBX_EXPECTED_VERSION"
+          fi
           verbx --help
           verbx batch corpus-generate --help
           verbx doctor
